@@ -1,0 +1,212 @@
+---
+# tasks file for na-ontap-cluster-config
+- name: Setup licenses
+  na_ontap_license:
+    state: present
+    license_codes: "{{ license_codes }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  when: license_codes != None
+- name: Assign Disks
+  na_ontap_disks:
+    node: "{{ item }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ disks }}"
+  when: disks != None
+- name: Set Login Message
+  na_ontap_motd:
+    state: present
+    vserver: "{{ cluster }}"
+    message: "{{ motd }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  when: motd != None
+- name: Setup DNS
+  na_ontap_dns:
+    state: present
+    vserver: "{{ cluster }}"
+    domains: "{{ item.dns_domains }}"
+    nameservers: "{{ item.dns_nameservers }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ dns }}"
+  when: dns != None
+- name: Set NTP Server
+  na_ontap_ntp:
+    state: present
+    server_name: "{{ item.server_name }}"
+    version: "{{ item.version }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ ntp }}"
+  when: ntp != None
+- name: Create SNMP community
+  na_ontap_snmp:
+    community_name: "{{ item.community_name }}"
+    access_control: "{{ item.access_control }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ snmp }}"
+  when: snmp != None
+- name: Create Aggregates
+  na_ontap_aggregate:
+    state: present
+    service_state: online
+    name: "{{ item.name }}"
+    nodes: "{{ item.node }}"
+    disk_count: "{{ item.disk_count }}"
+    raid_size: "{{ item.max_raid }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ aggrs }}"
+  when: aggrs != None
+- name: Remove ports from Default broadcast domain
+  na_ontap_broadcast_domain_ports:
+    state: absent
+    broadcast_domain: Default
+    ports: "{{ item.node }}:{{ item.port }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ ports }}"
+  when: ports != None
+- name: Modify Net Port
+  na_ontap_net_port:
+    state: present
+    node: "{{ item.node }}"
+    port: "{{ item.port }}"
+#    mtu: "{{ item.mtu }}"
+    autonegotiate_admin: "{{ autonegotiate }}"
+    flowcontrol_admin: "{{ flowcontrol }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ ports }}"
+  when: ports != None
+- name: Create Interface Group
+  na_ontap_net_ifgrp:
+    state: present
+    distribution_function: "{{ distribution_function }}"
+    name: "{{ item.name }}"
+    ports: "{{ item.ports }}"
+    mode: "{{ ifgrp_mode }}"
+    node: "{{ item.node }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ ifgrps  }}"
+  when: ifgrps != None
+- name: Modify Net Port
+  na_ontap_net_port:
+    state: present
+    node: "{{ item.node }}"
+    port: "{{ item.name }}"
+    mtu: "{{ item.mtu }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ ifgrps }}"
+  when: ifgrps != None
+- name: Create VLAN
+  na_ontap_net_vlan:
+    state: present
+    vlanid: "{{ item.id }}"
+    node: "{{ item.node }}"
+    parent_interface: "{{ item.port }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ vlans }}"
+  when: vlans != None
+- name: create broadcast domain
+  na_ontap_broadcast_domain:
+    state: present
+    broadcast_domain: "{{ item.name }}"
+    mtu: "{{ item.mtu }}"
+    ipspace: "{{ bcast_ipspace }}"
+    ports: "{{ item.ports }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ bcasts }}"
+  when: bcasts != None
+- name: Create Intercluster Lif
+  na_ontap_interface:
+    state: present
+    interface_name: "{{ item.name }}"
+    home_port: "{{ item.port }}"
+    home_node: "{{ item.node }}"
+    role: intercluster
+    admin_status: up
+    failover_policy: local-only
+    is_auto_revert: true
+    address: "{{ item.address }}"
+    netmask: "{{ item.netmask }}"
+    vserver: "{{ cluster }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
+  with_items:
+    "{{ inters }}"
+  when: inters != None
