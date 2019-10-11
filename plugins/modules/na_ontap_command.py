@@ -41,6 +41,18 @@ options:
         description:
         - If running as vserver admin, you must give a vserver or module will fail
         version_added: "19.10.0"
+    include_lines:
+        description:
+        - applied only when return_dict is true
+        - return only lines containing string pattern in stdout_lines_filter
+        default: ''
+        version_added: "19.10.0"
+    exclude_lines:
+        description:
+        - applied only when return_dict is true
+        - return only lines containing string pattern in stdout_lines_filter
+        default: ''
+        version_added: "19.10.0"    
 '''
 
 EXAMPLES = """
@@ -51,12 +63,24 @@ EXAMPLES = """
         password: "{{ admin password }}"
         command: ['version']
 
+    # Same as above, but returns parseable dictonary
     - name: run ontap cli command
       na_ontap_command:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
-        command: ['network', 'interface', 'show']
+        command: ['node', 'show', '-fields', 'node,health,uptime,model']
+        privilege: 'admin'
+        return_dict: true
+
+    # Same as above, but with lines filtering
+    - name: run ontap cli command
+      na_ontap_command:
+        hostname: "{{ hostname }}"
+        username: "{{ admin username }}"
+        password: "{{ admin password }}"
+        command: ['node', 'show', '-fields', 'node,health,uptime,model']
+        exlude_lines: 'ode ' # Exclude lines with 'Node ' or 'node'
         privilege: 'admin'
         return_dict: true
 """
@@ -82,6 +106,8 @@ class NetAppONTAPCommand(object):
             privilege=dict(required=False, type='str', choices=['admin', 'advanced'], default='admin'),
             return_dict=dict(required=False, type='bool', default=False),
             vserver=dict(required=False, type='str'),
+            include_lines=dict(required=False, type='str', default=''),
+            exclude_lines=dict(required=False, type='str', default=''),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -93,6 +119,8 @@ class NetAppONTAPCommand(object):
         self.privilege = parameters['privilege']
         self.vserver = parameters['vserver']
         self.return_dict = parameters['return_dict']
+        self.include_lines = parameters['include_lines']
+        self.exclude_lines = parameters['exclude_lines']
 
         self.result_dict = dict()
         self.result_dict['status'] = ""
@@ -100,6 +128,7 @@ class NetAppONTAPCommand(object):
         self.result_dict['invoked_command'] = " ".join(self.command)
         self.result_dict['stdout'] = ""
         self.result_dict['stdout_lines'] = []
+        self.result_dict['stdout_lines_filter'] = []
         self.result_dict['xml_dict'] = dict()
 
         if HAS_NETAPP_LIB is False:
@@ -206,10 +235,20 @@ class NetAppONTAPCommand(object):
                 self.result_dict['status'] = self.result_dict['xml_dict']['results']['attrs']['status']
                 stdout_string = self._format_escaped_data(self.result_dict['xml_dict']['cli-output']['data'])
                 self.result_dict['stdout'] = stdout_string
+                # Generate stdout_lines list
                 for line in stdout_string.split('\n'):
                     stripped_line = line.strip()
                     if len(stripped_line) > 1:
                         self.result_dict['stdout_lines'].append(stripped_line)
+
+                    # Generate stdout_lines_filter_list
+                    if self.exclude_lines:
+                        if len(stripped_line) > 1 and self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
+                            self.result_dict['stdout_lines_filter'].append(stripped_line)
+                    else:
+                        if len(stripped_line) > 1 and self.include_lines in stripped_line:
+                            self.result_dict['stdout_lines_filter'].append(stripped_line)
+
                 self.result_dict['xml_dict']['cli-output']['data'] = stdout_string
                 self.result_dict['result_value'] = int(str(self.result_dict['xml_dict']['cli-result-value']['data']).replace("'", ""))
 
