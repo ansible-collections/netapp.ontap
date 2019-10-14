@@ -34,7 +34,7 @@ options:
         description:
             - When supplied, this argument will restrict the information collected
                 to a given subset.  Possible values for this argument include
-                "aggregate_info", "cluster_node_info", "igroup_info", "lun_info", "net_dns_info",
+                "aggregate_info", "cluster_image_info", "cluster_node_info", "igroup_info", "lun_info", "net_dns_info",
                 "net_ifgrp_info",
                 "net_interface_info", "net_port_info", "nvme_info", "nvme_interface_info",
                 "nvme_namespace_info", "nvme_subsystem_info", "ontap_version",
@@ -100,6 +100,7 @@ ontap_info:
     sample: '{
         "ontap_info": {
             "aggregate_info": {...},
+            "cluster_image_info": {...},
             "cluster_node_info": {...},
             "net_dns_info": {...},
             "net_ifgrp_info": {...},
@@ -179,6 +180,16 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'net-port-get-iter',
                     'attribute': 'net-port-info',
                     'field': ('node', 'port'),
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '0',
+            },
+            'cluster_image_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'cluster-image-get-iter',
+                    'attribute': 'cluster-image-info',
+                    'field': 'current-version',
                     'query': {'max-records': '1024'},
                 },
                 'min_version': '0',
