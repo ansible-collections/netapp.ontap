@@ -52,7 +52,7 @@ options:
         - applied only when return_dict is true
         - return only lines containing string pattern in stdout_lines_filter
         default: ''
-        version_added: "19.10.0"    
+        version_added: "19.10.0"
 '''
 
 EXAMPLES = """
