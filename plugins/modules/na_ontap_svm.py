@@ -380,7 +380,7 @@ class NetAppOntapSVM(object):
                     params['aggregates'].append({'name': aggr})
             if self.parameters.get('allowed_protocols'):
                 for protocol in self.parameters['allowed_protocols']:
-                    params[protocol]['enabled'] = True
+                    params[protocol] = {'enabled': 'true'}
             # for a sync operation
             data = {'return_timeout': self.timeout}
             __, error = self.restApi.post(api, params, data)
