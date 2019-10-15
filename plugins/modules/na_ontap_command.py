@@ -241,13 +241,13 @@ class NetAppONTAPCommand(object):
                     if len(stripped_line) > 1:
                         self.result_dict['stdout_lines'].append(stripped_line)
 
-                    # Generate stdout_lines_filter_list
-                    if self.exclude_lines:
-                        if len(stripped_line) > 1 and self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
-                            self.result_dict['stdout_lines_filter'].append(stripped_line)
-                    else:
-                        if len(stripped_line) > 1 and self.include_lines in stripped_line:
-                            self.result_dict['stdout_lines_filter'].append(stripped_line)
+                        # Generate stdout_lines_filter_list
+                        if self.exclude_lines:
+                            if self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
+                                self.result_dict['stdout_lines_filter'].append(stripped_line)
+                        else:
+                            if self.include_lines and self.include_lines in stripped_line:
+                                self.result_dict['stdout_lines_filter'].append(stripped_line)
 
                 self.result_dict['xml_dict']['cli-output']['data'] = stdout_string
                 self.result_dict['result_value'] = int(str(self.result_dict['xml_dict']['cli-result-value']['data']).replace("'", ""))
