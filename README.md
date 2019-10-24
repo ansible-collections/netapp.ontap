@@ -16,7 +16,8 @@ Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 ### New Options
 - na_ontap_command: `vserver`: to allow command to run as either cluster admin or vserver admin.  To run as vserver admin you must use the vserver option.
 - na_ontap_motd: rename `message` to `motd_message` to avoid conflict with Ansible internal variable name.
-- na_ontap_nvme_namespace: `size_unit` to specify size in different units. 
+- na_ontap_nvme_namespace: `size_unit` to specify size in different units.
+- na_ontap_snapshot_policy: `prefix`: option to use for creating snapshot policy.
 ### Bug Fixes
 - na_ontap_ndmp: minor documentation changes for restore_vm_cache_size and data_port_range.
 - na_ontap_qtree: REST API takes "unix_permissions" as parameter instead of "mode".

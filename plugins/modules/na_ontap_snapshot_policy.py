@@ -48,6 +48,13 @@ options:
     description:
     - Schedule to be added inside the policy.
     type: list
+  prefix:
+    description:
+    - Snapshot name prefix for the schedule.
+    - Prefix name should be unique within the policy.
+    type: list
+    required: false
+    version_added: '19.10.1'
   snapmirror_label:
     description:
     - SnapMirror label assigned to each schedule inside the policy. Use an empty
@@ -68,6 +75,7 @@ EXAMPLES = """
         state: present
         name: ansible2
         schedule: hourly
+        prefix: hourly
         count: 150
         enabled: True
         username: "{{ netapp_username }}"
@@ -80,6 +88,7 @@ EXAMPLES = """
         state: present
         name: ansible2
         schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+        prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
         count: [1, 2, 3, 4, 5]
         enabled: True
         username: "{{ netapp_username }}"
@@ -93,6 +102,7 @@ EXAMPLES = """
         name: ansible3
         vserver: ansible
         schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+        prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
         count: [1, 2, 3, 4, 5]
         snapmirror_label: ['hourly', 'daily', 'weekly', 'monthly', '']
         enabled: True
@@ -152,6 +162,7 @@ class NetAppOntapSnapshotPolicy(object):
             count=dict(required=False, type="list", elements="int"),
             comment=dict(required=False, type="str"),
             schedule=dict(required=False, type="list", elements="str"),
+            prefix=dict(required=False, type="list", elements="str"),
             snapmirror_label=dict(required=False, type="list", elements="str"),
             vserver=dict(required=False, type="str")
         ))
@@ -368,10 +379,14 @@ class NetAppOntapSnapshotPolicy(object):
 
         # zapi attribute for first schedule is schedule1, second is schedule2 and so on
         positions = [str(i) for i in range(1, len(self.parameters['schedule']) + 1)]
-        for schedule, count, snapmirror_label, position in zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, positions):
+        for schedule, prefix, count, snapmirror_label, position in \
+            zip(self.parameters['schedule'], self.parameters['prefix'],
+                self.parameters['count'], snapmirror_labels, positions):
             schedule = schedule.strip()
+            prefix = prefix.strip()
             options['count' + position] = str(count)
             options['schedule' + position] = schedule
+            options['prefix' + position] = prefix
             if snapmirror_label is not None:
                 snapmirror_label = snapmirror_label.strip()
                 if snapmirror_label != '':
@@ -423,7 +438,7 @@ class NetAppOntapSnapshotPolicy(object):
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
-            # Don't sort schedule/count/snapmirror_label lists as it can
+            # Don't sort schedule/prefix/count/snapmirror_label lists as it can
             # mess up the intended parameter order.
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
 

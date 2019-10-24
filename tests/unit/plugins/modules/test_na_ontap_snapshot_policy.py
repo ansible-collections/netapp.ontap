@@ -96,6 +96,7 @@ class MockONTAPConnection(object):
                             'snapshot-schedule-info': {
                                 'count': 100,
                                 'schedule': 'hourly',
+                                'prefix': 'hourly',
                                 'snapmirror-label': ''
                             }
                         },
@@ -119,6 +120,7 @@ class MockONTAPConnection(object):
                             'snapshot-schedule-info': {
                                 'count': 100,
                                 'schedule': 'hourly',
+                                'prefix': 'hourly',
                                 'snapmirror-label': ''
                             }
                         },
@@ -142,6 +144,7 @@ class MockONTAPConnection(object):
                             'snapshot-schedule-info': {
                                 'count': 100,
                                 'schedule': 'hourly',
+                                'prefix': 'hourly',
                                 'snapmirror-label': ''
                             }
                         },
@@ -276,6 +279,7 @@ class TestMyModule(unittest.TestCase):
             enabled = True
             count = 100
             schedule = 'hourly'
+            prefix = 'hourly'
             comment = 'new comment'
         else:
             hostname = 'hostname'
@@ -285,6 +289,7 @@ class TestMyModule(unittest.TestCase):
             enabled = True
             count = 100
             schedule = 'hourly'
+            prefix = 'hourly'
             comment = 'new comment'
         return dict({
             'hostname': hostname,
@@ -294,6 +299,7 @@ class TestMyModule(unittest.TestCase):
             'enabled': enabled,
             'count': count,
             'schedule': schedule,
+            'prefix': prefix,
             'comment': comment
         })
 
@@ -527,6 +533,7 @@ class TestMyModule(unittest.TestCase):
         ''' validate when schedule has same number of elements '''
         data = self.set_default_args()
         data['schedule'] = ['hourly', 'daily', 'weekly', 'monthly', '5min']
+        data['prefix'] = ['hourly', 'daily', 'weekly', 'monthly', '5min']
         data['count'] = [1, 2, 3, 4, 5]
         set_module_args(data)
         my_obj = my_module()
@@ -542,6 +549,7 @@ class TestMyModule(unittest.TestCase):
         ''' validate when schedule has same number of elements with snapmirror labels '''
         data = self.set_default_args()
         data['schedule'] = ['hourly', 'daily', 'weekly', 'monthly', '5min']
+        data['prefix'] = ['hourly', 'daily', 'weekly', 'monthly', '5min']
         data['count'] = [1, 2, 3, 4, 5]
         data['snapmirror_label'] = ['hourly', 'daily', 'weekly', 'monthly', '5min']
         set_module_args(data)
@@ -559,6 +567,7 @@ class TestMyModule(unittest.TestCase):
         ''' validate error when schedule does not have same number of elements '''
         data = self.set_default_args()
         data['schedule'] = ['s1', 's2']
+        data['prefix'] = ['s1', 's2']
         data['count'] = [1, 2, 3]
         set_module_args(data)
         my_obj = my_module()
