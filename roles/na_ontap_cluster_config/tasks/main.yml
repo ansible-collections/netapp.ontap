@@ -4,22 +4,20 @@
   na_ontap_license:
     state: present
     license_codes: "{{ license_codes }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   when: license_codes != None
 - name: Assign Disks
   na_ontap_disks:
     node: "{{ item }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ disks }}"
   when: disks != None
@@ -28,12 +26,11 @@
     state: present
     vserver: "{{ cluster }}"
     message: "{{ motd }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   when: motd != None
 - name: Setup DNS
   na_ontap_dns:
@@ -41,12 +38,11 @@
     vserver: "{{ cluster }}"
     domains: "{{ item.dns_domains }}"
     nameservers: "{{ item.dns_nameservers }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ dns }}"
   when: dns != None
@@ -55,12 +51,11 @@
     state: present
     server_name: "{{ item.server_name }}"
     version: "{{ item.version }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ ntp }}"
   when: ntp != None
@@ -68,12 +63,11 @@
   na_ontap_snmp:
     community_name: "{{ item.community_name }}"
     access_control: "{{ item.access_control }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ snmp }}"
   when: snmp != None
@@ -85,12 +79,11 @@
     nodes: "{{ item.node }}"
     disk_count: "{{ item.disk_count }}"
     raid_size: "{{ item.max_raid }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ aggrs }}"
   when: aggrs != None
@@ -99,12 +92,11 @@
     state: absent
     broadcast_domain: Default
     ports: "{{ item.node }}:{{ item.port }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ ports }}"
   when: ports != None
@@ -116,12 +108,11 @@
 #    mtu: "{{ item.mtu }}"
     autonegotiate_admin: "{{ autonegotiate }}"
     flowcontrol_admin: "{{ flowcontrol }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ ports }}"
   when: ports != None
@@ -133,12 +124,11 @@
     ports: "{{ item.ports }}"
     mode: "{{ ifgrp_mode }}"
     node: "{{ item.node }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ ifgrps  }}"
   when: ifgrps != None
@@ -148,12 +138,11 @@
     node: "{{ item.node }}"
     port: "{{ item.name }}"
     mtu: "{{ item.mtu }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ ifgrps }}"
   when: ifgrps != None
@@ -163,12 +152,11 @@
     vlanid: "{{ item.id }}"
     node: "{{ item.node }}"
     parent_interface: "{{ item.port }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vlans }}"
   when: vlans != None
@@ -179,12 +167,11 @@
     mtu: "{{ item.mtu }}"
     ipspace: "{{ bcast_ipspace }}"
     ports: "{{ item.ports }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ bcasts }}"
   when: bcasts != None
@@ -201,12 +188,11 @@
     address: "{{ item.address }}"
     netmask: "{{ item.netmask }}"
     vserver: "{{ cluster }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}" 
   with_items:
     "{{ inters }}"
   when: inters != None

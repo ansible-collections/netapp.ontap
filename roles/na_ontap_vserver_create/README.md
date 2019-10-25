@@ -15,9 +15,9 @@ Role Variables
 --------------
 ```
 cluster: <short ONTAP name of cluster>
-hostname: <ONTAP mgmt ip or fqdn>
-username: <ONTAP admin account>
-password: <ONTAP admin account password>
+netapp_hostname: <ONTAP mgmt ip or fqdn>
+netapp_username: <ONTAP admin account>
+netapp_password: <ONTAP admin account password>
 
 #Based on if Variables != or == None determins if a section runs.  Each variable will take one or more dictonary entries.  Simply omit sections
 #that you don't want to run.  The following would run all sections
@@ -62,24 +62,8 @@ Example Playbook
       prompt: domain admin password (enter if skipped)
   vars_files:
     - globals.yml
-  vars:
-    input: &input
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-  tasks:
-  - name: Get Ontapi version
-    na_ontap_info:
-      state: info
-      <<: *input
-      https: true
-      ontapi: 32
-      validate_certs: false
-    register: netapp
-  - import_role:
-      name: na_ontap_vserver_create
-    vars:
-      <<: *input
+  roles
+  - na_ontap_vserver_create
 ```
 I use a globals file to hold my variables.
 ```

@@ -7,12 +7,11 @@
     initiator_group_type: "{{ item.group_type }}"
     ostype: "{{ item.ostype }}"
     initiator: "{{ item.initiator }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ igroups }}"
   when: igroups != None
@@ -25,12 +24,11 @@
     size_unit: gb
     space_guarantee: none
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ luns }}"
 - name: Lun Create
@@ -43,12 +41,11 @@
     size_unit: gb
     ostype: "{{ item.ostype }}"
     space_reserve: "{{ item.space_reserve }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ luns }}"
   when: luns != None
@@ -58,12 +55,11 @@
     initiator_group_name: "{{ item.igroup }}"
     path: "/vol/{{ item.vol_name }}/{{ item.name }}"
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ luns }}"
   when: luns != None

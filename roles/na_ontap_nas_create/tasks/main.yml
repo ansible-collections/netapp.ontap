@@ -4,12 +4,11 @@
     state: present
     name: "{{ item.name }}"
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ nas }}"
   when: item.protocol == "nfs"
@@ -22,12 +21,11 @@
     ro_rule: "{{ item.ro }}"
     rw_rule: "{{ item.rw }}"
     super_user_security: "{{ item.su }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ nas }}"
   when: item.protocol == "nfs"
@@ -42,12 +40,11 @@
     junction_path: "/{{ item.name }}"
     space_guarantee: "none"
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ nas }}"
 - name: Create Share
@@ -56,12 +53,11 @@
     share_name: "{{ item.share }}"
     path: "/{{ item.name }}"
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ nas }}"
   when: item.share is defined

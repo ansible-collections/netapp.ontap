@@ -1,4 +1,8 @@
 ---
+netapp_hostname:
+netapp_password:
+netapp_username:
+validate_certs: false
 license_codes:
 disks:
 motd:

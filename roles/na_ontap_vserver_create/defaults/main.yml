@@ -1,5 +1,9 @@
 ---
 # defaults file for na-ontap-vserver-create
+netapp_hostname:
+netapp_username:
+netapp_password:
+validate_certs: false
 vservers:
 vserver_dns:
 lifs: 

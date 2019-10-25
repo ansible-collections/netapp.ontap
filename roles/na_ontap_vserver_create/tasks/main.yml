@@ -7,12 +7,11 @@
     root_volume_aggregate: "{{ item.aggr }}"
     root_volume_security_style: "{{ 'ntfs' if item.protocol.lower() is search('cifs') else 'unix' }}"
     aggr_list: "{{ '*' if item.aggr_list is not defined else item.aggr_list }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when: vservers != None
@@ -21,12 +20,11 @@
     state: present
     service_state: started
     vserver: "{{ item.name }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when: item.protocol.lower() is search("fcp")
@@ -35,12 +33,11 @@
     state: present
     service_state: started
     vserver: "{{ item.name }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when: item.protocol.lower() is search("iscsi")
@@ -54,6 +51,8 @@
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ fcp }}"
   when: fcp != None
@@ -72,12 +71,11 @@
     address: "{{ item.address }}"
     netmask: "{{ item.netmask }}"
     vserver: "{{ item.vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ lifs }}"
   when: lifs != None
@@ -85,14 +83,14 @@
   na_ontap_net_routes:
     state: present
     vserver: "{{ item.vserver }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     destination: "{{ item.destination }}"
     gateway: "{{ item.gateway }}"
     metric: 30
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ gateway }}"
   when: gateway != None
@@ -102,12 +100,11 @@
     vserver: "{{ item.vserver }}"
     domains: "{{ item.dns_domains }}"
     nameservers: "{{ item.dns_nameservers }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vserver_dns }}"
   when: vserver_dns !=None
@@ -122,12 +119,11 @@
     admin_user_name: "{{ admin_user_name }}"
     ou: "{{ item.ou | default(omit) }}"
     service_state: started
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ cifs }}"
   when: cifs != None
@@ -142,17 +138,15 @@
     tcp: enabled
     udp: enabled
     vstorage_state: disabled
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when: 
     - item.protocol.lower() is search("nfs")
-    - netapp.ontap_info.ontap_version > "120"
 - name: Create NFS Server
   na_ontap_nfs:
     state: present
@@ -162,12 +156,11 @@
     nfsv4: disabled
     nfsv41: disabled
     vstorage_state: disabled
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when: 
@@ -182,12 +175,11 @@
     ro_rule: any
     rw_rule: none
     protocol: any
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    ontapi: "{{ netapp.ontap_info.ontap_version }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
-    validate_certs: false
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
   when:
