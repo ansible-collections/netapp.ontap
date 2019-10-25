@@ -13,6 +13,7 @@
 Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 ### New Modules
 - na_ontap_name_service_switch: create/modify/delete name service switch configuration.
+- na_ontap_iscsi_security: create/modify/delete iscsi security.
 ### New Options
 - na_ontap_command: `vserver`: to allow command to run as either cluster admin or vserver admin.  To run as vserver admin you must use the vserver option.
 - na_ontap_motd: rename `message` to `motd_message` to avoid conflict with Ansible internal variable name.
