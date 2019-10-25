@@ -121,7 +121,7 @@ class NetAppOntapSubnet(object):
             from_name=dict(required=False, type='str'),
             broadcast_domain=dict(required=False, type='str'),
             gateway=dict(required=False, type='str'),
-            ip_ranges=dict(required=False, type=list),
+            ip_ranges=dict(required=False, type='list'),
             ipspace=dict(required=False, type='str'),
             subnet=dict(required=False, type='str')
         ))
@@ -160,7 +160,6 @@ class NetAppOntapSubnet(object):
         subnet_iter.add_child_elem(query)
 
         result = self.server.invoke_successfully(subnet_iter, True)
-
         return_value = None
         # check if query returns the expected subnet
         if result.get_child_by_name('num-records') and \
@@ -174,9 +173,10 @@ class NetAppOntapSubnet(object):
             name = subnet_attributes.get_child_content('subnet-name')
 
             ip_ranges = []
-            range_obj = subnet_attributes.get_child_by_name('ip-ranges').get_children()
-            for elem in range_obj:
-                ip_ranges.append(elem.get_content())
+            if subnet_attributes.get_child_by_name('ip-ranges'):
+                range_obj = subnet_attributes.get_child_by_name('ip-ranges').get_children()
+                for elem in range_obj:
+                    ip_ranges.append(elem.get_content())
 
             return_value = {
                 'name': name,
@@ -289,7 +289,6 @@ class NetAppOntapSubnet(object):
                                       self.parameters.get('from_name'))
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         for attribute in modify:
             if attribute in ['broadcast_domain']:
