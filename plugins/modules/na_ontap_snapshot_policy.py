@@ -425,9 +425,12 @@ class NetAppOntapSnapshotPolicy(object):
         :param event_name: Name of the event log
         :return: None
         """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
+        if 'vserver' in self.parameters:
+            netapp_utils.ems_log_event(event_name, self.server)
+        else:
+            results = netapp_utils.get_cserver(self.server)
+            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+            netapp_utils.ems_log_event(event_name, cserver)
 
     def apply(self):
         """
