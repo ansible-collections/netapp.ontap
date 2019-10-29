@@ -31,8 +31,9 @@ Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 - na_ontap_volume: enforce that space_slo and space_guarantee are mutually exclusive
 - na_ontap_svm: "allowed_protocols" added to param in proper way in case of using REST API
 - na_ontap_net_subnet: fix ip_ranges option fails on existing subnet.
+- na_ontap_snapshot_policy: fix vsadmin approach for managing snapshot policy.
+- na_ontap_nvme_subsystem: fix fetching unique nvme subsytem based on vserver filter.
 - na ontap_net_routes: change metric type from string to int. 
-- na_ontap_snapshot_policy: fix vsadmin approach for managing snapshot policy. 
 
 ### Added REST support to existing modules
 By default, the module will use REST if the target system supports it, and the options are supported.  Otherwise, it will switch back to ZAPI.  This behavior can be controlled with the `use_rest` option:
