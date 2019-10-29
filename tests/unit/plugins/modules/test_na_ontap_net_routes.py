@@ -124,7 +124,7 @@ class TestMyModule(unittest.TestCase):
             'destination': '176.0.0.0/24',
             'gateway': '10.193.72.1',
             'vserver': 'test_vserver',
-            'metric': '70'
+            'metric': 70
         }
 
     def mock_args(self, rest=False, modify=False):
@@ -251,8 +251,8 @@ class TestMyModule(unittest.TestCase):
         ''' Test successful modify metric '''
         data = self.mock_args()
         del data['metric']
-        data['from_metric'] = '70'
-        data['metric'] = '40'
+        data['from_metric'] = 70
+        data['metric'] = 40
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_net_route_mock_object('net_route').apply()
@@ -261,7 +261,7 @@ class TestMyModule(unittest.TestCase):
     def test_modify_metric_idempotency(self):
         ''' Test modify metric idempotency'''
         data = self.mock_args()
-        data['metric'] = '70'
+        data['metric'] = 70
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_net_route_mock_object('net_route').apply()
@@ -278,7 +278,7 @@ class TestMyModule(unittest.TestCase):
         current = {
             'destination': '176.0.0.0/24',
             'gateway': '10.193.72.1',
-            'metric': '70',
+            'metric': 70,
             'vserver': 'test_server'
         }
         get_net_route.side_effect = [
@@ -300,7 +300,7 @@ class TestMyModule(unittest.TestCase):
         current = {
             'destination': '178.0.0.1/24',
             'gateway': '10.193.72.1',
-            'metric': '70',
+            'metric': 70,
             'vserver': 'test_server'
         }
         get_net_route.side_effect = [
@@ -322,7 +322,7 @@ class TestMyModule(unittest.TestCase):
         current = {
             'destination': '176.0.0.0/24',
             'gateway': '10.193.72.1',
-            'metric': '70',
+            'metric': 70,
             'vserver': 'test_server'
         }
         get_net_route.side_effect = [
@@ -344,7 +344,7 @@ class TestMyModule(unittest.TestCase):
         current = {
             'destination': '178.0.0.1/24',
             'gateway': '10.193.72.1',
-            'metric': '70',
+            'metric': 70,
             'vserver': 'test_server'
         }
         get_net_route.side_effect = [
