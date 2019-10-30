@@ -37,6 +37,8 @@ options:
   service:
     description:
       - The service to apply the policy to
+      - https and ssh are not supported starting with ONTAP 9.6
+      - portmap is supported for ONTAP 9.4, 9.5 and 9.6
     choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'rsh', 'snmp', 'ssh', 'telnet']
   vserver:
     description:
