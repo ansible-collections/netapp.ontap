@@ -37,7 +37,7 @@ options:
                 "aggregate_info", "cluster_image_info", "cluster_node_info", "igroup_info", "lun_info", "net_dns_info",
                 "net_ifgrp_info",
                 "net_interface_info", "net_port_info", "nvme_info", "nvme_interface_info",
-                "nvme_namespace_info", "nvme_subsystem_info", "ontap_version",
+                "nvme_namespace_info", "nvme_subsystem_info", "ontap_version", "snapmirror_info",
                 "qos_adaptive_policy_info", "qos_policy_info", "security_key_manager_key_info",
                 "security_login_account_info", "storage_failover_info", "volume_info",
                 "vserver_info", "vserver_login_banner_info", "vserver_motd_info", "vserver_nfs_info"
@@ -119,6 +119,7 @@ ontap_info:
             "igroup_info": {...},
             "qos_policy_info": {...},
             "qos_adaptive_policy_info": {...}
+            "snapmirror_info": {...}
     }'
 '''
 
@@ -396,6 +397,16 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '140',
             },
+            'snapmirror_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'snapmirror-get-iter',
+                    'attribute': 'snapmirror-info',
+                    'field': 'destination-location',
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '140',
+            },
         }
 
         if HAS_NETAPP_LIB is False:
@@ -466,7 +477,6 @@ class NetAppONTAPGatherInfo(object):
         '''Method to run a generic get-iter call'''
 
         generic_call = self.call_api(call, query)
-
         if call == 'net-port-ifgrp-get':
             children = 'attributes'
         else:
