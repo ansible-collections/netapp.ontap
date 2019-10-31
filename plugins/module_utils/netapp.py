@@ -38,6 +38,8 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
+COLLECTION_VERSION = "19.10.0"
+
 try:
     from netapp_lib.api.zapi import zapi
     HAS_NETAPP_LIB = True
@@ -175,7 +177,7 @@ def setup_na_ontap_zapi(module, vserver=None):
         module.fail_json(msg="the python NetApp-Lib module is required")
 
 
-def ems_log_event(source, server, name="Ansible", id="12345", version=ansible_version,
+def ems_log_event(source, server, name="Ansible", id="12345", version=COLLECTION_VERSION,
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
     # Host name invoking the API.

@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 import pytest
 
 from ansible.module_utils.ansible_release import __version__ as ansible_version
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import COLLECTION_VERSION
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
@@ -50,7 +51,10 @@ def test_ems_log_event_version():
     netapp_utils.ems_log_event(source, server)
     xml = server.xml_in
     version = xml.get_child_content('app-version')
-    assert version == ansible_version
+    try:
+        assert version == ansible_version
+    except:
+        assert version == COLLECTION_VERSION
     print("Ansible version: %s" % ansible_version)
 
 
