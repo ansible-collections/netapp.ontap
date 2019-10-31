@@ -108,38 +108,38 @@ options:
 EXAMPLES = '''
     - name: modify cifs security
       na_ontap_vserver_cifs_security:
-        vserver: ansible
         hostname: "{{ hostname }}"
-        kerberos_clock_skew: 5
-        kerberos_ticket_age: 5
-        kerberos_renew_age: 10
-        kerberos_kdc_timeout: 5
-        is_signing_required: true
-        is_password_complexity_required: true
-        is_aes_encryption_enabled: true
-        is_smb_encryption_required: true
-        lm_compatibility_level: krb
-        smb1_enabled_for_dc_connections: true
-        smb2_enabled_for_dc_connections: true
-        use_start_tls_for_ad_ldap: true
         username: username
         password: password
+        vserver: ansible
+        is_aes_encryption_enabled: false
+        lm_compatibility_level: lm_ntlm_ntlmv2_krb
+        smb1_enabled_for_dc_connections: system_default
+        smb2_enabled_for_dc_connections: system_default
+        use_start_tls_for_ad_ldap: false
+        referral_enabled_for_ad_ldap: false
+        session_security_for_ad_ldap: none
+        is_signing_required: false
+        is_password_complexity_required: false
 
-    - name: modify cifs security
+    - name: modify cifs security is_smb_encryption_required
       na_ontap_vserver_cifs_security:
-        vserver: ansible
         hostname: "{{ hostname }}"
-        referral_enabled_for_ad_ldap: true
         username: username
         password: password
+        vserver: ansible
+        is_smb_encryption_required: false
 
-    - name: modify cifs security
+    - name: modify cifs security int options
       na_ontap_vserver_cifs_security:
-        vserver: ansible
         hostname: "{{ hostname }}"
-        session_security_for_ad_ldap: true
         username: username
         password: password
+        vserver: ansible
+        kerberos_clock_skew: 10
+        kerberos_ticket_age: 10
+        kerberos_renew_age: 5
+        kerberos_kdc_timeout: 3
 '''
 
 RETURN = '''
@@ -186,11 +186,35 @@ class NetAppONTAPCifsSecurity(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.set_playbook_zapi_key_map()
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+    def set_playbook_zapi_key_map(self):
+
+        self.na_helper.zapi_int_keys = {
+            'kerberos_clock_skew': 'kerberos-clock-skew',
+            'kerberos_ticket_age': 'kerberos-ticket-age',
+            'kerberos_renew_age': 'kerberos-renew-age',
+            'kerberos_kdc_timeout': 'kerberos-kdc-timeout'
+        }
+        self.na_helper.zapi_bool_keys = {
+            'is_signing_required': 'is-signing-required',
+            'is_password_complexity_required': 'is-password-complexity-required',
+            'is_aes_encryption_enabled': 'is-aes-encryption-enabled',
+            'is_smb_encryption_required': 'is-smb-encryption-required',
+            'referral_enabled_for_ad_ldap': 'referral-enabled-for-ad-ldap',
+            'use_start_tls_for_ad_ldap': 'use-start-tls-for-ad-ldap'
+        }
+        self.na_helper.zapi_str_keys = {
+            'lm_compatibility_level': 'lm-compatibility-level',
+            'session_security_for_ad_ldap': 'session-security-for-ad-ldap',
+            'smb1_enabled_for_dc_connections': 'smb1-enabled-for-dc-connections',
+            'smb2_enabled_for_dc_connections': 'smb2-enabled-for-dc-connections'
+        }
 
     def cifs_security_get_iter(self):
         """
@@ -212,20 +236,15 @@ class NetAppONTAPCifsSecurity(object):
                                   exception=traceback.format_exc())
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
             cifs_security_info = result.get_child_by_name('attributes-list').get_child_by_name('cifs-security')
-            cifs_security_details['kerberos_clock_skew'] = cifs_security_info.get_child_content('kerberos-clock-skew')
-            cifs_security_details['kerberos_ticket_age'] = cifs_security_info.get_child_content('kerberos-ticket-age')
-            cifs_security_details['kerberos_renew_age'] = cifs_security_info.get_child_content('kerberos-renew-age')
-            cifs_security_details['kerberos_kdc_timeout'] = cifs_security_info.get_child_content('kerberos-kdc-timeout')
-            cifs_security_details['is_signing_required'] = bool(cifs_security_info.get_child_content('is-signing-required'))
-            cifs_security_details['is_password_complexity_required'] = bool(cifs_security_info.get_child_content('is-password-complexity-required'))
-            cifs_security_details['is_aes_encryption_enabled'] = bool(cifs_security_info.get_child_content('is-aes-encryption-enabled'))
-            cifs_security_details['is_smb_encryption_required'] = bool(cifs_security_info.get_child_content('is-smb-encryption-required'))
-            cifs_security_details['lm_compatibility_level'] = cifs_security_info.get_child_content('lm-compatibility-level')
-            cifs_security_details['referral_enabled_for_ad_ldap'] = bool(cifs_security_info.get_child_content('referral-enabled-for-ad-ldap'))
-            cifs_security_details['session_security_for_ad_ldap'] = cifs_security_info.get_child_content('session-security-for-ad-ldap')
-            cifs_security_details['smb1_enabled_for_dc_connections'] = cifs_security_info.get_child_content('smb1-enabled-for-dc-connections')
-            cifs_security_details['smb2_enabled_for_dc_connections'] = cifs_security_info.get_child_content('smb2-enabled-for-dc-connections')
-            cifs_security_details['use_start_tls_for_ad_ldap'] = bool(cifs_security_info.get_child_content('use-start-tls-for-ad-ldap'))
+            for option, zapi_key in self.na_helper.zapi_int_keys.items():
+                cifs_security_details[option] = self.na_helper.get_value_for_int(from_zapi=True, value=cifs_security_info.get_child_content(zapi_key))
+            for option, zapi_key in self.na_helper.zapi_bool_keys.items():
+                cifs_security_details[option] = self.na_helper.get_value_for_bool(from_zapi=True, value=cifs_security_info.get_child_content(zapi_key))
+            for option, zapi_key in self.na_helper.zapi_str_keys.items():
+                if cifs_security_info.get_child_content(zapi_key) is None:
+                    cifs_security_details[option] = None
+                else:
+                    cifs_security_details[option] = cifs_security_info.get_child_content(zapi_key)
             return cifs_security_details
         return None
 

@@ -64,7 +64,7 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         if self.type == 'cifs_security':
-            xml = self.build_port_info(self.data)
+            xml = self.build_security_info(self.data)
         if self.type == 'error':
             error = netapp_utils.zapi.NaApiError('test', 'error')
             raise error
@@ -72,15 +72,16 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_port_info(cifs_security_details):
+    def build_security_info(cifs_security_details):
         ''' build xml data for cifs-security '''
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {
             'num-records': 1,
             'attributes-list': {
                 'cifs-security': {
-                    'is_aes_encryption_enabled': cifs_security_details['is_aes_encryption_enabled'],
-                    'lm_compatibility_level': cifs_security_details['lm_compatibility_level']
+                    'is-aes-encryption-enabled': str(cifs_security_details['is_aes_encryption_enabled']).lower(),
+                    'lm-compatibility-level': cifs_security_details['lm_compatibility_level'],
+                    'kerberos-clock-skew': str(cifs_security_details['kerberos_clock_skew'])
                 }
             }
         }
@@ -98,14 +99,16 @@ class TestMyModule(unittest.TestCase):
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
         self.mock_cifs_security = {
-            'is_aes_encryption_enabled': 'true',
-            'lm_compatibility_level': 'krb'
+            'is_aes_encryption_enabled': True,
+            'lm_compatibility_level': 'krb',
+            'kerberos_clock_skew': 10
         }
 
     def mock_args(self):
         return {
             'is_aes_encryption_enabled': self.mock_cifs_security['is_aes_encryption_enabled'],
             'lm_compatibility_level': self.mock_cifs_security['lm_compatibility_level'],
+            'kerberos_clock_skew': self.mock_cifs_security['kerberos_clock_skew'],
             'vserver': 'ansible',
             'hostname': 'test',
             'username': 'test_user',
@@ -129,25 +132,27 @@ class TestMyModule(unittest.TestCase):
             obj.server = MockONTAPConnection(kind=kind, data=self.mock_cifs_security)
         return obj
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_cifs_security.NetAppONTAPCifsSecurity.cifs_security_get_iter')
-    def test_successful_modify(self, get_cifs_security):
-        ''' Test successful modify max throughput '''
+    def test_successful_modify_int_option(self):
+        ''' Test successful modify kerberos_clock_skew '''
         data = self.mock_args()
+        data['kerberos_clock_skew'] = 15
         set_module_args(data)
-        current = {
-            'is_aes_encryption_enabled': False,
-            'lm_compatibility_level': 'lm_ntlm_ntlmv2_krb'
-        }
-        get_cifs_security.side_effect = [
-            current
-        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_cifs_security_mock_object('cifs_security').apply()
+        assert exc.value.args[0]['changed']
+
+    def test_successful_modify_bool_option(self):
+        ''' Test successful modify is_aes_encryption_enabled '''
+        data = self.mock_args()
+        data['is_aes_encryption_enabled'] = False
+        set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_cifs_security_mock_object('cifs_security').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_cifs_security.NetAppONTAPCifsSecurity.cifs_security_get_iter')
     def test_modify_error(self, get_cifs_security):
-        ''' Test create idempotency '''
+        ''' Test modify error '''
         data = self.mock_args()
         set_module_args(data)
         current = {
