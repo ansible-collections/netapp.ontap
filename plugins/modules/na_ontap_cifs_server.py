@@ -33,39 +33,47 @@ options:
     - Whether the specified cifs_server should exist or not.
     default: present
     choices: ['present', 'absent']
+    type: str
 
   service_state:
     description:
     - CIFS Server Administrative Status.
     choices: ['stopped', 'started']
+    type: str
 
   name:
     description:
     - Specifies the cifs_server name.
     required: true
     aliases: ['cifs_server_name']
+    type: str
 
   admin_user_name:
     description:
     - Specifies the cifs server admin username.
+    type: str
 
   admin_password:
     description:
     - Specifies the cifs server admin password.
+    type: str
 
   domain:
     description:
     - The Fully Qualified Domain Name of the Windows Active Directory this CIFS server belongs to.
+    type: str
 
   workgroup:
     description:
     -  The NetBIOS name of the domain or workgroup this CIFS server belongs to.
+    type: str
 
   ou:
     description:
     - The Organizational Unit (OU) within the Windows Active Directory
       this CIFS server belongs to.
     version_added: '2.7'
+    type: str
 
   force:
     type: bool
@@ -79,6 +87,7 @@ options:
     description:
     - The name of the vserver to use.
     required: true
+    type: str
 
 '''
 
@@ -86,6 +95,7 @@ EXAMPLES = '''
     - name: Create cifs_server
       na_ontap_cifs_server:
         state: present
+        name: data2
         vserver: svm1
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"

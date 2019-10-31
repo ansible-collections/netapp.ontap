@@ -35,6 +35,7 @@ Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 - na_ontap_snapshot_policy: fix vsadmin approach for managing snapshot policy.
 - na_ontap_nvme_subsystem: fix fetching unique nvme subsytem based on vserver filter.
 - na ontap_net_routes: change metric type from string to int. 
+- na_ontap_cifs_server: minor documentation changes adding type to parameters.
 
 ### Added REST support to existing modules
 By default, the module will use REST if the target system supports it, and the options are supported.  Otherwise, it will switch back to ZAPI.  This behavior can be controlled with the `use_rest` option:

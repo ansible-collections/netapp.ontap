@@ -47,8 +47,6 @@ plugins/modules/na_ontap_cg_snapshot.py validate-modules:parameter-type-not-in-d
 plugins/modules/na_ontap_cg_snapshot.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_cifs.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_cifs_acl.py validate-modules:parameter-type-not-in-doc
-plugins/modules/na_ontap_cifs_server.py validate-modules:parameter-type-not-in-doc
-plugins/modules/na_ontap_cifs_server.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_cluster.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_cluster.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_cluster_ha.py validate-modules:doc-missing-type
