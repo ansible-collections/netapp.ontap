@@ -9,6 +9,18 @@
 
 =============================================================
 
+## 19.11.0
+
+### New Modules
+
+### New Options
+
+### Bug Fixes
+
+### Added REST support to existing modules
+
+### Role Changes
+
 ## 19.10.0
 Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 
