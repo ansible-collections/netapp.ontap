@@ -13,8 +13,8 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - Create/Delete/Initialize SnapMirror volume/vserver relationships for ONTAP/ONTAP
-  - Create/Delete/Initialize SnapMirror volume relationship between ElementSW and ONTAP
+  - Create/Delete/Update/Initialize SnapMirror volume/vserver relationships for ONTAP/ONTAP
+  - Create/Delete/Update/Initialize SnapMirror volume relationship between ElementSW and ONTAP
   - Modify schedule for a SnapMirror relationship for ONTAP/ONTAP and ElementSW/ONTAP
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is an established SnapMirror endpoint for ONTAP cluster with ElementSW UI
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is to have SnapMirror enabled in the ElementSW volume
@@ -88,6 +88,13 @@ options:
      - Default is unlimited, it can be explicitly set to 0 as unlimited.
     type: int
     version_added: '2.9'
+  initialize:
+    description:
+     - Specifies whether to initialize SnapMirror relation.
+     - Default is True, it can be explicitly set to False to avoid initializing SnapMirror relation.
+    default: True
+    type: bool
+    version_added: '19.11.0'
   identity_preserve:
     description:
      - Specifies whether or not the identity of the source Vserver is replicated to the destination Vserver.
@@ -112,6 +119,7 @@ EXAMPLES = """
         schedule: hourly
         policy: MirrorAllSnapshots
         max_transfer_rate: 1000
+        initialize: False
         hostname: "{{ destination_cluster_hostname }}"
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
@@ -236,6 +244,7 @@ class NetAppONTAPSnapmirror(object):
             source_username=dict(required=False, type='str'),
             source_password=dict(required=False, type='str', no_log=True),
             max_transfer_rate=dict(required=False, type='int'),
+            initialize=dict(required=False, type='bool', default=True),
             identity_preserve=dict(required=False, type='bool')
         ))
 
@@ -372,7 +381,8 @@ class NetAppONTAPSnapmirror(object):
             snapmirror_create.add_new_child('identity-preserve', str(self.parameters['identity_preserve']))
         try:
             self.server.invoke_successfully(snapmirror_create, enable_tunneling=True)
-            self.snapmirror_initialize()
+            if self.parameters['initialize']:
+                self.snapmirror_initialize()
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating SnapMirror %s' % to_native(error),
                                   exception=traceback.format_exc())
@@ -696,7 +706,7 @@ class NetAppONTAPSnapmirror(object):
             if modify:
                 self.snapmirror_modify(modify)
             # check for initialize
-            if current and current['mirror_state'] != 'snapmirrored':
+            if current and current['mirror_state'] != 'snapmirrored' and self.parameters['initialize']:
                 self.snapmirror_initialize()
                 # set changed explicitly for initialize
                 self.na_helper.changed = True

@@ -16,6 +16,7 @@
 ### New Options
 
 ### Bug Fixes
+- na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
 
 ### Added REST support to existing modules
 

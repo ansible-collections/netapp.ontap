@@ -185,6 +185,21 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
+    def test_successful_create_without_initialize(self, snapmirror_create):
+        ''' creating snapmirror and testing idempotency '''
+        data = self.set_default_args()
+        data['schedule'] = 'abc'
+        data['identity_preserve'] = True
+        data['initialize'] = False
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.server = MockONTAPConnection('snapmirror', 'Uninitialized', status='idle')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.check_elementsw_parameters')
     def test_successful_element_ontap_create(self, check_param, snapmirror_create):
         ''' creating ElementSW to ONTAP snapmirror '''
