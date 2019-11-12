@@ -63,45 +63,53 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         if self.kind == 'threshold':
-            xml = self.build_sis_threshold_info(self.params)
+            xml = self.build_threshold_info(self.params)
         elif self.kind == 'scheduled':
-            xml = self.build_sis_schedule_info(self.params)
+            xml = self.build_schedule_info(self.params)
         self.xml_out = xml
         return xml
 
     @staticmethod
-    def build_sis_threshold_info(sis_details):
+    def build_threshold_info(details):
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {'num-records': 1,
                       'attributes-list': {
                           'sis-policy-info': {
-                              'comment': sis_details['comment'],
-                              'enabled': sis_details['enabled'],
-                              'policy-name': sis_details['policy_name'],
-                              'policy-type': sis_details['policy_type'],
-                              'qos-policy': sis_details['qos_policy'],
-                              'vserver': sis_details['vserver']}}}
+                              'changelog-threshold-percent': 10,
+                              'comment': details['comment'],
+                              'enabled': 'true',
+                              'policy-name': details['policy_name'],
+                              'policy-type': 'threshold',
+                              'qos-policy': details['qos_policy'],
+                              'vserver': details['vserver']
+                          }
+                      }
+                      }
         xml.translate_struct(attributes)
         return xml
 
     @staticmethod
-    def build_sis_schedule_info(sis_details):
+    def build_schedule_info(details):
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {'num-records': 1,
                       'attributes-list': {
                           'sis-policy-info': {
-                              'comment': sis_details['comment'],
-                              'enabled': sis_details['enabled'],
-                              'policy-name': sis_details['policy_name'],
+                              'comment': details['comment'],
+                              'duration': 10,
+                              'enabled': 'true',
+                              'policy-name': details['policy_name'],
                               'policy-type': 'scheduled',
-                              'qos-policy': sis_details['qos_policy'],
-                              'vserver': sis_details['vserver']}}}
+                              'qos-policy': details['qos_policy'],
+                              'vserver': details['vserver']
+                          }
+                      }
+                      }
         xml.translate_struct(attributes)
         return xml
 
 
 class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_job_schedule '''
+    ''' Unit tests for na_ontap_efficiency_policy '''
 
     def setUp(self):
         self.mock_module_helper = patch.multiple(basic.AnsibleModule,
@@ -114,8 +122,7 @@ class TestMyModule(unittest.TestCase):
             'vserver': 'test_vserver',
             'policy_name': 'test_policy',
             'comment': 'This policy is for x and y',
-            'enabled': 'true',
-            'policy_type': 'threshold',
+            'enabled': True,
             'qos_policy': 'background'
         }
 
@@ -126,7 +133,6 @@ class TestMyModule(unittest.TestCase):
             'policy_name': self.mock_efficiency_policy['policy_name'],
             'comment': self.mock_efficiency_policy['comment'],
             'enabled': self.mock_efficiency_policy['enabled'],
-            'policy_type': self.mock_efficiency_policy['policy_type'],
             'qos_policy': self.mock_efficiency_policy['qos_policy'],
             'hostname': 'test',
             'username': 'test_user',
@@ -161,23 +167,27 @@ class TestMyModule(unittest.TestCase):
         assert result
 
     def test_successfully_create(self):
-        set_module_args(self.mock_args())
+        data = self.mock_args()
+        data['policy_type'] = 'threshold'
+        set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_efficiency_mock_object().apply()
         assert exc.value.args[0]['changed']
 
     def test_create_idempotency(self):
-        set_module_args(self.mock_args())
+        data = self.mock_args()
+        data['policy_type'] = 'threshold'
+        set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_efficiency_mock_object('threshold').apply()
         assert not exc.value.args[0]['changed']
 
     def test_threshold_duration_failure(self):
         data = self.mock_args()
-        data['duration'] = '1'
+        data['duration'] = 1
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_efficiency_mock_object().apply()
+            self.get_efficiency_mock_object('threshold').apply()
         assert exc.value.args[0]['msg'] == "duration cannot be set if policy_type is threshold"
 
     def test_threshold_schedule_failure(self):
@@ -185,8 +195,16 @@ class TestMyModule(unittest.TestCase):
         data['schedule'] = 'test_job_schedule'
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_efficiency_mock_object().apply()
+            self.get_efficiency_mock_object('threshold').apply()
         assert exc.value.args[0]['msg'] == "schedule cannot be set if policy_type is threshold"
+
+    def test_scheduled_threshold_percent_failure(self):
+        data = self.mock_args()
+        data['changelog_threshold_percent'] = 30
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_efficiency_mock_object('scheduled').apply()
+        assert exc.value.args[0]['msg'] == "changelog_threshold_percent cannot be set if policy_type is scheduled"
 
     def test_successfully_delete(self):
         data = self.mock_args()
@@ -205,10 +223,6 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     def test_successful_modify(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_efficiency_mock_object().apply()
-        assert exc.value.args[0]['changed']
         data = self.mock_args()
         data['policy_type'] = 'threshold'
         set_module_args(data)
