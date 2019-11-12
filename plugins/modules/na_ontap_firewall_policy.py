@@ -39,7 +39,7 @@ options:
       - The service to apply the policy to
       - https and ssh are not supported starting with ONTAP 9.6
       - portmap is supported for ONTAP 9.4, 9.5 and 9.6
-    choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'rsh', 'snmp', 'ssh', 'telnet']
+    choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']
   vserver:
     description:
       - The Vserver to apply the policy to.
@@ -127,8 +127,8 @@ class NetAppONTAPFirewallPolicy(object):
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             allow_list=dict(required=False, type="list"),
             policy=dict(required=False, type='str'),
-            service=dict(required=False, type='str', choices=['dns', 'http', 'https', 'ndmp',
-                                                              'ndmps', 'ntp', 'rsh', 'snmp', 'ssh', 'telnet']),
+            service=dict(required=False, type='str', choices=['dns', 'http', 'https', 'ndmp', 'ndmps',
+                                                              'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']),
             vserver=dict(required=False, type="str"),
             enable=dict(required=False, type="str", choices=['enable', 'disable']),
             logging=dict(required=False, type="str", choices=['enable', 'disable']),
