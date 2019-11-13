@@ -5,3 +5,6 @@ authors:
     - "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
 license: "Apache-2.0"
 readme: README.md
+description: NetApp ONTAP Collection
+repository: https://github.com/ansible/ansible_collections_netapp
+homepage: netapp.io
