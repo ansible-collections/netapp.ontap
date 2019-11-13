@@ -12,12 +12,14 @@
 ## 19.11.0
 
 ### New Modules
+- na_ontap_quota_policy: create/rename/delete quota policy.
 
 ### New Options
 - na_ontap_info: Now allow you use to VSadmin to get info (Must user `vserver` option).
 - na_ontap_efficiency_policy: `changelog_threshold_percent` to set the percentage at which the changelog will be processed for a threshold type of policy, tested once each hour.
 
 ### Bug Fixes
+- na_ontap_cluster: autosupport log pushed after cluster create is performed
 - na_ontap_firewall_policy: portmap added as a valid service
 - na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
 

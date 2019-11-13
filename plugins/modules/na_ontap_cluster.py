@@ -56,22 +56,22 @@ EXAMPLES = """
     - name: Add license from cluster
       na_ontap_cluster:
         state: present
-        cluster_name: FPaaS-A300-01
-        license_code: SGHLQDBBVAAAAAAAAAAAAAAAAAAA
+        cluster_name: "{{ netapp_cluster}}"
+        license_code: "{{ netapp_licence }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Join cluster
       na_ontap_cluster:
         state: present
-        cluster_ip_address: 10.61.184.181
+        cluster_ip_address: 10.10.10.10
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Join cluster
       na_ontap_cluster:
         state: present
-        cluster_name: FPaaS-A300-01
+        cluster_name: "{{ netapp_cluster}}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -248,9 +248,6 @@ class NetAppONTAPCluster(object):
         create_flag = False
         join_flag = False
 
-        self.autosupport_log()
-        license_status = self.get_licensing_status()
-
         if self.module.check_mode:
             pass
         else:
@@ -262,6 +259,7 @@ class NetAppONTAPCluster(object):
                 if self.parameters.get('license_code') is not None:
                     self.license_v2_add()
                     property_changed = True
+                license_status = self.get_licensing_status()
                 if self.parameters.get('license_package') is not None and\
                         self.parameters.get('node_serial_number') is not None:
                     if license_status.get(str(self.parameters.get('license_package')).lower()) != 'none':
@@ -271,6 +269,7 @@ class NetAppONTAPCluster(object):
                     new_license_status = self.get_licensing_status()
                     if local_cmp(license_status, new_license_status) == 0:
                         property_changed = False
+        self.autosupport_log()
         changed = property_changed or create_flag or join_flag
         self.module.exit_json(changed=changed)
 
