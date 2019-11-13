@@ -14,6 +14,7 @@
 ### New Modules
 
 ### New Options
+- na_ontap_info: Now allow you use to VSadmin to get info (Must user `vserver` option).
 - na_ontap_efficiency_policy: `changelog_threshold_percent` to set the percentage at which the changelog will be processed for a threshold type of policy, tested once each hour.
 
 ### Bug Fixes

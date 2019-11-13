@@ -29,6 +29,11 @@ options:
             - Returns "info"
         default: "info"
         choices: ['info']
+    vserver:
+        type: str
+        description:
+            - The Vserver to run on. Must be used if using VSadmin. Not all info's support VSadmin and may fail
+        version_added: '19.11.0'
     gather_subset:
         type: list
         description:
@@ -50,7 +55,7 @@ options:
 '''
 
 EXAMPLES = '''
-- name: Get NetApp info (Password Authentication)
+- name: Get NetApp info as Cluster Admin (Password Authentication)
   na_ontap_info:
     state: info
     hostname: "na-vsim"
@@ -60,7 +65,15 @@ EXAMPLES = '''
 - debug:
     msg: "{{ ontap_info.ontap_info }}"
 
-- name: Limit Info Gathering to Aggregate Information
+- name: Get NetApp version as Vserver admin
+  na_ontap_info:
+    state: info
+    hostname: "na-vsim"
+    username: "vsadmin"
+    vserver: trident_svm
+    password: "vsadmins_password"
+
+- name: Limit Info Gathering to Aggregate Information as Cluster Admin
   na_ontap_info:
     state: info
     hostname: "na-vsim"
@@ -69,7 +82,7 @@ EXAMPLES = '''
     gather_subset: "aggregate_info"
   register: ontap_info
 
-- name: Limit Info Gathering to Volume and Lun Information
+- name: Limit Info Gathering to Volume and Lun Information as Cluster Admin
   na_ontap_info:
     state: info
     hostname: "na-vsim"
@@ -80,7 +93,7 @@ EXAMPLES = '''
       - lun_info
   register: ontap_info
 
-- name: Gather all info except for volume and lun information
+- name: Gather all info except for volume and lun information as Cluster Admin
   na_ontap_info:
     state: info
     hostname: "na-vsim"
@@ -517,9 +530,12 @@ class NetAppONTAPGatherInfo(object):
     def get_all(self, gather_subset):
         '''Method to get all subsets'''
 
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_info", cserver)
+        if self.module.params['vserver']:
+            netapp_utils.ems_log_event("na_ontap_info", self.server)
+        else:
+            results = netapp_utils.get_cserver(self.server)
+            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+            netapp_utils.ems_log_event("na_ontap_info", cserver)
 
         self.netapp_info['ontap_version'] = self.ontapi()
 
@@ -613,6 +629,7 @@ def main():
     argument_spec.update(dict(
         state=dict(type='str', default='info', choices=['info']),
         gather_subset=dict(default=['all'], type='list'),
+        vserver=dict(type='str', default=None, required=False)
     ))
 
     module = AnsibleModule(

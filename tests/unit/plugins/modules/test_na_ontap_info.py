@@ -117,14 +117,21 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'hostname',
             'username': 'username',
             'password': 'password',
+            'vserver': None
         }
 
     def get_info_mock_object(self, kind=None):
         """
         Helper method to return an na_ontap_info object
         """
+        argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        argument_spec.update(dict(
+            state=dict(type='str', default='info', choices=['info']),
+            gather_subset=dict(default=['all'], type='list'),
+            vserver=dict(type='str', default=None, required=False)
+        ))
         module = basic.AnsibleModule(
-            argument_spec=netapp_utils.na_ontap_host_argument_spec(),
+            argument_spec=argument_spec,
             supports_check_mode=True
         )
         obj = info_module(module)
@@ -151,6 +158,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.get_all(['net_interface_info'])
         if sys.version_info >= (2, 7):
             msg = 'net-interface-info'
+            print(exc.value.args[0])
             assert exc.value.args[0] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
