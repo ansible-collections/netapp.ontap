@@ -4,6 +4,7 @@
 ''' unit test template for ONTAP Ansible module '''
 
 from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
 import json
 import pytest
 
@@ -28,7 +29,7 @@ SRR = {
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, 'Error fetching ndmp from ansible: NetApp API failed. Reason - Unexpected error:',
-                      "REST API " "currently does not support 'backup_log_enable, ignore_ctime_enabled'"),
+                      "REST API currently does not support 'backup_log_enable, ignore_ctime_enabled'"),
     'get_ndmp': ({"enabled": True, "authentication_types": ["test"],
                   "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)}
 

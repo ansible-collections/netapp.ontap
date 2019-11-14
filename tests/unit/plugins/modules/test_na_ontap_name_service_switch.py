@@ -4,6 +4,7 @@
 ''' unit tests for Ansible module: na_ontap_volume_export_policy '''
 
 from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
 import json
 import pytest
 

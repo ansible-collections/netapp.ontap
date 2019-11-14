@@ -6,7 +6,6 @@ src_lif:
 src_vserver:
 src_volume:
 dst_ontap:
-src_name:
 dst_lif:
 dst_vserver:
 dst_volume: "{{ src_volume }}_dest"

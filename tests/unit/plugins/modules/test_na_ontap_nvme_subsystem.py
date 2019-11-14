@@ -4,6 +4,7 @@
 ''' unit tests ONTAP Ansible module: na_ontap_nvme_subsystem '''
 
 from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
 import json
 import pytest
 

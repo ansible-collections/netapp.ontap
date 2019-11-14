@@ -3,6 +3,7 @@
 
 ''' unit tests for module_utils netapp.py '''
 from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
 
 import pytest
 
@@ -51,9 +52,9 @@ def test_ems_log_event_version():
     netapp_utils.ems_log_event(source, server)
     xml = server.xml_in
     version = xml.get_child_content('app-version')
-    try:
+    if version == ansible_version:
         assert version == ansible_version
-    except:
+    else:
         assert version == COLLECTION_VERSION
     print("Ansible version: %s" % ansible_version)
 

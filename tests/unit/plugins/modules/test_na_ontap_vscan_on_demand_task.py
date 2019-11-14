@@ -1,6 +1,7 @@
 ''' unit tests for Ansible module: na_ontap_vscan_on_demand_task '''
 
 from __future__ import (absolute_import, division, print_function)
+__metaclass__ = type
 import json
 import pytest
 
