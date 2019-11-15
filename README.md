@@ -22,6 +22,7 @@
 - na_ontap_cluster: autosupport log pushed after cluster create is performed
 - na_ontap_firewall_policy: portmap added as a valid service
 - na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
+- na_ontap_net_routes: REST does not support the 'metric' attribute
 
 ### Added REST support to existing modules
 

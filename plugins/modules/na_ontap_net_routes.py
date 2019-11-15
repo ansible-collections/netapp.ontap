@@ -120,9 +120,15 @@ class NetAppOntapNetRoutes(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
-            self.use_rest = True
-        else:
+        # some attributes are not supported in earlier REST implementation
+        unsupported_rest_properties = ['metric', 'from_metric']
+        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
+        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+
+        if error is not None:
+            self.module.fail_json(msg=error)
+
+        if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
