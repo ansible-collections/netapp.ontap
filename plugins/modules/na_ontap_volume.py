@@ -262,6 +262,7 @@ options:
     - backup policy on DP volumes allows all transferred user data blocks to start in the capacity tier.
     - When set to none, the Volume blocks will not be tiered to the capacity tier.
     - If no value specified, the volume is assigned snapshot only by default.
+    - Requires ONTAP 9.4 or later.
     choices: ['snapshot-only', 'auto', 'backup', 'none']
     type: str
     version_added: '2.9'
@@ -565,7 +566,10 @@ class NetAppOntapVolume(object):
             volume_security_unix_attributes = volume_attributes['volume-security-attributes']['volume-security-unix-attributes']
             volume_snapshot_attributes = volume_attributes['volume-snapshot-attributes']
             volume_performance_attributes = volume_attributes['volume-performance-attributes']
-            volume_comp_aggr_attributes = volume_attributes['volume-comp-aggr-attributes']
+            try:
+                volume_comp_aggr_attributes = volume_attributes['volume-comp-aggr-attributes']
+            except KeyError:  # Not supported in 9.1 to 9.3
+                volume_comp_aggr_attributes = None
             # Get volume's state (online/offline)
             current_state = volume_state_attributes['state']
             is_online = (current_state == "online")
@@ -577,9 +581,10 @@ class NetAppOntapVolume(object):
                 'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
-                'tiering_policy': volume_comp_aggr_attributes['tiering-policy'],
                 'efficiency_policy': self.get_efficiency_policy()
             }
+            if volume_comp_aggr_attributes is not None:
+                return_value['tiering_policy'] = volume_comp_aggr_attributes['tiering-policy']
             if volume_space_attributes.get_child_by_name('encrypt'):
                 return_value['encrypt'] = volume_attributes['encrypt']
             if volume_space_attributes.get_child_by_name('percentage-snapshot-reserve'):
@@ -990,8 +995,11 @@ class NetAppOntapVolume(object):
                                           exception=traceback.format_exc())
             self.ems_log_event("volume-modify")
         except netapp_utils.zapi.NaApiError as error:
+            error_msg = to_native(error)
+            if 'volume-comp-aggr-attributes' in error_msg:
+                error_msg += ". Added info: tiering option requires 9.4 or later."
             self.module.fail_json(msg='Error modifying volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], error_msg),
                                   exception=traceback.format_exc())
 
     def volume_mount(self):
