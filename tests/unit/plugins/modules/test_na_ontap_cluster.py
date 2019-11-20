@@ -100,26 +100,17 @@ class TestMyModule(unittest.TestCase):
             hostname = '10.193.77.37'
             username = 'admin'
             password = 'netapp1!'
-            license_package = 'CIFS'
-            node_serial_number = '123'
-            license_code = 'AAA'
             cluster_name = 'abc'
         else:
             hostname = '10.193.77.37'
             username = 'admin'
             password = 'netapp1!'
-            license_package = 'CIFS'
-            node_serial_number = '123'
             cluster_ip_address = '0.0.0.0'
-            license_code = 'AAA'
             cluster_name = 'abc'
         return dict({
             'hostname': hostname,
             'username': username,
             'password': password,
-            'license_package': license_package,
-            'node_serial_number': node_serial_number,
-            'license_code': license_code,
             'cluster_name': cluster_name,
             'cluster_ip_address': cluster_ip_address
         })
@@ -131,17 +122,8 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_license_get_called(self):
-        ''' fetching details of license '''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        license_get = my_obj.get_licensing_status()
-        print('Info: test_license_get: %s' % repr(license_get))
-        assert not bool(license_get)
-
     def test_ensure_apply_for_cluster_called(self):
-        ''' creating license and checking idempotency '''
+        ''' creating cluster and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -183,17 +165,8 @@ class TestMyModule(unittest.TestCase):
         if not self.use_vsim:
             my_obj.server = MockONTAPConnection('cluster_fail')
         with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.get_licensing_status()
-        assert 'Error checking license status' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
             my_obj.create_cluster()
         assert 'Error creating cluster' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.cluster_join()
         assert 'Error adding node to cluster' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.license_v2_add()
-        assert 'Error adding license' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.license_v2_delete()
-            assert 'Error deleting license' in exc.value.args[0]['msg']
