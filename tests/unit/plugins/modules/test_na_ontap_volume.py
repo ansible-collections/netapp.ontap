@@ -309,6 +309,7 @@ class TestMyModule(unittest.TestCase):
         vol_obj.ems_log_event = Mock(return_value=None)
         vol_obj.cluster = Mock()
         vol_obj.cluster.invoke_successfully = Mock()
+        vol_obj.get_efficiency_policy = Mock(return_value='test_efficiency')
         vol_obj.volume_style = None
         if kind is None:
             vol_obj.server = MockONTAPConnection()
@@ -725,7 +726,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
-            'unix_permissions': '755'
+            'unix_permissions': '755',
+            'is_online': True
         }
         get_volume.side_effect = [
             current
@@ -786,6 +788,7 @@ class TestMyModule(unittest.TestCase):
         obj = self.get_volume_mock_object('success_modify_async')
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
+        print(exc)
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')

@@ -23,6 +23,7 @@
 - na_ontap_firewall_policy: portmap added as a valid service
 - na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
 - na_ontap_net_routes: REST does not support the 'metric' attribute
+- na_ontap_volume: fixed error when deleting flexGroup volume with ONTAP 9.7.
 
 ### Added REST support to existing modules
 

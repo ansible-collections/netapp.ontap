@@ -577,7 +577,8 @@ class NetAppOntapVolume(object):
                 'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
-                'tiering_policy': volume_comp_aggr_attributes['tiering-policy']
+                'tiering_policy': volume_comp_aggr_attributes['tiering-policy'],
+                'efficiency_policy': self.get_efficiency_policy()
             }
             if volume_space_attributes.get_child_by_name('encrypt'):
                 return_value['encrypt'] = volume_attributes['encrypt']
@@ -746,19 +747,22 @@ class NetAppOntapVolume(object):
             options['encrypt'] = str(self.parameters['encrypt'])
         if self.parameters.get('vserver_dr_protection'):
             options['vserver-dr-protection'] = self.parameters['vserver_dr_protection']
+        if self.parameters['is_online']:
+            options['volume-state'] = 'online'
+        else:
+            options['volume-state'] = 'offline'
         return options
 
-    def delete_volume(self):
+    def delete_volume(self, current):
         '''Delete ONTAP volume'''
         if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
-            volume_delete = netapp_utils.zapi\
-                .NaElement.create_node_with_children(
-                    'volume-destroy-async', **{'volume-name': self.parameters['name'], 'unmount-and-offline': 'true'})
+            if current['is_online']:
+                self.change_volume_state(call_from_delete_vol=True)
+            volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
+                'volume-destroy-async', **{'volume-name': self.parameters['name']})
         else:
-            volume_delete = netapp_utils.zapi\
-                .NaElement.create_node_with_children(
-                    'volume-destroy', **{'name': self.parameters['name'],
-                                         'unmount-and-offline': 'true'})
+            volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
+                'volume-destroy', **{'name': self.parameters['name'], 'unmount-and-offline': 'true'})
         try:
             result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
             if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
@@ -829,11 +833,11 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def change_volume_state(self):
+    def change_volume_state(self, call_from_delete_vol=False):
         """
         Change volume's state (offline/online).
         """
-        if self.parameters['is_online']:    # Desired state is online, setup zapi APIs respectively
+        if self.parameters['is_online'] and not call_from_delete_vol:    # Desired state is online, setup zapi APIs respectively
             vol_state_zapi, vol_name_zapi, action = ['volume-online-async', 'volume-name', 'online']\
                 if (self.parameters['is_infinite'] or self.volume_style == 'flexGroup')\
                 else ['volume-online', 'name', 'online']
@@ -846,7 +850,7 @@ class NetAppOntapVolume(object):
         volume_change_state = netapp_utils.zapi.NaElement.create_node_with_children(
             vol_state_zapi, **{vol_name_zapi: self.parameters['name']})
         try:
-            if not self.parameters['is_online']:  # Unmount before offline
+            if not self.parameters['is_online'] or call_from_delete_vol:  # Unmount before offline
                 self.server.invoke_successfully(volume_unmount, enable_tunneling=True)
             result = self.server.invoke_successfully(volume_change_state, enable_tunneling=True)
             if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
@@ -1020,11 +1024,13 @@ class NetAppOntapVolume(object):
 
     def modify_volume(self, modify):
         '''Modify volume action'''
-        for attribute in modify.keys():
+        attributes = modify.keys()
+        # order matters here, if both is_online and mount in modify, must bring the volume online first.
+        if 'is_online' in attributes:
+            self.change_volume_state()
+        for attribute in attributes:
             if attribute == 'size':
                 self.resize_volume()
-            if attribute == 'is_online':
-                self.change_volume_state()
             if attribute == 'aggregate_name':
                 self.move_volume()
             if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'tiering_policy',
@@ -1202,7 +1208,7 @@ class NetAppOntapVolume(object):
                                   exception=traceback.format_exc())
 
     def assign_efficiency_policy_async(self):
-        '''Set efficiency policy in asynchronous mode'''
+        """Set efficiency policy in asynchronous mode"""
         options = {'volume-name': self.parameters['name']}
         efficiency_enable = netapp_utils.zapi.NaElement.create_node_with_children('sis-enable-async', **options)
         try:
@@ -1223,6 +1229,30 @@ class NetAppOntapVolume(object):
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'set efficiency policy on')
 
+    def get_efficiency_policy(self):
+        """
+        get the name of the efficiency policy assigned to volume.
+        :return: String, name of the policy. If it doesn't exist, return None.
+        """
+        sis_info = netapp_utils.zapi.NaElement('sis-get-iter')
+        sis_status_info = netapp_utils.zapi.NaElement('sis-status-info')
+        sis_status_info.add_new_child('path', '/vol/' + self.parameters['name'])
+        query = netapp_utils.zapi.NaElement('query')
+        query.add_child_elem(sis_status_info)
+        sis_info.add_child_elem(query)
+        try:
+            result = self.server.invoke_successfully(sis_info, True)
+            if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
+                sis_attributes = result.get_child_by_name('attributes-list'). get_child_by_name('sis-status-info')
+                return_value = sis_attributes.get_child_content('policy')
+                return return_value
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching efficiency policy %s : %s'
+                                  % (self.parameters['efficiency_policy'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+        return None
+
     def apply(self):
         '''Call create/modify/delete operations'''
         efficiency_policy_modify = None
@@ -1241,12 +1271,11 @@ class NetAppOntapVolume(object):
                 del self.parameters['unix_permissions']
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            if self.parameters.get('efficiency_policy'):
+            if modify.get('efficiency_policy'):
                 if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
                     efficiency_policy_modify = 'async'
                 else:
                     efficiency_policy_modify = 'sync'
-                self.na_helper.changed = True
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
@@ -1260,7 +1289,7 @@ class NetAppOntapVolume(object):
                         self.volume_modify_attributes({'snapdir_access': self.parameters['snapdir_access'],
                                                        'atime_update': self.parameters['atime_update']})
                 elif cd_action == 'delete':
-                    self.delete_volume()
+                    self.delete_volume(current)
                 elif modify:
                     self.modify_volume(modify)
                 elif efficiency_policy_modify is not None:
