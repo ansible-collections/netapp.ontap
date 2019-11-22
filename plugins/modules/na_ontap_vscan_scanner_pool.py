@@ -161,7 +161,7 @@ class NetAppOntapVscanScannerPool(object):
         :return: True if it exist, False if it does not
         """
         scanner_pool_obj = netapp_utils.zapi.NaElement('vscan-scanner-pool-get-iter')
-        scanner_pool_info = netapp_utils.zapi.NaElement('scan-scanner-pool-info')
+        scanner_pool_info = netapp_utils.zapi.NaElement('vscan-scanner-pool-info')
         scanner_pool_info.add_new_child('scanner-pool', self.scanner_pool)
         scanner_pool_info.add_new_child('vserver', self.vserver)
         query = netapp_utils.zapi.NaElement('query')

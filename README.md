@@ -21,11 +21,13 @@
 ### Bug Fixes
 - na_ontap_cluster: autosupport log pushed after cluster create is performed, removed license add or remove option.
 - na_ontap_firewall_policy: portmap added as a valid service
-- na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
 - na_ontap_net_routes: REST does not support the 'metric' attribute
+- na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.
 - na_ontap_volume: fixed error when deleting flexGroup volume with ONTAP 9.7.
 - na_ontap_volume: tiering option requires 9.4 or later (error on volume-comp-aggr-attributes)
+- na_ontap_vscan_scanner_pool: fix module only gets one scanner pool.
 
+>>>>>>> 976eaabca8387c07ee85e134c85fcf532e2fbdef
 ### Added REST support to existing modules
 
 ### Role Changes
