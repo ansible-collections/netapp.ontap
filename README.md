@@ -8,7 +8,19 @@
  Specifications subject to change without notice.
 
 =============================================================
+# Installation
+```bash
+ansible-galaxy collection install netapp.ontap
+```
+To use Collection add the following to the top of your playbook, with out this you will be using Ansible 2.9 version of the module
+```  
+collections:
+  - netapp.ontap
+```
+# Need help
+Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
+#Release Notes
 ## 19.11.0
 
 ### New Modules
