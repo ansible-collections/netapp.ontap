@@ -20,6 +20,7 @@
 
 ### Bug Fixes
 - na_ontap_cluster: autosupport log pushed after cluster create is performed, removed license add or remove option.
+- na_ontap_dns: report error if modify or delete operations are attempted on cserver when using REST.  Make create operation idempotent for cserver when using REST.  Support for modify/delete on cserver when using REST will be added later.
 - na_ontap_firewall_policy: portmap added as a valid service
 - na_ontap_net_routes: REST does not support the 'metric' attribute
 - na_ontap_snapmirror: added initialize boolean option which specifies whether to initialize SnapMirror relation.

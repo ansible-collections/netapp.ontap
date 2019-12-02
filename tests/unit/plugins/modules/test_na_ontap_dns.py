@@ -32,7 +32,12 @@ SRR = {
     'generic_error': (None, "Expected error"),
     'dns_record': ({"records": [{"domains": ['0.0.0.0'],
                                  "servers": ['0.0.0.0'],
-                                 "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)}
+                                 "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
+    'cluster_data': ({"domains": ['0.0.0.0'],
+                      "servers": ['0.0.0.0'],
+                      "name": "cserver",
+                      "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None)
+}
 
 
 def set_module_args(args):
@@ -196,8 +201,9 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # post
+            SRR['empty_good'],    # get
+            SRR['cluster_data'],  # get cluster
+            SRR['empty_good'],    # post
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -239,7 +245,8 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['empty_good'],  # get
+            SRR['empty_good'],    # get
+            SRR['cluster_data'],  # get cluster
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -253,8 +260,9 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # patch
+            SRR['empty_good'],    # get
+            SRR['cluster_data'],  # get cluster
+            SRR['empty_good'],    # patch
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
