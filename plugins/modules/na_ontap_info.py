@@ -44,7 +44,8 @@ options:
                 "net_interface_info", "net_port_info", "nvme_info", "nvme_interface_info",
                 "nvme_namespace_info", "nvme_subsystem_info", "ontap_version", "snapmirror_info",
                 "qos_adaptive_policy_info", "qos_policy_info", "security_key_manager_key_info",
-                "security_login_account_info", "storage_failover_info", "volume_info",
+                "security_login_account_info", "storage_failover_info", "volume_info", "vscan_status_info",
+                "vscan_scanner_pool_info", "vscan_connection_status_all_info", "vscan_connection_extended_stats_info",
                 "vserver_info", "vserver_login_banner_info", "vserver_motd_info", "vserver_nfs_info"
                 Can specify a list of values to include a larger subset.  Values can also be used
                 with an initial C(M(!)) to specify that a specific subset should
@@ -133,6 +134,10 @@ ontap_info:
             "qos_policy_info": {...},
             "qos_adaptive_policy_info": {...}
             "snapmirror_info": {...}
+            "vscan_status_info": {...},
+            "vscan_scanner_pool_info": {...},
+            "vscan_connection_status_all_info": {...},
+            "vscan_connection_extended_stats_info": {...}
     }'
 '''
 
@@ -354,6 +359,46 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'qos-policy-group-get-iter',
                     'attribute': 'qos-policy-group-info',
                     'field': 'policy-group',
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '0',
+            },
+            'vscan_status_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'vscan-status-get-iter',
+                    'attribute': 'vscan-status-info',
+                    'field': 'vserver',
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '0',
+            },
+            'vscan_scanner_pool_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'vscan-scanner-pool-get-iter',
+                    'attribute': 'vscan-scanner-pool-info',
+                    'field': 'vserver',
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '0',
+            },
+            'vscan_connection_status_all_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'vscan-connection-status-all-get-iter',
+                    'attribute': 'vscan-connection-status-all-info',
+                    'field': 'vserver',
+                    'query': {'max-records': '1024'},
+                },
+                'min_version': '0',
+            },
+            'vscan_connection_extended_stats_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'vscan-connection-extended-stats-get-iter',
+                    'attribute': 'vscan-connection-extended-stats-info',
+                    'field': 'vserver',
                     'query': {'max-records': '1024'},
                 },
                 'min_version': '0',
