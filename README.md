@@ -28,6 +28,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
 - na_ontap_info: Now allow you use to VSadmin to get info (Must user `vserver` option).
+- na_ontap_info: Added `vscan_status_info`, `vscan_scanner_pool_info`, `vscan_connection_status_all_info`, `vscan_connection_extended_stats_info`
 - na_ontap_efficiency_policy: `changelog_threshold_percent` to set the percentage at which the changelog will be processed for a threshold type of policy, tested once each hour.
 
 ### Bug Fixes
