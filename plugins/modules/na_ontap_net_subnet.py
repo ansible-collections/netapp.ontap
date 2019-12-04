@@ -284,7 +284,7 @@ class NetAppOntapSubnet(object):
 
         if self.parameters.get('from_name'):
             rename = self.na_helper.is_rename_action(self.get_subnet(self.parameters.get('from_name')), current)
-            if rename is False:
+            if rename is None:
                 self.module.fail_json(msg="Error renaming: subnet %s does not exist" %
                                       self.parameters.get('from_name'))
         else:
