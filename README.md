@@ -42,7 +42,6 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_volume: tiering option requires 9.4 or later (error on volume-comp-aggr-attributes)
 - na_ontap_vscan_scanner_pool: fix module only gets one scanner pool.
 
->>>>>>> 976eaabca8387c07ee85e134c85fcf532e2fbdef
 ### Added REST support to existing modules
 
 ### Role Changes
