@@ -170,6 +170,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 100,
                                     'schedule': 'hourly',
+                                    'prefix': 'hourly',
                                     'snapmirror-label': ''
                                 }
                             },
@@ -177,6 +178,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 5,
                                     'schedule': 'daily',
+                                    'prefix': 'daily',
                                     'snapmirror-label': 'daily'
                                 }
                             },
@@ -184,6 +186,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 10,
                                     'schedule': 'weekly',
+                                    'prefix': 'weekly',
                                     'snapmirror-label': ''
                                 }
                             }
@@ -208,6 +211,7 @@ class MockONTAPConnection(object):
                             {
                                 'snapshot-schedule-info': {
                                     'schedule': 'daily',
+                                    'prefix': 'daily',
                                     'count': 5,
                                     'snapmirror-label': 'daily'
                                 }
@@ -234,6 +238,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 10,
                                     'schedule': 'hourly',
+                                    'prefix': 'hourly',
                                     'snapmirror-label': ''
                                 }
                             },
@@ -241,6 +246,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 50,
                                     'schedule': 'daily',
+                                    'prefix': 'daily',
                                     'snapmirror-label': 'daily'
                                 }
                             },
@@ -248,6 +254,7 @@ class MockONTAPConnection(object):
                                 'snapshot-schedule-info': {
                                     'count': 100,
                                     'schedule': 'weekly',
+                                    'prefix': 'weekly',
                                     'snapmirror-label': ''
                                 }
                             }
@@ -312,6 +319,7 @@ class TestMyModule(unittest.TestCase):
             'count': [default_args['count']],
             'schedule': [default_args['schedule']],
             'snapmirror_label': [''],
+            'prefix': [default_args['prefix']],
             'comment': default_args['comment'],
             'vserver': default_args['hostname']
         })
@@ -436,6 +444,7 @@ class TestMyModule(unittest.TestCase):
         ''' adding snapshot policy schedules and testing idempotency '''
         data = self.set_default_args()
         data['schedule'] = ['hourly', 'daily', 'weekly']
+        data['prefix'] = ['hourly', 'daily', 'weekly']
         data['count'] = [100, 5, 10]
         data['snapmirror_label'] = ['', 'daily', '']
         set_module_args(data)
@@ -462,6 +471,7 @@ class TestMyModule(unittest.TestCase):
         ''' deleting snapshot policy schedules and testing idempotency '''
         data = self.set_default_args()
         data['schedule'] = ['daily']
+        data['prefix'] = ['daily']
         data['count'] = [5]
         set_module_args(data)
         my_obj = my_module()
@@ -488,6 +498,7 @@ class TestMyModule(unittest.TestCase):
         data = self.set_default_args()
         data['schedule'] = ['hourly', 'daily', 'weekly']
         data['count'] = [10, 50, 100]
+        data['prefix'] = ['hourly', 'daily', 'weekly']
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -647,6 +658,22 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.create_snapshot_policy()
         msg = 'Error: Each Snapshot Policy schedule must have an accompanying SnapMirror Label'
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_invalid_schedule_count_with_prefixes(self):
+        ''' validate error when schedule with prefixes does not have same number of elements '''
+        data = self.set_default_args()
+        data['schedule'] = ['s1', 's2', 's3']
+        data['count'] = [1, 2, 3]
+        data['prefix'] = ['s1', 's2']
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.create_snapshot_policy()
+        msg = 'Error: Each Snapshot Policy schedule must have an accompanying prefix'
         assert exc.value.args[0]['msg'] == msg
 
     def test_if_all_methods_catch_exception(self):

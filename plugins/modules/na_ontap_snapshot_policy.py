@@ -52,6 +52,8 @@ options:
     description:
     - Snapshot name prefix for the schedule.
     - Prefix name should be unique within the policy.
+    - Cannot set a different prefix to a schedule that has already been assigned to a snapshot policy.
+    - Prefix cannot be modifed after schedule has been added.
     type: list
     required: false
     version_added: '19.10.1'
@@ -211,15 +213,21 @@ class NetAppOntapSnapshotPolicy(object):
                 current['vserver'] = snapshot_policy.get_child_content('vserver-name')
                 current['enabled'] = False if snapshot_policy.get_child_content('enabled').lower() == 'false' else True
                 current['comment'] = snapshot_policy.get_child_content('comment') or ''
-                current['schedule'], current['count'], current['snapmirror_label'] = [], [], []
+                current['schedule'], current['count'], current['snapmirror_label'], current['prefix'] = [], [], [], []
                 if snapshot_policy.get_child_by_name('snapshot-policy-schedules'):
                     for schedule in snapshot_policy['snapshot-policy-schedules'].get_children():
                         current['schedule'].append(schedule.get_child_content('schedule'))
                         current['count'].append(int(schedule.get_child_content('count')))
+
                         snapmirror_label = schedule.get_child_content('snapmirror-label')
                         if snapmirror_label is None or snapmirror_label == '-':
                             snapmirror_label = ''
                         current['snapmirror_label'].append(snapmirror_label)
+
+                        prefix = schedule.get_child_content('prefix')
+                        if prefix is None or prefix == '-':
+                            prefix = ''
+                        current['prefix'].append(prefix)
                 return current
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
@@ -242,6 +250,11 @@ class NetAppOntapSnapshotPolicy(object):
             if len(self.parameters['snapmirror_label']) != len(self.parameters['schedule']):
                 self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an "
                                           "accompanying SnapMirror Label")
+
+        if 'prefix' in self.parameters:
+            if len(self.parameters['prefix']) != len(self.parameters['schedule']):
+                self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an "
+                                          "accompanying prefix")
 
     def modify_snapshot_policy(self, current):
         """
@@ -377,20 +390,29 @@ class NetAppOntapSnapshotPolicy(object):
             # User hasn't supplied any snapmirror labels.
             snapmirror_labels = [None] * len(self.parameters['schedule'])
 
+        if 'prefix' in self.parameters:
+            prefixes = self.parameters['prefix']
+        else:
+            # User hasn't supplied any prefixes.
+            prefixes = [None] * len(self.parameters['schedule'])
+
         # zapi attribute for first schedule is schedule1, second is schedule2 and so on
         positions = [str(i) for i in range(1, len(self.parameters['schedule']) + 1)]
         for schedule, prefix, count, snapmirror_label, position in \
-            zip(self.parameters['schedule'], self.parameters['prefix'],
+            zip(self.parameters['schedule'], prefixes,
                 self.parameters['count'], snapmirror_labels, positions):
             schedule = schedule.strip()
-            prefix = prefix.strip()
             options['count' + position] = str(count)
             options['schedule' + position] = schedule
-            options['prefix' + position] = prefix
             if snapmirror_label is not None:
                 snapmirror_label = snapmirror_label.strip()
                 if snapmirror_label != '':
                     options['snapmirror-label' + position] = snapmirror_label
+            if prefix is not None:
+                prefix = prefix.strip()
+                if prefix != '':
+                    options['prefix' + position] = prefix
+
         snapshot_obj = netapp_utils.zapi.NaElement.create_node_with_children('snapshot-policy-create', **options)
 
         # Set up optional variables to create a snapshot policy

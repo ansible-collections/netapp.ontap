@@ -20,7 +20,21 @@ collections:
 # Need help
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
-#Release Notes
+# Release Notes
+
+## 19.12.0
+
+### New Modules
+
+### New Options
+
+### Bug Fixes
+- na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
+
+### Added REST support to existing modules
+
+### Role Changes
+
 ## 19.11.0
 
 ### New Modules
