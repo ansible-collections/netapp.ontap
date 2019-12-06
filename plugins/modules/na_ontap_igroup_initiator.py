@@ -45,6 +45,13 @@ options:
     - Name of the initiator group to which the initiator belongs.
     required: true
 
+  force_remove:
+    description:
+    - Forcibly remove the initiators even if there are existing LUNs mapped to the initiator group.
+    type: bool
+    default: false
+    version_added: '19.12.0'
+
   vserver:
     description:
     - The name of the vserver to use.
@@ -97,6 +104,7 @@ class NetAppOntapIgroupInitiator(object):
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             names=dict(required=True, type='list', aliases=['name']),
             initiator_group=dict(required=True, type='str'),
+            force_remove=dict(required=False, type='bool', default=False),
             vserver=dict(required=True, type='str'),
         ))
 
@@ -142,7 +150,8 @@ class NetAppOntapIgroupInitiator(object):
         Add or remove an initiator to/from an igroup
         """
         options = {'initiator-group-name': self.parameters['initiator_group'],
-                   'initiator': initiator_name}
+                   'initiator': initiator_name,
+                   'force': 'true' if zapi == 'igroup-remove' and self.parameters['force_remove'] else 'false'}
         initiator_modify = netapp_utils.zapi.NaElement.create_node_with_children(zapi, **options)
 
         try:
