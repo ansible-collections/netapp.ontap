@@ -249,6 +249,7 @@ class NetAppOntapAggregate(object):
         )
 
         self.na_helper = NetAppModule()
+        self.using_vserver_msg = None   # This module should be run as cluster admin
         self.parameters = self.na_helper.set_parameters(self.module.params)
         if self.parameters.get('mirror_disks') is not None and self.parameters.get('disks') is None:
             self.module.fail_json(mgs="mirror_disks require disks options to be set")
@@ -278,7 +279,10 @@ class NetAppOntapAggregate(object):
             if to_native(error.code) == "13040":
                 pass
             else:
-                self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+                msg = to_native(error)
+                if self.using_vserver_msg is not None:
+                    msg += '.  Added info: %s.' % self.using_vserver_msg
+                self.module.fail_json(msg=msg, exception=traceback.format_exc())
         return result
 
     def get_aggr(self, name=None):
@@ -493,9 +497,14 @@ class NetAppOntapAggregate(object):
         :param event_name: Name of the event log
         :return: None
         """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
+        cserver = netapp_utils.get_cserver(self.server)
+        if cserver is None:
+            server = self.server
+            self.using_vserver_msg = netapp_utils.ERROR_MSG['no_cserver']
+            event_name += ':error_no_cserver'
+        else:
+            server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
+        netapp_utils.ems_log_event(event_name, server)
 
     def apply(self):
         """

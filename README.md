@@ -30,7 +30,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_igroup_initiator: `force_remove` to forcibly remove initiators from an igroup that is currently mapped to a LUN.
 
 ### Bug Fixes
+- na_ontap_aggregate: Fixed traceback when running as vsadmin and cleanly error out.
+- na_ontap_snapmirror: Fixed traceback when running as vsadmin.  Do not attempt to break a relationship that is 'Uninitialized'.
 - na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
+- na_ontap_volume: Fixed error reporting if efficiency policy cannot be read.  Do not attempt to read efficiency policy if not needed.
 
 ### Added REST support to existing modules
 

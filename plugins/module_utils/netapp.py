@@ -88,6 +88,10 @@ POW2_BYTE_MAP = dict(
     yb=1024 ** 8
 )
 
+ERROR_MSG = dict(
+    no_cserver='This module is expected to run as cluster admin'
+)
+
 try:
     from solidfire.factory import ElementFactory
     from solidfire.custom.models import TimeIntervalFrequency
@@ -198,6 +202,7 @@ def ems_log_event(source, server, name="Ansible", id="12345", version=COLLECTION
 
 
 def get_cserver_zapi(server):
+    ''' returns None if not run on the management or cluster IP '''
     vserver_info = zapi.NaElement('vserver-get-iter')
     query_details = zapi.NaElement.create_node_with_children('vserver-info', **{'vserver-type': 'admin'})
     query = zapi.NaElement('query')
@@ -206,8 +211,11 @@ def get_cserver_zapi(server):
     result = server.invoke_successfully(vserver_info,
                                         enable_tunneling=False)
     attribute_list = result.get_child_by_name('attributes-list')
-    vserver_list = attribute_list.get_child_by_name('vserver-info')
-    return vserver_list.get_child_content('vserver-name')
+    if attribute_list is not None:
+        vserver_list = attribute_list.get_child_by_name('vserver-info')
+        if vserver_list is not None:
+            return vserver_list.get_child_content('vserver-name')
+    return None
 
 
 def get_cserver(connection, is_rest=False):

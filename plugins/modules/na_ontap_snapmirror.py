@@ -399,7 +399,7 @@ class NetAppONTAPSnapmirror(object):
         self.module.params['hostname'] = self.parameters['source_hostname']
         self.source_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def delete_snapmirror(self, is_hci, relationship_type):
+    def delete_snapmirror(self, is_hci, relationship_type, mirror_state):
         """
         Delete a SnapMirror relationship
         #1. Quiesce the SnapMirror relationship at destination
@@ -414,7 +414,7 @@ class NetAppONTAPSnapmirror(object):
         # Quiesce at destination
         self.snapmirror_quiesce()
         # Break at destination
-        if relationship_type not in ['load_sharing', 'vault']:
+        if relationship_type not in ['load_sharing', 'vault'] and mirror_state != 'uninitialized':
             self.snapmirror_break()
         # if source is ONTAP, release the destination at source cluster
         if not is_hci:
@@ -669,8 +669,16 @@ class NetAppONTAPSnapmirror(object):
         :return: None
         """
         results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
+        if results is None:
+            # We may be running on a vserser
+            try:
+                netapp_utils.ems_log_event(event_name, self.server)
+            except netapp_utils.zapi.NaApiError:
+                # Don't fail if we cannot log usage
+                pass
+        else:
+            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+            netapp_utils.ems_log_event(event_name, cserver)
 
     def apply(self):
         """
@@ -701,7 +709,7 @@ class NetAppONTAPSnapmirror(object):
             else:
                 if self.parameters.get('connection_type') == 'elementsw_ontap':
                     element_snapmirror = True
-                self.delete_snapmirror(element_snapmirror, current['relationship'])
+                self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
         else:
             if modify:
                 self.snapmirror_modify(modify)

@@ -581,8 +581,9 @@ class NetAppOntapVolume(object):
                 'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
-                'efficiency_policy': self.get_efficiency_policy()
             }
+            if self.parameters.get('efficiency_policy'):
+                return_value['efficiency_policy'] = self.get_efficiency_policy()
             if volume_comp_aggr_attributes is not None:
                 return_value['tiering_policy'] = volume_comp_aggr_attributes['tiering-policy']
             if volume_space_attributes.get_child_by_name('encrypt'):
@@ -1255,8 +1256,8 @@ class NetAppOntapVolume(object):
                 return_value = sis_attributes.get_child_content('policy')
                 return return_value
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching efficiency policy %s : %s'
-                                  % (self.parameters['efficiency_policy'], to_native(error)),
+            self.module.fail_json(msg='Error fetching efficiency policy for volume %s : %s'
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
         return None

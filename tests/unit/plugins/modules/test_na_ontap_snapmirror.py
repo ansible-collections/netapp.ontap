@@ -258,7 +258,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        delete_snapmirror.assert_called_with(False, 'data_protection')
+        delete_snapmirror.assert_called_with(False, 'data_protection', None)
         # to reset na_helper from remembering the previous 'changed' value
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -583,7 +583,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.snapmirror_quiesce = Mock(return_value=None)
             my_obj.get_destination = Mock(return_value=None)
             my_obj.snapmirror_break = Mock(return_value=None)
-            my_obj.delete_snapmirror(False, 'data_protection')
+            my_obj.delete_snapmirror(False, 'data_protection', None)
         assert 'Error deleting SnapMirror :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.snapmirror_modify({'policy': 'ansible2', 'schedule': 'abc2'})
