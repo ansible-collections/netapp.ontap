@@ -29,8 +29,6 @@ plugins/modules/na_ontap_igroup.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_igroup.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_igroup_initiator.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_igroup_initiator.py validate-modules:doc-missing-type
-plugins/modules/na_ontap_interface.py validate-modules:parameter-type-not-in-doc
-plugins/modules/na_ontap_interface.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_ipspace.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_ipspace.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_iscsi.py validate-modules:parameter-type-not-in-doc

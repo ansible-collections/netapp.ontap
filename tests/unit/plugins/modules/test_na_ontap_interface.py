@@ -65,6 +65,9 @@ class MockONTAPConnection(object):
         self.xml_in = xml
         if self.type == 'interface':
             xml = self.build_interface_info(self.params)
+        elif self.type == 'zapi_error':
+            error = netapp_utils.zapi.NaApiError('test', 'error')
+            raise error
         self.xml_out = xml
         return xml
 
@@ -113,13 +116,14 @@ class TestMyModule(unittest.TestCase):
             'firewall-policy': 'up',
             'is-auto-revert': 'true',
             'home_node': 'node',
-            'role': 'test',
+            'role': 'data',
             'home_port': 'e0c',
             'address': '2.2.2.2',
             'netmask': '1.1.1.1',
             'dns_domain_name': 'test.com',
             'listen_for_dns_query': True,
-            'is_dns_update_enabled': True
+            'is_dns_update_enabled': True,
+            'admin_status': 'up'
         }
 
     def mock_args(self):
@@ -271,3 +275,38 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_interface_mock_object('interface').apply()
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.NetAppOntapInterface.get_interface')
+    def test_error_message(self, get_interface):
+        ''' Test modify idempotency '''
+        data = self.mock_args()
+        set_module_args(data)
+        get_interface.side_effect = [None]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_interface_mock_object('zapi_error').apply()
+        assert exc.value.args[0]['msg'] == 'Error Creating interface test_lif: NetApp API failed. Reason - test:error'
+
+        data = self.mock_args()
+        data['home_port'] = 'new_port'
+        data['dns_domain_name'] = 'test2.com'
+        data['listen_for_dns_query'] = False
+        data['is_dns_update_enabled'] = False
+        set_module_args(data)
+        get_interface.side_effect = [
+            self.mock_interface
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_interface_mock_object('zapi_error').apply()
+        assert exc.value.args[0]['msg'] == 'Error modifying interface test_lif: NetApp API failed. Reason - test:error'
+
+        data = self.mock_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        current = self.mock_interface
+        current['admin_status'] = 'down'
+        get_interface.side_effect = [
+            current
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_interface_mock_object('zapi_error').apply()
+        assert exc.value.args[0]['msg'] == 'Error deleting interface test_lif: NetApp API failed. Reason - test:error'

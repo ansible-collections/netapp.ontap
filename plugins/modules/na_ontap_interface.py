@@ -1,30 +1,23 @@
 #!/usr/bin/python
-""" this is interface module
 
- (c) 2018-2019, NetApp, Inc
- # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
-"""
+# (c) 2018-2019, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'certified'
-}
+ANSIBLE_METADATA = {'metadata_version': '1.1',
+                    'status': ['preview'],
+                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
----
-
 module: na_ontap_interface
 short_description: NetApp ONTAP LIF configuration
-
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '2.6'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
-
 description:
     - Creating / deleting and modifying the LIF.
 
@@ -33,76 +26,103 @@ options:
     description:
     - Whether the specified interface should exist or not.
     choices: ['present', 'absent']
-    default: present
+    default: 'present'
+    type: str
 
   interface_name:
     description:
     - Specifies the logical interface (LIF) name.
     required: true
+    type: str
 
   home_node:
     description:
     - Specifies the LIF's home node.
     - By default, the first node from the cluster is considered as home node
+    type: str
 
   home_port:
     description:
     - Specifies the LIF's home port.
     - Required when C(state=present)
+    type: str
 
   role:
     description:
     - Specifies the role of the LIF.
-    - When setting role as "intercluster", setting protocol is not supported.
+    - When setting role as "intercluster" or "cluster", setting protocol is not supported.
+    - When creating a "cluster" role, the node name will appear as the prefix in the name of LIF.
+    - For example, if the specified name is clif and node name is node1, the  LIF name appears in the ONTAP as node1_clif.
+    - Possible values as 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
     - Required when C(state=present).
+    type: str
 
   address:
     description:
     - Specifies the LIF's IP address.
-    - Required when C(state=present)
+    - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
+    type: str
 
   netmask:
     description:
     - Specifies the LIF's netmask.
-    - Required when C(state=present).
+    - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
+    type: str
+
+  is_ipv4_link_local:
+    description:
+    - Specifies the LIF's are to acquire a ipv4 link local address.
+    - Use case for this is when creating Cluster LIFs to allow for auto assignment of ipv4 link local address.
+    version_added: '19.12.0'
+    type: bool
 
   vserver:
     description:
     - The name of the vserver to use.
     required: true
+    type: str
 
   firewall_policy:
     description:
     - Specifies the firewall policy for the LIF.
+    type: str
 
   failover_policy:
-    choices: ['disabled', 'system-defined', 'local-only', 'sfo-partner-only', 'broadcast-domain-wide']
     description:
     - Specifies the failover policy for the LIF.
+    choices: ['disabled', 'system-defined', 'local-only', 'sfo-partner-only', 'broadcast-domain-wide']
+    type: str
+
+  failover_group:
+    description:
+    - Specifies the failover group for the LIF.
+    version_added: '19.12.0'
+    type: str
 
   subnet_name:
     description:
     - Subnet where the interface address is allocated from.
-      If the option is not used, the IP address will need to be provided by
-      the administrator during configuration.
+    - If the option is not used, the IP address will need to be provided by the administrator during configuration.
     version_added: '2.8'
+    type: str
 
   admin_status:
     choices: ['up', 'down']
     description:
     - Specifies the administrative status of the LIF.
+    type: str
 
   is_auto_revert:
     description:
-       If true, data LIF will revert to its home node under certain circumstances such as startup, and load balancing
-       migration capability is disabled automatically
+    - If true, data LIF will revert to its home node under certain circumstances such as startup,
+    - and load balancing migration capability is disabled automatically
     type: bool
 
   force_subnet_association:
     description:
-       Set this to true to acquire the address from the named subnet and assign the subnet to the LIF.
-    type: bool
+    - Set this to true to acquire the address from the named subnet and assign the subnet to the LIF.
     version_added: '2.9'
+    type: bool
 
   protocols:
     description:
@@ -110,24 +130,25 @@ options:
     - Other supported protocols are iscsi and fcp. A LIF can be configured to not support any data protocols by specifying 'none'.
     - Protocol values of none, iscsi, fc-nvme or fcp can't be combined with any other data protocol(s).
     - address, netmask and firewall_policy parameters are not supported for 'fc-nvme' option.
+    type: list
 
   dns_domain_name:
     description:
     - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
-    type: str
     version_added: '2.9'
+    type: str
 
   listen_for_dns_query:
     description:
     - If True, this IP address will listen for DNS queries for the dnszone specified.
-    type: bool
     version_added: '2.9'
+    type: bool
 
   is_dns_update_enabled:
     description:
     - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
-    type: bool
     version_added: '2.9'
+    type: bool
 
 '''
 
@@ -151,6 +172,21 @@ EXAMPLES = '''
         listen_for_dns_query: true
         is_dns_update_enabled: true
         vserver: svm1
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Create cluster interface
+      na_ontap_interface:
+        state: present
+        interface_name: cluster_lif
+        home_port: e0a
+        home_node: cluster1-01
+        role: cluster
+        admin_status: up
+        is_auto_revert: true
+        is_ipv4_link_local: true
+        vserver: Cluster
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -181,16 +217,18 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 class NetAppOntapInterface(object):
     ''' object to describe  interface info '''
+
     def __init__(self):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+                'present', 'absent'], default='present'),
             interface_name=dict(required=True, type='str'),
             home_node=dict(required=False, type='str', default=None),
             home_port=dict(required=False, type='str'),
             role=dict(required=False, type='str'),
+            is_ipv4_link_local=dict(required=False, type='bool', default=None),
             address=dict(required=False, type='str'),
             netmask=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
@@ -198,6 +236,7 @@ class NetAppOntapInterface(object):
             failover_policy=dict(required=False, type='str', default=None,
                                  choices=['disabled', 'system-defined',
                                           'local-only', 'sfo-partner-only', 'broadcast-domain-wide']),
+            failover_group=dict(required=False, type='str'),
             admin_status=dict(required=False, choices=['up', 'down']),
             subnet_name=dict(required=False, type='str'),
             is_auto_revert=dict(required=False, type='bool', default=None),
@@ -212,14 +251,16 @@ class NetAppOntapInterface(object):
             argument_spec=self.argument_spec,
             mutually_exclusive=[
                 ['subnet_name', 'address'],
-                ['subnet_name', 'netmask']
+                ['subnet_name', 'netmask'],
+                ['is_ipv4_link_local', 'address'],
+                ['is_ipv4_link_local', 'netmask'],
+                ['is_ipv4_link_local', 'subnet_name']
             ],
 
             supports_check_mode=True
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
                 msg="the python NetApp-Lib module is required")
@@ -230,7 +271,7 @@ class NetAppOntapInterface(object):
         """
         Return details about the interface
         :param:
-            name : Name of the name of the interface
+            name : Name of the interface
 
         :return: Details about the interface. None if not found.
         :rtype: dict
@@ -247,7 +288,7 @@ class NetAppOntapInterface(object):
         if result.get_child_by_name('num-records') and \
                 int(result.get_child_content('num-records')) >= 1:
 
-            interface_attributes = result.get_child_by_name('attributes-list').\
+            interface_attributes = result.get_child_by_name('attributes-list'). \
                 get_child_by_name('net-interface-info')
             return_value = {
                 'interface_name': self.parameters['interface_name'],
@@ -255,8 +296,11 @@ class NetAppOntapInterface(object):
                 'home_port': interface_attributes['home-port'],
                 'home_node': interface_attributes['home-node'],
                 'failover_policy': interface_attributes['failover-policy'].replace('_', '-'),
-                'is_auto_revert': True if interface_attributes['is-auto-revert'] == 'true' else False,
             }
+            if interface_attributes.get_child_by_name('is-auto-revert'):
+                return_value['is_auto_revert'] = True if interface_attributes['is-auto-revert'] == 'true' else False
+            if interface_attributes.get_child_by_name('failover-group'):
+                return_value['failover_group'] = interface_attributes['failover-group']
             if interface_attributes.get_child_by_name('address'):
                 return_value['address'] = interface_attributes['address']
             if interface_attributes.get_child_by_name('netmask'):
@@ -268,9 +312,11 @@ class NetAppOntapInterface(object):
             else:
                 return_value['dns_domain_name'] = None
             if interface_attributes.get_child_by_name('listen-for-dns-query'):
-                return_value['listen_for_dns_query'] = self.na_helper.get_value_for_bool(True, interface_attributes['listen-for-dns-query'])
+                return_value['listen_for_dns_query'] = self.na_helper.get_value_for_bool(True, interface_attributes[
+                    'listen-for-dns-query'])
             if interface_attributes.get_child_by_name('is-dns-update-enabled'):
-                return_value['is_dns_update_enabled'] = self.na_helper.get_value_for_bool(True, interface_attributes['is-dns-update-enabled'])
+                return_value['is_dns_update_enabled'] = self.na_helper.get_value_for_bool(True, interface_attributes[
+                    'is-dns-update-enabled'])
         return return_value
 
     @staticmethod
@@ -286,6 +332,8 @@ class NetAppOntapInterface(object):
             options['netmask'] = parameters['netmask']
         if parameters.get('failover_policy') is not None:
             options['failover-policy'] = parameters['failover_policy']
+        if parameters.get('failover_group') is not None:
+            options['failover-group'] = parameters['failover_group']
         if parameters.get('firewall_policy') is not None:
             options['firewall-policy'] = parameters['firewall_policy']
         if parameters.get('is_auto_revert') is not None:
@@ -300,6 +348,8 @@ class NetAppOntapInterface(object):
             options['listen-for-dns-query'] = str(parameters['listen_for_dns_query'])
         if parameters.get('is_dns_update_enabled') is not None:
             options['is-dns-update-enabled'] = str(parameters['is_dns_update_enabled'])
+        if parameters.get('is_ipv4_link_local') is not None:
+            options['is-ipv4-link-local'] = 'true' if parameters['is_ipv4_link_local'] else 'false'
 
     def set_protocol_option(self, required_keys):
         """ set protocols for create """
@@ -334,7 +384,7 @@ class NetAppOntapInterface(object):
             result = self.server.invoke_successfully(get_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error fetching node for interface %s: %s' %
-                                  (self.parameters['interface_name'], to_native(exc)),
+                                      (self.parameters['interface_name'], to_native(exc)),
                                   exception=traceback.format_exc())
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             attributes = result.get_child_by_name('attributes-list')
@@ -365,8 +415,10 @@ class NetAppOntapInterface(object):
         required_keys = set(['role', 'home_port'])
         data_protocols_obj = None
         if self.parameters.get('subnet_name') is None:
-            required_keys.add('address')
-            required_keys.add('netmask')
+            if self.parameters.get('is_ipv4_link_local') is not None:
+                if not self.parameters.get('is_ipv4_link_local'):
+                    required_keys.add('address')
+                    required_keys.add('netmask')
         data_protocols_obj = self.set_protocol_option(required_keys)
         self.validate_create_parameters(required_keys)
 
@@ -381,8 +433,13 @@ class NetAppOntapInterface(object):
         try:
             self.server.invoke_successfully(interface_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
-            self.module.fail_json(msg='Error Creating interface %s: %s' %
-                                  (self.parameters['interface_name'], to_native(exc)), exception=traceback.format_exc())
+            # msg: "Error Creating interface ansible_interface: NetApp API failed. Reason - 17:A LIF with the same name already exists"
+            if to_native(exc.code) == "17":
+                self.na_helper.changed = False
+            else:
+                self.module.fail_json(msg='Error Creating interface %s: %s' %
+                                      (self.parameters['interface_name'], to_native(exc)),
+                                      exception=traceback.format_exc())
 
     def delete_interface(self, current_status):
         ''' calling zapi to delete interface '''
@@ -396,7 +453,8 @@ class NetAppOntapInterface(object):
         try:
             self.server.invoke_successfully(interface_delete, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
-            self.module.fail_json(msg='Error deleting interface %s: %s' % (self.parameters['interface_name'], to_native(exc)),
+            self.module.fail_json(msg='Error deleting interface %s: %s' %
+                                      (self.parameters['interface_name'], to_native(exc)),
                                   exception=traceback.format_exc())
 
     def modify_interface(self, modify):
@@ -411,20 +469,29 @@ class NetAppOntapInterface(object):
         try:
             self.server.invoke_successfully(interface_modify, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as err:
-            self.module.fail_json(msg='Error modifying interface %s: %s' % (self.parameters['interface_name'],
-                                  to_native(err)), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error modifying interface %s: %s' %
+                                      (self.parameters['interface_name'], to_native(err)),
+                                  exception=traceback.format_exc())
 
     def autosupport_log(self):
         results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(
-            module=self.module, vserver=results)
+        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_interface", cserver)
 
     def apply(self):
         ''' calling all interface features '''
-        self.autosupport_log()
+
+        # Checking to see if autosupport_log() can be ran as this is a post cluster setup request.
+        try:
+            self.autosupport_log()
+        except netapp_utils.zapi.NaApiError as error:
+            # Error 13003 denotes cluster does not exist. It happens when running operations on a node not in cluster.
+            if to_native(error.code) == "13003":
+                pass
+            else:
+                self.module.fail_json(msg='Error calling autosupport_log(): %s' % (to_native(error)),
+                                      exception=traceback.format_exc())
         current = self.get_interface()
-        # rename and create are mutually exclusive
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed:
