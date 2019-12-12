@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_volume: Fixed error reporting if efficiency policy cannot be read.  Do not attempt to read efficiency policy if not needed.
 
 ### Added REST support to existing modules
+- na_ontap_dns: added REST support for dns creation and modification on cluster vserver.
 
 ### Role Changes
 

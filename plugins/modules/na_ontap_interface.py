@@ -52,8 +52,8 @@ options:
     - Specifies the role of the LIF.
     - When setting role as "intercluster" or "cluster", setting protocol is not supported.
     - When creating a "cluster" role, the node name will appear as the prefix in the name of LIF.
-    - For example, if the specified name is clif and node name is node1, the  LIF name appears in the ONTAP as node1_clif.
-    - Possible values as 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+    - For example, if the specified name is clif and node name is node1, the LIF name appears in the ONTAP as node1_clif.
+    - Possible values are 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
     - Required when C(state=present).
     type: str
 

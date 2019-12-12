@@ -30,13 +30,14 @@ SRR = {
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, "Expected error"),
-    'dns_record': ({"records": [{"domains": ['0.0.0.0'],
+    'dns_record': ({"records": [{"domains": ['test.com'],
                                  "servers": ['0.0.0.0'],
                                  "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
-    'cluster_data': ({"domains": ['0.0.0.0'],
-                      "servers": ['0.0.0.0'],
+    'cluster_data': ({"dns_domains": ['test.com'],
+                      "name_servers": ['0.0.0.0'],
                       "name": "cserver",
-                      "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None)
+                      "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None),
+    'cluster_name': ({"name": "cserver"}, None)
 }
 
 
@@ -103,7 +104,7 @@ class MockONTAPConnection(object):
     def build_dns_status_info():
         xml = netapp_utils.zapi.NaElement('xml')
         nameservers = [{'ip-address': '0.0.0.0'}]
-        domains = [{'string': '0.0.0.0'}]
+        domains = [{'string': 'test.com'}]
         attributes = {'num-records': 1,
                       'attributes': {'net-dns-info': {'name-servers': nameservers,
                                                       'domains': domains,
@@ -127,7 +128,7 @@ class TestMyModule(unittest.TestCase):
             'state': 'present',
             'vserver': 'vserver',
             'nameservers': ['0.0.0.0'],
-            'domains': ['0.0.0.0'],
+            'domains': ['test.com'],
             'hostname': 'test',
             'username': 'test_user',
             'password': 'test_pass!'
@@ -158,7 +159,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_successfully_modify_dns(self):
         data = self.mock_args()
-        data['domains'] = ['1.1.1.1']
+        data['domains'] = ['new_test.com']
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi', 'enable', 'false').apply()
@@ -176,7 +177,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_create_dns(self, mock_ems_log_event):
         data = self.mock_args()
         print("create dns")
-        data['domains'] = ['1.1.1.1']
+        data['domains'] = ['new_test.com']
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi', 'create').apply()
@@ -203,6 +204,22 @@ class TestMyModule(unittest.TestCase):
             SRR['is_rest'],
             SRR['empty_good'],    # get
             SRR['cluster_data'],  # get cluster
+            SRR['empty_good'],    # post
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_dns_mock_object(type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_is_cluster_vserver(self, mock_request):
+        data = self.mock_args()
+        data['vserver']='cvserver'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],    # get
+            SRR['cluster_name'],  # get cluster name
             SRR['empty_good'],    # post
             SRR['end_of_sequence']
         ]
@@ -262,6 +279,24 @@ class TestMyModule(unittest.TestCase):
             SRR['is_rest'],
             SRR['empty_good'],    # get
             SRR['cluster_data'],  # get cluster
+            SRR['empty_good'],    # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_dns_mock_object(type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_is_cluster_vserver(self, mock_request):
+        data = self.mock_args()
+        data['vserver'] = 'cvserver'
+        data['state'] = 'present'
+        data['domains'] = 'new_test.com'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],    # get
+            SRR['cluster_data'],  # get cluster data
             SRR['empty_good'],    # patch
             SRR['end_of_sequence']
         ]

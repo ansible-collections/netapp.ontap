@@ -100,6 +100,8 @@ class NetAppOntapDns(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Cluster vserver and data vserver use different REST API.
+        self.is_cluster = False
 
         # REST API should be used for ONTAP 9.6 or higher, ZAPI for lower version
         self.restApi = OntapRestAPI(self.module)
@@ -124,14 +126,27 @@ class NetAppOntapDns(object):
         :return: none
         """
         if self.use_rest:
-            api = 'name-services/dns'
-            params = {}
-            params['domains'] = self.parameters['domains']
-            params['servers'] = self.parameters['nameservers']
-            params['svm'] = {'name': self.parameters['vserver']}
-            message, error = self.restApi.post(api, params)
-            if error:
-                self.module.fail_json(msg=error)
+            if self.is_cluster:
+                api = 'cluster'
+                params = {
+                    'dns_domains': self.parameters['domains'],
+                    'name_servers': self.parameters['nameservers']
+                }
+                message, error = self.restApi.patch(api, params)
+                if error:
+                    self.module.fail_json(msg=error)
+            else:
+                api = 'name-services/dns'
+                params = {
+                    'domains': self.parameters['domains'],
+                    'servers': self.parameters['nameservers'],
+                    'svm': {
+                        'name': self.parameters['vserver']
+                    }
+                }
+                message, error = self.restApi.post(api, params)
+                if error:
+                    self.module.fail_json(msg=error)
         else:
             dns = netapp_utils.zapi.NaElement('net-dns-create')
             nameservers = netapp_utils.zapi.NaElement('name-servers')
@@ -163,8 +178,8 @@ class NetAppOntapDns(object):
         :return:
         """
         if self.use_rest:
-            if dns_attrs['cluster']:
-                error = 'cluster operation for DNS is not supported with REST yet'
+            if self.is_cluster:
+                error = 'cluster operation for deleting DNS is not supported with REST.'
                 self.module.fail_json(msg=error)
             api = 'name-services/dns/' + dns_attrs['uuid']
             data = None
@@ -196,8 +211,8 @@ class NetAppOntapDns(object):
                 'domains': cluster_attrs.get('dns_domains'),
                 'nameservers': cluster_attrs.get('name_servers'),
                 'uuid': cluster_attrs['uuid'],
-                'cluster': True
             }
+            self.is_cluster = True
             if dns_attrs['domains'] is None and dns_attrs['nameservers'] is None:
                 dns_attrs = None
         return dns_attrs
@@ -222,8 +237,7 @@ class NetAppOntapDns(object):
                 attrs = {
                     'domains': record['domains'],
                     'nameservers': record['servers'],
-                    'uuid': record['svm']['uuid'],
-                    'cluster': False
+                    'uuid': record['svm']['uuid']
                 }
                 return attrs
             return None
@@ -263,9 +277,12 @@ class NetAppOntapDns(object):
             if changed:
                 uuid = dns_attrs['uuid']
                 api = "name-services/dns/" + uuid
-                if dns_attrs['cluster']:
-                    error = 'cluster operation for DNS is not supported with REST yet'
-                    self.module.fail_json(msg=error)
+                if self.is_cluster:
+                    api = 'cluster'
+                    params = {
+                        'dns_domains': self.parameters['domains'],
+                        'name_servers': self.parameters['nameservers']
+                    }
                 message, error = self.restApi.patch(api, params)
                 if error:
                     self.module.fail_json(msg=error)
