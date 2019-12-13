@@ -32,6 +32,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
 - na_ontap_aggregate: Fixed traceback when running as vsadmin and cleanly error out.
+- na_ontap_command: stdout_lines_filter contains data only if include/exlude_lines parameter is used. (zeten30)
+- na_ontap_command: stripped_line len is checked only once, filters are inside if block. (zeten30)
 - na_ontap_interface: allow module to run on node before joining the cluster.
 - na_ontap_snapmirror: Fixed traceback when running as vsadmin.  Do not attempt to break a relationship that is 'Uninitialized'.
 - na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
