@@ -33,24 +33,29 @@ options:
         version_added: "2.8"
     return_dict:
         description:
-        - returns a parsesable dictonary instead of raw XML output
+        - Returns a parsesable dictionary instead of raw XML output
+        - C(result_value)
+        - C(status) > passed, failed..
+        - C(stdout) > command output in plaintext)
+        - C(stdout_lines) > list of command output lines)
+        - C(stdout_lines_filter) > empty list or list of command output lines matching I(include_lines) or I(exclude_lines) parameters.
         type: bool
         default: false
         version_added: "2.9"
     vserver:
         description:
-        - If running as vserver admin, you must give a vserver or module will fail
+        - If running as vserver admin, you must give a I(vserver) or module will fail
         version_added: "19.10.0"
     include_lines:
         description:
-        - applied only when return_dict is true
-        - return only lines containing string pattern in stdout_lines_filter
+        - applied only when I(return_dict) is true
+        - return only lines containing string pattern in C(stdout_lines_filter)
         default: ''
         version_added: "19.10.0"
     exclude_lines:
         description:
-        - applied only when return_dict is true
-        - return only lines containing string pattern in stdout_lines_filter
+        - applied only when I(return_dict) is true
+        - return only lines containing string pattern in C(stdout_lines_filter)
         default: ''
         version_added: "19.10.0"
 '''
@@ -241,13 +246,13 @@ class NetAppONTAPCommand(object):
                     if len(stripped_line) > 1:
                         self.result_dict['stdout_lines'].append(stripped_line)
 
-                    # Generate stdout_lines_filter_list
-                    if self.exclude_lines:
-                        if len(stripped_line) > 1 and self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
-                            self.result_dict['stdout_lines_filter'].append(stripped_line)
-                    else:
-                        if len(stripped_line) > 1 and self.include_lines in stripped_line:
-                            self.result_dict['stdout_lines_filter'].append(stripped_line)
+                        # Generate stdout_lines_filter_list
+                        if self.exclude_lines:
+                            if self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
+                                self.result_dict['stdout_lines_filter'].append(stripped_line)
+                        else:
+                            if self.include_lines and self.include_lines in stripped_line:
+                                self.result_dict['stdout_lines_filter'].append(stripped_line)
 
                 self.result_dict['xml_dict']['cli-output']['data'] = stdout_string
                 self.result_dict['result_value'] = int(str(self.result_dict['xml_dict']['cli-result-value']['data']).replace("'", ""))
