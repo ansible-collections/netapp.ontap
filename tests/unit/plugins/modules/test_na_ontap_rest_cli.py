@@ -27,7 +27,9 @@ SRR = {
     'is_rest': (200, None),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error")
+    'generic_error': (None, "Expected error"),
+    # module specific response
+    'allow': ({'Allow': ['GET', 'WHATEVER']}, None)
 }
 
 
@@ -110,7 +112,7 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_cli(self, mock_request):
-        data = self.mock_args()
+        data = dict(self.mock_args())
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -120,3 +122,18 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_cli_mock_object().apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_clii_options(self, mock_request):
+        data = dict(self.mock_args())
+        data['verb'] = 'OPTIONS'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['allow'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_cli_mock_object().apply()
+        assert exc.value.args[0]['changed']
+        assert 'Allow' in exc.value.args[0]['msg']

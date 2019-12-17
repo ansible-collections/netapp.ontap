@@ -28,7 +28,8 @@ options:
     verb:
         description:
         - a string indicating which api call to run
-        choices: ['GET', 'POST', 'PATCH', 'DELETE']
+        - OPTIONS is useful to know which verbs are supported by the REST API
+        choices: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
         type: str
     params:
         description:
@@ -78,7 +79,7 @@ class NetAppONTAPCommandREST(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             command=dict(required=True, type='str'),
-            verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE']),
+            verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']),
             params=dict(required=False, type='dict', default={}),
             body=dict(required=False, type='dict', default={})
         ))
@@ -110,6 +111,8 @@ class NetAppONTAPCommandREST(object):
             message, error = self.restApi.patch(api, self.body, self.params)
         elif self.verb == 'DELETE':
             message, error = self.restApi.delete(api, self.body, self.params)
+        elif self.verb == 'OPTIONS':
+            message, error = self.restApi.options(api, self.params)
         else:
             self.module.fail_json(msg='Error running command %s:' % self.command,
                                   exception=traceback.format_exc())

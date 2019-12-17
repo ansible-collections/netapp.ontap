@@ -300,6 +300,9 @@ class OntapRestAPI(object):
         self.log_debug(status_code, content)
         if return_status_code:
             return status_code, error_details
+        if not json_dict and method == 'OPTIONS':
+            # OPTIONS provides the list of supported verbs
+            json_dict['Allow'] = response.headers['Allow']
         return json_dict, error_details
 
     def get(self, api, params):
@@ -317,6 +320,10 @@ class OntapRestAPI(object):
     def delete(self, api, data, params=None):
         method = 'DELETE'
         return self.send_request(method, api, params, json=data)
+
+    def options(self, api, params=None):
+        method = 'OPTIONS'
+        return self.send_request(method, api, params)
 
     def _is_rest(self, used_unsupported_rest_properties=None):
         if self.use_rest == "Always":
