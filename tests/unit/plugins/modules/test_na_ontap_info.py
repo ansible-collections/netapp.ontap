@@ -206,7 +206,11 @@ class TestMyModule(unittest.TestCase):
         obj = self.get_info_mock_object('zapi_error')
         with pytest.raises(AnsibleFailJson) as exc:
             obj.ontapi()
-        assert exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test:error'
+        # The new version of nettap-lib adds a space after :
+        # Keep both versions to keep the pipeline happy
+        assert exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test:error' or\
+            exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test: error'
+
 
     def test_call_api_error(self):
         '''test call_api will raise zapi error'''
@@ -214,7 +218,10 @@ class TestMyModule(unittest.TestCase):
         obj = self.get_info_mock_object('zapi_error')
         with pytest.raises(AnsibleFailJson) as exc:
             obj.call_api('nvme-get-iter')
-        assert exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test:error'
+        # The new version of nettap-lib adds a space after :
+        # Keep both versions to keep the pipeline happy
+        assert exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test:error' or\
+            exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test: error'
 
     def test_find_item(self):
         '''test __find_item return expected key value'''

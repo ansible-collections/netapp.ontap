@@ -778,7 +778,8 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'service-processor-network-get-iter',
                     'attribute': 'service-processor-network-info',
-                    'field': ('node', ),  # 'ip-address' -- optional key need to add code for optional options
+                    # don't use fields, as we cannot build a key with optional fields
+                    # without a key, we'll get a list of dictionaries
                     'query': {'max-records': '1024'},
                 },
                 'min_version': '0',
