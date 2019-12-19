@@ -136,6 +136,18 @@ options:
     type: str
     version_added: '2.8'
 
+  group_id:
+    description:
+    - The UNIX group ID for the volume. The default value is 0 ('root').
+    type: int
+    version_added: '19.12.0'
+
+  user_id:
+    description:
+    - The UNIX user ID for the volume. The default value is 0 ('root').
+    type: int
+    version_added: '19.12.0'
+
   snapshot_policy:
     description:
     - The name of the snapshot policy.
@@ -310,6 +322,8 @@ EXAMPLES = """
         aggregate_name: ansible_aggr
         size: 100
         size_unit: mb
+        user_id: 1001
+        group_id: 2002
         space_guarantee: none
         tiering_policy: auto
         policy: default
@@ -473,6 +487,8 @@ class NetAppOntapVolume(object):
             encrypt=dict(required=False, type='bool', default=False),
             efficiency_policy=dict(required=False, type='str'),
             unix_permissions=dict(required=False, type='str'),
+            group_id=dict(required=False, type='int'),
+            user_id=dict(required=False, type='int'),
             snapshot_policy=dict(required=False, type='str'),
             aggr_list=dict(required=False, type='list'),
             aggr_list_multiplier=dict(required=False, type='int'),
@@ -582,6 +598,10 @@ class NetAppOntapVolume(object):
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
             }
+            if volume_security_unix_attributes.get_child_by_name('group-id'):
+                return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
+            if volume_security_unix_attributes.get_child_by_name('user-id'):
+                return_value['user_id'] = int(volume_security_unix_attributes['user-id'])
             if self.parameters.get('efficiency_policy'):
                 return_value['efficiency_policy'] = self.get_efficiency_policy()
             if volume_comp_aggr_attributes is not None:
@@ -723,8 +743,12 @@ class NetAppOntapVolume(object):
             options['size'] = str(self.parameters['size'])
         if self.parameters.get('snapshot_policy'):
             options['snapshot-policy'] = self.parameters['snapshot_policy']
-        if self.parameters.get('unix_permissions'):
+        if self.parameters.get('unix_permissions') is not None:
             options['unix-permissions'] = self.parameters['unix_permissions']
+        if self.parameters.get('group_id') is not None:
+            options['group-id'] = str(self.parameters['group_id'])
+        if self.parameters.get('user_id') is not None:
+            options['user-id'] = str(self.parameters['user_id'])
         if self.parameters.get('volume_security_style'):
             options['volume-security-style'] = self.parameters['volume_security_style']
         if self.parameters.get('policy'):
@@ -920,10 +944,18 @@ class NetAppOntapVolume(object):
             self.create_volume_attribute(vol_mod_attributes, 'volume-export-attributes',
                                          'policy', self.parameters['policy'])
         # volume-security-attributes
-        if self.parameters.get('unix_permissions'):
+        if self.parameters.get('unix_permissions') is not None or self.parameters.get('group_id') is not None or self.parameters.get('user_id') is not None:
             vol_security_attributes = netapp_utils.zapi.NaElement('volume-security-attributes')
-            self.create_volume_attribute(vol_security_attributes, 'volume-security-unix-attributes',
-                                         'permissions', self.parameters['unix_permissions'])
+            vol_security_unix_attributes = netapp_utils.zapi.NaElement('volume-security-unix-attributes')
+            if self.parameters.get('unix_permissions') is not None:
+                self.create_volume_attribute(vol_security_unix_attributes, vol_security_attributes,
+                                             'permissions', self.parameters['unix_permissions'])
+            if self.parameters.get('group_id') is not None:
+                self.create_volume_attribute(vol_security_unix_attributes, vol_security_attributes,
+                                             'group-id', str(self.parameters['group_id']))
+            if self.parameters.get('user_id') is not None:
+                self.create_volume_attribute(vol_security_unix_attributes, vol_security_attributes,
+                                             'user-id', str(self.parameters['user_id']))
             vol_mod_attributes.add_child_elem(vol_security_attributes)
         # volume-performance-attributes
         if self.parameters.get('atime_update'):
@@ -1042,7 +1074,7 @@ class NetAppOntapVolume(object):
                 self.resize_volume()
             if attribute == 'aggregate_name':
                 self.move_volume()
-            if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'tiering_policy',
+            if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
                 self.volume_modify_attributes(modify)
@@ -1273,7 +1305,7 @@ class NetAppOntapVolume(object):
             rename = self.na_helper.is_rename_action(self.get_volume(self.parameters['from_name']), current)
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.parameters.get('unix_permissions'):
+        if self.parameters.get('unix_permissions') is not None:
             # current stores unix_permissions' numeric value.
             # unix_permission in self.parameter can be either numeric or character.
             if self.compare_chmod_value(current):

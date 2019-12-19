@@ -157,7 +157,7 @@ class NetAppONTAPVolumeClone(object):
         """
         clone_obj = netapp_utils.zapi.NaElement('volume-clone-create')
         clone_obj.add_new_child("parent-volume", self.parameters['parent_volume'])
-        clone_obj.add_new_child("volume", self.parameters['volume'])
+        clone_obj.add_new_child("volume", self.parameters['name'])
         if self.parameters.get('qos_policy_group_name'):
             clone_obj.add_new_child("qos-policy-group-name", self.parameters['qos_policy_group_name'])
         if self.parameters.get('space_reserve'):
@@ -177,11 +177,11 @@ class NetAppONTAPVolumeClone(object):
             self.server.invoke_successfully(clone_obj, True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error creating volume clone: %s: %s' %
-                                      (self.parameters['volume'], to_native(exc)), exception=traceback.format_exc())
+                                      (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
 
     def get_volume_clone(self):
         clone_obj = netapp_utils.zapi.NaElement('volume-clone-get')
-        clone_obj.add_new_child("volume", self.parameters['volume'])
+        clone_obj.add_new_child("volume", self.parameters['name'])
         try:
             results = self.server.invoke_successfully(clone_obj, True)
             if results.get_child_by_name('attributes'):
@@ -197,7 +197,7 @@ class NetAppONTAPVolumeClone(object):
                 pass
             else:
                 self.module.fail_json(msg='Error fetching volume clone information %s: %s' %
-                                          (self.parameters['volume'], to_native(error)), exception=traceback.format_exc())
+                                          (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
         return None
 
     def apply(self):

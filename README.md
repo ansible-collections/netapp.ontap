@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_igroup_initiator: `force_remove` to forcibly remove initiators from an igroup that is currently mapped to a LUN.
 - na_ontap_interface: `failover_group` to specify the failover group for the LIF. `is_ipv4_link_local` to specify the LIF's are to acquire a ipv4 link local address.
 - na_ontap_rest_cli: add OPTIONS as a supported verb and return list of allowed verbs.
+- na_ontap_volume: add `group_id` and `user_id`.
 
 ### Bug Fixes
 - na_ontap_aggregate: Fixed traceback when running as vsadmin and cleanly error out.
@@ -40,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: Fixed traceback when running as vsadmin.  Do not attempt to break a relationship that is 'Uninitialized'.
 - na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
 - na_ontap_volume: Fixed error reporting if efficiency policy cannot be read.  Do not attempt to read efficiency policy if not needed.
+- na_ontap_volume_clone: Fixed KeyError exception on 'volume'
 
 ### Added REST support to existing modules
 - na_ontap_dns: added REST support for dns creation and modification on cluster vserver.
