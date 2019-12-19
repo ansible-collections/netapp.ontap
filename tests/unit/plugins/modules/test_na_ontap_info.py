@@ -208,8 +208,7 @@ class TestMyModule(unittest.TestCase):
             obj.ontapi()
         # The new version of nettap-lib adds a space after :
         # Keep both versions to keep the pipeline happy
-        assert exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test:error' or\
-            exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test: error'
+        assert exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test:error'
 
 
     def test_call_api_error(self):
@@ -220,8 +219,7 @@ class TestMyModule(unittest.TestCase):
             obj.call_api('nvme-get-iter')
         # The new version of nettap-lib adds a space after :
         # Keep both versions to keep the pipeline happy
-        assert exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test:error' or\
-            exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test: error'
+        assert exc.value.args[0]['msg'] == 'Error calling API nvme-get-iter: NetApp API failed. Reason - test:error'
 
     def test_find_item(self):
         '''test __find_item return expected key value'''
