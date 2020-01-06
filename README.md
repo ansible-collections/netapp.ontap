@@ -42,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
 - na_ontap_volume: Fixed error reporting if efficiency policy cannot be read.  Do not attempt to read efficiency policy if not needed.
 - na_ontap_volume_clone: Fixed KeyError exception on 'volume'
+- na_ontap_volume: volume efficiency policy modifying issue fixed. 
 
 ### Added REST support to existing modules
 - na_ontap_dns: added REST support for dns creation and modification on cluster vserver.

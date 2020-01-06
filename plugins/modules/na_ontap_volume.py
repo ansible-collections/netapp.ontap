@@ -1294,6 +1294,12 @@ class NetAppOntapVolume(object):
 
         return None
 
+    def modify_volume_efficiency_policy(self, efficiency_policy_modify_value):
+        if efficiency_policy_modify_value == 'async':
+            self.assign_efficiency_policy_async()
+        elif efficiency_policy_modify_value == 'sync':
+            self.assign_efficiency_policy()
+
     def apply(self):
         '''Call create/modify/delete operations'''
         efficiency_policy_modify = None
@@ -1333,11 +1339,8 @@ class NetAppOntapVolume(object):
                     self.delete_volume(current)
                 elif modify:
                     self.modify_volume(modify)
-                elif efficiency_policy_modify is not None:
-                    if efficiency_policy_modify == 'async':
-                        self.assign_efficiency_policy_async()
-                    elif efficiency_policy_modify == 'sync':
-                        self.assign_efficiency_policy()
+                    if efficiency_policy_modify is not None:
+                        self.modify_volume_efficiency_policy(efficiency_policy_modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
     def ems_log_event(self, state):
