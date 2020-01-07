@@ -73,7 +73,7 @@ options:
     description:
     - Specifies the LIF's are to acquire a ipv4 link local address.
     - Use case for this is when creating Cluster LIFs to allow for auto assignment of ipv4 link local address.
-    version_added: '19.12.0'
+    version_added: '20.01.0'
     type: bool
 
   vserver:
@@ -96,7 +96,7 @@ options:
   failover_group:
     description:
     - Specifies the failover group for the LIF.
-    version_added: '19.12.0'
+    version_added: '20.01.0'
     type: str
 
   subnet_name:

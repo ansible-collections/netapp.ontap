@@ -22,7 +22,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
-## 19.12.0
+## 20.01.0
 
 ### New Modules
 

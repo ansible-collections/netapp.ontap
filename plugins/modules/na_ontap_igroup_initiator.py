@@ -50,7 +50,7 @@ options:
     - Forcibly remove the initiators even if there are existing LUNs mapped to the initiator group.
     type: bool
     default: false
-    version_added: '19.12.0'
+    version_added: '20.01.0'
 
   vserver:
     description:
