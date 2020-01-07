@@ -216,8 +216,9 @@ class NetAppOntapIfGrp(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating if_group %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
-        for port in self.parameters.get('ports'):
-            self.add_port_to_if_grp(port)
+        if self.parameters.get('ports') is not None:
+            for port in self.parameters.get('ports'):
+                self.add_port_to_if_grp(port)
 
     def delete_if_grp(self):
         """

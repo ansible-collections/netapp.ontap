@@ -13,7 +13,7 @@
 ansible-galaxy collection install netapp.ontap
 ```
 To use Collection add the following to the top of your playbook, with out this you will be using Ansible 2.9 version of the module
-```  
+```
 collections:
   - netapp.ontap
 ```
@@ -38,11 +38,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_command: stdout_lines_filter contains data only if include/exlude_lines parameter is used. (zeten30)
 - na_ontap_command: stripped_line len is checked only once, filters are inside if block. (zeten30)
 - na_ontap_interface: allow module to run on node before joining the cluster.
+- na_ontap_net_ifgrp: Fixed error for na_ontap_net_ifgrp if no port is given.
 - na_ontap_snapmirror: Fixed traceback when running as vsadmin.  Do not attempt to break a relationship that is 'Uninitialized'.
 - na_ontap_snapshot_policy: Fixed KeyError: 'prefix' bug when prefix parameter isn't supplied.
 - na_ontap_volume: Fixed error reporting if efficiency policy cannot be read.  Do not attempt to read efficiency policy if not needed.
+- na_ontap_volume: Fixed error when modifying volume efficiency policy.
 - na_ontap_volume_clone: Fixed KeyError exception on 'volume'
-- na_ontap_volume: volume efficiency policy modifying issue fixed. 
 
 ### Added REST support to existing modules
 - na_ontap_dns: added REST support for dns creation and modification on cluster vserver.
@@ -99,7 +100,7 @@ Changes in 19.10.0 and September collection releases compared to Ansible 2.9
 - na_ontap_net_subnet: fix ip_ranges option fails on existing subnet.
 - na_ontap_snapshot_policy: fix vsadmin approach for managing snapshot policy.
 - na_ontap_nvme_subsystem: fix fetching unique nvme subsytem based on vserver filter.
-- na ontap_net_routes: change metric type from string to int. 
+- na ontap_net_routes: change metric type from string to int.
 - na_ontap_cifs_server: minor documentation changes correction of create example with "name" parameter and adding type to parameters.
 - na_ontap_vserver_cifs_security: fix int and boolean options when modifying vserver cifs security.
 - na_ontap_net_subnet: fix rename idempotency issue and updated rename check.
