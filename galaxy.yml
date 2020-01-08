@@ -9,4 +9,4 @@ description: NetApp ONTAP Collection
 repository: https://github.com/netapp/ansible/
 homepage: netapp.io
 tags:
-    - "Storage"
+    - storage
