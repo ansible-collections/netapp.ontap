@@ -22,7 +22,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
-## 20.01.0
+## 20.1.0
 
 ### New Modules
 - na_ontap_login_messages: create/modify/delete security login messages including banner and mtod.

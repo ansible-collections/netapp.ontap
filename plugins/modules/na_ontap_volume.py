@@ -140,13 +140,13 @@ options:
     description:
     - The UNIX group ID for the volume. The default value is 0 ('root').
     type: int
-    version_added: '20.01.0'
+    version_added: '20.1.0'
 
   user_id:
     description:
     - The UNIX user ID for the volume. The default value is 0 ('root').
     type: int
-    version_added: '20.01.0'
+    version_added: '20.1.0'
 
   snapshot_policy:
     description:

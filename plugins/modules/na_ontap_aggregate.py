@@ -156,7 +156,7 @@ options:
     - Type of snaplock for the aggregate being created.
     choices: ['compliance', 'enterprise', 'non_snaplock']
     type: str
-    version_added: '20.01.0'
+    version_added: '20.1.0'
 '''
 
 EXAMPLES = """
