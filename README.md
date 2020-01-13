@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.2.0
+
+### Role Changes
+- na_ontap_nas_create role: fix typo in README file, add CIFS example.
+
 ## 20.1.0
 
 ### New Modules

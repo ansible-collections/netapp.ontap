@@ -18,7 +18,8 @@ netapp_password: <ONTAP admin account password>
 
 nas:
   - { name: nfs_share, protocol: nfs, vserver: nfs_vserver, client: 172.32.0.201, ro: sys, rw: sys, su: sys, aggr: aggr1, size: 10, share: share_name }
-# If you are creating an NFS export you will omit the share: section.  If you are creating a CIFS share you may omit the ro,rw,su,client sections
+# If you are creating an NFS export you will omit the share: section.
+# If you are creating a CIFS share you may omit the ro, rw, su, client sections.
 
 ```
 Dependencies
@@ -36,7 +37,7 @@ Example Playbook
     - netapp.ontap
   vars_files:
     - globals.yml
-  roles
+  roles:
   - na_ontap_nas_create
 ```
 
@@ -50,6 +51,7 @@ netapp_password: netapp123
 
 nas:
   - { name: nfs_share, protocol: nfs, vserver: nfs_vserver, client: 172.32.0.201, ro: sys, rw: sys, su: sys, aggr: aggr1, size: 10 }
+  - { name: cifs_share, protocol: cifs, vserver: cifs_vserver, aggr: aggr1, size: 10, share: cifs_share_1 }
 ```
 
 License
