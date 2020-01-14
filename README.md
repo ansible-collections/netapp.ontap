@@ -24,6 +24,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.2.0
 
+### New Options
+- na_ontap_info: New info's added `snapshot_info`
+
 ### Role Changes
 - na_ontap_nas_create role: fix typo in README file, add CIFS example.
 
