@@ -111,6 +111,7 @@ class TestMyModule(unittest.TestCase):
             schedule = None
             source_username = 'admin'
             source_password = 'password'
+            relationship_state = 'active'
         else:
             hostname = '10.10.10.10'
             username = 'admin'
@@ -124,6 +125,7 @@ class TestMyModule(unittest.TestCase):
             schedule = None
             source_username = 'admin'
             source_password = 'password'
+            relationship_state = 'active'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -136,7 +138,8 @@ class TestMyModule(unittest.TestCase):
             'relationship_type': relationship_type,
             'schedule': schedule,
             'source_username': source_username,
-            'source_password': source_password
+            'source_password': source_password,
+            'relationship_state': relationship_state
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -185,8 +188,29 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
-    def test_successful_create_without_initialize(self, snapmirror_create):
+    def test_successful_break(self):
+        ''' breaking snapmirror and testing idempotency '''
+        data = self.set_default_args()
+        data['relationship_state'] = 'broken'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', 'snapmirrored', status='idle')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        # to reset na_helper from remembering the previous 'changed' value
+        set_module_args(self.set_default_args())
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', 'broken-off', status='idle')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    def test_successful_create_without_initialize(self):
         ''' creating snapmirror and testing idempotency '''
         data = self.set_default_args()
         data['schedule'] = 'abc'
@@ -364,7 +388,7 @@ class TestMyModule(unittest.TestCase):
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='transferring')
+            my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='uninitialized')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
@@ -380,19 +404,18 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_update')
-    def test_successful_update(self, snapmirror_update):
+    def test_successful_update(self):
         ''' update snapmirror and testing idempotency '''
         data = self.set_default_args()
+        data['policy'] = 'ansible2'
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
+            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
-        assert not exc.value.args[0]['changed']
-        snapmirror_update.assert_called_with()
+        assert exc.value.args[0]['changed']
 
     def test_elementsw_volume_exists(self):
         ''' elementsw_volume_exists '''
@@ -494,22 +517,6 @@ class TestMyModule(unittest.TestCase):
         match = my_obj.element_source_path_format_matches('10.10.10.10:/lun/10')
         assert match is not None
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.create_sf_connection')
-    def test_set_elem_connection(self, create_sf_connection):
-        ''' test set_elem_connection '''
-        data = self.set_default_args()
-        data['source_hostname'] = 'test_source'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        create_sf_connection.return_value = Mock()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
-        my_obj.set_element_connection('source')
-        assert my_obj.module.params['hostname'] == data['source_hostname']
-        assert my_obj.module.params['username'] == data['source_username']
-        assert my_obj.module.params['password'] == data['source_password']
-
     def test_remote_volume_exists(self):
         ''' test check_if_remote_volume_exists '''
         data = self.set_default_args()
@@ -524,22 +531,6 @@ class TestMyModule(unittest.TestCase):
             my_obj.source_server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
         res = my_obj.check_if_remote_volume_exists()
         assert res
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.create_sf_connection')
-    def test_set_elem_connection_destination(self, create_sf_connection):
-        ''' test set_elem_connection for destination'''
-        data = self.set_default_args()
-        data['source_hostname'] = 'test_source'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        create_sf_connection.return_value = Mock()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
-        my_obj.set_element_connection('destination')
-        assert my_obj.module.params['hostname'] == data['hostname']
-        assert my_obj.module.params['username'] == data['username']
-        assert my_obj.module.params['password'] == data['password']
 
     def test_if_all_methods_catch_exception(self):
         data = self.set_default_args()

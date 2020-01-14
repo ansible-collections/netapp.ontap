@@ -25,6 +25,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.2.0
 
 ### New Options
+- na_ontap_snapmirror: `relationship_state` option for breaking the snapmirror relationship.
 - na_ontap_info: New info's added `snapshot_info`
 
 ### Role Changes
