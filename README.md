@@ -24,9 +24,16 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.2.0
 
+### New Modules
+- na_ontap_volume_snaplock: modify volume snaplock retention.
+
 ### New Options
-- na_ontap_snapmirror: `relationship_state` option for breaking the snapmirror relationship.
 - na_ontap_info: New info's added `snapshot_info`
+- na_ontap_info: `max_records` option to set maximum number of records to return per subset.
+- na_ontap_snapmirror: `relationship_state` option for breaking the snapmirror relationship.
+
+### Bug Fixes
+- na_ontap_svm: if snapshot policy is changed, modify fails with "Extra input: snapshot_policy"
 
 ### Role Changes
 - na_ontap_nas_create role: fix typo in README file, add CIFS example.

@@ -129,13 +129,15 @@ class TestMyModule(unittest.TestCase):
         argument_spec.update(dict(
             state=dict(type='str', default='info', choices=['info']),
             gather_subset=dict(default=['all'], type='list'),
-            vserver=dict(type='str', default=None, required=False)
+            vserver=dict(type='str', default=None, required=False),
+            max_records=dict(type='int', default=1024, required=False)
         ))
         module = basic.AnsibleModule(
             argument_spec=argument_spec,
             supports_check_mode=True
         )
-        obj = info_module(module)
+        max_records = module.params['max_records']
+        obj = info_module(module, max_records)
         obj.netapp_info = dict()
         if kind is None:
             obj.server = MockONTAPConnection()

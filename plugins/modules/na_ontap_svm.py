@@ -485,7 +485,7 @@ class NetAppOntapSVM(object):
                 if attribute == 'language':
                     vserver_modify.add_new_child('language', self.parameters['language'])
                 if attribute == 'snapshot_policy':
-                    vserver_modify.add_new_child('snapshot_policy', self.parameters['snapshot_policy'])
+                    vserver_modify.add_new_child('snapshot-policy', self.parameters['snapshot_policy'])
                 if attribute == 'comment':
                     vserver_modify.add_new_child('comment', self.parameters['comment'])
                 if attribute == 'allowed_protocols':
