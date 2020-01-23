@@ -88,7 +88,7 @@ class TestMyModule(unittest.TestCase):
                                                  fail_json=fail_json)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
-        self.server = MockONTAPConnection()
+        self.vserver = MockONTAPConnection()
         self.onbox = False
 
     def set_default_args(self):
@@ -126,22 +126,22 @@ class TestMyModule(unittest.TestCase):
         ''' test get_volume_clone()  for non-existent volume clone'''
         set_module_args(self.set_default_args())
         my_obj = my_module()
-        my_obj.server = self.server
+        my_obj.vserver = self.vserver
         assert my_obj.get_volume_clone() is None
 
     def test_ensure_get_called_existing(self):
         ''' test get_volume_clone()  for existing volume clone'''
         set_module_args(self.set_default_args())
         my_obj = my_module()
-        my_obj.server = MockONTAPConnection(kind='volume_clone')
+        my_obj.vserver = MockONTAPConnection(kind='volume_clone')
         assert my_obj.get_volume_clone()
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
     def test_successful_create(self, create_volume_clone):
         ''' creating volume_clone and testing idempotency '''
         module_args = {
-            'parent_snapshot': 'abc',
             'parent_vserver': 'abc',
+            'parent_snapshot': 'abc',
             'volume_type': 'dp',
             'qos_policy_group_name': 'abc',
             'junction_path': 'abc',
@@ -152,7 +152,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
-            my_obj.server = self.server
+            my_obj.vserver = self.vserver
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
@@ -160,7 +160,7 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         my_obj = my_module()
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_clone')
+            my_obj.vserver = MockONTAPConnection('volume_clone')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
@@ -171,7 +171,8 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_clone_fail')
+            my_obj.vserver = MockONTAPConnection('volume_clone_fail')
+            my_obj.create_server = my_obj.vserver
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.get_volume_clone()
         assert 'Error fetching volume clone information ' in exc.value.args[0]['msg']

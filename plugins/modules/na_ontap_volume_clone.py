@@ -148,7 +148,14 @@ class NetAppONTAPVolumeClone(object):
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if self.parameters.get('parent_vserver'):
+                # use cluster ZAPI, as vserver ZAPI does not support parent-vserser for create
+                self.create_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+                # keep vserver for ems log and clone-get
+                self.vserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            else:
+                self.vserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+                self.create_server = self.vserver
         return
 
     def create_volume_clone(self):
@@ -166,6 +173,7 @@ class NetAppONTAPVolumeClone(object):
             clone_obj.add_new_child("parent-snapshot", self.parameters['parent_snapshot'])
         if self.parameters.get('parent_vserver'):
             clone_obj.add_new_child("parent-vserver", self.parameters['parent_vserver'])
+            clone_obj.add_new_child("vserver", self.parameters['vserver'])
         if self.parameters.get('volume_type'):
             clone_obj.add_new_child("volume-type", self.parameters['volume_type'])
         if self.parameters.get('junction_path'):
@@ -174,7 +182,7 @@ class NetAppONTAPVolumeClone(object):
             clone_obj.add_new_child("uid", str(self.parameters['uid']))
             clone_obj.add_new_child("gid", str(self.parameters['gid']))
         try:
-            self.server.invoke_successfully(clone_obj, True)
+            self.create_server.invoke_successfully(clone_obj, True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error creating volume clone: %s: %s' %
                                       (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
@@ -183,7 +191,7 @@ class NetAppONTAPVolumeClone(object):
         clone_obj = netapp_utils.zapi.NaElement('volume-clone-get')
         clone_obj.add_new_child("volume", self.parameters['name'])
         try:
-            results = self.server.invoke_successfully(clone_obj, True)
+            results = self.vserver.invoke_successfully(clone_obj, True)
             if results.get_child_by_name('attributes'):
                 attributes = results.get_child_by_name('attributes')
                 info = attributes.get_child_by_name('volume-clone-info')
@@ -204,7 +212,7 @@ class NetAppONTAPVolumeClone(object):
         """
         Run Module based on play book
         """
-        netapp_utils.ems_log_event("na_ontap_volume_clone", self.server)
+        netapp_utils.ems_log_event("na_ontap_volume_clone", self.vserver)
         current = self.get_volume_clone()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.na_helper.changed:
