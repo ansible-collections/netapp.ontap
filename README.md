@@ -35,6 +35,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
 - na_ontap_svm: if snapshot policy is changed, modify fails with "Extra input: snapshot_policy"
 
+### Bug Fixes
+- na_ontap_nvme_subsystem: fixed bug when creating subsystem, vserver was not filtered.
+
 ### Role Changes
 - na_ontap_nas_create role: fix typo in README file, add CIFS example.
 
