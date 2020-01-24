@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2020, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -154,6 +154,8 @@ options:
     - zh.gbk            Simplified Chinese (GBK)
     - zh_tw             Traditional Chinese euc-tw
     - zh_tw.big5        Traditional Chinese Big 5
+    - utf8mb4
+    - Most of the values accept a .utf_8 suffix, e.g. fr.utf_8
     version_added: '2.7'
 
   subtype:
@@ -231,6 +233,9 @@ class NetAppOntapSVM(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Ontap documentation uses C.UTF-8, but actually stores as c.utf_8.
+        if 'language' in self.parameters and self.parameters['language'].lower() == 'c.utf-8':
+            self.parameters['language'] = 'c.utf_8'
 
         self.restApi = OntapRestAPI(self.module)
         # with REST, to force synchronous operations
@@ -539,10 +544,6 @@ class NetAppOntapSVM(object):
         for attribute in modify:
             if attribute in ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']:
                 self.module.fail_json(msg='Error modifying SVM %s: can not modify %s.' % (self.parameters['name'], attribute))
-            if attribute == 'language':
-                # Ontap documentation uses C.UTF-8, but actually stores as c.utf_8.
-                if self.parameters['language'].lower() == 'c.utf-8':
-                    self.parameters['language'] = 'c.utf_8'
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
