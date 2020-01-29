@@ -42,6 +42,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Role Changes
 - na_ontap_nas_create role: fix typo in README file, add CIFS example.
 
+### Bug Fixes
+- na_ontap_cifs_server: Fixed KeyError exception on 'cifs_server_name'
+
 ## 20.1.0
 
 ### New Modules

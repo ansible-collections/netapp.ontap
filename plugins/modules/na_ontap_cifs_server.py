@@ -153,7 +153,7 @@ class NetAppOntapcifsServer(object):
 
         # set up state variables
         self.state = params['state']
-        self.cifs_server_name = params['cifs_server_name']
+        self.cifs_server_name = params['name']
         self.workgroup = params['workgroup']
         self.domain = params['domain']
         self.vserver = params['vserver']
