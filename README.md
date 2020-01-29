@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_info: New info's added `snapshot_info`
 - na_ontap_info: `max_records` option to set maximum number of records to return per subset.
 - na_ontap_snapmirror: `relationship_state` option for breaking the snapmirror relationship.
+- na_ontap_snapmirror: `update_snapmirror` option for updating the snapmirror relationship.
 
 ### Bug Fixes
 - na_ontap_nvme_subsystem: fixed bug when creating subsystem, vserver was not filtered.

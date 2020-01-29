@@ -92,9 +92,16 @@ options:
     description:
      - Specifies whether to initialize SnapMirror relation.
      - Default is True, it can be explicitly set to False to avoid initializing SnapMirror relation.
-    default: True
+    default: true
     type: bool
     version_added: '19.11.0'
+  update:
+    description:
+     - Specifies whether to update the destination endpoint of the SnapMirror relationship only if the relationship is already present and active.
+     - Default is True.
+    default: true
+    type: bool
+    version_added: '20.2.0'
   relationship_state:
     description:
      - Specifies whether to break SnapMirror relation or establish a SnapMirror relationship.
@@ -263,6 +270,7 @@ class NetAppONTAPSnapmirror(object):
             source_password=dict(required=False, type='str', no_log=True),
             max_transfer_rate=dict(required=False, type='int'),
             initialize=dict(required=False, type='bool', default=True),
+            update=dict(required=False, type='bool', default=True),
             identity_preserve=dict(required=False, type='bool'),
             relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active')
         ))
@@ -748,8 +756,12 @@ class NetAppONTAPSnapmirror(object):
                 # set changed explicitly for initialize
                 self.na_helper.changed = True
             # Update when create is called again, or modify is being called
-            elif self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active':
-                self.snapmirror_update()
+            if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active'\
+                    and self.parameters['update']:
+                current = self.snapmirror_get()
+                if current['mirror_state'] == 'snapmirrored':
+                    self.snapmirror_update()
+                    self.na_helper.changed = True
         self.module.exit_json(changed=self.na_helper.changed)
 
 

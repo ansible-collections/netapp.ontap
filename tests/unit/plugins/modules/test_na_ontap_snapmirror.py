@@ -112,6 +112,7 @@ class TestMyModule(unittest.TestCase):
             source_username = 'admin'
             source_password = 'password'
             relationship_state = 'active'
+            update = True
         else:
             hostname = '10.10.10.10'
             username = 'admin'
@@ -126,6 +127,7 @@ class TestMyModule(unittest.TestCase):
             source_username = 'admin'
             source_password = 'password'
             relationship_state = 'active'
+            update = True
         return dict({
             'hostname': hostname,
             'username': username,
@@ -139,7 +141,8 @@ class TestMyModule(unittest.TestCase):
             'schedule': schedule,
             'source_username': source_username,
             'source_password': source_password,
-            'relationship_state': relationship_state
+            'relationship_state': relationship_state,
+            'update': update
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -179,7 +182,9 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         snapmirror_create.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(self.set_default_args())
+        data = self.set_default_args()
+        data['update'] = False
+        set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
@@ -371,6 +376,7 @@ class TestMyModule(unittest.TestCase):
         snapmirror_modify.assert_called_with({'policy': 'ansible2', 'schedule': 'abc2', 'max_transfer_rate': 2000})
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
+        data['update'] = False
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -395,6 +401,7 @@ class TestMyModule(unittest.TestCase):
         snapmirror_initialize.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
+        data['update'] = False
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
