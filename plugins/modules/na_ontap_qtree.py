@@ -181,6 +181,7 @@ class NetAppOntapQTree(object):
             api = "storage/qtrees"
             params = {'fields': 'export_policy,unix_permissions,security_style,volume',
                       'svm.name': self.parameters['vserver'],
+                      'volume': self.parameters['flexvol_name'],
                       'name': name}
             message, error = self.restApi.get(api, params)
             if error:
