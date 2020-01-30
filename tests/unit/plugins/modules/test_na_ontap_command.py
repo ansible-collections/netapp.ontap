@@ -67,19 +67,27 @@ class MockONTAPConnection(object):
 
         if self.type == 'version':
             priv = xml.get_child_content('priv')
-            xml = self.build_version(priv)
+            xml = self.build_version(priv, self.parm1)
+
         self.xml_out = xml
         return xml
 
     @staticmethod
-    def build_version(priv):
+    def build_version(priv, result):
         ''' build xml data for version '''
         prefix = 'NetApp Release'
         if priv == 'advanced':
             prefix = '\n' + prefix
         xml = netapp_utils.zapi.NaElement('results')
+        xml.add_attr('status', 'status_ok')
         xml.add_new_child('cli-output', prefix)
-        # print(xml.to_string())
+        if result == "u'77'":
+            xml.add_new_child('cli-result-value', u'77')
+        elif result == "b'77'":
+            xml.add_new_child('cli-result-value', b'77')
+        else:
+            xml.add_new_child('cli-result-value', b'7' if result is None else result)
+        # print('XML ut:', xml.to_string())
         return xml
 
 
@@ -168,3 +176,30 @@ class TestMyModule(unittest.TestCase):
         needle = b'<cli-output>\nNetApp Release'
         assert needle in msg
         print('Version (raw): %s' % msg)
+
+    def get_dict_output(self, result):
+        ''' get result value after calling command module  '''
+        print('In:', result)
+        module_args = {
+            'command': 'version',
+            'return_dict': 'true',
+        }
+        self.server = MockONTAPConnection(kind='version', parm1=result)
+        dict_output = self.call_command(module_args, vsim=self.use_vsim)
+        print('dict_output: %s' % repr(dict_output))
+        return dict_output['result_value']
+
+    def test_dict_output_77(self):
+        ''' make sure correct value is returned '''
+        result = '77'
+        assert self.get_dict_output(result) == int(result)
+
+    def test_dict_output_b77(self):
+        ''' make sure correct value is returned '''
+        result = b'77'
+        assert self.get_dict_output(result) == int(result)
+
+    def test_dict_output_u77(self):
+        ''' make sure correct value is returned '''
+        result = "u'77'"
+        assert self.get_dict_output(result) == int(eval(result))

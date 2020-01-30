@@ -216,10 +216,14 @@ class NetAppONTAPCommand(object):
         xml_parse_ok = True
 
         try:
+            importing = 'ast'
+            import ast
+            importing = 'xml.parsers.expat'
             import xml.parsers.expat
         except ImportError:
-            self.result_dict['status'] = "XML parsing failed. Cannot import xml.parsers.expat!"
+            self.result_dict['status'] = "XML parsing failed. Cannot import %s!" % importing
             self.result_dict['stdout'] = str(xmldata)
+            self.result_dict['result_value'] = -1
             xml_import_ok = False
 
         if xml_import_ok:
@@ -234,6 +238,7 @@ class NetAppONTAPCommand(object):
             except xml.parsers.expat.ExpatError as errcode:
                 self.result_dict['status'] = "XML parsing failed: " + str(errcode)
                 self.result_dict['stdout'] = str(xmldata)
+                self.result_dict['result_value'] = -1
                 xml_parse_ok = False
 
             if xml_parse_ok:
@@ -255,7 +260,16 @@ class NetAppONTAPCommand(object):
                                 self.result_dict['stdout_lines_filter'].append(stripped_line)
 
                 self.result_dict['xml_dict']['cli-output']['data'] = stdout_string
-                self.result_dict['result_value'] = int(str(self.result_dict['xml_dict']['cli-result-value']['data']).replace("'", ""))
+                cli_result_value = self.result_dict['xml_dict']['cli-result-value']['data']
+                try:
+                    # get rid of extra quotes "'1'", but maybe "u'1'" or "b'1'"
+                    cli_result_value = ast.literal_eval(cli_result_value)
+                except (SyntaxError, ValueError):
+                    pass
+                try:
+                    self.result_dict['result_value'] = int(cli_result_value)
+                except ValueError:
+                    self.result_dict['result_value'] = cli_result_value
 
         return self.result_dict
 

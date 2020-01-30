@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: `update_snapmirror` option for updating the snapmirror relationship.
 
 ### Bug Fixes
+- na_ontap_command: fixed traceback when using return_dict if u'1' is present in result value.
 - na_ontap_nvme_subsystem: fixed bug when creating subsystem, vserver was not filtered.
 - na_ontap_svm: if snapshot policy is changed, modify fails with "Extra input: snapshot_policy"
 - na_ontap_svm: if language: C.UTF-8 is specified, the module is not idempotent
