@@ -78,6 +78,11 @@ options:
     description:
     - The UNIX group ID for the clone volume.
     type: int
+  split:
+    version_added: '20.2.0'
+    description:
+    - Split clone volume from parent volume.
+    type: bool
 '''
 
 EXAMPLES = """
@@ -131,7 +136,8 @@ class NetAppONTAPVolumeClone(object):
             volume_type=dict(required=False, choices=['rw', 'dp']),
             junction_path=dict(required=False, type='str', default=None),
             uid=dict(required=False, type='int'),
-            gid=dict(required=False, type='int')
+            gid=dict(required=False, type='int'),
+            split=dict(required=False, type='bool', default=None),
         ))
 
         self.module = AnsibleModule(
@@ -186,21 +192,51 @@ class NetAppONTAPVolumeClone(object):
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error creating volume clone: %s: %s' %
                                       (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
+        if 'split' in self.parameters and self.parameters['split']:
+            self.start_volume_clone_split()
+
+    def modify_volume_clone(self):
+        """
+        Modify an existing volume clone
+        """
+        if 'split' in self.parameters and self.parameters['split']:
+            self.start_volume_clone_split()
+
+    def start_volume_clone_split(self):
+        """
+        Starts a volume clone split
+        """
+        clone_obj = netapp_utils.zapi.NaElement('volume-clone-split-start')
+        clone_obj.add_new_child("volume", self.parameters['name'])
+        try:
+            self.vserver.invoke_successfully(clone_obj, True)
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg='Error starting volume clone split: %s: %s' %
+                                      (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
 
     def get_volume_clone(self):
         clone_obj = netapp_utils.zapi.NaElement('volume-clone-get')
         clone_obj.add_new_child("volume", self.parameters['name'])
+        current = None
         try:
             results = self.vserver.invoke_successfully(clone_obj, True)
             if results.get_child_by_name('attributes'):
                 attributes = results.get_child_by_name('attributes')
                 info = attributes.get_child_by_name('volume-clone-info')
-                parent_volume = info.get_child_content('parent-volume')
-                # checking if clone volume name already used to create by same parent volume
-                if parent_volume == self.parameters['parent_volume']:
-                    return results
+                current = {}
+                # Check if clone is currently splitting. Whilst a split is in
+                # progress, these attributes are present in 'volume-clone-info':
+                # block-percentage-complete, blocks-scanned & blocks-updated.
+                if info.get_child_by_name('block-percentage-complete') or \
+                   info.get_child_by_name('blocks-scanned') or \
+                   info.get_child_by_name('blocks-updated'):
+                    current["split"] = True
+                else:
+                    # Clone hasn't been split.
+                    current["split"] = False
+            return current
         except netapp_utils.zapi.NaApiError as error:
-            # Error 15661 denotes an volume clone not being found.
+            # Error 15661 denotes a volume clone not being found.
             if to_native(error.code) == "15661":
                 pass
             else:
@@ -210,17 +246,22 @@ class NetAppONTAPVolumeClone(object):
 
     def apply(self):
         """
-        Run Module based on play book
+        Run Module based on playbook
         """
         netapp_utils.ems_log_event("na_ontap_volume_clone", self.vserver)
         current = self.get_volume_clone()
+        modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action is None and self.parameters['state'] == 'present':
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
             else:
                 if cd_action == 'create':
                     self.create_volume_clone()
+                if modify:
+                    self.modify_volume_clone()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

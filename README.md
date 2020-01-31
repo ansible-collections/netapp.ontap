@@ -32,6 +32,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_info: `max_records` option to set maximum number of records to return per subset.
 - na_ontap_snapmirror: `relationship_state` option for breaking the snapmirror relationship.
 - na_ontap_snapmirror: `update_snapmirror` option for updating the snapmirror relationship.
+- na_ontap_volume_clone: `split` option to split clone volume from parent volume.
 
 ### Bug Fixes
 - na_ontap_command: fixed traceback when using return_dict if u'1' is present in result value.
