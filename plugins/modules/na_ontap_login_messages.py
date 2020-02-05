@@ -48,8 +48,7 @@ options:
 EXAMPLES = """
 
     - name: modify banner vserver
-      na_ontap_login_banner:
-        state: present
+      na_ontap_login_messages:
         vserver: trident_svm
         banner: this is trident vserver
         usename: "{{ username }}"
@@ -57,8 +56,7 @@ EXAMPLES = """
         hostname: "{{ hostname }}"
 
     - name: modify motd vserver
-      na_ontap_login_banner:
-        state: present
+      na_ontap_login_messages:
         vserver: trident_svm
         motd_message: this is trident vserver
         show_cluster_motd: True
@@ -127,7 +125,7 @@ class NetAppOntapLoginMessages(object):
             return_result = dict()
             return_result['banner'] = message['banner'].rstrip() if message.get('banner') else ''
             return_result['motd_message'] = message['message'].rstrip() if message.get('message') else ''
-            if message.get('how_cluster_message'):
+            if message.get('show_cluster_message'):
                 return_result['show_cluster_message'] = message['show_cluster_message']
             return return_result
         else:
@@ -208,7 +206,7 @@ class NetAppOntapLoginMessages(object):
                 params['show_cluster_message'] = modify['show_cluster_motd']
             message, error = self.restApi.patch(api, params)
             if error:
-                self.module.fail_json(msg='Error when modifying banner: %s' % error)
+                self.module.fail_json(msg='Error when modifying motd: %s' % error)
         else:
             motd_create = netapp_utils.zapi.NaElement('vserver-motd-modify-iter')
             if modify.get('motd_message') is not None:
