@@ -43,6 +43,7 @@ options:
                 "cifs_server_info",
                 "cifs_share_info",
                 "cifs_vserver_security_info",
+                "cluster_identity_info",
                 "cluster_image_info",
                 "cluster_node_info",
                 "cluster_peer_info",
@@ -174,6 +175,7 @@ ontap_info:
     sample: '{
         "ontap_info": {
             "aggregate_info": {...},
+            "cluster_identity_info": {...},
             "cluster_image_info": {...},
             "cluster_node_info": {...},
             "net_dns_info": {...},
@@ -261,6 +263,15 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'net-port-info',
                     'field': ('node', 'port'),
                     'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'cluster_identity_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'cluster-identity-get',
+                    'attribute': 'cluster-identity-info',
+                    'field': 'cluster-name',
                 },
                 'min_version': '0',
             },
@@ -942,7 +953,7 @@ class NetAppONTAPGatherInfo(object):
         '''Method to run a generic get-iter call'''
 
         generic_call = self.call_api(call, query)
-        if call == 'net-port-ifgrp-get':
+        if call == 'net-port-ifgrp-get' or call == 'cluster-identity-get':
             children = 'attributes'
         else:
             children = 'attributes-list'

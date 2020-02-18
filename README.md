@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.3.0
+
+### New Options
+- na_ontap_info: New info's added `cluster_identity_info`
+
 ## 20.2.0
 
 ### New Modules
