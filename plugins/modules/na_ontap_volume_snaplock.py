@@ -191,7 +191,7 @@ class NetAppOntapVolumeSnaplock(object):
             volume_snaplock_obj.add_new_child('default-retention-period', self.parameters['default_retention_period'])
         if modify.get('is_volume_append_mode_enabled') is not None:
             volume_snaplock_obj.add_new_child('is-volume-append-mode-enabled',
-                                              self.na_helper.get_value_for_bool(False, self.parameters['is-volume-append-mode-enabled']))
+                                              self.na_helper.get_value_for_bool(False, self.parameters['is_volume_append_mode_enabled']))
         if modify.get('maximum_retention_period') is not None:
             volume_snaplock_obj.add_new_child('maximum-retention-period', self.parameters['maximum_retention_period'])
         if modify.get('minimum_retention_period') is not None:
