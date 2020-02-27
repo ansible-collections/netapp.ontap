@@ -29,7 +29,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: performs resync when the `relationship_state` is active and the current state is broken-off.
 
 ### Bug Fixes
+- na_ontap_vscan_scanner_pool: has been updated to match the standard format used for all other ontap modules
 - na_ontap_volume_snaplock: Fixed KeyError exception on 'is-volume-append-mode-enabled'
+
 
 ## 20.2.0
 
