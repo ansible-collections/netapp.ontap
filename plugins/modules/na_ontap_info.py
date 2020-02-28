@@ -91,6 +91,7 @@ options:
                 "security_key_manager_key_info",
                 "security_login_account_info",
                 "storage_failover_info",
+                "storage_bridge_info",
                 "volume_info",
                 "vscan_info",
                 "vscan_status_info",
@@ -196,6 +197,7 @@ ontap_info:
             "qos_policy_info": {...},
             "qos_adaptive_policy_info": {...}
             "snapmirror_info": {...}
+            "storage_bridge_info": {...}
             "vscan_status_info": {...},
             "vscan_scanner_pool_info": {...},
             "vscan_connection_status_all_info": {...},
@@ -486,6 +488,16 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'snapshot-get-iter',
                     'attribute': 'snapshot-info',
                     'field': ('vserver', 'volume', 'name'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'storage_bridge_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'storage-bridge-get-iter',
+                    'attribute': 'storage-bridge-info',
+                    'field': 'name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
