@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
 - na_ontap_info: New info's added `cluster_identity_info`
+- na_ontap_info: New info's added `storage_bridge_info`
 
 ### Bug Fixes
 - na_ontap_volume_snaplock: Fixed KeyError exception on 'is-volume-append-mode-enabled'
