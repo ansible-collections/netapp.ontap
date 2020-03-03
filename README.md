@@ -33,6 +33,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_vscan_scanner_pool: has been updated to match the standard format used for all other ontap modules
 - na_ontap_volume_snaplock: Fixed KeyError exception on 'is-volume-append-mode-enabled'
 
+### New Modules
+- na_ontap_snapmirror_policy: create/modify/delete snapmirror policy.
 
 ## 20.2.0
 
