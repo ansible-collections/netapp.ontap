@@ -76,7 +76,15 @@ class MockONTAPConnection(object):
             'attributes-list': {
                 'vscan-scanner-pool-info': {
                     'scanner-pool': sanner_details['scanner_pool'],
-                    'scanner-policy': sanner_details['scanner_policy']
+                    'scanner-policy': sanner_details['scanner_policy'],
+                    'hostnames': [
+                        {'hostname': sanner_details['hostnames'][0]},
+                        {'hostname': sanner_details['hostnames'][1]}
+                    ],
+                    'privileged-users': [
+                        {"privileged-user": sanner_details['privileged_users'][0]},
+                        {"privileged-user": sanner_details['privileged_users'][1]}
+                    ]
                 }
             }
         }
@@ -154,14 +162,6 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_scanner_mock_object('scanner').apply()
         assert not exc.value.args[0]['changed']
-
-    def test_apply_policy(self):
-        data = self.mock_args()
-        data['scanner_policy'] = 'secondary'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_scanner_mock_object('scanner').apply()
-        assert exc.value.args[0]['changed']
 
     def test_successfully_delete(self):
         data = self.mock_args()

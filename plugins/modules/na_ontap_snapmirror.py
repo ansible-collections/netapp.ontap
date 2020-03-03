@@ -13,12 +13,13 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - Create/Delete/Update/Initialize SnapMirror volume/vserver relationships for ONTAP/ONTAP
+  - Create/Delete/Update/Initialize/Break/Resync SnapMirror volume/vserver relationships for ONTAP/ONTAP
   - Create/Delete/Update/Initialize SnapMirror volume relationship between ElementSW and ONTAP
   - Modify schedule for a SnapMirror relationship for ONTAP/ONTAP and ElementSW/ONTAP
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is an established SnapMirror endpoint for ONTAP cluster with ElementSW UI
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is to have SnapMirror enabled in the ElementSW volume
   - For creating a SnapMirror ElementSW/ONTAP relationship, an existing ONTAP/ElementSW relationship should be present
+  - Performs resync if the C(relationship_state=active) and the current state is broken-off
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_snapmirror
@@ -553,6 +554,19 @@ class NetAppONTAPSnapmirror(object):
                                           % (to_native(error)),
                                       exception=traceback.format_exc())
 
+    def snapmirror_resync(self):
+        """
+        resync SnapMirror based on relationship type
+        """
+        options = {'destination-location': self.parameters['destination_path']}
+        snapmirror_resync = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resync', **options)
+        try:
+            self.server.invoke_successfully(snapmirror_resync, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error resyncing SnapMirror : %s'
+                                      % (to_native(error)),
+                                  exception=traceback.format_exc())
+
     def snapmirror_modify(self, modify):
         """
         Modify SnapMirror schedule or policy
@@ -750,18 +764,23 @@ class NetAppONTAPSnapmirror(object):
                     self.snapmirror_break()
                     self.na_helper.changed = True
             # check for initialize
-            elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active' \
+            elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active'\
                     and current['mirror_state'] == 'uninitialized':
                 self.snapmirror_initialize()
                 # set changed explicitly for initialize
                 self.na_helper.changed = True
-            # Update when create is called again, or modify is being called
-            if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active'\
-                    and self.parameters['update']:
-                current = self.snapmirror_get()
-                if current['mirror_state'] == 'snapmirrored':
-                    self.snapmirror_update()
+            if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active':
+                # resync when state is broken-off
+                if current['mirror_state'] == 'broken-off':
+                    self.snapmirror_resync()
+                    # set changed explicitly for resync
                     self.na_helper.changed = True
+                # Update when create is called again, or modify is being called
+                elif self.parameters['update']:
+                    current = self.snapmirror_get()
+                    if current['mirror_state'] == 'snapmirrored':
+                        self.snapmirror_update()
+                        self.na_helper.changed = True
         self.module.exit_json(changed=self.na_helper.changed)
 
 

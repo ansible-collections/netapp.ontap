@@ -213,7 +213,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.server = MockONTAPConnection('snapmirror', 'broken-off', status='idle')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
-        assert not exc.value.args[0]['changed']
+        assert exc.value.args[0]['changed']
 
     def test_successful_create_without_initialize(self):
         ''' creating snapmirror and testing idempotency '''
