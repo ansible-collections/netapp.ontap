@@ -50,7 +50,7 @@ options:
     description:
     - The vendor of the Key Distribution Centre (KDC) server
     - Required if I(state=present)
-    choices: ['Other', 'Microsoft']
+    choices: ['other', 'microsoft']
     type: str
 
   kdc_ip:
@@ -100,17 +100,42 @@ options:
     - The TCP port on the Kerberos password-changing server where the Kerberos password-changing service is running.
     - The default for this parameter is '464'.
     type: str
+
+  ad_server_ip:
+    description:
+    - IP Address of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
+    type: str
+    version_added: '20.4.0'
+
+  ad_server_name:
+    description:
+    - Host name of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
+    type: str
+    version_added: '20.4.0'
 '''
 
 EXAMPLES = '''
 
-    - name: Create kerberos realm
+    - name: Create kerberos realm other kdc vendor
       na_ontap_kerberos_realm:
         state:         present
         realm:         'EXAMPLE.COM'
         vserver:       'vserver1'
         kdc_ip:        '1.2.3.4'
-        kdc_vendor:    'Other'
+        kdc_vendor:    'other'
+        hostname:      "{{ netapp_hostname }}"
+        username:      "{{ netapp_username }}"
+        password:      "{{ netapp_password }}"
+
+    - name: Create kerberos realm Microsoft kdc vendor
+      na_ontap_kerberos_realm:
+        state:          present
+        realm:          'EXAMPLE.COM'
+        vserver:        'vserver1'
+        kdc_ip:         '1.2.3.4'
+        kdc_vendor:     'microsoft'
+        ad_server_ip:   '0.0.0.0'
+        ad_server_name: 'server'
         hostname:      "{{ netapp_hostname }}"
         username:      "{{ netapp_username }}"
         password:      "{{ netapp_password }}"
@@ -137,24 +162,27 @@ class NetAppOntapKerberosRealm(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            admin_server_ip=dict(required=False, default=None, type='str'),
-            admin_server_port=dict(required=False, default=None, type='str'),
-            clock_skew=dict(required=False, default=None, type='str'),
-            comment=dict(required=False, default=None, type='str'),
-            kdc_ip=dict(required_if=[["state", "present"]], default=None, type='str'),
-            kdc_port=dict(required=False, default=None, type='str'),
-            kdc_vendor=dict(required_if=[["state", "present"]], default=None, type='str', choices=['Microsoft', 'Other']),
-            pw_server_ip=dict(required=False, default=None, type='str'),
-            pw_server_port=dict(required=False, default=None, type='str'),
+            admin_server_ip=dict(required=False, type='str'),
+            admin_server_port=dict(required=False, type='str'),
+            clock_skew=dict(required=False, type='str'),
+            comment=dict(required=False, type='str'),
+            kdc_ip=dict(required_if=[["state", "present"]], type='str'),
+            kdc_port=dict(required=False, type='str'),
+            kdc_vendor=dict(required_if=[["state", "present"]], type='str',
+                            choices=['microsoft', 'other']),
+            pw_server_ip=dict(required=False, type='str'),
+            pw_server_port=dict(required=False, type='str'),
             realm=dict(required=True, type='str'),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
-            vserver=dict(required=True, type='str')
+            vserver=dict(required=True, type='str'),
+            ad_server_ip=dict(required=False, type='str'),
+            ad_server_name=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            required_if=[('state', 'present', ['kdc_vendor', 'kdc_ip'])],
+            required_if=[('state', 'present', ['kdc_vendor', 'kdc_ip']), ('kdc_vendor', 'microsoft', ['ad_server_ip', 'ad_server_name'])],
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
@@ -216,7 +244,9 @@ class NetAppOntapKerberosRealm(object):
                 'pw_server_ip': config_info.get_child_content('password-server-ip'),
                 'pw_server_port': config_info.get_child_content('password-server-port'),
                 'realm': config_info.get_child_content('realm'),
-                'vserver': config_info.get_child_content('vserver'),
+                'vserver': config_info.get_child_content('vserver-name'),
+                'ad_server_ip': config_info.get_child_content('ad-server-ip'),
+                'ad_server_name': config_info.get_child_content('ad-server-name')
             }
 
         return krbrealm_details
@@ -238,6 +268,11 @@ class NetAppOntapKerberosRealm(object):
             options['password-server-ip'] = self.parameters['pw_server_ip']
         if self.parameters.get('pw_server_port') is not None:
             options['password-server-port'] = self.parameters['pw_server_port']
+
+        if self.parameters.get('ad_server_ip') is not None:
+            options['ad-server-ip'] = self.parameters['ad_server_ip']
+        if self.parameters.get('ad_server_name') is not None:
+            options['ad-server-name'] = self.parameters['ad_server_name']
 
         # Initialize NaElement
         krbrealm_create = netapp_utils.zapi.NaElement.create_node_with_children('kerberos-realm-create', **options)
@@ -276,6 +311,10 @@ class NetAppOntapKerberosRealm(object):
                 krbrealm_modify.add_new_child('password-server-ip', self.parameters['pw_server_ip'])
             if attribute == 'pw_server_port':
                 krbrealm_modify.add_new_child('password-server-port', self.parameters['pw_server_port'])
+            if attribute == 'ad_server_ip':
+                krbrealm_modify.add_new_child('ad-server-ip', self.parameters['ad_server_ip'])
+            if attribute == 'ad_server_name':
+                krbrealm_modify.add_new_child('ad-server-name', self.parameters['ad_server_name'])
 
         # Try to modify Kerberos Realm
         try:

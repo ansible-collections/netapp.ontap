@@ -177,7 +177,7 @@ class TestMyModule(unittest.TestCase):
         data['realm'] = 'none'
         data['state'] = 'present'
         data['kdc_ip'] = 'none'
-        data['kdc_vendor'] = 'Other'
+        data['kdc_vendor'] = 'other'
         set_module_args(data)
         result = self.get_kerberos_realm_mock_object().get_krbrealm()
         assert result is None
@@ -189,7 +189,7 @@ class TestMyModule(unittest.TestCase):
         data['realm'] = 'EXAMPLE.COM'
         data['state'] = 'present'
         data['kdc_ip'] = '10.0.0.1'
-        data['kdc_vendor'] = 'Other'
+        data['kdc_vendor'] = 'other'
         set_module_args(data)
         result = self.get_kerberos_realm_mock_object('present_realm').get_krbrealm()
         assert result['realm']
@@ -202,7 +202,7 @@ class TestMyModule(unittest.TestCase):
         data['kdc_ip'] = '192.168.10.10'
         data['state'] = 'present'
         data['kdc_ip'] = '10.0.0.1'
-        data['kdc_vendor'] = 'Other'
+        data['kdc_vendor'] = 'other'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_kerberos_realm_mock_object('present_realm').apply()
@@ -230,7 +230,7 @@ class TestMyModule(unittest.TestCase):
         data['vserver'] = 'vserver1'
         data['realm'] = 'NETAPP.COM'
         data['kdc_ip'] = '10.0.0.1'
-        data['kdc_vendor'] = 'Other'
+        data['kdc_vendor'] = 'other'
         set_module_args(data)
         obj = self.get_kerberos_realm_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
