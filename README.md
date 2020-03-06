@@ -31,6 +31,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
 - na_ontap_kerberos_realm: fix `kdc_vendor` case sensitivity issue.
 
+### New Modules
+- na_ontap_wwpn_alias: create/modify/delete vserver fcp wwpn-alias.
+
 ## 20.3.0
 
 ### New Options
