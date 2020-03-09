@@ -210,6 +210,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
+import copy
+
 try:
     import xmltodict
     HAS_XMLTODICT = True
@@ -915,19 +917,39 @@ class NetAppONTAPGatherInfo(object):
             self.module.fail_json(msg="Error calling API %s: %s" %
                                   (api, to_native(error)), exception=traceback.format_exc())
 
-    def call_api(self, call, query=None):
+    def call_api(self, call, children='attributes-list', query=None):
         '''Main method to run an API call'''
 
         api_call = netapp_utils.zapi.NaElement(call)
-        result = None
+        initial_result = None
 
         if query:
             for key, val in query.items():
                 # Can val be nested?
                 api_call.add_new_child(key, val)
         try:
-            result = self.server.invoke_successfully(api_call, enable_tunneling=False)
+            initial_result = self.server.invoke_successfully(api_call, enable_tunneling=False)
+            next_tag = initial_result.get_child_by_name('next-tag')
+            result = copy.copy(initial_result)
+
+            while next_tag:
+                next_tag_call = netapp_utils.zapi.NaElement(call)
+                if query:
+                    for key, val in query.items():
+                        next_tag_call.add_new_child(key, val)
+
+                next_tag_call.add_new_child("tag", next_tag.get_content(), True)
+                next_result = self.server.invoke_successfully(next_tag_call, enable_tunneling=False)
+
+                next_tag = next_result.get_child_by_name('next-tag')
+                result_attr = result.get_child_by_name(children)
+                new_records = next_result.get_child_by_name(children)
+                if new_records:
+                    for record in new_records.get_children():
+                        result_attr.add_child_elem(record)
+
             return result
+
         except netapp_utils.zapi.NaApiError as error:
             if call in ['security-key-manager-key-get-iter']:
                 return result
@@ -964,11 +986,12 @@ class NetAppONTAPGatherInfo(object):
     def get_generic_get_iter(self, call, attribute=None, field=None, query=None):
         '''Method to run a generic get-iter call'''
 
-        generic_call = self.call_api(call, query)
         if call == 'net-port-ifgrp-get' or call == 'cluster-identity-get':
             children = 'attributes'
         else:
             children = 'attributes-list'
+
+        generic_call = self.call_api(call, children, query)
 
         if generic_call is None:
             return None
