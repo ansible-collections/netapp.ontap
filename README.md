@@ -25,10 +25,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.4.0
 
 ### New Options
+- na_ontap_info: `max_records` option specifies maximum number of records returned in a single ZAPI call.
 - na_ontap_kerberos_realm: `ad_server_ip` option specifies IP Address of the Active Directory Domain Controller (DC).
 - na_ontap_kerberos_realm: `ad_server_name` option specifies Host name of the Active Directory Domain Controller (DC).
 
 ### Bug Fixes
+- na_ontap_info: return all records of each gathered subset.
 - na_ontap_kerberos_realm: fix `kdc_vendor` case sensitivity issue.
 
 ### New Modules

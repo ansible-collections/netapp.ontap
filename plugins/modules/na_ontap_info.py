@@ -112,7 +112,8 @@ options:
     max_records:
         type: int
         description:
-            - Maximum number of records per subset to return. Valid range is [1..2^32-1].
+            - Maximum number of records returned in a single ZAPI call. Valid range is [1..2^32-1].
+                This parameter controls internal behavior of this module.
         default: 1024
         version_added: '20.2.0'
 '''
