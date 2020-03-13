@@ -150,6 +150,15 @@ options:
     version_added: '2.9'
     type: bool
 
+  service_policy:
+    description:
+    - Starting with ONTAP 9.5, you can configure LIF service policies to identify a single service or a list of services that will use a LIF.
+    - In ONTAP 9.5, you can assign service policies only for LIFs in the admin SVM.
+    - In ONTAP 9.6, you can additionally assign service policies for LIFs in the data SVMs.
+    - When you specify a service policy for a LIF, you need not specify the data protocol and role for the LIF.
+    - Creating LIFs by specifying the role and data protocols is also supported.
+    version_added: '20.4.0'
+    type: str
 '''
 
 EXAMPLES = '''
@@ -244,7 +253,8 @@ class NetAppOntapInterface(object):
             force_subnet_association=dict(required=False, type='bool', default=None),
             dns_domain_name=dict(required=False, type='str'),
             listen_for_dns_query=dict(required=False, type='bool'),
-            is_dns_update_enabled=dict(required=False, type='bool')
+            is_dns_update_enabled=dict(required=False, type='bool'),
+            service_policy=dict(required=False, type='str', default=None)
         ))
 
         self.module = AnsibleModule(
@@ -317,6 +327,8 @@ class NetAppOntapInterface(object):
             if interface_attributes.get_child_by_name('is-dns-update-enabled'):
                 return_value['is_dns_update_enabled'] = self.na_helper.get_value_for_bool(True, interface_attributes[
                     'is-dns-update-enabled'])
+            if interface_attributes.get_child_by_name('service-policy'):
+                return_value['service_policy'] = interface_attributes['service-policy']
         return return_value
 
     @staticmethod
@@ -350,6 +362,8 @@ class NetAppOntapInterface(object):
             options['is-dns-update-enabled'] = str(parameters['is_dns_update_enabled'])
         if parameters.get('is_ipv4_link_local') is not None:
             options['is-ipv4-link-local'] = 'true' if parameters['is_ipv4_link_local'] else 'false'
+        if parameters.get('service_policy') is not None:
+            options['service-policy'] = parameters['service_policy']
 
     def set_protocol_option(self, required_keys):
         """ set protocols for create """

@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
 - na_ontap_info: `max_records` option specifies maximum number of records returned in a single ZAPI call.
+- na_ontap_interface: `service_policy` option to identify a single service or a list of services that will use a LIF.
 - na_ontap_kerberos_realm: `ad_server_ip` option specifies IP Address of the Active Directory Domain Controller (DC).
 - na_ontap_kerberos_realm: `ad_server_name` option specifies Host name of the Active Directory Domain Controller (DC).
 
