@@ -91,12 +91,13 @@ class NetAppOntapWwpnAlias(object):
             state=dict(required=False, choices=[
                 'present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
-            wwpn=dict(required=False, type='str', default=None),
+            wwpn=dict(required=False, type='str'),
             vserver=dict(required=True, type='str')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[('state', 'present', ['wwpn'])],
             supports_check_mode=True
         )
         self.na_helper = NetAppModule()
