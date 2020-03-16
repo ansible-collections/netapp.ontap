@@ -17,6 +17,21 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, None),
+    'is_zapi': (400, "Unreachable"),
+    'empty_good': ({}, None),
+    'end_of_sequence': (None, "Unexpected call to send_request"),
+    'generic_error': (None, "Expected error"),
+    # module specific responses
+    'get_snapmirror_policy': {'svm.name': 'ansible',
+                              'name': 'ansible',
+                              'uuid': 1234,
+                              'comment': 'created by ansible',
+                              'type': 'ansible'}
+}
 
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
@@ -106,7 +121,6 @@ class TestMyModule(unittest.TestCase):
             vserver = 'ansible'
             policy_name = 'ansible'
             policy_type = 'async_mirror'
-            tries = '8'
             comment = 'created by ansible'
         else:
             hostname = '10.10.10.10'
@@ -115,7 +129,6 @@ class TestMyModule(unittest.TestCase):
             vserver = 'ansible'
             policy_name = 'ansible'
             policy_type = 'async_mirror'
-            tries = '8'
             comment = 'created by ansible'
         return dict({
             'hostname': hostname,
@@ -124,7 +137,6 @@ class TestMyModule(unittest.TestCase):
             'vserver': vserver,
             'policy_name': policy_name,
             'policy_type': policy_type,
-            'tries': tries,
             'comment': comment
         })
 
@@ -168,7 +180,31 @@ class TestMyModule(unittest.TestCase):
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror_policy', 'snapmirrored')
+            my_obj.server = MockONTAPConnection('snapmirror_policy')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.create_snapmirror_policy')
+    def test_successful_create_with_rest(self, snapmirror_create_policy):
+        ''' creating snapmirror_policy and testing idempotency '''
+        data = self.set_default_args()
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=None)
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        snapmirror_create_policy.assert_called_with()
+        # to reset na_helper from remembering the previous 'changed' value
+        data = self.set_default_args()
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
@@ -181,18 +217,38 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
-        my_obj.get_destination = Mock(return_value=True)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror_policy')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        delete_snapmirror_policy.assert_called_with()
+        delete_snapmirror_policy.assert_called_with(None)
         # to reset na_helper from remembering the previous 'changed' value
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.delete_snapmirror_policy')
+    def test_successful_delete_with_rest(self, delete_snapmirror_policy):
+        ''' deleting snapmirror_policy and testing idempotency '''
+        data = self.set_default_args()
+        data['state'] = 'absent'
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        delete_snapmirror_policy.assert_called_with(1234)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=None)
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
@@ -223,6 +279,31 @@ class TestMyModule(unittest.TestCase):
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror_policy')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy')
+    def test_successful_modify_with_rest(self, snapmirror_policy_modify):
+        ''' modifying snapmirror_policy and testing idempotency '''
+        data = self.set_default_args()
+        data['comment'] = 'old comment'
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        snapmirror_policy_modify.assert_called_with(1234, 'ansible')
+        # to reset na_helper from remembering the previous 'changed' value
+        data = self.set_default_args()
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
