@@ -232,7 +232,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_subset_return_all_complete(self):
         ''' Check all returns all of the entries if version is high enough '''
-        version = '140'         # change this if new ZAPIs are supported
+        version = '170'         # change this if new ZAPIs are supported
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         subset = obj.get_subset(['all'], version)
@@ -298,7 +298,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_subset_return_all_expect_one(self):
         ''' Check !x returns all of the entries except x if version is high enough '''
-        version = '140'         # change this if new ZAPIs are supported
+        version = '170'         # change this if new ZAPIs are supported
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         subset = obj.get_subset(['!net_interface_info'], version)
@@ -308,7 +308,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_subset_return_all_expect_three(self):
         ''' Check !x,!y,!z returns all of the entries except x, y, z if version is high enough '''
-        version = '140'         # change this if new ZAPIs are supported
+        version = '170'         # change this if new ZAPIs are supported
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         subset = obj.get_subset(['!net_interface_info', '!nvme_info', '!ontap_version'], version)

@@ -65,6 +65,7 @@ options:
                 "net_firewall_info",
                 "net_ifgrp_info",
                 "net_interface_info",
+                "net_interface_service_policy_info",
                 "net_ipspaces_info",
                 "net_port_info",
                 "net_port_broadcast_domain_info",
@@ -183,6 +184,7 @@ ontap_info:
             "net_dns_info": {...},
             "net_ifgrp_info": {...},
             "net_interface_info": {...},
+            "net_interface_service_policy_info": {...},
             "net_port_info": {...},
             "security_key_manager_key_info": {...},
             "security_login_account_info": {...},
@@ -260,6 +262,16 @@ class NetAppONTAPGatherInfo(object):
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
+            },
+            'net_interface_service_policy_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-interface-service-policy-get-iter',
+                    'attribute': 'net-interface-service-policy-info',
+                    'field': ('vserver', 'policy'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '150',
             },
             'net_port_info': {
                 'method': self.get_generic_get_iter,
@@ -572,7 +584,9 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cifs-server-get-iter',
                     'attribute': 'cifs-server-config',
-                    'field': ('vserver', 'domain', 'cifs-server'),
+                    # preferred key is <vserver>:<domain>:<cifs-server>
+                    # alternate key is <vserver>:<domain-workgroup>:<cifs-server>
+                    'field': ('vserver', ('domain', 'domain-workgroup'), 'cifs-server'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1100,12 +1114,22 @@ def __finditem(obj, key):
     return None
 
 
-def _finditem(obj, key):
+def _finditem(obj, keys):
+    ''' if keys is a string, use it as a key
+        if keys is a tuple, stop on the first valid key
+        if no valid key is found, raise a KeyError '''
 
-    value = __finditem(obj, key)
+    value = None
+    if isinstance(keys, str):
+        value = __finditem(obj, keys)
+    elif isinstance(keys, tuple):
+        for key in keys:
+            value = __finditem(obj, key)
+            if value is not None:
+                break
     if value is not None:
         return value
-    raise KeyError(key)
+    raise KeyError(str(keys))
 
 
 def convert_keys(d_param):
