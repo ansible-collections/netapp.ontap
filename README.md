@@ -37,9 +37,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_kerberos_realm: fix `kdc_vendor` case sensitivity issue.
 
 ### New Modules
+- na_ontap_ntfs_dacl: create/modify/delete ntfs dacl (discretionary access control list).
 - na_ontap_ntfs_sd: create/modify/delete ntfs security descriptor.
 - na_ontap_wwpn_alias: create/modify/delete vserver fcp wwpn-alias.
-
 
 ## 20.3.0
 
