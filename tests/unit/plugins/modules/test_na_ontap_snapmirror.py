@@ -50,29 +50,31 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
-    def __init__(self, kind=None, parm=None, status=None):
+    def __init__(self, kind=None, parm=None, status=None, quiesce_status='passed'):
         ''' save arguments '''
         self.type = kind
         self.xml_in = None
         self.xml_out = None
         self.parm = parm
         self.status = status
+        self.quiesce_status = quiesce_status
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         if self.type == 'snapmirror':
-            xml = self.build_snapmirror_info(self.parm, self.status)
+            xml = self.build_snapmirror_info(self.parm, self.status, self.quiesce_status)
         elif self.type == 'snapmirror_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
 
     @staticmethod
-    def build_snapmirror_info(mirror_state, status):
+    def build_snapmirror_info(mirror_state, status, quiesce_status):
         ''' build xml data for snapmirror-entry '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
+                'status': quiesce_status,
                 'attributes-list': {'snapmirror-info': {'mirror-state': mirror_state, 'schedule': None,
                                                         'source-location': 'ansible:ansible',
                                                         'relationship-status': status, 'policy': 'ansible',
@@ -192,6 +194,19 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
+
+    def test_failure_break(self):
+        ''' breaking snapmirror to test quiesce time-delay failure '''
+        data = self.set_default_args()
+        data['relationship_state'] = 'broken'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', 'snapmirrored', status='idle', quiesce_status='InProgress')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        assert 'Taking a long time to Quiescing SnapMirror, try again later' in exc.value.args[0]['msg']
 
     def test_successful_break(self):
         ''' breaking snapmirror and testing idempotency '''
@@ -555,6 +570,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.snapmirror_abort()
         assert 'Error aborting SnapMirror relationship :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.snapmirror_quiesce = Mock(return_value=None)
             my_obj.snapmirror_break()
         assert 'Error breaking SnapMirror relationship :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
@@ -574,9 +590,6 @@ class TestMyModule(unittest.TestCase):
             my_obj.source_server = MockONTAPConnection()
             my_obj.snapmirror_create()
         assert 'Error creating SnapMirror ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_quiesce()
-        assert 'Error Quiescing SnapMirror :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.snapmirror_quiesce = Mock(return_value=None)
             my_obj.get_destination = Mock(return_value=None)

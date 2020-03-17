@@ -36,6 +36,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_info: return all records of each gathered subset.
 - na_ontap_info: cifs_server_info: fix KeyError exception on `domain` if only `domain-workgroup` is present.
 - na_ontap_kerberos_realm: fix `kdc_vendor` case sensitivity issue.
+- na_ontap_snapmirror: calling quiesce before snapmirror break.
 
 ### New Modules
 - na_ontap_ntfs_dacl: create/modify/delete ntfs dacl (discretionary access control list).

@@ -222,6 +222,7 @@ EXAMPLES = """
 RETURN = """
 """
 
+import time
 import re
 import traceback
 from ansible.module_utils.basic import AnsibleModule
@@ -457,17 +458,29 @@ class NetAppONTAPSnapmirror(object):
         """
         Quiesce SnapMirror relationship - disable all future transfers to this destination
         """
+        result = None
         options = {'destination-location': self.parameters['destination_path']}
 
         snapmirror_quiesce = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-quiesce', **options)
         try:
-            self.server.invoke_successfully(snapmirror_quiesce,
-                                            enable_tunneling=True)
+            result = self.server.invoke_successfully(snapmirror_quiesce, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error Quiescing SnapMirror : %s'
-                                      % (to_native(error)),
-                                  exception=traceback.format_exc())
+                                      % (to_native(error)), exception=traceback.format_exc())
+        # checking if quiesce was passed successfully
+        if result is not None and result['status'] == 'passed':
+            return
+        elif result is not None and result['status'] != 'passed':
+            retries = 5
+            while retries > 0:
+                time.sleep(5)
+                retries = retries - 1
+                status = self.snapmirror_get()
+                if status['status'] == 'quiesced':
+                    return
+            if retries == 0:
+                self.module.fail_json(msg='Taking a long time to Quiescing SnapMirror, try again later')
 
     def snapmirror_delete(self):
         """
@@ -488,7 +501,10 @@ class NetAppONTAPSnapmirror(object):
     def snapmirror_break(self, destination=None):
         """
         Break SnapMirror relationship at destination cluster
+        #1. Quiesce the SnapMirror relationship at destination
+        #2. Break the SnapMirror relationship at the destination
         """
+        self.snapmirror_quiesce()
         if destination is None:
             destination = self.parameters['destination_path']
         options = {'destination-location': destination}
