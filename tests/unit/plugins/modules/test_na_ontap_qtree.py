@@ -19,8 +19,8 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, None),
-    'is_zapi': (400, "Unreachable"),
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (None, "Expected error"),
@@ -109,7 +109,7 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection()
         self.onbox = False
 
-    def set_default_args(self):
+    def set_default_args(self, use_rest=None):
         if self.onbox:
             hostname = '10.10.10.10'
             username = 'username'
@@ -131,7 +131,7 @@ class TestMyModule(unittest.TestCase):
             security_style = 'unix'
             mode = 'abc'
 
-        return dict({
+        args = dict({
             'state': 'present',
             'hostname': hostname,
             'username': username,
@@ -143,6 +143,11 @@ class TestMyModule(unittest.TestCase):
             'security_style': security_style,
             'unix_permissions': mode
         })
+
+        if use_rest is not None:
+            args['use_rest'] = use_rest
+
+        return args
 
     @staticmethod
     def get_qtree_mock_object(type='zapi', kind=None, status=None):
@@ -163,14 +168,16 @@ class TestMyModule(unittest.TestCase):
 
     def test_ensure_get_called(self):
         ''' test get_qtree for non-existent qtree'''
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
+        print('starting')
         my_obj = qtree_module()
+        print('use_rest:', my_obj.use_rest)
         my_obj.server = self.server
         assert my_obj.get_qtree is not None
 
     def test_ensure_get_called_existing(self):
         ''' test get_qtree for existing qtree'''
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = qtree_module()
         my_obj.server = MockONTAPConnection(kind='qtree')
         assert my_obj.get_qtree()
@@ -178,7 +185,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.create_qtree')
     def test_successful_create(self, create_qtree):
         ''' creating qtree and testing idempotency '''
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = qtree_module()
         if not self.onbox:
             my_obj.server = self.server
@@ -187,7 +194,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         create_qtree.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = qtree_module()
         if not self.onbox:
             my_obj.server = MockONTAPConnection('qtree')
@@ -198,7 +205,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.delete_qtree')
     def test_successful_delete(self, delete_qtree):
         ''' deleting qtree and testing idempotency '''
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['state'] = 'absent'
         set_module_args(data)
         my_obj = qtree_module()
@@ -219,7 +226,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.modify_qtree')
     def test_successful_modify(self, modify_qtree):
         ''' modifying qtree and testing idempotency '''
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['export_policy'] = 'test'
         set_module_args(data)
         my_obj = qtree_module()
@@ -240,7 +247,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['from_name'] = 'ansible'
         set_module_args(data)
         my_obj = qtree_module()

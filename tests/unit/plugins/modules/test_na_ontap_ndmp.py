@@ -23,15 +23,17 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, None),
-    'is_zapi': (400, "Unreachable"),
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
     'get_uuid': ({'records': [{'uuid': 'testuuid'}]}, None),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, 'Error fetching ndmp from ansible: NetApp API failed. Reason - Unexpected error:',
                       "REST API currently does not support 'backup_log_enable, ignore_ctime_enabled'"),
-    'get_ndmp': ({"enabled": True, "authentication_types": ["test"],
-                  "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)}
+    'get_ndmp_uuid': ({"records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
+    'get_ndmp':      ({"enabled": True, "authentication_types": ["test"],
+                       "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)
+    }
 
 
 def set_module_args(args):
@@ -209,17 +211,16 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
-    def test_rest_successfully_modify(self, mock_get, mock_request):
+    def test_rest_successfully_modify(self, mock_request):
         data = self.mock_args(rest=True)
         data['use_rest'] = 'Always'
         set_module_args(data)
-        mock_get.return_value = SRR['get_ndmp'][0], None
         mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_uuid'],
-            SRR['get_ndmp'],
-            SRR['empty_good'],  # get
+            # SRR['is_rest'],           # WHY IS IT NOT CALLED HERE?
+            SRR['get_ndmp_uuid'],       # for get svm uuid: protocols/ndmp/svms
+            SRR['get_ndmp'],            # for get ndmp details: '/protocols/ndmp/svms/' + uuid
+            SRR['get_ndmp_uuid'],       # for get svm uuid: protocols/ndmp/svms   (before modify)
+            SRR['empty_good'],          # modify (patch)
             SRR['end_of_sequence'],
         ]
         my_obj = ndmp_module()

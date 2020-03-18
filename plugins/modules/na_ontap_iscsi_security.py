@@ -48,6 +48,7 @@ options:
   inbound_username:
     description:
       - Inbound CHAP username.
+      - Required for CHAP. A null username is not allowed.
     type: str
   inbound_password:
     description:
@@ -145,9 +146,9 @@ class NetAppONTAPIscsiSecurity(object):
                 ['auth_type', 'chap', ['inbound_username', 'inbound_password']]
             ],
             required_together=[
-                ['inbound_username', 'outbound_password'],
-                ['outbound_username', 'outbound_password']
-            ]
+                ['inbound_username', 'inbound_password'],
+                ['outbound_username', 'outbound_password'],
+            ],
         )
 
         self.na_helper = NetAppModule()
@@ -225,22 +226,48 @@ class NetAppONTAPIscsiSecurity(object):
         if error is not None:
             self.module.fail_json(msg="Error on deleting initiator: %s" % error)
 
-    def modify_initiator(self, modify):
+    def modify_initiator(self, modify, current):
         """
         Modify initiator.
         :param modify: dict of modify attributes.
         :return: None.
         """
         params = dict()
-        if modify.get('auth_type'):
-            params['authentication_type'] = self.parameters['auth_type']
-            if modify['auth_type'] == 'chap':
-                chap_info = dict()
-                if modify.get('inbound_username'):
-                    chap_info['inbound'] = {'user': self.parameters['inbound_username'], 'password': self.parameters['inbound_password']}
-                if modify.get('outbound_username'):
-                    chap_info['outbound'] = {'user': self.parameters['outbound_username'], 'password': self.parameters['outbound_password']}
-                params['chap'] = chap_info
+        use_chap = False
+        chap_update = False
+        chap_update_inbound = False
+        chap_update_outbound = False
+
+        if modify.get('auth_type') and modify['auth_type'] == 'chap':
+            # change in auth_type
+            chap_update = True
+            use_chap = True
+        elif current.get('auth_type') == 'chap':
+            # we're already using chap
+            use_chap = True
+
+        if use_chap and (modify.get('inbound_username') or modify.get('inbound_password')):
+            # change in chap inbound credentials
+            chap_update = True
+            chap_update_inbound = True
+
+        if use_chap and (modify.get('outbound_username') or modify.get('outbound_password')):
+            # change in chap outbound credentials
+            chap_update = True
+            chap_update_outbound = True
+
+        if chap_update:
+            chap_info = dict()
+            # set values from self.parameters as they may not show as modified
+            if chap_update_inbound:
+                chap_info['inbound'] = {'user': self.parameters['inbound_username'], 'password': self.parameters['inbound_password']}
+            else:
+                # use current values as inbound username/password are required
+                chap_info['inbound'] = {'user': current.get('inbound_username'), 'password': current.get('inbound_password')}
+            if chap_update_outbound:
+                chap_info['outbound'] = {'user': self.parameters['outbound_username'], 'password': self.parameters['outbound_password']}
+
+            params['chap'] = chap_info
         address_info = self.get_address_info(modify.get('address_ranges'))
         if address_info is not None:
             params['initiator_address'] = {'ranges': address_info}
@@ -282,7 +309,7 @@ class NetAppONTAPIscsiSecurity(object):
                 elif action == 'delete':
                     self.delete_initiator()
                 elif modify:
-                    self.modify_initiator(modify)
+                    self.modify_initiator(modify, current)
         self.module.exit_json(changed=self.na_helper.changed)
 
     def get_svm_uuid(self):

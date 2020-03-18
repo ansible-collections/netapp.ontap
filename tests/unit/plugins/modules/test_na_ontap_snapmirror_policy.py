@@ -20,8 +20,8 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, None),
-    'is_zapi': (400, "Unreachable"),
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, "Expected error"),
@@ -113,7 +113,7 @@ class TestMyModule(unittest.TestCase):
         self.source_server = MockONTAPConnection()
         self.onbox = False
 
-    def set_default_args(self):
+    def set_default_args(self, use_rest=None):
         if self.onbox:
             hostname = '10.10.10.10'
             username = 'admin'
@@ -130,7 +130,8 @@ class TestMyModule(unittest.TestCase):
             policy_name = 'ansible'
             policy_type = 'async_mirror'
             comment = 'created by ansible'
-        return dict({
+
+        args = dict({
             'hostname': hostname,
             'username': username,
             'password': password,
@@ -139,6 +140,11 @@ class TestMyModule(unittest.TestCase):
             'policy_type': policy_type,
             'comment': comment
         })
+
+        if use_rest is not None:
+            args['use_rest'] = use_rest
+
+        return args
 
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
@@ -149,14 +155,14 @@ class TestMyModule(unittest.TestCase):
 
     def test_ensure_get_called(self):
         ''' test snapmirror_policy_get for non-existent snapmirror policy'''
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = my_module()
         my_obj.server = self.server
         assert my_obj.get_snapmirror_policy is not None
 
     def test_ensure_get_called_existing(self):
         ''' test snapmirror_policy_get for existing snapmirror policy'''
-        set_module_args(self.set_default_args())
+        set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = my_module()
         my_obj.server = MockONTAPConnection(kind='snapmirror_policy')
         assert my_obj.get_snapmirror_policy()
@@ -164,7 +170,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.create_snapmirror_policy')
     def test_successful_create(self, snapmirror_create_policy):
         ''' creating snapmirror_policy and testing idempotency '''
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -175,7 +181,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         snapmirror_create_policy.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -199,7 +205,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         snapmirror_create_policy.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['use_rest'] = 'Always'
         set_module_args(data)
         my_obj = my_module()
@@ -212,7 +218,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.delete_snapmirror_policy')
     def test_successful_delete(self, delete_snapmirror_policy):
         ''' deleting snapmirror_policy and testing idempotency '''
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['state'] = 'absent'
         set_module_args(data)
         my_obj = my_module()
@@ -256,7 +262,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy')
     def test_successful_modify(self, snapmirror_policy_modify):
         ''' modifying snapmirror_policy and testing idempotency '''
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         data['comment'] = 'old comment'
         data['ignore_atime'] = True
         data['is_network_compression_enabled'] = True
@@ -273,7 +279,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         snapmirror_policy_modify.assert_called_with()
         # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -309,7 +315,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args()
+        data = self.set_default_args(use_rest='Never')
         set_module_args(data)
         my_obj = my_module()
         if not self.onbox:

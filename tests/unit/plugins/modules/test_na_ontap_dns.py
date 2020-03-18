@@ -25,8 +25,8 @@ HAS_NETAPP_ZAPI_MSG = "pip install netapp_lib is required"
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, None),
-    'is_zapi': (400, "Unreachable"),
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, "Expected error"),

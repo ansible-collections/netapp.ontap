@@ -24,7 +24,7 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, None),
+    'is_rest': (200, {}, None),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (None, "Expected error"),

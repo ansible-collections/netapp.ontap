@@ -257,7 +257,8 @@ class OntapRestAPI(object):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
 
-    def send_request(self, method, api, params, json=None, return_status_code=False):
+    def send_request(self, method, api, params, json=None, return_status_code=False, accept=None,
+                     vserver_name=None, vserver_uuid=None):
         ''' send http request and process reponse, including error conditions '''
         url = self.url + api
         status_code = None
@@ -265,6 +266,17 @@ class OntapRestAPI(object):
         json_dict = None
         json_error = None
         error_details = None
+        headers = None
+        if accept is not None or vserver_name is not None or vserver_uuid is not None:
+            headers = dict()
+            # accept is used to turn on/off HAL linking
+            if accept is not None:
+                headers['accept'] = accept
+            # vserver tunneling using vserver name and/or UUID
+            if vserver_name is not None:
+                headers['X-Dot-SVM-Name'] = vserver_name
+            if vserver_uuid is not None:
+                headers['X-Dot-SVM-UUID'] = vserver_uuid
 
         def get_json(response):
             ''' extract json, and error message if present '''
@@ -276,7 +288,7 @@ class OntapRestAPI(object):
             return json, error
 
         try:
-            response = requests.request(method, url, verify=self.verify, auth=(self.username, self.password), params=params, timeout=self.timeout, json=json)
+            response = requests.request(method, url, verify=self.verify, auth=(self.username, self.password), params=params, timeout=self.timeout, json=json, headers=headers)
             content = response.content  # for debug purposes
             status_code = response.status_code
             # If the response was successful, no Exception will be raised
@@ -298,11 +310,11 @@ class OntapRestAPI(object):
             self.log_error(status_code, 'Endpoint error: %d: %s' % (status_code, json_error))
             error_details = json_error
         self.log_debug(status_code, content)
-        if return_status_code:
-            return status_code, error_details
         if not json_dict and method == 'OPTIONS':
             # OPTIONS provides the list of supported verbs
             json_dict['Allow'] = response.headers['Allow']
+        if return_status_code:
+            return status_code, json_dict, error_details
         return json_dict, error_details
 
     def get(self, api, params):
@@ -338,7 +350,7 @@ class OntapRestAPI(object):
             return False, None
         method = 'HEAD'
         api = 'cluster/software'
-        status_code, __ = self.send_request(method, api, params=None, return_status_code=True)
+        status_code, __, __ = self.send_request(method, api, params=None, return_status_code=True)
         if status_code == 200:
             return True, None
         return False, None

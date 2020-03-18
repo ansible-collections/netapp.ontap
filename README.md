@@ -36,12 +36,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
 - na_ontap_info: return all records of each gathered subset.
 - na_ontap_info: cifs_server_info: fix KeyError exception on `domain` if only `domain-workgroup` is present.
+- na_ontap_iscsi_security: Fixed modify functionality for CHAP and typo correction
 - na_ontap_kerberos_realm: fix `kdc_vendor` case sensitivity issue.
 - na_ontap_snapmirror: calling quiesce before snapmirror break.
 
 ### New Modules
 - na_ontap_ntfs_dacl: create/modify/delete ntfs dacl (discretionary access control list).
 - na_ontap_ntfs_sd: create/modify/delete ntfs security descriptor.
+- na_ontap_restit: send any REST API request to ONTAP (9.6 and above).
 - na_ontap_wwpn_alias: create/modify/delete vserver fcp wwpn-alias.
 - na_ontap_zapit: send any ZAPI request to ONTAP.
 
