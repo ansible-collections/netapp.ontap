@@ -71,6 +71,7 @@ options:
     - The smallest disks in this pool join the aggregate first, unless the C(disk-size) argument is provided.
     - Either C(disk-count) or C(disks) must be supplied. Range [0..2^31-1].
     - Required when C(state=present).
+    - Modifiable only if specified disk_count is larger than current disk_count.
     type: int
 
   disk_size:
@@ -323,6 +324,8 @@ class NetAppOntapAggregate(object):
             current_aggr = dict()
             attr = aggr_get.get_child_by_name('attributes-list').get_child_by_name('aggr-attributes')
             current_aggr['service_state'] = attr.get_child_by_name('aggr-raid-attributes').get_child_content('state')
+            if attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'):
+                current_aggr['disk_count'] = int(attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'))
             return current_aggr
         return None
 
@@ -492,10 +495,13 @@ class NetAppOntapAggregate(object):
         :param modify: dictionary of parameters to be modified
         :return: None
         """
-        if modify['service_state'] == 'offline':
+        if modify.get('service_state') == 'offline':
             self.aggregate_offline()
-        elif modify['service_state'] == 'online':
-            self.aggregate_online()
+        else:
+            if modify.get('service_state') == 'online':
+                self.aggregate_online()
+            if modify.get('disk_count'):
+                self.add_disks(modify['disk_count'])
 
     def attach_object_store_to_aggr(self):
         """
@@ -512,6 +518,21 @@ class NetAppOntapAggregate(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error attaching object store %s to aggregate %s: %s" %
                                       (self.parameters['object_store_name'], self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def add_disks(self, count):
+        """
+        Add additional disk to aggregate.
+        :return: None
+        """
+        online_aggr = netapp_utils.zapi.NaElement.create_node_with_children(
+            'aggr-add', **{'aggregate': self.parameters['name'], 'disk-count': str(count)})
+        try:
+            self.server.invoke_successfully(online_aggr,
+                                            enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error adding additional disk to aggregate %s: %s' %
+                                  (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def asup_log_for_cserver(self, event_name):
@@ -547,6 +568,13 @@ class NetAppOntapAggregate(object):
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
+
+        if modify.get('disk_count'):
+            if int(modify['disk_count']) < int(current['disk_count']):
+                self.module.fail_json(msg="specified disk_count is less than current disk_count. Only adding_disk is allowed.")
+            else:
+                modify['disk_count'] = modify['disk_count'] - current['disk_count']
+
         if self.parameters.get('object_store_name') and cd_action is None and rename is None:
             object_store_current = self.get_object_store()
             object_store_cd_action = self.na_helper.get_cd_action(object_store_current,
