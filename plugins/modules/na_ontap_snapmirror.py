@@ -103,6 +103,12 @@ options:
     default: true
     type: bool
     version_added: '20.2.0'
+  relationship_info_only:
+    description:
+     - If relationship-info-only is set to true then only relationship information is removed.
+    default: false
+    type: bool
+    version_added: '20.4.0'
   relationship_state:
     description:
      - Specifies whether to break SnapMirror relation or establish a SnapMirror relationship.
@@ -165,6 +171,7 @@ EXAMPLES = """
       na_ontap_snapmirror:
         state: absent
         destination_path: <path>
+        relationship_info_only: True
         source_hostname: "{{ source_hostname }}"
         hostname: "{{ destination_cluster_hostname }}"
         username: "{{ destination_cluster_username }}"
@@ -274,7 +281,8 @@ class NetAppONTAPSnapmirror(object):
             initialize=dict(required=False, type='bool', default=True),
             update=dict(required=False, type='bool', default=True),
             identity_preserve=dict(required=False, type='bool'),
-            relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active')
+            relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active'),
+            relationship_info_only=dict(required=False, type='bool', default=False)
         ))
 
         self.module = AnsibleModule(
@@ -522,7 +530,8 @@ class NetAppONTAPSnapmirror(object):
         """
         Release SnapMirror relationship from source cluster
         """
-        options = {'destination-location': self.parameters['destination_path']}
+        options = {'destination-location': self.parameters['destination_path'],
+                   'relationship-info-only': self.na_helper.get_value_for_bool(False, self.parameters['relationship_info_only'])}
         snapmirror_release = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-release', **options)
         try:

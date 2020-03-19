@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_kerberos_realm: `ad_server_ip` option specifies IP Address of the Active Directory Domain Controller (DC).
 - na_ontap_kerberos_realm: `ad_server_name` option specifies Host name of the Active Directory Domain Controller (DC).
 - na_ontap_snapmirror_policy: REST is included and all defaults are removed from options.
+- na_ontap_snapmirror: `relationship-info-only` option allows to manage relationship information.
 
 ### Bug Fixes
 - na_ontap_info: return all records of each gathered subset.
