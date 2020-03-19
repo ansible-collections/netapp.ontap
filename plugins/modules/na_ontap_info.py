@@ -79,18 +79,20 @@ options:
                 "nvme_interface_info",
                 "nvme_namespace_info",
                 "nvme_subsystem_info",
+                "ontap_system_version",
                 "ontap_version",
+                "ontapi_version",
+                "qos_adaptive_policy_info",
+                "qos_policy_info",
                 "role_info",
+                "security_key_manager_key_info",
+                "security_login_account_info",
                 "service_processor_network_info",
                 "sis_policy_info",
                 "snapmirror_info",
                 "snapmirror_policy_info",
                 "snapshot_info",
                 "snapshot_policy_info",
-                "qos_adaptive_policy_info",
-                "qos_policy_info",
-                "security_key_manager_key_info",
-                "security_login_account_info",
                 "storage_failover_info",
                 "storage_bridge_info",
                 "volume_info",
@@ -181,26 +183,28 @@ ontap_info:
             "cluster_identity_info": {...},
             "cluster_image_info": {...},
             "cluster_node_info": {...},
+            "igroup_info": {...},
+            "lun_info": {...},
             "net_dns_info": {...},
             "net_ifgrp_info": {...},
             "net_interface_info": {...},
             "net_interface_service_policy_info": {...},
             "net_port_info": {...},
+            "ontap_system_version": {...},
+            "ontap_version": {...},
+            "ontapi_version": {...},
+            "qos_policy_info": {...},
+            "qos_adaptive_policy_info": {...}
             "security_key_manager_key_info": {...},
             "security_login_account_info": {...},
-            "volume_info": {...},
-            "lun_info": {...},
+            "snapmirror_info": {...}
+            "storage_bridge_info": {...}
             "storage_failover_info": {...},
+            "volume_info": {...},
             "vserver_login_banner_info": {...},
             "vserver_motd_info": {...},
             "vserver_info": {...},
             "vserver_nfs_info": {...},
-            "ontap_version": {...},
-            "igroup_info": {...},
-            "qos_policy_info": {...},
-            "qos_adaptive_policy_info": {...}
-            "snapmirror_info": {...}
-            "storage_bridge_info": {...}
             "vscan_status_info": {...},
             "vscan_scanner_pool_info": {...},
             "vscan_connection_status_all_info": {...},
@@ -417,7 +421,19 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {},
                 'min_version': '0',
             },
+            'ontap_system_version': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'system-get-version',
+                },
+                'min_version': '0',
+            },
             'ontap_version': {
+                'method': self.ontapi,
+                'kwargs': {},
+                'min_version': '0',
+            },
+            'ontapi_version': {
                 'method': self.ontapi,
                 'kwargs': {},
                 'min_version': '0',
@@ -957,6 +973,10 @@ class NetAppONTAPGatherInfo(object):
                 next_result = self.server.invoke_successfully(next_tag_call, enable_tunneling=False)
 
                 next_tag = next_result.get_child_by_name('next-tag')
+                if children is None:
+                    self.module.fail_json(msg="Error calling API %s: %s" %
+                                          (api_call.to_string(), "'next-tag' is not expected for this API"))
+
                 result_attr = result.get_child_by_name(children)
                 new_records = next_result.get_child_by_name(children)
                 if new_records:
@@ -1003,6 +1023,8 @@ class NetAppONTAPGatherInfo(object):
 
         if call == 'net-port-ifgrp-get' or call == 'cluster-identity-get':
             children = 'attributes'
+        elif call == 'system-get-version':
+            children = None
         else:
             children = 'attributes-list'
 
@@ -1016,7 +1038,10 @@ class NetAppONTAPGatherInfo(object):
         else:
             out = {}
 
-        attributes_list = generic_call.get_child_by_name(children)
+        if children is None:
+            attributes_list = generic_call
+        else:
+            attributes_list = generic_call.get_child_by_name(children)
 
         if attributes_list is None:
             return None
@@ -1050,9 +1075,12 @@ class NetAppONTAPGatherInfo(object):
             cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
             netapp_utils.ems_log_event("na_ontap_info", cserver)
 
-        self.netapp_info['ontap_version'] = self.ontapi()
+        self.netapp_info['ontapi_version'] = self.ontapi()
+        self.netapp_info['ontap_version'] = self.netapp_info['ontapi_version']
 
-        run_subset = self.get_subset(gather_subset, self.netapp_info['ontap_version'])
+        run_subset = self.get_subset(gather_subset, self.netapp_info['ontapi_version'])
+        if 'ontap_version' in gather_subset:
+            self.netapp_info['deprecation_warning'] = 'ontap_version is deprecated, please use ontapi_version'
         if 'help' in gather_subset:
             self.netapp_info['help'] = sorted(run_subset)
         else:
