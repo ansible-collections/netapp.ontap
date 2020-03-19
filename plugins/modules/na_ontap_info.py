@@ -58,6 +58,7 @@ options:
                 "kerberos_realm_info",
                 "ldap_client",
                 "ldap_config",
+                "license_info",
                 "lun_info",
                 "lun_map_info",
                 "net_dns_info",
@@ -184,6 +185,7 @@ ontap_info:
             "cluster_image_info": {...},
             "cluster_node_info": {...},
             "igroup_info": {...},
+            "license_info": {...},
             "lun_info": {...},
             "net_dns_info": {...},
             "net_ifgrp_info": {...},
@@ -291,6 +293,7 @@ class NetAppONTAPGatherInfo(object):
                 'method': self.get_generic_get_iter,
                 'kwargs': {
                     'call': 'cluster-identity-get',
+                    'attributes_list_tag': 'attributes',
                     'attribute': 'cluster-identity-info',
                     'field': 'cluster-name',
                 },
@@ -343,6 +346,15 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'volume-attributes',
                     'field': ('name', 'owning-vserver-name'),
                     'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'license_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'license-v2-list-info',
+                    'attributes_list_tag': None,
+                    'attribute': 'licenses',
                 },
                 'min_version': '0',
             },
@@ -425,6 +437,7 @@ class NetAppONTAPGatherInfo(object):
                 'method': self.get_generic_get_iter,
                 'kwargs': {
                     'call': 'system-get-version',
+                    'attributes_list_tag': None,
                 },
                 'min_version': '0',
             },
@@ -948,7 +961,7 @@ class NetAppONTAPGatherInfo(object):
             self.module.fail_json(msg="Error calling API %s: %s" %
                                   (api, to_native(error)), exception=traceback.format_exc())
 
-    def call_api(self, call, children='attributes-list', query=None):
+    def call_api(self, call, attributes_list_tag='attributes-list', query=None):
         '''Main method to run an API call'''
 
         api_call = netapp_utils.zapi.NaElement(call)
@@ -973,12 +986,12 @@ class NetAppONTAPGatherInfo(object):
                 next_result = self.server.invoke_successfully(next_tag_call, enable_tunneling=False)
 
                 next_tag = next_result.get_child_by_name('next-tag')
-                if children is None:
+                if attributes_list_tag is None:
                     self.module.fail_json(msg="Error calling API %s: %s" %
                                           (api_call.to_string(), "'next-tag' is not expected for this API"))
 
-                result_attr = result.get_child_by_name(children)
-                new_records = next_result.get_child_by_name(children)
+                result_attr = result.get_child_by_name(attributes_list_tag)
+                new_records = next_result.get_child_by_name(attributes_list_tag)
                 if new_records:
                     for record in new_records.get_children():
                         result_attr.add_child_elem(record)
@@ -1013,22 +1026,16 @@ class NetAppONTAPGatherInfo(object):
             query['node'], query['ifgrp-name'] = ifgrp.split(':')
 
             tmp = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
-                                            attribute='net-ifgrp-info', query=query)
+                                            attribute='net-ifgrp-info', query=query,
+                                            attributes_list_tag='attributes')
             net_ifgrp_info = net_ifgrp_info.copy()
             net_ifgrp_info.update(tmp)
         return net_ifgrp_info
 
-    def get_generic_get_iter(self, call, attribute=None, field=None, query=None):
+    def get_generic_get_iter(self, call, attribute=None, field=None, query=None, attributes_list_tag='attributes-list'):
         '''Method to run a generic get-iter call'''
 
-        if call == 'net-port-ifgrp-get' or call == 'cluster-identity-get':
-            children = 'attributes'
-        elif call == 'system-get-version':
-            children = None
-        else:
-            children = 'attributes-list'
-
-        generic_call = self.call_api(call, children, query)
+        generic_call = self.call_api(call, attributes_list_tag, query)
 
         if generic_call is None:
             return None
@@ -1038,10 +1045,10 @@ class NetAppONTAPGatherInfo(object):
         else:
             out = {}
 
-        if children is None:
+        if attributes_list_tag is None:
             attributes_list = generic_call
         else:
-            attributes_list = generic_call.get_child_by_name(children)
+            attributes_list = generic_call.get_child_by_name(attributes_list_tag)
 
         if attributes_list is None:
             return None
@@ -1062,6 +1069,10 @@ class NetAppONTAPGatherInfo(object):
                 out.update({unique_key: convert_keys(json.loads(json.dumps(dic)))})
             else:
                 out.append(convert_keys(json.loads(json.dumps(dic))))
+
+        if attributes_list_tag is None and field is None and len(out) == 1:
+            # flatten the list as only 1 element is expected
+            out = out[0]
 
         return out
 
