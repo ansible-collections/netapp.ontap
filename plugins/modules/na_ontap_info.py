@@ -452,8 +452,11 @@ class NetAppONTAPGatherInfo(object):
                 'min_version': '0',
             },
             'clock_info': {
-                'method': self.clock_get_clock,
-                'kwargs': {},
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'clock-get-clock',
+                    'attributes_list_tag': None,
+                },
                 'min_version': '0'
             },
             'system_node_info': {
@@ -928,26 +931,6 @@ class NetAppONTAPGatherInfo(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def clock_get_clock(self):
-        """
-        Return the clock for the vsever or cluster
-        :return:
-        """
-        api = "clock-get-clock"
-        api_call = netapp_utils.zapi.NaElement(api)
-        try:
-            results = self.server.invoke_successfully(api_call, enable_tunneling=False)
-            local_time = results.get_child_content('local-time')
-            utc_time = results.get_child_content('utc-time')
-            return_value = {
-                'local_time': local_time,
-                'utc_time': utc_time,
-            }
-            return return_value
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg="Error calling API %s: %s" %
-                                  (api, to_native(error)), exception=traceback.format_exc())
-
     def ontapi(self):
         '''Method to get ontapi version'''
 
@@ -1040,11 +1023,6 @@ class NetAppONTAPGatherInfo(object):
         if generic_call is None:
             return None
 
-        if field is None:
-            out = []
-        else:
-            out = {}
-
         if attributes_list_tag is None:
             attributes_list = generic_call
         else:
@@ -1052,6 +1030,11 @@ class NetAppONTAPGatherInfo(object):
 
         if attributes_list is None:
             return None
+
+        if field is None:
+            out = []
+        else:
+            out = {}
 
         for child in attributes_list.get_children():
             dic = xmltodict.parse(child.to_string(), xml_attribs=False)
@@ -1070,9 +1053,25 @@ class NetAppONTAPGatherInfo(object):
             else:
                 out.append(convert_keys(json.loads(json.dumps(dic))))
 
-        if attributes_list_tag is None and field is None and len(out) == 1:
-            # flatten the list as only 1 element is expected
-            out = out[0]
+        if attributes_list_tag is None and field is None:
+            if len(out) == 1:
+                # flatten the list as only 1 element is expected
+                out = out[0]
+            elif len(out) > 1:
+                # aggregate a list of dictionaries into a single dict
+                # make sure we only have dicts and no key duplication
+                dic = dict()
+                key_count = 0
+                for item in out:
+                    if not isinstance(item, dict):
+                        # abort if we don't see a dict
+                        key_count = -1
+                        break
+                    dic.update(item)
+                    key_count += len(item)
+                if key_count == len(dic):
+                    # no duplicates!
+                    out = dic
 
         return out
 

@@ -72,6 +72,12 @@ class MockONTAPConnection(object):
         elif self.type == 'zapi_error':
             error = netapp_utils.zapi.NaApiError('test', 'error')
             raise error
+        elif self.type == 'list_of_one':
+            xml = self.list_of_one()
+        elif self.type == 'list_of_two':
+            xml = self.list_of_two()
+        elif self.type == 'list_of_two_dups':
+            xml = self.list_of_two_dups()
         self.xml_out = xml
         return xml
 
@@ -99,6 +105,30 @@ class MockONTAPConnection(object):
             net_port_info.add_new_child('ipspace', 'ipspace' + str(i))
             attributes_list.add_child_elem(net_port_info)
         xml.add_child_elem(attributes_list)
+        return xml
+
+    @staticmethod
+    def list_of_one():
+        ''' build xml data for list of one info element '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        list_of_one = [{'k1': 'v1', 'k2': 'v2'}]
+        xml.translate_struct(list_of_one)
+        return xml
+
+    @staticmethod
+    def list_of_two():
+        ''' build xml data for list of two info elements '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        list_of_two = [{'k1': 'v1'}, {'k2': 'v2'}]
+        xml.translate_struct(list_of_two)
+        return xml
+
+    @staticmethod
+    def list_of_two_dups():
+        ''' build xml data for list of two info elements with same key '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        list_of_two = [{'k1': 'v1'}, {'k1': 'v2'}]
+        xml.translate_struct(list_of_two)
         return xml
 
 
@@ -327,3 +357,44 @@ class TestMyModule(unittest.TestCase):
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = 'Remote system at version %s does not support %s' % (version, key)
         assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
+    def test_get_generic_get_iter_flatten_list_of_one(self, mock_ems_log):
+        '''calling get_generic_get_iter will return expected dict'''
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('list_of_one')
+        result = obj.get_generic_get_iter(
+            'list_of_one',
+            attributes_list_tag=None,
+        )
+        assert isinstance(result, dict)
+        assert result.get('k1') == 'v1'
+        assert result.get('k2') == 'v2'
+
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
+    def test_get_generic_get_iter_flatten_list_of_two(self, mock_ems_log):
+        '''calling get_generic_get_iter will return expected dict'''
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('list_of_two')
+        result = obj.get_generic_get_iter(
+            'list_of_two',
+            attributes_list_tag=None,
+        )
+        assert isinstance(result, dict)
+        assert result.get('k1') == 'v1'
+        assert result.get('k2') == 'v2'
+
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
+    def test_get_generic_get_iter_flatten_list_of_two_dups(self, mock_ems_log):
+        '''calling get_generic_get_iter will return expected dict'''
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('list_of_two_dups')
+        result = obj.get_generic_get_iter(
+            'list_of_two_dups',
+            attributes_list_tag=None,
+        )
+        assert isinstance(result, list)
+        assert result[0].get('k1') == 'v1'
+        assert result[1].get('k1') == 'v2'
