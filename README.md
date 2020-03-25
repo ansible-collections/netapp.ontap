@@ -49,6 +49,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: calling quiesce before snapmirror break.
 
 ### New Modules
+- na_ontap_autosupport_invoke: send autosupport message.
 - na_ontap_ntfs_dacl: create/modify/delete ntfs dacl (discretionary access control list).
 - na_ontap_ntfs_sd: create/modify/delete ntfs security descriptor.
 - na_ontap_restit: send any REST API request to ONTAP (9.6 and above).
