@@ -86,6 +86,8 @@ options:
                 "ontapi_version",
                 "qos_adaptive_policy_info",
                 "qos_policy_info",
+                "qtree_info",
+                "quota_report_info",
                 "role_info",
                 "security_key_manager_key_info",
                 "security_login_account_info",
@@ -205,7 +207,9 @@ ontap_info:
             "ontap_version": {...},
             "ontapi_version": {...},
             "qos_policy_info": {...},
-            "qos_adaptive_policy_info": {...}
+            "qos_adaptive_policy_info": {...},
+            "qtree_info": {...},
+            "quota_report_info": {...},
             "security_key_manager_key_info": {...},
             "security_login_account_info": {...},
             "snapmirror_info": {...}
@@ -504,6 +508,26 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'qos-policy-group-get-iter',
                     'attribute': 'qos-policy-group-info',
                     'field': 'policy-group',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'qtree_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'qtree-list-iter',
+                    'attribute': 'qtree-info',
+                    'field': ('vserver', 'id'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'quota_report_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'quota-report-iter',
+                    'attribute': 'quota',
+                    'field': ('vserver', 'volume', 'tree', 'quota-type', 'quota-target'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
