@@ -121,6 +121,13 @@ options:
                 This parameter controls internal behavior of this module.
         default: 1024
         version_added: '20.2.0'
+    summary:
+        description:
+            - Boolean flag to control return all attributes of the module info or only the names.
+            - If true, only names are returned.
+        default: false
+        type: bool
+        version_added: '20.4.0'
 '''
 
 EXAMPLES = '''
@@ -1150,6 +1157,12 @@ class NetAppONTAPGatherInfo(object):
 
         return runable_subsets
 
+    def get_summary(self, ontap_info):
+        for info in ontap_info:
+            if '_info' in info and ontap_info[info] is not None and type(ontap_info[info]) is dict:
+                ontap_info[info] = ontap_info[info].keys()
+        return ontap_info
+
 
 # https://stackoverflow.com/questions/14962485/finding-a-key-recursively-in-a-dictionary
 def __finditem(obj, key):
@@ -1203,7 +1216,8 @@ def main():
         state=dict(type='str', default='info', choices=['info']),
         gather_subset=dict(default=['all'], type='list'),
         vserver=dict(type='str', default=None, required=False),
-        max_records=dict(type='int', default=1024, required=False)
+        max_records=dict(type='int', default=1024, required=False),
+        summary=dict(type='bool', default=False, required=False)
     ))
 
     module = AnsibleModule(
@@ -1219,11 +1233,14 @@ def main():
 
     state = module.params['state']
     gather_subset = module.params['gather_subset']
+    summary = module.params['summary']
     if gather_subset is None:
         gather_subset = ['all']
     max_records = module.params['max_records']
     gf_obj = NetAppONTAPGatherInfo(module, max_records)
     gf_all = gf_obj.get_all(gather_subset)
+    if summary:
+        gf_all = gf_obj.get_summary(gf_all)
     result = {'state': state, 'changed': False}
     module.exit_json(ontap_info=gf_all, **result)
 

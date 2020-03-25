@@ -27,6 +27,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
 - na_ontap_aggregate: `disk_count` option allows adding additional disk to aggregate.
 - na_ontap_info: `max_records` option specifies maximum number of records returned in a single ZAPI call.
+- na_ontap_info: `summary` option specifies a boolean flag to control return all or none of the info attributes.
 - na_ontap_info: new fact: iscsi_service_info.
 - na_ontap_info: new fact: license_info.
 - na_ontap_info: new fact: net_interface_service_policy_info.
