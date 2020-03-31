@@ -42,6 +42,12 @@ options:
       - Allows the update to continue if warnings are encountered during the validation phase.
     default: False
     type: bool
+  download_only:
+    description:
+      - Allows to download image without update.
+    default: False
+    type: bool
+    version_added: "20.4.0"
 short_description: NetApp ONTAP Update Software
 version_added: "2.7"
 '''
@@ -55,6 +61,7 @@ EXAMPLES = """
         package_url: "{{ url }}"
         package_version: "{{ version_name }}"
         ignore_validation_warning: True
+        download_only: True
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -85,7 +92,8 @@ class NetAppONTAPSoftwareUpdate(object):
             nodes=dict(required=False, type='list', aliases=["node"]),
             package_version=dict(required=True, type='str'),
             package_url=dict(required=True, type='str'),
-            ignore_validation_warning=dict(required=False, type='bool', default=False)
+            ignore_validation_warning=dict(required=False, type='bool', default=False),
+            download_only=dict(required=False, type='bool', default=False)
         ))
 
         self.module = AnsibleModule(
@@ -273,21 +281,20 @@ class NetAppONTAPSoftwareUpdate(object):
                     time.sleep(5)
                     cluster_download_progress = self.cluster_image_package_download_progress()
                 if cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
-                    self.cluster_image_update()
                     changed = True
                 else:
                     self.module.fail_json(msg='Error downloading package: %s'
                                               % (cluster_download_progress['failure_reason']))
-            else:
+            if self.parameters['download_only'] is False:
                 self.cluster_image_update()
                 changed = True
-            # delete package once update is completed
-            cluster_update_progress = self.cluster_image_update_progress_get()
-            while not cluster_update_progress or cluster_update_progress.get('overall_status') == 'in_progress':
-                time.sleep(25)
+                # delete package once update is completed
                 cluster_update_progress = self.cluster_image_update_progress_get()
-            if cluster_update_progress.get('overall_status') == 'completed':
-                self.cluster_image_package_delete()
+                while not cluster_update_progress or cluster_update_progress.get('overall_status') == 'in_progress':
+                    time.sleep(25)
+                    cluster_update_progress = self.cluster_image_update_progress_get()
+                if cluster_update_progress.get('overall_status') == 'completed':
+                    self.cluster_image_package_delete()
         self.module.exit_json(changed=changed)
 
 

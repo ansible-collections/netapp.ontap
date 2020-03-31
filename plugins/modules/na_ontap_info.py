@@ -62,6 +62,9 @@ options:
                 "license_info",
                 "lun_info",
                 "lun_map_info",
+                "metrocluster_info",
+                "metrocluster_check_info",
+                "metrocluster_node_info",
                 "net_dns_info",
                 "net_failover_group_info",
                 "net_firewall_info",
@@ -94,6 +97,7 @@ options:
                 "service_processor_network_info",
                 "sis_policy_info",
                 "snapmirror_info",
+                "snapmirror_destination_info",
                 "snapmirror_policy_info",
                 "snapshot_info",
                 "snapshot_policy_info",
@@ -198,6 +202,9 @@ ontap_info:
             "iscsi_service_info": {...},
             "license_info": {...},
             "lun_info": {...},
+            "metrocluster_info": {...},
+            "metrocluster_check_info": {...},
+            "metrocluster_node_info": {...},
             "net_dns_info": {...},
             "net_ifgrp_info": {...},
             "net_interface_info": {...},
@@ -213,6 +220,7 @@ ontap_info:
             "security_key_manager_key_info": {...},
             "security_login_account_info": {...},
             "snapmirror_info": {...}
+            "snapmirror_destination_info": {...}
             "storage_bridge_info": {...}
             "storage_failover_info": {...},
             "volume_info": {...},
@@ -262,46 +270,6 @@ class NetAppONTAPGatherInfo(object):
         # min_version identifies the ontapi version which supports this ZAPI
         # use 0 if it is supported since 9.1
         self.info_subsets = {
-            'net_dns_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'net-dns-get-iter',
-                    'attribute': 'net-dns-info',
-                    'field': 'vserver-name',
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '0',
-            },
-            'net_interface_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'net-interface-get-iter',
-                    'attribute': 'net-interface-info',
-                    'field': 'interface-name',
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '0',
-            },
-            'net_interface_service_policy_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'net-interface-service-policy-get-iter',
-                    'attribute': 'net-interface-service-policy-info',
-                    'field': ('vserver', 'policy'),
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '150',
-            },
-            'net_port_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'net-port-get-iter',
-                    'attribute': 'net-port-info',
-                    'field': ('node', 'port'),
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '0',
-            },
             'cluster_identity_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -381,6 +349,82 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '0',
             },
+            'metrocluster_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'metrocluster-get',
+                    'attribute': 'metrocluster-info',
+                    'attributes_list_tag': 'attributes',
+                },
+                'min_version': '0',
+            },
+            'metrocluster_check_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'metrocluster-check-get-iter',
+                    'attribute': 'metrocluster-check-info',
+                },
+                'min_version': '0',
+            },
+            'metrocluster_node_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'metrocluster-node-get-iter',
+                    'attribute': 'metrocluster-node-info',
+                    'field': ('cluster-name', 'node-name'),
+                },
+                'min_version': '0',
+            },
+            'net_dns_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-dns-get-iter',
+                    'attribute': 'net-dns-info',
+                    'field': 'vserver-name',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'net_interface_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-interface-get-iter',
+                    'attribute': 'net-interface-info',
+                    'field': 'interface-name',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'net_interface_service_policy_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-interface-service-policy-get-iter',
+                    'attribute': 'net-interface-service-policy-info',
+                    'field': ('vserver', 'policy'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '150',
+            },
+            'net_port_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-port-get-iter',
+                    'attribute': 'net-port-info',
+                    'field': ('node', 'port'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'security_key_manager_key_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'security-key-manager-key-get-iter',
+                    'attribute': 'security-key-manager-key-info',
+                    'field': ('node', 'key-id'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
             'storage_failover_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -407,16 +451,6 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'vserver-login-banner-get-iter',
                     'attribute': 'vserver-login-banner-info',
                     'field': 'vserver',
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '0',
-            },
-            'security_key_manager_key_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'security-key-manager-key-get-iter',
-                    'attribute': 'security-key-manager-key-info',
-                    'field': ('node', 'key-id'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -640,16 +674,6 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'nvme-namespace-get-iter',
                     'attribute': 'nvme-namespace-info',
                     'field': 'path',
-                    'query': {'max-records': self.max_records},
-                },
-                'min_version': '140',
-            },
-            'snapmirror_info': {
-                'method': self.get_generic_get_iter,
-                'kwargs': {
-                    'call': 'snapmirror-get-iter',
-                    'attribute': 'snapmirror-info',
-                    'field': 'destination-location',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -926,6 +950,26 @@ class NetAppONTAPGatherInfo(object):
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
+            },
+            'snapmirror_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'snapmirror-get-iter',
+                    'attribute': 'snapmirror-info',
+                    'field': 'destination-location',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '140',
+            },
+            'snapmirror_destination_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'snapmirror-get-destination-iter',
+                    'attribute': 'snapmirror-destination-info',
+                    'field': 'destination-location',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '140',
             },
             'snapmirror_policy_info': {
                 'method': self.get_generic_get_iter,

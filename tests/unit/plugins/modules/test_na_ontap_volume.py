@@ -131,6 +131,9 @@ class MockONTAPConnection(object):
                     'volume-qos-attributes': {
                         'policy-group-name': vol_details['qos_policy_group'],
                         'adaptive-policy-group-name': vol_details['qos_adaptive_policy_group']
+                    },
+                    'volume-snapshot-autodelete-attributes': {
+                        'commitment': 'try'
                     }
                 }
             }
@@ -1001,3 +1004,50 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_volume_mock_object('volume').apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+    def test_successful_modify_snapshot_auto_delete(self, get_volume):
+        ''' Test successful modify unix permissions flexGroup '''
+        data = {
+            'snapshot_auto_delete': {'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
+                                     'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
+                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'test_vserver',
+
+        }
+        set_module_args(data)
+        current = {
+            'name': self.mock_vol['name'],
+            'vserver': self.mock_vol['vserver'],
+            'snapshot_auto_delete': {'delete_order': 'newest_first', 'destroy_list': 'lun_clone,vol_clone',
+                                     'target_free_space': 30, 'prefix': 'test', 'commitment': 'try',
+                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'}
+        }
+        get_volume.side_effect = [
+            current
+        ]
+        obj = self.get_volume_mock_object('volume')
+        with pytest.raises(AnsibleExitJson) as exc:
+            obj.apply()
+        assert exc.value.args[0]['changed']
+
+    def test_error_modify_snapshot_auto_delete(self):
+        data = {
+            'snapshot_auto_delete': {'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
+                                     'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
+                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'test_vserver',
+
+        }
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object('zapi_error').set_snapshot_auto_delete()
+        assert exc.value.args[0]['msg'] == 'Error setting snapshot auto delete options for volume test_vol: NetApp API failed. Reason - test:error'

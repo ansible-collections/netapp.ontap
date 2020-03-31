@@ -51,11 +51,13 @@ options:
   admin_user_name:
     description:
     - Specifies the cifs server admin username.
+    - When used with absent, the account will be deleted if admin_password is also provided.
     type: str
 
   admin_password:
     description:
     - Specifies the cifs server admin password.
+    - When used with absent, the account will be deleted if admin_user_name is also provided.
     type: str
 
   domain:
@@ -235,7 +237,16 @@ class NetAppOntapcifsServer(object):
         if self.cifs_server_name == 'up':
             self.modify_cifs_server(admin_status='down')
 
-        cifs_server_delete = netapp_utils.zapi.NaElement.create_node_with_children('cifs-server-delete')
+        options = dict()
+        if self.admin_user_name is not None:
+            options['admin-username'] = self.admin_user_name
+        if self.admin_password is not None:
+            options['admin-password'] = self.admin_password
+
+        if options:
+            cifs_server_delete = netapp_utils.zapi.NaElement.create_node_with_children('cifs-server-delete', **options)
+        else:
+            cifs_server_delete = netapp_utils.zapi.NaElement.create_node_with_children('cifs-server-delete')
 
         try:
             self.server.invoke_successfully(cifs_server_delete,

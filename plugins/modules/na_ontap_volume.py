@@ -310,6 +310,31 @@ options:
     - Sets a comment associated with the volume.
     type: str
     version_added: '2.9'
+
+  snapshot_auto_delete:
+    description:
+    - A dictionary for the auto delete options and values.
+    - Supported options include 'state', 'commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
+      'prefix', 'destroy_list'.
+    - Option 'state' determines if the snapshot autodelete is currently enabled for the volume. Possible values are 'on' and 'off'.
+    - Option 'commitment' determines the snapshots which snapshot autodelete is allowed to delete to get back space.
+      Possible values are 'try', 'disrupt' and 'destroy'.
+    - Option 'trigger' determines the condition which starts the automatic deletion of snapshots.
+      Possible values are 'volume', 'snap_reserve' and DEPRECATED 'space_reserve'.
+    - Option 'target_free_space' determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger,
+      snapshots are deleted till we reach the target free space percentage. Accepts int type.
+    - Option 'delete_order' determines if the oldest or newest snapshot is deleted first. Possible values are 'newest_first' and 'oldest_first'.
+    - Option 'defer_delete' determines which kind of snapshots to delete in the end. Possible values are 'scheduled', 'user_created',
+      'prefix' and 'none'.
+    - Option 'prefix' can be set to provide the prefix string for the 'prefix' value of the 'defer_delete' option.
+      The prefix string length can be 15 char long.
+    - Option 'destroy_list' is a comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.
+      For 7-mode, the possible values for this option are a combination of 'lun_clone', 'vol_clone', 'cifs_share', 'file_clone' or 'none'.
+      For cluster-mode, the possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
+      'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
+    type: dict
+    version_added: '20.4.0'
+
 '''
 
 EXAMPLES = """
@@ -427,6 +452,26 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: False
 
+    - name: Modify volume with snapshot auto delete options
+      tags:
+        - auto_delete
+      na_ontap_volume:
+        state: present
+        name: vol_auto_delete
+        snapshot_auto_delete:
+          state: "on"
+          commitment: try
+          defer_delete: scheduled
+          target_free_space: 30
+          destroy_list: lun_clone,vol_clone
+          delete_order: newest_first
+        aggregate_name: "{{ aggr }}"
+        vserver: "{{ vserver }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: False
+
 """
 
 RETURN = """
@@ -505,7 +550,8 @@ class NetAppOntapVolume(object):
             tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto',
                                                                      'backup', 'none']),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
-            comment=dict(type='str', required=False)
+            comment=dict(type='str', required=False),
+            snapshot_auto_delete=dict(type='dict', required=False)
 
         ))
         self.module = AnsibleModule(
@@ -527,6 +573,11 @@ class NetAppOntapVolume(object):
             self.parameters['snapdir_access'] = str(self.parameters['snapdir_access']).lower()
         if 'atime_update' in self.parameters:
             self.parameters['atime_update'] = str(self.parameters['atime_update']).lower()
+        if 'snapshot_auto_delete' in self.parameters:
+            for key in self.parameters['snapshot_auto_delete']:
+                if key not in ['commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
+                               'prefix', 'destroy_list', 'state']:
+                    self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
                 msg="the python NetApp-Lib module is required")
@@ -582,6 +633,7 @@ class NetAppOntapVolume(object):
             volume_security_unix_attributes = volume_attributes['volume-security-attributes']['volume-security-unix-attributes']
             volume_snapshot_attributes = volume_attributes['volume-snapshot-attributes']
             volume_performance_attributes = volume_attributes['volume-performance-attributes']
+            volume_snapshot_auto_delete_attributes = volume_attributes['volume-snapshot-autodelete-attributes']
             try:
                 volume_comp_aggr_attributes = volume_attributes['volume-comp-aggr-attributes']
             except KeyError:  # Not supported in 9.1 to 9.3
@@ -665,6 +717,44 @@ class NetAppOntapVolume(object):
                     return_value['vserver_dr_protection'] = volume_vserver_dr_protection_attributes['vserver-dr-protection']
                 else:
                     return_value['vserver_dr_protection'] = None
+            # snapshot_auto_delete options
+            auto_delete = dict()
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('commitment'):
+                auto_delete['commitment'] = volume_snapshot_auto_delete_attributes['commitment']
+            else:
+                auto_delete['commitment'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('defer-delete'):
+                auto_delete['defer_delete'] = volume_snapshot_auto_delete_attributes['defer-delete']
+            else:
+                auto_delete['defer_delete'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('delete-order'):
+                auto_delete['delete_order'] = volume_snapshot_auto_delete_attributes['delete-order']
+            else:
+                auto_delete['delete_order'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('destroy-list'):
+                auto_delete['destroy_list'] = volume_snapshot_auto_delete_attributes['destroy-list']
+            else:
+                auto_delete['destroy_list'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('is-autodelete-enabled'):
+                if volume_snapshot_auto_delete_attributes['is-autodelete-enabled'] == 'false':
+                    auto_delete['state'] = 'off'
+                else:
+                    auto_delete['state'] = 'on'
+            else:
+                auto_delete['is_autodelete_enabled'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('prefix'):
+                auto_delete['prefix'] = volume_snapshot_auto_delete_attributes['prefix']
+            else:
+                auto_delete['prefix'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('target-free-space'):
+                auto_delete['target_free_space'] = int(volume_snapshot_auto_delete_attributes['target-free-space'])
+            else:
+                auto_delete['target_free_space'] = None
+            if volume_snapshot_auto_delete_attributes.get_child_by_name('trigger'):
+                auto_delete['trigger'] = volume_snapshot_auto_delete_attributes['trigger']
+            else:
+                auto_delete['trigger'] = None
+            return_value['snapshot_auto_delete'] = auto_delete
 
         return return_value
 
@@ -695,6 +785,9 @@ class NetAppOntapVolume(object):
 
         if self.parameters.get('efficiency_policy'):
             self.assign_efficiency_policy()
+
+        if self.parameters.get('snapshot_auto_delete'):
+            self.set_snapshot_auto_delete()
 
     def create_volume_async(self):
         '''
@@ -1083,6 +1176,8 @@ class NetAppOntapVolume(object):
                     self.volume_unmount()
                 else:
                     self.volume_mount()
+            if attribute == 'snapshot_auto_delete':
+                self.set_snapshot_auto_delete()
 
     def compare_chmod_value(self, current):
         """
@@ -1300,6 +1395,22 @@ class NetAppOntapVolume(object):
         elif efficiency_policy_modify_value == 'sync':
             self.assign_efficiency_policy()
 
+    def set_snapshot_auto_delete(self):
+        options = {'volume': self.parameters['name']}
+        desired_options = self.parameters['snapshot_auto_delete']
+        for k, v in desired_options.items():
+            options['option-name'] = k
+            options['option-value'] = str(v)
+
+            snapshot_auto_delete = netapp_utils.zapi.NaElement.create_node_with_children('snapshot-autodelete-set-option', **options)
+
+            try:
+                self.server.invoke_successfully(snapshot_auto_delete, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error setting snapshot auto delete options for volume %s: %s'
+                                      % (self.parameters['name'], to_native(error)),
+                                      exception=traceback.format_exc())
+
     def apply(self):
         '''Call create/modify/delete operations'''
         efficiency_policy_modify = None
@@ -1316,8 +1427,16 @@ class NetAppOntapVolume(object):
             # unix_permission in self.parameter can be either numeric or character.
             if self.compare_chmod_value(current):
                 del self.parameters['unix_permissions']
-        if cd_action is None and self.parameters['state'] == 'present':
+        if cd_action is None and rename is None and self.parameters['state'] == 'present':
+            # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
+            auto_delete_info = current.pop('snapshot_auto_delete', None)
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if self.parameters.get('snapshot_auto_delete') is not None:
+                auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
+                                                                            self.parameters['snapshot_auto_delete'])
+                if len(auto_delete_modify) > 0:
+                    modify['snapshot_auto_delete'] = auto_delete_modify
+
             if modify.get('efficiency_policy'):
                 if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
                     efficiency_policy_modify = 'async'

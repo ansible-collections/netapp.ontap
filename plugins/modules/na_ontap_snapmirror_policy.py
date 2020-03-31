@@ -257,7 +257,9 @@ class NetAppOntapSnapMirrorPolicy(object):
                 else:
                     self.module.fail_json(msg='policy type in REST only supports options async_mirror or sync_mirror, given %s'
                                               % (self.parameters['policy_type']))
-            data = self.create_snapmirror_policy_obj_for_rest(data, data['type'])
+                data = self.create_snapmirror_policy_obj_for_rest(data, data['type'])
+            else:
+                data = self.create_snapmirror_policy_obj_for_rest(data)
             api = "snapmirror/policies"
             message, error = self.restApi.post(api, data)
             if error:
@@ -295,13 +297,13 @@ class NetAppOntapSnapMirrorPolicy(object):
             snapmirror_policy_obj.add_new_child("tries", self.parameters['tries'])
         return snapmirror_policy_obj
 
-    def create_snapmirror_policy_obj_for_rest(self, snapmirror_policy_obj, type=None):
+    def create_snapmirror_policy_obj_for_rest(self, snapmirror_policy_obj, policy_type=None):
         if 'comment' in self.parameters.keys():
             snapmirror_policy_obj["comment"] = self.parameters['comment']
         if 'is_network_compression_enabled' in self.parameters:
-            if 'async' in type:
+            if policy_type == 'async':
                 snapmirror_policy_obj["network_compression_enabled"] = self.parameters['is_network_compression_enabled']
-            elif 'sync' in type:
+            elif policy_type == 'sync':
                 self.module.fail_json(msg="Input parameter network_compression_enabled is not valid for SnapMirror policy type sync")
         return snapmirror_policy_obj
 
@@ -325,13 +327,13 @@ class NetAppOntapSnapMirrorPolicy(object):
                 self.module.fail_json(msg='Error deleting snapmirror policy %s: %s' % (self.parameters['policy_name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def modify_snapmirror_policy(self, uuid=None, type=None):
+    def modify_snapmirror_policy(self, uuid=None, policy_type=None):
         """
         Modifies a snapmirror policy
         """
         if self.use_rest:
             api = "snapmirror/policies/" + uuid
-            data = self.create_snapmirror_policy_obj_for_rest(dict(), type)
+            data = self.create_snapmirror_policy_obj_for_rest(dict(), policy_type)
             message, error = self.restApi.patch(api, data)
             if error:
                 self.module.fail_json(msg=error)
