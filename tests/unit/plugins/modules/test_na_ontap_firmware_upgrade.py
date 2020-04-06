@@ -124,6 +124,7 @@ class TestMyModule(unittest.TestCase):
             package = 'test1.zip'
             install_baseline_image = False
             update_type = 'serial_full'
+            force_disruptive_update = False
         else:
             hostname = 'hostname'
             username = 'username'
@@ -133,6 +134,7 @@ class TestMyModule(unittest.TestCase):
             clear_logs = True
             install_baseline_image = False
             update_type = 'serial_full'
+            force_disruptive_update = False
 
         return dict({
             'hostname': hostname,
@@ -143,7 +145,8 @@ class TestMyModule(unittest.TestCase):
             'clear_logs': clear_logs,
             'install_baseline_image': install_baseline_image,
             'update_type': update_type,
-            'https': 'true'
+            'https': 'true',
+            'force_disruptive_update': force_disruptive_update
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -152,18 +155,6 @@ class TestMyModule(unittest.TestCase):
             set_module_args({})
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
-
-    def test_missing_parameters(self):
-        ''' fail if firmware_type is missing '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args(module_args)
-            my_module()
-        msg = 'missing required arguments: firmware_type'
-        print('Info: %s' % exc.value.args[0]['msg'])
-        assert exc.value.args[0]['msg'] == msg
 
     def test_invalid_firmware_type_parameters(self):
         ''' fail if firmware_type is missing '''
@@ -225,6 +216,7 @@ class TestMyModule(unittest.TestCase):
         module_args.update(self.set_default_args())
         module_args.update({'package': 'test1.zip'})
         module_args.update({'firmware_type': 'service-processor'})
+        module_args.update({'force_disruptive_update': True})
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.autosupport_log = Mock(return_value=None)
@@ -255,7 +247,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_firmware_upgrade_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_upgrade')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_required_get')
@@ -272,7 +264,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_firmware_upgrade_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
     def test_disk_firmware_upgrade(self, get_mock):
@@ -288,4 +280,4 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_firmware_upgrade_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
+        assert not exc.value.args[0]['changed']
