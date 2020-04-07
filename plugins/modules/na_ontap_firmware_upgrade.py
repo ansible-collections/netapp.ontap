@@ -165,6 +165,13 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import time
 
+try:
+    from lxml import etree
+    HAS_LXML_LIB = True
+except ImportError:
+    HAS_LXML_LIB = False
+
+
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
@@ -207,6 +214,8 @@ class NetAppONTAPFirmwareUpgrade(object):
                 self.module.fail_json(msg='Do not specify both package and install_baseline_image: true')
             if not self.parameters.get('package') and self.parameters.get('install_baseline_image') == 'False':
                 self.module.fail_json(msg='Specify at least one of package or install_baseline_image')
+        if HAS_LXML_LIB is False:
+            self.module.fail_json(msg='lxml library not found, use command pip install lxml')
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
@@ -446,10 +455,14 @@ class NetAppONTAPFirmwareUpgrade(object):
             output = self.server.invoke_successfully(command_obj, True)
             # Raw XML output
             retval = output.to_string()
-            return retval
+            return_value = etree.fromstring(retval)
+            if return_value.attrib['status'] != 'passed':
+                self.module.fail_json(msg='unable to download package from %s' % (self.parameters['package_url']))
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error running command %s: %s' %
-                                  (command, to_native(error)),
+            self.module.fail_json(msg='Error running command %s: %s' % (command, to_native(error)),
+                                  exception=traceback.format_exc())
+        except etree.XMLSyntaxError as error:
+            self.module.fail_json(msg='Invalid package URL %s: %s' % (self.parameters['package_url'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def autosupport_log(self):
