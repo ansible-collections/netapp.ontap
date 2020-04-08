@@ -100,14 +100,17 @@
   with_items:
     "{{ ports }}"
   when: ports != None
+
+# Configure flowcontrol and autonegotiate.
+# Skip MTU for now b/c we have to configure IFGroup first.
 - name: Modify Net Port
   na_ontap_net_port:
     state: present
     node: "{{ item.node }}"
     port: "{{ item.port }}"
 #    mtu: "{{ item.mtu }}"
-    autonegotiate_admin: "{{ autonegotiate }}"
-    flowcontrol_admin: "{{ flowcontrol }}"
+    autonegotiate_admin: "{{ item.autonegotiate }}"
+    flowcontrol_admin: "{{ item.flowcontrol }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -132,6 +135,8 @@
   with_items:
     "{{ ifgrps  }}"
   when: ifgrps != None
+
+# Set MTU - Interface group must be configured first.
 - name: Modify Net Port
   na_ontap_net_port:
     state: present
