@@ -65,7 +65,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_ntfs_dacl: create/modify/delete ntfs dacl (discretionary access control list).
 - na_ontap_ntfs_sd: create/modify/delete ntfs security descriptor.
 - na_ontap_restit: send any REST API request to ONTAP (9.6 and above).
-- na_ontap_snmp_traphosts: Create and delete snmp traphosts (9.6 and Above)
+- na_ontap_snmp_traphosts: Create and delete snmp traphosts (9.7 and Above)
 - na_ontap_wwpn_alias: create/modify/delete vserver fcp wwpn-alias.
 - na_ontap_zapit: send any ZAPI request to ONTAP.
 

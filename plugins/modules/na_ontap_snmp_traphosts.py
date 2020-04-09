@@ -22,7 +22,7 @@ extends_documentation_fragment:
 version_added: '20.3.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Whether the specified SNMP traphost should exist or not. Requires REST with 9.6 or higher
+- Whether the specified SNMP traphost should exist or not. Requires REST with 9.7 or higher
 options:
   ip_address:
     description:
