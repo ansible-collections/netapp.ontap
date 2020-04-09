@@ -125,7 +125,7 @@
     distribution_function: "{{ distribution_function }}"
     name: "{{ item.name }}"
     ports: "{{ item.ports }}"
-    mode: "{{ ifgrp_mode }}"
+    mode: "{{ item.mode }}"
     node: "{{ item.node }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -156,7 +156,7 @@
     state: present
     vlanid: "{{ item.id }}"
     node: "{{ item.node }}"
-    parent_interface: "{{ item.port }}"
+    parent_interface: "{{ item.parent }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
