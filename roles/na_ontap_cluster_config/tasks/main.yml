@@ -125,7 +125,7 @@
     distribution_function: "{{ distribution_function }}"
     name: "{{ item.name }}"
     ports: "{{ item.ports }}"
-    mode: "{{ item.mode }}"
+    mode: "{{ item.mode | default(ifgrp_mode) }}"
     node: "{{ item.node }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
