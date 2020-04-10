@@ -21,11 +21,13 @@ collections:
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
-
 ## 20.4.1
 
 ### New Options
 - na_ontap_firmware_upgrade: `force_disruptive_update` and `package_url` options allows to make choices for download and upgrading packages.
+
+### Role Changes
+- na_ontap_vserver_create has a new default variable 'netapp_version' set to 140.  If you are running 9.2 or below please add the variable to your playbook and set to 120
 
 ## 20.4.0
 

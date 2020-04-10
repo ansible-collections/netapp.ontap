@@ -19,6 +19,8 @@ netapp_hostname: <ONTAP mgmt ip or fqdn>
 netapp_username: <ONTAP admin account>
 netapp_password: <ONTAP admin account password>
 
+ontap_version: <version minor code> # OPTIONAL This defaults to ontap version minor code 140 (9.4) if running this against 9.3 or below add this variable and set to 120
+
 #Based on if Variables != or == None determins if a section runs.  Each variable will take one or more dictonary entries.  Simply omit sections
 #that you don't want to run.  The following would run all sections
 
