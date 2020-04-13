@@ -26,6 +26,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
 - na_ontap_firmware_upgrade: `force_disruptive_update` and `package_url` options allows to make choices for download and upgrading packages.
 
+### Added REST support to existing modules
+- na_ontap_autosupport_invoke: added REST support for sending autosupport message.
+
 ### Bug Fixes
 - na_ontap_volume: `volume_security_style` option now allows modify.
 - na_ontap_info: `metrocluster_check_info` has been removed as it was breaking the info module for everyone who didn't have a metrocluster set up. We are working on adding this back in a future update
