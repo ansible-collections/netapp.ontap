@@ -112,7 +112,7 @@ options:
     description:
     - The security style associated with this volume.
     choices: ['mixed', 'ntfs', 'unified', 'unix']
-    default: 'mixed'
+    default: 'unix'
     type: str
 
   encrypt:
@@ -512,23 +512,17 @@ class NetAppOntapVolume(object):
             name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
-            is_infinite=dict(required=False, type='bool',
-                             default=False),
-            is_online=dict(required=False, type='bool',
-                           default=True),
+            is_infinite=dict(required=False, type='bool', default=False),
+            is_online=dict(required=False, type='bool', default=True),
             size=dict(type='int', default=None),
-            size_unit=dict(default='gb',
-                           choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
-                                    'pb', 'eb', 'zb', 'yb'], type='str'),
+            size_unit=dict(default='gb', choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'], type='str'),
             aggregate_name=dict(type='str', default=None),
             type=dict(type='str', default=None),
             policy=dict(type='str', default=None),
             junction_path=dict(type='str', default=None),
             space_guarantee=dict(choices=['none', 'file', 'volume'], default=None),
             percent_snapshot_space=dict(type='int', default=None),
-            volume_security_style=dict(choices=['mixed',
-                                                'ntfs', 'unified', 'unix'],
-                                       default='mixed'),
+            volume_security_style=dict(choices=['mixed', 'ntfs', 'unified', 'unix'], default='unix'),
             encrypt=dict(required=False, type='bool', default=False),
             efficiency_policy=dict(required=False, type='str'),
             unix_permissions=dict(required=False, type='str'),
@@ -547,8 +541,7 @@ class NetAppOntapVolume(object):
             qos_adaptive_policy_group=dict(required=False, type='str'),
             nvfail_enabled=dict(type='bool', required=False),
             space_slo=dict(type='str', required=False, choices=['none', 'thick', 'semi-thick']),
-            tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto',
-                                                                     'backup', 'none']),
+            tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none']),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
             comment=dict(type='str', required=False),
             snapshot_auto_delete=dict(type='dict', required=False)
@@ -649,6 +642,7 @@ class NetAppOntapVolume(object):
                 'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
+                'volume_security_style': volume_attributes['volume-security-attributes']['style']
             }
             if volume_security_unix_attributes.get_child_by_name('group-id'):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
@@ -1050,6 +1044,10 @@ class NetAppOntapVolume(object):
                 self.create_volume_attribute(vol_security_unix_attributes, vol_security_attributes,
                                              'user-id', str(self.parameters['user_id']))
             vol_mod_attributes.add_child_elem(vol_security_attributes)
+        if params and params.get('volume_security_style'):
+            self.create_volume_attribute(vol_mod_attributes, 'volume-security-attributes',
+                                         'style', self.parameters['volume_security_style'])
+
         # volume-performance-attributes
         if self.parameters.get('atime_update'):
             self.create_volume_attribute(vol_mod_attributes, 'volume-performance-attributes',
@@ -1168,7 +1166,7 @@ class NetAppOntapVolume(object):
             if attribute == 'aggregate_name':
                 self.move_volume()
             if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
-                             'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update',
+                             'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
                 self.volume_modify_attributes(modify)
             if attribute == 'junction_path':

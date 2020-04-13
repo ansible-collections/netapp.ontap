@@ -119,6 +119,7 @@ class MockONTAPConnection(object):
                         'tiering-policy': 'snapshot-only'
                     },
                     'volume-security-attributes': {
+                        'style': 'unix',
                         'volume-security-unix-attributes': {
                             'permissions': vol_details['unix_permissions'],
                             'group-id': vol_details['group_id'],
