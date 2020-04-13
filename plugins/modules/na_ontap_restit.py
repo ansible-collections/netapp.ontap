@@ -274,11 +274,16 @@ class NetAppONTAPRestAPI(object):
                                                             return_status_code=True, accept=content_type,
                                                             vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
         if error:
-            error_message = error.pop('message', None)
-            error_code = error.pop('code', None)
-            if not error:
-                # we exhausted the dictionary
-                error = 'check error_message and error_code for details.'
+            if isinstance(error, dict):
+                error_message = error.pop('message', None)
+                error_code = error.pop('code', None)
+                if not error:
+                    # we exhausted the dictionary
+                    error = 'check error_message and error_code for details.'
+            else:
+                error_message = error
+                error_code = None
+
             msg = "Error when calling '%s': %s" % (self.api, str(error))
             self.module.fail_json(msg=msg, status_code=status, response=response, error_message=error_message, error_code=error_code)
 
