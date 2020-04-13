@@ -26,6 +26,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
 - na_ontap_firmware_upgrade: `force_disruptive_update` and `package_url` options allows to make choices for download and upgrading packages.
 
+### Bug Fixes
+- na_ontap_info: `metrocluster_check_info` has been removed as it was breaking the info module for everyone who didn't have a metrocluster set up. We are working on adding this back in a future update
+
 ### Role Changes
 - na_ontap_vserver_create has a new default variable 'netapp_version' set to 140.  If you are running 9.2 or below please add the variable to your playbook and set to 120
 
