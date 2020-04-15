@@ -264,13 +264,15 @@ class NetAppONTAPVserverPeer(object):
         self.asup_log_for_cserver("na_ontap_vserver_peer")
         current = self.vserver_peer_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action == 'create':
-            self.vserver_peer_create()
-            # accept only if the peer relationship is on a remote cluster
-            if self.is_remote_peer():
-                self.vserver_peer_accept()
-        elif cd_action == 'delete':
-            self.vserver_peer_delete()
+        if self.na_helper.changed:
+            if not self.module.check_mode:
+                if cd_action == 'create':
+                    self.vserver_peer_create()
+                    # accept only if the peer relationship is on a remote cluster
+                    if self.is_remote_peer():
+                        self.vserver_peer_accept()
+                elif cd_action == 'delete':
+                    self.vserver_peer_delete()
 
         self.module.exit_json(changed=self.na_helper.changed)
 
