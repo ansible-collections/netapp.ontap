@@ -124,7 +124,8 @@ class NetAppOntapNode(object):
             pass
         else:
             if from_exists:
-                self.rename_node()
+                if not self.module.check_mode:
+                    self.rename_node()
                 changed = True
             else:
                 self.module.fail_json(msg='Error renaming node, from_name %s does not exist' % self.parameters['from_name'])
