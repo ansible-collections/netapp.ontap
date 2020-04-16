@@ -325,13 +325,15 @@ class NetAppOntapPorts(object):
         if self.parameters['state'] == 'present':
             ports_to_add = [port for port in cd_ports if port not in current_ports]
             if len(ports_to_add) > 0:
-                self.add_broadcast_domain_ports(ports_to_add)
+                if not self.module.check_mode:
+                    self.add_broadcast_domain_ports(ports_to_add)
                 self.na_helper.changed = True
 
         if self.parameters['state'] == 'absent':
             ports_to_remove = [port for port in cd_ports if port in current_ports]
             if len(ports_to_remove) > 0:
-                self.remove_broadcast_domain_ports(ports_to_remove)
+                if not self.module.check_mode:
+                    self.remove_broadcast_domain_ports(ports_to_remove)
                 self.na_helper.changed = True
 
     def modify_portset_ports(self):
@@ -340,15 +342,17 @@ class NetAppOntapPorts(object):
         if self.parameters['state'] == 'present':
             ports_to_add = [port for port in cd_ports if port not in current_ports]
             if len(ports_to_add) > 0:
-                for port in ports_to_add:
-                    self.add_portset_ports(port)
+                if not self.module.check_mode:
+                    for port in ports_to_add:
+                        self.add_portset_ports(port)
                 self.na_helper.changed = True
 
         if self.parameters['state'] == 'absent':
             ports_to_remove = [port for port in cd_ports if port in current_ports]
             if len(ports_to_remove) > 0:
-                for port in ports_to_remove:
-                    self.remove_portset_ports(port)
+                if not self.module.check_mode:
+                    for port in ports_to_remove:
+                        self.remove_portset_ports(port)
                 self.na_helper.changed = True
 
     def apply(self):

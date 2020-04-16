@@ -32,6 +32,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_flexcache: supports check_mode.
 - na_ontap_info: `metrocluster_check_info` does not trigger a traceback but adds an "error" info element if the target system is not set up for metrocluster. 
 - na_ontap_node: Now support check mode
+- na_ontap_ports: now support check mode
 - na_ontap_restit: error can be a string in addition to a dict.  This fix removes a traceback with AttributeError.
 - na_ontap_snapmirror: supports check_mode.
 - na_ontap_routes: Now Support Check Mode correctly
