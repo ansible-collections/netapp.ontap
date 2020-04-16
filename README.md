@@ -27,6 +27,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
 - na_ontap_node: Now support check mode
 - na_ontap_restit: error can be a string in addition to a dict.  This fix removes a traceback with AttributeError.
+- na_ontap_routes: Now Support Check Mode correctly
 - na_ontap_vserver_peer: supports check_mode.
 
 ## 20.4.1

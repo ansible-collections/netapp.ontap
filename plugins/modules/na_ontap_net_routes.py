@@ -210,7 +210,7 @@ class NetAppOntapNetRoutes(object):
                 self.parameters['gateway'] = desired['gateway']
             else:
                 self.parameters['gateway'] = current['gateway']
-            if not self.na_helper.changed:
+            if not self.na_helper.changed or self.module.check_mode:
                 return
             params = {'destination': '%s/%s' % (current['destination']['address'], current['destination']['netmask']),
                       'gateway': current['gateway']}
@@ -225,7 +225,7 @@ class NetAppOntapNetRoutes(object):
                 if val != current[key]:
                     self.na_helper.changed = True
                     break
-            if not self.na_helper.changed:
+            if not self.na_helper.changed or self.module.check_mode:
                 return
             # delete and re-create with new params
             self.delete_net_route(current)
@@ -396,11 +396,12 @@ class NetAppOntapNetRoutes(object):
                     self.module.fail_json(msg="Error modifying: route %s does not exist" % self.parameters['from_destination'])
             else:
                 cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
         if cd_action == 'create':
-            self.create_net_route()
+            if not self.module.check_mode:
+                self.create_net_route()
         elif cd_action == 'delete':
-            self.delete_net_route(current)
+            if not self.module.check_mode:
+                self.delete_net_route(current)
         elif modify:
             desired = {}
             for key, value in old_params.items():
