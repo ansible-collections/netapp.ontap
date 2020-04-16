@@ -187,10 +187,12 @@ class NetAppOntapDisks(object):
             if 'disk_count' in self.parameters:
                 if self.parameters['disk_count'] > owned_disks:
                     needed_disks = self.parameters['disk_count'] - owned_disks
-                    self.disk_assign(needed_disks)
+                    if not self.module.check_mode:
+                        self.disk_assign(needed_disks)
                     changed = True
             else:
-                self.disk_assign(0)
+                if not self.module.check_mode:
+                    self.disk_assign(0)
                 changed = True
         self.module.exit_json(changed=changed)
 
