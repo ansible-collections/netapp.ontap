@@ -62,6 +62,7 @@ options:
                 "license_info",
                 "lun_info",
                 "lun_map_info",
+                "metrocluster_check_info",
                 "metrocluster_info",
                 "metrocluster_node_info",
                 "net_dns_info",
@@ -201,6 +202,7 @@ ontap_info:
             "iscsi_service_info": {...},
             "license_info": {...},
             "lun_info": {...},
+            "metrocluster_check_info": {...},
             "metrocluster_info": {...},
             "metrocluster_node_info": {...},
             "net_dns_info": {...},
@@ -344,6 +346,15 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'lun-info',
                     'field': ('vserver', 'path'),
                     'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'metrocluster_check_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'metrocluster-check-get-iter',
+                    'attribute': 'metrocluster-check-info',
+                    'fail_on_error': False,
                 },
                 'min_version': '0',
             },
@@ -1021,7 +1032,7 @@ class NetAppONTAPGatherInfo(object):
             self.module.fail_json(msg="Error calling API %s: %s" %
                                   (api, to_native(error)), exception=traceback.format_exc())
 
-    def call_api(self, call, attributes_list_tag='attributes-list', query=None):
+    def call_api(self, call, attributes_list_tag='attributes-list', query=None, fail_on_error=True):
         '''Main method to run an API call'''
 
         api_call = netapp_utils.zapi.NaElement(call)
@@ -1056,14 +1067,15 @@ class NetAppONTAPGatherInfo(object):
                     for record in new_records.get_children():
                         result_attr.add_child_elem(record)
 
-            return result
+            return result, None
 
         except netapp_utils.zapi.NaApiError as error:
             if call in ['security-key-manager-key-get-iter']:
-                return result
-            else:
+                return result, None
+            if fail_on_error:
                 self.module.fail_json(msg="Error calling API %s: %s"
                                       % (call, to_native(error)), exception=traceback.format_exc())
+            return None, error
 
     def get_ifgrp_info(self):
         '''Method to get network port ifgroups info'''
@@ -1085,17 +1097,20 @@ class NetAppONTAPGatherInfo(object):
             query = dict()
             query['node'], query['ifgrp-name'] = ifgrp.split(':')
 
-            tmp = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
-                                            attribute='net-ifgrp-info', query=query,
-                                            attributes_list_tag='attributes')
+            tmp, dummy = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
+                                                   attribute='net-ifgrp-info', query=query,
+                                                   attributes_list_tag='attributes')
             net_ifgrp_info = net_ifgrp_info.copy()
             net_ifgrp_info.update(tmp)
         return net_ifgrp_info
 
-    def get_generic_get_iter(self, call, attribute=None, field=None, query=None, attributes_list_tag='attributes-list'):
+    def get_generic_get_iter(self, call, attribute=None, field=None, query=None, attributes_list_tag='attributes-list', fail_on_error=True):
         '''Method to run a generic get-iter call'''
 
-        generic_call = self.call_api(call, attributes_list_tag, query)
+        generic_call, error = self.call_api(call, attributes_list_tag, query, fail_on_error=fail_on_error)
+
+        if error is not None:
+            return {'error': str(error)}
 
         if generic_call is None:
             return None
