@@ -107,6 +107,35 @@ class NetAppONTAPasupInvoke(object):
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
+    def get_nodes(self):
+        nodes = list()
+        node_obj = netapp_utils.zapi.NaElement('system-node-get-iter')
+        desired_attributes = netapp_utils.zapi.NaElement('desired-attributes')
+        node_details_info = netapp_utils.zapi.NaElement('node-details-info')
+        node_details_info.add_new_child('node', '')
+        desired_attributes.add_child_elem(node_details_info)
+        node_obj.add_child_elem(desired_attributes)
+        try:
+            result = self.server.invoke_successfully(node_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+        if result.get_child_by_name('num-records') and \
+                int(result.get_child_content('num-records')) > 0:
+            node_info = result.get_child_by_name('attributes-list')
+            if node_info is not None:
+                nodes = [node_details.get_child_content('node') for node_details in node_info.get_children()]
+        return nodes
+
+    def send_zapi_message(self, params, node_name):
+        params['node-name'] = node_name
+        send_message = netapp_utils.zapi.NaElement.create_node_with_children('autosupport-invoke', **params)
+        try:
+            self.server.invoke_successfully(send_message, enable_tunneling=False)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg="Error on sending autosupport message to node %s: %s."
+                                  % (node_name, to_native(error)),
+                                  exception=traceback.format_exc())
+
     def send_message(self):
         params = dict()
         if self.parameters.get('message'):
@@ -119,21 +148,22 @@ class NetAppONTAPasupInvoke(object):
         if self.use_rest:
             if self.parameters.get('name'):
                 params['node.name'] = self.parameters['name']
+                node_name = params['node.name']
+            else:
+                node_name = '*'
             api = 'support/autosupport/messages'
-            message, error = self.restApi.post(api, params)
+            dummy, error = self.restApi.post(api, params)
             if error is not None:
-                self.module.fail_json(msg="Error on sending autosupport message: %s." % error)
+                self.module.fail_json(msg="Error on sending autosupport message to node %s: %s."
+                                      % (node_name, error))
         else:
             if self.parameters.get('name'):
-                params['node-name'] = self.parameters['name']
-            send_message = netapp_utils.zapi.NaElement.create_node_with_children(
-                'autosupport-invoke', **params)
-            try:
-                self.server.invoke_successfully(send_message, enable_tunneling=False)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg="Error on sending autosupport message: %s."
-                                          % (to_native(error)),
-                                      exception=traceback.format_exc())
+                node_names = [self.parameters['name']]
+            else:
+                # simulate REST behavior by sending to all nodes in the cluster
+                node_names = self.get_nodes()
+            for name in node_names:
+                self.send_zapi_message(params, name)
 
     def ems_log_event(self):
         results = netapp_utils.get_cserver(self.server)

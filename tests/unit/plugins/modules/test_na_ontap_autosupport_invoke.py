@@ -121,7 +121,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_invoke_mock_object().apply()
-        assert exc.value.args[0]['msg'] == "Error on sending autosupport message: Expected error."
+        msg = "Error on sending autosupport message to node %s: Expected error." % data['name']
+        assert exc.value.args[0]['msg'] == msg
 
     def test_zapi_send_error(self):
         '''Test rest send error'''
@@ -130,4 +131,5 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_invoke_mock_object(use_rest=False).apply()
-        assert exc.value.args[0]['msg'] == "Error on sending autosupport message: NetApp API failed. Reason - test:Expected error."
+        msg = "Error on sending autosupport message to node %s: NetApp API failed. Reason - test:Expected error." % data['name']
+        assert exc.value.args[0]['msg'] == msg
