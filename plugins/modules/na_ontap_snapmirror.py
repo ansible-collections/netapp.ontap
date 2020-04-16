@@ -768,17 +768,20 @@ class NetAppONTAPSnapmirror(object):
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         element_snapmirror = False
         if cd_action == 'create':
-            self.snapmirror_create()
+            if not self.module.check_mode:
+                self.snapmirror_create()
         elif cd_action == 'delete':
-            if current['status'] == 'transferring':
-                self.snapmirror_abort()
-            else:
-                if self.parameters.get('connection_type') == 'elementsw_ontap':
-                    element_snapmirror = True
-                self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
+            if not self.module.check_mode:
+                if current['status'] == 'transferring':
+                    self.snapmirror_abort()
+                else:
+                    if self.parameters.get('connection_type') == 'elementsw_ontap':
+                        element_snapmirror = True
+                    self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
         else:
             if modify:
-                self.snapmirror_modify(modify)
+                if not self.module.check_mode:
+                    self.snapmirror_modify(modify)
             # break relationship when 'relationship_state' == 'broken'
             if current and self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'broken':
                 if current['mirror_state'] == 'uninitialized':
@@ -786,25 +789,29 @@ class NetAppONTAPSnapmirror(object):
                 elif current['relationship'] in ['load_sharing', 'vault']:
                     self.module.fail_json(msg='SnapMirror break is not allowed in a load_sharing or vault relationship')
                 elif current['mirror_state'] != 'broken-off':
-                    self.snapmirror_break()
+                    if not self.module.check_mode:
+                        self.snapmirror_break()
                     self.na_helper.changed = True
             # check for initialize
             elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active'\
                     and current['mirror_state'] == 'uninitialized':
-                self.snapmirror_initialize()
+                if not self.module.check_mode:
+                    self.snapmirror_initialize()
                 # set changed explicitly for initialize
                 self.na_helper.changed = True
             if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active':
                 # resync when state is broken-off
                 if current['mirror_state'] == 'broken-off':
-                    self.snapmirror_resync()
+                    if not self.module.check_mode:
+                        self.snapmirror_resync()
                     # set changed explicitly for resync
                     self.na_helper.changed = True
                 # Update when create is called again, or modify is being called
                 elif self.parameters['update']:
                     current = self.snapmirror_get()
                     if current['mirror_state'] == 'snapmirrored':
-                        self.snapmirror_update()
+                        if not self.module.check_mode:
+                            self.snapmirror_update()
                         self.na_helper.changed = True
         self.module.exit_json(changed=self.na_helper.changed)
 
