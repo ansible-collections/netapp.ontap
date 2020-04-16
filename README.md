@@ -25,6 +25,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.5.0
 
 ### Bug Fixes
+- na_ontap_flexcache: Now supports check mode
 - na_ontap_autosupport_invoke: when using ZAPI and name is not given, send autosupport message to all nodes in the cluster.
 - na_ontap_info: `metrocluster_check_info` does not trigger a traceback but adds an "error" info element if the target system is not set up for metrocluster. 
 - na_ontap_node: Now support check mode

@@ -456,11 +456,12 @@ class NetAppONTAPFlexCache(object):
         netapp_utils.ems_log_event("na_ontap_flexcache", self.server)
         current = self.flexcache_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action == 'create':
-            self.check_parameters()
-            self.flexcache_create()
-        elif cd_action == 'delete':
-            self.flexcache_delete()
+        if not self.module.check_mode:
+            if cd_action == 'create':
+                self.check_parameters()
+                self.flexcache_create()
+            elif cd_action == 'delete':
+                self.flexcache_delete()
         self.module.exit_json(changed=self.na_helper.changed)
 
 
