@@ -176,24 +176,28 @@ class NetAppOntapFCP(object):
             if exists:
                 if self.parameters['status'] == 'up':
                     if not self.current_status():
-                        self.start_fcp()
+                        if not self.module.check_mode:
+                            self.start_fcp()
                         changed = True
                 else:
                     if self.current_status():
-                        self.stop_fcp()
+                        if not self.module.check_mode:
+                            self.stop_fcp()
                         changed = True
             else:
-                self.create_fcp()
-                if self.parameters['status'] == 'up':
-                    self.start_fcp()
-                elif self.parameters['status'] == 'down':
-                    self.stop_fcp()
+                if not self.module.check_mode:
+                    self.create_fcp()
+                    if self.parameters['status'] == 'up':
+                        self.start_fcp()
+                    elif self.parameters['status'] == 'down':
+                        self.stop_fcp()
                 changed = True
         else:
             if exists:
-                if self.current_status():
-                    self.stop_fcp()
-                self.destroy_fcp()
+                if not self.module.check_mode:
+                    if self.current_status():
+                        self.stop_fcp()
+                    self.destroy_fcp()
                 changed = True
         self.module.exit_json(changed=changed)
 
