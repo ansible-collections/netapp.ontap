@@ -256,16 +256,19 @@ class NetAppONTAPClusterPeer(object):
         self.na_helper.changed = False
         # create only if expected cluster peer relation is not present on both source and destination clusters
         if source_action == 'create' and destination_action == 'create':
-            self.cluster_peer_create('source')
-            self.cluster_peer_create('destination')
+            if not self.module.check_mode:
+                self.cluster_peer_create('source')
+                self.cluster_peer_create('destination')
             self.na_helper.changed = True
         # delete peer relation in cluster where relation is present
         else:
             if source_action == 'delete':
-                self.cluster_peer_delete('source')
+                if not self.module.check_mode:
+                    self.cluster_peer_delete('source')
                 self.na_helper.changed = True
             if destination_action == 'delete':
-                self.cluster_peer_delete('destination')
+                if not self.module.check_mode:
+                    self.cluster_peer_delete('destination')
                 self.na_helper.changed = True
 
         self.module.exit_json(changed=self.na_helper.changed)
