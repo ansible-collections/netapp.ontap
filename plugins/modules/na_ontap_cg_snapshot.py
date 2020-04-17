@@ -90,7 +90,7 @@ class NetAppONTAPCGSnapshot(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=False
         )
 
         parameters = self.module.params
@@ -205,7 +205,8 @@ class NetAppONTAPCGSnapshot(object):
     def apply(self):
         '''Applies action from playbook'''
         netapp_utils.ems_log_event("na_ontap_cg_snapshot", self.server)
-        changed = self.cgcreate()
+        if not self.module.check_mode:
+            changed = self.cgcreate()
         self.module.exit_json(changed=changed)
 
 

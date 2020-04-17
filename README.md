@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
 - na_ontap_autosupport_invoke: when using ZAPI and name is not given, send autosupport message to all nodes in the cluster.
+- na_ontap_cg_snapshot: properly states it does not support check_mode
 - na_ontap_cluster_ha: supports check_mode.
 - na_ontap_disks: support check_mode.
 - na_ontap_fcp: supports check_mode.
