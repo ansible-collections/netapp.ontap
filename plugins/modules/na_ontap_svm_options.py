@@ -138,7 +138,10 @@ class NetAppONTAPSvnOptions(object):
         netapp_utils.ems_log_event("na_ontap_svm_options", self.server)
         is_set = self.is_option_set()
         if not is_set:
-            self.set_options()
+            if self.module.check_mode:
+                pass
+            else:
+                self.set_options()
             changed = True
         self.module.exit_json(changed=changed)
 
