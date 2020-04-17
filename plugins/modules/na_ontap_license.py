@@ -295,7 +295,7 @@ class NetAppOntapLicense(object):
             if self.remove_expired is not None:
                 remove_license = True
                 changed = True
-        if changed:
+        if changed and not self.module.check_mode:
             if self.state == 'present':  # execute create
                 if create_license:
                     self.add_licenses()
@@ -303,12 +303,14 @@ class NetAppOntapLicense(object):
                     self.remove_unused_licenses()
                 if self.remove_expired is not None:
                     self.remove_expired_licenses()
+                # not able to detect that a new license is required until we try to install it.
                 if create_license or remove_license:
                     new_license_status = self.get_licensing_status()
                     if local_cmp(license_status, new_license_status) == 0:
                         changed = False
             else:  # execute delete
                 license_deleted = False
+                # not able to detect which license is required to delete until we try it.
                 for package in self.license_names:
                     license_deleted |= self.remove_licenses(package)
                     changed = license_deleted
