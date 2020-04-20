@@ -147,7 +147,7 @@
     "{{ vservers }}"
   when: 
     - item.protocol.lower() is search("nfs")
-    - ontap_version >= "130"
+    - ontap_version >= 130
 - name: Create NFS Server
   na_ontap_nfs:
     state: present
@@ -166,7 +166,7 @@
     "{{ vservers }}"
   when: 
     - item.protocol.lower() is search("nfs")
-    - ontap_version < "130"
+    - ontap_version < 130
 - name: Setup default NFS rule
   na_ontap_export_policy_rule:
     state: present
