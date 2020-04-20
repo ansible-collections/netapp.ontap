@@ -160,6 +160,7 @@ class NetAppOntapNtfsSd(object):
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
+            required_one_of=[['owner', 'group']]
 
         )
 
