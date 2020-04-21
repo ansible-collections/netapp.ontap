@@ -274,7 +274,7 @@ class NetAppOntapDns(object):
             if dns_attrs['domains'] != self.parameters['domains']:
                 changed = True
                 params['domains'] = self.parameters['domains']
-            if changed:
+            if changed and not self.module.check_mode:
                 uuid = dns_attrs['uuid']
                 api = "name-services/dns/" + uuid
                 if self.is_cluster:
@@ -306,7 +306,7 @@ class NetAppOntapDns(object):
                     domain.set_content(each)
                     domains.add_child_elem(domain)
                 dns.add_child_elem(domains)
-            if changed:
+            if changed and not self.module.check_mode:
                 if self.parameters.get('skip_validation'):
                     validation = netapp_utils.zapi.NaElement('skip-config-validation')
                     validation.set_content(str(self.parameters['skip_validation']))
@@ -331,11 +331,13 @@ class NetAppOntapDns(object):
             if dns_attrs is not None:
                 changed = self.modify_dns(dns_attrs)
             else:
-                self.create_dns()
+                if not self.module.check_mode:
+                    self.create_dns()
                 changed = True
         else:
             if dns_attrs is not None:
-                self.destroy_dns(dns_attrs)
+                if not self.module.check_mode:
+                    self.destroy_dns(dns_attrs)
                 changed = True
         self.module.exit_json(changed=changed)
 
