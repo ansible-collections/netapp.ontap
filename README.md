@@ -62,6 +62,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_svm_options: supports check_mode.
 - na_ontap_vserver_peer: supports check_mode.
 
+### New Modules
+- na_ontap_rest_info: Gather ONTAP subset information using REST APIs (9.6 and Above)
+
 ## 20.4.1
 
 ### New Options
