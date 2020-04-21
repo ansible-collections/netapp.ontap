@@ -35,7 +35,7 @@ options:
     - IP address of cluster to be joined
   single_node_cluster:
     description:
-    - Whether the cluster is a single node cluster.
+    - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
     default: False
     version_added: '19.11.0'
     type: bool
@@ -139,10 +139,12 @@ class NetAppONTAPCluster(object):
         """
         Create a cluster
         """
+        dummy, minor = self.server.get_api_version()
+        options = {'cluster-name': self.parameters['cluster_name']}
+        if minor >= 140:
+            options['single-node-cluster'] = str(self.parameters.get('single_node_cluster'))
         cluster_create = netapp_utils.zapi.NaElement.create_node_with_children(
-            'cluster-create', **{'cluster-name': self.parameters['cluster_name'],
-                                 'single-node-cluster': str(self.parameters.get('single_node_cluster'))})
-
+            'cluster-create', **options)
         try:
             self.server.invoke_successfully(cluster_create,
                                             enable_tunneling=True)
@@ -208,7 +210,7 @@ class NetAppONTAPCluster(object):
         is_complete = False
         status = ''
 
-        while not is_complete and status != 'failed':
+        while not is_complete and status not in ('failed', 'success'):
             try:
                 result = self.server.invoke_successfully(cluster_wait, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
@@ -224,7 +226,7 @@ class NetAppONTAPCluster(object):
                                                             value=result.get_child_content('is-complete'))
             status = result.get_child_content('status')
 
-        if status != 'success':
+        if not is_complete and status != 'success':
             current_status_message = result.get_child_content('current-status-message')
 
             self.module.fail_json(

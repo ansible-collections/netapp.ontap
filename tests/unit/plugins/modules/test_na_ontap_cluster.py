@@ -64,12 +64,17 @@ class MockONTAPConnection(object):
         self.xml_in = xml
         if self.type == 'cluster':
             xml = self.build_cluster_info()
+        if self.type == 'cluster_success':
+            xml = self.build_cluster_info_success()
         elif self.type == 'cluster_add':
             xml = self.build_add_node_info()
         elif self.type == 'cluster_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
+
+    def get_api_version(self):
+        return 1, 130
 
     def autosupport_log(self):
         ''' mock autosupport log'''
@@ -83,6 +88,21 @@ class MockONTAPConnection(object):
             'attributes': {
                 'cluster-create-join-progress-info': {
                     'is-complete': 'true',
+                    'status': 'whatever'
+                }
+            }
+        }
+        xml.translate_struct(attributes)
+        return xml
+
+    @staticmethod
+    def build_cluster_info_success():
+        ''' build xml data for cluster-create-join-progress-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        attributes = {
+            'attributes': {
+                'cluster-create-join-progress-info': {
+                    'is-complete': 'false',
                     'status': 'success'
                 }
             }
@@ -166,7 +186,7 @@ class TestMyModule(unittest.TestCase):
         my_obj = my_module()
         my_obj.autosupport_log = Mock(return_value=None)
         if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cluster')
+            my_obj.server = MockONTAPConnection('cluster_success')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_cluster_apply: %s' % repr(exc.value))
