@@ -40,6 +40,7 @@ options:
             - When supplied, this argument will restrict the information collected
                 to a given subset.  Possible values for this argument include
                 "aggregate_info",
+                "aggr_efficiency_info",
                 "cifs_server_info",
                 "cifs_share_info",
                 "cifs_vserver_security_info",
@@ -47,7 +48,10 @@ options:
                 "cluster_image_info",
                 "cluster_node_info",
                 "cluster_peer_info",
+                "cluster_switch_info",
                 "clock_info",
+                "disk_info",
+                "env_sensors_info",
                 "export_policy_info",
                 "export_rule_info",
                 "fcp_adapter_info",
@@ -65,6 +69,7 @@ options:
                 "metrocluster_check_info",
                 "metrocluster_info",
                 "metrocluster_node_info",
+                "net_dev_discovery_info",
                 "net_dns_info",
                 "net_failover_group_info",
                 "net_firewall_info",
@@ -94,7 +99,10 @@ options:
                 "role_info",
                 "security_key_manager_key_info",
                 "security_login_account_info",
+                "service_processor_info",
                 "service_processor_network_info",
+                "shelf_info"
+                "sis_info",
                 "sis_policy_info",
                 "snapmirror_info",
                 "snapmirror_destination_info",
@@ -103,7 +111,11 @@ options:
                 "snapshot_policy_info",
                 "storage_failover_info",
                 "storage_bridge_info",
+                "subsys_health_info",
+                "sysconfig_info",
+                "sys_cluster_alerts",
                 "volume_info",
+                "volume_space_info",
                 "vscan_info",
                 "vscan_status_info",
                 "vscan_scanner_pool_info",
@@ -679,6 +691,19 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '140',
             },
+
+            # Alpha Order
+
+            'aggr_efficiency_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'aggr-efficiency-get-iter',
+                    'attribute': 'aggr-efficiency-info',
+                    'field': ('node', 'aggregate'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '140',
+            },
             'cifs_server_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -718,6 +743,37 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'cluster-peer-info',
                     'field': ('cluster-name', 'remote-cluster-name'),
                     'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'cluster_switch_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'cluster-switch-get-iter',
+                    'attribute': 'cluster-switch-info',
+                    'field': ('device', 'model', 'serial-number'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '160',
+            },
+            'disk_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'storage-disk-get-iter',
+                    'attribute': 'storage-disk-info',
+                    'field': ('disk-name'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'env_sensors_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'environment-sensors-get-iter',
+                    'attribute': 'environment-sensors-info',
+                    'field': ('node-name', 'sensor-name'),
+                    'query': {'max-records': self.max_records},
+                    'fail_on_error': False,
                 },
                 'min_version': '0',
             },
@@ -817,6 +873,16 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'lun-map-get-iter',
                     'attribute': 'lun-map-info',
                     'field': ('initiator-group', 'lun-id', 'node', 'path', 'vserver'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'net_dev_discovery_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'net-device-discovery-get-iter',
+                    'attribute': 'net-device-discovery-info',
+                    'field': ('port'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -931,6 +997,16 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '0',
             },
+            'service_processor_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'service-processor-get-iter',
+                    'attribute': 'service-processor-info',
+                    'field': ('node'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
             'service_processor_network_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -938,6 +1014,26 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'service-processor-network-info',
                     # don't use fields, as we cannot build a key with optional fields
                     # without a key, we'll get a list of dictionaries
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'shelf_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'storage-shelf-info-get-iter',
+                    'attribute': 'storage-shelf-info',
+                    'field': ('shelf-id', 'serial-number'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'sis_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'sis-get-iter',
+                    'attribute': 'sis-status-info',
+                    'field': 'path',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -988,6 +1084,46 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'snapshot-policy-get-iter',
                     'attribute': 'snapshot-policy-info',
                     'field': ('vserver-name', 'policy'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'subsys_health_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'diagnosis-subsystem-config-get-iter',
+                    'attribute': 'diagnosis-subsystem-config-info',
+                    'field': 'subsystem',
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'sys_cluster_alerts': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'diagnosis-alert-get-iter',
+                    'attribute': 'diagnosis-alert-info',
+                    'field': ('node', 'alerting-resource'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'sysconfig_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'system-get-node-info-iter',
+                    'attribute': 'system-info',
+                    'field': ('system-name'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'volume_space_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'volume-space-get-iter',
+                    'attribute': 'space-info',
+                    'field': ('vserver', 'volume'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',

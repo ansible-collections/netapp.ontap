@@ -24,7 +24,19 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.5.0
 
-### New Options
+### New Options:
+- na_ontap_info: new fact: aggr_efficiency_info
+- na_ontap_info: new fact: cluster_switch_info
+- na_ontap_info: new fact: disk_info
+- na_ontap_info: new fact: env_sensors_info
+- na_ontap_info: new fact: net_dev_discovery_info
+- na_ontap_info: new fact: service_processor_info
+- na_ontap_info: new fact: shelf_info
+- na_ontap_info: new fact: sis_info
+- na_ontap_info: new fact: subsys_health_info
+- na_ontap_info: new fact: sysconfig_info
+- na_ontap_info: new fact: sys_cluster_alerts
+- na_ontap_info: new fact: volume_space_info
 - na_ontap_volume: `cutover_action` option allows specifying the action to be taken for cutover.
 
 ### Bug Fixes
