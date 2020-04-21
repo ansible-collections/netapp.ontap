@@ -248,7 +248,11 @@ class OntapRestAPI(object):
         self.use_rest = self.module.params['use_rest']
         self.verify = self.module.params['validate_certs']
         self.timeout = timeout
-        self.url = 'https://' + self.hostname + '/api/'
+        port = self.module.params['http_port']
+        if port is None:
+            self.url = 'https://' + self.hostname + '/api/'
+        else:
+            self.url = 'https://%s:%d/api/' % (self.hostname, port)
         self.errors = list()
         self.debug_logs = list()
         self.check_required_library()
