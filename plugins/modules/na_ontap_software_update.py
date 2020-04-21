@@ -98,7 +98,7 @@ class NetAppONTAPSoftwareUpdate(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=False
         )
 
         self.na_helper = NetAppModule()
@@ -270,31 +270,34 @@ class NetAppONTAPSoftwareUpdate(object):
         changed = False
         self.autosupport_log()
         current = self.cluster_image_get()
-        if self.parameters.get('nodes'):
-            for node in self.parameters['nodes']:
-                self.cluster_image_get_for_node(node)
-        if self.parameters.get('state') == 'present' and current:
-            package_exists = self.cluster_image_package_download()
-            if package_exists is False:
-                cluster_download_progress = self.cluster_image_package_download_progress()
-                while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
-                    time.sleep(5)
+        if self.module.check_mode:
+            pass
+        else:
+            if self.parameters.get('nodes'):
+                for node in self.parameters['nodes']:
+                    self.cluster_image_get_for_node(node)
+            if self.parameters.get('state') == 'present' and current:
+                package_exists = self.cluster_image_package_download()
+                if package_exists is False:
                     cluster_download_progress = self.cluster_image_package_download_progress()
-                if cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
+                    while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
+                        time.sleep(5)
+                        cluster_download_progress = self.cluster_image_package_download_progress()
+                    if cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
+                        changed = True
+                    else:
+                        self.module.fail_json(msg='Error downloading package: %s'
+                                                  % (cluster_download_progress['failure_reason']))
+                if self.parameters['download_only'] is False:
+                    self.cluster_image_update()
                     changed = True
-                else:
-                    self.module.fail_json(msg='Error downloading package: %s'
-                                              % (cluster_download_progress['failure_reason']))
-            if self.parameters['download_only'] is False:
-                self.cluster_image_update()
-                changed = True
-                # delete package once update is completed
-                cluster_update_progress = self.cluster_image_update_progress_get()
-                while not cluster_update_progress or cluster_update_progress.get('overall_status') == 'in_progress':
-                    time.sleep(25)
+                    # delete package once update is completed
                     cluster_update_progress = self.cluster_image_update_progress_get()
-                if cluster_update_progress.get('overall_status') == 'completed':
-                    self.cluster_image_package_delete()
+                    while not cluster_update_progress or cluster_update_progress.get('overall_status') == 'in_progress':
+                        time.sleep(25)
+                        cluster_update_progress = self.cluster_image_update_progress_get()
+                    if cluster_update_progress.get('overall_status') == 'completed':
+                        self.cluster_image_package_delete()
         self.module.exit_json(changed=changed)
 
 
