@@ -24,6 +24,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.5.0
 
+### New Options
+- na_ontap_volume: `cutover_action` option allows specifying the action to be taken for cutover.
+
 ### Bug Fixes
 - na_ontap_autosupport_invoke: when using ZAPI and name is not given, send autosupport message to all nodes in the cluster.
 - na_ontap_cg_snapshot: properly states it does not support check_mode

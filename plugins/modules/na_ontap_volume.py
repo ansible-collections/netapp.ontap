@@ -335,6 +335,13 @@ options:
     type: dict
     version_added: '20.4.0'
 
+  cutover_action:
+    description:
+    - Specifies the action to be taken for cutover.
+    - Possible values are 'abort_on_failure', 'defer_on_failure', 'force' and 'wait'. Default is 'defer_on_failure'.
+    choices: ['abort_on_failure', 'defer_on_failure', 'force', 'wait']
+    type: str
+    version_added: '20.5.0'
 '''
 
 EXAMPLES = """
@@ -472,6 +479,19 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: False
 
+    - name: Move volume with force cutover action
+      tags:
+      - move
+      na_ontap_volume:
+        name: ansible_vol
+        aggregate_name: aggr_ansible
+        cutover_action: force
+        vserver: "{{ vserver }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: false
+
 """
 
 RETURN = """
@@ -544,8 +564,8 @@ class NetAppOntapVolume(object):
             tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none']),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
             comment=dict(type='str', required=False),
-            snapshot_auto_delete=dict(type='dict', required=False)
-
+            snapshot_auto_delete=dict(type='dict', required=False),
+            cutover_action=dict(required=False, type='str', choices=['abort_on_failure', 'defer_on_failure', 'force', 'wait']),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -896,6 +916,8 @@ class NetAppOntapVolume(object):
             'volume-move-start', **{'source-volume': self.parameters['name'],
                                     'vserver': self.parameters['vserver'],
                                     'dest-aggr': self.parameters['aggregate_name']})
+        if self.parameters.get('cutover_action'):
+            volume_move.add_new_child('cutover-action', self.parameters['cutover_action'])
         try:
             self.cluster.invoke_successfully(volume_move,
                                              enable_tunneling=True)
