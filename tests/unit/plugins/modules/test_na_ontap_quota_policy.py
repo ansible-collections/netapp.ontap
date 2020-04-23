@@ -112,7 +112,7 @@ class TestMyModule(unittest.TestCase):
         netapp_utils.ems_log_event = Mock(return_value=None)
         if kind is None:
             policy_obj.server = MockONTAPConnection()
-        elif kind is 'quota':
+        elif kind == 'quota':
             policy_obj.server = MockONTAPConnection(kind='quota', data=self.mock_quota_policy)
         elif kind == 'zapi_error':
             policy_obj.server = MockONTAPConnection(kind='zapi_error', data=self.mock_quota_policy)

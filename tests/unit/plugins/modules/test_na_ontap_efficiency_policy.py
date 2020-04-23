@@ -144,9 +144,9 @@ class TestMyModule(unittest.TestCase):
         efficiency_obj = efficiency_module()
         if kind is None:
             efficiency_obj.server = MockONTAPConnection()
-        elif kind is 'threshold':
+        elif kind == 'threshold':
             efficiency_obj.server = MockONTAPConnection(kind='threshold', data=self.mock_efficiency_policy)
-        elif kind is 'scheduled':
+        elif kind == 'scheduled':
             efficiency_obj.server = MockONTAPConnection(kind='scheduled', data=self.mock_efficiency_policy)
         return efficiency_obj
 
