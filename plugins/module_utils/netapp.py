@@ -354,10 +354,11 @@ class OntapRestAPI(object):
             # force ZAPI if requested or if some parameter requires it
             return False, None
         method = 'HEAD'
-        api = 'cluster/software'
-        status_code, __, __ = self.send_request(method, api, params=None, return_status_code=True)
+        api = 'svm/svms'
+        status_code, dummy, error = self.send_request(method, api, params=None, return_status_code=True)
         if status_code == 200:
             return True, None
+        self.log_error(status_code, str(error))
         return False, None
 
     def is_rest(self, used_unsupported_rest_properties=None):
@@ -373,3 +374,40 @@ class OntapRestAPI(object):
 
     def log_debug(self, status_code, content):
         self.debug_logs.append((status_code, content))
+
+    def write_to_file(self, tag, data=None, filepath=None, append=True):
+        '''
+        This function is only for debug purposes, all calls to write_to_file should be removed
+        before submitting.
+        If data is None, tag is considered as data
+        else tag is a label, and data is data.
+        '''
+        if filepath is None:
+            filepath = '/tmp/ontap_log'
+        if append:
+            mode = 'a'
+        else:
+            mode = 'w'
+        with open(filepath, mode) as f:
+            if data is not None:
+                f.write("%s: %s\n" % (str(tag), str(data)))
+            else:
+                f.write(str(tag))
+                f.write('\n')
+
+    def write_errors_to_file(self, tag=None, filepath=None, append=True):
+        if tag is None:
+            tag = 'Error'
+        for error in self.errors:
+            self.write_to_file(tag, error, filepath, append)
+            if not append:
+                append = True
+
+    def write_debug_log_to_file(self, tag=None, filepath=None, append=True):
+        if tag is None:
+            tag = 'Debug'
+        for status_code, message in self.debug_logs:
+            self.write_to_file(tag, status_code, filepath, append)
+            if not append:
+                append = True
+            self.write_to_file(tag, message, filepath, append)
