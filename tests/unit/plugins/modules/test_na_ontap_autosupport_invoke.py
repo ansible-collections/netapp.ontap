@@ -27,6 +27,7 @@ SRR = {
     'generic_error': (None, "Expected error")
 }
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
@@ -54,6 +55,7 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
+
 
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''

@@ -154,7 +154,8 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_dacl_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error fetching allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        msg = 'Error fetching allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        assert exc.value.args[0]['msg'] == msg
 
     def test_successfully_create_dacl(self):
         data = self.mock_args()
@@ -174,7 +175,7 @@ class TestMyModule(unittest.TestCase):
         data['account'] = 'acc_test'
         data['rights'] = 'full_control'
         data['security_descriptor'] = 'sd_test'
-        data['apply_to'] = ['this_folder','files']
+        data['apply_to'] = ['this_folder', 'files']
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dacl_mock_object('zapi', 'create_idempotency', data).apply()
@@ -225,7 +226,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_dacl_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        msg = 'Error modifying allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ntfs_dacl.NetAppOntapNtfsDacl.get_dacl')
     def test_create_error(self, get_info):
@@ -240,7 +242,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_dacl_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error adding allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        msg = 'Error adding allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ntfs_dacl.NetAppOntapNtfsDacl.get_dacl')
     def test_delete_error(self, get_info):
@@ -261,4 +264,5 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_dacl_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error deleting allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        msg = 'Error deleting allow DACL for account acc_test for security descriptor sd_test: NetApp API failed. Reason - test:expect error'
+        assert exc.value.args[0]['msg'] == msg

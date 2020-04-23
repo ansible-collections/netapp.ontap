@@ -20,6 +20,7 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_snaplock \
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
@@ -75,15 +76,14 @@ class MockONTAPConnection(object):
         ''' build xml data for vserser-info '''
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {'snaplock-attrs': {
-                'snaplock-attrs-info': {
-                    'autocommit-period': data['autocommit_period'],
-                    'default-retention-period': data['default_retention_period'],
-                    'maximum-retention-period': data['maximum_retention_period'],
-                    'minimum-retention-period': data['minimum_retention_period'],
-                    'is-volume-append-mode-enabled': data['is_volume_append_mode_enabled']
-                }
-        }
-        }
+                      'snaplock-attrs-info': {
+                          'autocommit-period': data['autocommit_period'],
+                          'default-retention-period': data['default_retention_period'],
+                          'maximum-retention-period': data['maximum_retention_period'],
+                          'minimum-retention-period': data['minimum_retention_period'],
+                          'is-volume-append-mode-enabled': data['is_volume_append_mode_enabled']
+                      }
+                      }}
         xml.translate_struct(attributes)
         return xml
 
@@ -164,4 +164,3 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_snaplock_mock_object('zapi_error').apply()
         assert exc.value.args[0]['msg'] == 'Error setting snaplock attributes for volume test_volume : NetApp API failed. Reason - test:error'
-

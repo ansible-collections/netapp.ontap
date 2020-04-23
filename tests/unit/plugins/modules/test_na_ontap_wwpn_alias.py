@@ -43,6 +43,7 @@ SRR = {
         None)
 }
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
@@ -165,7 +166,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_alias_mock_object().apply()
-        assert  exc.value.args[0]['msg'] == "Error on creating wwpn alias: Expected error."
+        assert exc.value.args[0]['msg'] == "Error on creating wwpn alias: Expected error."
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_modify(self, mock_request):
@@ -201,7 +202,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_alias_mock_object().apply()
-        assert  exc.value.args[0]['msg'] == "Error on modifying wwpn alias when trying to delete alias: Expected error."
+        assert exc.value.args[0]['msg'] == "Error on modifying wwpn alias when trying to delete alias: Expected error."
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_modify_error_create(self, mock_request):
@@ -219,7 +220,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_alias_mock_object().apply()
-        assert  exc.value.args[0]['msg'] == "Error on modifying wwpn alias when trying to re-create alias: Expected error."
+        assert exc.value.args[0]['msg'] == "Error on modifying wwpn alias when trying to re-create alias: Expected error."
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_delete_error(self, mock_request):
@@ -237,4 +238,4 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_alias_mock_object().apply()
-        assert  exc.value.args[0]['msg'] == "Error on deleting wwpn alias: Expected error."
+        assert exc.value.args[0]['msg'] == "Error on deleting wwpn alias: Expected error."

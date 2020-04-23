@@ -292,7 +292,8 @@ class OntapRestAPI(object):
             return json, error
 
         try:
-            response = requests.request(method, url, verify=self.verify, auth=(self.username, self.password), params=params, timeout=self.timeout, json=json, headers=headers)
+            response = requests.request(method, url, verify=self.verify, auth=(self.username, self.password),
+                                        params=params, timeout=self.timeout, json=json, headers=headers)
             content = response.content  # for debug purposes
             status_code = response.status_code
             # If the response was successful, no Exception will be raised

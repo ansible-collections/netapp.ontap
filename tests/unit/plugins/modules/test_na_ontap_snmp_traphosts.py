@@ -36,6 +36,7 @@ SRR = {
     )
 }
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
@@ -63,6 +64,7 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
+
 
 class TestMyModule(unittest.TestCase):
     """ Unit tests for na_ontap_wwpn_alias """

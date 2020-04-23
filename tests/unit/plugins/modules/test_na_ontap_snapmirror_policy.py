@@ -33,6 +33,7 @@ SRR = {
                               'type': 'ansible'}
 }
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})

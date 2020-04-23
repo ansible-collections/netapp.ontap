@@ -242,7 +242,6 @@ class TestMyModule(unittest.TestCase):
         # Keep both versions to keep the pipeline happy
         assert exc.value.args[0]['msg'] == 'Error calling API system-get-ontapi-version: NetApp API failed. Reason - test:error'
 
-
     def test_call_api_error(self):
         '''test call_api will raise zapi error'''
         set_module_args(self.mock_args())
@@ -371,7 +370,6 @@ class TestMyModule(unittest.TestCase):
         assert result.get('k1') == 'v1'
         assert result.get('k2') == 'v2'
 
-
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
     def test_get_generic_get_iter_flatten_list_of_two(self, mock_ems_log):
         '''calling get_generic_get_iter will return expected dict'''
@@ -384,7 +382,6 @@ class TestMyModule(unittest.TestCase):
         assert isinstance(result, dict)
         assert result.get('k1') == 'v1'
         assert result.get('k2') == 'v2'
-
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
     def test_get_generic_get_iter_flatten_list_of_two_dups(self, mock_ems_log):

@@ -214,7 +214,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_create_is_cluster_vserver(self, mock_request):
         data = self.mock_args()
-        data['vserver']='cvserver'
+        data['vserver'] = 'cvserver'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
