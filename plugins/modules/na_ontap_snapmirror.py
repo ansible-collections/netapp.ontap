@@ -13,13 +13,14 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - Create/Delete/Update/Initialize/Break/Resync SnapMirror volume/vserver relationships for ONTAP/ONTAP
+  - Create/Delete/Update/Initialize/Break/Resync/Resume SnapMirror volume/vserver relationships for ONTAP/ONTAP
   - Create/Delete/Update/Initialize SnapMirror volume relationship between ElementSW and ONTAP
   - Modify schedule for a SnapMirror relationship for ONTAP/ONTAP and ElementSW/ONTAP
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is an established SnapMirror endpoint for ONTAP cluster with ElementSW UI
   - Pre-requisite for ElementSW to ONTAP relationship or vice-versa is to have SnapMirror enabled in the ElementSW volume
   - For creating a SnapMirror ElementSW/ONTAP relationship, an existing ONTAP/ElementSW relationship should be present
-  - Performs resync if the C(relationship_state=active) and the current state is broken-off
+  - Performs resync if the C(relationship_state=active) and the current mirror state of the snapmirror relationship is broken-off
+  - Performs resume if the C(relationship_state=active), the current snapmirror relationship status is quiesced and mirror state is snapmirrored
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_snapmirror
@@ -592,6 +593,17 @@ class NetAppONTAPSnapmirror(object):
                                       % (to_native(error)),
                                   exception=traceback.format_exc())
 
+    def snapmirror_resume(self):
+        """
+        resume SnapMirror based on relationship type
+        """
+        options = {'destination-location': self.parameters['destination_path']}
+        snapmirror_resume = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resume', **options)
+        try:
+            self.server.invoke_successfully(snapmirror_resume, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error resume SnapMirror : %s' % (to_native(error)), exception=traceback.format_exc())
+
     def snapmirror_modify(self, modify):
         """
         Modify SnapMirror schedule or policy
@@ -800,6 +812,12 @@ class NetAppONTAPSnapmirror(object):
                 # set changed explicitly for initialize
                 self.na_helper.changed = True
             if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active':
+                # resume when state is quiesced
+                if current['status'] == 'quiesced':
+                    if not self.module.check_mode:
+                        self.snapmirror_resume()
+                    # set changed explicitly for resume
+                    self.na_helper.changed = True
                 # resync when state is broken-off
                 if current['mirror_state'] == 'broken-off':
                     if not self.module.check_mode:

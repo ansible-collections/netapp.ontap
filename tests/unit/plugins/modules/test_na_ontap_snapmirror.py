@@ -349,6 +349,20 @@ class TestMyModule(unittest.TestCase):
         my_obj.snapmirror_release()
         assert my_obj.source_server.xml_in['destination-location'] == data['destination_path']
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_resume')
+    def test_snapmirror_resume(self, snapmirror_resume):
+        ''' resuming snapmirror '''
+        data = self.set_default_args()
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', status='quiesced', parm='snapmirrored')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        snapmirror_resume.assert_called_with()
+
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_abort')
     def test_successful_abort(self, snapmirror_abort):
         ''' deleting snapmirror and testing idempotency '''
