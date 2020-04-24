@@ -40,7 +40,7 @@ options:
 
   name:
     description:
-    - Specifies the NTFS security descriptor name.
+    - Specifies the NTFS security descriptor name. Not modifiable.
     required: true
     type: str
 
@@ -48,7 +48,6 @@ options:
     description:
     - Specifies the owner's SID or domain account of the NTFS security descriptor.
     - Need to provide the full path of the owner.
-    required: false
     type: str
 
   group:
@@ -83,7 +82,6 @@ options:
     - .... .... .... ..0. = Group Defaulted
     - .... .... .... ...0 = Owner Defaulted
     - Convert the 16 bit binary flags and convert to decimal for the input.
-    required: false
     type: int
 
 """
@@ -93,7 +91,7 @@ EXAMPLES = """
       na_ontap_ntfs_sd:
         state: present
         vserver: SVM1
-        security_descriptor: ansible_sd
+        name: ansible_sd
         owner: DOMAIN\\Account
         group: DOMAIN\\Group
         control_flags_raw: 0
@@ -105,7 +103,7 @@ EXAMPLES = """
       na_ontap_ntfs_sd:
         state: present
         vserver: SVM1
-        security_descriptor: ansible_sd
+        name: ansible_sd
         owner: DOMAIN\\Account
         group: DOMAIN\\Group
         control_flags_raw: 0
@@ -115,9 +113,9 @@ EXAMPLES = """
 
     - name: Delete NTFS Security Descriptor
       na_ontap_ntfs_sd:
-        state: present
+        state: absent
         vserver: SVM1
-        security_descriptor: ansible_sd
+        name: ansible_sd
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -160,8 +158,6 @@ class NetAppOntapNtfsSd(object):
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            required_one_of=[['owner', 'group']]
-
         )
 
         # set up variables
@@ -213,7 +209,7 @@ class NetAppOntapNtfsSd(object):
         ntfs_sd_obj = netapp_utils.zapi.NaElement("file-directory-security-ntfs-create")
         ntfs_sd_obj.add_new_child("ntfs-sd", self.parameters['name'])
 
-        if self.parameters.get('control_flags_raw'):
+        if self.parameters.get('control_flags_raw') is not None:
             ntfs_sd_obj.add_new_child("control-flags-raw", str(self.parameters['control_flags_raw']))
 
         if self.parameters.get('owner'):
@@ -221,9 +217,6 @@ class NetAppOntapNtfsSd(object):
 
         if self.parameters.get('group'):
             ntfs_sd_obj.add_new_child("group", self.parameters['group'])
-
-        if 'owner' not in self.parameters.keys() and 'group' not in self.parameters.keys():
-            self.module.fail_json(msg='Either owner or group must be specified when creating NTFS security descriptor.')
 
         try:
             self.server.invoke_successfully(ntfs_sd_obj, True)
@@ -252,7 +245,7 @@ class NetAppOntapNtfsSd(object):
         ntfs_sd_obj = netapp_utils.zapi.NaElement("file-directory-security-ntfs-modify")
         ntfs_sd_obj.add_new_child("ntfs-sd", self.parameters['name'])
 
-        if self.parameters.get('control_flags_raw'):
+        if self.parameters.get('control_flags_raw') is not None:
             ntfs_sd_obj.add_new_child('control-flags-raw', str(self.parameters['control_flags_raw']))
 
         if self.parameters.get('owner'):
