@@ -1233,9 +1233,9 @@ class NetAppONTAPGatherInfo(object):
             query = dict()
             query['node'], query['ifgrp-name'] = ifgrp.split(':')
 
-            tmp, dummy = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
-                                                   attribute='net-ifgrp-info', query=query,
-                                                   attributes_list_tag='attributes')
+            tmp = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
+                                            attribute='net-ifgrp-info', query=query,
+                                            attributes_list_tag='attributes')
             net_ifgrp_info = net_ifgrp_info.copy()
             net_ifgrp_info.update(tmp)
         return net_ifgrp_info
