@@ -69,6 +69,14 @@ class MockONTAPConnection(object):
             xml = self.build_vserver_info()
         elif self.type == 'net_port':
             xml = self.build_net_port_info()
+        elif self.type == 'net_port_no_ifgrp':
+            xml = self.build_net_port_info('no_ifgrp')
+        elif self.type == 'net_port_with_ifgrp':
+            xml = self.build_net_port_info('with_ifgrp')
+            # for the next calls
+            self.type = 'net_ifgrp'
+        elif self.type == 'net_ifgrp':
+            xml = self.build_net_ifgrp_info()
         elif self.type == 'zapi_error':
             error = netapp_utils.zapi.NaApiError('test', 'error')
             raise error
@@ -78,6 +86,8 @@ class MockONTAPConnection(object):
             xml = self.list_of_two()
         elif self.type == 'list_of_two_dups':
             xml = self.list_of_two_dups()
+        else:
+            raise KeyError(self.type)
         self.xml_out = xml
         return xml
 
@@ -92,7 +102,7 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_net_port_info():
+    def build_net_port_info(with_type=None):
         ''' build xml data for net-port-info '''
         xml = netapp_utils.zapi.NaElement('xml')
         attributes_list = netapp_utils.zapi.NaElement('attributes-list')
@@ -103,7 +113,25 @@ class MockONTAPConnection(object):
             net_port_info.add_new_child('port', 'port_' + str(i))
             net_port_info.add_new_child('broadcast_domain', 'test_domain_' + str(i))
             net_port_info.add_new_child('ipspace', 'ipspace' + str(i))
+            if with_type == 'with_ifgrp':
+                net_port_info.add_new_child('port_type', 'if_group')
+            elif with_type == 'no_ifgrp':
+                net_port_info.add_new_child('port_type', 'whatever')
             attributes_list.add_child_elem(net_port_info)
+        xml.add_child_elem(attributes_list)
+        return xml
+
+    @staticmethod
+    def build_net_ifgrp_info():
+        ''' build xml data for net-ifgrp-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        attributes_list = netapp_utils.zapi.NaElement('attributes')
+        num_net_ifgrp_info = 2
+        for i in range(num_net_ifgrp_info):
+            net_ifgrp_info = netapp_utils.zapi.NaElement('net-ifgrp-info')
+            net_ifgrp_info.add_new_child('ifgrp-name', 'ifgrp_' + str(i))
+            net_ifgrp_info.add_new_child('node', 'node_' + str(i))
+            attributes_list.add_child_elem(net_ifgrp_info)
         xml.add_child_elem(attributes_list)
         return xml
 
@@ -220,17 +248,20 @@ class TestMyModule(unittest.TestCase):
             info_main()
         assert exc.value.args[0]['state'] == 'info'
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_info.NetAppONTAPGatherInfo.get_generic_get_iter')
-    def test_get_ifgrp_info(self, get_generic_get_iter):
+    def test_get_ifgrp_info_no_ifgrp(self):
         '''test get_ifgrp_info with empty ifgrp_info'''
         set_module_args(self.mock_args())
-        get_generic_get_iter.side_effect = [
-            {}
-        ]
-        obj = self.get_info_mock_object()
-        obj.netapp_info['net_port_info'] = {}
+        obj = self.get_info_mock_object('net_port_no_ifgrp')
         result = obj.get_ifgrp_info()
         assert result == {}
+
+    def test_get_ifgrp_info_with_ifgrp(self):
+        '''test get_ifgrp_info with empty ifgrp_info'''
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('net_port_with_ifgrp')
+        result = obj.get_ifgrp_info()
+        assert result.get('node_0:ifgrp_0')
+        assert result.get('node_1:ifgrp_1')
 
     def test_ontapi_error(self):
         '''test ontapi will raise zapi error'''
