@@ -21,10 +21,12 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip("skipping as missing required netapp_lib")
 
+
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
     args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
     basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
+
 
 SRR = {
     # common responses
@@ -34,6 +36,7 @@ SRR = {
     'end_of_sequence': (None, "Unexpected call to send_request"),
     'generic_error': (None, "Expected error"),
 }
+
 
 class MockONTAPConnection(object):
     ''' mock a server connection to ONTAP host '''
@@ -113,7 +116,7 @@ def test_write_to_file():
     restApi.log_debug(501, '501 error')
     print(restApi.errors)
     print(restApi.debug_logs)
-    
+
     try:
         tempdir = tempfile.TemporaryDirectory()
         filepath = os.path.join(tempdir.name, 'log.txt')
@@ -127,7 +130,7 @@ def test_write_to_file():
         assert len(lines) == 4
         assert lines[0].strip() == 'Debug: 404'
         assert lines[2].strip() == 'Debug: 501'
-    
+
     # Idempotent, as append is False
     restApi.write_debug_log_to_file(filepath=filepath, append=False)
     with open(filepath, 'r') as f:
@@ -135,7 +138,7 @@ def test_write_to_file():
         assert len(lines) == 4
         assert lines[0].strip() == 'Debug: 404'
         assert lines[2].strip() == 'Debug: 501'
-    
+
     # Duplication, as append is True
     restApi.write_debug_log_to_file(filepath=filepath, append=True)
     with open(filepath, 'r') as f:
@@ -151,14 +154,14 @@ def test_write_to_file():
         lines = f.readlines()
         assert len(lines) == 1
         assert lines[0].strip() == 'Error: 404 error'
-    
+
     # Idempotent, as append is False
     restApi.write_errors_to_file(filepath=filepath, append=False)
     with open(filepath, 'r') as f:
         lines = f.readlines()
         assert len(lines) == 1
         assert lines[0].strip() == 'Error: 404 error'
-    
+
     # Duplication, as append is True
     restApi.write_errors_to_file(filepath=filepath, append=True)
     with open(filepath, 'r') as f:
@@ -167,7 +170,7 @@ def test_write_to_file():
         assert lines[0].strip() == 'Error: 404 error'
         assert lines[1].strip() == 'Error: 404 error'
 
-    
+
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_is_rest_true(mock_request):
     ''' is_rest is expected to return True '''
