@@ -781,21 +781,31 @@ class NetAppOntapVolume(object):
             volume_create = netapp_utils.zapi.NaElement.create_node_with_children('volume-create', **options)
             try:
                 self.server.invoke_successfully(volume_create, enable_tunneling=True)
-                if self.parameters.get('wait_for_completion'):
-                    # round off time_out
-                    retries = (self.parameters['time_out'] + 5) // 10
-                    current = self.get_volume()
-                    is_online = None if current is None else current['is_online']
-                    while not is_online and retries > 0:
-                        time.sleep(10)
-                        retries = retries - 1
-                        current = self.get_volume()
-                        is_online = None if current is None else current['is_online']
-                self.ems_log_event("volume-create")
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error provisioning volume %s of size %s: %s'
                                       % (self.parameters['name'], self.parameters['size'], to_native(error)),
                                       exception=traceback.format_exc())
+            self.ems_log_event("volume-create")
+
+            if self.parameters.get('wait_for_completion'):
+                # round off time_out
+                retries = (self.parameters['time_out'] + 5) // 10
+                is_online = None
+                errors = list()
+                while not is_online and retries > 0:
+                    try:
+                        current = self.get_volume()
+                        is_online = None if current is None else current['is_online']
+                    except KeyError as err:
+                        # get_volume may receive incomplete data as the volume is being created
+                        errors.append(repr(err))
+                    if not is_online:
+                        time.sleep(10)
+                    retries = retries - 1
+                if not is_online:
+                    errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+                    self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
+                                          % (self.parameters['name'], str(errors)))
 
         if self.parameters.get('efficiency_policy'):
             self.assign_efficiency_policy()
