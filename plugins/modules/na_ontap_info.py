@@ -146,6 +146,22 @@ options:
         default: false
         type: bool
         version_added: '20.4.0'
+    volume_move_target_aggr_info:
+        description:
+        - Required options for volume_move_target_aggr_info
+        type: dict
+        version_added: '20.5.0'
+        suboptions:
+            volume_name:
+                description:
+                - Volume name to get target aggr info for
+                type: str
+                version_added: '20.5.0'
+            vserver:
+                description:
+                - vserver the Volume lives on
+                type: str
+                version_added: '20.5.0'
 '''
 
 EXAMPLES = '''
@@ -197,6 +213,17 @@ EXAMPLES = '''
       - "!volume_info"
       - "!lun_info"
   register: ontap_info
+
+- name: Gather Volume move information for a specific volume
+  na_ontap_info:
+    state: info
+    hostname: "na-vsim"
+    username: "admin"
+    password: "admins_password"
+    gather_subset: volume_move_target_aggr_info
+    volume_move_target_aggr_info:
+      volume_name: carchitest
+      vserver: ansible
 '''
 
 RETURN = '''
@@ -275,6 +302,9 @@ class NetAppONTAPGatherInfo(object):
     def __init__(self, module, max_records):
         self.module = module
         self.max_records = str(max_records)
+        volume_move_target_aggr_info = module.params.get('volume_move_target_aggr_info', dict())
+        if volume_move_target_aggr_info is None:
+            volume_move_target_aggr_info = dict()
         self.netapp_info = dict()
 
         # thanks to coreywan (https://github.com/ansible/ansible/pull/47016)
@@ -1118,6 +1148,18 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '0',
             },
+            'volume_move_target_aggr_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'volume-move-target-aggr-get-iter',
+                    'attribute': 'volume-move-target-aggr-info',
+                    'query': {'max-records': self.max_records,
+                              'volume-name': volume_move_target_aggr_info.get('volume_name', None),
+                              'vserver': volume_move_target_aggr_info.get('vserver', None)},
+                    'fail_on_error': False,
+                },
+                'min_version': '0',
+            },
             'volume_space_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -1426,7 +1468,15 @@ def main():
         gather_subset=dict(default=['all'], type='list'),
         vserver=dict(type='str', default=None, required=False),
         max_records=dict(type='int', default=1024, required=False),
-        summary=dict(type='bool', default=False, required=False)
+        summary=dict(type='bool', default=False, required=False),
+        volume_move_target_aggr_info=dict(
+            type="dict",
+            required=False,
+            options=dict(
+                volume_name=dict(type='str', required=True),
+                vserver=dict(type='str', required=True)
+            )
+        )
     ))
 
     module = AnsibleModule(
