@@ -337,14 +337,12 @@ class NetAppOntapVolumeAutosize(object):
         converted_parameters = copy.deepcopy(self.parameters)
         converted_parameters = self.modify_to_kb(converted_parameters)
         self.na_helper.get_modified_attributes(current, converted_parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                self.modify_volume_autosize(uuid=uuid)
         if self.parameters.get('reset') is True:
-            self.modify_volume_autosize(uuid=uuid)
             self.na_helper.changed = True
+        if self.na_helper.changed:
+            if not self.module.check_mode:
+                self.modify_volume_autosize(uuid=uuid)
+
         self.module.exit_json(changed=self.na_helper.changed)
 
 

@@ -64,6 +64,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_software_update: Incorrectly stated that it support check mode, it does not
 - na_ontap_svm_options: supports check_mode.
 - na_ontap_volume: suppress traceback in wait_for_completion as volume may not be completely ready
+- na_ontap_volume_autosize: Support check_mode when `reset` option is given
 - na_ontap_vserver_peer: supports check_mode.
 
 ### New Modules
