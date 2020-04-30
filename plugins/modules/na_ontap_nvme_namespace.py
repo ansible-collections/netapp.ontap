@@ -46,6 +46,12 @@ options:
     description:
       - Namespace path.
     type: str
+  block_size:
+    description:
+      - Size in bytes of a logical block. Possible values are 512 (Data ONTAP 9.6 and later), 4096. The default value is 4096.
+    choices: [512, 4096]
+    type: int
+    version_added: '20.5.0'
 short_description: "NetApp ONTAP Manage NVME Namespace"
 version_added: "2.8"
 '''
@@ -104,6 +110,7 @@ class NetAppONTAPNVMENamespace(object):
             path=dict(required=True, type='str'),
             size=dict(required=False, type='int'),
             size_unit=dict(default='b', choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'], type='str'),
+            block_size=dict(required=False, choices=[512, 4096], type='int')
         ))
 
         self.module = AnsibleModule(
@@ -156,6 +163,8 @@ class NetAppONTAPNVMENamespace(object):
                    'ostype': self.parameters['ostype'],
                    'size': self.parameters['size']
                    }
+        if self.parameters.get('block_size'):
+            options['block-size'] = self.parameters['block_size']
         namespace_create = netapp_utils.zapi.NaElement('nvme-namespace-create')
         namespace_create.translate_struct(options)
         try:
