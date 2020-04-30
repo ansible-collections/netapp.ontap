@@ -17,7 +17,7 @@ DOCUMENTATION = '''
 module: na_ontap_login_messages
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 extends_documentation_fragment:
-    - netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap
 version_added: '20.1.0'
 short_description: Setup login banner and message of the day
 description:

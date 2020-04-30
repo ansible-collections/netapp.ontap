@@ -54,8 +54,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_dns: supports check_mode
 - na_ontap_fcp: supports check_mode.
 - na_ontap_flexcache: supports check_mode.
-- na_ontap_info: `metrocluster_check_info` does not trigger a traceback but adds an "error" info element if the target system is not set up for metrocluster. 
+- na_ontap_info: `metrocluster_check_info` does not trigger a traceback but adds an "error" info element if the target system is not set up for metrocluster.
 - na_ontap_license: supports check_mode.
+- na_ontap_login_messages: fix documentation link.
 - na_ontap_node: Now support check mode
 - na_ontap_ntfs_sd: documentation string update for examples and made sure owner or group not mandatory.
 - na_ontap_ports: now support check mode
@@ -66,6 +67,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_svm_options: supports check_mode.
 - na_ontap_volume: suppress traceback in wait_for_completion as volume may not be completely ready
 - na_ontap_volume_autosize: Support check_mode when `reset` option is given
+- na_ontap_volume_snaplock: fix documentation link.
 - na_ontap_vserver_peer: supports check_mode.
 
 ### New Modules

@@ -120,8 +120,24 @@ def na_ontap_host_argument_spec():
         validate_certs=dict(required=False, type='bool', default=True),
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
-        use_rest=dict(required=False, type='str', default='Auto', choices=['Never', 'Always', 'Auto'])
+        use_rest=dict(required=False, type='str', default='Auto', choices=['Never', 'Always', 'Auto']),
+        feature_flags=dict(required=False, type='dict', default=dict())
     )
+
+
+def has_feature(module, feature_name):
+    ''' if the user has configured the feature, use it
+        otherwise, use our default
+    '''
+    default_flags = dict(
+        deprecation_warning=True
+    )
+
+    if feature_name in module.params['feature_flags']:
+        return module.params['feature_flags'][feature_name]
+    if feature_name in default_flags:
+        return default_flags[feature_name]
+    module.fail_json(msg="Internal error: unexpected feature flag: %s" % feature_name)
 
 
 def create_sf_connection(module, port=None):

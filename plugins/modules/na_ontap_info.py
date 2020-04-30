@@ -1360,7 +1360,8 @@ class NetAppONTAPGatherInfo(object):
 
         run_subset = self.get_subset(gather_subset, self.netapp_info['ontapi_version'])
         if 'ontap_version' in gather_subset:
-            self.netapp_info['deprecation_warning'] = 'ontap_version is deprecated, please use ontapi_version'
+            if netapp_utils.has_feature(self.module, 'deprecation_warning'):
+                self.netapp_info['deprecation_warning'] = 'ontap_version is deprecated, please use ontapi_version'
         if 'help' in gather_subset:
             self.netapp_info['help'] = sorted(run_subset)
         else:

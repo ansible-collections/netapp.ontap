@@ -67,6 +67,13 @@ options:
       default: Auto
       choices: ['Never', 'Always', 'Auto']
       type: str
+  feature_flags:
+      description:
+      - Enable or disable a new feature.
+      - This can be used to enable an experimental feature or disable a new feature that breaks backward compatibility.
+      - Supported keys and values are subject to change without notice.  Unknown keys are ignored.
+      type: dict
+      version_added: "20.5.0"
 
 
 requirements:

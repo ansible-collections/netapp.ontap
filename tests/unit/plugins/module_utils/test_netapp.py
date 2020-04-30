@@ -28,6 +28,17 @@ def set_module_args(args):
     basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
 
 
+class AnsibleFailJson(Exception):
+    """Exception class to be raised by module.fail_json and caught by the test case"""
+    pass
+
+
+def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
+    """function to patch over fail_json; package return data into an exception"""
+    kwargs['failed'] = True
+    raise AnsibleFailJson(kwargs)
+
+
 SRR = {
     # common responses
     'is_rest': (200, {}, None),
@@ -89,18 +100,26 @@ def test_get_cserver():
     assert cserver == svm_name
 
 
-def mock_args():
-    return {
+def mock_args(feature_flags=None):
+    args = {
         'hostname': 'test',
         'username': 'test_user',
         'password': 'test_pass!'
     }
+    if feature_flags is not None:
+        args.update({'feature_flags': feature_flags})
+    return args
 
 
-def create_restapi_object(args):
+def create_module(args):
     argument_spec = netapp_utils.na_ontap_host_argument_spec()
     set_module_args(args)
     module = basic.AnsibleModule(argument_spec)
+    return module
+
+
+def create_restapi_object(args):
+    module = create_module(args)
     restApi = netapp_utils.OntapRestAPI(module)
     return restApi
 
@@ -198,3 +217,42 @@ def test_is_rest_false(mock_request):
     assert restApi.errors[0] == SRR['is_zapi'][2]
     assert restApi.debug_logs[0][0] == SRR['is_zapi'][0]    # status_code
     assert restApi.debug_logs[0][1] == SRR['is_zapi'][2]    # error
+
+
+def test_has_feature_success_default():
+    ''' existing feature_flag with default '''
+    flag = 'deprecation_warning'
+    module = create_module(mock_args())
+    value = netapp_utils.has_feature(module, flag)
+    assert value
+
+
+def test_has_feature_success_user_true():
+    ''' existing feature_flag with value set to True '''
+    flag = 'user_deprecation_warning'
+    args = dict(mock_args({flag: True}))
+    module = create_module(args)
+    value = netapp_utils.has_feature(module, flag)
+    assert value
+
+
+def test_has_feature_success_user_false():
+    ''' existing feature_flag with value set to False '''
+    flag = 'user_deprecation_warning'
+    args = dict(mock_args({flag: False}))
+    print(args)
+    module = create_module(args)
+    value = netapp_utils.has_feature(module, flag)
+    assert not value
+
+
+def test_has_feature_invalid_key():
+    ''' existing feature_flag with unknown key '''
+    flag = 'deprecation_warning_bad_key'
+    module = create_module(mock_args())
+    # replace ANsible fail method with ours
+    module.fail_json = fail_json
+    with pytest.raises(AnsibleFailJson) as exc:
+        netapp_utils.has_feature(module, flag)
+    msg = 'Internal error: unexpected feature flag: %s' % flag
+    assert exc.value.args[0]['msg'] == msg
