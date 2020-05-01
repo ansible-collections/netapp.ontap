@@ -52,6 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_cluster_peer: supports check_mode.
 - na_ontap_disks: support check_mode.
 - na_ontap_dns: supports check_mode
+- na_ontap_efficiency_policy: change `duration` type from int to str to support '-' input.
 - na_ontap_fcp: supports check_mode.
 - na_ontap_flexcache: supports check_mode.
 - na_ontap_info: `metrocluster_check_info` does not trigger a traceback but adds an "error" info element if the target system is not set up for metrocluster.

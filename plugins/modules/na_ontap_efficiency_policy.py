@@ -45,7 +45,7 @@ options:
       After this time expires, the efficiency operation will be stopped even if the operation is incomplete.
       If '-' is specified as the duration, the efficiency operation will run till it completes. Otherwise, the duration has to be an integer greater than 0.
       By default, the operation runs till it completes.
-    type: int
+    type: str
 
   enabled:
     description:
@@ -142,7 +142,7 @@ class NetAppOntapEfficiencyPolicy(object):
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             policy_name=dict(required=True, type='str'),
             comment=dict(required=False, type='str'),
-            duration=dict(required=False, type='int'),
+            duration=dict(required=False, type='str'),
             enabled=dict(required=False, type='bool'),
             policy_type=dict(required=False, choices=['threshold', 'scheduled']),
             qos_policy=dict(required=False, choices=['background', 'best_effort']),
@@ -176,15 +176,15 @@ class NetAppOntapEfficiencyPolicy(object):
     def set_playbook_zapi_key_map(self):
 
         self.na_helper.zapi_int_keys = {
-            'changelog_threshold_percent': 'changelog-threshold-percent',
-            'duration': 'duration',
+            'changelog_threshold_percent': 'changelog-threshold-percent'
         }
         self.na_helper.zapi_str_keys = {
             'policy_name': 'policy-name',
             'comment': 'comment',
             'policy_type': 'policy-type',
             'qos_policy': 'qos-policy',
-            'schedule': 'schedule'
+            'schedule': 'schedule',
+            'duration': 'duration'
         }
         self.na_helper.zapi_bool_keys = {
             'enabled': 'enabled'
