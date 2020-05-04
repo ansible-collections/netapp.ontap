@@ -55,6 +55,8 @@ aggrs:
 
 ports:   #* Ports also has variables 'autonegotiate', and 'flowcontrol' which default to true, and none but can be overriden by your playbook
   - { node: cluster-01, port: e0c, mtu: 9000 }
+  - { node: cluster-01, port: e0d, mtu: 9000, flowcontrol: none, autonegotiate: false }
+  
 
 ifgrps:
   - { name: a0a, node: cluster-01, ports: "e0a,e0b", mode: multimode, mtu 9000 }
