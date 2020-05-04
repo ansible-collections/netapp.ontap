@@ -74,6 +74,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
 - na_ontap_rest_info: Gather ONTAP subset information using REST APIs (9.6 and Above)
 
+### Role Change
+- na_ontap_cluster_config: Port Flowcontrol and autonegotiate can be set in role
+
 ## 20.4.1
 
 ### New Options

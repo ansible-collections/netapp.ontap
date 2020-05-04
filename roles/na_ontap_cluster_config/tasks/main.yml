@@ -197,7 +197,7 @@
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     https: true
-    validate_certs: "{{ validate_certs }}" 
+    validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ inters }}"
   when: inters != None
