@@ -130,7 +130,8 @@ def has_feature(module, feature_name):
         otherwise, use our default
     '''
     default_flags = dict(
-        deprecation_warning=True
+        deprecation_warning=True,
+        check_required_params_for_none=True
     )
 
     if feature_name in module.params['feature_flags']:

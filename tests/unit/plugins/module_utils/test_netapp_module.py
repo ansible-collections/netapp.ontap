@@ -5,8 +5,37 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import pytest
+
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule as na_helper
+
+
+class AnsibleFailJson(Exception):
+    """Exception class to be raised by module.fail_json and caught by the test case"""
+    pass
+
+
+class MockModule(object):
+    ''' rough mock for an Ansible module class '''
+    def __init__(self, required_param=None, not_required_param=None, unqualified_param=None):
+        self.argument_spec = dict(
+            required_param=dict(required=True),
+            not_required_param=dict(required=False),
+            unqualified_param=dict(),
+            feature_flags=dict(type='dict')
+        )
+        self.params = dict(
+            required_param=required_param,
+            not_required_param=not_required_param,
+            unqualified_param=unqualified_param,
+            feature_flags=dict(type='dict')
+        )
+
+    def fail_json(self, *args, **kwargs):  # pylint: disable=unused-argument
+        """function to simulate fail_json: package return data into an exception"""
+        kwargs['failed'] = True
+        raise AnsibleFailJson(kwargs)
 
 
 class TestMyModule(unittest.TestCase):
@@ -147,3 +176,18 @@ class TestMyModule(unittest.TestCase):
         my_obj = na_helper()
         result = my_obj.is_rename_action(source, target)
         assert result is False
+
+    def test_required_is_not_set_to_none(self):
+        ''' if a key is present, without a value, Ansible sets it to None '''
+        my_obj = na_helper()
+        my_module = MockModule()
+        print(my_module.argument_spec)
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.check_and_set_parameters(my_module)
+        msg = 'required_param requires a value, got: None'
+        assert exc.value.args[0]['msg'] == msg
+
+        # force a value different than None
+        my_module.params['required_param'] = 1
+        my_params = my_obj.check_and_set_parameters(my_module)
+        assert set(my_params.keys()) == set(['required_param', 'feature_flags'])

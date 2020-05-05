@@ -575,7 +575,7 @@ class NetAppOntapVolume(object):
             supports_check_mode=True
         )
         self.na_helper = NetAppModule()
-        self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
 
         if self.parameters.get('size'):
