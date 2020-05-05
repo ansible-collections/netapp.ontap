@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options:
 - na_ontap_aggregate: `raid_type` options supports 'raid_0' for ONTAP Select.
+- na_ontap_cluster_peer: `encryption_protocol_proposed` option allows specifying encryption protocol to be used for inter-cluster communication.
 - na_ontap_info: new fact: aggr_efficiency_info.
 - na_ontap_info: new fact: cluster_switch_info.
 - na_ontap_info: new fact: disk_info.

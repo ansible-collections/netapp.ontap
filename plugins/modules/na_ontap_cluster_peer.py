@@ -62,6 +62,13 @@ options:
     description:
      - Destination password.
      - Optional if this is same as source password.
+  encryption_protocol_proposed:
+    description:
+     - Encryption protocol to be used for inter-cluster communication.
+     - Only available on ONTAP 9.5 or later.
+    choices: ['tls_psk', 'none']
+    type: str
+    version_added: '20.5.0'
 short_description: NetApp ONTAP Manage Cluster peering
 version_added: "2.7"
 '''
@@ -78,6 +85,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
         dest_hostname: "{{ dest_netapp_hostname }}"
+        encryption_protocol_proposed: tls_psk
 
     - name: Delete cluster peer
       na_ontap_cluster_peer:
@@ -119,7 +127,8 @@ class NetAppONTAPClusterPeer(object):
             dest_username=dict(required=False, type='str'),
             dest_password=dict(required=False, type='str', no_log=True),
             source_cluster_name=dict(required=False, type='str'),
-            dest_cluster_name=dict(required=False, type='str')
+            dest_cluster_name=dict(required=False, type='str'),
+            encryption_protocol_proposed=dict(required=False, type='str', choices=['tls_psk', 'none'])
         ))
 
         self.module = AnsibleModule(
@@ -236,6 +245,9 @@ class NetAppONTAPClusterPeer(object):
         for each in peer_address:
             peer_addresses.add_new_child('remote-inet-address', each)
         cluster_peer_create.add_child_elem(peer_addresses)
+        if self.parameters.get('encryption_protocol_proposed') is not None:
+            cluster_peer_create.add_new_child('encryption-protocol-proposed', self.parameters['encryption_protocol_proposed'])
+
         try:
             server.invoke_successfully(cluster_peer_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
