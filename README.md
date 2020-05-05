@@ -25,6 +25,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.5.0
 
 ### New Options:
+- na_ontap_aggregate: `raid_type` options supports 'raid_0' for ONTAP Select.
 - na_ontap_info: new fact: aggr_efficiency_info
 - na_ontap_info: new fact: cluster_switch_info
 - na_ontap_info: new fact: disk_info

@@ -89,7 +89,8 @@ options:
   raid_type:
     description:
     - Specifies the type of RAID groups to use in the new aggregate.
-    choices: ['raid4', 'raid_dp', 'raid_tec']
+    - raid_0 is only available on ONTAP Select.
+    choices: ['raid4', 'raid_dp', 'raid_tec', 'raid_0']
     type: str
     version_added: '2.7'
 
@@ -246,7 +247,7 @@ class NetAppOntapAggregate(object):
             nodes=dict(required=False, type='list'),
             is_mirrored=dict(required=False, type='bool'),
             raid_size=dict(required=False, type='int'),
-            raid_type=dict(required=False, choices=['raid4', 'raid_dp', 'raid_tec']),
+            raid_type=dict(required=False, choices=['raid4', 'raid_dp', 'raid_tec', 'raid_0']),
             service_state=dict(required=False, choices=['online', 'offline']),
             spare_pool=dict(required=False, choices=['Pool0', 'Pool1']),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
