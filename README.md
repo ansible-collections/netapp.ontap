@@ -52,6 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_cluster: ONTAP 9.3 or earlier does not support ZAPI element single-node-cluster.
 - na_ontap_cluster_ha: support check_mode.
 - na_ontap_cluster_peer: support check_mode.
+- na_ontap_cluster_peer: EMS log wrongly uses destination credentials with source hostname.
 - na_ontap_disks: support check_mode.
 - na_ontap_dns: support check_mode.
 - na_ontap_efficiency_policy: change `duration` type from int to str to support '-' input.
@@ -73,6 +74,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_volume_autosize: Support check_mode when `reset` option is given.
 - na_ontap_volume_snaplock: fix documentation link.
 - na_ontap_vserver_peer: support check_mode.
+- na_ontap_vserver_peer: EMS log wrongly uses destination credentials with source hostname.
 
 ### New Modules
 - na_ontap_rest_info: Gather ONTAP subset information using REST APIs (9.6 and Above).

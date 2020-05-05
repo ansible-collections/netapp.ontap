@@ -130,6 +130,8 @@ class NetAppONTAPVserverPeer(object):
                 self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
                 # reset to source host connection for asup logs
                 self.module.params['hostname'] = self.parameters['hostname']
+                self.module.params['username'] = self.parameters['username']
+                self.module.params['password'] = self.parameters['password']
 
     def vserver_peer_get_iter(self):
         """
