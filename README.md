@@ -71,6 +71,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_svm_options: support check_mode.
 - na_ontap_volume: improve error reporting if required parameter is present but not set.
 - na_ontap_volume: suppress traceback in wait_for_completion as volume may not be completely ready.
+- na_ontap_volume: fix KeyError on 'style' when volume is offline.
 - na_ontap_volume_autosize: Support check_mode when `reset` option is given.
 - na_ontap_volume_snaplock: fix documentation link.
 - na_ontap_vserver_peer: support check_mode.

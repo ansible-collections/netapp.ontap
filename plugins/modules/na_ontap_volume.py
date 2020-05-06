@@ -661,9 +661,10 @@ class NetAppOntapVolume(object):
                 'is_online': is_online,
                 'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
-                'snapshot_policy': volume_snapshot_attributes['snapshot-policy'],
-                'volume_security_style': volume_attributes['volume-security-attributes']['style']
+                'snapshot_policy': volume_snapshot_attributes['snapshot-policy']
             }
+            if is_online:
+                return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
             if volume_security_unix_attributes.get_child_by_name('group-id'):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
             if volume_security_unix_attributes.get_child_by_name('user-id'):
@@ -1455,7 +1456,9 @@ class NetAppOntapVolume(object):
         if self.parameters.get('unix_permissions') is not None:
             # current stores unix_permissions' numeric value.
             # unix_permission in self.parameter can be either numeric or character.
-            if self.compare_chmod_value(current):
+            if self.compare_chmod_value(current) or not self.parameters['is_online']:
+                # don't change if the values are the same
+                # can't change permissions if not online
                 del self.parameters['unix_permissions']
         if cd_action is None and rename is None and self.parameters['state'] == 'present':
             # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
@@ -1487,6 +1490,11 @@ class NetAppOntapVolume(object):
                 elif cd_action == 'delete':
                     self.delete_volume(current)
                 elif modify:
+                    if modify.get('is_online'):
+                        # when moving to online, include parameters that get does not return when volume is offline
+                        for field in ['volume_security_style', 'group_id', 'user_id', 'percent_snapshot_space']:
+                            if self.parameters.get(field) is not None:
+                                modify[field] = self.parameters[field]
                     self.modify_volume(modify)
                     if efficiency_policy_modify is not None:
                         self.modify_volume_efficiency_policy(efficiency_policy_modify)
