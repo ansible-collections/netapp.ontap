@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.6.0
+
+### Bug Fixes
+- na_ontap_volume: modify was invoked multiple times when once is enough.
+
 ## 20.5.0
 
 ### New Options:

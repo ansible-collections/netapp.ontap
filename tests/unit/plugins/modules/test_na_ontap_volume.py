@@ -65,6 +65,7 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        # print("request: ", xml.to_string())
         if isinstance(self.kind, list):
             kind = self.kind.pop(0)
             if len(self.kind) == 0:
@@ -922,20 +923,15 @@ class TestMyModule(unittest.TestCase):
         get_volume.side_effect = [
             current
         ]
+        online = 'job_info'  # not correct, but works
         job = 'job_info'
         success = 'success_modify_async'
-        # each change requires 2 jobs and 1 success, and we have 5 changes (looks expensive!)
-        attr_changes = [job, job, success] * 5
-        kind = [job, job]
-        kind.extend(attr_changes)
-        # print(kind)
+        mount = 'job_info'  # not correct, but works
+        kind = [online, job, job, success, mount, job, job]
         obj = self.get_volume_mock_object(kind)
-        # 2.6 does not know about minor and major, so use [0] for major
-        if sys.version_info[0] >= 4 or (sys.version_info[0] == 3 and sys.version_info.minor >= 6):
-            # TODO: understand why this test fails with 2.7 and 3.5
-            with pytest.raises(AnsibleExitJson) as exc:
-                obj.apply()
-            assert exc.value.args[0]['changed']
+        with pytest.raises(AnsibleExitJson) as exc:
+            obj.apply()
+        assert exc.value.args[0]['changed']
 
     def test_check_job_status_error(self):
         ''' Test check job status error '''

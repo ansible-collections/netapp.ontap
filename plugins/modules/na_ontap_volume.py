@@ -1194,21 +1194,23 @@ class NetAppOntapVolume(object):
         if 'is_online' in attributes:
             self.change_volume_state()
         for attribute in attributes:
-            if attribute == 'size':
-                self.resize_volume()
-            if attribute == 'aggregate_name':
-                self.move_volume()
             if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
                 self.volume_modify_attributes(modify)
-            if attribute == 'junction_path':
-                if modify.get('junction_path') == '':
-                    self.volume_unmount()
-                else:
-                    self.volume_mount()
-            if attribute == 'snapshot_auto_delete':
-                self.set_snapshot_auto_delete()
+                break
+        if 'snapshot_auto_delete' in attributes:
+            self.set_snapshot_auto_delete()
+        if 'junction_path' in attributes:
+            if modify.get('junction_path') == '':
+                self.volume_unmount()
+            else:
+                self.volume_mount()
+        if 'size' in attributes:
+            self.resize_volume()
+        if 'aggregate_name' in attributes:
+            # keep it last, as it may take some time
+            self.move_volume()
 
     def compare_chmod_value(self, current):
         """
