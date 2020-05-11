@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
 - na_ontap_volume: modify was invoked multiple times when once is enough.
+- na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
 
 ## 20.5.0
 

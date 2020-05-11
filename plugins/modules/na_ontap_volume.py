@@ -663,8 +663,6 @@ class NetAppOntapVolume(object):
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy']
             }
-            if is_online:
-                return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
             if volume_security_unix_attributes.get_child_by_name('group-id'):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
             if volume_security_unix_attributes.get_child_by_name('user-id'):
@@ -697,6 +695,9 @@ class NetAppOntapVolume(object):
                 return_value['comment'] = volume_id_attributes['comment']
             else:
                 return_value['comment'] = None
+            if volume_attributes['volume-security-attributes'].get_child_by_name('style'):
+                # style is not present if the volume is still offline or of type: dp
+                return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
             if volume_id_attributes.get_child_by_name('style-extended'):
                 return_value['style_extended'] = volume_id_attributes['style-extended']
             else:
