@@ -24,6 +24,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.6.0
 
+### New Options
+- na_ontap_disks: `disk_type` option allows to assign specified type of disk.
+
 ### Bug Fixes
 - na_ontap_volume: modify was invoked multiple times when once is enough.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.

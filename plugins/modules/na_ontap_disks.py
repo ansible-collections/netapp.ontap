@@ -33,28 +33,44 @@ options:
     - It specifies the node to assign all visible unowned disks.
 
   disk_count:
-    required: false
-    type: int
     description:
     - Total number of disks a node should own
+    type: int
     version_added: '2.9'
+
+  disk_type:
+    description:
+    - Assign specified type of disk (or set of disks). The disk_count parameter is mandatory.
+    type: str
+    choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD_NVM', 'VMDISK', 'unknown']
+    version_added: '20.6.0'
+
 '''
 
 EXAMPLES = """
-- name: Assign unowned disks
-  na_ontap_disks:
-    node: cluster-01
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
+    - name: Assign unowned disks
+      na_ontap_disks:
+        node: cluster-01
+        hostname: "{{ hostname }}"
+        username: "{{ admin username }}"
+        password: "{{ admin password }}"
 
-- name: Assign specified total disks
-  na_ontap_disks:
-    node: cluster-01
-    disk_count: 56
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
+    - name: Assign specified total disks
+      na_ontap_disks:
+
+        disk_count: 56
+        hostname: "{{ hostname }}"
+        username: "{{ admin username }}"
+        password: "{{ admin password }}"
+
+    - name: Assign disk with disk type
+      na_ontap_disks:
+        node: cluster-01
+        disk_count: 56
+        disk_type: VMDISK
+        hostname: "{{ hostname }}"
+        username: "{{ admin username }}"
+        password: "{{ admin password }}"
 """
 
 RETURN = """
@@ -78,7 +94,8 @@ class NetAppOntapDisks(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             node=dict(required=True, type='str'),
-            disk_count=dict(required=False, type='int')
+            disk_count=dict(required=False, type='int'),
+            disk_type=dict(required=False, type='str', choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD_NVM', 'VMDISK', 'unknown']),
         ))
 
         self.module = AnsibleModule(
@@ -94,7 +111,7 @@ class NetAppOntapDisks(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def get_unassigned_disk_count(self):
+    def get_unassigned_disk_count(self, disk_type=None):
         """
         Check for free disks
         """
@@ -107,6 +124,10 @@ class NetAppOntapDisks(object):
         disk_query = netapp_utils.zapi.NaElement('query')
         disk_query.add_child_elem(disk_storage_info)
 
+        if disk_type is not None:
+            disk_inventory_info = netapp_utils.zapi.NaElement('storage-inventory-info')
+            disk_inventory_info.add_new_child('disk-type', disk_type)
+
         disk_iter.add_child_elem(disk_query)
 
         try:
@@ -117,7 +138,7 @@ class NetAppOntapDisks(object):
                                   exception=traceback.format_exc())
         return int(result.get_child_content('num-records'))
 
-    def get_owned_disk_count(self):
+    def get_owned_disk_count(self, disk_type=None):
         """
         Check for owned disks
         """
@@ -130,6 +151,10 @@ class NetAppOntapDisks(object):
         disk_query = netapp_utils.zapi.NaElement('query')
         disk_query.add_child_elem(disk_storage_info)
 
+        if disk_type is not None:
+            disk_inventory_info = netapp_utils.zapi.NaElement('storage-inventory-info')
+            disk_inventory_info.add_new_child('disk-type', disk_type)
+
         disk_iter.add_child_elem(disk_query)
 
         try:
@@ -140,7 +165,7 @@ class NetAppOntapDisks(object):
                                   exception=traceback.format_exc())
         return int(result.get_child_content('num-records'))
 
-    def disk_assign(self, needed_disks):
+    def disk_assign(self, needed_disks, disk_type=None):
         """
         Set node as disk owner.
         """
@@ -152,6 +177,8 @@ class NetAppOntapDisks(object):
             assign_disk = netapp_utils.zapi.NaElement.create_node_with_children(
                 'disk-sanown-assign', **{'node-name': self.parameters['node'],
                                          'all': 'true'})
+        if disk_type is not None:
+            assign_disk.add_new_child('disk-type', disk_type)
         try:
             self.server.invoke_successfully(assign_disk,
                                             enable_tunneling=True)
@@ -174,8 +201,8 @@ class NetAppOntapDisks(object):
         netapp_utils.ems_log_event("na_ontap_disks", cserver)
 
         # check if anything needs to be changed (add/delete/update)
-        unowned_disks = self.get_unassigned_disk_count()
-        owned_disks = self.get_owned_disk_count()
+        unowned_disks = self.get_unassigned_disk_count(disk_type=self.parameters.get('disk_type'))
+        owned_disks = self.get_owned_disk_count(disk_type=self.parameters.get('disk_type'))
         if 'disk_count' in self.parameters:
             if self.parameters['disk_count'] < owned_disks:
                 self.module.fail_json(msg="Fewer disks than are currently owned was requested. "
@@ -188,7 +215,7 @@ class NetAppOntapDisks(object):
                 if self.parameters['disk_count'] > owned_disks:
                     needed_disks = self.parameters['disk_count'] - owned_disks
                     if not self.module.check_mode:
-                        self.disk_assign(needed_disks)
+                        self.disk_assign(needed_disks, disk_type=self.parameters.get('disk_type'))
                     changed = True
             else:
                 if not self.module.check_mode:
