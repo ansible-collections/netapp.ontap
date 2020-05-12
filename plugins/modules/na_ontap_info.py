@@ -318,7 +318,7 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'cluster-identity-get',
                     'attributes_list_tag': 'attributes',
                     'attribute': 'cluster-identity-info',
-                    'field': 'cluster-name',
+                    'key_fields': 'cluster-name',
                 },
                 'min_version': '0',
             },
@@ -327,7 +327,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cluster-image-get-iter',
                     'attribute': 'cluster-image-info',
-                    'field': 'current-version',
+                    'key_fields': 'current-version',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -337,7 +337,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cluster-node-get-iter',
                     'attribute': 'cluster-node-info',
-                    'field': 'node-name',
+                    'key_fields': 'node-name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -347,7 +347,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'security-login-get-iter',
                     'attribute': 'security-login-account-info',
-                    'field': ('vserver', 'user-name', 'application', 'authentication-method'),
+                    'key_fields': ('vserver', 'user-name', 'application', 'authentication-method'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -357,7 +357,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'aggr-get-iter',
                     'attribute': 'aggr-attributes',
-                    'field': 'aggregate-name',
+                    'key_fields': 'aggregate-name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -367,7 +367,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'volume-get-iter',
                     'attribute': 'volume-attributes',
-                    'field': ('name', 'owning-vserver-name'),
+                    'key_fields': ('name', 'owning-vserver-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -386,7 +386,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'lun-get-iter',
                     'attribute': 'lun-info',
-                    'field': ('vserver', 'path'),
+                    'key_fields': ('vserver', 'path'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -414,7 +414,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'metrocluster-node-get-iter',
                     'attribute': 'metrocluster-node-info',
-                    'field': ('cluster-name', 'node-name'),
+                    'key_fields': ('cluster-name', 'node-name'),
                 },
                 'min_version': '0',
             },
@@ -423,7 +423,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-dns-get-iter',
                     'attribute': 'net-dns-info',
-                    'field': 'vserver-name',
+                    'key_fields': 'vserver-name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -433,7 +433,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-interface-get-iter',
                     'attribute': 'net-interface-info',
-                    'field': 'interface-name',
+                    'key_fields': 'interface-name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -443,7 +443,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-interface-service-policy-get-iter',
                     'attribute': 'net-interface-service-policy-info',
-                    'field': ('vserver', 'policy'),
+                    'key_fields': ('vserver', 'policy'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '150',
@@ -453,7 +453,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-port-get-iter',
                     'attribute': 'net-port-info',
-                    'field': ('node', 'port'),
+                    'key_fields': ('node', 'port'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -463,7 +463,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'security-key-manager-key-get-iter',
                     'attribute': 'security-key-manager-key-info',
-                    'field': ('node', 'key-id'),
+                    'key_fields': ('node', 'key-id'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -473,7 +473,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cf-get-iter',
                     'attribute': 'storage-failover-info',
-                    'field': 'node',
+                    'key_fields': 'node',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -483,7 +483,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vserver-motd-get-iter',
                     'attribute': 'vserver-motd-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -493,7 +493,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vserver-login-banner-get-iter',
                     'attribute': 'vserver-login-banner-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -503,7 +503,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vserver-get-iter',
                     'attribute': 'vserver-info',
-                    'field': 'vserver-name',
+                    'key_fields': 'vserver-name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -513,7 +513,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nfs-service-get-iter',
                     'attribute': 'nfs-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -554,7 +554,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'system-node-get-iter',
                     'attribute': 'node-details-info',
-                    'field': 'node',
+                    'key_fields': 'node',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -564,7 +564,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'igroup-get-iter',
                     'attribute': 'initiator-group-info',
-                    'field': ('vserver', 'initiator-group-name'),
+                    'key_fields': ('vserver', 'initiator-group-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -574,7 +574,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'iscsi-service-get-iter',
                     'attribute': 'iscsi-service-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -584,7 +584,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'qos-policy-group-get-iter',
                     'attribute': 'qos-policy-group-info',
-                    'field': 'policy-group',
+                    'key_fields': 'policy-group',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -594,7 +594,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'qtree-list-iter',
                     'attribute': 'qtree-info',
-                    'field': ('vserver', 'id'),
+                    'key_fields': ('vserver', 'id'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -604,7 +604,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'quota-report-iter',
                     'attribute': 'quota',
-                    'field': ('vserver', 'volume', 'tree', 'quota-type', 'quota-target'),
+                    'key_fields': ('vserver', 'volume', 'tree', 'quota-type', 'quota-target'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -614,7 +614,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vscan-status-get-iter',
                     'attribute': 'vscan-status-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -624,7 +624,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vscan-scanner-pool-get-iter',
                     'attribute': 'vscan-scanner-pool-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -634,7 +634,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vscan-connection-status-all-get-iter',
                     'attribute': 'vscan-connection-status-all-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -644,7 +644,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vscan-connection-extended-stats-get-iter',
                     'attribute': 'vscan-connection-extended-stats-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -654,7 +654,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'snapshot-get-iter',
                     'attribute': 'snapshot-info',
-                    'field': ('vserver', 'volume', 'name'),
+                    'key_fields': ('vserver', 'volume', 'name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -664,7 +664,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'storage-bridge-get-iter',
                     'attribute': 'storage-bridge-info',
-                    'field': 'name',
+                    'key_fields': 'name',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -675,7 +675,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'qos-adaptive-policy-group-get-iter',
                     'attribute': 'qos-adaptive-policy-group-info',
-                    'field': 'policy-group',
+                    'key_fields': 'policy-group',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '130',
@@ -686,7 +686,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nvme-get-iter',
                     'attribute': 'nvme-target-service-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -696,7 +696,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nvme-interface-get-iter',
                     'attribute': 'nvme-interface-info',
-                    'field': 'vserver',
+                    'key_fields': 'vserver',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -706,7 +706,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nvme-subsystem-get-iter',
                     'attribute': 'nvme-subsystem-info',
-                    'field': 'subsystem',
+                    'key_fields': 'subsystem',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -716,7 +716,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nvme-namespace-get-iter',
                     'attribute': 'nvme-namespace-info',
-                    'field': 'path',
+                    'key_fields': 'path',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -729,7 +729,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'aggr-efficiency-get-iter',
                     'attribute': 'aggr-efficiency-info',
-                    'field': ('node', 'aggregate'),
+                    'key_fields': ('node', 'aggregate'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -741,7 +741,7 @@ class NetAppONTAPGatherInfo(object):
                     'attribute': 'cifs-server-config',
                     # preferred key is <vserver>:<domain>:<cifs-server>
                     # alternate key is <vserver>:<domain-workgroup>:<cifs-server>
-                    'field': ('vserver', ('domain', 'domain-workgroup'), 'cifs-server'),
+                    'key_fields': ('vserver', ('domain', 'domain-workgroup'), 'cifs-server'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -751,7 +751,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cifs-share-get-iter',
                     'attribute': 'cifs-share',
-                    'field': ('share-name', 'path', 'cifs-server'),
+                    'key_fields': ('share-name', 'path', 'cifs-server'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -761,7 +761,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cifs-security-get-iter',
                     'attribute': 'cifs-security',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -771,7 +771,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cluster-peer-get-iter',
                     'attribute': 'cluster-peer-info',
-                    'field': ('cluster-name', 'remote-cluster-name'),
+                    'key_fields': ('cluster-name', 'remote-cluster-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -781,7 +781,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'cluster-switch-get-iter',
                     'attribute': 'cluster-switch-info',
-                    'field': ('device', 'model', 'serial-number'),
+                    'key_fields': ('device', 'model', 'serial-number'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '160',
@@ -791,7 +791,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'storage-disk-get-iter',
                     'attribute': 'storage-disk-info',
-                    'field': ('disk-name'),
+                    'key_fields': ('disk-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -801,7 +801,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'environment-sensors-get-iter',
                     'attribute': 'environment-sensors-info',
-                    'field': ('node-name', 'sensor-name'),
+                    'key_fields': ('node-name', 'sensor-name'),
                     'query': {'max-records': self.max_records},
                     'fail_on_error': False,
                 },
@@ -812,7 +812,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'export-policy-get-iter',
                     'attribute': 'export-policy-info',
-                    'field': ('vserver', 'policy-name'),
+                    'key_fields': ('vserver', 'policy-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -822,7 +822,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'export-rule-get-iter',
                     'attribute': 'export-rule-info',
-                    'field': ('vserver-name', 'policy-name', 'rule-index'),
+                    'key_fields': ('vserver-name', 'policy-name', 'rule-index'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -832,7 +832,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'ucm-adapter-get-iter',
                     'attribute': 'uc-adapter-info',
-                    'field': ('adapter-name', 'node-name'),
+                    'key_fields': ('adapter-name', 'node-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -842,7 +842,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'fcp-wwpnalias-get-iter',
                     'attribute': 'aliases-info',
-                    'field': ('aliases-alias', 'vserver'),
+                    'key_fields': ('aliases-alias', 'vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -852,7 +852,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'fcp-service-get-iter',
                     'attribute': 'fcp-service-info',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -862,7 +862,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'job-schedule-cron-get-iter',
                     'attribute': 'job-schedule-cron-info',
-                    'field': ('job-schedule-name', 'job-schedule-cluster'),
+                    'key_fields': ('job-schedule-name', 'job-schedule-cluster'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -872,7 +872,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'kerberos-realm-get-iter',
                     'attribute': 'kerberos-realm',
-                    'field': ('vserver-name', 'realm'),
+                    'key_fields': ('vserver-name', 'realm'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -882,7 +882,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'ldap-client-get-iter',
                     'attribute': 'ldap-client',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -892,7 +892,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'ldap-config-get-iter',
                     'attribute': 'ldap-config',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -902,7 +902,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'lun-map-get-iter',
                     'attribute': 'lun-map-info',
-                    'field': ('initiator-group', 'lun-id', 'node', 'path', 'vserver'),
+                    'key_fields': ('initiator-group', 'lun-id', 'node', 'path', 'vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -912,7 +912,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-device-discovery-get-iter',
                     'attribute': 'net-device-discovery-info',
-                    'field': ('port'),
+                    'key_fields': ('port'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -922,7 +922,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-failover-group-get-iter',
                     'attribute': 'net-failover-group-info',
-                    'field': ('vserver', 'failover-group'),
+                    'key_fields': ('vserver', 'failover-group'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -932,7 +932,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-firewall-policy-get-iter',
                     'attribute': 'net-firewall-policy-info',
-                    'field': ('policy', 'vserver', 'service'),
+                    'key_fields': ('policy', 'vserver', 'service'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -942,7 +942,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-ipspaces-get-iter',
                     'attribute': 'net-ipspaces-info',
-                    'field': ('ipspace'),
+                    'key_fields': ('ipspace'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -952,7 +952,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-port-broadcast-domain-get-iter',
                     'attribute': 'net-port-broadcast-domain-info',
-                    'field': ('broadcast-domain', 'ipspace'),
+                    'key_fields': ('broadcast-domain', 'ipspace'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -962,7 +962,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-routes-get-iter',
                     'attribute': 'net-vs-routes-info',
-                    'field': ('vserver', 'destination', 'gateway'),
+                    'key_fields': ('vserver', 'destination', 'gateway'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -972,7 +972,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'net-vlan-get-iter',
                     'attribute': 'vlan-info',
-                    'field': ('interface-name', 'node'),
+                    'key_fields': ('interface-name', 'node'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -982,7 +982,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'nfs-service-get-iter',
                     'attribute': 'nfs-info',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -992,7 +992,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'file-directory-security-ntfs-dacl-get-iter',
                     'attribute': 'file-directory-security-ntfs-dacl',
-                    'field': ('vserver', 'ntfs-sd', 'account', 'access-type'),
+                    'key_fields': ('vserver', 'ntfs-sd', 'account', 'access-type'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1002,7 +1002,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'file-directory-security-ntfs-get-iter',
                     'attribute': 'file-directory-security-ntfs',
-                    'field': ('vserver', 'ntfs-sd'),
+                    'key_fields': ('vserver', 'ntfs-sd'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1012,7 +1012,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'ntp-server-get-iter',
                     'attribute': 'ntp-server-info',
-                    'field': ('server-name'),
+                    'key_fields': ('server-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1022,7 +1022,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'security-login-role-get-iter',
                     'attribute': 'security-login-role-info',
-                    'field': ('vserver', 'role-name', 'access-level', 'command-directory-name'),
+                    'key_fields': ('vserver', 'role-name', 'access-level', 'command-directory-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1032,7 +1032,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'service-processor-get-iter',
                     'attribute': 'service-processor-info',
-                    'field': ('node'),
+                    'key_fields': ('node'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1042,7 +1042,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'service-processor-network-get-iter',
                     'attribute': 'service-processor-network-info',
-                    # don't use fields, as we cannot build a key with optional fields
+                    # don't use key_fieldss, as we cannot build a key with optional key_fieldss
                     # without a key, we'll get a list of dictionaries
                     'query': {'max-records': self.max_records},
                 },
@@ -1053,7 +1053,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'storage-shelf-info-get-iter',
                     'attribute': 'storage-shelf-info',
-                    'field': ('shelf-id', 'serial-number'),
+                    'key_fields': ('shelf-id', 'serial-number'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1063,7 +1063,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'sis-get-iter',
                     'attribute': 'sis-status-info',
-                    'field': 'path',
+                    'key_fields': 'path',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1073,7 +1073,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'sis-policy-get-iter',
                     'attribute': 'sis-policy-info',
-                    'field': ('vserver', 'policy-name'),
+                    'key_fields': ('vserver', 'policy-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1083,7 +1083,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'snapmirror-get-iter',
                     'attribute': 'snapmirror-info',
-                    'field': 'destination-location',
+                    'key_fields': 'destination-location',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -1093,7 +1093,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'snapmirror-get-destination-iter',
                     'attribute': 'snapmirror-destination-info',
-                    'field': 'destination-location',
+                    'key_fields': 'destination-location',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -1103,7 +1103,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'snapmirror-policy-get-iter',
                     'attribute': 'snapmirror-policy-info',
-                    'field': ('vserver-name', 'policy-name'),
+                    'key_fields': ('vserver-name', 'policy-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1113,7 +1113,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'snapshot-policy-get-iter',
                     'attribute': 'snapshot-policy-info',
-                    'field': ('vserver-name', 'policy'),
+                    'key_fields': ('vserver-name', 'policy'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1123,7 +1123,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'diagnosis-subsystem-config-get-iter',
                     'attribute': 'diagnosis-subsystem-config-info',
-                    'field': 'subsystem',
+                    'key_fields': 'subsystem',
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1133,7 +1133,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'diagnosis-alert-get-iter',
                     'attribute': 'diagnosis-alert-info',
-                    'field': ('node', 'alerting-resource'),
+                    'key_fields': ('node', 'alerting-resource'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1143,7 +1143,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'system-get-node-info-iter',
                     'attribute': 'system-info',
-                    'field': ('system-name'),
+                    'key_fields': ('system-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1165,7 +1165,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'volume-space-get-iter',
                     'attribute': 'space-info',
-                    'field': ('vserver', 'volume'),
+                    'key_fields': ('vserver', 'volume'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1175,7 +1175,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vscan-status-get-iter',
                     'attribute': 'vscan-status-info',
-                    'field': ('vserver'),
+                    'key_fields': ('vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1185,7 +1185,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'vserver-peer-get-iter',
                     'attribute': 'vserver-peer-info',
-                    'field': ('vserver', 'remote-vserver-name'),
+                    'key_fields': ('vserver', 'remote-vserver-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -1275,14 +1275,14 @@ class NetAppONTAPGatherInfo(object):
             query = dict()
             query['node'], query['ifgrp-name'] = ifgrp.split(':')
 
-            tmp = self.get_generic_get_iter('net-port-ifgrp-get', field=('node', 'ifgrp-name'),
+            tmp = self.get_generic_get_iter('net-port-ifgrp-get', key_fields=('node', 'ifgrp-name'),
                                             attribute='net-ifgrp-info', query=query,
                                             attributes_list_tag='attributes')
             net_ifgrp_info = net_ifgrp_info.copy()
             net_ifgrp_info.update(tmp)
         return net_ifgrp_info
 
-    def get_generic_get_iter(self, call, attribute=None, field=None, query=None, attributes_list_tag='attributes-list', fail_on_error=True):
+    def get_generic_get_iter(self, call, attribute=None, key_fields=None, query=None, attributes_list_tag='attributes-list', fail_on_error=True):
         '''Method to run a generic get-iter call'''
 
         generic_call, error = self.call_api(call, attributes_list_tag, query, fail_on_error=fail_on_error)
@@ -1301,7 +1301,7 @@ class NetAppONTAPGatherInfo(object):
         if attributes_list is None:
             return None
 
-        if field is None:
+        if key_fields is None:
             out = []
         else:
             out = {}
@@ -1312,18 +1312,18 @@ class NetAppONTAPGatherInfo(object):
             if attribute is not None:
                 dic = dic[attribute]
 
-            if isinstance(field, str):
-                unique_key = _finditem(dic, field)
+            if isinstance(key_fields, str):
+                unique_key = _finditem(dic, key_fields)
                 out = out.copy()
                 out.update({unique_key: convert_keys(json.loads(json.dumps(dic)))})
-            elif isinstance(field, tuple):
-                unique_key = ':'.join([_finditem(dic, el) for el in field])
+            elif isinstance(key_fields, tuple):
+                unique_key = ':'.join([_finditem(dic, el) for el in key_fields])
                 out = out.copy()
                 out.update({unique_key: convert_keys(json.loads(json.dumps(dic)))})
             else:
                 out.append(convert_keys(json.loads(json.dumps(dic))))
 
-        if attributes_list_tag is None and field is None:
+        if attributes_list_tag is None and key_fields is None:
             if len(out) == 1:
                 # flatten the list as only 1 element is expected
                 out = out[0]

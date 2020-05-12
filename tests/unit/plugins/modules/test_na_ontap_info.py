@@ -188,7 +188,7 @@ class TestMyModule(unittest.TestCase):
             state=dict(type='str', default='info', choices=['info']),
             gather_subset=dict(default=['all'], type='list'),
             vserver=dict(type='str', default=None, required=False),
-            max_records=dict(type='int', default=1024, required=False)
+            max_records=dict(type='int', default=1024, required=False),
         ))
         module = basic.AnsibleModule(
             argument_spec=argument_spec,
@@ -230,7 +230,7 @@ class TestMyModule(unittest.TestCase):
         result = obj.get_generic_get_iter(
             'net-port-get-iter',
             attribute='net-port-info',
-            field=('node', 'port'),
+            key_fields=('node', 'port'),
             query={'max-records': '1024'}
         )
         assert result.get('node_0:port_0')
