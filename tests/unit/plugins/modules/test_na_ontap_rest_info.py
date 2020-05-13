@@ -110,6 +110,42 @@ class TestMyModule(unittest.TestCase):
             'gather_subset': ['all']
         })
 
+    def set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass(self):
+        return dict({
+            'hostname': 'hostname',
+            'username': 'username',
+            'password': 'password',
+            'https': True,
+            'validate_certs': False,
+            'max_records': 1024,
+            'fields': '*',
+            'gather_subset': ['all']
+        })
+
+    def set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_fail(self):
+        return dict({
+            'hostname': 'hostname',
+            'username': 'username',
+            'password': 'password',
+            'https': True,
+            'validate_certs': False,
+            'max_records': 1024,
+            'fields': ['uuid', 'name', 'node'],
+            'gather_subset': ['all']
+        })
+
+    def set_args_run_Ontap_gather_facts_for_aggregate_info_with_fields_section_pass(self):
+        return dict({
+            'hostname': 'hostname',
+            'username': 'username',
+            'password': 'password',
+            'https': True,
+            'fields': ['uuid', 'name', 'node'],
+            'validate_certs': False,
+            'max_records': 1024,
+            'gather_subset': ['aggregate_info']
+        })
+
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
     def test_run_Ontap_version_check_for_9_6_pass(self, ontap_get_api):
         set_module_args(self.set_args_run_Ontap_version_check())
@@ -190,4 +226,48 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_run_Ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
+        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info.NetAppONTAPGatherInfo.validate_ontap_version')
+    def test_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, validate_ontap_version, get_subset_info):
+        set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass())
+        my_obj = ontap_rest_info_module()
+        gather_subset = ['aggregate_info', 'vserver_info', 'volume_info']
+        response = {'records': [{'name': 'dummy'}]}
+        get_subset_info.return_value = response, None
+
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_run_Ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
+        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info.NetAppONTAPGatherInfo.validate_ontap_version')
+    def test_run_Ontap_gather_facts_for_all_subsets_with_fields_section_fail(self, validate_ontap_version, get_subset_info):
+        set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_fail())
+        my_obj = ontap_rest_info_module()
+        gather_subset = ['aggregate_info', 'vserver_info', 'volume_info']
+        response = {'records': [{'name': 'dummy'}]}
+        get_subset_info.return_value = response, None
+        error_message = "Error: fields: %s, only one subset will be allowed." \
+                        % self.set_args_run_Ontap_gather_facts_for_aggregate_info_with_fields_section_pass()['fields']
+
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        print('Info: test_run_Ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
+        assert exc.value.args[0]['msg'] == error_message
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.get')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info.NetAppONTAPGatherInfo.validate_ontap_version')
+    def test_run_Ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass(self, validate_ontap_version, get_subset_info):
+        set_module_args(self.set_args_run_Ontap_gather_facts_for_aggregate_info_with_fields_section_pass())
+        my_obj = ontap_rest_info_module()
+        gather_subset = ['aggregate_info']
+        response = {'records': [{'name': 'test_volume'}]}
+        get_subset_info.return_value = response, None
+
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_run_Ontap_gather_facts_for_volume_info_pass: %s' % repr(exc.value.args))
         assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)

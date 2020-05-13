@@ -23,9 +23,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 # Release Notes
 
 ## 20.6.0
-
+ 
 ### New Options
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
+- na_ontap_rest_info: `fields` options to request specific fields from subset
 
 ### Bug Fixes
 - na_ontap_volume: modify was invoked multiple times when once is enough.

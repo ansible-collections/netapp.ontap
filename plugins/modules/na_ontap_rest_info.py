@@ -47,6 +47,14 @@ options:
         description:
             - Maximum number of records returned in a single call.
         default: 1024
+    fields:
+        type: list
+        description:
+            - Request specific fields from subset.
+               '*' to return all the fields, one or more subsets are allowed.
+               '<list of fields>'  to return specified fields, only one subset will be allowed.
+            - If the option is not present, return all the fields.
+        version_added: '20.6.0'
 '''
 
 EXAMPLES = '''
@@ -81,6 +89,33 @@ EXAMPLES = '''
       use_rest: Always
       gather_subset:
       - all
+- name: run ONTAP gather facts for aggregate info and volume info with fields section
+  na_ontap_info_rest:
+      hostname: "1.2.3.4"
+      username: "testuser"
+      password: "test-password"
+      https: true
+      fields:
+      - '*'
+      validate_certs: false
+      use_rest: Always
+      gather_subset:
+      - aggregate_info
+      - volume_info
+- name: run ONTAP gather facts for aggregate info with specified fields
+  na_ontap_info_rest:
+      hostname: "1.2.3.4"
+      username: "testuser"
+      password: "test-password"
+      https: true
+      fields:
+      - 'uuid'
+      - 'name'
+      - 'node'
+      validate_certs: false
+      use_rest: Always
+      gather_subset:
+      - aggregate_info
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -101,7 +136,8 @@ class NetAppONTAPGatherInfo(object):
         self.argument_spec.update(dict(
             state=dict(type='str', choices=['info'], default='info', required=False),
             gather_subset=dict(default=['all'], type='list', required=False),
-            max_records=dict(type='int', default=1024, required=False)
+            max_records=dict(type='int', default=1024, required=False),
+            fields=dict(type='list', required=False)
         ))
 
         self.module = AnsibleModule(
@@ -112,6 +148,7 @@ class NetAppONTAPGatherInfo(object):
         # set up variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.fields = list()
 
         self.restApi = OntapRestAPI(self.module)
 
@@ -138,7 +175,7 @@ class NetAppONTAPGatherInfo(object):
         """
 
         api = gather_subset_info['api_call']
-        data = gather_subset_info['data']
+        data = {'max_records': self.parameters['max_records'], 'fields': self.fields}
 
         gathered_ontap_info, error = self.restApi.get(api, data)
 
@@ -164,27 +201,28 @@ class NetAppONTAPGatherInfo(object):
         get_ontap_subset_info = {
             'aggregate_info': {
                 'api_call': 'storage/aggregates',
-                'data': {
-                    'max_records': self.parameters['max_records'],
-                }
             },
             'vserver_info': {
                 'api_call': 'svm/svms',
-                'data': {
-                    'max_records': self.parameters['max_records'],
-                }
             },
             'volume_info': {
                 'api_call': 'storage/volumes',
-                'data': {
-                    'max_records': self.parameters['max_records'],
-                }
             }
         }
 
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
             self.parameters['gather_subset'] = get_ontap_subset_info.keys()
+
+        length_of_subsets = len(self.parameters['gather_subset'])
+
+        if self.parameters.get('fields') is not None:
+            # If multiple fields specified to return, convert list to string
+            self.fields = ','.join(self.parameters.get('fields'))
+
+            if self.fields != '*' and length_of_subsets > 1:
+                # Restrict gather subsets to one subset if fields section is list_of_fields
+                self.module.fail_json(msg="Error: fields: %s, only one subset will be allowed." % self.parameters.get('fields'))
 
         for subset in self.parameters['gather_subset']:
             specified_subset = get_ontap_subset_info[subset]
