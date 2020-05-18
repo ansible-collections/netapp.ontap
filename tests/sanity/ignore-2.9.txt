@@ -79,8 +79,6 @@ plugins/modules/na_ontap_software_update.py validate-modules:parameter-type-not-
 plugins/modules/na_ontap_svm.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_svm.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_svm_options.py validate-modules:parameter-type-not-in-doc
-plugins/modules/na_ontap_ucadapter.py validate-modules:parameter-type-not-in-doc
-plugins/modules/na_ontap_ucadapter.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_unix_group.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_unix_group.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_unix_user.py validate-modules:parameter-type-not-in-doc

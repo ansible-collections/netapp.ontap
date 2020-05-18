@@ -33,24 +33,37 @@ options:
     required: false
     choices: ['present']
     default: 'present'
+    type: str
 
   adapter_name:
     description:
     - Specifies the adapter name.
     required: true
+    type: str
 
   node_name:
     description:
     - Specifies the adapter home node.
     required: true
+    type: str
 
   mode:
     description:
     - Specifies the mode of the adapter.
+    type: str
 
   type:
     description:
     - Specifies the fc4 type of the adapter.
+    type: str
+
+  pair_adapters:
+    description:
+    - Specifies the list of adapters which also need to be offline along with the current adapter during modifying.
+    - If specified adapter works in a group or pair, the other adapters might also need to offline before modify the specified adapter.
+    - The mode of pair_adapters are modified along with the adapter, the type of the pair_adapters are not modified.
+    type: list
+    version_added: '20.6.0'
 
 '''
 
@@ -58,7 +71,8 @@ EXAMPLES = '''
     - name: Modify adapter
       na_ontap_adapter:
         state: present
-        adapter_name: data2
+        adapter_name: 0e
+        pair_adapters: 0f
         node_name: laurentn-vsim1
         mode: fc
         type: target
@@ -88,11 +102,12 @@ class NetAppOntapadapter(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
+            state=dict(required=False, choices=['present'], default='present', type='str'),
             adapter_name=dict(required=True, type='str'),
             node_name=dict(required=True, type='str'),
             mode=dict(required=False, type='str'),
             type=dict(required=False, type='str'),
+            pair_adapters=dict(required=False, type='list')
         ))
 
         self.module = AnsibleModule(
@@ -158,7 +173,7 @@ class NetAppOntapadapter(object):
             self.module.fail_json(msg='Error modifying adapter %s: %s' % (self.parameters['adapter_name'], to_native(e)),
                                   exception=traceback.format_exc())
 
-    def online_or_offline_adapter(self, status):
+    def online_or_offline_adapter(self, status, adapter_name):
         """
         Bring a Fibre Channel target adapter offline/online.
         """
@@ -166,13 +181,13 @@ class NetAppOntapadapter(object):
             adapter = netapp_utils.zapi.NaElement('fcp-adapter-config-down')
         elif status == 'up':
             adapter = netapp_utils.zapi.NaElement('fcp-adapter-config-up')
-        adapter.add_new_child('fcp-adapter', self.parameters['adapter_name'])
+        adapter.add_new_child('fcp-adapter', adapter_name)
         adapter.add_new_child('node', self.parameters['node_name'])
         try:
             self.server.invoke_successfully(adapter,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg='Error trying to %s fc-adapter %s: %s' % (status, self.parameters['adapter_name'], to_native(e)),
+            self.module.fail_json(msg='Error trying to %s fc-adapter %s: %s' % (status, adapter_name, to_native(e)),
                                   exception=traceback.format_exc())
 
     def autosupport_log(self):
@@ -208,9 +223,15 @@ class NetAppOntapadapter(object):
             if self.module.check_mode:
                 pass
             else:
-                self.online_or_offline_adapter('down')
+                self.online_or_offline_adapter('down', self.parameters['adapter_name'])
+                if self.parameters.get('pair_adapters') is not None:
+                    for adapter in self.parameters['pair_adapters']:
+                        self.online_or_offline_adapter('down', adapter)
                 self.modify_adapter()
-                self.online_or_offline_adapter('up')
+                self.online_or_offline_adapter('up', self.parameters['adapter_name'])
+                if self.parameters.get('pair_adapters') is not None:
+                    for adapter in self.parameters['pair_adapters']:
+                        self.online_or_offline_adapter('up', adapter)
 
         self.module.exit_json(changed=changed)
 
