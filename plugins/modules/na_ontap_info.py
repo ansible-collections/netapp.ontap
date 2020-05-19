@@ -162,6 +162,26 @@ options:
                 - vserver the Volume lives on
                 type: str
                 version_added: '20.5.0'
+    desired_attributes:
+        description:
+        - Advanced feature requiring to understand ZAPI internals.
+        - Allows to request a specific attribute that is not returned by default, or to limit the returned attributes.
+        - A dictionary for the zapi desired-attributes element.
+        - An XML tag I(<tag>value</tag>) is a dictionary with tag as the key.
+        - Value can be another dictionary, a list of dictionaries, a string, or nothing.
+        - eg I(<tag/>) is represented as I(tag:)
+        - Only a single subset can be called at a time if this option is set.
+        - It is the caller responsibity to make sure key attributes are present in the right position.
+        - The module will error out if any key attribute is missing.
+        type: dict
+        version_added: '20.6.0'
+    use_native_zapi_tags:
+        description:
+        - By default, I(-) in the returned dictionary keys are translated to I(_).
+        - If set to true, the translation is disabled.
+        type: bool
+        default: false
+        version_added: '20.6.0'
 '''
 
 EXAMPLES = '''
@@ -224,6 +244,20 @@ EXAMPLES = '''
     volume_move_target_aggr_info:
       volume_name: carchitest
       vserver: ansible
+
+- name: run ontap info module for aggregate module, requesting specific fields
+  na_ontap_info:
+    # <<: *login
+    gather_subset: aggregate_info
+    desired_attributes:
+      aggr-attributes:
+      aggr-inode-attributes:
+        files-private-used:
+      aggr-raid-attributes:
+        aggregate-type:
+    use_native_zapi_tags: true
+    register: ontap
+- debug: var=ontap
 '''
 
 RETURN = '''
@@ -306,6 +340,9 @@ class NetAppONTAPGatherInfo(object):
         if volume_move_target_aggr_info is None:
             volume_move_target_aggr_info = dict()
         self.netapp_info = dict()
+        self.desired_attributes = module.params['desired_attributes']
+        self.translate_keys = not module.params['use_native_zapi_tags']
+        self.warnings = list()  # warnings will be added to the info results, if any
 
         # thanks to coreywan (https://github.com/ansible/ansible/pull/47016)
         # for starting this
@@ -1215,11 +1252,15 @@ class NetAppONTAPGatherInfo(object):
 
         api_call = netapp_utils.zapi.NaElement(call)
         initial_result = None
+        result = None
 
         if query:
             for key, val in query.items():
                 # Can val be nested?
                 api_call.add_new_child(key, val)
+
+        if self.desired_attributes is not None:
+            api_call.translate_struct(self.desired_attributes)
         try:
             initial_result = self.server.invoke_successfully(api_call, enable_tunneling=False)
             next_tag = initial_result.get_child_by_name('next-tag')
@@ -1312,16 +1353,20 @@ class NetAppONTAPGatherInfo(object):
             if attribute is not None:
                 dic = dic[attribute]
 
+            info = json.loads(json.dumps(dic))
+            if self.translate_keys:
+                info = convert_keys(info)
             if isinstance(key_fields, str):
                 unique_key = _finditem(dic, key_fields)
-                out = out.copy()
-                out.update({unique_key: convert_keys(json.loads(json.dumps(dic)))})
             elif isinstance(key_fields, tuple):
                 unique_key = ':'.join([_finditem(dic, el) for el in key_fields])
-                out = out.copy()
-                out.update({unique_key: convert_keys(json.loads(json.dumps(dic)))})
             else:
-                out.append(convert_keys(json.loads(json.dumps(dic))))
+                unique_key = None
+            if unique_key is not None:
+                out = out.copy()
+                out.update({unique_key: info})
+            else:
+                out.append(info)
 
         if attributes_list_tag is None and key_fields is None:
             if len(out) == 1:
@@ -1365,9 +1410,16 @@ class NetAppONTAPGatherInfo(object):
         if 'help' in gather_subset:
             self.netapp_info['help'] = sorted(run_subset)
         else:
+            if self.desired_attributes is not None:
+                if len(run_subset) > 1:
+                    self.module.fail_json(msg="desired_attributes option is only supported with a single subset")
+                self.sanitize_desired_attributes()
             for subset in run_subset:
                 call = self.info_subsets[subset]
                 self.netapp_info[subset] = call['method'](**call['kwargs'])
+
+        if self.warnings:
+            self.netapp_info['module_warnings'] = self.warnings
 
         return self.netapp_info
 
@@ -1415,6 +1467,28 @@ class NetAppONTAPGatherInfo(object):
                 ontap_info[info] = ontap_info[info].keys()
         return ontap_info
 
+    def sanitize_desired_attributes(self):
+        ''' add top 'desired-attributes' if absent
+            check for _ as more likely ZAPI does not take them
+        '''
+        da_key = 'desired-attributes'
+        if da_key not in self.desired_attributes:
+            desired_attributes = dict()
+            desired_attributes[da_key] = self.desired_attributes
+            self.desired_attributes = desired_attributes
+        self.check_for___in_keys(self.desired_attributes)
+
+    def check_for___in_keys(self, d_param):
+        '''Method to warn on underscore in a ZAPI tag'''
+        if isinstance(d_param, dict):
+            for key, val in d_param.items():
+                self.check_for___in_keys(val)
+                if '_' in key:
+                    self.warnings.append("Underscore in ZAPI tag: %s, do you mean '-'?" % key)
+        elif isinstance(d_param, list):
+            for val in d_param:
+                self.check_for___in_keys(val)
+
 
 # https://stackoverflow.com/questions/14962485/finding-a-key-recursively-in-a-dictionary
 def __finditem(obj, key):
@@ -1455,6 +1529,9 @@ def convert_keys(d_param):
         for key, val in d_param.items():
             val = convert_keys(val)
             out[key.replace('-', '_')] = val
+    elif isinstance(d_param, list):
+        for val in d_param:
+            val = convert_keys(val)
     else:
         return d_param
     return out
@@ -1477,7 +1554,9 @@ def main():
                 volume_name=dict(type='str', required=True),
                 vserver=dict(type='str', required=True)
             )
-        )
+        ),
+        desired_attributes=dict(type='dict', required=False),
+        use_native_zapi_tags=dict(type='bool', required=False, default=False)
     ))
 
     module = AnsibleModule(

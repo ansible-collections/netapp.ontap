@@ -189,6 +189,8 @@ class TestMyModule(unittest.TestCase):
             gather_subset=dict(default=['all'], type='list'),
             vserver=dict(type='str', default=None, required=False),
             max_records=dict(type='int', default=1024, required=False),
+            desired_attributes=dict(type='dict', required=False),
+            use_native_zapi_tags=dict(type='bool', required=False, default=False)
         ))
         module = basic.AnsibleModule(
             argument_spec=argument_spec,
@@ -332,7 +334,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         with pytest.raises(AnsibleFailJson) as exc:
-            subset = obj.get_subset(['net_interface_info', 'my_invalid_subset'], version)
+            obj.get_subset(['net_interface_info', 'my_invalid_subset'], version)
         print('Info: %s' % exc.value.args[0]['msg'])
         assert exc.value.args[0]['msg'] == 'Bad subset: my_invalid_subset'
 
@@ -343,7 +345,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         with pytest.raises(AnsibleFailJson) as exc:
-            subset = obj.get_subset(['net_interface_info', key], version)
+            obj.get_subset(['net_interface_info', key], version)
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = 'Remote system at version %s does not support %s' % (version, key)
         assert exc.value.args[0]['msg'] == msg
@@ -383,7 +385,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(self.mock_args())
         obj = self.get_info_mock_object('vserver')
         with pytest.raises(AnsibleFailJson) as exc:
-            subset = obj.get_subset(['!' + key], version)
+            obj.get_subset(['!' + key], version)
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = 'Remote system at version %s does not support %s' % (version, key)
         assert exc.value.args[0]['msg'] == msg
@@ -426,3 +428,27 @@ class TestMyModule(unittest.TestCase):
         assert isinstance(result, list)
         assert result[0].get('k1') == 'v1'
         assert result[1].get('k1') == 'v2'
+
+    def test_check_underscore(self):
+        ''' Check warning is recorded if '_' is found in key '''
+        test_dict = dict(
+            bad_key='something'
+        )
+        test_dict['good-key'] = [dict(
+            other_bad_key=dict(
+                yet_another_bad_key=1
+            ),
+            somekey=dict(
+                more_bad_key=2
+            )
+        )]
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('vserver')
+        obj.check_for___in_keys(test_dict)
+        print('Info: %s' % repr(obj.warnings))
+        for key in ['bad_key', 'other_bad_key', 'yet_another_bad_key', 'more_bad_key']:
+            msg = "Underscore in ZAPI tag: %s, do you mean '-'?" % key
+            assert msg in obj.warnings
+            obj.warnings.remove(msg)
+        # make sure there is no extra warnings (eg we found and removed all of them)
+        assert obj.warnings == list()

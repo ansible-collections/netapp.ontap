@@ -31,7 +31,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options:
 - na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
 
+### New Options:
+- na_ontap_info: `desired_attributes` advanced feature to select which fields to return.
+- na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
+
 ### Bug Fixes
+- na_ontap_info: conversion from '-' to '_' was not done for lists of dictionaries.
 - na_ontap_volume: modify was invoked multiple times when once is enough.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
 
