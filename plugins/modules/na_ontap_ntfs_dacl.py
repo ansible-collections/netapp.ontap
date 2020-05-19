@@ -79,7 +79,7 @@ options:
 
 EXAMPLES = """
     - name: Add NTFS DACL
-      na_ontap_ntfs_dacl_custom:
+      na_ontap_ntfs_dacl:
         state: present
         vserver: SVM1
         security_descriptor: ansible_sd
@@ -92,7 +92,7 @@ EXAMPLES = """
 
 
     - name: Modify NTFS DACL
-      na_ontap_ntfs_dacl_custom:
+      na_ontap_ntfs_dacl:
         state: present
         vserver: SVM1
         security_descriptor: ansible_sd
@@ -104,8 +104,8 @@ EXAMPLES = """
         password: "{{ password }}"
 
     - name: Remove NTFS DACL
-      na_ontap_ntfs_dacl_custom:
-        state: present
+      na_ontap_ntfs_dacl:
+        state: absent
         vserver: SVM1
         security_descriptor: ansible_sd
         account: DOMAIN\\Account
