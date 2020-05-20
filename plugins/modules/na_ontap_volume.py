@@ -342,6 +342,13 @@ options:
     choices: ['abort_on_failure', 'defer_on_failure', 'force', 'wait']
     type: str
     version_added: '20.5.0'
+
+  check_interval:
+    description:
+    - The amount of time in seconds to wait between checks of a volume to see if it has moved successfully.
+    default: 30
+    type: int
+    version_added: '20.6.0'
 '''
 
 EXAMPLES = """
@@ -566,6 +573,7 @@ class NetAppOntapVolume(object):
             comment=dict(type='str', required=False),
             snapshot_auto_delete=dict(type='dict', required=False),
             cutover_action=dict(required=False, type='str', choices=['abort_on_failure', 'defer_on_failure', 'force', 'wait']),
+            check_interval=dict(required=False, type='int', default=30),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -939,6 +947,39 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def wait_for_volume_move(self):
+        waiting = True
+        fail_count = 0
+        while waiting:
+            volume_move_iter = netapp_utils.zapi.NaElement('volume-move-get-iter')
+            volume_move_info = netapp_utils.zapi.NaElement('volume-move-info')
+            volume_move_info.add_new_child('volume', self.parameters['name'])
+            query = netapp_utils.zapi.NaElement('query')
+            query.add_child_elem(volume_move_info)
+            volume_move_iter.add_child_elem(query)
+            try:
+                result = self.cluster.invoke_successfully(volume_move_iter, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                if fail_count < 3:
+                    fail_count += 1
+                    time.sleep(self.parameters['check_interval'])
+                    continue
+                self.module.fail_json(msg='Error getting volume move status: %s' % (to_native(error)),
+                                      exception=traceback.format_exc())
+            # reset fail count to 0
+            fail_count = 0
+            volume_move_status = result.get_child_by_name('attributes-list').get_child_by_name('volume-move-info').\
+                get_child_content('state')
+            # We have 5 states that can be returned.
+            # warning and healthy are state where the move is still going so we don't need to do anything for thouse.
+            if volume_move_status == 'done':
+                waiting = False
+            if volume_move_status in ['failed', 'alert']:
+                self.module.fail_json(msg='Error moving volume %s: %s' %
+                                          (self.parameters['name'],
+                                           result.get_child_by_name('attributes-list')[0].get_child_by_name('details')))
+            time.sleep(self.parameters['check_interval'])
+
     def rename_volume(self):
         """
         Rename the volume.
@@ -1212,6 +1253,8 @@ class NetAppOntapVolume(object):
         if 'aggregate_name' in attributes:
             # keep it last, as it may take some time
             self.move_volume()
+            if self.parameters.get('wait_for_completion'):
+                self.wait_for_volume_move()
 
     def compare_chmod_value(self, current):
         """

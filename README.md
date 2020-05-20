@@ -28,6 +28,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
 - na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
 - na_ontap_rest_info: `fields` options to request specific fields from subset
+- na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
 
 ### New Options:
 - na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
@@ -41,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_ntfs_dacl: example fix in documentation string
 - na_ontap_volume: modify was invoked multiple times when once is enough.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
+- na_ontap_volume: `wait_on_completion` is supported with volume moves
 
 ## 20.5.0
 
