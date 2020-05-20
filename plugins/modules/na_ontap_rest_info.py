@@ -181,7 +181,10 @@ class NetAppONTAPGatherInfo(object):
 
         if error:
             # Fail the module if error occurs from REST APIs call
-            self.module.fail_json(msg=error)
+            if int(error.get('code', 0)) == 6:
+                self.module.fail_json(msg="%s user is not authorized to make %s api call" % (self.parameters.get('username'), api))
+            else:
+                self.module.fail_json(msg=error)
         else:
             return gathered_ontap_info
 
@@ -225,7 +228,13 @@ class NetAppONTAPGatherInfo(object):
                 self.module.fail_json(msg="Error: fields: %s, only one subset will be allowed." % self.parameters.get('fields'))
 
         for subset in self.parameters['gather_subset']:
-            specified_subset = get_ontap_subset_info[subset]
+            try:
+                # Verify whether the supported subset passed
+                specified_subset = get_ontap_subset_info[subset]
+            except KeyError:
+                self.module.fail_json(msg="Specified subset %s is not found, supported subsets are %s" %
+                                      (subset, list(get_ontap_subset_info.keys())))
+
             result_message[subset] = self.get_subset_info(specified_subset)
 
         self.module.exit_json(changed='False', state=self.parameters['state'], ontap_info=result_message)
