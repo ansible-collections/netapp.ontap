@@ -109,6 +109,7 @@ class TestMyModule(unittest.TestCase):
             node = 'vsim1'
             package_version = 'Fattire__9.3.0'
             package_url = 'abc.com'
+            stabilize_minutes = 10
         else:
             hostname = 'hostname'
             username = 'username'
@@ -116,6 +117,7 @@ class TestMyModule(unittest.TestCase):
             node = 'abc'
             package_version = 'test'
             package_url = 'abc.com'
+            stabilize_minutes = 10
         return dict({
             'hostname': hostname,
             'username': username,
@@ -123,7 +125,8 @@ class TestMyModule(unittest.TestCase):
             'nodes': node,
             'package_version': package_version,
             'package_url': package_url,
-            'https': 'true'
+            'https': 'true',
+            'stabilize_minutes': stabilize_minutes
         })
 
     def test_module_fail_when_required_args_missing(self):

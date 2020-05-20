@@ -48,6 +48,11 @@ options:
     default: False
     type: bool
     version_added: "20.4.0"
+  stabilize_minutes:
+    description:
+      - Number of minutes that the update should wait after a takeover or giveback is completed.
+    type: int
+    version_added: "20.6.0"
 short_description: NetApp ONTAP Update Software
 version_added: "2.7"
 '''
@@ -93,7 +98,8 @@ class NetAppONTAPSoftwareUpdate(object):
             package_version=dict(required=True, type='str'),
             package_url=dict(required=True, type='str'),
             ignore_validation_warning=dict(required=False, type='bool', default=False),
-            download_only=dict(required=False, type='bool', default=False)
+            download_only=dict(required=False, type='bool', default=False),
+            stabilize_minutes=dict(required=False, type='int')
         ))
 
         self.module = AnsibleModule(
@@ -185,6 +191,9 @@ class NetAppONTAPSoftwareUpdate(object):
         cluster_update_info.add_new_child('package-version', self.parameters['package_version'])
         cluster_update_info.add_new_child('ignore-validation-warning',
                                           str(self.parameters['ignore_validation_warning']))
+        if self.parameters.get('stabilize_minutes'):
+            cluster_update_info.add_new_child('stabilize-minutes',
+                                              self.na_helper.get_value_for_int(False, self.parameters['stabilize_minutes']))
         if self.parameters.get('nodes'):
             cluster_nodes = netapp_utils.zapi.NaElement('nodes')
             for node in self.parameters['nodes']:

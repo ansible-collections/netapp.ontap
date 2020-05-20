@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
  
 ### New Options
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
+- na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
 - na_ontap_rest_info: `fields` options to request specific fields from subset
 
 ### New Options:
