@@ -96,6 +96,17 @@ options:
       - Not used if force_disruptive_update is False (ONTAP will automatically detect the firmware type)
     choices: ['service-processor', 'shelf', 'acp', 'disk']
     type: str
+  fail_on_502_error:
+    description:
+      - The firmware download may take time if the web server is slow and if there are many nodes in the cluster.
+      - ONTAP will break the ZAPI connection after 5 minutes with a 502 Bad Gateway error, even though the download \
+is still happening.
+      - By default, this module ignores this error and assumes the download is progressing as ONTAP does not \
+provide a way to check the status.
+      - When setting this option to true, the module will report 502 as an error.
+    type: bool
+    default: false
+    version_added: "20.6.0"
 short_description:  NetApp ONTAP firmware upgrade for SP, shelf, ACP, and disk.
 version_added: "2.9"
 '''
@@ -109,6 +120,14 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+    - name: firmware upgrade, confirm successful download
+      na_ontap_firmware_upgrade:
+        state: present
+        package_url: "{{ web_link }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        fail_on_502_error: true
     - name: SP firmware upgrade
       na_ontap_firmware_upgrade:
         state: present
@@ -173,6 +192,12 @@ except ImportError:
 
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+MSGS = dict(
+    no_action='No action taken.',
+    dl_completed='Firmware download completed.',
+    dl_completed_slowly='Firmware download completed, slowly.',
+    dl_in_progress='Firmware download still in progress.'
+)
 
 
 class NetAppONTAPFirmwareUpgrade(object):
@@ -193,7 +218,8 @@ class NetAppONTAPFirmwareUpgrade(object):
             shelf_module_fw=dict(required=False, type='str'),
             disk_fw=dict(required=False, type='str'),
             package_url=dict(required=False, type='str'),
-            force_disruptive_update=dict(required=False, type='bool', default=False)
+            force_disruptive_update=dict(required=False, type='bool', default=False),
+            fail_on_502_error=dict(required=False, type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
@@ -441,8 +467,10 @@ class NetAppONTAPFirmwareUpgrade(object):
 
     def download_firmware(self):
         ''' calls the system-cli ZAPI as there is no ZAPI for this feature '''
+        msg = MSGS['dl_completed']
         command = ['storage', 'firmware', 'download', '-node', self.parameters['node'] if self.parameters.get('node') else '*',
                    '-package-url', self.parameters['package_url']]
+        command = ['sleep', '1']
         command_obj = netapp_utils.zapi.NaElement("system-cli")
 
         args_obj = netapp_utils.zapi.NaElement("args")
@@ -459,11 +487,19 @@ class NetAppONTAPFirmwareUpgrade(object):
             if return_value.attrib['status'] != 'passed':
                 self.module.fail_json(msg='unable to download package from %s' % (self.parameters['package_url']))
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error running command %s: %s' % (command, to_native(error)),
-                                  exception=traceback.format_exc())
+            if int(error.code) == 60:                                                   # API did not finish on time
+                # even if the ZAPI reports a timeout error, it does it after the command completed
+                msg = MSGS['dl_completed_slowly']
+            elif int(error.code) == 502 and not self.parameters['fail_on_502_error']:   # Bad Gateway
+                # ONTAP proxy breaks the connection after 5 minutes, we can assume the download is progressing slowly
+                msg = MSGS['dl_in_progress']
+            else:
+                self.module.fail_json(msg='Error running command %s: %s' % (command, to_native(error)),
+                                      exception=traceback.format_exc())
         except etree.XMLSyntaxError as error:
             self.module.fail_json(msg='Invalid package URL %s: %s' % (self.parameters['package_url'], to_native(error)),
                                   exception=traceback.format_exc())
+        return msg
 
     def autosupport_log(self):
         """
@@ -479,16 +515,20 @@ class NetAppONTAPFirmwareUpgrade(object):
         Apply action to upgrade firmware
         """
         changed = False
+        msg = MSGS['no_action']
         self.autosupport_log()
         firmware_update_progress = dict()
         if self.parameters.get('package_url'):
             if not self.module.check_mode:
-                self.download_firmware()
+                msg = self.download_firmware()
             changed = True
         if not self.parameters['force_disruptive_update']:
             # disk_qual, disk, shelf, and ACP are automatically updated in background
             # The SP firmware is automatically updated on reboot
-            self.module.exit_json(changed=changed)
+            self.module.exit_json(changed=changed, msg=msg)
+        if msg == MSGS['dl_in_progress']:
+            # can't force an update if the software is still downloading
+            self.module.fail_json(msg="Cannot force update: %s" % msg)
         if self.parameters.get('firmware_type') == 'service-processor':
             # service-processor firmware upgrade
             current = self.firmware_image_get(self.parameters['node'])
@@ -540,7 +580,7 @@ class NetAppONTAPFirmwareUpgrade(object):
                     # we don't know until we try the upgrade -- assuming the worst
                     changed = True
 
-        self.module.exit_json(changed=changed)
+        self.module.exit_json(changed=changed, msg='forced update for %s' % self.parameters.get('firmware_type'))
 
 
 def main():

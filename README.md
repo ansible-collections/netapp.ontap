@@ -26,8 +26,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
  
 ### New Options
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
-- na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
+- na_ontap_firmware_upgrade: ignore timeout when downloading image unless `fail_on_502_error` is set to true.
 - na_ontap_rest_info: `fields` options to request specific fields from subset
+- na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
 - na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
 
 ### New Options:
@@ -38,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
 
 ### Bug Fixes
+- na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.
 - na_ontap_info: conversion from '-' to '_' was not done for lists of dictionaries.
 - na_ontap_ntfs_dacl: example fix in documentation string
 - na_ontap_volume: modify was invoked multiple times when once is enough.

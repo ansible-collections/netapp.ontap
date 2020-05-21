@@ -66,10 +66,15 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        # print('xml_in', xml.to_string())
         if self.type == 'firmware_upgrade':
             xml = self.build_firmware_upgrade_info(self.parm1, self.parm2)
         if self.type == 'acp':
             xml = self.build_acp_firmware_info(self.firmware_type)
+        if self.type == 'firmware_download':
+            xml = self.build_system_cli_info()
+        if self.type == 'firmware_download_exception':
+            raise netapp_utils.zapi.NaApiError(self.parm1, self.parm2)
         self.xml_out = xml
         return xml
 
@@ -99,6 +104,18 @@ class MockONTAPConnection(object):
         }
         xml.translate_struct(data)
         print(xml.to_string())
+        return xml
+
+    @staticmethod
+    def build_system_cli_info():
+        ''' build xml data for system-cli info '''
+        xml = netapp_utils.zapi.NaElement('results')
+        data = {
+            'cli-output': None,
+            'cli-result-value': 1
+        }
+        xml.translate_struct(data)
+        xml.add_attr('status', 'passed')
         return xml
 
 
@@ -281,3 +298,67 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_firmware_upgrade_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
+
+    def test_firmware_download(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        msg = "Firmware download completed."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_firmware_download_60(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download_exception', 60, 'ZAPI timeout')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        msg = "Firmware download completed, slowly."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_firmware_download_502(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download_exception', 502, 'Bad GW')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        msg = "Firmware download still in progress."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_firmware_download_502_as_error(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        module_args.update({'fail_on_502_error': True})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download_exception', 502, 'Bad GW')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = "NetApp API failed. Reason - 502:Bad GW"
+        assert msg in exc.value.args[0]['msg']
