@@ -31,6 +31,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import os
+import time
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
 
 try:
@@ -338,6 +339,63 @@ class OntapRestAPI(object):
         if return_status_code:
             return status_code, json_dict, error_details
         return json_dict, error_details
+
+    def wait_on_job(self, job, timeout=600, increment=60):
+        try:
+            url = job['_links']['self']['href'].split('api/')[1]
+        except Exception as err:
+            self.log_error(0, 'URL Incorrect format: %s\n Job: %s' % (err, job))
+        # Expecting job to be in the following format
+        """
+        {'job':
+            {'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
+            '_links':
+                {'self':
+                    {'href': '/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7'}
+                }
+            }
+        }
+        """
+        keep_running = True
+        error = None
+        message = None
+        runtime = 0
+        while keep_running:
+            # Will run every every <increment> seconds for <timeout> seconds
+            job_json, job_error = self.get(url, None)
+            if job_error:
+                error = job_error
+                break
+            # a job looks like this
+            """
+            {
+              "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
+              "description": "POST /api/cluster/metrocluster",
+              "state": "failure",
+              "message": "There are not enough disks in Pool1.",
+              "code": 2432836,
+              "start_time": "2020-02-26T10:35:44-08:00",
+              "end_time": "2020-02-26T10:47:38-08:00",
+              "_links": {
+                "self": {
+                  "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
+                }
+              }
+            }
+            """
+            if job_json['state'] != 'running':
+                keep_running = False
+            else:
+                # Would like to post a message to user (not sure how)
+                pass
+            message = job_json['message']
+            runtime += increment
+            if runtime >= timeout:
+                keep_running = False
+                if job_json['state'] != 'success':
+                    self.log_error(0, 'Timeout error: Process still running')
+            time.sleep(increment)
+        return message, error
 
     def get(self, api, params):
         method = 'GET'
