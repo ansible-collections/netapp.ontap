@@ -48,9 +48,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.
 - na_ontap_info: conversion from '-' to '_' was not done for lists of dictionaries.
 - na_ontap_ntfs_dacl: example fix in documentation string
+- na_ontap_snapmirror: could not delete all rules (bug in netapp_module)
 - na_ontap_volume: modify was invoked multiple times when once is enough.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
 - na_ontap_volume: `wait_on_completion` is supported with volume moves
+- module_utils/netapp_module: cater for empty lists in get_modified_attributes()
 
 ## 20.5.0
 

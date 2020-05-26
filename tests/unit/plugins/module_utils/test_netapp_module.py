@@ -145,6 +145,54 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.get_modified_attributes(current, desired)
         assert result == {}
 
+    def test_get_modified_attributes_for_an_empty_desired_list(self):
+        ''' validate modified attributes for an empty desired list '''
+        current = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        desired = {'snapmirror_label': [], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired)
+        assert result == {'snapmirror_label': []}
+
+    def test_get_modified_attributes_for_an_empty_desired_list_diff(self):
+        ''' validate modified attributes for an empty desired list with diff'''
+        current = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        desired = {'snapmirror_label': [], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {'snapmirror_label': []}
+
+    def test_get_modified_attributes_for_an_empty_current_list(self):
+        ''' validate modified attributes for an empty current list '''
+        current = {'snapmirror_label': [], 'state': 'present'}
+        desired = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired)
+        assert result == {'snapmirror_label': ['daily', 'weekly', 'monthly']}
+
+    def test_get_modified_attributes_for_an_empty_current_list_diff(self):
+        ''' validate modified attributes for an empty current list with diff'''
+        current = {'snapmirror_label': [], 'state': 'present'}
+        desired = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {'snapmirror_label': ['daily', 'weekly', 'monthly']}
+
+    def test_get_modified_attributes_for_empty_lists(self):
+        ''' validate modified attributes for empty lists '''
+        current = {'snapmirror_label': [], 'state': 'present'}
+        desired = {'snapmirror_label': [], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired)
+        assert result == {}
+
+    def test_get_modified_attributes_for_empty_lists_diff(self):
+        ''' validate modified attributes for empty lists with diff '''
+        current = {'snapmirror_label': [], 'state': 'present'}
+        desired = {'snapmirror_label': [], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {}
+
     def test_is_rename_action_for_empty_input(self):
         ''' validate rename action for input None '''
         source = None

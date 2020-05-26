@@ -219,7 +219,7 @@ class NetAppModule(object):
             else:
                 return desired
         else:
-            return []
+            return None
 
     def get_modified_attributes(self, current, desired, get_list_diff=False):
         ''' takes two dicts of attributes and return a dict of attributes that are
@@ -249,7 +249,7 @@ class NetAppModule(object):
             if key in desired and desired[key] is not None:
                 if type(value) is list:
                     modified_list = self.compare_lists(value, desired[key], get_list_diff)  # get modified list from current and desired
-                    if modified_list:
+                    if modified_list is not None:
                         modified[key] = modified_list
                 elif cmp(value, desired[key]) != 0:
                     modified[key] = desired[key]
