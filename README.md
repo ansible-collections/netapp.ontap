@@ -29,6 +29,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_firmware_upgrade: ignore timeout when downloading image unless `fail_on_502_error` is set to true.
 - na_ontap_rest_info: `fields` options to request specific fields from subset
 - na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
+- na_ontap_user: `authentication_password` option specifies password for the authentication protocol of SNMPv3 user.
+- na_ontap_user: `authentication_protocol` option specifies authentication protocol fo SNMPv3 user.
+- na_ontap_user: `engine_id` option specifies authoritative entity's EngineID for the SNMPv3 user.
+- na_ontap_user: `privacy_password` option specifies password for the privacy protocol of SNMPv3 user.
+- na_ontap_user: `privacy_protocol` option specifies privacy protocol of SNMPv3 user.
+- na_ontap_user: `remote_switch_ipaddress` option specifies the IP Address of the remote switch of SNMPv3 user.
 - na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
 
 ### New Options:

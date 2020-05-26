@@ -76,6 +76,58 @@ options:
     description:
     - The name of the vserver to use.
     required: true
+  authentication_protocol:
+    description:
+    - Authentication protocol for the snmp user.
+    - When cluster FIPS mode is on, 'sha' and 'sha2-256' are the only possible and valid values.
+    - When cluster FIPS mode is off, the default value is 'none'.
+    - When cluster FIPS mode is on, the default value is 'sha'.
+    - Only available for 'usm' authentication method and non modifiable.
+    choices: ['none', 'md5', 'sha', 'sha2-256']
+    type: str
+    version_added: '20.6.0'
+  authentication_password:
+    description:
+    - Password for the authentication protocol. This should be minimum 8 characters long.
+    - This is required for 'md5', 'sha' and 'sha2-256' authentication protocols and not required for 'none'.
+    - Only available for 'usm' authentication method and non modifiable.
+    type: str
+    version_added: '20.6.0'
+  engine_id:
+    description:
+    - Authoritative entity's EngineID for the SNMPv3 user.
+    - This should be specified as a hexadecimal string.
+    - Engine ID with first bit set to 1 in first octet should have a minimum of 5 or maximum of 32 octets.
+    - Engine Id with first bit set to 0 in the first octet should be 12 octets in length.
+    - Engine Id cannot have all zeros in its address.
+    - Only available for 'usm' authentication method and non modifiable.
+    type: str
+    version_added: '20.6.0'
+  privacy_protocol:
+    description:
+    - Privacy protocol for the snmp user.
+    - When cluster FIPS mode is on, 'aes128' is the only possible and valid value.
+    - When cluster FIPS mode is off, the default value is 'none'. When cluster FIPS mode is on, the default value is 'aes128'.
+    - Only available for 'usm' authentication method and non modifiable.
+    choices: ['none', 'des', 'aes128']
+    type: str
+    version_added: '20.6.0'
+  privacy_password:
+    description:
+    - Password for the privacy protocol. This should be minimum 8 characters long.
+    - This is required for 'des' and 'aes128' privacy protocols and not required for 'none'.
+    - Only available for 'usm' authentication method and non modifiable.
+    type: str
+    version_added: '20.6.0'
+  remote_switch_ipaddress:
+    description:
+    - This optionally specifies the IP Address of the remote switch.
+    - The remote switch could be a cluster switch monitored by Cluster Switch Health Monitor (CSHM)
+      or a Fiber Channel (FC) switch monitored by Metro Cluster Health Monitor (MCC-HM).
+    - This is applicable only for a remote SNMPv3 user i.e. only if user is a remote (non-local) user,
+      application is snmp and authentication method is usm.
+    type: str
+    version_added: '20.6.0'
 '''
 
 EXAMPLES = """
@@ -104,6 +156,24 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    - name: Create user with snmp application
+      na_ontap_user:
+        state: present
+        name: test_cert_snmp
+        applications: snmp
+        authentication_method: usm
+        role_name: admin
+        authentication_protocol: md5
+        authentication_password: '12345678'
+        privacy_protocol: 'aes128'
+        privacy_password: '12345678'
+        engine_id: '7063514941000000000000'
+        remote_switch_ipaddress: 10.0.0.0
+        vserver: "{{ vserver }}"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
 
 """
 
@@ -140,6 +210,12 @@ class NetAppOntapUser(object):
             role_name=dict(required=False, type='str'),
             lock_user=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str'),
+            authentication_protocol=dict(required=False, type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
+            authentication_password=dict(required=False, type='str'),
+            engine_id=dict(required=False, type='str'),
+            privacy_protocol=dict(required=False, type='str', choices=['none', 'des', 'aes128']),
+            privacy_password=dict(required=False, type='str'),
+            remote_switch_ipaddress=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -213,6 +289,21 @@ class NetAppOntapUser(object):
                                         'role-name': self.parameters.get('role_name')})
         if self.parameters.get('set_password') is not None:
             user_create.add_new_child('password', self.parameters.get('set_password'))
+        if self.parameters.get('authentication_method') == 'usm':
+            if self.parameters.get('remote_switch_ipaddress') is not None:
+                user_create.add_new_child('remote-switch-ipaddress', self.parameters.get('remote_switch_ipaddress'))
+            snmpv3_login_info = netapp_utils.zapi.NaElement('snmpv3-login-info')
+            if self.parameters.get('authentication_password') is not None:
+                snmpv3_login_info.add_new_child('authentication-password', self.parameters['authentication_password'])
+            if self.parameters.get('authentication_protocol') is not None:
+                snmpv3_login_info.add_new_child('authentication-protocol', self.parameters['authentication_protocol'])
+            if self.parameters.get('engine_id') is not None:
+                snmpv3_login_info.add_new_child('engine-id', self.parameters['engine_id'])
+            if self.parameters.get('privacy_password') is not None:
+                snmpv3_login_info.add_new_child('privacy-password', self.parameters['privacy_password'])
+            if self.parameters.get('privacy_protocol') is not None:
+                snmpv3_login_info.add_new_child('privacy-protocol', self.parameters['privacy_protocol'])
+            user_create.add_child_elem(snmpv3_login_info)
 
         try:
             self.server.invoke_successfully(user_create,
@@ -306,7 +397,9 @@ class NetAppOntapUser(object):
             # if the user give the same password, instead of returning an error, return ok
             if to_native(error.code) == '13214' and \
                     (error.message.startswith('New password must be different than last 6 passwords.')
-                     or error.message.startswith('New password must be different than the old password.')):
+                     or error.message.startswith('New password must be different from last 6 passwords.')
+                     or error.message.startswith('New password must be different than the old password.')
+                     or error.message.startswith('New password must be different from the old password.')):
                 return False
             self.module.fail_json(msg='Error setting password for user %s: %s' % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
