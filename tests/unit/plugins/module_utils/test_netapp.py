@@ -111,6 +111,17 @@ def mock_args(feature_flags=None):
     return args
 
 
+def cert_args(feature_flags=None):
+    args = {
+        'hostname': 'test',
+        'cert_filepath': 'test_pem.pem',
+        'key_filepath': 'test_key.key'
+    }
+    if feature_flags is not None:
+        args.update({'feature_flags': feature_flags})
+    return args
+
+
 def create_module(args):
     argument_spec = netapp_utils.na_ontap_host_argument_spec()
     set_module_args(args)
@@ -120,6 +131,7 @@ def create_module(args):
 
 def create_restapi_object(args):
     module = create_module(args)
+    module.fail_json = fail_json
     restApi = netapp_utils.OntapRestAPI(module)
     return restApi
 
@@ -256,3 +268,67 @@ def test_has_feature_invalid_key():
         netapp_utils.has_feature(module, flag)
     msg = 'Internal error: unexpected feature flag: %s' % flag
     assert exc.value.args[0]['msg'] == msg
+
+
+def test_fail_has_username_password_and_cert():
+    ''' existing feature_flag with unknown key '''
+    args = mock_args()
+    args.update(dict(cert_filepath='dummy'))
+    with pytest.raises(AnsibleFailJson) as exc:
+        create_restapi_object(args)
+    msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
+    assert exc.value.args[0]['msg'] == msg
+
+
+def test_fail_has_username_password_and_key():
+    ''' existing feature_flag with unknown key '''
+    args = mock_args()
+    args.update(dict(key_filepath='dummy'))
+    with pytest.raises(AnsibleFailJson) as exc:
+        create_restapi_object(args)
+    msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
+    assert exc.value.args[0]['msg'] == msg
+
+
+def test_fail_has_username_and_cert():
+    ''' existing feature_flag with unknown key '''
+    args = mock_args()
+    args.update(dict(cert_filepath='dummy'))
+    del args['password']
+    with pytest.raises(AnsibleFailJson) as exc:
+        create_restapi_object(args)
+    msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
+    assert exc.value.args[0]['msg'] == msg
+
+
+def test_fail_has_password_and_cert():
+    ''' existing feature_flag with unknown key '''
+    args = mock_args()
+    args.update(dict(cert_filepath='dummy'))
+    del args['username']
+    with pytest.raises(AnsibleFailJson) as exc:
+        create_restapi_object(args)
+    msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
+    assert exc.value.args[0]['msg'] == msg
+
+
+def test_has_username_password():
+    ''' existing feature_flag with unknown key '''
+    args = mock_args()
+    restApi = create_restapi_object(args)
+    assert restApi.auth_method == 'basic_auth'
+
+
+def test_has_cert_no_key():
+    ''' existing feature_flag with unknown key '''
+    args = cert_args()
+    del args['key_filepath']
+    restApi = create_restapi_object(args)
+    assert restApi.auth_method == 'single_cert'
+
+
+def test_has_cert_and_key():
+    ''' existing feature_flag with unknown key '''
+    args = cert_args()
+    restApi = create_restapi_object(args)
+    assert restApi.auth_method == 'cert_key'

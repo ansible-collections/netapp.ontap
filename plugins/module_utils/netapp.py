@@ -115,14 +115,16 @@ def na_ontap_host_argument_spec():
 
     return dict(
         hostname=dict(required=True, type='str'),
-        username=dict(required=True, type='str', aliases=['user']),
-        password=dict(required=True, type='str', aliases=['pass'], no_log=True),
+        username=dict(required=False, type='str', aliases=['user']),
+        password=dict(required=False, type='str', aliases=['pass'], no_log=True),
         https=dict(required=False, type='bool', default=False),
         validate_certs=dict(required=False, type='bool', default=True),
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
         use_rest=dict(required=False, type='str', default='Auto', choices=['Never', 'Always', 'Auto']),
-        feature_flags=dict(required=False, type='dict', default=dict())
+        feature_flags=dict(required=False, type='dict', default=dict()),
+        cert_filepath=dict(required=False, type='str'),
+        key_filepath=dict(required=False, type='str'),
     )
 
 
@@ -264,6 +266,8 @@ class OntapRestAPI(object):
         self.password = self.module.params['password']
         self.hostname = self.module.params['hostname']
         self.use_rest = self.module.params['use_rest']
+        self.cert_filepath = self.module.params['cert_filepath']
+        self.key_filepath = self.module.params['key_filepath']
         self.verify = self.module.params['validate_certs']
         self.timeout = timeout
         port = self.module.params['http_port']
@@ -273,11 +277,36 @@ class OntapRestAPI(object):
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
         self.errors = list()
         self.debug_logs = list()
+        self.set_auth_method()
         self.check_required_library()
 
     def check_required_library(self):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
+
+    def set_auth_method(self):
+        error = None
+        if self.password is None and self.username is None:
+            if self.cert_filepath is None and self.key_filepath is not None:
+                error = 'Error: cannot have a key file without a cert file'
+            elif self.cert_filepath is None:
+                error = 'Error: ONTAP module requires username/password or SSL certificate file(s)'
+            elif self.key_filepath is None:
+                self.auth_method = 'single_cert'
+            else:
+                self.auth_method = 'cert_key'
+        elif self.password is not None and self.username is not None:
+            if self.cert_filepath is not None or self.key_filepath is not None:
+                error = 'Error: cannot have both basic authentication (username/password) ' +\
+                        'and certificate authentication (cert/key files)'
+            else:
+                self.auth_method = 'basic_auth'
+        else:
+            error = 'Error: username and password have to be provided together'
+            if self.cert_filepath is not None or self.key_filepath is not None:
+                error += ' and cannot be used with cert or key files'
+        if error:
+            self.module.fail_json(msg=error)
 
     def send_request(self, method, api, params, json=None, return_status_code=False, accept=None,
                      vserver_name=None, vserver_uuid=None):
@@ -309,9 +338,18 @@ class OntapRestAPI(object):
             error = json.get('error')
             return json, error
 
+        if self.auth_method == 'single_cert':
+            kwargs = dict(cert=self.cert_filepath)
+        elif self.auth_method == 'cert_key':
+            kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
+        elif self.auth_method == 'basic_auth':
+            kwargs = dict(auth=(self.username, self.password))
+        else:
+            raise KeyError(self.auth_method)
+
         try:
-            response = requests.request(method, url, verify=self.verify, auth=(self.username, self.password),
-                                        params=params, timeout=self.timeout, json=json, headers=headers)
+            response = requests.request(method, url, verify=self.verify, params=params,
+                                        timeout=self.timeout, json=json, headers=headers, **kwargs)
             content = response.content  # for debug purposes
             status_code = response.status_code
             # If the response was successful, no Exception will be raised

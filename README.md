@@ -23,12 +23,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 # Release Notes
 
 ## 20.6.0
- 
+
 ### New Options
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
 - na_ontap_firmware_upgrade: ignore timeout when downloading image unless `fail_on_502_error` is set to true.
+- na_ontap_info: `desired_attributes` advanced feature to select which fields to return.
+- na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
 - na_ontap_rest_info: `fields` options to request specific fields from subset
 - na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
+- na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
 - na_ontap_user: `authentication_password` option specifies password for the authentication protocol of SNMPv3 user.
 - na_ontap_user: `authentication_protocol` option specifies authentication protocol fo SNMPv3 user.
 - na_ontap_user: `engine_id` option specifies authoritative entity's EngineID for the SNMPv3 user.
@@ -36,13 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_user: `privacy_protocol` option specifies privacy protocol of SNMPv3 user.
 - na_ontap_user: `remote_switch_ipaddress` option specifies the IP Address of the remote switch of SNMPv3 user.
 - na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
-
-### New Options:
-- na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
-
-### New Options:
-- na_ontap_info: `desired_attributes` advanced feature to select which fields to return.
-- na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
+- REST modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication.
 
 ### Bug Fixes
 - na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.
@@ -128,7 +125,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_info: `metrocluster_check_info` has been removed as it was breaking the info module for everyone who didn't have a metrocluster set up. We are working on adding this back in a future update
 
 ### Role Changes
-- na_ontap_vserver_create has a new default variable 'netapp_version' set to 140.  If you are running 9.2 or below please add the variable to your playbook and set to 120
+- na_ontap_vserver_create has a new default variable `netapp_version` set to 140.  If you are running 9.2 or below please add the variable to your playbook and set to 120
 
 ## 20.4.0
 

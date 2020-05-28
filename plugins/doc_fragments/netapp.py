@@ -29,19 +29,33 @@ options:
   username:
       description:
       - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
-        For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+      - For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+      - For REST, two authentication methods are supported
+      - 1. basic authentication, using username and password,
+      - 2. SSL certificate authentication, using a ssl client cert file, and optionally a private key file.
+      - To use a certificate, the certificate must have been installed in the ONTAP cluster, and cert authentication must have been enabled.
+      - For ZAPI, only basic authentication is supported.
       type: str
-      required: true
       aliases: [ user ]
   password:
       description:
       - Password for the specified user.
       type: str
-      required: true
       aliases: [ pass ]
+  cert_filepath:
+      description:
+      - path to SSL client cert file (.pem).
+      type: str
+      version_added: 20.6.0
+  key_filepath:
+      description:
+      - path to SSL client key file.
+      type: str
+      version_added: 20.6.0
   https:
       description:
-      - Enable and disable https
+      - Enable and disable https.
+      - Ignored when using REST, as only https is supported.
       type: bool
       default: no
   validate_certs:
@@ -77,10 +91,13 @@ options:
 
 
 requirements:
-  - A physical or virtual clustered Data ONTAP system. The modules support Data ONTAP 9.1 and onward
+  - A physical or virtual clustered Data ONTAP system. The modules support Data ONTAP 9.1 and onward.
+  - REST support requires ONTAP 9.6 or later.
   - Ansible 2.6
+  - Ansible 2.9 or later is strongly recommended as it enables the new collection delivery system.
   - Python2 netapp-lib (2017.10.30) or later. Install using 'pip install netapp-lib'
   - Python3 netapp-lib (2018.11.13) or later. Install using 'pip install netapp-lib'
+  - netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
   - To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
 
 notes:
