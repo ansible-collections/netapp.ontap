@@ -190,6 +190,21 @@ class NetAppONTAPGatherInfo(object):
 
         return None
 
+    def get_next_records(self, api):
+        """
+            Gather next set of ONTAP information for the specified api
+            Input for REST APIs call : (api, data)
+            return gather_subset_info
+        """
+
+        data = {}
+        gather_subset_info, error = self.restApi.get(api, data)
+
+        if error:
+            self.module.fail_json(msg=error)
+
+        return gather_subset_info
+
     def apply(self):
         """
         Perform pre-checks, call functions and exit
@@ -236,6 +251,18 @@ class NetAppONTAPGatherInfo(object):
                                       (subset, list(get_ontap_subset_info.keys())))
 
             result_message[subset] = self.get_subset_info(specified_subset)
+
+            while result_message[subset]['_links'].get('next'):
+                # Get all the set of records if next link found in subset_info for the specified subset
+                next_api = result_message[subset]['_links']['next']['href']
+                gathered_subset_info = self.get_next_records(next_api.replace('/api', ''))
+
+                # Update the subset info for the specified subset
+                result_message[subset]['_links'] = gathered_subset_info['_links']
+                result_message[subset]['records'].extend(gathered_subset_info['records'])
+
+            # Getting total number of records
+            result_message[subset]['num_records'] = len(result_message[subset]['records'])
 
         self.module.exit_json(changed='False', state=self.parameters['state'], ontap_info=result_message)
 
