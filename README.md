@@ -39,6 +39,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_user: `privacy_protocol` option specifies privacy protocol of SNMPv3 user.
 - na_ontap_user: `remote_switch_ipaddress` option specifies the IP Address of the remote switch of SNMPv3 user.
 - na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
+- na_ontap_volume: `from_vserver` option allows volume rehost from one vserver to another.
+- na_ontap_volume: `auto_remap_luns` option control automatic mapping of LUNs during volume rehost.
+- na_ontap_volume: `force_unmap_luns` option control automatic unmapping of LUNs during volume rehost.
 - REST modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication.
 
 ### Bug Fixes

@@ -349,6 +349,24 @@ options:
     default: 30
     type: int
     version_added: '20.6.0'
+
+  from_vserver:
+    description:
+    - The source vserver of the volume is rehosted.
+    type: str
+    version_added: '20.6.0'
+
+  auto_remap_luns:
+    description:
+    - Flag to control automatic map of LUNs.
+    type: bool
+    version_added: '20.6.0'
+
+  force_unmap_luns:
+    description:
+    - Flag to control automatic unmap of LUNs.
+    type: bool
+    version_added: '20.6.0'
 '''
 
 EXAMPLES = """
@@ -499,6 +517,32 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: false
 
+    - name: Rehost volume to another vserver auto remap luns
+      tags:
+      - rehost
+      na_ontap_volume:
+        name: ansible_vol
+        from_vserver: ansible
+        auto_remap_luns: true
+        vserver: "{{ vserver }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: false
+
+    - name: Rehost volume to another vserver force unmap luns
+      tags:
+      - rehost
+      na_ontap_volume:
+        name: ansible_vol
+        from_vserver: ansible
+        force_unmap_luns: true
+        vserver: "{{ vserver }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: false
+
 """
 
 RETURN = """
@@ -574,11 +618,14 @@ class NetAppOntapVolume(object):
             snapshot_auto_delete=dict(type='dict', required=False),
             cutover_action=dict(required=False, type='str', choices=['abort_on_failure', 'defer_on_failure', 'force', 'wait']),
             check_interval=dict(required=False, type='int', default=30),
+            from_vserver=dict(required=False, type='str'),
+            auto_remap_luns=dict(required=False, type='bool'),
+            force_unmap_luns=dict(required=False, type='bool')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
-                ['space_guarantee', 'space_slo']
+                ['space_guarantee', 'space_slo'], ['auto_remap_luns', 'force_unmap_luns']
             ],
             supports_check_mode=True
         )
@@ -1488,15 +1535,35 @@ class NetAppOntapVolume(object):
                                       % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
+    def rehost_volume(self):
+        volume_rehost = netapp_utils.zapi.NaElement.create_node_with_children(
+            'volume-rehost', **{'vserver': self.parameters['from_vserver'],
+                                'destination-vserver': self.parameters['vserver'],
+                                'volume': self.parameters['name']})
+        if self.parameters.get('auto_remap_luns') is not None:
+            volume_rehost.add_new_child('auto-remap-luns', str(self.parameters['auto_remap_luns']))
+        if self.parameters.get('force_unmap_luns') is not None:
+            volume_rehost.add_new_child('force-unmap-luns', str(self.parameters['force_unmap_luns']))
+        try:
+            self.cluster.invoke_successfully(volume_rehost, enable_tunneling=True)
+            self.ems_log_event("volume-rehost")
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error rehosting volume %s: %s'
+                                      % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def apply(self):
         '''Call create/modify/delete operations'''
         efficiency_policy_modify = None
         current = self.get_volume()
         self.volume_style = self.get_volume_style(current)
         # rename and create are mutually exclusive
-        rename, cd_action, modify = None, None, None
+        rename, rehost, cd_action, modify = None, None, None, None
         if self.parameters.get('from_name'):
             rename = self.na_helper.is_rename_action(self.get_volume(self.parameters['from_name']), current)
+        elif self.parameters.get('from_vserver'):
+            rehost = True
+            self.na_helper.changed = True
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.parameters.get('unix_permissions') is not None:
@@ -1506,7 +1573,7 @@ class NetAppOntapVolume(object):
                 # don't change if the values are the same
                 # can't change permissions if not online
                 del self.parameters['unix_permissions']
-        if cd_action is None and rename is None and self.parameters['state'] == 'present':
+        if cd_action is None and rename is None and rehost is None and self.parameters['state'] == 'present':
             # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
             auto_delete_info = current.pop('snapshot_auto_delete', None)
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
@@ -1527,6 +1594,8 @@ class NetAppOntapVolume(object):
             else:
                 if rename:
                     self.rename_volume()
+                if rehost:
+                    self.rehost_volume()
                 if cd_action == 'create':
                     self.create_volume()
                     # if we create, and modify only variable are set (snapdir_access or atime_update) we need to run a modify
@@ -1560,6 +1629,8 @@ class NetAppOntapVolume(object):
         elif state == 'volume-resize':
             message = "A Volume has been resized to: " + \
                 str(self.parameters['size']) + str(self.parameters['size_unit'])
+        elif state == 'volume-rehost':
+            message = "A Volume has been rehosted"
         elif state == 'volume-change':
             message = "A Volume state has been changed"
         else:
