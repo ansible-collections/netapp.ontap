@@ -24,6 +24,20 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.6.0
 
+### Support for SSL certificate authentication in addition to password
+The ONTAP Ansible modules currently require a username/password combination to authenticate with ONTAPI or REST APIs.
+It is now possible to use SSL certificate authentication with ONTAPI or REST.
+You will first need to install a SSL certificate in ONTAP, see for instance the first part of:
+https://netapp.io/2016/11/08/certificate-based-authentication-netapp-manageability-sdk-ontap/
+The applications that need to be authorized for `cert` are `ontapi` and `http`.
+
+The new `cert_filepath`, `key_filepath` options enable SSL certificate authentication.
+This is mutually exclusive with using `username` and `password`.
+
+ONTAP does not support `cert` authentication for console, so this is not supported for `na_ontap_command`.
+
+SSL certificate authentication requires python2.7 or 3.x.
+
 ### New Options
 - na_ontap_disks: `disk_type` option allows to assign specified type of disk.
 - na_ontap_firmware_upgrade: ignore timeout when downloading image unless `fail_on_502_error` is set to true.
@@ -42,7 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_volume: `from_vserver` option allows volume rehost from one vserver to another.
 - na_ontap_volume: `auto_remap_luns` option control automatic mapping of LUNs during volume rehost.
 - na_ontap_volume: `force_unmap_luns` option control automatic unmapping of LUNs during volume rehost.
-- REST modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication.
+- all modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication (python 2.7 or 3.x).
 
 ### Bug Fixes
 - na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.

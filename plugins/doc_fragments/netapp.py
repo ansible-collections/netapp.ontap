@@ -30,11 +30,10 @@ options:
       description:
       - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
       - For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
-      - For REST, two authentication methods are supported
+      - Two authentication methods are supported
       - 1. basic authentication, using username and password,
       - 2. SSL certificate authentication, using a ssl client cert file, and optionally a private key file.
       - To use a certificate, the certificate must have been installed in the ONTAP cluster, and cert authentication must have been enabled.
-      - For ZAPI, only basic authentication is supported.
       type: str
       aliases: [ user ]
   password:
@@ -45,6 +44,7 @@ options:
   cert_filepath:
       description:
       - path to SSL client cert file (.pem).
+      - not supported with python 2.6.
       type: str
       version_added: 20.6.0
   key_filepath:
@@ -55,7 +55,8 @@ options:
   https:
       description:
       - Enable and disable https.
-      - Ignored when using REST, as only https is supported.
+      - Ignored when using REST as only https is supported.
+      - Ignored when using SSL certificate authentication as it requires SSL.
       type: bool
       default: no
   validate_certs:

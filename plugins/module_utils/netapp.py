@@ -159,6 +159,32 @@ def create_sf_connection(module, port=None):
         module.fail_json(msg="the python SolidFire SDK module is required")
 
 
+def set_auth_method(module, username, password, cert_filepath, key_filepath):
+    error = None
+    if password is None and username is None:
+        if cert_filepath is None and key_filepath is not None:
+            error = 'Error: cannot have a key file without a cert file'
+        elif cert_filepath is None:
+            error = 'Error: ONTAP module requires username/password or SSL certificate file(s)'
+        elif key_filepath is None:
+            auth_method = 'single_cert'
+        else:
+            auth_method = 'cert_key'
+    elif password is not None and username is not None:
+        if cert_filepath is not None or key_filepath is not None:
+            error = 'Error: cannot have both basic authentication (username/password) ' +\
+                    'and certificate authentication (cert/key files)'
+        else:
+            auth_method = 'basic_auth'
+    else:
+        error = 'Error: username and password have to be provided together'
+        if cert_filepath is not None or key_filepath is not None:
+            error += ' and cannot be used with cert or key files'
+    if error:
+        module.fail_json(msg=error)
+    return auth_method
+
+
 def setup_na_ontap_zapi(module, vserver=None):
     hostname = module.params['hostname']
     username = module.params['username']
@@ -167,12 +193,24 @@ def setup_na_ontap_zapi(module, vserver=None):
     validate_certs = module.params['validate_certs']
     port = module.params['http_port']
     version = module.params['ontapi']
+    cert_filepath = module.params['cert_filepath']
+    key_filepath = module.params['key_filepath']
+    auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
 
     if HAS_NETAPP_LIB:
         # set up zapi
-        server = zapi.NaServer(hostname)
-        server.set_username(username)
-        server.set_password(password)
+        if auth_method != 'basic_auth':
+            # override NaServer in netapp-lib to enable certificate authentication
+            server = OntapZAPICx(hostname, module=module, username=username, password=password,
+                                 validate_certs=validate_certs, cert_filepath=cert_filepath,
+                                 key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE)
+            # SSL certificate authentication requires SSL
+            https = True
+        else:
+            # legacy netapp-lib
+            server = zapi.NaServer(hostname)
+            server.set_username(username)
+            server.set_password(password)
         if vserver:
             server.set_vserver(vserver)
         if version:
@@ -259,6 +297,43 @@ def get_cserver(connection, is_rest=False):
     return None
 
 
+if HAS_NETAPP_LIB:
+    class OntapZAPICx(zapi.NaServer):
+        def __init__(self, hostname=None, server_type=zapi.NaServer.SERVER_TYPE_FILER,
+                     transport_type=zapi.NaServer.TRANSPORT_TYPE_HTTP,
+                     style=zapi.NaServer.STYLE_LOGIN_PASSWORD, username=None,
+                     password=None, port=None, trace=False, module=None,
+                     cert_filepath=None, key_filepath=None, validate_certs=None):
+            # python 2.x syntax, but works for python 3 as well
+            super(OntapZAPICx, self).__init__(hostname, server_type=server_type,
+                                              transport_type=transport_type,
+                                              style=style, username=username,
+                                              password=password, port=port, trace=trace)
+            self.cert_filepath = cert_filepath
+            self.key_filepath = key_filepath
+            self.validate_certs = validate_certs
+            self.module = module
+
+        def _create_certificate_auth_handler(self):
+            import ssl
+            try:
+                context = ssl.create_default_context()
+            except AttributeError as exc:
+                msg = 'SSL certificate authentication requires python 2.7 or later.'
+                msg += '  More info: %s' % repr(exc)
+                self.module.fail_json(msg=msg)
+            if not self.validate_certs:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+            try:
+                context.load_cert_chain(self.cert_filepath, keyfile=self.key_filepath)
+            except IOError as exc:      # python 2.7 does not have FileNotFoundError
+                msg = 'Cannot load SSL certificate, check files exist.'
+                msg += '  More info: %s' % repr(exc)
+                self.module.fail_json(msg=msg)
+            return zapi.urllib.request.HTTPSHandler(context=context)
+
+
 class OntapRestAPI(object):
     def __init__(self, module, timeout=60):
         self.module = module
@@ -277,36 +352,12 @@ class OntapRestAPI(object):
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
         self.errors = list()
         self.debug_logs = list()
-        self.set_auth_method()
+        self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
 
     def check_required_library(self):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
-
-    def set_auth_method(self):
-        error = None
-        if self.password is None and self.username is None:
-            if self.cert_filepath is None and self.key_filepath is not None:
-                error = 'Error: cannot have a key file without a cert file'
-            elif self.cert_filepath is None:
-                error = 'Error: ONTAP module requires username/password or SSL certificate file(s)'
-            elif self.key_filepath is None:
-                self.auth_method = 'single_cert'
-            else:
-                self.auth_method = 'cert_key'
-        elif self.password is not None and self.username is not None:
-            if self.cert_filepath is not None or self.key_filepath is not None:
-                error = 'Error: cannot have both basic authentication (username/password) ' +\
-                        'and certificate authentication (cert/key files)'
-            else:
-                self.auth_method = 'basic_auth'
-        else:
-            error = 'Error: username and password have to be provided together'
-            if self.cert_filepath is not None or self.key_filepath is not None:
-                error += ' and cannot be used with cert or key files'
-        if error:
-            self.module.fail_json(msg=error)
 
     def send_request(self, method, api, params, json=None, return_status_code=False, accept=None,
                      vserver_name=None, vserver_uuid=None):

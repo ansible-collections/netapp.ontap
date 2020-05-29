@@ -136,6 +136,15 @@ def create_restapi_object(args):
     return restApi
 
 
+def create_OntapZAPICx_object(args):
+    module = create_module(args)
+    module.fail_json = fail_json
+    my_args = dict(args)
+    my_args.update(dict(module=module))
+    zapi_cx = netapp_utils.OntapZAPICx(**my_args)
+    return zapi_cx
+
+
 def test_write_to_file():
     ''' check error and debug logs can be written to disk '''
     restApi = create_restapi_object(mock_args())
@@ -271,7 +280,7 @@ def test_has_feature_invalid_key():
 
 
 def test_fail_has_username_password_and_cert():
-    ''' existing feature_flag with unknown key '''
+    ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
     with pytest.raises(AnsibleFailJson) as exc:
@@ -281,7 +290,7 @@ def test_fail_has_username_password_and_cert():
 
 
 def test_fail_has_username_password_and_key():
-    ''' existing feature_flag with unknown key '''
+    ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(key_filepath='dummy'))
     with pytest.raises(AnsibleFailJson) as exc:
@@ -291,7 +300,7 @@ def test_fail_has_username_password_and_key():
 
 
 def test_fail_has_username_and_cert():
-    ''' existing feature_flag with unknown key '''
+    ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
     del args['password']
@@ -302,7 +311,7 @@ def test_fail_has_username_and_cert():
 
 
 def test_fail_has_password_and_cert():
-    ''' existing feature_flag with unknown key '''
+    ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
     del args['username']
@@ -313,14 +322,14 @@ def test_fail_has_password_and_cert():
 
 
 def test_has_username_password():
-    ''' existing feature_flag with unknown key '''
+    ''' auth_method reports expected value '''
     args = mock_args()
     restApi = create_restapi_object(args)
     assert restApi.auth_method == 'basic_auth'
 
 
 def test_has_cert_no_key():
-    ''' existing feature_flag with unknown key '''
+    ''' auth_method reports expected value '''
     args = cert_args()
     del args['key_filepath']
     restApi = create_restapi_object(args)
@@ -328,7 +337,19 @@ def test_has_cert_no_key():
 
 
 def test_has_cert_and_key():
-    ''' existing feature_flag with unknown key '''
+    ''' auth_method reports expected value '''
     args = cert_args()
     restApi = create_restapi_object(args)
     assert restApi.auth_method == 'cert_key'
+
+
+def test_certificate_method_zapi():
+    ''' should fail when trying to read the certificate file '''
+    args = cert_args()
+    zapi_cx = create_OntapZAPICx_object(args)
+    with pytest.raises(AnsibleFailJson) as exc:
+        zapi_cx._create_certificate_auth_handler()
+    msg1 = 'Cannot load SSL certificate, check files exist.'
+    # for python 2,6 :(
+    msg2 = 'SSL certificate authentication requires python 2.7 or later.'
+    assert exc.value.args[0]['msg'].startswith((msg1, msg2))
