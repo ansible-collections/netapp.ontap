@@ -211,10 +211,10 @@ class NetAppOntapUser(object):
             lock_user=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str'),
             authentication_protocol=dict(required=False, type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
-            authentication_password=dict(required=False, type='str'),
+            authentication_password=dict(required=False, type='str', no_log=True),
             engine_id=dict(required=False, type='str'),
             privacy_protocol=dict(required=False, type='str', choices=['none', 'des', 'aes128']),
-            privacy_password=dict(required=False, type='str'),
+            privacy_password=dict(required=False, type='str', no_log=True),
             remote_switch_ipaddress=dict(required=False, type='str')
         ))
 
