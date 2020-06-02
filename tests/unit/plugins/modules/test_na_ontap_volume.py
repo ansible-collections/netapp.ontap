@@ -328,16 +328,16 @@ class TestMyModule(unittest.TestCase):
         """
         vol_obj = vol_module()
         vol_obj.ems_log_event = Mock(return_value=None)
-        vol_obj.cluster = Mock()
-        vol_obj.cluster.invoke_successfully = Mock()
         vol_obj.get_efficiency_policy = Mock(return_value='test_efficiency')
         vol_obj.volume_style = None
         if kind is None:
             vol_obj.server = MockONTAPConnection()
         elif kind == 'job_info':
             vol_obj.server = MockONTAPConnection(kind='job_info', data=self.mock_vol, job_error=job_error)
+            vol_obj.cluster = MockONTAPConnection(kind='job_info', data=self.mock_vol, job_error=job_error)
         else:
             vol_obj.server = MockONTAPConnection(kind=kind, data=self.mock_vol)
+            vol_obj.cluster = MockONTAPConnection(kind=kind, data=self.mock_vol)
 
         return vol_obj
 
@@ -1061,3 +1061,59 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object('zapi_error').set_snapshot_auto_delete()
         assert exc.value.args[0]['msg'] == 'Error setting snapshot auto delete options for volume test_vol: NetApp API failed. Reason - test:error'
+
+    def test_successful_volume_rehost(self):
+        data = {
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'dest_vserver',
+            'from_vserver': 'source_vserver'
+        }
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object('volume').apply()
+        assert exc.value.args[0]['changed']
+
+    def test_error_volume_rehost(self):
+        data = {
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'dest_vserver',
+            'from_vserver': 'source_vserver'
+        }
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object('zapi_error').rehost_volume()
+        assert exc.value.args[0]['msg'] == 'Error rehosting volume test_vol: NetApp API failed. Reason - test:error'
+
+    def test_successful_volume_restore(self):
+        data = {
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'test_vserver',
+            'snapshot_restore': 'snapshot_copy'
+        }
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object('volume').apply()
+        assert exc.value.args[0]['changed']
+
+    def test_error_volume_restore(self):
+        data = {
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': 'test_vol',
+            'vserver': 'test_vserver',
+            'snapshot_restore': 'snapshot_copy'
+        }
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object('zapi_error').snapshot_restore_volume()
+        assert exc.value.args[0]['msg'] == 'Error restoring volume test_vol: NetApp API failed. Reason - test:error'

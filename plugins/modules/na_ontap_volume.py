@@ -367,6 +367,32 @@ options:
     - Flag to control automatic unmap of LUNs.
     type: bool
     version_added: '20.6.0'
+
+  force_restore:
+    description:
+    - If this field is set to "true", the Snapshot copy is restored even if the volume has one or more newer Snapshot
+      copies which are currently used as reference Snapshot copy by SnapMirror. If a restore is done in this
+      situation, this will cause future SnapMirror transfers to fail.
+    - Option should only be used along with snapshot_restore.
+    type: bool
+    version_added: '20.6.0'
+
+  preserve_lun_ids:
+    description:
+    - If this field is set to "true", LUNs in the volume being restored will remain mapped and their identities
+      preserved such that host connectivity will not be disrupted during the restore operation. I/O's to the LUN will
+      be fenced during the restore operation by placing the LUNs in an unavailable state. Once the restore operation
+      has completed, hosts will be able to resume I/O access to the LUNs.
+    - Option should only be used along with snapshot_restore.
+    type: bool
+    version_added: '20.6.0'
+
+  snapshot_restore:
+    description:
+    - Name of snapshot to restore from.
+    - Not supported on Infinite Volume.
+    type: str
+    version_added: '20.6.0'
 '''
 
 EXAMPLES = """
@@ -485,8 +511,6 @@ EXAMPLES = """
         https: False
 
     - name: Modify volume with snapshot auto delete options
-      tags:
-        - auto_delete
       na_ontap_volume:
         state: present
         name: vol_auto_delete
@@ -505,8 +529,6 @@ EXAMPLES = """
         https: False
 
     - name: Move volume with force cutover action
-      tags:
-      - move
       na_ontap_volume:
         name: ansible_vol
         aggregate_name: aggr_ansible
@@ -518,8 +540,6 @@ EXAMPLES = """
         https: false
 
     - name: Rehost volume to another vserver auto remap luns
-      tags:
-      - rehost
       na_ontap_volume:
         name: ansible_vol
         from_vserver: ansible
@@ -531,8 +551,6 @@ EXAMPLES = """
         https: false
 
     - name: Rehost volume to another vserver force unmap luns
-      tags:
-      - rehost
       na_ontap_volume:
         name: ansible_vol
         from_vserver: ansible
@@ -543,6 +561,17 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: false
 
+    - name: Snapshot restore volume
+      na_ontap_volume:
+        name: ansible_vol
+        vserver: ansible
+        snapshot_restore: 2020-05-24-weekly
+        force_restore: true
+        preserve_lun_ids: true
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: false
 """
 
 RETURN = """
@@ -620,7 +649,10 @@ class NetAppOntapVolume(object):
             check_interval=dict(required=False, type='int', default=30),
             from_vserver=dict(required=False, type='str'),
             auto_remap_luns=dict(required=False, type='bool'),
-            force_unmap_luns=dict(required=False, type='bool')
+            force_unmap_luns=dict(required=False, type='bool'),
+            force_restore=dict(required=False, type='bool'),
+            preserve_lun_ids=dict(required=False, type='bool'),
+            snapshot_restore=dict(required=False, type='str')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -1552,17 +1584,36 @@ class NetAppOntapVolume(object):
                                       % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def snapshot_restore_volume(self):
+        snapshot_restore = netapp_utils.zapi.NaElement.create_node_with_children(
+            'snapshot-restore-volume', **{'snapshot': self.parameters['snapshot_restore'],
+                                          'volume': self.parameters['name']})
+        if self.parameters.get('force_restore') is not None:
+            snapshot_restore.add_new_child('force', str(self.parameters['force_restore']))
+        if self.parameters.get('preserve_lun_ids') is not None:
+            snapshot_restore.add_new_child('preserve-lun-ids', str(self.parameters['preserve_lun_ids']))
+        try:
+            self.server.invoke_successfully(snapshot_restore, enable_tunneling=True)
+            self.ems_log_event("snapshot-restore-volume")
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error restoring volume %s: %s'
+                                      % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def apply(self):
         '''Call create/modify/delete operations'''
         efficiency_policy_modify = None
         current = self.get_volume()
         self.volume_style = self.get_volume_style(current)
         # rename and create are mutually exclusive
-        rename, rehost, cd_action, modify = None, None, None, None
+        rename, rehost, snapshot_restore, cd_action, modify = None, None, None, None, None
         if self.parameters.get('from_name'):
             rename = self.na_helper.is_rename_action(self.get_volume(self.parameters['from_name']), current)
         elif self.parameters.get('from_vserver'):
             rehost = True
+            self.na_helper.changed = True
+        elif self.parameters.get('snapshot_restore'):
+            snapshot_restore = True
             self.na_helper.changed = True
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -1596,6 +1647,8 @@ class NetAppOntapVolume(object):
                     self.rename_volume()
                 if rehost:
                     self.rehost_volume()
+                if snapshot_restore:
+                    self.snapshot_restore_volume()
                 if cd_action == 'create':
                     self.create_volume()
                     # if we create, and modify only variable are set (snapdir_access or atime_update) we need to run a modify
@@ -1631,6 +1684,8 @@ class NetAppOntapVolume(object):
                 str(self.parameters['size']) + str(self.parameters['size_unit'])
         elif state == 'volume-rehost':
             message = "A Volume has been rehosted"
+        elif state == 'snapshot-restore-volume':
+            message = "A Volume has been restored by snapshot"
         elif state == 'volume-change':
             message = "A Volume state has been changed"
         else:

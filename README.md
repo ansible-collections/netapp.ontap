@@ -52,10 +52,13 @@ SSL certificate authentication requires python2.7 or 3.x.
 - na_ontap_user: `privacy_password` option specifies password for the privacy protocol of SNMPv3 user.
 - na_ontap_user: `privacy_protocol` option specifies privacy protocol of SNMPv3 user.
 - na_ontap_user: `remote_switch_ipaddress` option specifies the IP Address of the remote switch of SNMPv3 user.
-- na_ontap_volume: `check_interval` option check if a volume move has been completed and then waits this number of seconds before checking again.
+- na_ontap_volume: `check_interval` option checks if a volume move has been completed and then waits this number of seconds before checking again.
+- na_ontap_volume: `auto_remap_luns` option controls automatic mapping of LUNs during volume rehost.
+- na_ontap_volume: `force_restore` option forces volume to restore even if the volume has one or more newer Snapshotcopies.
+- na_ontap_volume: `force_unmap_luns` option controls automatic unmapping of LUNs during volume rehost.
 - na_ontap_volume: `from_vserver` option allows volume rehost from one vserver to another.
-- na_ontap_volume: `auto_remap_luns` option control automatic mapping of LUNs during volume rehost.
-- na_ontap_volume: `force_unmap_luns` option control automatic unmapping of LUNs during volume rehost.
+- na_ontap_volume: `preserve_lun_ids` option controls LUNs in the volume being restored will remain mapped and their identities preserved.
+- na_ontap_volume: `snapshot_restroe` option specifies name of snapshot to restore from.
 - all modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication (python 2.7 or 3.x).
 
 ### Bug Fixes
