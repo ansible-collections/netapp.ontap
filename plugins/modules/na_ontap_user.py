@@ -186,6 +186,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -196,6 +197,7 @@ class NetAppOntapUser(object):
     """
 
     def __init__(self):
+        self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
@@ -229,10 +231,50 @@ class NetAppOntapUser(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        # REST API should be used for ONTAP 9.6 or higher
+        self.restApi = OntapRestAPI(self.module)
+        # some attributes are not supported in earlier REST implementation
+        unsupported_rest_properties = ['authentication_password', 'authentication_protocol', 'engine_id',
+                                       'privacy_password', 'privacy_protocol']
+        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
+        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        if self.restApi.is_rest():
+            self.use_rest = True
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not HAS_NETAPP_LIB:
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+    def get_user_rest(self):
+        api = 'security/accounts'
+        params = {
+            'name': self.parameters['name'],
+            'owner.name': self.parameters['vserver'],
+        }
+        message, error = self.restApi.get(api, params)
+        if error:
+            self.module.fail_json(msg='Error while fetching user info: %s' % error)
+        if message['num_records'] == 1:
+            return message['records'][0]['owner']['uuid'], message['records'][0]['name']
+        return None
+
+    def get_user_details_rest(self, name, uuid):
+        params = {
+            'name': name,
+            'owner.uuid': uuid,
+        }
+        api = "security/accounts/%s/%s" % (uuid, name)
+        message, error = self.restApi.get(api, params)
+        if error:
+            self.module.fail_json(msg='Error while fetching user details: %s' % error)
+        if message:
+            return_value = {
+                'lock_user': message['locked'],
+                'role_name': message['role']['name'],
+                'applications': message['applications']
+            }
+            return return_value
 
     def get_user(self, application=None):
         """
@@ -276,6 +318,27 @@ class NetAppOntapUser(object):
                 self.module.fail_json(msg='Error getting user %s: %s' % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
+    def create_user_rest(self, apps=None):
+        app_list = list()
+        if apps is not None:
+            for app in apps:
+                mydict = {
+                    "application": app,
+                    "authentication_methods": self.parameters['authentication_method'].split(),
+                }
+                app_list.append(mydict)
+            api = 'security/accounts'
+            params = {
+                'name': self.parameters['name'],
+                'owner.name': self.parameters['vserver'],
+                'password': self.parameters['set_password'],
+                'role.name': self.parameters['role_name'],
+                'applications': app_list
+            }
+            message, error = self.restApi.post(api, params)
+            if error:
+                self.module.fail_json(msg='Error while creating user: %s' % error)
+
     def create_user(self, application):
         """
         creates the user for the given application and authentication_method
@@ -311,6 +374,19 @@ class NetAppOntapUser(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+
+    def lock_unlock_user_rest(self, useruuid, username, value=None):
+        data = {
+            'locked': value
+        }
+        params = {
+            'name': self.parameters['name'],
+            'owner.uuid': useruuid,
+        }
+        api = "security/accounts/%s/%s" % (useruuid, username)
+        message, error = self.restApi.patch(api, data, params)
+        if error:
+            self.module.fail_json(msg='Error while locking/unlocking user: %s' % error)
 
     def lock_given_user(self):
         """
@@ -356,6 +432,18 @@ class NetAppOntapUser(object):
                                       exception=traceback.format_exc())
         return True
 
+    def delete_user_rest(self):
+        uuid, username = self.get_user_rest()
+        data = {}
+        params = {
+            'name': username,
+            'owner.uuid': uuid,
+        }
+        api = "security/accounts/%s/%s" % (uuid, username)
+        message, error = self.restApi.delete(api, data, params)
+        if error:
+            self.module.fail_json(msg='Error while deleting user : %s' % error)
+
     def delete_user(self, application):
         """
         deletes the user for the given application and authentication_method
@@ -373,6 +461,19 @@ class NetAppOntapUser(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error removing user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+
+    def change_password_rest(self, useruuid, username):
+        data = {
+            'password': self.parameters['set_password'],
+        }
+        params = {
+            'name': self.parameters['name'],
+            'owner.uuid': useruuid,
+        }
+        api = "security/accounts/%s/%s" % (useruuid, username)
+        dummy, error = self.restApi.patch(api, data, params)
+        if error:
+            self.module.fail_json(msg='Error while updating user password: %s' % error)
 
     def change_password(self):
         """
@@ -407,6 +508,28 @@ class NetAppOntapUser(object):
         self.server.set_vserver(None)
         return True
 
+    def modify_apps_rest(self, useruuid, username, apps=None):
+        app_list = list()
+        if apps is not None:
+            for app in apps:
+                mydict = {
+                    "application": app,
+                    "authentication_methods": self.parameters['authentication_method'].split(),
+                }
+                app_list.append(mydict)
+        data = {
+            'role.name': self.parameters['role_name'],
+            'applications': app_list
+        }
+        params = {
+            'name': self.parameters['name'],
+            'owner.uuid': useruuid,
+        }
+        api = "security/accounts/%s/%s" % (useruuid, username)
+        message, error = self.restApi.patch(api, data, params)
+        if error:
+            self.module.fail_json(msg='Error while modifying user details: %s' % error)
+
     def modify_user(self, application):
         """
         Modify user
@@ -425,52 +548,88 @@ class NetAppOntapUser(object):
             self.module.fail_json(msg='Error modifying user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def apply(self):
-        create_delete_decision = {}
-        modify_decision = {}
+    def apply_for_rest(self):
+        current = self.get_user_rest()
 
-        netapp_utils.ems_log_event("na_ontap_user", self.server)
-        for application in self.parameters['applications']:
-            current = self.get_user(application)
-            if current is not None:
-                current['lock_user'] = self.na_helper.get_value_for_bool(True, current['lock_user'])
+        if current is not None:
+            uuid, name = current
+            current = self.get_user_details_rest(name, uuid)
 
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
 
-            if cd_action is not None:
-                create_delete_decision[application] = cd_action
-            else:
-                modify_decision[application] = self.na_helper.get_modified_attributes(current, self.parameters)
-
-        if not create_delete_decision and self.parameters.get('state') == 'present':
-            if self.parameters.get('set_password') is not None:
-                self.na_helper.changed = True
+        modify_decision = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
 
             if self.module.check_mode:
                 pass
             else:
-                for application in create_delete_decision:
-                    if create_delete_decision[application] == 'create':
-                        self.create_user(application)
-                    elif create_delete_decision[application] == 'delete':
-                        self.delete_user(application)
                 lock_user = False
-                for application in modify_decision:
-                    if 'role_name' in modify_decision[application]:
-                        self.modify_user(application)
-                    if 'lock_user' in modify_decision[application]:
-                        lock_user = True
+                if cd_action == 'create':
+                    self.create_user_rest(self.parameters['applications'])
+                elif cd_action == 'delete':
+                    self.delete_user_rest()
+                elif modify_decision:
+                    if 'role_name' in modify_decision or 'applications in modify_decision':
+                        self.modify_apps_rest(uuid, name, self.parameters['applications'])
+                    if 'lock_user' in modify_decision:
+                        self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
 
-                if lock_user:
-                    if self.parameters.get('lock_user'):
-                        self.lock_given_user()
-                    else:
-                        self.unlock_given_user()
-                if not create_delete_decision and self.parameters.get('set_password') is not None:
-                    # if change password return false nothing has changed so we need to set changed to False
-                    self.na_helper.changed = self.change_password()
+        if not cd_action and self.parameters.get('set_password') is not None:
+            # set_password is not idempotent, as we cannot check against the previous password
+            self.change_password_rest(uuid, name)
+            self.na_helper.changed = True
+        self.module.exit_json(changed=self.na_helper.changed)
+
+    def apply(self):
+        if self.use_rest:
+            self.apply_for_rest()
+        else:
+            create_delete_decision = {}
+            modify_decision = {}
+            netapp_utils.ems_log_event("na_ontap_user", self.server)
+            for application in self.parameters['applications']:
+                current = self.get_user(application)
+
+                if current is not None:
+                    current['lock_user'] = self.na_helper.get_value_for_bool(True, current['lock_user'])
+
+                cd_action = self.na_helper.get_cd_action(current, self.parameters)
+
+                if cd_action is not None:
+                    create_delete_decision[application] = cd_action
+                else:
+                    modify_decision[application] = self.na_helper.get_modified_attributes(current, self.parameters)
+
+            if not create_delete_decision and self.parameters.get('state') == 'present':
+                if self.parameters.get('set_password') is not None:
+                    self.na_helper.changed = True
+
+            if self.na_helper.changed:
+
+                if self.module.check_mode:
+                    pass
+                else:
+                    for application in create_delete_decision:
+                        if create_delete_decision[application] == 'create':
+                            self.create_user(application)
+                        elif create_delete_decision[application] == 'delete':
+                            self.delete_user(application)
+                    lock_user = False
+                    for application in modify_decision:
+                        if 'role_name' in modify_decision[application]:
+                            self.modify_user(application)
+                        if 'lock_user' in modify_decision[application]:
+                            lock_user = True
+
+                    if lock_user:
+                        if self.parameters.get('lock_user'):
+                            self.lock_given_user()
+                        else:
+                            self.unlock_given_user()
+                    if not create_delete_decision and self.parameters.get('set_password') is not None:
+                        # if change password return false nothing has changed so we need to set changed to False
+                        self.na_helper.changed = self.change_password()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

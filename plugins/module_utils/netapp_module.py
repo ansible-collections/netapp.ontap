@@ -32,6 +32,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from copy import deepcopy
 
 
 def cmp(a, b):
@@ -209,8 +210,24 @@ class NetAppModule(object):
             :return: list of attributes to be modified
             :rtype: list
         '''
-        desired_diff_list = [item for item in desired if item not in current]  # get what in desired and not in current
-        current_diff_list = [item for item in current if item not in desired]  # get what in current but not in desired
+        current_copy = deepcopy(current)
+        desired_copy = deepcopy(desired)
+
+        # get what in desired and not in current
+        desired_diff_list = list()
+        for item in desired:
+            if item in current_copy:
+                current_copy.remove(item)
+            else:
+                desired_diff_list.append(item)
+
+        # get what in current but not in desired
+        current_diff_list = list()
+        for item in current:
+            if item in desired_copy:
+                desired_copy.remove(item)
+            else:
+                current_diff_list.append(item)
 
         if desired_diff_list or current_diff_list:
             # there are changes

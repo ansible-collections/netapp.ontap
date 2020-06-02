@@ -67,9 +67,14 @@ SSL certificate authentication requires python2.7 or 3.x.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
 - na_ontap_volume: `wait_on_completion` is supported with volume moves.
 - module_utils/netapp_module: cater for empty lists in get_modified_attributes().
+- module_utils/netapp_module: cater for lists with duplicate elements in compare_lists().
 
 ### Example playbook
 - na_ontap_pb_install_SSL_certificate.yml: installing a self-signed SSL certificate, and enabling SSL certificate authentication.
+
+### Added REST support to existing modules
+- na_ontap_user: added REST support for ONTAP user creation, modification & deletion.
+
 
 ## 20.5.0
 

@@ -193,6 +193,54 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.get_modified_attributes(current, desired, True)
         assert result == {}
 
+    def test_get_modified_attributes_equal_lists_with_duplicates(self):
+        ''' validate modified attributes for equal lists with duplicates '''
+        current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, False)
+        assert result == {}
+
+    def test_get_modified_attributes_equal_lists_with_duplicates_diff(self):
+        ''' validate modified attributes for equal lists with duplicates with diff '''
+        current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {}
+
+    def test_get_modified_attributes_for_current_list_with_duplicates(self):
+        ''' validate modified attributes for current list with duplicates '''
+        current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        desired = {'schedule': ['daily', 'daily', 'weekly', 'monthly'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, False)
+        assert result == {'schedule': ['daily', 'daily', 'weekly', 'monthly']}
+
+    def test_get_modified_attributes_for_current_list_with_duplicates_diff(self):
+        ''' validate modified attributes for current list with duplicates with diff '''
+        current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        desired = {'schedule': ['daily', 'daily', 'weekly', 'monthly'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {'schedule': []}
+
+    def test_get_modified_attributes_for_desired_list_with_duplicates(self):
+        ''' validate modified attributes for desired list with duplicates '''
+        current = {'schedule': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, False)
+        assert result == {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily']}
+
+    def test_get_modified_attributes_for_desired_list_with_duplicates_diff(self):
+        ''' validate modified attributes for desired list with duplicates with diff '''
+        current = {'schedule': ['daily', 'weekly', 'monthly'], 'state': 'present'}
+        desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
+        my_obj = na_helper()
+        result = my_obj.get_modified_attributes(current, desired, True)
+        assert result == {'schedule': ['hourly', 'daily', 'daily']}
+
     def test_is_rename_action_for_empty_input(self):
         ''' validate rename action for input None '''
         source = None
