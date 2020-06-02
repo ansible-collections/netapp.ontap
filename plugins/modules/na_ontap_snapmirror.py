@@ -21,6 +21,7 @@ description:
   - For creating a SnapMirror ElementSW/ONTAP relationship, an existing ONTAP/ElementSW relationship should be present
   - Performs resync if the C(relationship_state=active) and the current mirror state of the snapmirror relationship is broken-off
   - Performs resume if the C(relationship_state=active), the current snapmirror relationship status is quiesced and mirror state is snapmirrored
+  - Performs restore if the C(relationship_type=restore) and all other operations will not be performed during this task
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_snapmirror
@@ -56,6 +57,8 @@ options:
     'extended_data_protection']
     description:
       - Specify the type of SnapMirror relationship.
+      - for 'restore' unless 'source_snapshot' is specified the most recent Snapshot copy on the source volume is restored.
+      - restore SnapMirror is not idempotent.
   schedule:
     description:
       - Specify the name of the current schedule, which is used to update the SnapMirror relationship.
@@ -118,6 +121,11 @@ options:
     choices: ['active', 'broken']
     type: str
     version_added: '20.2.0'
+  source_snapshot:
+    description:
+     - Specifies the Snapshot from the source to be restored.
+    type: str
+    version_added: '20.6.0'
   identity_preserve:
     description:
      - Specifies whether or not the identity of the source Vserver is replicated to the destination Vserver.
@@ -164,6 +172,7 @@ EXAMPLES = """
         state: present
         source_path: 'ansible:test'
         destination_path: 'ansible:dest'
+        relationship_state: active
         hostname: "{{ destination_cluster_hostname }}"
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
@@ -184,6 +193,17 @@ EXAMPLES = """
         relationship_state: broken
         destination_path: <path>
         source_hostname: "{{ source_hostname }}"
+        hostname: "{{ destination_cluster_hostname }}"
+        username: "{{ destination_cluster_username }}"
+        password: "{{ destination_cluster_password }}"
+
+    - name: Restore Snapmirror volume using location (Idempotency)
+      na_ontap_snapmirror:
+        state: present
+        source_path: <path>
+        destination_path: <path>
+        relationship_type: restore
+        source_snapshot: "{{ snapshot }}"
         hostname: "{{ destination_cluster_hostname }}"
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
@@ -283,7 +303,8 @@ class NetAppONTAPSnapmirror(object):
             update=dict(required=False, type='bool', default=True),
             identity_preserve=dict(required=False, type='bool'),
             relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active'),
-            relationship_info_only=dict(required=False, type='bool', default=False)
+            relationship_info_only=dict(required=False, type='bool', default=False),
+            source_snapshot=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -560,7 +581,7 @@ class NetAppONTAPSnapmirror(object):
 
     def snapmirror_initialize(self):
         """
-        Initialize SnapMirror based on relationship type
+        Initialize SnapMirror based on relationship state
         """
         current = self.snapmirror_get()
         if current['mirror_state'] != 'snapmirrored':
@@ -582,7 +603,7 @@ class NetAppONTAPSnapmirror(object):
 
     def snapmirror_resync(self):
         """
-        resync SnapMirror based on relationship type
+        resync SnapMirror based on relationship state
         """
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_resync = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resync', **options)
@@ -595,7 +616,7 @@ class NetAppONTAPSnapmirror(object):
 
     def snapmirror_resume(self):
         """
-        resume SnapMirror based on relationship type
+        resume SnapMirror based on relationship state
         """
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_resume = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resume', **options)
@@ -603,6 +624,20 @@ class NetAppONTAPSnapmirror(object):
             self.server.invoke_successfully(snapmirror_resume, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error resume SnapMirror : %s' % (to_native(error)), exception=traceback.format_exc())
+
+    def snapmirror_restore(self):
+        """
+        restore SnapMirror based on relationship state
+        """
+        options = {'destination-location': self.parameters['destination_path'],
+                   'source-location': self.parameters['source_path']}
+        if self.parameters.get('source_snapshot'):
+            options['source-snapshot'] = self.parameters['source_snapshot']
+        snapmirror_restore = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-restore', **options)
+        try:
+            self.server.invoke_successfully(snapmirror_restore, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error restore SnapMirror : %s' % (to_native(error)), exception=traceback.format_exc())
 
     def snapmirror_modify(self, modify):
         """
@@ -775,11 +810,14 @@ class NetAppONTAPSnapmirror(object):
             if current_elementsw_ontap is None:
                 self.module.fail_json(msg='Error: creating an ONTAP to ElementSW snapmirror relationship requires an '
                                           'established SnapMirror relation from ElementSW to ONTAP cluster')
-        current = self.snapmirror_get()
-        cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        current = self.snapmirror_get() if self.parameters['relationship_type'] != 'restore' else None
+        cd_action = self.na_helper.get_cd_action(current, self.parameters) if self.parameters['relationship_type'] != 'restore' else None
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if self.parameters['relationship_type'] != 'restore' else None
         element_snapmirror = False
-        if cd_action == 'create':
+        if self.parameters['state'] == 'present' and self.parameters['relationship_type'] == 'restore':
+            self.snapmirror_restore()
+            self.na_helper.changed = True
+        elif cd_action == 'create':
             if not self.module.check_mode:
                 self.snapmirror_create()
         elif cd_action == 'delete':

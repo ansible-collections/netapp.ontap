@@ -45,6 +45,7 @@ SSL certificate authentication requires python2.7 or 3.x.
 - na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
 - na_ontap_rest_info: `fields` options to request specific fields from subset.
 - na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
+- na_ontap_snapmirror: now performs restore with optional field `source_snapshot` for specific snapshot or uses latest.
 - na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
 - na_ontap_user: `authentication_password` option specifies password for the authentication protocol of SNMPv3 user.
 - na_ontap_user: `authentication_protocol` option specifies authentication protocol fo SNMPv3 user.
