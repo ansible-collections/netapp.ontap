@@ -43,7 +43,7 @@ SSL certificate authentication requires python2.7 or 3.x.
 - na_ontap_firmware_upgrade: ignore timeout when downloading image unless `fail_on_502_error` is set to true.
 - na_ontap_info: `desired_attributes` advanced feature to select which fields to return.
 - na_ontap_info: `use_native_zapi_tags` to disable the conversion of '_' to '-' for attribute keys.
-- na_ontap_rest_info: `fields` options to request specific fields from subset
+- na_ontap_rest_info: `fields` options to request specific fields from subset.
 - na_ontap_software_update: `stabilize_minutes` option specifies number of minutes needed to stabilize node before update.
 - na_ontap_ucadapter: `pair_adapters` option allows specifying the list of adapters which also need to be offline.
 - na_ontap_user: `authentication_password` option specifies password for the authentication protocol of SNMPv3 user.
@@ -61,12 +61,15 @@ SSL certificate authentication requires python2.7 or 3.x.
 ### Bug Fixes
 - na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.
 - na_ontap_info: conversion from '-' to '_' was not done for lists of dictionaries.
-- na_ontap_ntfs_dacl: example fix in documentation string
-- na_ontap_snapmirror: could not delete all rules (bug in netapp_module)
+- na_ontap_ntfs_dacl: example fix in documentation string.
+- na_ontap_snapmirror: could not delete all rules (bug in netapp_module).
 - na_ontap_volume: modify was invoked multiple times when once is enough.
 - na_ontap_volume: fix KeyError on 'style' when volume is of type: data-protection.
-- na_ontap_volume: `wait_on_completion` is supported with volume moves
-- module_utils/netapp_module: cater for empty lists in get_modified_attributes()
+- na_ontap_volume: `wait_on_completion` is supported with volume moves.
+- module_utils/netapp_module: cater for empty lists in get_modified_attributes().
+
+### Example playbook
+- na_ontap_pb_install_SSL_certificate.yml: installing a self-signed SSL certificate, and enabling SSL certificate authentication.
 
 ## 20.5.0
 
