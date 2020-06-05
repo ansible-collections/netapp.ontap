@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
 - na_ontap_firmware_upgrade: images are not downloaded, but the module reports success.
+- na_ontap_user: fixed KeyError if password is not provided.
 
 ## 20.6.0
 

@@ -331,10 +331,11 @@ class NetAppOntapUser(object):
             params = {
                 'name': self.parameters['name'],
                 'owner.name': self.parameters['vserver'],
-                'password': self.parameters['set_password'],
                 'role.name': self.parameters['role_name'],
                 'applications': app_list
             }
+            if 'set_password' in self.parameters:
+                params['password'] = self.parameters['set_password']
             message, error = self.restApi.post(api, params)
             if error:
                 self.module.fail_json(msg='Error while creating user: %s' % error)
