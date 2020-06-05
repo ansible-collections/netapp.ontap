@@ -175,6 +175,10 @@ EXAMPLES = """
 """
 
 RETURN = """
+msg:
+    description: Returns additional information in case of success.
+    returned: always
+    type: str
 """
 
 import traceback
@@ -183,12 +187,6 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import time
-
-try:
-    from lxml import etree
-    HAS_LXML_LIB = True
-except ImportError:
-    HAS_LXML_LIB = False
 
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
@@ -240,8 +238,6 @@ class NetAppONTAPFirmwareUpgrade(object):
                 self.module.fail_json(msg='Do not specify both package and install_baseline_image: true')
             if not self.parameters.get('package') and self.parameters.get('install_baseline_image') == 'False':
                 self.module.fail_json(msg='Specify at least one of package or install_baseline_image')
-        if HAS_LXML_LIB is False:
-            self.module.fail_json(msg='lxml library not found, use command pip install lxml')
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
@@ -470,7 +466,6 @@ class NetAppONTAPFirmwareUpgrade(object):
         msg = MSGS['dl_completed']
         command = ['storage', 'firmware', 'download', '-node', self.parameters['node'] if self.parameters.get('node') else '*',
                    '-package-url', self.parameters['package_url']]
-        command = ['sleep', '1']
         command_obj = netapp_utils.zapi.NaElement("system-cli")
 
         args_obj = netapp_utils.zapi.NaElement("args")
@@ -479,13 +474,10 @@ class NetAppONTAPFirmwareUpgrade(object):
         command_obj.add_child_elem(args_obj)
         command_obj.add_new_child('priv', 'advanced')
 
+        output = None
         try:
             output = self.server.invoke_successfully(command_obj, True)
-            # Raw XML output
-            retval = output.to_string()
-            return_value = etree.fromstring(retval)
-            if return_value.attrib['status'] != 'passed':
-                self.module.fail_json(msg='unable to download package from %s' % (self.parameters['package_url']))
+
         except netapp_utils.zapi.NaApiError as error:
             if int(error.code) == 60:                                                   # API did not finish on time
                 # even if the ZAPI reports a timeout error, it does it after the command completed
@@ -496,9 +488,27 @@ class NetAppONTAPFirmwareUpgrade(object):
             else:
                 self.module.fail_json(msg='Error running command %s: %s' % (command, to_native(error)),
                                       exception=traceback.format_exc())
-        except etree.XMLSyntaxError as error:
-            self.module.fail_json(msg='Invalid package URL %s: %s' % (self.parameters['package_url'], to_native(error)),
-                                  exception=traceback.format_exc())
+
+        if output is not None:
+            # command completed, check for success
+            status = output.get_attr('status')
+            cli_output = output.get_child_content('cli-output')
+            if status is None or status != 'passed' or cli_output is None or cli_output == "":
+                if status is None:
+                    extra_info = "'status' attribute missing"
+                elif status != 'passed':
+                    extra_info = "check 'status' value"
+                else:
+                    extra_info = 'check console permissions'
+                self.module.fail_json(msg='unable to download package from %s: %s.  Received: %s' %
+                                      (self.parameters['package_url'], extra_info, output.to_string()))
+
+            if cli_output is not None:
+                if cli_output.startswith('Error:') or \
+                        'Failed to download package from' in cli_output:
+                    self.module.fail_json(msg='failed to download package from %s: %s' % (self.parameters['package_url'], cli_output))
+                msg += "  Extra info: %s" % cli_output
+
         return msg
 
     def autosupport_log(self):

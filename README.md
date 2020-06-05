@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.6.1
+
+### Bug Fixes
+- na_ontap_firmware_upgrade: images are not downloaded, but the module reports success.
+
 ## 20.6.0
 
 ### Support for SSL certificate authentication in addition to password

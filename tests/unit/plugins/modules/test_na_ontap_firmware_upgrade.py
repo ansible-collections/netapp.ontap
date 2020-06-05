@@ -72,7 +72,7 @@ class MockONTAPConnection(object):
         if self.type == 'acp':
             xml = self.build_acp_firmware_info(self.firmware_type)
         if self.type == 'firmware_download':
-            xml = self.build_system_cli_info()
+            xml = self.build_system_cli_info(error=self.parm1)
         if self.type == 'firmware_download_exception':
             raise netapp_utils.zapi.NaApiError(self.parm1, self.parm2)
         self.xml_out = xml
@@ -107,15 +107,27 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_system_cli_info():
+    def build_system_cli_info(error=None):
         ''' build xml data for system-cli info '''
+        if error is None:
+            # make it a string, to be able to compare easily
+            error = ""
         xml = netapp_utils.zapi.NaElement('results')
+        if error == 'empty_output':
+            output = ""
+        else:
+            output = 'Download complete.'
         data = {
-            'cli-output': None,
+            'cli-output': output,
             'cli-result-value': 1
         }
         xml.translate_struct(data)
-        xml.add_attr('status', 'passed')
+        if error == 'status_failed':
+            status = "failed"
+        else:
+            status = "passed"
+        if error != 'no_status_attr':
+            xml.add_attr('status', status)
         return xml
 
 
@@ -312,7 +324,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        msg = "Firmware download completed."
+        msg = "Firmware download completed.  Extra info: Download complete."
         assert exc.value.args[0]['msg'] == msg
 
     def test_firmware_download_60(self):
@@ -362,3 +374,48 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         msg = "NetApp API failed. Reason - 502:Bad GW"
         assert msg in exc.value.args[0]['msg']
+
+    def test_firmware_download_no_status_attr(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download', 'no_status_attr')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = "unable to download package from dummy_url: 'status' attribute missing."
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_firmware_download_status_failed(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download', 'status_failed')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = "unable to download package from dummy_url: check 'status' value."
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_firmware_download_empty_output(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download', 'empty_output')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = "unable to download package from dummy_url: check console permissions."
+        assert exc.value.args[0]['msg'].startswith(msg)
