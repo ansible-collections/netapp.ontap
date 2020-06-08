@@ -24,6 +24,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.6.1
 
+### New Options:
+- na_ontap_firmware_upgrade: `reboot_sp`: reboot service processor before downloading package.
+- na_ontap_firmware_upgrade: `rename_package`: rename file when downloading service processor package.
+- na_ontap_firmware_upgrade: `replace_package`: replace local file when downloading service processor package.
+
 ### Bug Fixes
 - na_ontap_firmware_upgrade: images are not downloaded, but the module reports success.
 - na_ontap_user: fixed KeyError if password is not provided.
