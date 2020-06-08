@@ -238,9 +238,9 @@ class NetAppOntapUser(object):
                                        'privacy_password', 'privacy_protocol']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
         self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
-        if self.restApi.is_rest():
-            self.use_rest = True
-        else:
+        if error is not None:
+            self.module.fail_json(msg=error)
+        if not self.use_rest:
             if not HAS_NETAPP_LIB:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
@@ -272,7 +272,7 @@ class NetAppOntapUser(object):
             return_value = {
                 'lock_user': message['locked'],
                 'role_name': message['role']['name'],
-                'applications': message['applications']
+                'applications': [app['application'] for app in message['applications']]
             }
             return return_value
 
@@ -463,6 +463,13 @@ class NetAppOntapUser(object):
             self.module.fail_json(msg='Error removing user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    @staticmethod
+    def is_repeated_password(message):
+        return message.startswith('New password must be different than last 6 passwords.') \
+            or message.startswith('New password must be different from last 6 passwords.') \
+            or message.startswith('New password must be different than the old password.') \
+            or message.startswith('New password must be different from the old password.')
+
     def change_password_rest(self, useruuid, username):
         data = {
             'password': self.parameters['set_password'],
@@ -474,7 +481,12 @@ class NetAppOntapUser(object):
         api = "security/accounts/%s/%s" % (useruuid, username)
         dummy, error = self.restApi.patch(api, data, params)
         if error:
-            self.module.fail_json(msg='Error while updating user password: %s' % error)
+            if 'message' in error and self.is_repeated_password(error['message']):
+                # if the password is reused, assume idempotency
+                return False
+            else:
+                self.module.fail_json(msg='Error while updating user password: %s' % error)
+        return True
 
     def change_password(self):
         """
@@ -497,11 +509,7 @@ class NetAppOntapUser(object):
             if to_native(error.code) == '13114':
                 return False
             # if the user give the same password, instead of returning an error, return ok
-            if to_native(error.code) == '13214' and \
-                    (error.message.startswith('New password must be different than last 6 passwords.')
-                     or error.message.startswith('New password must be different from last 6 passwords.')
-                     or error.message.startswith('New password must be different than the old password.')
-                     or error.message.startswith('New password must be different from the old password.')):
+            if to_native(error.code) == '13214' and self.is_repeated_password(error.message):
                 return False
             self.module.fail_json(msg='Error setting password for user %s: %s' % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
@@ -565,21 +573,20 @@ class NetAppOntapUser(object):
             if self.module.check_mode:
                 pass
             else:
-                lock_user = False
                 if cd_action == 'create':
                     self.create_user_rest(self.parameters['applications'])
                 elif cd_action == 'delete':
                     self.delete_user_rest()
                 elif modify_decision:
-                    if 'role_name' in modify_decision or 'applications in modify_decision':
+                    if 'role_name' in modify_decision or 'applications' in modify_decision:
                         self.modify_apps_rest(uuid, name, self.parameters['applications'])
                     if 'lock_user' in modify_decision:
                         self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
 
         if not cd_action and self.parameters.get('set_password') is not None:
-            # set_password is not idempotent, as we cannot check against the previous password
-            self.change_password_rest(uuid, name)
-            self.na_helper.changed = True
+            # if check_mode, don't attempt to change the password, but assume it would be changed
+            if self.module.check_mode or self.change_password_rest(uuid, name):
+                self.na_helper.changed = True
         self.module.exit_json(changed=self.na_helper.changed)
 
     def apply(self):
