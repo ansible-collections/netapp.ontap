@@ -1524,17 +1524,15 @@ def _finditem(obj, keys):
 def convert_keys(d_param):
     '''Method to convert hyphen to underscore'''
 
-    out = {}
     if isinstance(d_param, dict):
+        out = {}
         for key, val in d_param.items():
             val = convert_keys(val)
             out[key.replace('-', '_')] = val
+        return out
     elif isinstance(d_param, list):
-        for val in d_param:
-            val = convert_keys(val)
-    else:
-        return d_param
-    return out
+        return [convert_keys(val) for val in d_param]
+    return d_param
 
 
 def main():

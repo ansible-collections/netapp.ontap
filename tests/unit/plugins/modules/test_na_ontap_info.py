@@ -19,6 +19,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info import main 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info import __finditem as info_finditem
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info \
     import NetAppONTAPGatherInfo as info_module  # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info \
+    import convert_keys as info_convert_keys     # function under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -452,3 +454,39 @@ class TestMyModule(unittest.TestCase):
             obj.warnings.remove(msg)
         # make sure there is no extra warnings (eg we found and removed all of them)
         assert obj.warnings == list()
+
+    @staticmethod
+    def d2us(astr):
+        return str.replace(astr, '-', '_')
+
+    def test_convert_keys_string(self):
+        ''' no conversion '''
+        key = 'a-b-c'
+        assert info_convert_keys(key) == key
+
+    def test_convert_keys_tuple(self):
+        ''' no conversion '''
+        key = 'a-b-c'
+        anobject = (key, key)
+        assert info_convert_keys(anobject) == anobject
+
+    def test_convert_keys_list(self):
+        ''' no conversion '''
+        key = 'a-b-c'
+        anobject = [key, key]
+        assert info_convert_keys(anobject) == anobject
+
+    def test_convert_keys_simple_dict(self):
+        ''' conversion of keys '''
+        key = 'a-b-c'
+        anobject = {key: 1}
+        assert list(info_convert_keys(anobject).keys())[0] == self.d2us(key)
+
+    def test_convert_keys_list_of_dict(self):
+        ''' conversion of keys '''
+        key = 'a-b-c'
+        anobject = [{key: 1}, {key: 2}]
+        converted = info_convert_keys(anobject)
+        for adict in converted:
+            for akey in adict:
+                assert akey == self.d2us(key)

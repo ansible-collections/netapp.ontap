@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.7.0
+
+### Bug fixes:
+- na_ontap_info: lists were incorrectly processed in convert_keys, returning {}
+
 ## 20.6.1
 
 ### New Options:
