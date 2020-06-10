@@ -24,6 +24,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.7.0
 
+### New Options:
+- na_ontap_vscan_scanner_pool: support modification
+
 ### Bug fixes:
 - na_ontap_info: lists were incorrectly processed in convert_keys, returning {}
 

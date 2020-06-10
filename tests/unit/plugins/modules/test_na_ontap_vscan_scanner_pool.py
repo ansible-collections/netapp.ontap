@@ -178,3 +178,11 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_scanner_mock_object().apply()
         assert not exc.value.args[0]['changed']
+
+    def test_successfully_modify(self):
+        data = self.mock_args()
+        data['hostnames'] = "host1"
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_scanner_mock_object('scanner').apply()
+        assert exc.value.args[0]['changed']

@@ -19,7 +19,7 @@ extends_documentation_fragment:
 version_added: '2.8'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create or delete a Vscan Scanner Pool
+- Create/Modify/Delete a Vscan Scanner Pool
 options:
   state:
     description:
@@ -63,6 +63,17 @@ EXAMPLES = """
     privileged_users: ['sim.rtp.openeng.netapp.com\\admin', 'sim.rtp.openeng.netapp.com\\carchi']
     scanner_pool: Scanner1
     scanner_policy: primary
+
+- name: Modify scanner pool
+  na_ontap_vscan_scanner_pool:
+    state: present
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    hostnames: ['name', 'name2', 'name3']
+    privileged_users: ['sim.rtp.openeng.netapp.com\\admin', 'sim.rtp.openeng.netapp.com\\carchi', 'sim.rtp.openeng.netapp.com\\chuyic']
+    scanner_pool: Scanner1
 
 - name: Delete a scanner pool
   na_ontap_vscan_scanner_pool:
@@ -205,6 +216,38 @@ class NetAppOntapVscanScannerPool(object):
                                       (self.parameters['scanner_pool'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def modify_scanner_pool(self, modify):
+        """
+        Modify a scanner pool
+        :return: nothing
+        """
+        vscan_pool_modify = netapp_utils.zapi.NaElement('vscan-scanner-pool-modify')
+        vscan_pool_modify.add_new_child('scanner-pool', self.parameters['scanner_pool'])
+        for key in modify:
+            if key == 'privileged_users':
+                users_obj = netapp_utils.zapi.NaElement('privileged-users')
+                vscan_pool_modify.add_child_elem(users_obj)
+                for user in modify['privileged_users']:
+                    users_obj.add_new_child('privileged-user', user)
+            elif key == 'hostnames':
+                string_obj = netapp_utils.zapi.NaElement('hostnames')
+                vscan_pool_modify.add_child_elem(string_obj)
+                for hostname in modify['hostnames']:
+                    string_obj.add_new_child('string', hostname)
+            else:
+                vscan_pool_modify.add_new_child(self.attribute_to_name(key), str(modify[key]))
+
+        try:
+            self.server.invoke_successfully(vscan_pool_modify, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error modifying Vscan Scanner Pool %s: %s' %
+                                      (self.parameters['scanner_pool'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    @staticmethod
+    def attribute_to_name(attribute):
+        return str.replace(attribute, '_', '-')
+
     def asup_log_for_cserver(self, event_name):
         """
         Fetch admin vserver for the given cluster
@@ -227,8 +270,6 @@ class NetAppOntapVscanScannerPool(object):
         if self.parameters['state'] == 'present' and cd_action is None:
             # TODO We need to update the module to support modify
             modify = self.na_helper.get_modified_attributes(scanner_pool_obj, self.parameters)
-            if modify:
-                self.na_helper.changed = False
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
@@ -239,6 +280,8 @@ class NetAppOntapVscanScannerPool(object):
                         self.apply_policy()
                 elif cd_action == 'delete':
                     self.delete_scanner_pool()
+                elif modify:
+                    self.modify_scanner_pool(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
