@@ -270,11 +270,12 @@ class NetAppOntapUser(object):
             self.module.fail_json(msg='Error while fetching user details: %s' % error)
         if message:
             return_value = {
-                'lock_user': message['locked'],
                 'role_name': message['role']['name'],
                 'applications': [app['application'] for app in message['applications']]
             }
-            return return_value
+            if "locked" in message:
+                return_value['lock_user'] = message['locked']
+        return return_value
 
     def get_user(self, application=None):
         """
