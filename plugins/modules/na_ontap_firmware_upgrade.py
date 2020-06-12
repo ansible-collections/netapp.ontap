@@ -293,7 +293,7 @@ class NetAppONTAPFirmwareUpgrade(object):
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
 
     def firmware_image_get_iter(self):
         """
@@ -540,6 +540,9 @@ class NetAppONTAPFirmwareUpgrade(object):
             else:
                 self.module.fail_json(msg='Error running command %s: %s' % (command, to_native(error)),
                                       exception=traceback.format_exc())
+        except netapp_utils.zapi.etree.XMLSyntaxError as error:
+            self.module.fail_json(msg='Error decoding output from command %s: %s' % (command, to_native(error)),
+                                  exception=traceback.format_exc())
 
         if output is not None:
             # command completed, check for success

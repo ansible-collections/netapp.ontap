@@ -185,7 +185,7 @@ def set_auth_method(module, username, password, cert_filepath, key_filepath):
     return auth_method
 
 
-def setup_na_ontap_zapi(module, vserver=None):
+def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
     hostname = module.params['hostname']
     username = module.params['username']
     password = module.params['password']
@@ -206,6 +206,9 @@ def setup_na_ontap_zapi(module, vserver=None):
                                  key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE)
             # SSL certificate authentication requires SSL
             https = True
+        elif wrap_zapi:
+            server = OntapZAPICx(hostname, module=module, username=username, password=password,
+                                 validate_certs=validate_certs)
         else:
             # legacy netapp-lib
             server = zapi.NaServer(hostname)
@@ -332,6 +335,21 @@ if HAS_NETAPP_LIB:
                 msg += '  More info: %s' % repr(exc)
                 self.module.fail_json(msg=msg)
             return zapi.urllib.request.HTTPSHandler(context=context)
+
+        def _parse_response(self, response):
+            ''' handling XML parsing exception '''
+            try:
+                return super(OntapZAPICx, self)._parse_response(response)
+            except zapi.etree.XMLSyntaxError as exc:
+                # some ONTAP CLI commands return BEL on error
+                response = response.replace(b'\x07\n', b'')
+                # And 9.1 uses \r\n rather than \n !
+                response = response.replace(b'\x07\r\n', b'')
+                try:
+                    return super(OntapZAPICx, self)._parse_response(response)
+                except Exception:
+                    # report first exception
+                    raise exc
 
 
 class OntapRestAPI(object):
