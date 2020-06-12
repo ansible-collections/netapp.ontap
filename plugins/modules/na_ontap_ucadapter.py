@@ -160,9 +160,9 @@ class NetAppOntapadapter(object):
         """
         params = {'adapter-name': self.parameters['adapter_name'],
                   'node-name': self.parameters['node_name']}
-        if self.parameters['type'] is not None:
+        if self.parameters.get('type') is not None:
             params['fc4-type'] = self.parameters['type']
-        if self.parameters['mode'] is not None:
+        if self.parameters.get('mode') is not None:
             params['mode'] = self.parameters['mode']
         adapter_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'ucm-adapter-modify', ** params)
@@ -214,10 +214,9 @@ class NetAppOntapadapter(object):
             return False
 
         if adapter_detail:
-            changed = need_to_change(self.parameters.get('type'), adapter_detail['pending-type'],
-                                     adapter_detail['type']) or need_to_change(self.parameters.get('mode'),
-                                                                               adapter_detail['pending-mode'],
-                                                                               adapter_detail['mode'])
+            if self.parameters.get('type') is not None:
+                changed = need_to_change(self.parameters['type'], adapter_detail['pending-type'], adapter_detail['type'])
+            changed = changed or need_to_change(self.parameters.get('mode'), adapter_detail['pending-mode'], adapter_detail['mode'])
 
         if changed:
             if self.module.check_mode:

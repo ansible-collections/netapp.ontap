@@ -15,7 +15,7 @@ from ansible.module_utils._text import to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ucadapter \
-    import NetAppOntapadapter as my_module  # module under test
+    import NetAppOntapadapter as ucadapter_module  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -53,10 +53,10 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
-    def __init__(self, kind=None, parm1=None):
+    def __init__(self, kind=None, data=None):
         ''' save arguments '''
         self.type = kind
-        self.parm1 = parm1
+        self.parm1 = data
         self.xml_in = None
         self.xml_out = None
 
@@ -73,7 +73,7 @@ class MockONTAPConnection(object):
         return None
 
     @staticmethod
-    def build_ucadapter_info(status):
+    def build_ucadapter_info(params):
         ''' build xml data for ucadapter_info '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'attributes': {'uc-adapter-info': {
@@ -81,7 +81,7 @@ class MockONTAPConnection(object):
             'pending-mode': 'abc',
             'type': 'target',
             'pending-type': 'intitiator',
-            'status': status,
+            'status': params['status'],
         }}}
         xml.translate_struct(data)
         print(xml.to_string())
@@ -99,62 +99,78 @@ class TestMyModule(unittest.TestCase):
         self.addCleanup(self.mock_module_helper.stop)
         self.server = MockONTAPConnection()
         self.use_vsim = False
+        self.mock_ucadapter = {
+            'mode': 'fc',
+            'pending-mode': 'fc',
+            'type': 'target',
+            'pending-type': 'intitiator',
+            'status': 'up',
+        }
 
     def set_default_args(self):
-        if self.use_vsim:
-            hostname = '10.192.39.6'
-            username = 'admin'
-            password = 'netapp123'
-            node_name = 'bumblebee-reloaded-01'
-            adapter_name = '0f'
-        else:
-            hostname = 'hostname'
-            username = 'username'
-            password = 'password'
-            node_name = 'abc'
-            adapter_name = '0f'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'node_name': node_name,
-            'adapter_name': adapter_name,
-        })
+        args = (dict({
+            'hostname': '10.0.0.0',
+            'username': 'user',
+            'password': 'pass',
+            'node_name': 'node1',
+            'adapter_name': '0f',
+            'mode': self.mock_ucadapter['mode'],
+            'type': self.mock_ucadapter['type']
+        }))
+        return args
+
+    def get_ucadapter_mock_object(self, kind=None, data=None):
+        """
+        Helper method to return an na_ontap_unix_user object
+        :param kind: passes this param to MockONTAPConnection()
+        :return: na_ontap_unix_user object
+        """
+        obj = ucadapter_module()
+        obj.autosupport_log = Mock(return_value=None)
+        params = self.mock_ucadapter
+        if data is not None:
+            for k, v in data.items():
+                params[k] = v
+        obj.server = MockONTAPConnection(kind=kind, data=params)
+        return obj
 
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
         with pytest.raises(AnsibleFailJson) as exc:
             set_module_args({})
-            my_module()
+            ucadapter_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
     def test_ensure_ucadapter_get_called(self):
         ''' fetching ucadapter details '''
         set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        get_adapter = my_obj.get_adapter()
+        get_adapter = self.get_ucadapter_mock_object().get_adapter()
         print('Info: test_ucadapter_get: %s' % repr(get_adapter))
         assert get_adapter is None
 
-    def test_ensure_apply_for_ucadapter_called(self):
+    def test_change_mode_from_cna_to_fc(self):
         ''' configuring ucadaptor and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'type': 'target'})
-        module_args.update({'mode': 'initiator'})
         set_module_args(module_args)
-        my_obj = my_module()
-        my_obj.autosupport_log = Mock(return_value=None)
-        if not self.use_vsim:
-            my_obj.server = self.server
         with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ucadapter_apply: %s' % repr(exc.value))
+            self.get_ucadapter_mock_object().apply()
         assert not exc.value.args[0]['changed']
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('ucadapter', 'up')
         with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ucadapter_apply: %s' % repr(exc.value))
+            self.get_ucadapter_mock_object('ucadapter', {'mode': 'cna', 'pending-mode': 'cna'}).apply()
+        assert exc.value.args[0]['changed']
+
+        module_args['type'] = 'intitiator'
+        set_module_args(module_args)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_ucadapter_mock_object('ucadapter', {'mode': 'cna', 'pending-mode': 'cna'}).apply()
+        assert exc.value.args[0]['changed']
+
+    def test_change_mode_from_fc_to_cna(self):
+        module_args = self.set_default_args()
+        module_args['mode'] = 'cna'
+        del module_args['type']
+        set_module_args(module_args)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_ucadapter_mock_object('ucadapter').apply()
         assert exc.value.args[0]['changed']
