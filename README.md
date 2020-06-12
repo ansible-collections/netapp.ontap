@@ -25,6 +25,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.7.0
 
 ### New Options:
+- na_ontap_info: support `vserver` tunneling to limit output to one vserver
 - na_ontap_vscan_scanner_pool: support modification
 
 ### Bug fixes:

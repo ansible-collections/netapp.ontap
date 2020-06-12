@@ -32,7 +32,8 @@ options:
     vserver:
         type: str
         description:
-            - The Vserver to run on. Must be used if using VSadmin. Not all info's support VSadmin and may fail
+            - If present, 'vserver tunneling' will limit the output to the vserver scope.
+            - Note that not all subsets are supported on a vserver, and 'all' will trigger an error.
         version_added: '19.11.0'
     gather_subset:
         type: list
@@ -1232,7 +1233,8 @@ class NetAppONTAPGatherInfo(object):
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            # use vserver tunneling if vserver is present (not None)
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=module.params['vserver'])
 
     def ontapi(self):
         '''Method to get ontapi version'''
@@ -1240,7 +1242,7 @@ class NetAppONTAPGatherInfo(object):
         api = 'system-get-ontapi-version'
         api_call = netapp_utils.zapi.NaElement(api)
         try:
-            results = self.server.invoke_successfully(api_call, enable_tunneling=False)
+            results = self.server.invoke_successfully(api_call, enable_tunneling=True)
             ontapi_version = results.get_child_content('minor-version')
             return ontapi_version if ontapi_version is not None else '0'
         except netapp_utils.zapi.NaApiError as error:
@@ -1262,7 +1264,7 @@ class NetAppONTAPGatherInfo(object):
         if self.desired_attributes is not None:
             api_call.translate_struct(self.desired_attributes)
         try:
-            initial_result = self.server.invoke_successfully(api_call, enable_tunneling=False)
+            initial_result = self.server.invoke_successfully(api_call, enable_tunneling=True)
             next_tag = initial_result.get_child_by_name('next-tag')
             result = copy.copy(initial_result)
 
@@ -1273,7 +1275,7 @@ class NetAppONTAPGatherInfo(object):
                         next_tag_call.add_new_child(key, val)
 
                 next_tag_call.add_new_child("tag", next_tag.get_content(), True)
-                next_result = self.server.invoke_successfully(next_tag_call, enable_tunneling=False)
+                next_result = self.server.invoke_successfully(next_tag_call, enable_tunneling=True)
 
                 next_tag = next_result.get_child_by_name('next-tag')
                 if attributes_list_tag is None:
@@ -1390,15 +1392,23 @@ class NetAppONTAPGatherInfo(object):
 
         return out
 
+    def send_ems_event(self):
+        ''' use vserver if available, or cluster vserver '''
+        if self.module.params['vserver']:
+            server = self.server
+        else:
+            results = netapp_utils.get_cserver(self.server)
+            if results is None:
+                # most likely we're on a vserver interface already
+                server = self.server
+            else:
+                server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+        netapp_utils.ems_log_event("na_ontap_info", server)
+
     def get_all(self, gather_subset):
         '''Method to get all subsets'''
 
-        if self.module.params['vserver']:
-            netapp_utils.ems_log_event("na_ontap_info", self.server)
-        else:
-            results = netapp_utils.get_cserver(self.server)
-            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-            netapp_utils.ems_log_event("na_ontap_info", cserver)
+        self.send_ems_event()
 
         self.netapp_info['ontapi_version'] = self.ontapi()
         self.netapp_info['ontap_version'] = self.netapp_info['ontapi_version']
@@ -1464,7 +1474,9 @@ class NetAppONTAPGatherInfo(object):
     def get_summary(self, ontap_info):
         for info in ontap_info:
             if '_info' in info and ontap_info[info] is not None and type(ontap_info[info]) is dict:
-                ontap_info[info] = ontap_info[info].keys()
+                # don't summarize errors
+                if 'error' not in ontap_info[info]:
+                    ontap_info[info] = ontap_info[info].keys()
         return ontap_info
 
     def sanitize_desired_attributes(self):
