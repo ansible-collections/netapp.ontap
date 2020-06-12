@@ -39,6 +39,7 @@ options:
     description:
     - List of application to grant access to.
     - Creating a login with application console, telnet, rsh, and service-processor for a data Vserver is not supported.
+    - snmp is not supported in REST.
     required: true
     type: list
     choices: ['console', 'http','ontapi','rsh','snmp','service-processor','sp','ssh','telnet']
@@ -245,6 +246,9 @@ class NetAppOntapUser(object):
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        else:
+            if 'snmp' in self.parameters['applications']:
+                self.module.fail_json(msg="Snmp as application is not supported in REST.")
 
     def get_user_rest(self):
         api = 'security/accounts'

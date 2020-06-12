@@ -20,6 +20,16 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user \
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': ({}, None),
+    'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
+    'generic_error': (None, "Expected error")
+}
+
 
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
@@ -319,3 +329,19 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.modify_user(data['applications'])
         assert 'Error modifying user ' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_applications_snmp(self, mock_request):
+        data = self.set_default_args()
+        data.update({'applications': 'snmp'})
+        data.update({'name': 'create'})
+        data.update({'role_name': 'test123'})
+        data.update({'set_password': '123456'})
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_module()
+        assert exc.value.args[0]['msg'] == "Snmp as application is not supported in REST."
