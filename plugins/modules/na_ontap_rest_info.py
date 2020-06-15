@@ -39,6 +39,11 @@ options:
                 "aggregate_info",
                 "vserver_info",
                 "volume_info",
+                "cluster_peer_info",
+                "cluster_node_info",
+                "disk_info",
+                "cifs_share_info",
+                "cifs_services_info"
                 Can specify a list of values to include a larger subset.
             - REST APIs are supported with ONTAP 9.6 onwards.
         default: "all"
@@ -225,7 +230,22 @@ class NetAppONTAPGatherInfo(object):
             },
             'volume_info': {
                 'api_call': 'storage/volumes',
-            }
+            },
+            'cluster_node_info': {
+                'api_call': 'cluster/nodes',
+            },
+            'cluster_peer_info': {
+                'api_call': 'cluster/peers',
+            },
+            'disk_info': {
+                'api_call': 'storage/disks',
+            },
+            'cifs_services_info': {
+                'api_call': 'protocols/cifs/services',
+            },
+            'cifs_share_info': {
+                'api_call': 'protocols/cifs/shares',
+            },
         }
 
         if 'all' in self.parameters['gather_subset']:
