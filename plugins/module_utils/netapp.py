@@ -33,6 +33,7 @@ __metaclass__ = type
 import os
 import time
 from ansible.module_utils.basic import AnsibleModule, missing_required_lib
+from ansible.module_utils._text import to_native
 
 try:
     from ansible.module_utils.ansible_release import __version__ as ansible_version
@@ -277,6 +278,25 @@ def get_cserver_zapi(server):
         if vserver_list is not None:
             return vserver_list.get_child_content('vserver-name')
     return None
+
+
+def classify_zapi_exception(error):
+    ''' return type of error '''
+    try:
+        # very unlikely to fail, but don't take any chance
+        err_code = int(error.code)
+    except (AttributeError, ValueError):
+        err_code = 0
+    try:
+        # very unlikely to fail, but don't take any chance
+        err_msg = error.message
+    except AttributeError:
+        err_msg = ""
+    if err_code == 13005 and err_msg.startswith('Unable to find API:') and 'data vserver' in err_msg:
+        return 'missing_vserver_api_error', 'Most likely running a cluster level API as vserver: %s' % to_native(error)
+    if err_code == 13001 and err_msg.startswith("RPC: Couldn't make connection"):
+        return 'rpc_error', to_native(error)
+    return "other_error", to_native(error)
 
 
 def get_cserver(connection, is_rest=False):

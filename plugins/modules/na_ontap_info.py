@@ -183,6 +183,18 @@ options:
         type: bool
         default: false
         version_added: '20.6.0'
+    continue_on_error:
+        description:
+        - By default, this module fails on the first error.
+        - This option allows to provide a list of errors that are not failing the module.
+        - Errors in the list are reported in the output, under the related info element, as an "error" entry.
+        - Possible values are always, never, missing_vserver_api_error, rpc_error, other_error.
+        - missing_vserver_api_error - most likely the API is available at cluster level but not vserver level.
+        - rpc_error - some queries are failing because the node cannot reach another node in the cluster.
+        - other_error - anything not in the above list.
+        - always will continue on any error, never will fail on any error, they cannot be used with any other keyword.
+        type: list
+        default: never
 '''
 
 EXAMPLES = '''
@@ -203,6 +215,17 @@ EXAMPLES = '''
     username: "vsadmin"
     vserver: trident_svm
     password: "vsadmins_password"
+
+- name: run ontap info module using vserver tunneling and ignoring errors
+  na_ontap_info:
+    hostname: "na-vsim"
+    username: "admin"
+    password: "admins_password"
+    vserver: trident_svm
+    summary: true
+    continue_on_error:
+      - missing_vserver_api_error
+      - rpc_error
 
 - name: Limit Info Gathering to Aggregate Information as Cluster Admin
   na_ontap_info:
@@ -344,6 +367,7 @@ class NetAppONTAPGatherInfo(object):
         self.desired_attributes = module.params['desired_attributes']
         self.translate_keys = not module.params['use_native_zapi_tags']
         self.warnings = list()  # warnings will be added to the info results, if any
+        self.set_error_flags()
 
         # thanks to coreywan (https://github.com/ansible/ansible/pull/47016)
         # for starting this
@@ -1293,10 +1317,15 @@ class NetAppONTAPGatherInfo(object):
         except netapp_utils.zapi.NaApiError as error:
             if call in ['security-key-manager-key-get-iter']:
                 return result, None
-            if fail_on_error:
-                self.module.fail_json(msg="Error calling API %s: %s"
-                                      % (call, to_native(error)), exception=traceback.format_exc())
-            return None, error
+            kind, error_message = netapp_utils.classify_zapi_exception(error)
+            if kind == 'missing_vserver_api_error':
+                # for missing_vserver_api_error, the API is already in error_message
+                error_message = "Error invalid API.  %s" % error_message
+            else:
+                error_message = "Error calling API %s: %s" % (call, error_message)
+            if self.error_flags[kind]:
+                self.module.fail_json(msg=error_message, exception=traceback.format_exc())
+            return None, error_message
 
     def get_ifgrp_info(self):
         '''Method to get network port ifgroups info'''
@@ -1331,7 +1360,7 @@ class NetAppONTAPGatherInfo(object):
         generic_call, error = self.call_api(call, attributes_list_tag, query, fail_on_error=fail_on_error)
 
         if error is not None:
-            return {'error': str(error)}
+            return {'error': error}
 
         if generic_call is None:
             return None
@@ -1501,6 +1530,24 @@ class NetAppONTAPGatherInfo(object):
             for val in d_param:
                 self.check_for___in_keys(val)
 
+    def set_error_flags(self):
+        error_flags = self.module.params['continue_on_error']
+        generic_flags = ('always', 'never')
+        if len(error_flags) > 1:
+            for key in generic_flags:
+                if key in error_flags:
+                    self.module.fail_json(msg="%s needs to be the only keyword in 'continue_on_error' option." % key)
+        specific_flags = ('rpc_error', 'missing_vserver_api_error', 'other_error')
+        for key in error_flags:
+            if key not in generic_flags and key not in specific_flags:
+                self.module.fail_json(msg="%s is not a valid keyword in 'continue_on_error' option." % key)
+        self.error_flags = dict()
+        for flag in specific_flags:
+            self.error_flags[flag] = True
+            for key in error_flags:
+                if key == 'always' or key == flag:
+                    self.error_flags[flag] = False
+
 
 # https://stackoverflow.com/questions/14962485/finding-a-key-recursively-in-a-dictionary
 def __finditem(obj, key):
@@ -1566,7 +1613,8 @@ def main():
             )
         ),
         desired_attributes=dict(type='dict', required=False),
-        use_native_zapi_tags=dict(type='bool', required=False, default=False)
+        use_native_zapi_tags=dict(type='bool', required=False, default=False),
+        continue_on_error=dict(type='list', required=False, default=['never']),
     ))
 
     module = AnsibleModule(

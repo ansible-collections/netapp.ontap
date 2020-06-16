@@ -192,7 +192,8 @@ class TestMyModule(unittest.TestCase):
             vserver=dict(type='str', default=None, required=False),
             max_records=dict(type='int', default=1024, required=False),
             desired_attributes=dict(type='dict', required=False),
-            use_native_zapi_tags=dict(type='bool', required=False, default=False)
+            use_native_zapi_tags=dict(type='bool', required=False, default=False),
+            continue_on_error=dict(type='list', required=False, default=['never'])
         ))
         module = basic.AnsibleModule(
             argument_spec=argument_spec,
@@ -490,3 +491,66 @@ class TestMyModule(unittest.TestCase):
         for adict in converted:
             for akey in adict:
                 assert akey == self.d2us(key)
+
+    def test_set_error_flags_error_n(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['never', 'whatever']
+        set_module_args(args)
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj = self.get_info_mock_object('vserver')
+        print('Info: %s' % exc.value.args[0]['msg'])
+        msg = "never needs to be the only keyword in 'continue_on_error' option."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_set_error_flags_error_a(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['whatever', 'always']
+        set_module_args(args)
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj = self.get_info_mock_object('vserver')
+        print('Info: %s' % exc.value.args[0]['msg'])
+        msg = "always needs to be the only keyword in 'continue_on_error' option."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_set_error_flags_error_u(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['whatever', 'else']
+        set_module_args(args)
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj = self.get_info_mock_object('vserver')
+        print('Info: %s' % exc.value.args[0]['msg'])
+        msg = "whatever is not a valid keyword in 'continue_on_error' option."
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_set_error_flags_1_flag(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['missing_vserver_api_error']
+        set_module_args(args)
+        obj = self.get_info_mock_object('vserver')
+        assert not obj.error_flags['missing_vserver_api_error']
+        assert obj.error_flags['rpc_error']
+        assert obj.error_flags['other_error']
+
+    def test_set_error_flags_2_flags(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['missing_vserver_api_error', 'rpc_error']
+        set_module_args(args)
+        obj = self.get_info_mock_object('vserver')
+        assert not obj.error_flags['missing_vserver_api_error']
+        assert not obj.error_flags['rpc_error']
+        assert obj.error_flags['other_error']
+
+    def test_set_error_flags_3_flags(self):
+        ''' Check set_error__flags return correct dict '''
+        args = dict(self.mock_args())
+        args['continue_on_error'] = ['missing_vserver_api_error', 'rpc_error', 'other_error']
+        set_module_args(args)
+        obj = self.get_info_mock_object('vserver')
+        assert not obj.error_flags['missing_vserver_api_error']
+        assert not obj.error_flags['rpc_error']
+        assert not obj.error_flags['other_error']

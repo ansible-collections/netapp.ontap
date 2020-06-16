@@ -25,12 +25,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.7.0
 
 ### New Options:
-- na_ontap_info: support `vserver` tunneling to limit output to one vserver
-- na_ontap_vscan_scanner_pool: support modification
-- na_ontap_rest_info: Support for gather subsets - `cluster_node_info, cluster_peer_info, disk_info, cifs_services_info, cifs_share_info`
+- na_ontap_info: support `continue_on_error` option to continue when a ZAPI is not supported on a vserver, or for cluster RPC errors.
+- na_ontap_info: support `vserver` tunneling to limit output to one vserver.
+- na_ontap_vscan_scanner_pool: support modification.
+- na_ontap_rest_info: Support for gather subsets - `cluster_node_info, cluster_peer_info, disk_info, cifs_services_info, cifs_share_info`.
 
 ### Bug fixes:
-- na_ontap_firmware_download: exception on PCDATA if ONTAP returns a BEL (0x07) character
+- na_ontap_firmware_download: exception on PCDATA if ONTAP returns a BEL (0x07) character.
 - na_ontap_info: lists were incorrectly processed in convert_keys, returning {}
 - na_ontap_ucadapter: fixed KeyError if type is not provided and mode is 'cna'.
 - na_ontap_user: checked `applications` does not contain snmp when using REST API call.

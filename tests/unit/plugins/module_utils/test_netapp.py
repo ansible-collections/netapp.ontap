@@ -353,3 +353,35 @@ def test_certificate_method_zapi():
     # for python 2,6 :(
     msg2 = 'SSL certificate authentication requires python 2.7 or later.'
     assert exc.value.args[0]['msg'].startswith((msg1, msg2))
+
+
+def test_classify_zapi_exception_cluster_only():
+    ''' verify output matches expectations '''
+    code = 13005
+    message = 'Unable to find API: diagnosis-alert-get-iter on data vserver trident_svm'
+    zapi_exception = netapp_utils.zapi.NaApiError(code, message)
+    kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
+    assert kind == 'missing_vserver_api_error'
+    assert new_message.endswith("%d:%s" % (code, message))
+
+
+def test_classify_zapi_exception_rpc_error():
+    ''' verify output matches expectations '''
+    code = 13001
+    message = "RPC: Couldn't make connection [from mgwd on node \"laurentn-vsim1\" (VSID: -1) to mgwd at 172.32.78.223]"
+    error_message = 'NetApp API failed. Reason - %d:%s' % (code, message)
+    zapi_exception = netapp_utils.zapi.NaApiError(code, message)
+    kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
+    assert kind == 'rpc_error'
+    assert new_message == error_message
+
+
+def test_classify_zapi_exception_other_error():
+    ''' verify output matches expectations '''
+    code = 13008
+    message = 'whatever'
+    error_message = 'NetApp API failed. Reason - %d:%s' % (code, message)
+    zapi_exception = netapp_utils.zapi.NaApiError(code, message)
+    kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
+    assert kind == 'other_error'
+    assert new_message == error_message
