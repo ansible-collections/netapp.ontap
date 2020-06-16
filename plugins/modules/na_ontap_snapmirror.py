@@ -470,9 +470,7 @@ class NetAppONTAPSnapmirror(object):
             if not self.parameters.get('source_hostname'):
                 self.module.fail_json(msg='Missing parameters for delete: Please specify the '
                                           'source cluster hostname to release the SnapMirror relationship')
-        # Quiesce at destination
-        self.snapmirror_quiesce()
-        # Break at destination
+        # Quiesce and Break at destination
         if relationship_type not in ['load_sharing', 'vault'] and mirror_state not in ['uninitialized', 'broken-off']:
             self.snapmirror_break()
         # if source is ONTAP, release the destination at source cluster
