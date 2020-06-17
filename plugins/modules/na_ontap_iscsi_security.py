@@ -131,11 +131,11 @@ class NetAppONTAPIscsiSecurity(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             auth_type=dict(required=False, type='str', choices=['chap', 'none', 'deny']),
-            inbound_password=dict(required=False, type='str'),
+            inbound_password=dict(required=False, type='str', no_log=True),
             inbound_username=dict(required=False, type='str'),
             initiator=dict(required=True, type='str'),
             address_ranges=dict(required=False, type='list'),
-            outbound_password=dict(required=False, type='str'),
+            outbound_password=dict(required=False, type='str', no_log=True),
             outbound_username=dict(required=False, type='str'),
         ))
 
