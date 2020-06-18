@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_ucadapter: fixed KeyError if type is not provided and mode is 'cna'.
 - na_ontap_user: checked `applications` does not contain snmp when using REST API call.
 - na_ontap_user: fixed KeyError if locked key not set with REST API call.
+- na_ontap_volume: fixed KeyError when getting info on a MVD volume
 
 ### Example playbook
 - na_ontap_pb_get_online_volumes.yml: list of volumes that are online (or offline).

@@ -729,7 +729,10 @@ class NetAppOntapVolume(object):
             volume_space_attributes = volume_attributes['volume-space-attributes']
             volume_state_attributes = volume_attributes['volume-state-attributes']
             volume_id_attributes = volume_attributes['volume-id-attributes']
-            volume_export_attributes = volume_attributes['volume-export-attributes']
+            try:
+                volume_export_attributes = volume_attributes['volume-export-attributes']
+            except KeyError:  # does not exist for MDV volumes
+                volume_export_attributes = None
             volume_security_unix_attributes = volume_attributes['volume-security-attributes']['volume-security-unix-attributes']
             volume_snapshot_attributes = volume_attributes['volume-snapshot-attributes']
             volume_performance_attributes = volume_attributes['volume-performance-attributes']
@@ -746,10 +749,13 @@ class NetAppOntapVolume(object):
                 'name': vol_name,
                 'size': int(volume_space_attributes['size']),
                 'is_online': is_online,
-                'policy': volume_export_attributes['policy'],
                 'unix_permissions': volume_security_unix_attributes['permissions'],
                 'snapshot_policy': volume_snapshot_attributes['snapshot-policy']
             }
+            if volume_export_attributes is not None:
+                return_value['policy'] = volume_export_attributes['policy']
+            else:
+                return_value['policy'] = None
             if volume_security_unix_attributes.get_child_by_name('group-id'):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
             if volume_security_unix_attributes.get_child_by_name('user-id'):
