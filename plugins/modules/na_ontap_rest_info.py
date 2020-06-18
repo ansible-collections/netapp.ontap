@@ -3,7 +3,6 @@
 # (c) 2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-
 """ NetApp ONTAP Info using REST APIs """
 
 
@@ -35,15 +34,16 @@ options:
         type: list
         description:
             - When supplied, this argument will restrict the information collected
-                to a given subset.  Possible values for this argument include
-                "aggregate_info",
-                "vserver_info",
-                "volume_info",
-                "cluster_peer_info",
-                "cluster_node_info",
-                "disk_info",
-                "cifs_share_info",
-                "cifs_services_info"
+                to a given subset.  Either the info name or the Rest API can be given.
+                Possible values for this argument include
+                "aggregate_info" or "storage/aggregates",
+                "cifs_services_info" or "protocols/cifs/services",
+                "cifs_share_info" or "protocols/cifs/shares",
+                "cluster_node_info" or "cluster/nodes",
+                "cluster_peer_info" or "cluster/peers",
+                "disk_info" or "storage/disks",
+                "vserver_info" or "svm/svms",
+                "volume_info" or "storage/volumes",
                 Can specify a list of values to include a larger subset.
             - REST APIs are supported with ONTAP 9.6 onwards.
         default: "all"
@@ -60,6 +60,11 @@ options:
                '<list of fields>'  to return specified fields, only one subset will be allowed.
             - If the option is not present, return all the fields.
         version_added: '20.6.0'
+    parameters:
+        description:
+        - Allows for any rest option to be passed in
+        type: dict
+        version_added: '20.7.0'
 '''
 
 EXAMPLES = '''
@@ -142,7 +147,8 @@ class NetAppONTAPGatherInfo(object):
             state=dict(type='str', choices=['info'], default='info', required=False),
             gather_subset=dict(default=['all'], type='list', required=False),
             max_records=dict(type='int', default=1024, required=False),
-            fields=dict(type='list', required=False)
+            fields=dict(type='list', required=False),
+            parameters=dict(type='dict', required=False)
         ))
 
         self.module = AnsibleModule(
@@ -181,6 +187,10 @@ class NetAppONTAPGatherInfo(object):
 
         api = gather_subset_info['api_call']
         data = {'max_records': self.parameters['max_records'], 'fields': self.fields}
+        # allow for passing in any additional rest api fields
+        if self.parameters.get('parameters'):
+            for each in self.parameters['parameters']:
+                data[each] = self.parameters['parameters'][each]
 
         gathered_ontap_info, error = self.restApi.get(api, data)
 
@@ -188,6 +198,10 @@ class NetAppONTAPGatherInfo(object):
             # Fail the module if error occurs from REST APIs call
             if int(error.get('code', 0)) == 6:
                 self.module.fail_json(msg="%s user is not authorized to make %s api call" % (self.parameters.get('username'), api))
+            # if Aggr recommender can't make a recommendation it will fail with the following error code.
+            # We don't want to fail
+            elif int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message'):
+                return error.get('message')
             else:
                 self.module.fail_json(msg=error)
         else:
@@ -210,6 +224,31 @@ class NetAppONTAPGatherInfo(object):
 
         return gather_subset_info
 
+    def convert_subsets(self):
+        """
+        Convert an info to the REST API
+        """
+        info_to_rest_mapping = {
+            "aggregate_info": "storage/aggregates",
+            "cifs_services_info": "protocols/cifs/services",
+            "cifs_share_info": "protocols/cifs/shares",
+            "cluster_node_info": "cluster/nodes",
+            "cluster_peer_info": "cluster/peers",
+            "disk_info": "storage/disks",
+            "vserver_info": "svm/svms",
+            "volume_info": "storage/volumes"
+        }
+        # Add rest API names as there info version, also make sure we don't add a duplicate
+        subsets = []
+        for subset in self.parameters['gather_subset']:
+            if subset in info_to_rest_mapping:
+                if info_to_rest_mapping[subset] not in subsets:
+                    subsets.append(info_to_rest_mapping[subset])
+            else:
+                if subset not in subsets:
+                    subsets.append(subset)
+        return subsets
+
     def apply(self):
         """
         Perform pre-checks, call functions and exit
@@ -222,29 +261,29 @@ class NetAppONTAPGatherInfo(object):
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
-            'aggregate_info': {
+            'storage/aggregates': {
                 'api_call': 'storage/aggregates',
             },
-            'vserver_info': {
-                'api_call': 'svm/svms',
-            },
-            'volume_info': {
-                'api_call': 'storage/volumes',
-            },
-            'cluster_node_info': {
-                'api_call': 'cluster/nodes',
-            },
-            'cluster_peer_info': {
-                'api_call': 'cluster/peers',
-            },
-            'disk_info': {
-                'api_call': 'storage/disks',
-            },
-            'cifs_services_info': {
+            'protocols/cifs/services': {
                 'api_call': 'protocols/cifs/services',
             },
-            'cifs_share_info': {
+            'protocols/cifs/shares': {
                 'api_call': 'protocols/cifs/shares',
+            },
+            'cluster/nodes': {
+                'api_call': 'cluster/nodes',
+            },
+            'cluster/peers': {
+                'api_call': 'cluster/peers',
+            },
+            'storage/disks': {
+                'api_call': 'storage/disks',
+            },
+            'svm/svms': {
+                'api_call': 'svm/svms',
+            },
+            'storage/volumes': {
+                'api_call': 'storage/volumes',
             },
         }
 
@@ -261,8 +300,9 @@ class NetAppONTAPGatherInfo(object):
             if self.fields != '*' and length_of_subsets > 1:
                 # Restrict gather subsets to one subset if fields section is list_of_fields
                 self.module.fail_json(msg="Error: fields: %s, only one subset will be allowed." % self.parameters.get('fields'))
+        converted_subsets = self.convert_subsets()
 
-        for subset in self.parameters['gather_subset']:
+        for subset in converted_subsets:
             try:
                 # Verify whether the supported subset passed
                 specified_subset = get_ontap_subset_info[subset]
@@ -272,17 +312,19 @@ class NetAppONTAPGatherInfo(object):
 
             result_message[subset] = self.get_subset_info(specified_subset)
 
-            while result_message[subset]['_links'].get('next'):
-                # Get all the set of records if next link found in subset_info for the specified subset
-                next_api = result_message[subset]['_links']['next']['href']
-                gathered_subset_info = self.get_next_records(next_api.replace('/api', ''))
+            if result_message[subset] is not None:
+                if isinstance(result_message[subset], dict):
+                    while result_message[subset]['_links'].get('next'):
+                        # Get all the set of records if next link found in subset_info for the specified subset
+                        next_api = result_message[subset]['_links']['next']['href']
+                        gathered_subset_info = self.get_next_records(next_api.replace('/api', ''))
 
-                # Update the subset info for the specified subset
-                result_message[subset]['_links'] = gathered_subset_info['_links']
-                result_message[subset]['records'].extend(gathered_subset_info['records'])
+                        # Update the subset info for the specified subset
+                        result_message[subset]['_links'] = gathered_subset_info['_links']
+                        result_message[subset]['records'].extend(gathered_subset_info['records'])
 
-            # Getting total number of records
-            result_message[subset]['num_records'] = len(result_message[subset]['records'])
+                    # Getting total number of records
+                    result_message[subset]['num_records'] = len(result_message[subset]['records'])
 
         self.module.exit_json(changed='False', state=self.parameters['state'], ontap_info=result_message)
 

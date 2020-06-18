@@ -226,7 +226,7 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_vserver_info_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_vserver_info())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['vserver_info']
+        gather_subset = ['svm/svms']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -241,7 +241,7 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_volume_info_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_volume_info())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['volume_info']
+        gather_subset = ['storage/volumes']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -256,8 +256,8 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_all_subsets_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['aggregate_info', 'vserver_info', 'volume_info', 'cluster_node_info',
-                         'cluster_peer_info', 'cifs_services_info', 'cifs_share_info', 'disk_info']
+        gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cluster/nodes',
+                         'cluster/peers', 'protocols/cifs/services', 'protocols/cifs/shares', 'storage/disks']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -279,8 +279,8 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['aggregate_info', 'vserver_info', 'volume_info', 'cluster_node_info',
-                         'cluster_peer_info', 'cifs_services_info', 'cifs_share_info', 'disk_info']
+        gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cluster/nodes',
+                         'cluster/peers', 'protocols/cifs/services', 'protocols/cifs/shares', 'storage/disks']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -321,7 +321,7 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_aggregate_info_with_fields_section_pass())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['aggregate_info']
+        gather_subset = ['storage/aggregates']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -347,4 +347,4 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(exc.value.args))
-        assert exc.value.args[0]['ontap_info']['volume_info']['num_records'] == total_records
+        assert exc.value.args[0]['ontap_info']['storage/volumes']['num_records'] == total_records
