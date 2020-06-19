@@ -24,6 +24,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.7.0
 
+### New Modules
+- na_ontap_security_certificates: limited to install and delete actions for this release.
+
 ### New Options:
 - na_ontap_info: support `continue_on_error` option to continue when a ZAPI is not supported on a vserver, or for cluster RPC errors.
 - na_ontap_info: support `query` option to specify which objects to return.
