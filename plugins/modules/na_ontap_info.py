@@ -176,6 +176,17 @@ options:
         - The module will error out if any key attribute is missing.
         type: dict
         version_added: '20.6.0'
+    query:
+        description:
+        - Advanced feature requiring to understand ZAPI internals.
+        - Allows to specify which objects to return.
+        - A dictionary for the zapi query element.
+        - An XML tag I(<tag>value</tag>) is a dictionary with tag as the key.
+        - Value can be another dictionary, a list of dictionaries, a string, or nothing.
+        - eg I(<tag/>) is represented as I(tag:)
+        - Only a single subset can be called at a time if this option is set.
+        type: dict
+        version_added: '20.7.0'
     use_native_zapi_tags:
         description:
         - By default, I(-) in the returned dictionary keys are translated to I(_).
@@ -282,6 +293,25 @@ EXAMPLES = '''
     use_native_zapi_tags: true
     register: ontap
 - debug: var=ontap
+
+- name: run ontap info to get offline volumes with dp in the name
+  na_ontap_info:
+    # <<: *cert_login
+    gather_subset: volume_info
+    query:
+      volume-attributes:
+        volume-id-attributes:
+          name: '*dp*'
+        volume-state-attributes:
+          state: offline
+    desired_attributes:
+      volume-attributes:
+        volume-id-attributes:
+          name:
+        volume-state-attributes:
+          state:
+  register: ontap
+- debug: var=ontap
 '''
 
 RETURN = '''
@@ -365,6 +395,7 @@ class NetAppONTAPGatherInfo(object):
             volume_move_target_aggr_info = dict()
         self.netapp_info = dict()
         self.desired_attributes = module.params['desired_attributes']
+        self.query = module.params['query']
         self.translate_keys = not module.params['use_native_zapi_tags']
         self.warnings = list()  # warnings will be added to the info results, if any
         self.set_error_flags()
@@ -1287,6 +1318,8 @@ class NetAppONTAPGatherInfo(object):
 
         if self.desired_attributes is not None:
             api_call.translate_struct(self.desired_attributes)
+        if self.query is not None:
+            api_call.translate_struct(self.query)
         try:
             initial_result = self.server.invoke_successfully(api_call, enable_tunneling=True)
             next_tag = initial_result.get_child_by_name('next-tag')
@@ -1453,6 +1486,10 @@ class NetAppONTAPGatherInfo(object):
                 if len(run_subset) > 1:
                     self.module.fail_json(msg="desired_attributes option is only supported with a single subset")
                 self.sanitize_desired_attributes()
+            if self.query is not None:
+                if len(run_subset) > 1:
+                    self.module.fail_json(msg="query option is only supported with a single subset")
+                self.sanitize_query()
             for subset in run_subset:
                 call = self.info_subsets[subset]
                 self.netapp_info[subset] = call['method'](**call['kwargs'])
@@ -1518,6 +1555,17 @@ class NetAppONTAPGatherInfo(object):
             desired_attributes[da_key] = self.desired_attributes
             self.desired_attributes = desired_attributes
         self.check_for___in_keys(self.desired_attributes)
+
+    def sanitize_query(self):
+        ''' add top 'query' if absent
+            check for _ as more likely ZAPI does not take them
+        '''
+        key = 'query'
+        if key not in self.query:
+            query = dict()
+            query[key] = self.query
+            self.query = query
+        self.check_for___in_keys(self.query)
 
     def check_for___in_keys(self, d_param):
         '''Method to warn on underscore in a ZAPI tag'''
@@ -1615,6 +1663,7 @@ def main():
         desired_attributes=dict(type='dict', required=False),
         use_native_zapi_tags=dict(type='bool', required=False, default=False),
         continue_on_error=dict(type='list', required=False, default=['never']),
+        query=dict(type='dict', required=False),
     ))
 
     module = AnsibleModule(

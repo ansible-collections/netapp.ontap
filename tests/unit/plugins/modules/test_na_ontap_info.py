@@ -193,7 +193,8 @@ class TestMyModule(unittest.TestCase):
             max_records=dict(type='int', default=1024, required=False),
             desired_attributes=dict(type='dict', required=False),
             use_native_zapi_tags=dict(type='bool', required=False, default=False),
-            continue_on_error=dict(type='list', required=False, default=['never'])
+            continue_on_error=dict(type='list', required=False, default=['never']),
+            query=dict(type='dict', required=False),
         ))
         module = basic.AnsibleModule(
             argument_spec=argument_spec,

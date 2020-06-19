@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options:
 - na_ontap_info: support `continue_on_error` option to continue when a ZAPI is not supported on a vserver, or for cluster RPC errors.
+- na_ontap_info: support `query` option to specify which objects to return.
 - na_ontap_info: support `vserver` tunneling to limit output to one vserver.
 - na_ontap_snapmirror_policy: support for SnapMirror policy rules.
 - na_ontap_vscan_scanner_pool: support modification.
