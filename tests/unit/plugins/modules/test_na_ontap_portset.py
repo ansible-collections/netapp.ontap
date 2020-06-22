@@ -170,7 +170,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('portset')
+            my_obj.server = MockONTAPConnection('portset', parm3='mixed')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_portset_apply: %s' % repr(exc.value))

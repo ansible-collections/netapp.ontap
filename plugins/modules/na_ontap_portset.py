@@ -16,6 +16,7 @@ short_description: NetApp ONTAP Create/Delete portset
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create/Delete ONTAP portset, modify ports in a portset.
+  - Modify type(protocol) is not supported in ONTAP.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_portset
@@ -142,8 +143,6 @@ class NetAppONTAPPortset(object):
         portset_info = netapp_utils.zapi.NaElement('portset-info')
         portset_info.add_new_child('vserver', self.parameters['vserver'])
         portset_info.add_new_child('portset-name', self.parameters['name'])
-        if self.parameters.get('type'):
-            portset_info.add_new_child('portset-type', self.parameters['type'])
         query.add_child_elem(portset_info)
         portset_get.add_child_elem(query)
         return portset_get
@@ -164,6 +163,7 @@ class NetAppONTAPPortset(object):
         # return portset details
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
             portset_get_info = result.get_child_by_name('attributes-list').get_child_by_name('portset-info')
+            portset_info['type'] = portset_get_info.get_child_content('portset-type')
             if int(portset_get_info.get_child_content('portset-port-total')) > 0:
                 ports = portset_get_info.get_child_by_name('portset-port-info')
                 portset_info['ports'] = [port.get_content() for port in ports.get_children()]
@@ -249,6 +249,9 @@ class NetAppONTAPPortset(object):
         current, modify = self.portset_get(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
+            if self.parameters.get('type') and self.parameters['type'] != current['type']:
+                self.module.fail_json(msg="modify protocol(type) not supported and %s already exists in vserver %s under different type" %
+                                          (self.parameters['name'], self.parameters['vserver']))
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
