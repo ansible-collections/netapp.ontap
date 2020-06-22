@@ -687,7 +687,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'qtree-list-iter',
                     'attribute': 'qtree-info',
-                    'key_fields': ('vserver', 'id'),
+                    'key_fields': ('vserver', 'volume', 'id'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',

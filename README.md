@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug fixes:
 - na_ontap_firmware_download: exception on PCDATA if ONTAP returns a BEL (0x07) character.
 - na_ontap_info: lists were incorrectly processed in convert_keys, returning {}.
+- na_ontap_info: qtree_info is missing most entries.  Changed key from `vserver:id` to `vserver:volume:id` .
 - na_ontap_iscsi_security: adding no_log for password parameters.
 - na_ontap_snapmirror: fixed snapmirror delete for loadsharing to not go to quiesce state for the rest of the set.
 - na_ontap_ucadapter: fixed KeyError if type is not provided and mode is 'cna'.
