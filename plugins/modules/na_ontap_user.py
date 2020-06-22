@@ -76,6 +76,8 @@ options:
   vserver:
     description:
     - The name of the vserver to use.
+    aliases:
+      - svm
     required: true
   authentication_protocol:
     description:
@@ -212,7 +214,7 @@ class NetAppOntapUser(object):
             set_password=dict(required=False, type='str', no_log=True),
             role_name=dict(required=False, type='str'),
             lock_user=dict(required=False, type='bool'),
-            vserver=dict(required=True, type='str'),
+            vserver=dict(required=True, type='str', aliases=['svm']),
             authentication_protocol=dict(required=False, type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
             authentication_password=dict(required=False, type='str', no_log=True),
             engine_id=dict(required=False, type='str'),
@@ -253,14 +255,22 @@ class NetAppOntapUser(object):
     def get_user_rest(self):
         api = 'security/accounts'
         params = {
-            'name': self.parameters['name'],
-            'owner.name': self.parameters['vserver'],
+            'name': self.parameters['name']
         }
+        if self.parameters.get('vserver') is None:
+            # vserser is empty for cluster
+            params['scope'] = 'cluster'
+        else:
+            params['owner.name'] = self.parameters['vserver']
+
         message, error = self.restApi.get(api, params)
         if error:
             self.module.fail_json(msg='Error while fetching user info: %s' % error)
         if message['num_records'] == 1:
             return message['records'][0]['owner']['uuid'], message['records'][0]['name']
+        if message['num_records'] > 1:
+            self.module.fail_json(msg='Error while fetching user info, found multiple entries: %s' % repr(message))
+
         return None
 
     def get_user_details_rest(self, name, uuid):
@@ -335,10 +345,12 @@ class NetAppOntapUser(object):
             api = 'security/accounts'
             params = {
                 'name': self.parameters['name'],
-                'owner.name': self.parameters['vserver'],
                 'role.name': self.parameters['role_name'],
                 'applications': app_list
             }
+            if self.parameters.get('vserver') is not None:
+                # vserser is empty for cluster
+                params['owner.name'] = self.parameters['vserver']
             if 'set_password' in self.parameters:
                 params['password'] = self.parameters['set_password']
             message, error = self.restApi.post(api, params)

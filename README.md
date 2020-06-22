@@ -44,10 +44,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_ucadapter: fixed KeyError if type is not provided and mode is 'cna'.
 - na_ontap_user: checked `applications` does not contain snmp when using REST API call.
 - na_ontap_user: fixed KeyError if locked key not set with REST API call.
+- na_ontap_user: fixed KeyError if vserver: is empty with REST API call (useful to indicate cluster scope).
 - na_ontap_volume: fixed KeyError when getting info on a MVD volume
 
 ### Example playbook
 - na_ontap_pb_get_online_volumes.yml: list of volumes that are online (or offline).
+- na_ontap_pb_install_SSL_certificate_REST.yml: installing SSL certificate using REST APIs.
 
 ## 20.6.1
 
@@ -98,7 +100,7 @@ SSL certificate authentication requires python2.7 or 3.x.
 - na_ontap_volume: `force_unmap_luns` option controls automatic unmapping of LUNs during volume rehost.
 - na_ontap_volume: `from_vserver` option allows volume rehost from one vserver to another.
 - na_ontap_volume: `preserve_lun_ids` option controls LUNs in the volume being restored will remain mapped and their identities preserved.
-- na_ontap_volume: `snapshot_restroe` option specifies name of snapshot to restore from.
+- na_ontap_volume: `snapshot_restore` option specifies name of snapshot to restore from.
 - all modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication (python 2.7 or 3.x).
 
 ### Bug Fixes
