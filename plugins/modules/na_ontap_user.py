@@ -158,7 +158,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: Create user with snmp application
+    - name: Create user with snmp application (ZAPI)
       na_ontap_user:
         state: present
         name: test_cert_snmp
