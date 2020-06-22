@@ -34,10 +34,10 @@ options:
     type: str
 
   common_name:
-    required: true
     description:
     - Common name of the certificate.
-    - Required for create, install, or sign.
+    - Required for create and install.
+    - Ignored for sign and delete.
     type: str
 
   name:
@@ -58,21 +58,52 @@ options:
   type:
     description:
     - Type of certificate
-    - Required for create, install, or sign.
+    - Required for create and install.
+    - Ignored for sign and delete.
     choices: ['client', 'server', 'client_ca', 'server_ca', 'root_ca']
     type: str
 
   public_certificate:
     description:
     - Public key certificate in PEM format.
-    - Required when installing a certificate.
+    - Required when installing a certificate.  Ignored otherwise.
     type: str
 
   private_key:
     description:
     - Private key certificate in PEM format.
-    - Required when installing a CA-signed certificate.
+    - Required when installing a CA-signed certificate.  Ignored otherwise.
     type: str
+
+  signing_request:
+    description:
+    - If present, the certificate identified by name and svm is used to sign the request.
+    - A signed certificate is returned.
+    type: str
+
+  expiry_time:
+    description:
+    - Certificate expiration time. Specifying an expiration time is recommended when creating a certificate.
+    - Can be provided when signing a certificate.
+    type: str
+
+  key_size:
+    description:
+    - Key size of the certificate in bits. Specifying a strong key size is recommended when creating a certificate.
+    - Ignored for sign and delete.
+    type: int
+
+  hash_function:
+    description:
+    - Hashing function. Can be provided when creating a self-signed certificate or when signing a certificate.
+    - Allowed values for create and sign are sha256, sha224, sha384, sha512.
+    type: str
+
+  intermediate_certificates:
+    description:
+    - Chain of intermediate Certificates in PEM format.
+    - Only valid when installing a certificate.
+    type: list
 '''
 
 EXAMPLES = """
@@ -85,6 +116,40 @@ EXAMPLES = """
     type: client_ca
     svm: "{{ vserver }}"
 
+- name: create certificate
+  na_ontap_security_certificates:
+    # <<: *cert_login
+    common_name: "{{ ontap_cert_root_common_name }}"
+    name: "{{ ontap_cert_name }}"
+    type: root_ca
+    svm: "{{ vserver }}"
+    expiry_time: P365DT     # one year
+
+- name: sign certificate using newly create certificate
+  tags: sign_request
+  na_ontap_security_certificates:
+    # <<: *login
+    name: "{{ ontap_cert_name }}"
+    svm: "{{ vserver }}"
+    signing_request: |
+      -----BEGIN CERTIFICATE REQUEST-----
+      MIIChDCCAWwCAQAwPzELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAkNBMRIwEAYDVQQH
+      DAlTdW5ueXZhbGUxDzANBgNVBAoMBk5ldEFwcDCCASIwDQYJKoZIhvcNAQEBBQAD
+      ggEPADCCAQoCggEBALgXCj6Si/I4xLdV7wjWYTbt8jY20fQOjk/4E7yBT1vFBflE
+      ks6YDc6dhC2G18cnoj9E3DiR8lIHPoAlFB/VmBNDev3GZkbFlrbV7qYmf8OEx2H2
+      tAefgSP0jLmCHCN1yyhJoCG6FsAiD3tf6yoyFF6qS9ureGL0tCJJ/osx64WzUz+Q
+      EN8lx7VSxriEFMSjreXZDhUFaCdIYKKRENuEWyYvdy5cbBmczhuM8EP6peOVv5Hm
+      BJzPUDkq7oTtEHmttpATq2Y92qzNzETO0bXN5X/93AWri8/yEXdX+HEw1C/omtsE
+      jGsCXrCrIJ+DgUdT/GHNdBWlXl/cWGtEgEQ4vrUCAwEAAaAAMA0GCSqGSIb3DQEB
+      CwUAA4IBAQBjZNoQgr/JDm1T8zyRhLkl3zw4a16qKNu/MS7prqZHLVQgrptHRegU
+      Hbz11XoHfVOdbyuvtzEe95QsDd6FYCZ4qzZRF3se4IjMeqwdQZ5WP0/GFiwM8Uln
+      /0TCWjt759XMeUX7+wgOg5NRjJ660eWMXzu/UJf+vZO0Q2FiPIr13JvvY3TjT+9J
+      UUtK4r9PaUuOPN2YL9IQqSD3goh8302Qr3nBXUgjeUGLkgfUM5S39apund2hyTX2
+      JCLQsKr88pwU9iDho2tHLv/2QgLwNZLPu8V+7IGu6G4vB28lN4Uy7xbhxFOKtyWu
+      fK4sEdTw3B/aDN0tB8MHFdPYycNZsEac
+      -----END CERTIFICATE REQUEST-----
+    expiry_time: P180DT
+
 - name: delete certificate
   na_ontap_security_certificates:
     # <<: *cert_login
@@ -94,7 +159,15 @@ EXAMPLES = """
 """
 
 RETURN = """
-
+ontap_info:
+    description: Returns public_certificate when signing, empty for create, install, and delete.
+    returned: always
+    type: dict
+    sample: '{
+        "ontap_info": {
+            "public_certificate": "-----BEGIN CERTIFICATE-----\n........-----END CERTIFICATE-----\n"
+            }
+        }'
 """
 import traceback
 
@@ -119,6 +192,11 @@ class NetAppOntapSecurityCertificates(object):
             svm=dict(required=False, type='str', aliases=['vserver']),
             public_certificate=dict(required=False, type='str'),
             private_key=dict(required=False, type='str'),
+            signing_request=dict(required=False, type='str'),
+            expiry_time=dict(required=False, type='str'),
+            key_size=dict(required=False, type='int'),
+            hash_function=dict(required=False, type='str'),
+            intermediate_certificates=dict(required=False, type='list'),
         ))
 
         self.module = AnsibleModule(
@@ -150,9 +228,6 @@ class NetAppOntapSecurityCertificates(object):
             data['svm.name'] = self.parameters['svm']
         api = "security/certificates"
         message, error = self.restApi.get(api, data)
-        with open('/tmp/cert.txt', 'a') as f:
-            f.write(repr(message))
-            f.write('\n')
         if error:
             self.module.fail_json(msg=error)
         if len(message['records']) != 0:
@@ -185,7 +260,23 @@ class NetAppOntapSecurityCertificates(object):
                 error['target'] = 'cluster'
             if error.get('message') == 'duplicate entry':
                 error['message'] += '.  Same certificate may already exist under a different name.'
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg="Error creating or installing certificate: %s" % error)
+        return message
+
+    def sign_certificate(self, uuid):
+        """
+        sign certificate
+        :return: a dictionary with key "public_certificate"
+        """
+        api = "security/certificates/%s/sign" % uuid
+        data = {'signing_request': self.parameters['signing_request']}
+        optional_keys = ['expiry_time', 'hash_function']
+        for key in optional_keys:
+            if self.parameters.get(key) is not None:
+                data[key] = self.parameters[key]
+        message, error = self.restApi.post(api, data)
+        if error:
+            self.module.fail_json(msg="Error signing certificate: %s" % error)
         return message
 
     def delete_certificate(self, uuid):
@@ -197,7 +288,7 @@ class NetAppOntapSecurityCertificates(object):
         data = {'uuid': uuid}
         message, error = self.restApi.delete(api, data)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg="Error deleting certificate: %s" % error)
         return message
 
     def apply(self):
@@ -211,6 +302,18 @@ class NetAppOntapSecurityCertificates(object):
         current = self.get_certificate()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         message = None
+        if self.parameters.get('signing_request') is not None:
+            error = None
+            if self.parameters['state'] == 'absent':
+                error = "'signing_request' is not supported with 'state' set to 'absent'"
+            elif current is None:
+                scope = 'cluster' if self.parameters.get('svm') is None else "svm: %s" % self.parameters.get('svm')
+                error = "signing certificate with name '%s' not found on %s" % (self.parameters.get('name'), scope)
+            elif cd_action is not None:
+                error = "'signing_request' is exclusive with other actions: create, install, delete"
+            if error is not None:
+                self.module.fail_json(msg=error)
+            self.na_helper.changed = True
 
         if self.na_helper.changed:
             if self.module.check_mode:
@@ -219,12 +322,13 @@ class NetAppOntapSecurityCertificates(object):
                 if cd_action == 'create':
                     message = self.create_or_install_certificate()
                 elif cd_action == 'delete':
-                    uuid = current['uuid']
-                    message = self.delete_certificate(uuid)
+                    message = self.delete_certificate(current['uuid'])
+                elif self.parameters.get('signing_request') is not None:
+                    message = self.sign_certificate(current['uuid'])
 
         results = {'changed': self.na_helper.changed}
         if message:
-            results['msg'] = message
+            results['ontap_info'] = message
         self.module.exit_json(**results)
 
 

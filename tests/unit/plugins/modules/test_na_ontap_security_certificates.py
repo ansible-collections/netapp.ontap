@@ -227,3 +227,78 @@ def test_rest_idempotent_delete(mock_request, mock_fail, mock_exit):
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
     assert not exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_uuid'],    # get certificate -> found
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_failed_sign_missing_ca(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['empty_records'],   # get certificate -> not found
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "signing certificate with name '%s' not found on svm: %s" % (data['name'], data['vserver'])
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_failed_sign_absent(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_uuid'],    # get certificate -> found
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'state': 'absent'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "'signing_request' is not supported with 'state' set to 'absent'"
+    assert exc.value.args[0]['msg'] == msg
