@@ -136,8 +136,11 @@ def create_restapi_object(args):
     return restApi
 
 
-def create_OntapZAPICx_object(args):
-    module = create_module(args)
+def create_OntapZAPICx_object(args, feature_flags=None):
+    module_args = dict(args)
+    if feature_flags is not None:
+        module_args['feature_flags'] = feature_flags
+    module = create_module(module_args)
     module.fail_json = fail_json
     my_args = dict(args)
     my_args.update(dict(module=module))
@@ -385,3 +388,47 @@ def test_classify_zapi_exception_other_error():
     kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
     assert kind == 'other_error'
     assert new_message == error_message
+
+
+def test_zapi_parse_response_sanitized():
+    ''' should not fail when trying to read invalid XML characters (\x08) '''
+    args = mock_args()
+    zapi_cx = create_OntapZAPICx_object(args)
+    response = b"<?xml version='1.0' encoding='UTF-8' ?>\n<!DOCTYPE netapp SYSTEM 'file:/etc/netapp_gx.dtd'>\n"
+    response += b"<netapp version='1.180' xmlns='http://www.netapp.com/filer/admin'>\n<results status=\"passed\">"
+    response += b"<cli-output>  (cluster log-forwarding create)\n\n"
+    response += b"Testing network connectivity to the destination host 10.10.10.10.              \x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\n\n"
+    response += b"Error: command failed: Cannot contact destination host (10.10.10.10) from node\n"
+    response += b"       &quot;laurentn-vsim1&quot;. Verify connectivity to desired host or skip the\n"
+    response += b"       connectivity check with the &quot;-force&quot; parameter.</cli-output>"
+    response += b"<cli-result-value>0</cli-result-value></results></netapp>\n"
+    # Manually extract cli-output contents
+    cli_output = response.split(b'<cli-output>')[1]
+    cli_output = cli_output.split(b'</cli-output>')[0]
+    cli_output = cli_output.replace(b'&quot;', b'"')
+    # the XML parser would chole on \x08, zapi_cx._parse_response replaces them with '.'
+    cli_output = cli_output.replace(b'\x08', b'.')
+    # Use xml parser to extract cli-output contents
+    xml = zapi_cx._parse_response(response)
+    results = xml.get_child_by_name('results')
+    new_cli_output = results.get_child_content('cli-output')
+    assert cli_output.decode() == new_cli_output
+
+
+def test_zapi_parse_response_unsanitized():
+    ''' should fail when trying to read invalid XML characters (\x08) '''
+    args = mock_args()
+    # use feature_flags to disable sanitization
+    zapi_cx = create_OntapZAPICx_object(args, dict(sanitize_xml=False))
+    response = b"<?xml version='1.0' encoding='UTF-8' ?>\n<!DOCTYPE netapp SYSTEM 'file:/etc/netapp_gx.dtd'>\n"
+    response += b"<netapp version='1.180' xmlns='http://www.netapp.com/filer/admin'>\n<results status=\"passed\">"
+    response += b"<cli-output>  (cluster log-forwarding create)\n\n"
+    response += b"Testing network connectivity to the destination host 10.10.10.10.              \x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\n\n"
+    response += b"Error: command failed: Cannot contact destination host (10.10.10.10) from node\n"
+    response += b"       &quot;laurentn-vsim1&quot;. Verify connectivity to desired host or skip the\n"
+    response += b"       connectivity check with the &quot;-force&quot; parameter.</cli-output>"
+    response += b"<cli-result-value>0</cli-result-value></results></netapp>\n"
+    with pytest.raises(netapp_utils.zapi.etree.XMLSyntaxError) as exc:
+        zapi_cx._parse_response(response)
+    msg = 'PCDATA invalid Char value 8'
+    assert exc.value.msg.startswith(msg)

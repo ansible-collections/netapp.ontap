@@ -377,7 +377,13 @@ if HAS_NETAPP_LIB:
                     new_response = new_response.replace(b'\x07\r\n', b'')
                     # And 9.7 may send backspaces
                     for code_point in get_feature(self.module, 'sanitize_code_points'):
-                        new_response = new_response.replace(bytes([code_point]), b'.')
+                        if bytes([8]) == b'\x08':   # python 3
+                            byte = bytes([code_point])
+                        elif chr(8) == b'\x08':     # python 2
+                            byte = chr(code_point)
+                        else:                       # very unlikely, noop
+                            byte = b'.'
+                        new_response = new_response.replace(byte, b'.')
                     try:
                         return super(OntapZAPICx, self)._parse_response(new_response)
                     except Exception:
