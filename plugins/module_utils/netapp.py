@@ -130,12 +130,21 @@ def na_ontap_host_argument_spec():
 
 
 def has_feature(module, feature_name):
+    feature = get_feature(module, feature_name)
+    if isinstance(feature, bool):
+        return feature
+    module.fail_json(msg="Error: expected bool type for feature flag: %s" % feature_name)
+
+
+def get_feature(module, feature_name):
     ''' if the user has configured the feature, use it
         otherwise, use our default
     '''
     default_flags = dict(
         deprecation_warning=True,
-        check_required_params_for_none=True
+        check_required_params_for_none=True,
+        sanitize_xml=True,
+        sanitize_code_points=[8]     # unicode values, 8 is backspace
     )
 
     if feature_name in module.params['feature_flags']:
@@ -361,15 +370,25 @@ if HAS_NETAPP_LIB:
             try:
                 return super(OntapZAPICx, self)._parse_response(response)
             except zapi.etree.XMLSyntaxError as exc:
-                # some ONTAP CLI commands return BEL on error
-                response = response.replace(b'\x07\n', b'')
-                # And 9.1 uses \r\n rather than \n !
-                response = response.replace(b'\x07\r\n', b'')
+                if has_feature(self.module, 'sanitize_xml'):
+                    # some ONTAP CLI commands return BEL on error
+                    new_response = response.replace(b'\x07\n', b'')
+                    # And 9.1 uses \r\n rather than \n !
+                    new_response = new_response.replace(b'\x07\r\n', b'')
+                    # And 9.7 may send backspaces
+                    for code_point in get_feature(self.module, 'sanitize_code_points'):
+                        new_response = new_response.replace(bytes([code_point]), b'.')
+                    try:
+                        return super(OntapZAPICx, self)._parse_response(new_response)
+                    except Exception:
+                        pass
                 try:
-                    return super(OntapZAPICx, self)._parse_response(response)
+                    # report first exception, but include full response
+                    exc.msg += ".  Received: %s" % response
                 except Exception:
-                    # report first exception
-                    raise exc
+                    # in case the response is very badly formatted, ignore it
+                    pass
+                raise exc
 
 
 class OntapRestAPI(object):
