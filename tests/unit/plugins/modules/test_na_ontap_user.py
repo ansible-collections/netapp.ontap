@@ -27,7 +27,14 @@ SRR = {
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error")
+    'generic_error': (None, "Expected error"),
+    'get_uuid': ({'owner': {'uuid': 'ansible'}}, None),
+    'get_user_rest': ({'num_records': 1,
+                       'records': [{'owner': {'uuid': 'ansible_vserver'},
+                                   'name': 'abcd'}]}, None),
+    'get_user_details_rest': ({'role': {'name': 'vsadmin'},
+                               'applications': [{'application': 'http'}],
+                               'locked': False}, None)
 }
 
 
@@ -58,6 +65,20 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
+
+
+def set_default_args_rest():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'name': 'user_name',
+        'vserver': 'vserver',
+        'applications': 'http',
+        'authentication_method': 'password',
+        'role_name': 'vsadmin',
+        'lock_user': 'True',
+    })
 
 
 class MockONTAPConnection(object):
@@ -110,7 +131,7 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection()
         self.onbox = False
 
-    def set_default_args(self):
+    def set_default_args(self, rest=False):
         if self.onbox:
             hostname = '10.10.10.10'
             username = 'username'
@@ -345,3 +366,136 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_module()
         assert exc.value.args[0]['msg'] == "Snmp as application is not supported in REST."
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_user_get_rest_called(mock_request, mock_fail):
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['end_of_sequence']
+    ]
+    set_module_args(set_default_args_rest())
+    my_obj = my_module()
+    assert my_obj.get_user_rest() is not None
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_create_user_rest_called(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['get_user_rest'],
+    ]
+    set_module_args(set_default_args_rest())
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_delete_user_rest_called(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['get_user_rest'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'state': 'absent',
+    }
+    data.update(set_default_args_rest())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_modify_user_rest_called(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['get_user_rest'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'application': 'ssh',
+    }
+    data.update(set_default_args_rest())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_lock_unlock_user_rest_called(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['get_user_rest'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'lock_user': 'newvalue',
+    }
+    data.update(set_default_args_rest())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['get_user_rest'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'password': 'newvalue',
+    }
+    data.update(set_default_args_rest())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']

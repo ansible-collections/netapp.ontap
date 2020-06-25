@@ -37,6 +37,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - module_utils/netapp: add retry on wait_on_job when job failed. Abort 3 consecutive errors.
 
 ### Bug fixes:
+- na_ontap_command: replace invalid backspace characters (0x08) with '.'.
 - na_ontap_firmware_download: exception on PCDATA if ONTAP returns a BEL (0x07) character.
 - na_ontap_info: lists were incorrectly processed in convert_keys, returning {}.
 - na_ontap_info: qtree_info is missing most entries.  Changed key from `vserver:id` to `vserver:volume:id` .
@@ -106,7 +107,6 @@ SSL certificate authentication requires python2.7 or 3.x.
 - all modules: `cert_filepath`, `key_filepath` to enable SSL certificate authentication (python 2.7 or 3.x).
 
 ### Bug Fixes
-- na_ontap_command: replace invalid backspace characters (0x08) with '.'.
 - na_ontap_firmware_upgrade: ignore timeout when downloading firmware images by default.
 - na_ontap_info: conversion from '-' to '_' was not done for lists of dictionaries.
 - na_ontap_ntfs_dacl: example fix in documentation string.
