@@ -169,6 +169,7 @@ class NetAppOntapIgroupInitiator(object):
         initiators = self.get_initiators()
         for initiator in self.parameters['names']:
             present = None
+            initiator = self.na_helper.sanitize_wwn(initiator)
             if initiator in initiators:
                 present = True
             cd_action = self.na_helper.get_cd_action(present, self.parameters)

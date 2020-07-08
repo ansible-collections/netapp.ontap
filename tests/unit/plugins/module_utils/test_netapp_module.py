@@ -287,3 +287,27 @@ class TestMyModule(unittest.TestCase):
         my_module.params['required_param'] = 1
         my_params = my_obj.check_and_set_parameters(my_module)
         assert set(my_params.keys()) == set(['required_param', 'feature_flags'])
+
+    def test_sanitize_wwn_no_action(self):
+        ''' no change '''
+        initiator = 'tEsT'
+        expected = initiator
+        my_obj = na_helper()
+        result = my_obj.sanitize_wwn(initiator)
+        assert result == expected
+
+    def test_sanitize_wwn_no_action_valid_iscsi(self):
+        ''' no change '''
+        initiator = 'iqn.1995-08.com.eXaMpLe:StRiNg'
+        expected = initiator
+        my_obj = na_helper()
+        result = my_obj.sanitize_wwn(initiator)
+        assert result == expected
+
+    def test_sanitize_wwn_no_action_valid_wwn(self):
+        ''' no change '''
+        initiator = '01:02:03:04:0A:0b:0C:0d'
+        expected = initiator.lower()
+        my_obj = na_helper()
+        result = my_obj.sanitize_wwn(initiator)
+        assert result == expected

@@ -178,6 +178,9 @@ class NetAppOntapIgroup(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        if self.module.params.get('initiators') is not None:
+            self.parameters['initiators'] = [self.na_helper.sanitize_wwn(initiator)
+                                             for initiator in self.module.params['initiators']]
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
@@ -241,7 +244,6 @@ class NetAppOntapIgroup(object):
         """
         Add or remove an initiator to/from an igroup
         """
-        initiator.strip()  # remove leading spaces if any (eg: if user types a space after comma in initiators list)
         options = {'initiator-group-name': self.parameters['name'],
                    'initiator': initiator}
 

@@ -22,6 +22,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.8.0
+
+### Bug fixes:
+- na_ontap_igroup: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
+- na_ontap_igroup_initiator: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
+
 ## 20.7.0
 
 ### New Modules
