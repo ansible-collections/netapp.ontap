@@ -29,6 +29,7 @@ SRR = {
     # module specific responses
     'empty_records': ({'records': []}, None),
     'get_uuid': ({'records': [{'uuid': 'ansible'}]}, None),
+    'error_unexpected_name': (None, {'message': 'Unexpected argument "name".'})
 }
 
 
@@ -131,7 +132,7 @@ def test_rest_create_failed(mock_request, mock_fail, mock_exit):
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    msg = 'Error creating or installing certificate %s: one or more of the following options are missing' % data['name']
+    msg = 'Error creating or installing certificate: one or more of the following options are missing:'
     assert exc.value.args[0]['msg'].startswith(msg)
 
 
@@ -287,7 +288,6 @@ def test_rest_failed_sign_absent(mock_request, mock_fail, mock_exit):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
-        SRR['empty_good'],
         SRR['end_of_sequence']
     ]
     data = {
@@ -302,3 +302,137 @@ def test_rest_failed_sign_absent(mock_request, mock_fail, mock_exit):
         my_obj.apply()
     msg = "'signing_request' is not supported with 'state' set to 'absent'"
     assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_failed_on_name(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['error_unexpected_name'],   # get certificate -> error
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'state': 'absent',
+        'ignore_name_if_not_supported': False,
+        'common_name': 'common_name',
+        'type': 'root_ca'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_cannot_ignore_name_error_no_common_name(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['error_unexpected_name'],   # get certificate -> error
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'state': 'absent',
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_cannot_ignore_name_error_no_type(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['error_unexpected_name'],   # get certificate -> error
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'state': 'absent',
+        'common_name': 'common_name'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "When using 'common_name', 'type' is required."
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_ignore_name_error(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['error_unexpected_name'],   # get certificate -> error
+        SRR['get_uuid'],                # get certificate -> found
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'state': 'absent',
+        'common_name': 'common_name',
+        'type': 'root_ca'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "'signing_request' is not supported with 'state' set to 'absent'"
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_successful_create_name_error(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['error_unexpected_name'],   # get certificate -> error
+        SRR['empty_records'],           # get certificate -> not found
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'common_name': 'cname',
+        'type': 'client_ca',
+        'vserver': 'abc',
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+    print(mock_request.mock_calls)

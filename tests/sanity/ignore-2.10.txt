@@ -130,7 +130,6 @@ plugins/modules/na_ontap_qtree.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_rest_cli.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_rest_info.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_rest_info.py validate-modules:parameter-state-invalid-choice
-plugins/modules/na_ontap_security_certificates.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_security_key_manager.py validate-modules:parameter-type-not-in-doc
 plugins/modules/na_ontap_security_key_manager.py validate-modules:doc-missing-type
 plugins/modules/na_ontap_service_processor_network.py validate-modules:deprecation-either-date-or-version
