@@ -35,7 +35,7 @@ options:
   from_name:
     description:
     - Name of the existing snapshot to be renamed to.
-    version_added: '2.8'
+    version_added: 2.8.0
   volume:
     description:
     - Name of the volume on which the snapshot is to be created.

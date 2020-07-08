@@ -23,7 +23,7 @@ short_description: Setup motd
 description:
     - This module allows you to manipulate motd for a vserver
     - It also allows to manipulate motd at the cluster level by using the cluster vserver (cserver)
-version_added: "2.7"
+version_added: 2.7.0
 requirements:
     - netapp_lib
 options:

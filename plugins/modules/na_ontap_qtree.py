@@ -42,7 +42,7 @@ options:
   from_name:
     description:
     - Name of the qtree to be renamed.
-    version_added: '2.7'
+    version_added: 2.7.0
     type: str
 
   flexvol_name:
@@ -60,25 +60,25 @@ options:
   export_policy:
     description:
     - The name of the export policy to apply.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: str
 
   security_style:
     description:
     - The security style for the qtree.
     choices: ['unix', 'ntfs', 'mixed']
-    version_added: '2.9'
+    version_added: 2.9.0
 
   oplocks:
     description:
     - Whether the oplocks should be enabled or not for the qtree.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
 
   unix_permissions:
     description:
     - File permissions bits of the qtree.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: str
 
 '''

@@ -19,7 +19,7 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_command
 short_description: NetApp ONTAP Run any cli command, the username provided needs to have console login permission.
-version_added: "2.7"
+version_added: 2.7.0
 options:
     command:
         description:
@@ -30,7 +30,7 @@ options:
         - privilege level at which to run the command.
         choices: ['admin', 'advanced']
         default: admin
-        version_added: "2.8"
+        version_added: 2.8.0
     return_dict:
         description:
         - Returns a parsesable dictionary instead of raw XML output
@@ -41,7 +41,7 @@ options:
         - C(stdout_lines_filter) > empty list or list of command output lines matching I(include_lines) or I(exclude_lines) parameters.
         type: bool
         default: false
-        version_added: "2.9"
+        version_added: 2.9.0
     vserver:
         description:
         - If running as vserver admin, you must give a I(vserver) or module will fail

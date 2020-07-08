@@ -17,7 +17,7 @@ module: na_ontap_snapshot_policy
 short_description: NetApp ONTAP manage Snapshot Policy
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.8'
+version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create/Modify/Delete ONTAP snapshot policies
@@ -63,13 +63,13 @@ options:
       string ('') for no label.
     type: list
     required: false
-    version_added: '2.9'
+    version_added: 2.9.0
   vserver:
     description:
     - The name of the vserver to use. In a multi-tenanted environment, assigning a
       Snapshot Policy to a vserver will restrict its use to that vserver.
     required: false
-    version_added: '2.9'
+    version_added: 2.9.0
 '''
 EXAMPLES = """
     - name: Create Snapshot policy

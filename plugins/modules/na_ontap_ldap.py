@@ -19,7 +19,7 @@ module: na_ontap_ldap
 short_description: NetApp ONTAP LDAP
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.9'
+version_added: 2.9.0
 author: Milan Zink (@zeten30) <zeten30@gmail.com>/<mzink@redhat.com>
 
 description:

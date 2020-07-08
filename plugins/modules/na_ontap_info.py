@@ -19,7 +19,7 @@ extends_documentation_fragment:
 short_description: NetApp information gatherer
 description:
     - This module allows you to gather various information about ONTAP configuration
-version_added: "2.9"
+version_added: 2.9.0
 requirements:
     - netapp_lib
 options:

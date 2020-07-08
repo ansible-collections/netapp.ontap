@@ -19,7 +19,7 @@ module: na_ontap_unix_user
 short_description: NetApp ONTAP UNIX users
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.8'
+version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:

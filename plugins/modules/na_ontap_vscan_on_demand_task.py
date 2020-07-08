@@ -16,7 +16,7 @@ module: na_ontap_vscan_on_demand_task
 short_description: NetApp ONTAP Vscan on demand task configuration.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.8'
+version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Configure on demand task for Vscan

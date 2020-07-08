@@ -54,7 +54,7 @@ options:
     - If a port is present in this list, but not on the target, it will be added.
     - If a port is not in the list, but present on the target, it will be removed.
     - Make sure the list contains all ports you want to see on the target.
-    version_added: '2.8'
+    version_added: 2.8.0
 """
 
 EXAMPLES = """

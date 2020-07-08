@@ -49,7 +49,7 @@ options:
     description:
     - Name of the aggregate to be renamed.
     type: str
-    version_added: '2.7'
+    version_added: 2.7.0
 
   nodes:
     description:
@@ -62,7 +62,7 @@ options:
     - Type of disk to use to build aggregate
     choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']
     type: str
-    version_added: '2.7'
+    version_added: 2.7.0
 
   disk_count:
     description:
@@ -78,13 +78,13 @@ options:
     description:
     - Disk size to use in 4K block size.  Disks within 10% of specified size will be used.
     type: int
-    version_added: '2.7'
+    version_added: 2.7.0
 
   raid_size:
     description:
     - Sets the maximum number of drives per raid group.
     type: int
-    version_added: '2.7'
+    version_added: 2.7.0
 
   raid_type:
     description:
@@ -92,7 +92,7 @@ options:
     - raid_0 is only available on ONTAP Select.
     choices: ['raid4', 'raid_dp', 'raid_tec', 'raid_0']
     type: str
-    version_added: '2.7'
+    version_added: 2.7.0
 
   unmount_volumes:
     description:
@@ -107,7 +107,7 @@ options:
     - To create a "mirrored" aggregate with a specific list of disks, both 'disks' and 'mirror_disks' options must be supplied.
       Additionally, the same number of disks must be supplied in both lists.
     type: list
-    version_added: '2.8'
+    version_added: 2.8.0
 
   is_mirrored:
     description:
@@ -115,20 +115,20 @@ options:
     - If set to true, then the indicated disks will be split across the two plexes. By default, the new aggregate will not be mirrored.
     - This option cannot be used when a specific list of disks is supplied with either the 'disks' or 'mirror_disks' options.
     type: bool
-    version_added: '2.8'
+    version_added: 2.8.0
 
   mirror_disks:
     description:
     - List of mirror disks to use. It must contain the same number of disks specified in 'disks'.
     type: list
-    version_added: '2.8'
+    version_added: 2.8.0
 
   spare_pool:
     description:
     - Specifies the spare pool from which to select spare disks to use in creation of a new aggregate.
     choices: ['Pool0', 'Pool1']
     type: str
-    version_added: '2.8'
+    version_added: 2.8.0
 
   wait_for_online:
     description:
@@ -137,7 +137,7 @@ options:
     - For asynchronous, execution exits as soon as the request is sent, without checking aggregate status
     type: bool
     default: false
-    version_added: '2.8'
+    version_added: 2.8.0
 
   time_out:
     description:
@@ -145,13 +145,13 @@ options:
       - default is set to 100 seconds
     type: int
     default: 100
-    version_added: "2.8"
+    version_added: 2.8.0
 
   object_store_name:
     description:
       - Name of the object store configuration attached to the aggregate
     type: str
-    version_added: "2.9"
+    version_added: 2.9.0
 
   snaplock_type:
     description:

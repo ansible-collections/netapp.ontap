@@ -128,7 +128,7 @@ provide a way to check the status.
     default: true
     version_added: "20.6.1"
 short_description:  NetApp ONTAP firmware upgrade for SP, shelf, ACP, and disk.
-version_added: "2.9"
+version_added: 2.9.0
 '''
 
 EXAMPLES = """

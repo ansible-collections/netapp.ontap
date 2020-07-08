@@ -32,7 +32,7 @@ options:
       - Whether the status of NVMe should be up or down
     type: bool
 short_description: "NetApp ONTAP Manage NVMe Service"
-version_added: "2.8"
+version_added: 2.8.0
 '''
 
 EXAMPLES = """

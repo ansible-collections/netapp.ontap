@@ -64,17 +64,17 @@ options:
     - The volume-type setting which should be used for the volume clone.
     choices: ['rw', 'dp']
   junction_path:
-    version_added: '2.8'
+    version_added: 2.8.0
     description:
     - Junction path of the volume.
     type: str
   uid:
-    version_added: '2.9'
+    version_added: 2.9.0
     description:
     - The UNIX user ID for the clone volume.
     type: int
   gid:
-    version_added: '2.9'
+    version_added: 2.9.0
     description:
     - The UNIX group ID for the clone volume.
     type: int

@@ -84,7 +84,7 @@ options:
       - if 0, the request is asynchronous
       - default is set to 3 minutes
     default: 180
-version_added: "2.8"
+version_added: 2.8.0
 '''
 
 EXAMPLES = """

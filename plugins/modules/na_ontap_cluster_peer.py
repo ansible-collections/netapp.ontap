@@ -28,7 +28,7 @@ options:
       - List of intercluster addresses of the source cluster.
       - Used as peer-addresses in destination cluster.
       - All these intercluster lifs should belong to the source cluster.
-    version_added: "2.8"
+    version_added: 2.8.0
     aliases:
     - source_intercluster_lif
   dest_intercluster_lifs:
@@ -36,7 +36,7 @@ options:
       - List of intercluster addresses of the destination cluster.
       - Used as peer-addresses in source cluster.
       - All these intercluster lifs should belong to the destination cluster.
-    version_added: "2.8"
+    version_added: 2.8.0
     aliases:
     - dest_intercluster_lif
   passphrase:
@@ -70,7 +70,7 @@ options:
     type: str
     version_added: '20.5.0'
 short_description: NetApp ONTAP Manage Cluster peering
-version_added: "2.7"
+version_added: 2.7.0
 '''
 
 EXAMPLES = """

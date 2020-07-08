@@ -16,7 +16,7 @@ module: na_ontap_efficiency_policy
 short_description: NetApp ONTAP manage efficiency policies (sis policies)
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.9'
+version_added: 2.9.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create/Modify/Delete efficiency policies (sis policies)

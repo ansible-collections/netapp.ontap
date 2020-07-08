@@ -16,7 +16,7 @@ module: na_ontap_dns
 short_description: NetApp ONTAP Create, delete, modify DNS servers.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.7'
+version_added: 2.7.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create, delete, modify DNS servers.
@@ -47,7 +47,7 @@ options:
     - By default, all nameservers are checked to validate they are available to resolve.
     - If you DNS servers are not yet installed or momentarily not available, you can set this option to 'true'
     - to bypass the check for all servers specified in nameservers field.
-    version_added: '2.8'
+    version_added: 2.8.0
 '''
 
 EXAMPLES = """

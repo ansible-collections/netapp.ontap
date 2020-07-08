@@ -50,7 +50,7 @@ options:
     - It represents the expected state of a list of ports at any time, and replaces the current value of ports.
     - Adds a port if it is specified in expected state but not in current state.
     - Deletes a port if it is in current state but not in expected state.
-version_added: "2.8"
+version_added: 2.8.0
 
 '''
 

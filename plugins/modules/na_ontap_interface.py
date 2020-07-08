@@ -103,7 +103,7 @@ options:
     description:
     - Subnet where the interface address is allocated from.
     - If the option is not used, the IP address will need to be provided by the administrator during configuration.
-    version_added: '2.8'
+    version_added: 2.8.0
     type: str
 
   admin_status:
@@ -121,7 +121,7 @@ options:
   force_subnet_association:
     description:
     - Set this to true to acquire the address from the named subnet and assign the subnet to the LIF.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: bool
 
   protocols:
@@ -135,19 +135,19 @@ options:
   dns_domain_name:
     description:
     - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: str
 
   listen_for_dns_query:
     description:
     - If True, this IP address will listen for DNS queries for the dnszone specified.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: bool
 
   is_dns_update_enabled:
     description:
     - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
-    version_added: '2.9'
+    version_added: 2.9.0
     type: bool
 
   service_policy:

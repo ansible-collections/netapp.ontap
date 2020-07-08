@@ -19,7 +19,7 @@ module: na_ontap_disks
 short_description: NetApp ONTAP Assign disks to nodes
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.7'
+version_added: 2.7.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
@@ -36,7 +36,7 @@ options:
     description:
     - Total number of disks a node should own
     type: int
-    version_added: '2.9'
+    version_added: 2.9.0
 
   disk_type:
     description:

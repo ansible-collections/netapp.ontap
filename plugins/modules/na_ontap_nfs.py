@@ -43,12 +43,12 @@ options:
     description:
     - status of if NFSv3 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv4_fsid_change:
     description:
     - status of if NFSv4 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
   nfsv4:
     description:
     - status of NFSv4.
@@ -62,12 +62,12 @@ options:
     description:
     - status of NFSv41 pNFS.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
   nfsv4_numeric_ids:
     description:
     - status of NFSv4 numeric ID's.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
   vstorage_state:
     description:
     - status of vstorage_state.
@@ -79,42 +79,42 @@ options:
     description:
     - status of NFS v4.0 ACL feature
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv40_read_delegation:
     description:
     - status for NFS v4.0 read delegation feature.
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv40_write_delegation:
     description:
     - status for NFS v4.0 write delegation feature.
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv41_acl:
     description:
     - status of NFS v4.1 ACL feature
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv41_read_delegation:
     description:
     - status for NFS v4.1 read delegation feature.
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv41_write_delegation:
     description:
     - status for NFS v4.1 write delegation feature.
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   nfsv40_referrals:
     description:
     - status for NFS v4.0 referrals.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
   nfsv41_referrals:
     description:
     - status for NFS v4.1 referrals.
     choices: ['enabled', 'disabled']
-    version_added: '2.9'
+    version_added: 2.9.0
   tcp:
     description:
     - Enable TCP (support from ONTAP 9.3 onward).
@@ -127,11 +127,11 @@ options:
     description:
     - Whether SVM allows showmount
     choices: ['enabled', 'disabled']
-    version_added: '2.7'
+    version_added: 2.7.0
   tcp_max_xfer_size:
     description:
     - TCP Maximum Transfer Size (bytes). The default value is 65536.
-    version_added: '2.8'
+    version_added: 2.8.0
     type: int
 
 """

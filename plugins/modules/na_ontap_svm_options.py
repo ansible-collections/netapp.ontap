@@ -19,7 +19,7 @@ description:
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_svm_options
-version_added: "2.7"
+version_added: 2.7.0
 options:
   name:
     description:

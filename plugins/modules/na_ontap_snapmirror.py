@@ -66,7 +66,7 @@ options:
   policy:
     description:
       - Specify the name of the SnapMirror policy that applies to this relationship.
-    version_added: "2.8"
+    version_added: 2.8.0
   source_hostname:
     description:
      - Source hostname or management IP address for ONTAP or ElementSW cluster.
@@ -86,13 +86,13 @@ options:
      - For using ontap_elementsw, elementsw_ontap snapmirror relationship should exist.
     choices: ['ontap_ontap', 'elementsw_ontap', 'ontap_elementsw']
     default: ontap_ontap
-    version_added: '2.9'
+    version_added: 2.9.0
   max_transfer_rate:
     description:
      - Specifies the upper bound, in kilobytes per second, at which data is transferred.
      - Default is unlimited, it can be explicitly set to 0 as unlimited.
     type: int
-    version_added: '2.9'
+    version_added: 2.9.0
   initialize:
     description:
      - Specifies whether to initialize SnapMirror relation.
@@ -132,9 +132,9 @@ options:
      - If this parameter is set to true, the source Vserver's configuration will additionally be replicated to the destination.
      - If the parameter is set to false, then only the source Vserver's volumes and RBAC configuration are replicated to the destination.
     type: bool
-    version_added: '2.9'
+    version_added: 2.9.0
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
-version_added: "2.7"
+version_added: 2.7.0
 '''
 
 EXAMPLES = """

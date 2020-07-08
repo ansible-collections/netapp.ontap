@@ -51,7 +51,7 @@ options:
      - Destination password.
      - Optional if this is same as source password.
 short_description: NetApp ONTAP Vserver peering
-version_added: "2.7"
+version_added: 2.7.0
 '''
 
 EXAMPLES = """

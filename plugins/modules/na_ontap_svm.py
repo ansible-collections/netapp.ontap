@@ -42,7 +42,7 @@ options:
   from_name:
     description:
     - Name of the SVM to be renamed
-    version_added: '2.7'
+    version_added: 2.7.0
 
   root_volume:
     description:
@@ -102,7 +102,7 @@ options:
     description:
     - IPSpace name
     - Cannot be modified after creation.
-    version_added: '2.7'
+    version_added: 2.7.0
 
 
   snapshot_policy:
@@ -113,7 +113,7 @@ options:
       snapshot policy or volume is modified later with a specific
       snapshot policy. A volume-level snapshot policy always overrides
       the default Vserver-wide snapshot policy.
-    version_added: '2.7'
+    version_added: 2.7.0
 
   language:
     description:
@@ -156,20 +156,20 @@ options:
     - zh_tw.big5        Traditional Chinese Big 5
     - utf8mb4
     - Most of the values accept a .utf_8 suffix, e.g. fr.utf_8
-    version_added: '2.7'
+    version_added: 2.7.0
 
   subtype:
     description:
     - The subtype for vserver to be created.
     - Cannot be modified after creation.
     choices: ['default', 'dp_destination', 'sync_source', 'sync_destination']
-    version_added: '2.7'
+    version_added: 2.7.0
 
   comment:
     description:
     - When specified as part of a vserver-create, this field represents the comment associated with the Vserver.
     - When part of vserver-get-iter call, this will return the list of matching Vservers.
-    version_added: '2.8'
+    version_added: 2.8.0
 '''
 
 EXAMPLES = """

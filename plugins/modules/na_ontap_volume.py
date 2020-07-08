@@ -49,7 +49,7 @@ options:
     description:
     - Name of the existing volume to be renamed to name.
     type: str
-    version_added: '2.7'
+    version_added: 2.7.0
 
   is_infinite:
     type: bool
@@ -120,13 +120,13 @@ options:
     description:
     - Whether or not to enable Volume Encryption.
     default: False
-    version_added: '2.7'
+    version_added: 2.7.0
 
   efficiency_policy:
     description:
     - Allows a storage efficiency policy to be set on volume creation.
     type: str
-    version_added: '2.7'
+    version_added: 2.7.0
 
   unix_permissions:
     description:
@@ -134,7 +134,7 @@ options:
     - For example, 0 is equivalent to ------------, 777 is equivalent to ---rwxrwxrwx,both formats are accepted.
     - The valid octal value ranges between 0 and 777 inclusive.
     type: str
-    version_added: '2.8'
+    version_added: 2.8.0
 
   group_id:
     description:
@@ -153,24 +153,24 @@ options:
     - The name of the snapshot policy.
     - the default policy name is 'default'.
     type: str
-    version_added: '2.8'
+    version_added: 2.8.0
 
   aggr_list:
     description:
     -  an array of names of aggregates to be used for FlexGroup constituents.
     type: list
-    version_added: '2.8'
+    version_added: 2.8.0
 
   aggr_list_multiplier:
     description:
     -  The number of times to iterate over the aggregates listed with the aggr_list parameter when creating a FlexGroup.
     type: int
-    version_added: '2.8'
+    version_added: 2.8.0
 
   auto_provision_as:
     description:
     - Automatically provision a FlexGroup volume.
-    version_added: '2.8'
+    version_added: 2.8.0
     choices: ['flexgroup']
     type: str
 
@@ -180,7 +180,7 @@ options:
     - Enable the visible '.snapshot' directory that is normally present at system internal mount points.
     - This value also turns on access to all other '.snapshot' directories in the volume.
     type: bool
-    version_added: '2.8'
+    version_added: 2.8.0
 
   atime_update:
     description:
@@ -191,7 +191,7 @@ options:
     - This field should be used carefully.
     - That is, use this field when you know in advance that the correct access time for inodes will not be needed for files on that volume.
     type: bool
-    version_added: '2.8'
+    version_added: 2.8.0
 
   wait_for_completion:
     description:
@@ -200,7 +200,7 @@ options:
     - For asynchronous, execution exits as soon as the request is sent, without checking volume status
     type: bool
     default: false
-    version_added: '2.8'
+    version_added: 2.8.0
 
   time_out:
     description:
@@ -210,7 +210,7 @@ options:
     - default is set to 3 minutes.
     default: 180
     type: int
-    version_added: '2.8'
+    version_added: 2.8.0
 
   language:
     description:
@@ -253,17 +253,17 @@ options:
     - zh_tw.big5        Traditional Chinese Big 5
     - To use UTF-8 as the NFS character set, append '.UTF-8' to the language code
     type: str
-    version_added: '2.8'
+    version_added: 2.8.0
 
   qos_policy_group:
     description:
     - Specifies a QoS policy group to be set on volume.
-    version_added: '2.9'
+    version_added: 2.9.0
 
   qos_adaptive_policy_group:
     description:
     - Specifies a QoS adaptive policy group to be set on volume.
-    version_added: '2.9'
+    version_added: 2.9.0
 
   tiering_policy:
     description:
@@ -277,7 +277,7 @@ options:
     - Requires ONTAP 9.4 or later.
     choices: ['snapshot-only', 'auto', 'backup', 'none']
     type: str
-    version_added: '2.9'
+    version_added: 2.9.0
 
   space_slo:
     description:
@@ -286,7 +286,7 @@ options:
     - This parameter is not supported on Infinite Volumes.
     choices: ['none', 'thick', 'semi-thick']
     type: str
-    version_added: '2.9'
+    version_added: 2.9.0
 
   nvfail_enabled:
     description:
@@ -296,20 +296,20 @@ options:
     - This will cause the client applications to crash and thus prevent access to stale data.
     - To get out of this situation, the admin needs to manually clear the 'in-nvfailed-state' on the volume's constituents.
     type: bool
-    version_added: '2.9'
+    version_added: 2.9.0
 
   vserver_dr_protection:
     description:
     - Specifies the protection type for the volume in a Vserver DR setup.
     choices: ['protected', 'unprotected']
     type: str
-    version_added: '2.9'
+    version_added: 2.9.0
 
   comment:
     description:
     - Sets a comment associated with the volume.
     type: str
-    version_added: '2.9'
+    version_added: 2.9.0
 
   snapshot_auto_delete:
     description:

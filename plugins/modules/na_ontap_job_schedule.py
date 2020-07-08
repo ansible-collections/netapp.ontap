@@ -40,7 +40,7 @@ options:
       Range is [-1..59]
     type: list
   job_hours:
-    version_added: '2.8'
+    version_added: 2.8.0
     description:
     - The hour(s) of the day when the job should be run.
       Job Manager cron scheduling hour.
@@ -49,7 +49,7 @@ options:
       Range is [-1..23]
     type: list
   job_months:
-    version_added: '2.8'
+    version_added: 2.8.0
     description:
     - The month(s) when the job should be run.
       Job Manager cron scheduling month.
@@ -58,7 +58,7 @@ options:
       Range is [-1..11]
     type: list
   job_days_of_month:
-    version_added: '2.8'
+    version_added: 2.8.0
     description:
     - The day(s) of the month when the job should be run.
       Job Manager cron scheduling day of month.
@@ -67,7 +67,7 @@ options:
       Range is [-1..31]
     type: list
   job_days_of_week:
-    version_added: '2.8'
+    version_added: 2.8.0
     description:
     - The day(s) in the week when the job should be run.
       Job Manager cron scheduling day of week.

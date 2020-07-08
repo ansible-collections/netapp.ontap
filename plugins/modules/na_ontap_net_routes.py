@@ -49,15 +49,15 @@ options:
     description:
     - Specify the route destination that should be changed.
     - new_destination was removed to fix idempotency issues. To rename destination the original goes to from_destination and the new goes to destination.
-    version_added: '2.8'
+    version_added: 2.8.0
   from_gateway:
     description:
     - Specify the route gateway that should be changed.
-    version_added: '2.8'
+    version_added: 2.8.0
   from_metric:
     description:
     - Specify the route metric that should be changed.
-    version_added: '2.8'
+    version_added: 2.8.0
 '''
 
 EXAMPLES = """

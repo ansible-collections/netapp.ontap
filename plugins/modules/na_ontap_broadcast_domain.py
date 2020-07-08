@@ -35,7 +35,7 @@ options:
   from_name:
     description:
     - Specify the  broadcast domain name to be split into new broadcast domain.
-    version_added: "2.8"
+    version_added: 2.8.0
   mtu:
     description:
     - Specify the required mtu for the broadcast domain.

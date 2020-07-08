@@ -18,7 +18,7 @@ extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_rest_cli
 short_description: NetApp ONTAP Run any cli command, the username provided needs to have console login permission.
-version_added: "2.9"
+version_added: 2.9.0
 options:
     command:
         description:

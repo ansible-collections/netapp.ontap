@@ -53,7 +53,7 @@ options:
     description:
     - A query for the role. The query must apply to the specified command or directory name.
     - Use double quotes "" for modifying a existing query to none.
-    version_added: '2.8'
+    version_added: 2.8.0
 
   vserver:
     description:

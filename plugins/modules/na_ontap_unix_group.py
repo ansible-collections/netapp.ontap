@@ -59,10 +59,10 @@ options:
     - Delete a user from group if it is specified in current state but not in expected state.
     - To delete all current users, use '' as value.
     type: list
-    version_added: "2.9"
+    version_added: 2.9.0
 
 short_description: NetApp ONTAP UNIX Group
-version_added: "2.8"
+version_added: 2.8.0
 
 """
 

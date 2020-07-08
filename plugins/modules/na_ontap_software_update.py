@@ -54,7 +54,7 @@ options:
     type: int
     version_added: "20.6.0"
 short_description: NetApp ONTAP Update Software
-version_added: "2.7"
+version_added: 2.7.0
 '''
 
 EXAMPLES = """

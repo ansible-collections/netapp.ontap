@@ -15,7 +15,7 @@ module: na_ontap_net_subnet
 short_description: NetApp ONTAP Create, delete, modify network subnets.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.8'
+version_added: 2.8.0
 author:  Storage Engineering (@Albinpopote) <ansible@black-perl.fr>
 description:
 - Create, modify, destroy the network subnet

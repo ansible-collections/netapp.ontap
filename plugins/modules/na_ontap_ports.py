@@ -21,7 +21,7 @@ module: na_ontap_ports
 short_description: NetApp ONTAP add/remove ports
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.9'
+version_added: 2.9.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:

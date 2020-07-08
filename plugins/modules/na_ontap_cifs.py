@@ -43,13 +43,13 @@ options:
     description:
       - The list of properties for the CIFS share
     required: false
-    version_added: '2.8'
+    version_added: 2.8.0
 
   symlink_properties:
     description:
       - The list of symlink properties for this CIFS share
     required: false
-    version_added: '2.8'
+    version_added: 2.8.0
 
   state:
     choices: ['present', 'absent']
@@ -63,7 +63,7 @@ options:
     description:
       - Profile_set of file_ops to which vscan on access scanning is applicable.
     required: false
-    version_added: '2.9'
+    version_added: 2.9.0
 
 short_description: NetApp ONTAP Manage cifs-share
 version_added: "2.6"

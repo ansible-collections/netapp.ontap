@@ -64,7 +64,7 @@ options:
     - For asynchronous, execution exits as soon as the request is sent, without checking SP status
     type: bool
     default: false
-    version_added: '2.8'
+    version_added: 2.8.0
 '''
 
 EXAMPLES = """

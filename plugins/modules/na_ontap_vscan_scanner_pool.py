@@ -16,7 +16,7 @@ module: na_ontap_vscan_scanner_pool
 short_description: NetApp ONTAP Vscan Scanner Pools Configuration.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.8'
+version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create/Modify/Delete a Vscan Scanner Pool

@@ -58,7 +58,7 @@ options:
       - List of Namespace paths to be associated with the subsystem.
     type: list
 short_description: "NetApp ONTAP Manage NVME Subsystem"
-version_added: "2.8"
+version_added: 2.8.0
 '''
 
 EXAMPLES = """

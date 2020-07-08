@@ -13,7 +13,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 DOCUMENTATION = '''
 module: na_ontap_firewall_policy
 short_description: NetApp ONTAP Manage a firewall policy
-version_added: '2.7'
+version_added: 2.7.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Configure firewall on an ONTAP node and manage firewall policy for an ONTAP SVM

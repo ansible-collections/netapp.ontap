@@ -48,7 +48,7 @@ options:
   from_name:
     description:
     - Name of igroup to rename to name.
-    version_added: '2.7'
+    version_added: 2.7.0
 
   ostype:
     description:

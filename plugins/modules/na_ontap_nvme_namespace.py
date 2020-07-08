@@ -53,7 +53,7 @@ options:
     type: int
     version_added: '20.5.0'
 short_description: "NetApp ONTAP Manage NVME Namespace"
-version_added: "2.8"
+version_added: 2.8.0
 '''
 
 EXAMPLES = """
