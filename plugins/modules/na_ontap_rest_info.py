@@ -39,8 +39,13 @@ options:
                 "aggregate_info" or "storage/aggregates",
                 "cifs_services_info" or "protocols/cifs/services",
                 "cifs_share_info" or "protocols/cifs/shares",
+                "cloud_targets_info" or "cloud/targets",
+                "cluster_chassis_info" or "cluster/chassis",
+                "cluster_jobs_info" or "cluster/jobs",
+                "cluster_metrics_info" or "cluster/metrics",
                 "cluster_node_info" or "cluster/nodes",
                 "cluster_peer_info" or "cluster/peers",
+                "cluster_schedules" or "cluster/schedules",
                 "disk_info" or "storage/disks",
                 "vserver_info" or "svm/svms",
                 "volume_info" or "storage/volumes",
@@ -232,8 +237,13 @@ class NetAppONTAPGatherInfo(object):
             "aggregate_info": "storage/aggregates",
             "cifs_services_info": "protocols/cifs/services",
             "cifs_share_info": "protocols/cifs/shares",
+            "cloud_targets_info": "cloud/targets",
+            "cluster_chassis_info": "cluster/chassis",
+            "cluster_jobs_info": "cluster/jobs",
+            "cluster_metrics_info": "cluster/metrics",
             "cluster_node_info": "cluster/nodes",
             "cluster_peer_info": "cluster/peers",
+            "cluster_schedules": "cluster/schedules",
             "disk_info": "storage/disks",
             "vserver_info": "svm/svms",
             "volume_info": "storage/volumes"
@@ -270,11 +280,26 @@ class NetAppONTAPGatherInfo(object):
             'protocols/cifs/shares': {
                 'api_call': 'protocols/cifs/shares',
             },
+            'cloud/targets': {
+                'api_call': 'cloud/targets',
+            },
+            'cluster/chassis': {
+                'api_call': 'cluster/chassis',
+            },
+            'cluster/jobs': {
+                'api_call': 'cluster/jobs',
+            },
+            'cluster/metrics': {
+                'api_call': 'cluster/metrics',
+            },
             'cluster/nodes': {
                 'api_call': 'cluster/nodes',
             },
             'cluster/peers': {
                 'api_call': 'cluster/peers',
+            },
+            'cluster/schedules': {
+                'api_call': 'cluster/schedules',
             },
             'storage/disks': {
                 'api_call': 'storage/disks',
