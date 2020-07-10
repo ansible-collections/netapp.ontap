@@ -24,7 +24,7 @@ version_added: 20.8.0
 description:
     - Create, modify, or destroy vserver security file-directory policy
     - Add or remove task from policy.
-    - Each time  a policy/task is created/modified, automatically apply policy to vserver.
+    - Each time a policy/task is created/modified, automatically apply policy to vserver.
 
 options:
   state:
@@ -240,8 +240,10 @@ class NetAppOntapFilePolicy(object):
             task_result['path'] = task.get_child_content('path')
             if task.get_child_by_name('ntfs-mode'):
                 task_result['ntfs_mode'] = task.get_child_content('ntfs-mode')
-            if task.get_child_by_name('ntfs-sd'):
+            if task.get_child_by_name('security-type'):
                 task_result['security_type'] = task.get_child_content('security-type')
+            if task.get_child_by_name('ntfs-sd'):
+                task_result['ntfs_sd'] = [ntfs_sd.get_content() for ntfs_sd in task.get_child_by_name('ntfs-sd').get_children()]
             return task_result
         return None
 
