@@ -113,7 +113,7 @@ class NetAppOntapVscanScannerPool(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            hostnames=dict(requried=False, type='list'),
+            hostnames=dict(required=False, type='list'),
             privileged_users=dict(required=False, type='list'),
             scanner_pool=dict(required=True, type='str'),
             scanner_policy=dict(required=False, type='str', choices=['primary', 'secondary', 'idle'])

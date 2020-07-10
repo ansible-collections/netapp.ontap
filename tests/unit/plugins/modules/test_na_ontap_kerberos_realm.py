@@ -168,7 +168,8 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             set_module_args(data)
             my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+        msg = "state is present but all of the following are missing: kdc_vendor, kdc_ip"
+        assert exc.value.args[0]['msg'] == msg
 
     def test_get_nonexistent_realm(self):
         ''' Test if get_krbrealm returns None for non-existent kerberos realm '''
@@ -237,3 +238,32 @@ class TestMyModule(unittest.TestCase):
             obj.apply()
         assert exc.value.args[0]['changed']
         create_krbrealm.assert_called_with()
+
+    def test_required_if(self):
+        ''' required arguments are reported as errors '''
+        data = self.mock_args()
+        data['state'] = 'present'
+        data['vserver'] = 'vserver1'
+        data['realm'] = 'NETAPP.COM'
+        data['kdc_ip'] = '10.0.0.1'
+        data['kdc_vendor'] = 'microsoft'
+        with pytest.raises(AnsibleFailJson) as exc:
+            set_module_args(data)
+            my_module()
+        msg = "kdc_vendor is microsoft but all of the following are missing: ad_server_ip, ad_server_name"
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_required_if_single(self):
+        ''' required arguments are reported as errors '''
+        data = self.mock_args()
+        data['state'] = 'present'
+        data['vserver'] = 'vserver1'
+        data['realm'] = 'NETAPP.COM'
+        data['kdc_ip'] = '10.0.0.1'
+        data['kdc_vendor'] = 'microsoft'
+        data['ad_server_ip'] = '10.0.0.1'
+        with pytest.raises(AnsibleFailJson) as exc:
+            set_module_args(data)
+            my_module()
+        msg = "kdc_vendor is microsoft but all of the following are missing: ad_server_name"
+        assert exc.value.args[0]['msg'] == msg

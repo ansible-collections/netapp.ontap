@@ -146,7 +146,7 @@ class NetAppOntapEfficiencyPolicy(object):
             enabled=dict(required=False, type='bool'),
             policy_type=dict(required=False, choices=['threshold', 'scheduled']),
             qos_policy=dict(required=False, choices=['background', 'best_effort']),
-            schedule=dict(reuired=False, type='str'),
+            schedule=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
             changelog_threshold_percent=dict(required=False, type='int')
         ))

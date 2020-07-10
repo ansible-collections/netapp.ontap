@@ -1,5 +1,4 @@
 plugins/modules/na_ontap_aggregate.py validate-modules:parameter-list-no-elements
-plugins/modules/na_ontap_autosupport.py validate-modules:invalid-ansiblemodule-schema
 plugins/modules/na_ontap_autosupport.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_autosupport_invoke.py validate-modules:invalid-argument-name
 plugins/modules/na_ontap_autosupport_invoke.py validate-modules:nonexistent-parameter-documented
@@ -11,7 +10,6 @@ plugins/modules/na_ontap_cifs.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_cluster_peer.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_command.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_dns.py validate-modules:parameter-list-no-elements
-plugins/modules/na_ontap_efficiency_policy.py validate-modules:invalid-ansiblemodule-schema
 plugins/modules/na_ontap_export_policy_rule.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_firewall_policy.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_flexcache.py validate-modules:parameter-list-no-elements
@@ -23,7 +21,6 @@ plugins/modules/na_ontap_info.py validate-modules:parameter-state-invalid-choice
 plugins/modules/na_ontap_interface.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_iscsi_security.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_job_schedule.py validate-modules:parameter-list-no-elements
-plugins/modules/na_ontap_kerberos_realm.py validate-modules:invalid-ansiblemodule-schema
 plugins/modules/na_ontap_ldap_client.py validate-modules:invalid-ansiblemodule-schema
 plugins/modules/na_ontap_ldap_client.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_license.py validate-modules:parameter-list-no-elements
@@ -56,7 +53,6 @@ plugins/modules/na_ontap_user.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_volume.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vscan_on_access_policy.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vscan_on_demand_task.py validate-modules:parameter-list-no-elements
-plugins/modules/na_ontap_vscan_scanner_pool.py validate-modules:invalid-ansiblemodule-schema
 plugins/modules/na_ontap_vscan_scanner_pool.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vserver_peer.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_vserver_peer.py validate-modules:parameter-list-no-elements
