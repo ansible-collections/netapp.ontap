@@ -23,10 +23,12 @@ options:
     description:
       - Whether the specified NVMe should exist or not.
     default: present
+    type: str
   vserver:
     description:
       - Name of the vserver to use.
     required: true
+    type: str
   status_admin:
     description:
       - Whether the status of NVMe should be up or down

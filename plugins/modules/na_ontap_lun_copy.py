@@ -31,26 +31,31 @@ options:
     description:
     - Whether the specified LUN should exist or not.
     choices: ['present']
+    type: str
     default: present
 
   destination_vserver:
     description:
     - the name of the Vserver that will host the new LUN.
     required: true
+    type: str
 
   destination_path:
     description:
     - Specifies the full path to the new LUN.
     required: true
+    type: str
 
   source_path:
     description:
     - Specifies the full path to the source LUN.
     required: true
+    type: str
 
   source_vserver:
     description:
     - Specifies the name of the vserver hosting the LUN to be copied.
+    type: str
 
   '''
 EXAMPLES = """
@@ -84,7 +89,7 @@ class NetAppOntapLUNCopy(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
             destination_vserver=dict(required=True, type='str'),
             destination_path=dict(required=True, type='str'),
             source_path=dict(required=True, type='str'),

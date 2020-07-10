@@ -23,14 +23,17 @@ options:
     description:
       - Whether the specified namespace should exist or not.
     default: present
+    type: str
   vserver:
     description:
       - Name of the vserver to use.
     required: true
+    type: str
   ostype:
     description:
       - Specifies the ostype for initiators
     choices: ['windows', 'linux', 'vmware', 'xen', 'hyper_v']
+    type: str
   size:
     description:
       - Size in bytes.

@@ -26,34 +26,42 @@ options:
     description:
       - Whether to set up a firewall policy or not
     choices: ['present', 'absent']
+    type: str
     default: present
   allow_list:
     description:
       - A list of IPs and masks to use.
       - The host bits of the IP addresses used in this list must be set to 0.
+    type: list
   policy:
     description:
       - A policy name for the firewall policy
+    type: str
   service:
     description:
       - The service to apply the policy to
       - https and ssh are not supported starting with ONTAP 9.6
       - portmap is supported for ONTAP 9.4, 9.5 and 9.6
     choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']
+    type: str
   vserver:
     description:
       - The Vserver to apply the policy to.
+    type: str
   enable:
     description:
       - enable firewall on a node
     choices: ['enable', 'disable']
+    type: str
   logging:
     description:
       - enable logging for firewall on a node
     choices: ['enable', 'disable']
+    type: str
   node:
     description:
       - The node to run the firewall configuration on
+    type: str
 '''
 
 EXAMPLES = """
@@ -124,7 +132,7 @@ class NetAppONTAPFirewallPolicy(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             allow_list=dict(required=False, type="list"),
             policy=dict(required=False, type='str'),
             service=dict(required=False, type='str', choices=['dns', 'http', 'https', 'ndmp', 'ndmps',

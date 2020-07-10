@@ -25,26 +25,31 @@ options:
     description:
     - Whether the specified network interface group should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   distribution_function:
     description:
     - Specifies the traffic distribution function for the ifgrp.
     choices: ['mac', 'ip', 'sequential', 'port']
+    type: str
 
   name:
     description:
     - Specifies the interface group name.
     required: true
+    type: str
 
   mode:
     description:
     - Specifies the link policy for the ifgrp.
+    type: str
 
   node:
     description:
     - Specifies the name of node.
     required: true
+    type: str
 
   ports:
     aliases:
@@ -55,6 +60,7 @@ options:
     - If a port is not in the list, but present on the target, it will be removed.
     - Make sure the list contains all ports you want to see on the target.
     version_added: 2.8.0
+    type: list
 """
 
 EXAMPLES = """
@@ -114,7 +120,7 @@ class NetAppOntapIfGrp(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             distribution_function=dict(required=False, type='str', choices=['mac', 'ip', 'sequential', 'port']),
             name=dict(required=True, type='str'),
             mode=dict(required=False, type='str'),

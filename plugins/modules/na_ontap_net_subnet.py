@@ -25,39 +25,47 @@ options:
     - Whether the specified network interface group should exist or not.
     choices: ['present', 'absent']
     default: present
+    type: str
 
   broadcast_domain:
     description:
     - Specify the required broadcast_domain name for the subnet.
     - A broadcast domain can not be modified after the subnet has been created
     required: true
+    type: str
 
   name:
     description:
     - Specify the subnet name.
     required: true
+    type: str
 
   from_name:
     description:
     - Name of the subnet to be renamed
+    type: str
 
   gateway:
     description:
     - Specify the gateway for the default route of the subnet.
+    type: str
 
   ipspace:
     description:
     - Specify the ipspace for the subnet.
     - The default value for this parameter is the default IPspace, named 'Default'.
+    type: str
 
   ip_ranges:
     description:
     - Specify the list of IP address ranges associated with the subnet.
+    type: list
 
   subnet:
     description:
     - Specify the subnet (ip and mask).
     required: true
+    type: str
 """
 
 EXAMPLES = """
@@ -116,7 +124,7 @@ class NetAppOntapSubnet(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
             broadcast_domain=dict(required=False, type='str'),

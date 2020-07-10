@@ -26,11 +26,13 @@ options:
     description:
     - Whether the specified service processor network should exist or not.
     choices: ['present']
+    type: str
     default: present
   address_type:
     description:
     - Specify address class.
     required: true
+    type: str
     choices: ['ipv4', 'ipv6']
   is_enabled:
     description:
@@ -41,22 +43,28 @@ options:
     description:
     - The node where the service processor network should be enabled
     required: true
+    type: str
   dhcp:
     description:
     - Specify dhcp type.
+    type: str
     choices: ['v4', 'none']
   gateway_ip_address:
     description:
     - Specify the gateway ip.
+    type: str
   ip_address:
     description:
     - Specify the service processor ip address.
+    type: str
   netmask:
     description:
     - Specify the service processor netmask.
+    type: str
   prefix_length:
     description:
     - Specify the service processor prefix_length.
+    type: int
   wait_for_completion:
     description:
     - Set this parameter to 'true' for synchronous execution (wait until SP status is successfully updated)
@@ -104,11 +112,11 @@ class NetAppOntapServiceProcessorNetwork(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
-            address_type=dict(required=True, choices=['ipv4', 'ipv6']),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
+            address_type=dict(required=True, type='str', choices=['ipv4', 'ipv6']),
             is_enabled=dict(required=True, type='bool'),
             node=dict(required=True, type='str'),
-            dhcp=dict(required=False, choices=['v4', 'none']),
+            dhcp=dict(required=False, type='str', choices=['v4', 'none']),
             gateway_ip_address=dict(required=False, type='str'),
             ip_address=dict(required=False, type='str'),
             netmask=dict(required=False, type='str'),

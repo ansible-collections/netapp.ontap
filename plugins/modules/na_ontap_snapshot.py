@@ -26,20 +26,24 @@ options:
     description:
     - If you want to create/modify a snapshot, or delete it.
     choices: ['present', 'absent']
+    type: str
     default: present
   snapshot:
     description:
       Name of the snapshot to be managed.
       The maximum string length is 256 characters.
     required: true
+    type: str
   from_name:
     description:
     - Name of the existing snapshot to be renamed to.
     version_added: 2.8.0
+    type: str
   volume:
     description:
     - Name of the volume on which the snapshot is to be created.
     required: true
+    type: str
   async_bool:
     description:
     - If true, the snapshot is to be created asynchronously.
@@ -48,10 +52,12 @@ options:
     description:
       A human readable comment attached with the snapshot.
       The size of the comment can be at most 255 characters.
+    type: str
   snapmirror_label:
     description:
       A human readable SnapMirror Label attached with the snapshot.
       Size of the label can be at most 31 characters.
+    type: str
   ignore_owners:
     description:
     - if this field is true, snapshot will be deleted
@@ -60,10 +66,12 @@ options:
   snapshot_instance_uuid:
     description:
     - The 128 bit unique snapshot identifier expressed in the form of UUID.
+    type: str
   vserver:
     description:
     - The Vserver name
     required: true
+    type: str
 '''
 EXAMPLES = """
     - name: create SnapShot
@@ -123,8 +131,7 @@ class NetAppOntapSnapshot(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             from_name=dict(required=False, type='str'),
             snapshot=dict(required=True, type="str"),
             volume=dict(required=True, type="str"),

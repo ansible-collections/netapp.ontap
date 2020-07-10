@@ -26,16 +26,19 @@ options:
     description:
     - Whether the specified NTP server should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
   server_name:
     description:
     - The name of the NTP server to manage.
     required: True
+    type: str
   version:
     description:
     - give version for NTP server
     choices: ['auto', '3', '4']
     default: 'auto'
+    type: str
 """
 
 EXAMPLES = """
@@ -72,8 +75,7 @@ class NetAppOntapNTPServer(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             server_name=dict(required=True, type='str'),
             version=dict(required=False, type='str', default='auto',
                          choices=['auto', '3', '4']),

@@ -20,36 +20,44 @@ module: na_ontap_vserver_peer
 options:
   state:
     choices: ['present', 'absent']
+    type: str
     description:
       - Whether the specified vserver peer should exist or not.
     default: present
   vserver:
     description:
       - Specifies name of the source Vserver in the relationship.
+    type: str
   applications:
     choices: ['snapmirror', 'file_copy', 'lun_copy', 'flexcache']
+    type: list
     description:
       - List of applications which can make use of the peering relationship.
       - FlexCache supported from ONTAP 9.5 onwards.
   peer_vserver:
     description:
       - Specifies name of the peer Vserver in the relationship.
+    type: str
   peer_cluster:
     description:
       - Specifies name of the peer Cluster.
       - Required for creating the vserver peer relationship with a remote cluster
+    type: str
   dest_hostname:
     description:
      - Destination hostname or IP address.
      - Required for creating the vserver peer relationship with a remote cluster
+    type: str
   dest_username:
     description:
      - Destination username.
      - Optional if this is same as source username.
+    type: str
   dest_password:
     description:
      - Destination password.
      - Optional if this is same as source password.
+    type: str
 short_description: NetApp ONTAP Vserver peering
 version_added: 2.7.0
 '''

@@ -25,38 +25,47 @@ options:
     description:
     - Whether the specified net port should exist or not.
     choices: ['present']
+    type: str
     default: present
   node:
     description:
     - Specifies the name of node.
     required: true
+    type: str
   ports:
     aliases:
     - port
     description:
     - Specifies the name of port(s).
     required: true
+    type: list
   mtu:
     description:
     - Specifies the maximum transmission unit (MTU) reported by the port.
+    type: str
   autonegotiate_admin:
     description:
     - Enables or disables Ethernet auto-negotiation of speed,
       duplex and flow control.
+    type: str
   duplex_admin:
     description:
     - Specifies the user preferred duplex setting of the port.
     - Valid values auto, half, full
+    type: str
   speed_admin:
     description:
     - Specifies the user preferred speed setting of the port.
+    type: str
   flowcontrol_admin:
     description:
     - Specifies the user preferred flow control setting of the port.
+    type: str
   ipspace:
     description:
     - Specifies the port's associated IPspace name.
     - The 'Cluster' ipspace is reserved for cluster ports.
+    type: str
 """
 
 EXAMPLES = """
@@ -95,7 +104,7 @@ class NetAppOntapNetPort(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
             node=dict(required=True, type="str"),
             ports=dict(required=True, type="list", aliases=['port']),
             mtu=dict(required=False, type="str", default=None),

@@ -27,28 +27,33 @@ options:
       to the vserver root, and it might be crossing junction mount points. The path is in UTF8 and uses forward
       slash as directory separator
     required: false
+    type: str
 
   vserver:
     description:
       - "Vserver containing the CIFS share."
     required: true
+    type: str
 
   share_name:
     description:
       The name of the CIFS share. The CIFS share name is a UTF-8 string with the following characters being
       illegal; control characters from 0x00 to 0x1F, both inclusive, 0x22 (double quotes)
     required: true
+    type: str
 
   share_properties:
     description:
       - The list of properties for the CIFS share
     required: false
+    type: list
     version_added: 2.8.0
 
   symlink_properties:
     description:
       - The list of symlink properties for this CIFS share
     required: false
+    type: list
     version_added: 2.8.0
 
   state:
@@ -56,6 +61,7 @@ options:
     description:
       - "Whether the specified CIFS share should exist or not."
     required: false
+    type: str
     default: present
 
   vscan_fileop_profile:
@@ -63,6 +69,7 @@ options:
     description:
       - Profile_set of file_ops to which vscan on access scanning is applicable.
     required: false
+    type: str
     version_added: 2.9.0
 
 short_description: NetApp ONTAP Manage cifs-share

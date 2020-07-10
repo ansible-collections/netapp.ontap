@@ -25,11 +25,13 @@ options:
         description:
         - a comma separated list containing the command and arguments.
         required: true
+        type: list
     privilege:
         description:
         - privilege level at which to run the command.
         choices: ['admin', 'advanced']
         default: admin
+        type: str
         version_added: 2.8.0
     return_dict:
         description:
@@ -46,17 +48,20 @@ options:
         description:
         - If running as vserver admin, you must give a I(vserver) or module will fail
         version_added: "19.10.0"
+        type: str
     include_lines:
         description:
         - applied only when I(return_dict) is true
         - return only lines containing string pattern in C(stdout_lines_filter)
         default: ''
+        type: str
         version_added: "19.10.0"
     exclude_lines:
         description:
         - applied only when I(return_dict) is true
         - return only lines containing string pattern in C(stdout_lines_filter)
         default: ''
+        type: str
         version_added: "19.10.0"
 '''
 

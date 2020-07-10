@@ -24,49 +24,61 @@ options:
     description:
       - Whether the specified relationship should exist or not.
     default: present
+    type: str
   origin_volume:
     description:
       - Name of the origin volume for the FlexCache.
       - Required for creation.
+    type: str
   origin_vserver:
     description:
       - Name of the origin vserver for the FlexCache.
       - Required for creation.
+    type: str
   origin_cluster:
     description:
       - Name of the origin cluster for the FlexCache.
       - Defaults to cluster associated with target vserver if absent.
       - Not used for creation.
+    type: str
   volume:
     description:
       - Name of the target volume for the FlexCache.
     required: true
+    type: str
   junction_path:
     description:
       - Junction path of the cache volume.
+    type: str
   auto_provision_as:
     description:
       - Use this parameter to automatically select existing aggregates for volume provisioning.Eg flexgroup
       - Note that the fastest aggregate type with at least one aggregate on each node of the cluster will be selected.
+    type: str
   size:
     description:
       - Size of cache volume.
+    type: int
   size_unit:
     description:
     - The unit used to interpret the size parameter.
     choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
+    type: str
     default: gb
   vserver:
     description:
       - Name of the target vserver for the FlexCache.
       - Note that hostname, username, password are intended for the target vserver.
     required: true
+    type: str
   aggr_list:
     description:
       - List of aggregates to host target FlexCache volume.
+    type: list
   aggr_list_multiplier:
     description:
       - Aggregate list repeat count.
+    type: int
   force_unmount:
     description:
       - Unmount FlexCache volume. Delete the junction path at which the volume is mounted before deleting the FlexCache relationship.
@@ -83,6 +95,7 @@ options:
       - time to wait for flexcache creation or deletion in seconds
       - if 0, the request is asynchronous
       - default is set to 3 minutes
+    type: int
     default: 180
 version_added: 2.8.0
 '''

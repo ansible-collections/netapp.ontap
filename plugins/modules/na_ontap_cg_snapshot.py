@@ -23,26 +23,32 @@ options:
     description:
       - If you want to create a snapshot.
     default: present
+    type: str
   vserver:
     required: true
+    type: str
     description:
       - Name of the vserver.
   volumes:
     required: true
+    type: list
     description:
       - A list of volumes in this filer that is part of this CG operation.
   snapshot:
     required: true
+    type: str
     description:
       - The provided name of the snapshot that is created in each volume.
   timeout:
     description:
       - Timeout selector.
     choices: ['urgent', 'medium', 'relaxed']
+    type: str
     default: medium
   snapmirror_label:
     description:
       - A human readable SnapMirror label to be attached with the consistency group snapshot copies.
+    type: str
 version_added: 2.7.0
 
 '''
@@ -79,7 +85,7 @@ class NetAppONTAPCGSnapshot(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, default='present'),
+            state=dict(required=False, type='str', default='present'),
             vserver=dict(required=True, type='str'),
             volumes=dict(required=True, type='list'),
             snapshot=dict(required=True, type='str'),

@@ -31,6 +31,7 @@ options:
         description:
         - If C(state=present) sets MOTD given in I(message) C(state=absent) removes it.
         choices: ['present', 'absent']
+        type: str
         default: present
     motd_message:
         description:
@@ -104,7 +105,7 @@ class NetAppONTAPMotd(object):
     def __init__(self):
         argument_spec = netapp_utils.na_ontap_host_argument_spec()
         argument_spec.update(dict(
-            state=dict(required=False, default='present', choices=['present', 'absent']),
+            state=dict(required=False, type='str', default='present', choices=['present', 'absent']),
             vserver=dict(required=True, type='str'),
             motd_message=dict(default='', type='str', aliases=['message']),
             show_cluster_motd=dict(default=True, type='bool')

@@ -31,33 +31,39 @@ options:
     description:
     - Whether the specified user should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   name:
     description:
     - The name of the role to manage.
     required: true
+    type: str
 
   command_directory_name:
     description:
     - The command or command directory to which the role has an access.
     required: true
+    type: str
 
   access_level:
     description:
     - The name of the role to manage.
     choices: ['none', 'readonly', 'all']
+    type: str
     default: all
 
   query:
     description:
     - A query for the role. The query must apply to the specified command or directory name.
     - Use double quotes "" for modifying a existing query to none.
+    type: str
     version_added: 2.8.0
 
   vserver:
     description:
     - The name of the vserver to use.
+    type: str
     required: true
 
 '''
@@ -109,7 +115,7 @@ class NetAppOntapUserRole(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             command_directory_name=dict(required=True, type='str'),
             access_level=dict(required=False, type='str', default='all',

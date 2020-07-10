@@ -24,17 +24,21 @@ options:
     description:
       - Whether the specified ONTAP package should update or not.
     default: present
+    type: str
   nodes:
     description:
       - List of nodes to be updated, the nodes have to be a part of a HA Pair.
     aliases:
       - node
+    type: list
   package_version:
     required: true
     description:
       - Specifies the package version to update software.
+    type: str
   package_url:
     required: true
+    type: str
     description:
       - Specifies the package URL to download the package.
   ignore_validation_warning:

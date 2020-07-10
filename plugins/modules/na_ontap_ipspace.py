@@ -37,14 +37,17 @@ options:
         description:
             - Whether the specified ipspace should exist or not
         choices: ['present', 'absent']
+        type: str
         default: present
     name:
         description:
             - The name of the ipspace to manage
         required: true
+        type: str
     from_name:
         description:
             - Name of the existing ipspace to be renamed to name
+        type: str
 '''
 
 EXAMPLES = """
@@ -95,9 +98,7 @@ class NetAppOntapIpspace(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(
-                required=False, choices=['present', 'absent'],
-                default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
         ))

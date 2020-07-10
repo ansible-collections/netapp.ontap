@@ -33,26 +33,31 @@ options:
     - Whether the specified SVM should exist or not.
     choices: ['present', 'absent']
     default: 'present'
+    type: str
 
   name:
     description:
     - The name of the SVM to manage.
+    type: str
     required: true
 
   from_name:
     description:
     - Name of the SVM to be renamed
+    type: str
     version_added: 2.7.0
 
   root_volume:
     description:
     - Root volume of the SVM.
     - Cannot be modified after creation.
+    type: str
 
   root_volume_aggregate:
     description:
     - The aggregate on which the root volume will be created.
     - Cannot be modified after creation.
+    type: str
 
   root_volume_security_style:
     description:
@@ -65,6 +70,7 @@ options:
         cannot be applied to a Vserver's root volume.
     -   Cannot be modified after creation.
     choices: ['unix', 'ntfs', 'mixed', 'unified']
+    type: str
 
   allowed_protocols:
     description:
@@ -86,6 +92,7 @@ options:
     - ndmp   NDMP protocol,
     - http   HTTP protocol,
     - nvme   NVMe protocol
+    type: list
 
   aggr_list:
     description:
@@ -97,11 +104,13 @@ options:
     - When part of vserver-get-iter call,
       this will return the list of Vservers
       which have any of the aggregates specified as part of the aggr list.
+    type: list
 
   ipspace:
     description:
     - IPSpace name
     - Cannot be modified after creation.
+    type: str
     version_added: 2.7.0
 
 
@@ -114,6 +123,7 @@ options:
       snapshot policy. A volume-level snapshot policy always overrides
       the default Vserver-wide snapshot policy.
     version_added: 2.7.0
+    type: str
 
   language:
     description:
@@ -156,6 +166,7 @@ options:
     - zh_tw.big5        Traditional Chinese Big 5
     - utf8mb4
     - Most of the values accept a .utf_8 suffix, e.g. fr.utf_8
+    type: str
     version_added: 2.7.0
 
   subtype:
@@ -163,12 +174,14 @@ options:
     - The subtype for vserver to be created.
     - Cannot be modified after creation.
     choices: ['default', 'dp_destination', 'sync_source', 'sync_destination']
+    type: str
     version_added: 2.7.0
 
   comment:
     description:
     - When specified as part of a vserver-create, this field represents the comment associated with the Vserver.
     - When part of vserver-get-iter call, this will return the list of matching Vservers.
+    type: str
     version_added: 2.8.0
 '''
 
@@ -207,8 +220,7 @@ class NetAppOntapSVM(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
             root_volume=dict(type='str'),
@@ -223,7 +235,7 @@ class NetAppOntapSVM(object):
             ipspace=dict(type='str', required=False),
             snapshot_policy=dict(type='str', required=False),
             language=dict(type='str', required=False),
-            subtype=dict(choices=['default', 'dp_destination', 'sync_source', 'sync_destination']),
+            subtype=dict(type='str', choices=['default', 'dp_destination', 'sync_source', 'sync_destination']),
             comment=dict(type="str", required=False)
         ))
 

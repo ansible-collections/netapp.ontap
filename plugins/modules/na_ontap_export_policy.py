@@ -25,17 +25,21 @@ options:
     description:
     - Whether the specified export policy should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
   name:
     description:
     - The name of the export-policy to manage.
+    type: str
     required: true
   from_name:
     description:
     - The name of the export-policy to be renamed.
+    type: str
     version_added: 2.7.0
   vserver:
     required: true
+    type: str
     description:
     - Name of the vserver to use.
 '''

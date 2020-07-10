@@ -31,28 +31,33 @@ options:
     description:
     - Whether the specified LUN should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   name:
     description:
     - The name of the LUN to manage.
     required: true
+    type: str
 
   flexvol_name:
     description:
     - The name of the FlexVol the LUN should exist on.
     required: true
+    type: str
 
   size:
     description:
     - The size of the LUN in C(size_unit).
     - Required when C(state=present).
+    type: int
 
   size_unit:
     description:
     - The unit used to interpret the size parameter.
     choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
     default: 'gb'
+    type: str
 
   force_resize:
     description:
@@ -80,11 +85,13 @@ options:
     required: true
     description:
     - The name of the vserver to use.
+    type: str
 
   ostype:
     description:
     - The os type for the LUN.
     default: 'image'
+    type: str
 
   space_reserve:
     description:
@@ -163,7 +170,7 @@ class NetAppOntapLUN(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             size=dict(type='int'),
             size_unit=dict(default='gb',

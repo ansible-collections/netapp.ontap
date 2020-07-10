@@ -30,6 +30,7 @@ options:
     description:
     - Whether the specified license should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   remove_unused:
@@ -46,8 +47,10 @@ options:
     description:
       Serial number of the node associated with the license.
       This parameter is used primarily when removing license for a specific service.
+    type: str
 
   license_names:
+    type: list
     description:
     - List of license-names to delete.
     suboptions:
@@ -97,6 +100,7 @@ options:
   license_codes:
     description:
     - List of license codes to be added.
+    type: list
 
 '''
 
@@ -153,8 +157,7 @@ class NetAppOntapLicense(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             serial_number=dict(required=False, type='str'),
             remove_unused=dict(default=None, type='bool'),
             remove_expired=dict(default=None, type='bool'),

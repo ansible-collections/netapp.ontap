@@ -25,18 +25,21 @@ options:
     description:
     - Whether the FCP should be enabled or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   status:
     description:
     - Whether the FCP should be up or down
     choices: ['up', 'down']
+    type: str
     default: up
 
   vserver:
     description:
     - The name of the vserver to use.
     required: true
+    type: str
 
 '''
 
@@ -72,9 +75,9 @@ class NetAppOntapFCP(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            status=dict(required=False, choices=['up', 'down'], default='up')
+            status=dict(required=False, type='str', choices=['up', 'down'], default='up')
         ))
 
         self.module = AnsibleModule(

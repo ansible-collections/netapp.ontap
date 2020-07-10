@@ -26,107 +26,130 @@ options:
     description:
     - Whether NFS should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
   service_state:
     description:
     - Whether the specified NFS should be enabled or disabled. Creates NFS service if doesnt exist.
     choices: ['started', 'stopped']
+    type: str
   vserver:
     description:
     - Name of the vserver to use.
     required: true
+    type: str
   nfsv3:
     description:
     - status of NFSv3.
     choices: ['enabled', 'disabled']
+    type: str
   nfsv3_fsid_change:
     description:
     - status of if NFSv3 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv4_fsid_change:
     description:
     - status of if NFSv4 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
   nfsv4:
     description:
     - status of NFSv4.
     choices: ['enabled', 'disabled']
+    type: str
   nfsv41:
     description:
     - status of NFSv41.
     aliases: ['nfsv4.1']
     choices: ['enabled', 'disabled']
+    type: str
   nfsv41_pnfs:
     description:
     - status of NFSv41 pNFS.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
   nfsv4_numeric_ids:
     description:
     - status of NFSv4 numeric ID's.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
   vstorage_state:
     description:
     - status of vstorage_state.
     choices: ['enabled', 'disabled']
+    type: str
   nfsv4_id_domain:
     description:
     - Name of the nfsv4_id_domain to use.
+    type: str
   nfsv40_acl:
     description:
     - status of NFS v4.0 ACL feature
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv40_read_delegation:
     description:
     - status for NFS v4.0 read delegation feature.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv40_write_delegation:
     description:
     - status for NFS v4.0 write delegation feature.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv41_acl:
     description:
     - status of NFS v4.1 ACL feature
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv41_read_delegation:
     description:
     - status for NFS v4.1 read delegation feature.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv41_write_delegation:
     description:
     - status for NFS v4.1 write delegation feature.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   nfsv40_referrals:
     description:
     - status for NFS v4.0 referrals.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
   nfsv41_referrals:
     description:
     - status for NFS v4.1 referrals.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
   tcp:
     description:
     - Enable TCP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
+    type: str
   udp:
     description:
     - Enable UDP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
+    type: str
   showmount:
     description:
     - Whether SVM allows showmount
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.7.0
   tcp_max_xfer_size:
     description:
@@ -174,28 +197,28 @@ class NetAppONTAPNFS(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            service_state=dict(required=False, choices=['started', 'stopped']),
+            service_state=dict(required=False, type='str', choices=['started', 'stopped']),
             vserver=dict(required=True, type='str'),
-            nfsv3=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv3_fsid_change=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv4_fsid_change=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv4=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv41=dict(required=False, default=None, choices=['enabled', 'disabled'], aliases=['nfsv4.1']),
-            nfsv41_pnfs=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv4_numeric_ids=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            vstorage_state=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            tcp=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            udp=dict(required=False, default=None, choices=['enabled', 'disabled']),
+            nfsv3=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv3_fsid_change=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv4_fsid_change=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv4=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv41=dict(required=False, type='str', default=None, choices=['enabled', 'disabled'], aliases=['nfsv4.1']),
+            nfsv41_pnfs=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv4_numeric_ids=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            vstorage_state=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            tcp=dict(required=False, default=None, type='str', choices=['enabled', 'disabled']),
+            udp=dict(required=False, default=None, type='str', choices=['enabled', 'disabled']),
             nfsv4_id_domain=dict(required=False, type='str', default=None),
-            nfsv40_acl=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv40_read_delegation=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv40_referrals=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv40_write_delegation=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv41_acl=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv41_read_delegation=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv41_referrals=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            nfsv41_write_delegation=dict(required=False, default=None, choices=['enabled', 'disabled']),
-            showmount=dict(required=False, default=None, choices=['enabled', 'disabled']),
+            nfsv40_acl=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv40_read_delegation=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv40_referrals=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv40_write_delegation=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv41_acl=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv41_read_delegation=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv41_referrals=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv41_write_delegation=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            showmount=dict(required=False, default=None, type='str', choices=['enabled', 'disabled']),
             tcp_max_xfer_size=dict(required=False, default=None, type='int')
         ))
 

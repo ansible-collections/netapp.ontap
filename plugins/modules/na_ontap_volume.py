@@ -31,6 +31,7 @@ options:
     description:
     - Whether the specified volume should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
 
   name:
@@ -258,11 +259,13 @@ options:
   qos_policy_group:
     description:
     - Specifies a QoS policy group to be set on volume.
+    type: str
     version_added: 2.9.0
 
   qos_adaptive_policy_group:
     description:
     - Specifies a QoS adaptive policy group to be set on volume.
+    type: str
     version_added: 2.9.0
 
   tiering_policy:
@@ -607,8 +610,7 @@ class NetAppOntapVolume(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),

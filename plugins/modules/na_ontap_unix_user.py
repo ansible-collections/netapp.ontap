@@ -31,6 +31,7 @@ options:
     description:
     - Whether the specified user should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
 
   name:
@@ -38,27 +39,32 @@ options:
     - Specifies user's UNIX account name.
     - Non-modifiable.
     required: true
+    type: str
 
   group_id:
     description:
     - Specifies the primary group identification number for the UNIX user
     - Required for create, modifiable.
+    type: int
 
   vserver:
     description:
     - Specifies the Vserver for the UNIX user.
     - Non-modifiable.
     required: true
+    type: str
 
   id:
     description:
     - Specifies an identification number for the UNIX user.
     - Required for create, modifiable.
+    type: int
 
   full_name:
     description:
     - Specifies the full name of the UNIX user
     - Optional for create, modifiable.
+    type: str
 '''
 
 EXAMPLES = """
@@ -107,7 +113,7 @@ class NetAppOntapUnixUser(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             group_id=dict(required=False, type='int'),
             id=dict(required=False, type='int'),

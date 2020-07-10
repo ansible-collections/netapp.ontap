@@ -31,12 +31,14 @@ options:
     - Whether the specified export policy rule should exist or not.
     required: false
     choices: ['present', 'absent']
+    type: str
     default: present
 
   name:
     description:
     - The name of the export rule to manage.
     required: True
+    type: str
     aliases:
     - policy_name
 
@@ -46,6 +48,7 @@ options:
     - If rule_index is not provided, client_match is used as a key to fetch current rule to determine create,delete,modify actions.
       If a rule with provided client_match exists, a new rule will not be created, but the existing rule will be modified or deleted.
       If a rule with provided client_match doesn't exist, a new rule will be created if state is present.
+    type: list
 
   anonymous_user_id:
     description:
@@ -56,16 +59,19 @@ options:
     description:
     - List of Read only access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
+    type: list
 
   rw_rule:
     description:
     - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
+    type: list
 
   super_user_security:
     description:
     - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
+    type: list
 
   allow_suid:
     description:
@@ -77,15 +83,18 @@ options:
     - List of Client access protocols.
     - Default value is set to 'any' during create.
     choices: [any,nfs,nfs3,nfs4,cifs,flexcache]
+    type: list
 
   rule_index:
     description:
     - rule index of the export policy
+    type: int
 
   vserver:
     description:
     - Name of the vserver to use.
     required: true
+    type: str
 
 '''
 

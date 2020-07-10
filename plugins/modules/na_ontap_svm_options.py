@@ -24,14 +24,17 @@ options:
   name:
     description:
       - Name of the option.
+    type: str
   value:
     description:
       - Value of the option.
       - Value must be in quote
+    type: str
   vserver:
     description:
       - The name of the vserver to which this option belongs to.
     required: True
+    type: str
 '''
 
 EXAMPLES = """

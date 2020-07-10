@@ -26,20 +26,24 @@ options:
     description:
     - Whether the DNS servers should be enabled for the given vserver.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   vserver:
     description:
     - The name of the vserver to use.
     required: true
+    type: str
 
   domains:
     description:
     - List of DNS domains such as 'sales.bar.com'. The first domain is the one that the Vserver belongs to.
+    type: list
 
   nameservers:
     description:
     - List of IPv4 addresses of name servers such as '123.123.123.123'.
+    type: list
 
   skip_validation:
     type: bool
@@ -85,7 +89,7 @@ class NetAppOntapDns(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             domains=dict(required=False, type='list'),
             nameservers=dict(required=False, type='list'),

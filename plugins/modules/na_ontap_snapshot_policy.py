@@ -26,12 +26,14 @@ options:
     description:
     - If you want to create, modify or delete a snapshot policy.
     choices: ['present', 'absent']
+    type: str
     default: present
   name:
     description:
       Name of the snapshot policy to be managed.
       The maximum string length is 256 characters.
     required: true
+    type: str
   enabled:
     description:
     - Status of the snapshot policy indicating whether the policy will be enabled or disabled.
@@ -40,6 +42,7 @@ options:
     description:
       A human readable comment attached with the snapshot.
       The size of the comment can be at most 255 characters.
+    type: str
   count:
     description:
       Retention count for the snapshots created by the schedule.
@@ -69,6 +72,7 @@ options:
     - The name of the vserver to use. In a multi-tenanted environment, assigning a
       Snapshot Policy to a vserver will restrict its use to that vserver.
     required: false
+    type: str
     version_added: 2.9.0
 '''
 EXAMPLES = """
@@ -156,8 +160,7 @@ class NetAppOntapSnapshotPolicy(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type="str"),
             enabled=dict(required=False, type="bool"),
             # count is a list of integers

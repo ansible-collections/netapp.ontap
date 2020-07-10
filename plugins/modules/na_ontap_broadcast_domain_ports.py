@@ -24,17 +24,21 @@ options:
     description:
     - Whether the specified broadcast domain should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
   broadcast_domain:
     description:
     - Specify the broadcast_domain name
     required: true
+    type: str
   ipspace:
     description:
     - Specify the ipspace for the broadcast domain
+    type: str
   ports:
     description:
     - Specify the list of ports to add to or remove from this broadcast domain.
+    type: list
 
 '''
 
@@ -80,7 +84,7 @@ class NetAppOntapBroadcastDomainPorts(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             broadcast_domain=dict(required=True, type='str'),
             ipspace=dict(required=False, type='str', default=None),
             ports=dict(required=True, type='list'),

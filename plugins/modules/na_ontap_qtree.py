@@ -31,6 +31,7 @@ options:
     description:
     - Whether the specified qtree should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
 
   name:
@@ -67,12 +68,14 @@ options:
     description:
     - The security style for the qtree.
     choices: ['unix', 'ntfs', 'mixed']
+    type: str
     version_added: 2.9.0
 
   oplocks:
     description:
     - Whether the oplocks should be enabled or not for the qtree.
     choices: ['enabled', 'disabled']
+    type: str
     version_added: 2.9.0
 
   unix_permissions:
@@ -131,16 +134,14 @@ class NetAppOntapQTree(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False,
-                       choices=['present', 'absent'],
-                       default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
             flexvol_name=dict(type='str'),
             vserver=dict(required=True, type='str'),
             export_policy=dict(required=False, type='str'),
-            security_style=dict(required=False, choices=['unix', 'ntfs', 'mixed']),
-            oplocks=dict(required=False, choices=['enabled', 'disabled']),
+            security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),
+            oplocks=dict(required=False, type='str', choices=['enabled', 'disabled']),
             unix_permissions=dict(required=False, type='str'),
         ))
 

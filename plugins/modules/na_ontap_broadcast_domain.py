@@ -25,6 +25,7 @@ options:
     description:
     - Whether the specified broadcast domain should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
   name:
     description:
@@ -32,18 +33,23 @@ options:
     required: true
     aliases:
     - broadcast_domain
+    type: str
   from_name:
     description:
     - Specify the  broadcast domain name to be split into new broadcast domain.
     version_added: 2.8.0
+    type: str
   mtu:
     description:
     - Specify the required mtu for the broadcast domain.
+    type: str
   ipspace:
     description:
     - Specify the required ipspace for the broadcast domain.
     - A domain ipspace can not be modified after the domain has been created.
+    type: str
   ports:
+    type: list
     description:
     - Specify the ports associated with this broadcast domain. Should be comma separated.
     - It represents the expected state of a list of ports at any time.
@@ -119,7 +125,7 @@ class NetAppOntapBroadcastDomain(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str', aliases=["broadcast_domain"]),
             ipspace=dict(required=False, type='str'),
             mtu=dict(required=False, type='str'),

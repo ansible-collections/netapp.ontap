@@ -29,6 +29,7 @@ options:
 
   node:
     required: true
+    type: str
     description:
     - It specifies the node to assign all visible unowned disks.
 

@@ -25,6 +25,7 @@ options:
     description:
     - Whether volume clone should be created.
     choices: ['present']
+    type: str
     default: 'present'
   parent_volume:
     description:
@@ -59,10 +60,12 @@ options:
     description:
     - The space_reserve setting which should be used for the volume clone.
     choices: ['volume', 'none']
+    type: str
   volume_type:
     description:
     - The volume-type setting which should be used for the volume clone.
     choices: ['rw', 'dp']
+    type: str
   junction_path:
     version_added: 2.8.0
     description:
@@ -125,15 +128,15 @@ class NetAppONTAPVolumeClone(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
             parent_volume=dict(required=True, type='str'),
             name=dict(required=True, type='str', aliases=["volume"]),
             vserver=dict(required=True, type='str'),
             parent_snapshot=dict(required=False, type='str', default=None),
             parent_vserver=dict(required=False, type='str', default=None),
             qos_policy_group_name=dict(required=False, type='str', default=None),
-            space_reserve=dict(required=False, choices=['volume', 'none'], default=None),
-            volume_type=dict(required=False, choices=['rw', 'dp']),
+            space_reserve=dict(required=False, type='str', choices=['volume', 'none'], default=None),
+            volume_type=dict(required=False, type='str', choices=['rw', 'dp']),
             junction_path=dict(required=False, type='str', default=None),
             uid=dict(required=False, type='int'),
             gid=dict(required=False, type='int'),

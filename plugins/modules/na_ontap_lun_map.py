@@ -34,26 +34,31 @@ options:
     description:
     - Whether the specified LUN should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   initiator_group_name:
     description:
     - Initiator group to map to the given LUN.
     required: true
+    type: str
 
   path:
     description:
     - Path of the LUN..
     required: true
+    type: str
 
   vserver:
     required: true
     description:
     - The name of the vserver to use.
+    type: str
 
   lun_id:
     description:
     - LUN ID assigned for the map.
+    type: str
 
 
 """
@@ -130,7 +135,7 @@ class NetAppOntapLUNMap(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             initiator_group_name=dict(required=True, type='str'),
             path=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),

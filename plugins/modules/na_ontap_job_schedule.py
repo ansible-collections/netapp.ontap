@@ -26,11 +26,13 @@ options:
     description:
     - Whether the specified job schedule should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
   name:
     description:
     - The name of the job-schedule to manage.
     required: true
+    type: str
   job_minutes:
     description:
     - The minute(s) of each hour when the job should be run.
@@ -121,8 +123,7 @@ class NetAppONTAPJob(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             job_minutes=dict(required=False, type='list'),
             job_months=dict(required=False, type='list'),

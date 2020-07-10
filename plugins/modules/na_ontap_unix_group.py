@@ -26,6 +26,7 @@ options:
     description:
     - Whether the specified group should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
 
   name:
@@ -33,18 +34,21 @@ options:
     - Specifies UNIX group's name, unique for each group.
     - Non-modifiable.
     required: true
+    type: str
 
   id:
     description:
     - Specifies an identification number for the UNIX group.
     - Group ID is unique for each UNIX group.
     - Required for create, modifiable.
+    type: int
 
   vserver:
     description:
     - Specifies the Vserver for the UNIX group.
     - Non-modifiable.
     required: true
+    type: str
 
   skip_name_validation:
     description:
@@ -119,7 +123,7 @@ class NetAppOntapUnixGroup(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             id=dict(required=False, type='int'),
             skip_name_validation=dict(required=False, type='bool'),

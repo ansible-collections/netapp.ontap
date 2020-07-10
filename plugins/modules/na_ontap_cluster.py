@@ -26,13 +26,16 @@ options:
     description:
     - Whether the specified cluster should exist or not.
     choices: ['present']
+    type: str
     default: present
   cluster_name:
     description:
     - The name of the cluster to manage.
+    type: str
   cluster_ip_address:
     description:
     - IP address of cluster to be joined
+    type: str
   single_node_cluster:
     description:
     - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
@@ -43,10 +46,12 @@ options:
     description:
     - Cluster location, only relevant if performing a modify action.
     version_added: '19.11.0'
+    type: str
   cluster_contact:
     description:
     - Cluster contact, only relevant if performing a modify action.
     version_added: '19.11.0'
+    type: str
 '''
 
 EXAMPLES = """
@@ -114,7 +119,7 @@ class NetAppONTAPCluster(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present'], default='present'),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
             cluster_name=dict(required=False, type='str'),
             cluster_ip_address=dict(required=False, type='str'),
             cluster_location=dict(required=False, type='str'),

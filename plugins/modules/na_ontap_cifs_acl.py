@@ -21,25 +21,30 @@ module: na_ontap_cifs_acl
 options:
   permission:
     choices: ['no_access', 'read', 'change', 'full_control']
+    type: str
     description:
       -"The access rights that the user or group has on the defined CIFS share."
   share_name:
     description:
       - "The name of the cifs-share-access-control to manage."
     required: true
+    type: str
   state:
     choices: ['present', 'absent']
     description:
       - "Whether the specified CIFS share acl should exist or not."
     default: present
+    type: str
   vserver:
     description:
     - Name of the vserver to use.
     required: true
+    type: str
   user_or_group:
     description:
       - "The user or group name for which the permissions are listed."
     required: true
+    type: str
 short_description: NetApp ONTAP manage cifs-share-access-control
 version_added: "2.6"
 

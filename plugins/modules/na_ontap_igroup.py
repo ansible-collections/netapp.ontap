@@ -32,27 +32,32 @@ options:
     description:
     - Whether the specified Igroup should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   name:
     description:
     - The name of the igroup to manage.
     required: true
+    type: str
 
   initiator_group_type:
     description:
     - Type of the initiator group.
     - Required when C(state=present).
     choices: ['fcp', 'iscsi', 'mixed']
+    type: str
 
   from_name:
     description:
     - Name of igroup to rename to name.
     version_added: 2.7.0
+    type: str
 
   ostype:
     description:
     - OS type of the initiators within the group.
+    type: str
 
   initiators:
     description:
@@ -62,10 +67,12 @@ options:
     - This module does not add or remove specific initiator(s) in an igroup
     aliases:
     - initiator
+    type: list
 
   bind_portset:
     description:
     - Name of a current portset to bind to the newly created igroup.
+    type: str
 
   force_remove_initiator:
     description:
@@ -76,6 +83,7 @@ options:
     description:
     - The name of the vserver to use.
     required: true
+    type: str
 
 '''
 
@@ -158,8 +166,7 @@ class NetAppOntapIgroup(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str', default=None),
             ostype=dict(required=False, type='str'),

@@ -30,11 +30,13 @@ options:
     description:
     - Whether the specified user should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
   name:
     description:
     - The name of the user to manage.
     required: true
+    type: str
   applications:
     description:
     - List of application to grant access to.
@@ -60,15 +62,18 @@ options:
     - Password for telnet application.
     - Password, publickey, domain, nsswitch for ssh application.
     required: true
+    type: str
     choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']
   set_password:
     description:
     - Password for the user account.
     - It is ignored for creating snmp users, but is required for creating non-snmp users.
     - For an existing user, this value will be used as the new password.
+    type: str
   role_name:
     description:
     - The name of the role. Required when C(state=present)
+    type: str
   lock_user:
     description:
     - Whether the specified user account is locked.
@@ -79,6 +84,7 @@ options:
     aliases:
       - svm
     required: true
+    type: str
   authentication_protocol:
     description:
     - Authentication protocol for the snmp user.
@@ -203,7 +209,7 @@ class NetAppOntapUser(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
 
             applications=dict(required=True, type='list', aliases=['application'],

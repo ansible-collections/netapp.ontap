@@ -25,30 +25,36 @@ options:
     description:
     - Whether a Vscan Scanner pool is present or not
     choices: ['present', 'absent']
+    type: str
     default: present
 
   vserver:
     description:
     - the name of the data vserver to use.
     required: true
+    type: str
 
   hostnames:
     description:
     - List of hostnames of Vscan servers which are allowed to connect to Data ONTAP
+    type: list
 
   privileged_users:
     description:
     - List of privileged usernames. Username must be in the form "domain-name\\user-name"
+    type: list
 
   scanner_pool:
     description:
     - the name of the virus scanner pool
     required: true
+    type: str
 
   scanner_policy:
     description:
     - The name of the Virus scanner Policy
     choices: ['primary', 'secondary', 'idle']
+    type: str
 '''
 
 EXAMPLES = """
@@ -105,12 +111,12 @@ class NetAppOntapVscanScannerPool(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             hostnames=dict(requried=False, type='list'),
             privileged_users=dict(required=False, type='list'),
             scanner_pool=dict(required=True, type='str'),
-            scanner_policy=dict(required=False, choices=['primary', 'secondary', 'idle'])
+            scanner_policy=dict(required=False, type='str', choices=['primary', 'secondary', 'idle'])
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,

@@ -21,6 +21,7 @@ module: na_ontap_cluster_ha
 options:
   state:
     choices: ['present', 'absent']
+    type: str
     description:
       - "Whether HA on cluster should be enabled or disabled."
     default: present
@@ -57,7 +58,7 @@ class NetAppOntapClusterHA(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,

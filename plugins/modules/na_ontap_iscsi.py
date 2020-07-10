@@ -32,15 +32,18 @@ options:
     description:
     - Whether the service should be present or deleted.
     choices: ['present', 'absent']
+    type: str
     default: present
 
   service_state:
     description:
-    - Whether the specified service should running .
+    - Whether the specified service should running.
     choices: ['started', 'stopped']
+    type: str
 
   vserver:
     required: true
+    type: str
     description:
     - The name of the vserver to use.
 
@@ -93,10 +96,8 @@ class NetAppOntapISCSI(object):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
-            service_state=dict(required=False, choices=[
-                               'started', 'stopped'], default=None),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
+            service_state=dict(required=False, type='str', choices=['started', 'stopped'], default=None),
             vserver=dict(required=True, type='str'),
         ))
 

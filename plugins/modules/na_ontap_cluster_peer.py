@@ -20,6 +20,7 @@ module: na_ontap_cluster_peer
 options:
   state:
     choices: ['present', 'absent']
+    type: str
     description:
       - Whether the specified cluster peer should exist or not.
     default: present
@@ -29,6 +30,7 @@ options:
       - Used as peer-addresses in destination cluster.
       - All these intercluster lifs should belong to the source cluster.
     version_added: 2.8.0
+    type: list
     aliases:
     - source_intercluster_lif
   dest_intercluster_lifs:
@@ -37,31 +39,38 @@ options:
       - Used as peer-addresses in source cluster.
       - All these intercluster lifs should belong to the destination cluster.
     version_added: 2.8.0
+    type: list
     aliases:
     - dest_intercluster_lif
   passphrase:
     description:
       - The arbitrary passphrase that matches the one given to the peer cluster.
+    type: str
   source_cluster_name:
     description:
       - The name of the source cluster name in the peer relation to be deleted.
+    type: str
   dest_cluster_name:
     description:
       - The name of the destination cluster name in the peer relation to be deleted.
       - Required for delete
+    type: str
   dest_hostname:
     description:
       - Destination cluster IP or hostname which needs to be peered
       - Required to complete the peering process at destination cluster.
     required: True
+    type: str
   dest_username:
     description:
      - Destination username.
      - Optional if this is same as source username.
+    type: str
   dest_password:
     description:
      - Destination password.
      - Optional if this is same as source password.
+    type: str
   encryption_protocol_proposed:
     description:
      - Encryption protocol to be used for inter-cluster communication.

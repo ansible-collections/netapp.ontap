@@ -25,21 +25,25 @@ options:
     description:
     - Whether you want to create or delete a network route.
     choices: ['present', 'absent']
+    type: str
     default: present
   vserver:
     description:
     - The name of the vserver.
     required: true
+    type: str
   destination:
     description:
     - Specify the route destination.
     - Example 10.7.125.5/20, fd20:13::/64.
     required: true
+    type: str
   gateway:
     description:
     - Specify the route gateway.
     - Example 10.7.125.1, fd20:13::1.
     required: true
+    type: str
   metric:
     description:
     - Specify the route metric.
@@ -50,14 +54,17 @@ options:
     - Specify the route destination that should be changed.
     - new_destination was removed to fix idempotency issues. To rename destination the original goes to from_destination and the new goes to destination.
     version_added: 2.8.0
+    type: str
   from_gateway:
     description:
     - Specify the route gateway that should be changed.
     version_added: 2.8.0
+    type: str
   from_metric:
     description:
     - Specify the route metric that should be changed.
     version_added: 2.8.0
+    type: int
 '''
 
 EXAMPLES = """
@@ -100,8 +107,7 @@ class NetAppOntapNetRoutes(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             destination=dict(required=True, type='str'),
             gateway=dict(required=True, type='str'),

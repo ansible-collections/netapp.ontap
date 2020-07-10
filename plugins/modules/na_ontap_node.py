@@ -25,11 +25,13 @@ options:
     description:
     - The new name for the node
     required: true
+    type: str
 
   from_name:
     description:
     - The name of the node to be renamed.  If I(name) already exists, no action will be performed.
     required: true
+    type: str
 
 '''
 

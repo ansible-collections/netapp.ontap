@@ -31,30 +31,38 @@ options:
     description:
       - Whether the specified relationship should exist or not.
     default: present
+    type: str
   source_volume:
     description:
       - Specifies the name of the source volume for the SnapMirror.
+    type: str
   destination_volume:
     description:
       - Specifies the name of the destination volume for the SnapMirror.
+    type: str
   source_vserver:
     description:
       - Name of the source vserver for the SnapMirror.
+    type: str
   destination_vserver:
     description:
       - Name of the destination vserver for the SnapMirror.
+    type: str
   source_path:
     description:
       - Specifies the source endpoint of the SnapMirror relationship.
       - If the source is an ONTAP volume, format should be <[vserver:][volume]> or <[[cluster:]//vserver/]volume>
       - If the source is an ElementSW volume, format should be <[Element_SVIP]:/lun/[Element_VOLUME_ID]>
       - If the source is an ElementSW volume, the volume should have SnapMirror enabled.
+    type: str
   destination_path:
     description:
       - Specifies the destination endpoint of the SnapMirror relationship.
+    type: str
   relationship_type:
     choices: ['data_protection', 'load_sharing', 'vault', 'restore', 'transition_data_protection',
     'extended_data_protection']
+    type: str
     description:
       - Specify the type of SnapMirror relationship.
       - for 'restore' unless 'source_snapshot' is specified the most recent Snapshot copy on the source volume is restored.
@@ -63,22 +71,27 @@ options:
     description:
       - Specify the name of the current schedule, which is used to update the SnapMirror relationship.
       - Optional for create, modifiable.
+    type: str
   policy:
     description:
       - Specify the name of the SnapMirror policy that applies to this relationship.
     version_added: 2.8.0
+    type: str
   source_hostname:
     description:
      - Source hostname or management IP address for ONTAP or ElementSW cluster.
      - Required for SnapMirror delete
+    type: str
   source_username:
     description:
      - Source username for ONTAP or ElementSW cluster.
      - Optional if this is same as destination username.
+    type: str
   source_password:
     description:
      - Source password for ONTAP or ElementSW cluster.
      - Optional if this is same as destination password.
+    type: str
   connection_type:
     description:
      - Type of SnapMirror relationship.
@@ -86,6 +99,7 @@ options:
      - For using ontap_elementsw, elementsw_ontap snapmirror relationship should exist.
     choices: ['ontap_ontap', 'elementsw_ontap', 'ontap_elementsw']
     default: ontap_ontap
+    type: str
     version_added: 2.9.0
   max_transfer_rate:
     description:

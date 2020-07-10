@@ -31,21 +31,25 @@ options:
     description:
     - Whether the specified key manager should exist or not.
     choices: ['present', 'absent']
+    type: str
     default: 'present'
 
   ip_address:
     description:
     - The IP address of the key management server.
     required: true
+    type: str
 
   tcp_port:
     description:
     - The TCP port on which the key management server listens for incoming connections.
     default: 5696
+    type: int
 
   node:
     description:
     - The node which key management server runs on.
+    type: str
 
 '''
 
@@ -96,7 +100,7 @@ class NetAppOntapSecurityKeyManager(object):
         '''Initialize module parameters'''
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             ip_address=dict(required=True, type='str'),
             node=dict(required=False, type='str'),
             tcp_port=dict(required=False, type='int', default=5696)

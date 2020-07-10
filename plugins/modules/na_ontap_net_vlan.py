@@ -24,19 +24,23 @@ options:
     description:
     - Whether the specified network VLAN should exist or not
     choices: ['present', 'absent']
+    type: str
     default: present
   parent_interface:
     description:
     - The interface that hosts the VLAN interface.
     required: true
+    type: str
   vlanid:
     description:
     - The VLAN id. Ranges from 1 to 4094.
     required: true
+    type: str
   node:
     description:
     - Node name of VLAN interface.
     required: true
+    type: str
 notes:
   - The C(interface_name) option has been removed and should be deleted from playbooks
 '''
@@ -73,7 +77,7 @@ class NetAppOntapVlan(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             parent_interface=dict(required=True, type='str'),
             vlanid=dict(required=True, type='str'),
             node=dict(required=True, type='str'),

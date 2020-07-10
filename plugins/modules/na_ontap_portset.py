@@ -25,19 +25,23 @@ options:
     description:
       - If you want to create a portset.
     default: present
+    type: str
   vserver:
     required: true
     description:
       - Name of the SVM.
+    type: str
   name:
     required: true
     description:
       - Name of the port set to create.
+    type: str
   type:
     description:
       - Required for create.
       - Protocols accepted for this portset.
     choices: ['fcp', 'iscsi', 'mixed']
+    type: str
   force:
     description:
       - If 'false' or not specified, the request will fail if there are any igroups bound to this portset.
@@ -50,6 +54,7 @@ options:
     - It represents the expected state of a list of ports at any time, and replaces the current value of ports.
     - Adds a port if it is specified in expected state but not in current state.
     - Deletes a port if it is in current state but not in expected state.
+    type: list
 version_added: 2.8.0
 
 '''
@@ -109,7 +114,7 @@ class NetAppONTAPPortset(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, default='present'),
+            state=dict(required=False, type='str', default='present'),
             vserver=dict(required=True, type='str'),
             name=dict(required=True, type='str'),
             type=dict(required=False, type='str', choices=[

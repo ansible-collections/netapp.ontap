@@ -25,32 +25,38 @@ options:
     description:
     - Whether a Vscan on Access policy is present or not
     choices: ['present', 'absent']
+    type: str
     default: present
 
   vserver:
     description:
     - the name of the data vserver to use.
     required: true
+    type: str
 
   policy_name:
     description:
     - The name of the policy
     required: true
+    type: str
 
   file_ext_to_exclude:
     description:
     - File extensions for which On-Access scanning must not be performed.
+    type: list
 
   file_ext_to_include:
     description:
     - File extensions for which On-Access scanning is considered. The default value is '*', which means that all files are considered for scanning except
     - those which are excluded from scanning.
+    type: list
 
   filters:
     description:
     - A list of filters which can be used to define the scope of the On-Access policy more precisely. The filters can be added in any order. Possible values
     - scan_ro_volume  Enable scans for read-only volume,
     - scan_execute_access  Scan only files opened with execute-access (CIFS only)
+    type: list
 
   is_scan_mandatory:
     description:
@@ -61,15 +67,18 @@ options:
   max_file_size:
     description:
     - Max file-size (in bytes) allowed for scanning. The default value of 2147483648 (2GB) is taken if not provided at the time of creating a policy.
+    type: int
 
   paths_to_exclude:
     description:
     - File paths for which On-Access scanning must not be performed.
+    type: list
 
   scan_files_with_no_ext:
     description:
     - Specifies whether files without any extension are considered for scanning or not.
     default: True
+    type: bool
 '''
 
 EXAMPLES = """
@@ -121,7 +130,7 @@ class NetAppOntapVscanOnAccessPolicy(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             policy_name=dict(required=True, type='str'),
             file_ext_to_exclude=dict(required=False, type="list"),
@@ -130,7 +139,7 @@ class NetAppOntapVscanOnAccessPolicy(object):
             is_scan_mandatory=dict(required=False, type='bool', default=False),
             max_file_size=dict(required=False, type="int"),
             paths_to_exclude=dict(required=False, type="list"),
-            scan_files_with_no_ext=dict(required=False, type=bool, default=True)
+            scan_files_with_no_ext=dict(required=False, type='bool', default=True)
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
