@@ -6,6 +6,7 @@ GNU General Public License v3.0+
 '''
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
@@ -51,12 +52,18 @@ options:
     - Comma separated list of LDAP servers. FQDN's or IP addreses
     - Required if I(state=present).
     type: list
+    elements: str
 
   schema:
     description:
     - LDAP schema
     - Required if I(state=present).
     choices: ['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']
+    type: str
+
+  ad_domain:
+    description:
+    - Active Directory Domain Name
     type: str
 
   base_dn:
@@ -69,6 +76,17 @@ options:
     - LDAP search scope
     choices: ['subtree', 'onelevel', 'base']
     type: str
+
+  bind_as_cifs_server:
+    description:
+    -  The cluster uses the CIFS server's credentials to bind to the LDAP server.
+    type: bool
+
+  preferred_ad_servers:
+    description:
+    - Preferred Active Directory (AD) Domain Controllers
+    type: list
+    elements: str
 
   port:
     description:
@@ -99,19 +117,17 @@ options:
   use_start_tls:
     description:
     - Start TLS on LDAP connection
-    choices: ['true', 'false']
-    type: str
+    type: bool
 
   referral_enabled:
     description:
     - LDAP Referral Chasing
-    choices: ['true', 'false']
-    type: str
+    type: bool
 
   session_security:
     description:
     - Client Session Security
-    choices: ['true', 'false']
+    choices: ['none', 'sign', 'seal']
     type: str
 '''
 
@@ -150,27 +166,36 @@ class NetAppOntapLDAPClient(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
+            ad_domain=dict(required=False, default=None, type='str'),
             base_dn=dict(required=False, type='str'),
             base_scope=dict(required=False, default=None, choices=['subtree', 'onelevel', 'base']),
+            bind_as_cifs_server=dict(required=False, type='bool'),
             bind_dn=dict(required=False, default=None, type='str'),
             bind_password=dict(type='str', required=False, default=None, no_log=True),
             name=dict(required=True, type='str'),
-            ldap_servers=dict(required_if=[["state", "present"]], type='list'),
+            ldap_servers=dict(required=False, type='list', elements='str'),
             min_bind_level=dict(required=False, default=None, choices=['anonymous', 'simple', 'sasl']),
+            preferred_ad_servers=dict(required=False, type='list', elements='str'),
             port=dict(required=False, default=None, type='int'),
             query_timeout=dict(required=False, default=None, type='int'),
-            referral_enabled=dict(required=False, default=None, choices=['true', 'false']),
-            schema=dict(required_if=[["state", "present"]], default=None, type='str', choices=['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']),
-            session_security=dict(required=False, default=None, choices=['true', 'false']),
+            referral_enabled=dict(required=False, type='bool'),
+            schema=dict(required=False, default=None, choices=['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']),
+            session_security=dict(required=False, default=None, choices=['none', 'sign', 'seal']),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
-            use_start_tls=dict(required=False, default=None, choices=['true', 'false']),
+            use_start_tls=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            required_if=[('state', 'present', ['ldap_servers', 'schema'])],
+            required_if=[
+                ('state', 'present', ['schema']),
+            ],
+            mutually_exclusive=[
+                ['ldap_servers', 'ad_domain'],
+                ['ldap_servers', 'preferred_ad_servers']
+            ],
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
@@ -182,8 +207,10 @@ class NetAppOntapLDAPClient(object):
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
         self.simple_attributes = [
+            'ad_domain',
             'base_dn',
             'base_scope',
+            'bind_as_cifs_server',
             'bind_dn',
             'bind_password',
             'min_bind_level',
@@ -213,7 +240,9 @@ class NetAppOntapLDAPClient(object):
             vserver_name = '*'
 
         query_details = netapp_utils.zapi.NaElement.create_node_with_children('ldap-client',
-                                                                              **{'ldap-client-config': client_config_name, 'vserver': vserver_name})
+                                                                              **{
+                                                                                  'ldap-client-config': client_config_name,
+                                                                                  'vserver': vserver_name})
 
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(query_details)
@@ -223,46 +252,49 @@ class NetAppOntapLDAPClient(object):
 
         # Get LDAP client configuration details
         client_config_details = None
-        if (result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1):
+        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             attributes_list = result.get_child_by_name('attributes-list')
             client_config_info = attributes_list.get_child_by_name('ldap-client')
-
             # Get LDAP servers list
             ldap_server_list = list()
             get_list = client_config_info.get_child_by_name('ldap-servers')
             if get_list is not None:
-                ldap_servers = get_list.get_children()
-                for ldap_server in ldap_servers:
-                    ldap_server_list.append(ldap_server.get_content())
+                ldap_server_list = [x.get_content() for x in get_list.get_children()]
+
+            preferred_ad_servers_list = list()
+            get_pref_ad_server_list = client_config_info.get_child_by_name('preferred-ad-servers')
+            if get_pref_ad_server_list is not None:
+                preferred_ad_servers_list = [x.get_content() for x in get_pref_ad_server_list.get_children()]
 
             # Define config details structure
-            client_config_details = {'name': client_config_info.get_child_content('ldap-client-config'),
-                                     'ldap_servers': client_config_info.get_child_content('ldap-servers'),
-                                     'base_dn': client_config_info.get_child_content('base-dn'),
-                                     'base_scope': client_config_info.get_child_content('base-scope'),
-                                     'bind_dn': client_config_info.get_child_content('bind-dn'),
-                                     'bind_password': client_config_info.get_child_content('bind-password'),
-                                     'min_bind_level': client_config_info.get_child_content('min-bind-level'),
-                                     'port': client_config_info.get_child_content('port'),
-                                     'query_timeout': client_config_info.get_child_content('query-timeout'),
-                                     'referral_enabled': client_config_info.get_child_content('referral-enabled'),
-                                     'schema': client_config_info.get_child_content('schema'),
-                                     'session_security': client_config_info.get_child_content('session-security'),
-                                     'use_start_tls': client_config_info.get_child_content('use-start-tls'),
-                                     'vserver': client_config_info.get_child_content('vserver')}
-
+            client_config_details = {
+                'name': client_config_info.get_child_content('ldap-client-config'),
+                'ldap_servers': ldap_server_list,
+                'ad_domain': client_config_info.get_child_content('ad-domain'),
+                'base_dn': client_config_info.get_child_content('base-dn'),
+                'base_scope': client_config_info.get_child_content('base-scope'),
+                'bind_as_cifs_server': self.na_helper.get_value_for_bool(from_zapi=True,
+                                                                         value=client_config_info.get_child_content('bind-as-cifs-server')),
+                'bind_dn': client_config_info.get_child_content('bind-dn'),
+                'bind_password': client_config_info.get_child_content('bind-password'),
+                'min_bind_level': client_config_info.get_child_content('min-bind-level'),
+                'port': self.na_helper.get_value_for_int(from_zapi=True, value=client_config_info.get_child_content('port')),
+                'preferred_ad_servers': preferred_ad_servers_list,
+                'query_timeout': self.na_helper.get_value_for_int(from_zapi=True,
+                                                                  value=client_config_info.get_child_content('query-timeout')),
+                'referral_enabled': self.na_helper.get_value_for_bool(from_zapi=True,
+                                                                      value=client_config_info.get_child_content('referral-enabled')),
+                'schema': client_config_info.get_child_content('schema'),
+                'session_security': client_config_info.get_child_content('session-security'),
+                'use_start_tls': self.na_helper.get_value_for_bool(from_zapi=True,
+                                                                   value=client_config_info.get_child_content('use-start-tls'))
+            }
         return client_config_details
 
     def create_ldap_client(self):
         '''
         Create LDAP client configuration
         '''
-        # LDAP servers NaElement
-        ldap_servers_element = netapp_utils.zapi.NaElement('ldap-servers')
-
-        # Mandatory options
-        for ldap_server_name in self.parameters['ldap_servers']:
-            ldap_servers_element.add_new_child('string', ldap_server_name)
 
         options = {
             'ldap-client-config': self.parameters['name'],
@@ -272,18 +304,32 @@ class NetAppOntapLDAPClient(object):
         # Other options/attributes
         for attribute in self.simple_attributes:
             if self.parameters.get(attribute) is not None:
-                options[str(attribute).replace('_', '-')] = self.parameters[attribute]
+                options[str(attribute).replace('_', '-')] = str(self.parameters[attribute])
 
         # Initialize NaElement
         ldap_client_create = netapp_utils.zapi.NaElement.create_node_with_children('ldap-client-create', **options)
-        ldap_client_create.add_child_elem(ldap_servers_element)
+
+        # LDAP servers NaElement
+        if self.parameters.get('ldap_servers') is not None:
+            ldap_servers_element = netapp_utils.zapi.NaElement('ldap-servers')
+            for ldap_server_name in self.parameters['ldap_servers']:
+                ldap_servers_element.add_new_child('string', ldap_server_name)
+            ldap_client_create.add_child_elem(ldap_servers_element)
+
+        # preferred_ad_servers
+        if self.parameters.get('preferred_ad_servers') is not None:
+            preferred_ad_servers_element = netapp_utils.zapi.NaElement('preferred-ad-servers')
+            for pref_ad_server in self.parameters['preferred_ad_servers']:
+                preferred_ad_servers_element.add_new_child('ip-address', pref_ad_server)
+            ldap_client_create.add_child_elem(preferred_ad_servers_element)
 
         # Try to create LDAP configuration
         try:
             self.server.invoke_successfully(ldap_client_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as errcatch:
-            self.module.fail_json(msg='Error creating LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(
+                msg='Error creating LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
+                exception=traceback.format_exc())
 
     def delete_ldap_client(self):
         '''
@@ -313,23 +359,37 @@ class NetAppOntapLDAPClient(object):
                 for ldap_server_name in self.parameters['ldap_servers']:
                     ldap_servers_element.add_new_child('string', ldap_server_name)
                 ldap_client_modify.add_child_elem(ldap_servers_element)
-
+            # preferred_ad_servers
+            if attribute == 'preferred_ad_servers':
+                preferred_ad_servers_element = netapp_utils.zapi.NaElement('preferred-ad-servers')
+                ldap_client_modify.add_child_elem(preferred_ad_servers_element)
+                for pref_ad_server in self.parameters['preferred_ad_servers']:
+                    preferred_ad_servers_element.add_new_child('ip-address', pref_ad_server)
             # Simple attributes
             if attribute in self.simple_attributes:
-                ldap_client_modify.add_new_child(str(attribute).replace('_', '-'), self.parameters[attribute])
+                ldap_client_modify.add_new_child(str(attribute).replace('_', '-'), str(self.parameters[attribute]))
 
         # Try to modify LDAP client
         try:
             self.server.invoke_successfully(ldap_client_modify, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as errcatch:
-            self.module.fail_json(msg='Error modifying LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(
+                msg='Error modifying LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
+                exception=traceback.format_exc())
 
     def apply(self):
         '''Call create/modify/delete operations.'''
         current = self.get_ldap_client()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+
+        # state is present, either ldap_servers or ad_domain is required
+        if self.parameters['state'] == 'present' and not self.parameters.get('ldap_servers') \
+                and self.parameters.get('ad_domain') is None:
+            self.module.fail_json(msg='Required one of ldap_servers or ad_domain')
+
+        if self.parameters['state'] == 'present' and cd_action is None:
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+
         # create an ems log event for users with auto support turned on
         netapp_utils.ems_log_event("na_ontap_ldap_client", self.server)
 
