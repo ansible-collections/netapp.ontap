@@ -822,13 +822,15 @@ class NetAppONTAPSnapmirror(object):
             if current_elementsw_ontap is None:
                 self.module.fail_json(msg='Error: creating an ONTAP to ElementSW snapmirror relationship requires an '
                                           'established SnapMirror relation from ElementSW to ONTAP cluster')
-        current = self.snapmirror_get() if self.parameters['relationship_type'] != 'restore' else None
-        cd_action = self.na_helper.get_cd_action(current, self.parameters) if self.parameters['relationship_type'] != 'restore' else None
-        modify = self.na_helper.get_modified_attributes(current, self.parameters) if self.parameters['relationship_type'] != 'restore' else None
+        restore = self.parameters.get('relationship_type', '') == 'restore'
+        current = self.snapmirror_get() if not restore else None
+        cd_action = self.na_helper.get_cd_action(current, self.parameters) if not restore else None
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if not restore else None
         element_snapmirror = False
-        if self.parameters['state'] == 'present' and self.parameters['relationship_type'] == 'restore':
-            self.snapmirror_restore()
+        if self.parameters['state'] == 'present' and restore:
             self.na_helper.changed = True
+            if not self.module.check_mode:
+                self.snapmirror_restore()
         elif cd_action == 'create':
             if not self.module.check_mode:
                 self.snapmirror_create()

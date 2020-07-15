@@ -37,6 +37,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_igroup_initiator: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_security_certificates: allows (`common_name`, `type`) as an alternate key since `name` is not supported in ONTAP 9.6 and 9.7.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
+- na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
 
 ### Module documentation changes
 - use a three group format for `version_added`.  So 2.7 becomes 2.7.0.  Same thing for 2.8 and 2.9.
