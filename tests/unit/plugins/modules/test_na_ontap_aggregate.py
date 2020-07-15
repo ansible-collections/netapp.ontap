@@ -64,8 +64,13 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
-        if self.type == 'aggregate':
+        print('request:', xml.to_string())
+        if self.type in ('aggregate', 'aggr_disks', 'aggr_mirrors'):
             xml = self.build_aggregate_info(self.parm1, self.parm2)
+            if self.type in ('aggr_disks', 'aggr_mirrors'):
+                self.type = 'disks'
+        elif self.type == 'disks':
+            xml = self.build_disk_info(self.parm2)
         elif self.type == 'aggregate_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
@@ -73,7 +78,7 @@ class MockONTAPConnection(object):
 
     @staticmethod
     def build_aggregate_info(vserver, aggregate):
-        ''' build xml data for aggregatte and vserser-info '''
+        ''' build xml data for aggregate and vserser-info '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 3,
                 'attributes-list':
@@ -90,6 +95,49 @@ class MockONTAPConnection(object):
                     {'vserver-name': vserver
                      }
                 }
+        xml.translate_struct(data)
+        print(xml.to_string())
+        return xml
+
+    @staticmethod
+    def build_disk_info(vserver):
+        ''' build xml data for disk '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'num-records': 1,
+                'attributes-list': [
+                    {'disk-info':
+                        {'disk-name': '1',
+                         'disk-raid-info':
+                            {'disk-aggregate-info':
+                                {'plex-name': 'plex0'}
+                             }
+                         }
+                     },
+                    {'disk-info':
+                        {'disk-name': '2',
+                         'disk-raid-info':
+                            {'disk-aggregate-info':
+                                {'plex-name': 'plex0'}
+                             }
+                         }
+                     },
+                    {'disk-info':
+                        {'disk-name': '3',
+                         'disk-raid-info':
+                            {'disk-aggregate-info':
+                                {'plex-name': 'plexM'}
+                             }
+                         }
+                     },
+                    {'disk-info':
+                        {'disk-name': '4',
+                         'disk-raid-info':
+                            {'disk-aggregate-info':
+                                {'plex-name': 'plexM'}
+                             }
+                         }
+                     },
+                ]}
         xml.translate_struct(data)
         print(xml.to_string())
         return xml
@@ -118,7 +166,7 @@ class TestMyModule(unittest.TestCase):
             hostname = 'hostname'
             username = 'username'
             password = 'password'
-            name = 'name'
+            name = 'aggr_name'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -126,15 +174,21 @@ class TestMyModule(unittest.TestCase):
             'name': name
         })
 
-    def call_command(self, module_args):
+    def call_command(self, module_args, what=None):
         ''' utility function to call apply '''
         module_args.update(self.set_default_args())
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
+        aggregate = 'aggregate'
+        if what == 'disks':
+            aggregate = 'aggr_disks'
+        elif what == 'mirrors':
+            aggregate = 'aggr_mirrors'
+
         if not self.onbox:
             # mock the connection
-            my_obj.server = MockONTAPConnection('aggregate', '12', 'test_name')
+            my_obj.server = MockONTAPConnection(aggregate, '12', 'test_name')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         return exc.value.args[0]['changed']
@@ -156,19 +210,17 @@ class TestMyModule(unittest.TestCase):
 
     def test_disks_list(self):
         module_args = {
-            'disk_count': '2',
             'disks': ['1', '2'],
         }
-        changed = self.call_command(module_args)
+        changed = self.call_command(module_args, 'disks')
         assert not changed
 
     def test_mirror_disks(self):
         module_args = {
-            'disk_count': '2',
             'disks': ['1', '2'],
             'mirror_disks': ['3', '4']
         }
-        changed = self.call_command(module_args)
+        changed = self.call_command(module_args, 'mirrors')
         assert not changed
 
     def test_spare_pool(self):
@@ -220,8 +272,70 @@ class TestMyModule(unittest.TestCase):
         assert 'Error removing aggregate' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.rename_aggregate()
-            assert 'Error renaming aggregate' in exc.value.args[0]['msg']
+        assert 'Error renaming aggregate' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.asup_log_for_cserver = Mock(return_value=None)
             my_obj.apply()
-            assert 'Error renaming: aggregate test_name2 does not exist' in exc.value.args[0]['msg']
+        assert 'TEST:This exception is from the unit test' in exc.value.args[0]['msg']
+
+    def test_disks_bad_mapping(self):
+        module_args = {
+            'disks': ['0'],
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'mirrors')
+        msg = "Error mapping disks for aggregate %s: cannot not match disks with current aggregate disks." % module_args['name']
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_disks_overlapping_mirror(self):
+        module_args = {
+            'disks': ['1', '2', '3'],
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'mirrors')
+        msg = "Error mapping disks for aggregate %s: found overlapping plexes:" % module_args['name']
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_disks_removing_disk(self):
+        module_args = {
+            'disks': ['1'],
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'mirrors')
+        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['2']." % module_args['name']
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_disks_removing_mirror_disk(self):
+        module_args = {
+            'disks': ['1', '2'],
+            'mirror_disks': ['4', '6']
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'mirrors')
+        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['3']." % module_args['name']
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_disks_add(self):
+        module_args = {
+            'disks': ['1', '2', '5'],
+        }
+        changed = self.call_command(module_args, 'disks')
+        assert changed
+
+    def test_mirror_disks_add(self):
+        module_args = {
+            'disks': ['1', '2', '5'],
+            'mirror_disks': ['3', '4', '6']
+        }
+        changed = self.call_command(module_args, 'mirrors')
+        assert changed
+
+    def test_mirror_disks_add_unbalanced(self):
+        module_args = {
+            'disks': ['1', '2'],
+            'mirror_disks': ['3', '4', '6']
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'mirrors')
+        msg = "Error cannot add mirror disks ['6'] without adding disks for aggregate %s." % module_args['name']
+        assert exc.value.args[0]['msg'].startswith(msg)

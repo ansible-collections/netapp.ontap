@@ -155,10 +155,18 @@ options:
 
   snaplock_type:
     description:
-    - Type of snaplock for the aggregate being created.
+      - Type of snaplock for the aggregate being created.
     choices: ['compliance', 'enterprise', 'non_snaplock']
     type: str
-    version_added: '20.1.0'
+    version_added: 20.1.0
+
+  ignore_pool_checks:
+    description:
+      - only valid when I(disks) option is used.
+      - disks in a plex should belong to the same spare pool, and mirror disks to another spare pool.
+      - when set to true, these checks are ignored.
+    type: bool
+    version_added: 20.8.0
 '''
 
 EXAMPLES = """
@@ -255,7 +263,8 @@ class NetAppOntapAggregate(object):
             wait_for_online=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=100),
             object_store_name=dict(required=False, type='str'),
-            snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock'])
+            snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock']),
+            ignore_pool_checks=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -267,7 +276,8 @@ class NetAppOntapAggregate(object):
                 ('is_mirrored', 'disks'),
                 ('is_mirrored', 'mirror_disks'),
                 ('is_mirrored', 'spare_pool'),
-                ('spare_pool', 'disks')
+                ('spare_pool', 'disks'),
+                ('disk_count', 'disks')
             ],
             supports_check_mode=True
         )
@@ -329,6 +339,66 @@ class NetAppOntapAggregate(object):
                 current_aggr['disk_count'] = int(attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'))
             return current_aggr
         return None
+
+    def disk_get_iter(self, name):
+        """
+        Return storage-disk-get-iter query results
+        Filter disk list by aggregate name, and only reports disk-name and plex-name
+        :param name: Name of the aggregate
+        :return: NaElement
+        """
+
+        disk_get_iter = netapp_utils.zapi.NaElement('storage-disk-get-iter')
+        query_details = {
+            'query': {
+                'storage-disk-info': {
+                    'disk-raid-info': {
+                        'disk-aggregate-info': {
+                            'aggregate-name': name
+                        }
+                    }
+                }
+            }
+        }
+        disk_get_iter.translate_struct(query_details)
+        attributes = {
+            'desired-attributes': {
+                'storage-disk-info': {
+                    'disk-name': None,
+                    'disk-raid-info': {
+                        'disk_aggregate_info': {
+                            'plex-name': None
+                        }
+                    }
+                }
+            }
+        }
+        disk_get_iter.translate_struct(attributes)
+
+        result = None
+        try:
+            result = self.server.invoke_successfully(disk_get_iter, enable_tunneling=False)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+        return result
+
+    def get_aggr_disks(self, name):
+        """
+        Fetch disks that are used for this aggregate.
+        :param name: Name of the aggregate to be fetched
+        :return:
+            list of tuples (disk-name, plex-name)
+            empty list if aggregate is not found
+        """
+        disks = list()
+        aggr_get = self.disk_get_iter(name)
+        if (aggr_get and aggr_get.get_child_by_name('num-records') and
+                int(aggr_get.get_child_content('num-records')) >= 1):
+            attr = aggr_get.get_child_by_name('attributes-list')
+            disks = [(disk_info.get_child_content('disk-name'),
+                      disk_info.get_child_by_name('disk-raid-info').get_child_by_name('disk-aggregate-info').get_child_content('plex-name'))
+                     for disk_info in attr.get_children()]
+        return disks
 
     def object_store_get_iter(self):
         """
@@ -399,17 +469,26 @@ class NetAppOntapAggregate(object):
                                   (self.parameters['name'], self.parameters['service_state'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    @staticmethod
+    def get_disks_or_mirror_disks_object(name, disks):
+        '''
+        create ZAPI object for disks or mirror_disks
+        '''
+        disks_obj = netapp_utils.zapi.NaElement(name)
+        for disk in disks:
+            disk_info_obj = netapp_utils.zapi.NaElement('disk-info')
+            disk_info_obj.add_new_child('name', disk)
+            disks_obj.add_child_elem(disk_info_obj)
+        return disks_obj
+
     def create_aggr(self):
         """
         Create aggregate
         :return: None
         """
-        if not self.parameters.get('disk_count'):
-            self.module.fail_json(msg='Error provisioning aggregate %s: \
-                                             disk_count is required' % self.parameters['name'])
-        options = {'aggregate': self.parameters['name'],
-                   'disk-count': str(self.parameters['disk_count'])
-                   }
+        options = {'aggregate': self.parameters['name']}
+        if self.parameters.get('disk_count'):
+            options['disk-count'] = str(self.parameters['disk_count'])
         if self.parameters.get('disk_type'):
             options['disk-type'] = self.parameters['disk_type']
         if self.parameters.get('raid_size'):
@@ -426,6 +505,8 @@ class NetAppOntapAggregate(object):
             options['raid-type'] = self.parameters['raid_type']
         if self.parameters.get('snaplock_type'):
             options['snaplock-type'] = self.parameters['snaplock_type']
+        if self.parameters.get('ignore_pool_checks'):
+            options['ignore-pool-checks'] = str(self.parameters['ignore_pool_checks'])
         aggr_create = netapp_utils.zapi.NaElement.create_node_with_children('aggr-create', **options)
         if self.parameters.get('nodes'):
             nodes_obj = netapp_utils.zapi.NaElement('nodes')
@@ -433,15 +514,9 @@ class NetAppOntapAggregate(object):
             for node in self.parameters['nodes']:
                 nodes_obj.add_new_child('node-name', node)
         if self.parameters.get('disks'):
-            disks_obj = netapp_utils.zapi.NaElement('disk-info')
-            for disk in self.parameters.get('disks'):
-                disks_obj.add_new_child('name', disk)
-            aggr_create.add_child_elem(disks_obj)
+            aggr_create.add_child_elem(self.get_disks_or_mirror_disks_object('disks', self.parameters.get('disks')))
         if self.parameters.get('mirror_disks'):
-            mirror_disks_obj = netapp_utils.zapi.NaElement('disk-info')
-            for disk in self.parameters.get('mirror_disks'):
-                mirror_disks_obj.add_new_child('name', disk)
-            aggr_create.add_child_elem(mirror_disks_obj)
+            aggr_create.add_child_elem(self.get_disks_or_mirror_disks_object('mirror-disks', self.parameters.get('mirror_disks')))
 
         try:
             self.server.invoke_successfully(aggr_create, enable_tunneling=False)
@@ -503,6 +578,8 @@ class NetAppOntapAggregate(object):
                 self.aggregate_online()
             if modify.get('disk_count'):
                 self.add_disks(modify['disk_count'])
+            if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
+                self.add_disks(0, modify.get('disks_to_add'), modify.get('mirror_disks_to_add'))
 
     def attach_object_store_to_aggr(self):
         """
@@ -521,18 +598,28 @@ class NetAppOntapAggregate(object):
                                       (self.parameters['object_store_name'], self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def add_disks(self, count):
+    def add_disks(self, count=0, disks=None, mirror_disks=None):
         """
-        Add additional disk to aggregate.
+        Add additional disks to aggregate.
         :return: None
         """
-        online_aggr = netapp_utils.zapi.NaElement.create_node_with_children(
-            'aggr-add', **{'aggregate': self.parameters['name'], 'disk-count': str(count)})
+        options = {'aggregate': self.parameters['name']}
+        if count:
+            options['disk-count'] = str(count)
+        if disks and self.parameters.get('ignore_pool_checks'):
+            options['ignore-pool-checks'] = str(self.parameters['ignore_pool_checks'])
+        aggr_add = netapp_utils.zapi.NaElement.create_node_with_children(
+            'aggr-add', **options)
+        if disks:
+            aggr_add.add_child_elem(self.get_disks_or_mirror_disks_object('disks', disks))
+        if mirror_disks:
+            aggr_add.add_child_elem(self.get_disks_or_mirror_disks_object('mirror-disks', mirror_disks))
+
         try:
-            self.server.invoke_successfully(online_aggr,
+            self.server.invoke_successfully(aggr_add,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error adding additional disk to aggregate %s: %s' %
+            self.module.fail_json(msg='Error adding additional disks to aggregate %s: %s' %
                                   (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -552,6 +639,81 @@ class NetAppOntapAggregate(object):
             server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
         netapp_utils.ems_log_event(event_name, server)
 
+    def map_plex_to_primary_and_mirror(self, plex_disks, disks, mirror_disks):
+        '''
+        we have N plexes, and disks, and maybe mirror_disks
+        we're trying to find which plex is used for disks, and which one, if applicable, for mirror_disks
+        :return: a tuple with the names of the two plexes (disks_plex, mirror_disks_plex)
+        the second one can be None
+        '''
+        disks_plex = None
+        mirror_disks_plex = None
+        error = None
+        for plex in plex_disks:
+            common = set(plex_disks[plex]).intersection(set(disks))
+            if common:
+                if disks_plex is None:
+                    disks_plex = plex
+                else:
+                    error = 'found overlapping plexes: %s and %s' % (disks_plex, plex)
+            if mirror_disks is not None:
+                common = set(plex_disks[plex]).intersection(set(mirror_disks))
+                if common:
+                    if mirror_disks_plex is None:
+                        mirror_disks_plex = plex
+                    else:
+                        error = 'found overlapping mirror plexes: %s and %s' % (mirror_disks_plex, plex)
+        if error is None:
+            # make sure we found a match
+            if disks_plex is None:
+                error = 'cannot not match disks with current aggregate disks'
+            if mirror_disks is not None and mirror_disks_plex is None:
+                if error is not None:
+                    error += ', and '
+                error = 'cannot not match mirror_disks with current aggregate disks'
+        if error:
+            self.module.fail_json(msg="Error mapping disks for aggregate %s: %s.  Found: %s" %
+                                  (self.parameters['name'], error, str(plex_disks)))
+        return disks_plex, mirror_disks_plex
+
+    def get_disks_to_add(self, aggr_name, disks, mirror_disks):
+        '''
+        Get list of disks used by the aggregate, as primary and mirror.
+        Report error if:
+          the plexes in use cannot be matched with user inputs (we expect some overlap)
+          the user request requires some disks to be removed (not supported)
+        : return: a tuple of two lists of disks: disks_to_add, mirror_disks_to_add
+        '''
+        # let's see if we need to add disks
+        disks_in_use = self.get_aggr_disks(aggr_name)
+        # we expect a list of tuples (disk_name, plex_name), if there is a mirror, we should have 2 plexes
+        # let's get a list of disks for each plex
+        plex_disks = dict()
+        for disk_name, plex_name in disks_in_use:
+            plex_disks.setdefault(plex_name, []).append(disk_name)
+        # find who is who
+        disks_plex, mirror_disks_plex = self.map_plex_to_primary_and_mirror(plex_disks, disks, mirror_disks)
+        # Now that we know what is which, find what needs to be removed (error), and what needs to be added
+        disks_to_remove = [disk for disk in plex_disks[disks_plex] if disk not in disks]
+        if mirror_disks_plex:
+            disks_to_remove.extend([disk for disk in plex_disks[mirror_disks_plex] if disk not in mirror_disks])
+        if disks_to_remove:
+            error = 'these disks cannot be removed: %s' % str(disks_to_remove)
+            self.module.fail_json(msg="Error removing disks is not supported.  Aggregate %s: %s.  In use: %s" %
+                                  (aggr_name, error, str(plex_disks)))
+        # finally, what's to be added
+        disks_to_add = [disk for disk in disks if disk not in plex_disks[disks_plex]]
+        mirror_disks_to_add = list()
+        if mirror_disks_plex:
+            mirror_disks_to_add = [disk for disk in mirror_disks if disk not in plex_disks[mirror_disks_plex]]
+        if mirror_disks_to_add and not disks_to_add:
+            self.module.fail_json(msg="Error cannot add mirror disks %s without adding disks for aggregate %s.  In use: %s" %
+                                  (str(mirror_disks_to_add), aggr_name, str(plex_disks)))
+        if disks_to_add or mirror_disks_to_add:
+            self.na_helper.changed = True
+
+        return disks_to_add, mirror_disks_to_add
+
     def apply(self):
         """
         Apply action to the aggregate
@@ -569,6 +731,10 @@ class NetAppOntapAggregate(object):
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
+
+        if cd_action is None and self.parameters.get('disks') and current is not None:
+            modify['disks_to_add'], modify['mirror_disks_to_add'] = \
+                self.get_disks_to_add(self.parameters['name'], self.parameters['disks'], self.parameters.get('mirror_disks'))
 
         if modify.get('disk_count'):
             if int(modify['disk_count']) < int(current['disk_count']):
