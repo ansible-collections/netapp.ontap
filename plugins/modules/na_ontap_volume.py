@@ -1660,9 +1660,10 @@ class NetAppOntapVolume(object):
                 if cd_action == 'create':
                     self.create_volume()
                     # if we create, and modify only variable are set (snapdir_access or atime_update) we need to run a modify
-                    if 'snapdir_access' in self.parameters or 'atime_update' in self.parameters:
-                        self.volume_modify_attributes({'snapdir_access': self.parameters['snapdir_access'],
-                                                       'atime_update': self.parameters['atime_update']})
+                    if 'snapdir_access' in self.parameters:
+                        self.volume_modify_attributes({'snapdir_access': self.parameters['snapdir_access']})
+                    if 'atime_update' in self.parameters:
+                        self.volume_modify_attributes({'atime_update': self.parameters['atime_update']})
                 elif cd_action == 'delete':
                     self.delete_volume(current)
                 elif modify:
