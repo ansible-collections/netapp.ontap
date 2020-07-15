@@ -40,6 +40,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
 - na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
+- na_ontap_vserver_create(role): lif creation now defaults to system-defined unless iscsi lif type.
 
 ### Module documentation changes
 - use a three group format for `version_added`.  So 2.7 becomes 2.7.0.  Same thing for 2.8 and 2.9.

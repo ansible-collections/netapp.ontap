@@ -65,7 +65,7 @@
     role: data
     protocols: "{{ item.protocol }}"
     admin_status: up
-    failover_policy: "{{ 'local-only' if item.protocol.lower() is not search('iscsi') else omit }}"
+    failover_policy: "{{ omit if item.protocol.lower() is search('iscsi') else 'system-defined' }}" 
     firewall_policy: data
     is_auto_revert: "{{ 'true' if item.protocol.lower() is not search('iscsi') else omit }}"
     address: "{{ item.address }}"
