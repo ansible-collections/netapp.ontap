@@ -41,8 +41,6 @@ plugins/modules/na_ontap_qtree.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_rest_cli.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_rest_info.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_rest_info.py validate-modules:parameter-state-invalid-choice
-plugins/modules/na_ontap_snapmirror_policy.py validate-modules:doc-elements-mismatch
-plugins/modules/na_ontap_snapshot_policy.py validate-modules:doc-elements-mismatch
 plugins/modules/na_ontap_software_update.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_svm.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_ucadapter.py validate-modules:parameter-list-no-elements

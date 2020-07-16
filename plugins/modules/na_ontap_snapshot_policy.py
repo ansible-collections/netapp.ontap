@@ -47,10 +47,12 @@ options:
     description:
       Retention count for the snapshots created by the schedule.
     type: list
+    elements: int
   schedule:
     description:
     - Schedule to be added inside the policy.
     type: list
+    elements: str
   prefix:
     description:
     - Snapshot name prefix for the schedule.
@@ -58,6 +60,7 @@ options:
     - Cannot set a different prefix to a schedule that has already been assigned to a snapshot policy.
     - Prefix cannot be modifed after schedule has been added.
     type: list
+    elements: str
     required: false
     version_added: '19.10.1'
   snapmirror_label:
@@ -65,6 +68,7 @@ options:
     - SnapMirror label assigned to each schedule inside the policy. Use an empty
       string ('') for no label.
     type: list
+    elements: str
     required: false
     version_added: 2.9.0
   vserver:

@@ -85,12 +85,14 @@ options:
     - Required when defining policy rules.
     - Use an empty list to remove all user-defined rules.
     type: list
+    elements: str
     version_added: '20.7.0'
   keep:
     description:
     - SnapMirror policy rule retention count for snapshots created.
     - Required when defining policy rules.
     type: list
+    elements: int
     version_added: '20.7.0'
   prefix:
     description:
@@ -100,6 +102,7 @@ options:
     - Prefix name should be unique within the policy.
     - When specifying a custom prefix, schedule must also be specified.
     type: list
+    elements: str
     version_added: '20.7.0'
   schedule:
     description:
@@ -108,6 +111,7 @@ options:
     - Set to '' to not set or remove a schedule.
     - When specifying a schedule a custom prefix can be set otherwise the prefix will be set to snapmirror_label.
     type: list
+    elements: str
     version_added: '20.7.0'
 
 """
