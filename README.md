@@ -37,9 +37,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_igroup: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_igroup_initiator: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_security_certificates: allows (`common_name`, `type`) as an alternate key since `name` is not supported in ONTAP 9.6 and 9.7.
+- na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
-- na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
+- na_ontap_vscan_scanner_pool_policy: scanner_pool apply policy support on modification
 - na_ontap_vserver_create(role): lif creation now defaults to system-defined unless iscsi lif type.
 
 ### Module documentation changes

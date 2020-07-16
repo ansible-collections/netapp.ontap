@@ -38,11 +38,13 @@ options:
     description:
     - List of hostnames of Vscan servers which are allowed to connect to Data ONTAP
     type: list
+    elements: str
 
   privileged_users:
     description:
     - List of privileged usernames. Username must be in the form "domain-name\\user-name"
     type: list
+    elements: str
 
   scanner_pool:
     description:
@@ -113,8 +115,8 @@ class NetAppOntapVscanScannerPool(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            hostnames=dict(required=False, type='list'),
-            privileged_users=dict(required=False, type='list'),
+            hostnames=dict(required=False, type='list', elements='str'),
+            privileged_users=dict(required=False, type='list', elements='str'),
             scanner_pool=dict(required=True, type='str'),
             scanner_policy=dict(required=False, type='str', choices=['primary', 'secondary', 'idle'])
         ))
@@ -240,7 +242,7 @@ class NetAppOntapVscanScannerPool(object):
                 vscan_pool_modify.add_child_elem(string_obj)
                 for hostname in modify['hostnames']:
                     string_obj.add_new_child('string', hostname)
-            else:
+            elif key != 'scanner_policy':
                 vscan_pool_modify.add_new_child(self.attribute_to_name(key), str(modify[key]))
 
         try:
@@ -288,6 +290,8 @@ class NetAppOntapVscanScannerPool(object):
                     self.delete_scanner_pool()
                 elif modify:
                     self.modify_scanner_pool(modify)
+                    if self.parameters.get('scanner_policy') is not None:
+                        self.apply_policy()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

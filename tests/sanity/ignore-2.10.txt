@@ -49,6 +49,5 @@ plugins/modules/na_ontap_user.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_volume.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vscan_on_access_policy.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vscan_on_demand_task.py validate-modules:parameter-list-no-elements
-plugins/modules/na_ontap_vscan_scanner_pool.py validate-modules:parameter-list-no-elements
 plugins/modules/na_ontap_vserver_peer.py validate-modules:doc-required-mismatch
 plugins/modules/na_ontap_vserver_peer.py validate-modules:parameter-list-no-elements
