@@ -99,6 +99,10 @@ EXAMPLES = '''
         state: present
         name: data2
         vserver: svm1
+        service_state: stopped
+        domain: "{{ id_domain }}"
+        admin_user_name: "{{ domain_login }}"
+        admin_password: "{{ domain_pwd }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -108,6 +112,39 @@ EXAMPLES = '''
         state: absent
         name: data2
         vserver: svm1
+        admin_user_name: "{{ domain_login }}"
+        admin_password: "{{ domain_pwd }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Start cifs_server
+      na_ontap_cifs_server:
+        state: present
+        name: data2
+        vserver: svm1
+        service_state: started
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Stop cifs_server
+      na_ontap_cifs_server:
+        state: present
+        name: data2
+        vserver: svm1
+        service_state: stopped
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Modify cifs_server
+      na_ontap_cifs_server:
+        state: present
+        name: data2_new
+        vserver: svm1
+        admin_user_name: "{{ domain_login }}"
+        admin_password: "{{ domain_pwd }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
