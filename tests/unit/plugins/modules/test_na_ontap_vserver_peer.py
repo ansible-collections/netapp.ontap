@@ -118,7 +118,7 @@ class TestMyModule(unittest.TestCase):
             'vserver': 'test',
             'peer_vserver': 'test_peer',
             'peer_cluster': 'test_cluster_peer',
-            'applications': 'snapmirror',
+            'applications': ['snapmirror'],
             'hostname': 'hostname',
             'dest_hostname': 'hostname',
             'username': 'username',

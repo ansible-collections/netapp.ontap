@@ -48,6 +48,7 @@ options:
   path:
     description:
       - Namespace path.
+    required: true
     type: str
   block_size:
     description:

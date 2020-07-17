@@ -30,6 +30,7 @@ options:
         - a string indicating which api call to run
         - OPTIONS is useful to know which verbs are supported by the REST API
         choices: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
+        required: true
         type: str
     params:
         description:

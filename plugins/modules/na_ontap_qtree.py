@@ -49,7 +49,6 @@ options:
   flexvol_name:
     description:
     - The name of the FlexVol the qtree should exist on. Required when C(state=present).
-    required: true
     type: str
 
   vserver:
@@ -137,7 +136,7 @@ class NetAppOntapQTree(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
-            flexvol_name=dict(type='str'),
+            flexvol_name=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
             export_policy=dict(required=False, type='str'),
             security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),

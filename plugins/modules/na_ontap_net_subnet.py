@@ -31,7 +31,6 @@ options:
     description:
     - Specify the required broadcast_domain name for the subnet.
     - A broadcast domain can not be modified after the subnet has been created
-    required: true
     type: str
 
   name:
@@ -60,11 +59,11 @@ options:
     description:
     - Specify the list of IP address ranges associated with the subnet.
     type: list
+    elements: str
 
   subnet:
     description:
     - Specify the subnet (ip and mask).
-    required: true
     type: str
 """
 
@@ -129,7 +128,7 @@ class NetAppOntapSubnet(object):
             from_name=dict(required=False, type='str'),
             broadcast_domain=dict(required=False, type='str'),
             gateway=dict(required=False, type='str'),
-            ip_ranges=dict(required=False, type='list'),
+            ip_ranges=dict(required=False, type='list', elements='str'),
             ipspace=dict(required=False, type='str'),
             subnet=dict(required=False, type='str')
         ))

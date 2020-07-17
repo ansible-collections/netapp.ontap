@@ -38,7 +38,9 @@ options:
   ports:
     description:
     - Specify the list of ports to add to or remove from this broadcast domain.
+    required: true
     type: list
+    elements: str
 
 '''
 
@@ -87,7 +89,7 @@ class NetAppOntapBroadcastDomainPorts(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             broadcast_domain=dict(required=True, type='str'),
             ipspace=dict(required=False, type='str', default=None),
-            ports=dict(required=True, type='list'),
+            ports=dict(required=True, type='list', elements='str'),
         ))
 
         self.module = AnsibleModule(

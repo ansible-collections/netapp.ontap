@@ -37,6 +37,7 @@ options:
         version_added: '19.11.0'
     gather_subset:
         type: list
+        elements: str
         description:
             - When supplied, this argument will restrict the information collected
                 to a given subset.  Possible values for this argument include
@@ -156,11 +157,13 @@ options:
             volume_name:
                 description:
                 - Volume name to get target aggr info for
+                required: true
                 type: str
                 version_added: '20.5.0'
             vserver:
                 description:
                 - vserver the Volume lives on
+                required: true
                 type: str
                 version_added: '20.5.0'
     desired_attributes:
@@ -205,6 +208,7 @@ options:
         - other_error - anything not in the above list.
         - always will continue on any error, never will fail on any error, they cannot be used with any other keyword.
         type: list
+        elements: str
         default: never
 '''
 
@@ -1648,8 +1652,8 @@ def main():
     argument_spec = netapp_utils.na_ontap_host_argument_spec()
     argument_spec.update(dict(
         state=dict(type='str', default='info', choices=['info']),
-        gather_subset=dict(default=['all'], type='list'),
-        vserver=dict(type='str', default=None, required=False),
+        gather_subset=dict(default=['all'], type='list', elements='str'),
+        vserver=dict(type='str', required=False),
         max_records=dict(type='int', default=1024, required=False),
         summary=dict(type='bool', default=False, required=False),
         volume_move_target_aggr_info=dict(
@@ -1662,7 +1666,7 @@ def main():
         ),
         desired_attributes=dict(type='dict', required=False),
         use_native_zapi_tags=dict(type='bool', required=False, default=False),
-        continue_on_error=dict(type='list', required=False, default=['never']),
+        continue_on_error=dict(type='list', required=False, elements='str', default=['never']),
         query=dict(type='dict', required=False),
     ))
 

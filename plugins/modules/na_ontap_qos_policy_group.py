@@ -33,11 +33,13 @@ options:
   name:
     description:
     - The name of the policy group to manage.
+    required: true
     type: str
 
   vserver:
     description:
     - Name of the vserver to use.
+    required: true
     type: str
 
   from_name:

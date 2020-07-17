@@ -22,41 +22,43 @@ options:
     choices: ['present', 'absent']
     type: str
     description:
-      - Whether the specified vserver peer should exist or not.
+    - Whether the specified vserver peer should exist or not.
     default: present
   vserver:
     description:
-      - Specifies name of the source Vserver in the relationship.
+    - Specifies name of the source Vserver in the relationship.
+    required: true
     type: str
   applications:
-    choices: ['snapmirror', 'file_copy', 'lun_copy', 'flexcache']
     type: list
+    elements: str
     description:
-      - List of applications which can make use of the peering relationship.
-      - FlexCache supported from ONTAP 9.5 onwards.
+    - List of applications which can make use of the peering relationship.
+    - FlexCache supported from ONTAP 9.5 onwards.
   peer_vserver:
     description:
-      - Specifies name of the peer Vserver in the relationship.
+    - Specifies name of the peer Vserver in the relationship.
+    required: true
     type: str
   peer_cluster:
     description:
-      - Specifies name of the peer Cluster.
-      - Required for creating the vserver peer relationship with a remote cluster
+    - Specifies name of the peer Cluster.
+    - Required for creating the vserver peer relationship with a remote cluster
     type: str
   dest_hostname:
     description:
-     - Destination hostname or IP address.
-     - Required for creating the vserver peer relationship with a remote cluster
+    - Destination hostname or IP address.
+    - Required for creating the vserver peer relationship with a remote cluster
     type: str
   dest_username:
     description:
-     - Destination username.
-     - Optional if this is same as source username.
+    - Destination username.
+    - Optional if this is same as source username.
     type: str
   dest_password:
     description:
-     - Destination password.
-     - Optional if this is same as source password.
+    - Destination password.
+    - Optional if this is same as source password.
     type: str
 short_description: NetApp ONTAP Vserver peering
 version_added: 2.7.0
@@ -70,7 +72,7 @@ EXAMPLES = """
         peer_vserver: ansible2
         peer_cluster: ansibleCluster
         vserver: ansible
-        applications: snapmirror
+        applications: ['snapmirror']
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -111,7 +113,7 @@ class NetAppONTAPVserverPeer(object):
             vserver=dict(required=True, type='str'),
             peer_vserver=dict(required=True, type='str'),
             peer_cluster=dict(required=False, type='str'),
-            applications=dict(required=False, type='list', choices=['snapmirror', 'file_copy', 'lun_copy', 'flexcache']),
+            applications=dict(required=False, type='list', elements='str'),
             dest_hostname=dict(required=False, type='str'),
             dest_username=dict(required=False, type='str'),
             dest_password=dict(required=False, type='str', no_log=True)
