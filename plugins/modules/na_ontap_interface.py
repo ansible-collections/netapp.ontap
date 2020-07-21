@@ -41,10 +41,21 @@ options:
     - By default, the first node from the cluster is considered as home node
     type: str
 
+  current_node:
+    description:
+    - Specifies the LIF's current node.
+    - By default, this is home_node
+    type: str
+
   home_port:
     description:
     - Specifies the LIF's home port.
     - Required when C(state=present)
+    type: str
+
+  current_port:
+    description:
+    - Specifies the LIF's current port.
     type: str
 
   role:
@@ -200,6 +211,28 @@ EXAMPLES = '''
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
+    - name: Migrate an interface
+      na_ontap_interface:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        vserver: ansible
+        https: true
+        validate_certs: false
+        state: present
+        interface_name: carchi_interface3
+        home_port: e0d
+        home_node: ansdev-stor-1
+        current_node: ansdev-stor-2
+        role: data
+        failover_policy: local-only
+        firewall_policy: mgmt
+        is_auto_revert: true
+        address: 10.10.10.12
+        netmask: 255.255.255.0
+        force_subnet_association: false
+        admin_status: up
+
     - name: Delete interface
       na_ontap_interface:
         state: absent
@@ -235,7 +268,9 @@ class NetAppOntapInterface(object):
                 'present', 'absent'], default='present'),
             interface_name=dict(required=True, type='str'),
             home_node=dict(required=False, type='str', default=None),
+            current_node=dict(required=False, type='str'),
             home_port=dict(required=False, type='str'),
+            current_port=dict(required=False, type='str'),
             role=dict(required=False, type='str'),
             is_ipv4_link_local=dict(required=False, type='bool', default=None),
             address=dict(required=False, type='str'),
@@ -266,7 +301,6 @@ class NetAppOntapInterface(object):
                 ['is_ipv4_link_local', 'netmask'],
                 ['is_ipv4_link_local', 'subnet_name']
             ],
-
             supports_check_mode=True
         )
         self.na_helper = NetAppModule()
@@ -329,6 +363,10 @@ class NetAppOntapInterface(object):
                     'is-dns-update-enabled'])
             if interface_attributes.get_child_by_name('service-policy'):
                 return_value['service_policy'] = interface_attributes['service-policy']
+            if interface_attributes.get_child_by_name('current-node'):
+                return_value['current_node'] = interface_attributes['current-node']
+            if interface_attributes.get_child_by_name('current-port'):
+                return_value['current_port'] = interface_attributes['current-port']
         return return_value
 
     @staticmethod
@@ -475,16 +513,42 @@ class NetAppOntapInterface(object):
         """
         Modify the interface.
         """
-        options = {'interface-name': self.parameters['interface_name'],
-                   'vserver': self.parameters['vserver']
-                   }
-        NetAppOntapInterface.set_options(options, modify)
-        interface_modify = netapp_utils.zapi.NaElement.create_node_with_children('net-interface-modify', **options)
+        # Current_node and current_port don't exist in modify only migrate, so we need to remove them from the list
+        migrate = {}
+        if modify.get('current_node') is not None:
+            migrate['current_node'] = modify.pop('current_node')
+        if modify.get('current_port') is not None:
+            migrate['current_port'] = modify.pop('current_port')
+        if len(modify) > 0:
+            options = {'interface-name': self.parameters['interface_name'],
+                       'vserver': self.parameters['vserver']
+                       }
+            NetAppOntapInterface.set_options(options, modify)
+            interface_modify = netapp_utils.zapi.NaElement.create_node_with_children('net-interface-modify', **options)
+            try:
+                self.server.invoke_successfully(interface_modify, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as err:
+                self.module.fail_json(msg='Error modifying interface %s: %s' %
+                                          (self.parameters['interface_name'], to_native(err)),
+                                      exception=traceback.format_exc())
+        # if home node has been changed we need to migrate the interface
+        if len(migrate) > 0:
+            self.migrate_interface()
+
+    def migrate_interface(self):
+        interface_migrate = netapp_utils.zapi.NaElement('net-interface-migrate')
+        if self.parameters.get('current_node') is None:
+            self.module.fail_json(msg='current_node must be set to migrate')
+        interface_migrate.add_new_child('destination-node', self.parameters['current_node'])
+        if self.parameters.get('current_port') is not None:
+            interface_migrate.add_new_child('destination-port', self.parameters['current_port'])
+        interface_migrate.add_new_child('lif', self.parameters['interface_name'])
+        interface_migrate.add_new_child('vserver', self.parameters['vserver'])
         try:
-            self.server.invoke_successfully(interface_modify, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as err:
-            self.module.fail_json(msg='Error modifying interface %s: %s' %
-                                      (self.parameters['interface_name'], to_native(err)),
+            results = self.server.invoke_successfully(interface_migrate, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching migrating %s: %s'
+                                      % (self.parameters['current_node'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def autosupport_log(self):
