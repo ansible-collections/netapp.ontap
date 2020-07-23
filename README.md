@@ -28,8 +28,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_file_directory_policy: create, modify, delete vserver security file directory policy/task.
 
 ### New Options
-- na_ontap_ldap_client: support `ad_domain` and `preferred_ad_server` options. 
-- na_ontap_rest_info: Support for gather subsets - `cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules`.
+- na_ontap_ldap_client: support `ad_domain` and `preferred_ad_server` options.
+- na_ontap_rest_info: Support for gather subsets - `cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages, network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info`,
 - na_ontap_security_certificates:`ignore_name_if_not_supported` option to not fail if `name` is present since `name` is not supported in ONTAP 9.6 and 9.7.
 
 ### Bug fixes

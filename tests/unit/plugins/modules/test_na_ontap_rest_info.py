@@ -259,9 +259,19 @@ class TestMyModule(unittest.TestCase):
         gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cloud/targets',
                          'cluster/chassis', 'cluster/jobs', 'cluster/metrics', 'cluster/nodes',
                          'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'storage/disks']
+                         'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
+                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
+                         'network/ethernet/broadcast-domains']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -289,9 +299,19 @@ class TestMyModule(unittest.TestCase):
         gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cloud/targets',
                          'cluster/chassis', 'cluster/jobs', 'cluster/metrics', 'cluster/nodes',
                          'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'storage/disks']
+                         'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
+                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
+                         'network/ethernet/broadcast-domains']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],

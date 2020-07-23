@@ -37,6 +37,7 @@ options:
                 to a given subset.  Either the info name or the Rest API can be given.
                 Possible values for this argument include
                 "aggregate_info" or "storage/aggregates",
+                "broadcast_domains_info" or "network/ethernet/broadcast-domains",
                 "cifs_services_info" or "protocols/cifs/services",
                 "cifs_share_info" or "protocols/cifs/shares",
                 "cloud_targets_info" or "cloud/targets",
@@ -46,6 +47,13 @@ options:
                 "cluster_node_info" or "cluster/nodes",
                 "cluster_peer_info" or "cluster/peers",
                 "cluster_schedules" or "cluster/schedules",
+                "cluster_software_history" or "cluster/software/history",
+                "cluster_software_packages" or "cluster/software/packages",
+                "network_ports_info" or "network/ethernet/ports",
+                "ip_interfaces_info" or "network/ip/interfaces",
+                "ip_routes_info" or "network/ip/routes",
+                "ip_service_policies" or "network/ip/service-policies",
+                "network_ipspaces_info" or "network/ipspaces",
                 "disk_info" or "storage/disks",
                 "vserver_info" or "svm/svms",
                 "volume_info" or "storage/volumes",
@@ -235,6 +243,7 @@ class NetAppONTAPGatherInfo(object):
         """
         info_to_rest_mapping = {
             "aggregate_info": "storage/aggregates",
+            "broadcast_domains_info": "network/ethernet/broadcast-domains",
             "cifs_services_info": "protocols/cifs/services",
             "cifs_share_info": "protocols/cifs/shares",
             "cloud_targets_info": "cloud/targets",
@@ -244,6 +253,13 @@ class NetAppONTAPGatherInfo(object):
             "cluster_node_info": "cluster/nodes",
             "cluster_peer_info": "cluster/peers",
             "cluster_schedules": "cluster/schedules",
+            "cluster_software_history": "cluster/software/history",
+            "cluster_software_packages": "cluster/software/packages",
+            "network_ports_info": "network/ethernet/ports",
+            "ip_interfaces_info": "network/ip/interfaces",
+            "ip_routes_info": "network/ip/routes",
+            "ip_service_policies": "network/ip/service-policies",
+            "network_ipspaces_info": "network/ipspaces",
             "disk_info": "storage/disks",
             "vserver_info": "svm/svms",
             "volume_info": "storage/volumes"
@@ -300,6 +316,30 @@ class NetAppONTAPGatherInfo(object):
             },
             'cluster/schedules': {
                 'api_call': 'cluster/schedules',
+            },
+            'cluster/software/history': {
+                'api_call': 'cluster/software/history',
+            },
+            'cluster/software/packages': {
+                'api_call': 'cluster/software/packages',
+            },
+            'network/ethernet/ports': {
+                'api_call': 'network/ethernet/ports',
+            },
+            'network/ip/interfaces': {
+                'api_call': 'network/ip/interfaces',
+            },
+            'network/ip/routes': {
+                'api_call': 'network/ip/routes',
+            },
+            'network/ip/service-policies': {
+                'api_call': 'network/ip/service-policies',
+            },
+            'network/ipspaces': {
+                'api_call': 'network/ipspaces',
+            },
+            'network/ethernet/broadcast-domains': {
+                'api_call': 'network/ethernet/broadcast-domains',
             },
             'storage/disks': {
                 'api_call': 'storage/disks',
