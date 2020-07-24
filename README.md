@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
 - na_ontap_file_directory_policy: create, modify, delete vserver security file directory policy/task.
+- na_ontap_ssh_command: send CLI command over SSH using paramiko for corner cases where ZAPI or REST are not yet ready.
 
 ### New Options
 - na_ontap_ldap_client: support `ad_domain` and `preferred_ad_server` options.
