@@ -62,16 +62,16 @@ options:
 '''
 
 EXAMPLES = """
-    - name: run ontap cli command
-      na_ontap_command:
+    - name: run ontap cli command using SSH
+      na_ontap_ssh_command:
         hostname: "{{ hostname }}"
         username: "{{ admin_username }}"
         password: "{{ admin_password }}"
         command: version
 
-    # Same as above, but returns parseable dictonary
+    # Same as above, with parameters
     - name: run ontap cli command
-      na_ontap_command:
+      na_ontap_ssh_command:
         hostname: "{{ hostname }}"
         username: "{{ admin_username }}"
         password: "{{ admin_password }}"
@@ -80,7 +80,7 @@ EXAMPLES = """
 
     # Same as above, but with lines filtering
     - name: run ontap cli command
-      na_ontap_command:
+      na_ontap_ssh_command:
         hostname: "{{ hostname }}"
         username: "{{ admin_username }}"
         password: "{{ admin_password }}"
@@ -89,6 +89,15 @@ EXAMPLES = """
         # use with caution!
         accept_unknown_host_keys: true
         privilege: admin
+
+    - name: run ontap SSH command on SP
+      na_ontap_ssh_command:
+        # <<: *sp_login
+        command: sp switch-version
+        privilege: diag
+        sp: true
+      register: result
+    - debug: var=result
 """
 
 RETURN = """
