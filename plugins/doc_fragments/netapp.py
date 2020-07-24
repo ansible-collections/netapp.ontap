@@ -76,11 +76,10 @@ options:
   use_rest:
       description:
       - REST API if supported by the target system for all the resources and attributes the module requires. Otherwise will revert to ZAPI.
-      - Always -- will always use the REST API
-      - Never -- will always use the ZAPI
-      - Auto -- will try to use the REST Api
-      default: Auto
-      choices: ['Never', 'Always', 'Auto']
+      - always -- will always use the REST API
+      - never -- will always use the ZAPI
+      - auto -- will try to use the REST Api
+      default: auto
       type: str
   feature_flags:
       description:

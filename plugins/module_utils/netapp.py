@@ -122,7 +122,7 @@ def na_ontap_host_argument_spec():
         validate_certs=dict(required=False, type='bool', default=True),
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
-        use_rest=dict(required=False, type='str', default='Auto', choices=['Never', 'Always', 'Auto']),
+        use_rest=dict(required=False, type='str', default='auto'),
         feature_flags=dict(required=False, type='dict', default=dict()),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str'),
@@ -403,7 +403,7 @@ class OntapRestAPI(object):
         self.username = self.module.params['username']
         self.password = self.module.params['password']
         self.hostname = self.module.params['hostname']
-        self.use_rest = self.module.params['use_rest']
+        self.use_rest = self.module.params['use_rest'].lower()
         self.cert_filepath = self.module.params['cert_filepath']
         self.key_filepath = self.module.params['key_filepath']
         self.verify = self.module.params['validate_certs']
@@ -577,14 +577,17 @@ class OntapRestAPI(object):
         return self.send_request(method, api, params)
 
     def _is_rest(self, used_unsupported_rest_properties=None):
-        if self.use_rest == "Always":
+        if self.use_rest not in ['always', 'auto', 'never']:
+            error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
+            return False, error
+        if self.use_rest == "always":
             if used_unsupported_rest_properties:
                 error = "REST API currently does not support '%s'" % \
                         ', '.join(used_unsupported_rest_properties)
                 return True, error
             else:
                 return True, None
-        if self.use_rest == 'Never' or used_unsupported_rest_properties:
+        if self.use_rest == 'never' or used_unsupported_rest_properties:
             # force ZAPI if requested or if some parameter requires it
             return False, None
         method = 'HEAD'
