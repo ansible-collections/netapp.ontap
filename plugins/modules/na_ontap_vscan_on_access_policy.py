@@ -77,8 +77,15 @@ options:
   scan_files_with_no_ext:
     description:
     - Specifies whether files without any extension are considered for scanning or not.
-    default: True
+    default: true
     type: bool
+
+  policy_status:
+    description:
+    - Status for the created policy
+    default: false
+    type: bool
+    version_added: 20.8.0
 '''
 
 EXAMPLES = """
@@ -91,6 +98,16 @@ EXAMPLES = """
         vserver: carchi-vsim2
         policy_name: carchi_policy
         file_ext_to_exclude: ['exe', 'yml']
+    - name: Create Vscan On Access Policy with Policy Status enabled
+      na_ontap_vscan_on_access_policy:
+        state: present
+        username: '{{ netapp_username }}'
+        password: '{{ netapp_password }}'
+        hostname: '{{ netapp_hostname }}'
+        vserver: carchi-vsim2
+        policy_name: carchi_policy
+        file_ext_to_exclude: ['exe', 'yml']
+        policy_status: True
     - name: modify Vscan on Access Policy
       na_ontap_vscan_on_access_policy:
         state: present
@@ -139,7 +156,8 @@ class NetAppOntapVscanOnAccessPolicy(object):
             is_scan_mandatory=dict(required=False, type='bool', default=False),
             max_file_size=dict(required=False, type="int"),
             paths_to_exclude=dict(required=False, type="list"),
-            scan_files_with_no_ext=dict(required=False, type='bool', default=True)
+            scan_files_with_no_ext=dict(required=False, type='bool', default=True),
+            policy_status=dict(required=False, type='bool')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -156,6 +174,7 @@ class NetAppOntapVscanOnAccessPolicy(object):
         self.max_file_size = parameters['max_file_size']
         self.paths_to_exclude = parameters['paths_to_exclude']
         self.scan_files_with_no_ext = parameters['scan_files_with_no_ext']
+        self.policy_status = parameters['policy_status']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -211,6 +230,20 @@ class NetAppOntapVscanOnAccessPolicy(object):
             self.server.invoke_successfully(access_policy_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating Vscan on Access Policy %s: %s' %
+                                      (self.policy_name, to_native(error)), exception=traceback.format_exc())
+
+    def status_modify_on_access_policy(self):
+        """
+        Update the status of policy
+        """
+        access_policy_obj = netapp_utils.zapi.NaElement('vscan-on-access-policy-status-modify')
+        access_policy_obj.add_new_child('policy-name', self.policy_name)
+        access_policy_obj.add_new_child('policy-status', str(self.policy_status).lower())
+
+        try:
+            self.server.invoke_successfully(access_policy_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error modifying status Vscan on Access Policy %s: %s' %
                                       (self.policy_name, to_native(error)), exception=traceback.format_exc())
 
     def delete_on_access_policy(self):
@@ -281,6 +314,9 @@ class NetAppOntapVscanOnAccessPolicy(object):
         if self.is_scan_mandatory is not None:
             if str(self.is_scan_mandatory).lower() != policy_obj.get_child_content('is-scan-mandatory'):
                 return True
+        if self.policy_status is not None:
+            if str(self.policy_status).lower() != policy_obj.get_child_content('is-policy-enabled'):
+                return True
         if self.max_file_size:
             if self.max_file_size != int(policy_obj.get_child_content('max-file-size')):
                 return True
@@ -348,16 +384,25 @@ class NetAppOntapVscanOnAccessPolicy(object):
             if not self.exists_access_policy(policy_obj):
                 if not self.module.check_mode:
                     self.create_on_access_policy()
+                    if self.policy_status:
+                        self.status_modify_on_access_policy()
                 changed = True
             else:
                 # Check if anything has changed first.
                 if self.has_policy_changed():
                     if not self.module.check_mode:
+                        result = policy_obj.get_child_by_name('attributes-list').get_child_by_name('vscan-on-access-policy-info')
+                        if str(self.policy_status).lower() != result.get_child_content('is-policy-enabled'):
+                            if self.policy_status is not None:
+                                self.status_modify_on_access_policy()
                         self.modify_on_access_policy()
                     changed = True
         if self.state == 'absent':
             if self.exists_access_policy(policy_obj):
                 if not self.module.check_mode:
+                    result = policy_obj.get_child_by_name('attributes-list').get_child_by_name('vscan-on-access-policy-info')
+                    if result.get_child_content('is-policy-enabled') == 'true':
+                        self.status_modify_on_access_policy()
                     self.delete_on_access_policy()
                 changed = True
         self.module.exit_json(changed=changed)

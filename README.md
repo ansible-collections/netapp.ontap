@@ -42,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
+- na_ontap_vscan_on_access_policy: 'policy_status' enable/disable option was not supported.
 - na_ontap_vscan_scanner_pool_policy: scanner_pool apply policy support on modification
 - na_ontap_vserver_create(role): lif creation now defaults to system-defined unless iscsi lif type.
 - use_rest supports case insensitive
