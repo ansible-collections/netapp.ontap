@@ -302,7 +302,7 @@ class NetAppOntapSnapMirrorPolicy(object):
                     'vserver': message['records'][0]['svm']['name'],
                     'policy_name': message['records'][0]['name'],
                     'comment': '',
-                    'is_network_compression_enabled': self.na_helper.get_value_for_bool(True, message['records'][0]['network_compression_enabled']),
+                    'is_network_compression_enabled': message['records'][0]['network_compression_enabled'],
                     'snapmirror_label': list(),
                     'keep': list(),
                     'prefix': list(),
@@ -467,9 +467,11 @@ class NetAppOntapSnapMirrorPolicy(object):
             else:
                 data = self.create_snapmirror_policy_obj_for_rest(data)
             api = "snapmirror/policies"
-            message, error = self.restApi.post(api, data)
+            response, error = self.restApi.post(api, data)
             if error:
                 self.module.fail_json(msg=error)
+            if 'job' in response:
+                self.restApi.wait_on_job(response['job'], increment=5)
         else:
             snapmirror_policy_obj = netapp_utils.zapi.NaElement("snapmirror-policy-create")
             snapmirror_policy_obj.add_new_child("policy-name", self.parameters['policy_name'])
@@ -538,7 +540,7 @@ class NetAppOntapSnapMirrorPolicy(object):
         if self.use_rest:
             api = "snapmirror/policies"
             data = {'uuid': uuid}
-            message, error = self.restApi.delete(api, data)
+            dummy, error = self.restApi.delete(api, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -558,7 +560,7 @@ class NetAppOntapSnapMirrorPolicy(object):
         if self.use_rest:
             api = "snapmirror/policies/" + uuid
             data = self.create_snapmirror_policy_obj_for_rest(dict(), policy_type)
-            message, error = self.restApi.patch(api, data)
+            dummy, error = self.restApi.patch(api, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -729,7 +731,7 @@ class NetAppOntapSnapMirrorPolicy(object):
 
             # As rule 'prefix' can't be unset, have to delete existing rules first.
             # Builtin rules remain.
-            message, error = self.restApi.patch(api, data)
+            dummy, error = self.restApi.patch(api, data)
             if error:
                 self.module.fail_json(msg=error)
 
@@ -738,7 +740,7 @@ class NetAppOntapSnapMirrorPolicy(object):
             data['retention'] = self.create_snapmirror_policy_retention_obj_for_rest(rules)
 
             if len(data['retention']) > 0:
-                message, error = self.restApi.patch(api, data)
+                dummy, error = self.restApi.patch(api, data)
                 if error:
                     self.module.fail_json(msg=error)
         else:

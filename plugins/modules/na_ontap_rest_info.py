@@ -199,6 +199,8 @@ class NetAppONTAPGatherInfo(object):
         """
 
         api = gather_subset_info['api_call']
+        if gather_subset_info.pop('post', False):
+            self.run_post(gather_subset_info)
         data = {'max_records': self.parameters['max_records'], 'fields': self.fields}
         # allow for passing in any additional rest api fields
         if self.parameters.get('parameters'):
@@ -215,12 +217,22 @@ class NetAppONTAPGatherInfo(object):
             # We don't want to fail
             elif int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message'):
                 return error.get('message')
+            # If the API doesn't exist (using an older system) we don't want to fail
+            elif int(error.get('code', 0)) == 3:
+                return error.get('message')
             else:
                 self.module.fail_json(msg=error)
         else:
             return gathered_ontap_info
 
         return None
+
+    def run_post(self, gather_subset_info):
+        api = gather_subset_info['api_call']
+        post_return, error = self.restApi.post(api, None)
+        if error:
+            return None
+        self.restApi.wait_on_job(post_return['job'], increment=5)
 
     def get_next_records(self, api):
         """
@@ -249,6 +261,7 @@ class NetAppONTAPGatherInfo(object):
             "cloud_targets_info": "cloud/targets",
             "cluster_chassis_info": "cluster/chassis",
             "cluster_jobs_info": "cluster/jobs",
+            "cluster_metrocluster_diagnostics": "cluster/metrocluster/diagnostics",
             "cluster_metrics_info": "cluster/metrics",
             "cluster_node_info": "cluster/nodes",
             "cluster_peer_info": "cluster/peers",
@@ -305,6 +318,10 @@ class NetAppONTAPGatherInfo(object):
             'cluster/jobs': {
                 'api_call': 'cluster/jobs',
             },
+            'cluster/metrocluster/diagnostics': {
+                'api_call': 'cluster/metrocluster/diagnostics',
+                'post': True
+            },
             'cluster/metrics': {
                 'api_call': 'cluster/metrics',
             },
@@ -354,7 +371,7 @@ class NetAppONTAPGatherInfo(object):
 
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
-            self.parameters['gather_subset'] = get_ontap_subset_info.keys()
+            self.parameters['gather_subset'] = sorted(get_ontap_subset_info.keys())
 
         length_of_subsets = len(self.parameters['gather_subset'])
 
@@ -388,8 +405,10 @@ class NetAppONTAPGatherInfo(object):
                         result_message[subset]['_links'] = gathered_subset_info['_links']
                         result_message[subset]['records'].extend(gathered_subset_info['records'])
 
-                    # Getting total number of records
-                    result_message[subset]['num_records'] = len(result_message[subset]['records'])
+                    # metrocluster doesn't have a records field, so we need to skip this
+                    if result_message[subset].get('records') is not None:
+                        # Getting total number of records
+                        result_message[subset]['num_records'] = len(result_message[subset]['records'])
 
         self.module.exit_json(changed='False', state=self.parameters['state'], ontap_info=result_message)
 

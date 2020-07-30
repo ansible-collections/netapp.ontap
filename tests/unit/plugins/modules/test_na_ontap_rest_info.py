@@ -41,6 +41,36 @@ SRR = {
                          'records': [{'name': 'dummy_vol1'},
                                      {'name': 'dummy_vol2'}],
                          'version': 'ontap_version'}, None),
+    'metrocluster_post': ({'job': {
+        'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
+        '_links': {
+            'self': {
+                'href': '/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7'}}}
+    }, None),
+    'metrocluster_return': ({"_links": {
+        "self": {
+            "href": "/api/cluster/metrocluster/diagnostics"
+        }
+    }, "aggregate": {
+        "state": "ok",
+        "summary": {
+            "message": ""
+        }, "timestamp": "2020-07-22T16:42:51-07:00"
+    }}, None),
+    'job': ({
+        "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
+        "description": "POST /api/cluster/metrocluster",
+        "state": "failure",
+        "message": "There are not enough disks in Pool1.",
+        "code": 2432836,
+        "start_time": "2020-02-26T10:35:44-08:00",
+        "end_time": "2020-02-26T10:47:38-08:00",
+        "_links": {
+            "self": {
+                "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
+            }
+        }
+    }, None)
 }
 
 
@@ -101,6 +131,17 @@ class TestMyModule(unittest.TestCase):
             'validate_certs': False,
             'max_records': 1024,
             'gather_subset': ['volume_info']
+        })
+
+    def set_args_run_metrocluster_diag(self):
+        return dict({
+            'hostname': 'hostname',
+            'username': 'username',
+            'password': 'password',
+            'https': True,
+            'validate_certs': False,
+            'max_records': 1024,
+            'gather_subset': ['cluster/metrocluster/diagnostics']
         })
 
     def set_args_run_Ontap_gather_facts_for_vserver_info(self):
@@ -223,6 +264,23 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['msg'] == SRR['validate_ontap_version_fail'][1]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_run_metrocluster_pass(self, mock_request):
+        set_module_args(self.set_args_run_metrocluster_diag())
+        my_obj = ontap_rest_info_module()
+        gather_subset = ['cluster/metrocluster/diagnostics']
+        mock_request.side_effect = [
+            SRR['validate_ontap_version_pass'],
+            SRR['metrocluster_post'],
+            SRR['job'],
+            SRR['metrocluster_return']
+        ]
+
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_run_metrocluster_digag_pass: %s' % repr(exc.value.args))
+        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_run_Ontap_gather_facts_for_vserver_info_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_vserver_info())
         my_obj = ontap_rest_info_module()
@@ -252,6 +310,8 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_run_Ontap_gather_facts_for_volume_info_pass: %s' % repr(exc.value.args))
         assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
 
+    # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
+    # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_run_Ontap_gather_facts_for_all_subsets_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets())
@@ -261,13 +321,16 @@ class TestMyModule(unittest.TestCase):
                          'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
                          'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
                          'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'network/ethernet/broadcast-domains']
+                         'network/ethernet/broadcast-domains', 'cluster/metrocluster/diagnostics']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['metrocluster_post'],
+            SRR['job'],
+            SRR['metrocluster_return'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -292,6 +355,8 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_run_Ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
         assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
 
+    # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
+    # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass())
@@ -301,13 +366,16 @@ class TestMyModule(unittest.TestCase):
                          'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
                          'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
                          'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'network/ethernet/broadcast-domains']
+                         'network/ethernet/broadcast-domains', 'cluster/metrocluster/diagnostics']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['metrocluster_post'],
+            SRR['job'],
+            SRR['metrocluster_return'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -325,6 +393,7 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:
