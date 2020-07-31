@@ -31,10 +31,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
 - na_ontap_ldap_client: support `ad_domain` and `preferred_ad_server` options.
+- na_ontap_rest_info: Support for gather subsets - `cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages, network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info`.
+- na_ontap_rest_info: Support for gather subsets for 9.8+ - `cluster_metrocluster_diagnostics.
 - na_ontap_qtree: `force_delete` option with a DEFAULT of `true` so that ZAPI behavior is aligned with REST.
-- na_ontap_rest_info: Support for gather subsets - `cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages, network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info`
-- na_ontap_rest_info: Support for gather subsets for 9.8+ - `cluster_metrocluster_diagnostics
 - na_ontap_security_certificates:`ignore_name_if_not_supported` option to not fail if `name` is present since `name` is not supported in ONTAP 9.6 and 9.7.
+- na_ontap_software_update: added `timeout` option to give enough time for the update to complete.
 
 ### Bug fixes
 - na_ontap_aggregate: `disk-info` error when using `disks` option.
@@ -45,17 +46,18 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
 - na_ontap_snapmirror_policy: fixed a race condition when creating a new policy.
 - na_ontap_snapmirror_policy: fixed idempotency issue withis_network_compression_enabled for REST.
+- na_ontap_software_update: ignore connection errors during update as nodes cannot be reachable.
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
 - na_ontap_vscan_on_access_policy: 'policy_status' enable/disable option was not supported.
-- na_ontap_vscan_scanner_pool_policy: scanner_pool apply policy support on modification
+- na_ontap_vscan_scanner_pool_policy: scanner_pool apply policy support on modification.
 - na_ontap_vserver_create(role): lif creation now defaults to system-defined unless iscsi lif type.
-- use_rest supports case insensitive
+- use_rest supports case insensitive.
 
 ### Module documentation changes
 - use a three group format for `version_added`.  So 2.7 becomes 2.7.0.  Same thing for 2.8 and 2.9.
 - add `type:` and `elements:` information where missing.
-- update `required:` info
+- update `required:` information.
 
 ## 20.7.0
 
