@@ -1361,7 +1361,8 @@ class NetAppONTAPGatherInfo(object):
             else:
                 error_message = "Error calling API %s: %s" % (call, error_message)
             if self.error_flags[kind]:
-                self.module.fail_json(msg=error_message, exception=traceback.format_exc())
+                if fail_on_error:
+                    self.module.fail_json(msg=error_message, exception=traceback.format_exc())
             return None, error_message
 
     def get_ifgrp_info(self):
