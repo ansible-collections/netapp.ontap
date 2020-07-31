@@ -83,6 +83,15 @@ options:
     version_added: 2.9.0
     type: str
 
+  force_delete:
+    description:
+      - Whether the qtree should be deleted even if files still exist.
+      - Note that the default of true reflect the REST API behavior.
+      - a value of false is not supported with REST.
+    type: bool
+    default: true
+    version_added: 20.8.0
+
 '''
 
 EXAMPLES = """
@@ -142,6 +151,7 @@ class NetAppOntapQTree(object):
             security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),
             oplocks=dict(required=False, type='str', choices=['enabled', 'disabled']),
             unix_permissions=dict(required=False, type='str'),
+            force_delete=dict(required=False, type='bool', default=True)
         ))
 
         self.module = AnsibleModule(
@@ -265,13 +275,16 @@ class NetAppOntapQTree(object):
             id = str(current['id'])
             api = "storage/qtrees/%s/%s" % (uuid, id)
             params = None
-            message, error = self.restApi.delete(api, params)
+            dummy, error = self.restApi.delete(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:
             path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
+            options = {'qtree': path}
+            if self.parameters['force_delete']:
+                options['force'] = "true"
             qtree_delete = netapp_utils.zapi.NaElement.create_node_with_children(
-                'qtree-delete', **{'qtree': path})
+                'qtree-delete', **options)
 
             try:
                 self.server.invoke_successfully(qtree_delete,
@@ -291,7 +304,7 @@ class NetAppOntapQTree(object):
             uuid = current['volume']['uuid']
             id = str(current['id'])
             api = "storage/qtrees/%s/%s" % (uuid, id)
-            message, error = self.restApi.patch(api, params)
+            dummy, error = self.restApi.patch(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -329,7 +342,7 @@ class NetAppOntapQTree(object):
             api = "storage/qtrees/%s/%s" % (uuid, id)
             timeout = 120
             data = {'return_timeout': timeout}
-            message, error = self.restApi.patch(api, params, data)
+            dummy, error = self.restApi.patch(api, params, data)
 
             later = datetime.datetime.now()
             time_elapsed = later - now
@@ -382,6 +395,8 @@ class NetAppOntapQTree(object):
                 if self.parameters.get('export_policy') and \
                         self.parameters['export_policy'] != current['export_policy']:
                     modify = True
+        if self.use_rest and cd_action == 'delete' and not self.parameters['force_delete']:
+            self.module.fail_json(msg='Error: force_delete option is not supported for REST, unless set to true.')
 
         if modify:
             self.na_helper.changed = True
