@@ -41,6 +41,7 @@ options:
       - Type of sources.
       - Possible values include files,dns,ldap,nis.
     type: list
+    elements: str
 
 short_description: "NetApp ONTAP Manage name service switch"
 '''
@@ -91,7 +92,7 @@ class NetAppONTAPNsswitch(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             database_type=dict(required=True, type='str', choices=['hosts', 'group', 'passwd', 'netgroup', 'namemap']),
-            sources=dict(required=False, type='list')
+            sources=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(

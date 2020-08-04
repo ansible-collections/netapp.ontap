@@ -31,6 +31,7 @@ options:
       - All these intercluster lifs should belong to the source cluster.
     version_added: 2.8.0
     type: list
+    elements: str
     aliases:
     - source_intercluster_lif
   dest_intercluster_lifs:
@@ -40,6 +41,7 @@ options:
       - All these intercluster lifs should belong to the destination cluster.
     version_added: 2.8.0
     type: list
+    elements: str
     aliases:
     - dest_intercluster_lif
   passphrase:
@@ -129,8 +131,8 @@ class NetAppONTAPClusterPeer(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            source_intercluster_lifs=dict(required=False, type='list', aliases=['source_intercluster_lif']),
-            dest_intercluster_lifs=dict(required=False, type='list', aliases=['dest_intercluster_lif']),
+            source_intercluster_lifs=dict(required=False, type='list', elements='str', aliases=['source_intercluster_lif']),
+            dest_intercluster_lifs=dict(required=False, type='list', elements='str', aliases=['dest_intercluster_lif']),
             passphrase=dict(required=False, type='str', no_log=True),
             dest_hostname=dict(required=True, type='str'),
             dest_username=dict(required=False, type='str'),

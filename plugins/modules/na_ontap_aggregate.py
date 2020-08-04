@@ -56,6 +56,7 @@ options:
     - Node(s) for the aggregate to be created on.  If no node specified, mgmt lif home will be used.
     - If multiple nodes specified an aggr stripe will be made.
     type: list
+    elements: str
 
   disk_type:
     description:
@@ -119,6 +120,7 @@ options:
     - To create a "mirrored" aggregate with a specific list of disks, both 'disks' and 'mirror_disks' options must be supplied.
       Additionally, the same number of disks must be supplied in both lists.
     type: list
+    elements: str
     version_added: 2.8.0
 
   is_mirrored:
@@ -133,6 +135,7 @@ options:
     description:
     - List of mirror disks to use. It must contain the same number of disks specified in 'disks'.
     type: list
+    elements: str
     version_added: 2.8.0
 
   spare_pool:
@@ -258,14 +261,14 @@ class NetAppOntapAggregate(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             name=dict(required=True, type='str'),
-            disks=dict(required=False, type='list'),
+            disks=dict(required=False, type='list', elements='str'),
             disk_count=dict(required=False, type='int', default=None),
             disk_size=dict(required=False, type='int'),
             disk_size_with_unit=dict(required=False, type='str'),
             disk_type=dict(required=False, choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']),
             from_name=dict(required=False, type='str'),
-            mirror_disks=dict(required=False, type='list'),
-            nodes=dict(required=False, type='list'),
+            mirror_disks=dict(required=False, type='list', elements='str'),
+            nodes=dict(required=False, type='list', elements='str'),
             is_mirrored=dict(required=False, type='bool'),
             raid_size=dict(required=False, type='int'),
             raid_type=dict(required=False, choices=['raid4', 'raid_dp', 'raid_tec', 'raid_0']),
@@ -300,7 +303,7 @@ class NetAppOntapAggregate(object):
         self.using_vserver_msg = None   # This module should be run as cluster admin
         self.parameters = self.na_helper.set_parameters(self.module.params)
         if self.parameters.get('mirror_disks') is not None and self.parameters.get('disks') is None:
-            self.module.fail_json(mgs="mirror_disks require disks options to be set")
+            self.module.fail_json(msg="mirror_disks require disks options to be set")
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:

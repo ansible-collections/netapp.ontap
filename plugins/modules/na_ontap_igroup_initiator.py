@@ -41,6 +41,7 @@ options:
     aliases:
     - name
     type: list
+    elements: str
 
   initiator_group:
     description:
@@ -106,7 +107,7 @@ class NetAppOntapIgroupInitiator(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            names=dict(required=True, type='list', aliases=['name']),
+            names=dict(required=True, type='list', elements='str', aliases=['name']),
             initiator_group=dict(required=True, type='str'),
             force_remove=dict(required=False, type='bool', default=False),
             vserver=dict(required=True, type='str'),

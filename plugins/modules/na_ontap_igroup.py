@@ -68,6 +68,7 @@ options:
     aliases:
     - initiator
     type: list
+    elements: str
 
   bind_portset:
     description:
@@ -172,7 +173,7 @@ class NetAppOntapIgroup(object):
             ostype=dict(required=False, type='str'),
             initiator_group_type=dict(required=False, type='str',
                                       choices=['fcp', 'iscsi', 'mixed']),
-            initiators=dict(required=False, type='list', aliases=['initiator']),
+            initiators=dict(required=False, type='list', elements='str', aliases=['initiator']),
             vserver=dict(required=True, type='str'),
             force_remove_initiator=dict(required=False, type='bool', default=False),
             bind_portset=dict(required=False, type='str')

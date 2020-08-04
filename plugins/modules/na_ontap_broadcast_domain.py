@@ -49,7 +49,6 @@ options:
     - A domain ipspace can not be modified after the domain has been created.
     type: str
   ports:
-    type: list
     description:
     - Specify the ports associated with this broadcast domain. Should be comma separated.
     - It represents the expected state of a list of ports at any time.
@@ -57,6 +56,8 @@ options:
     - Delete a port if it is specified in current state but not in expected state.
     - For split action, it represents the ports to be split from current broadcast domain and added to the new broadcast domain.
     - if all ports are removed or split from a broadcast domain, the broadcast domain will be deleted automatically.
+    type: list
+    elements: str
 '''
 
 EXAMPLES = """
@@ -129,7 +130,7 @@ class NetAppOntapBroadcastDomain(object):
             name=dict(required=True, type='str', aliases=["broadcast_domain"]),
             ipspace=dict(required=False, type='str'),
             mtu=dict(required=False, type='str'),
-            ports=dict(required=False, type='list'),
+            ports=dict(required=False, type='list', elements='str'),
             from_name=dict(required=False, type='str'),
         ))
 

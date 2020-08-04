@@ -44,6 +44,7 @@ options:
     - snmp is not supported in REST.
     required: true
     type: list
+    elements: str
     choices: ['console', 'http','ontapi','rsh','snmp','service-processor','sp','ssh','telnet']
     aliases:
       - application
@@ -212,7 +213,7 @@ class NetAppOntapUser(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
 
-            applications=dict(required=True, type='list', aliases=['application'],
+            applications=dict(required=True, type='list', elements='str', aliases=['application'],
                               choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
                                        'sp', 'service-processor', 'ssh', 'telnet'],),
             authentication_method=dict(required=True, type='str',

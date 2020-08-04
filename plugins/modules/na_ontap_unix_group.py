@@ -63,6 +63,7 @@ options:
     - Delete a user from group if it is specified in current state but not in expected state.
     - To delete all current users, use '' as value.
     type: list
+    elements: str
     version_added: 2.9.0
 
 short_description: NetApp ONTAP UNIX Group
@@ -128,7 +129,7 @@ class NetAppOntapUnixGroup(object):
             id=dict(required=False, type='int'),
             skip_name_validation=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str'),
-            users=dict(required=False, type='list')
+            users=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(

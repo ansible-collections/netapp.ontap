@@ -42,6 +42,7 @@ options:
   noteto:
     description:
     - Specifies up to five recipients of short AutoSupport e-mail messages.
+    elements: str
     type: list
   post_url:
     description:
@@ -52,6 +53,7 @@ options:
     - List of mail server(s) used to deliver AutoSupport messages via SMTP.
     - Both host names and IP addresses may be used as valid input.
     type: list
+    elements: str
   support:
     description:
     - Specifies whether AutoSupport notification to technical support is enabled.
@@ -66,11 +68,13 @@ options:
     - Specifies up to five partner vendor recipients of full AutoSupport e-mail messages.
     version_added: 2.8.0
     type: list
+    elements: str
   to_addresses:
     description:
     - Specifies up to five recipients of full AutoSupport e-mail messages.
     version_added: 2.8.0
     type: list
+    elements: str
   proxy_url:
     description:
     - specify an HTTP or HTTPS proxy if the 'transport' parameter is set to HTTP or HTTPS and your organization uses a proxy.
@@ -153,13 +157,13 @@ class NetAppONTAPasup(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             node_name=dict(required=True, type='str'),
             transport=dict(required=False, type='str', choices=['smtp', 'http', 'https']),
-            noteto=dict(required=False, type='list'),
+            noteto=dict(required=False, type='list', elements='str'),
             post_url=dict(required=False, type='str'),
             support=dict(required=False, type='bool'),
-            mail_hosts=dict(required=False, type='list'),
+            mail_hosts=dict(required=False, type='list', elements='str'),
             from_address=dict(required=False, type='str'),
-            partner_addresses=dict(required=False, type='list'),
-            to_addresses=dict(required=False, type='list'),
+            partner_addresses=dict(required=False, type='list', elements='str'),
+            to_addresses=dict(required=False, type='list', elements='str'),
             proxy_url=dict(required=False, type='str'),
             hostname_in_subject=dict(required=False, type='bool'),
         ))

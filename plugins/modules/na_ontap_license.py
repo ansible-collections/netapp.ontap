@@ -51,6 +51,7 @@ options:
 
   license_names:
     type: list
+    elements: str
     description:
     - List of license-names to delete.
     suboptions:
@@ -101,6 +102,7 @@ options:
     description:
     - List of license codes to be added.
     type: list
+    elements: str
 
 '''
 
@@ -161,8 +163,8 @@ class NetAppOntapLicense(object):
             serial_number=dict(required=False, type='str'),
             remove_unused=dict(default=None, type='bool'),
             remove_expired=dict(default=None, type='bool'),
-            license_codes=dict(default=None, type='list'),
-            license_names=dict(default=None, type='list'),
+            license_codes=dict(default=None, type='list', elements='str'),
+            license_names=dict(default=None, type='list', elements='str'),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,

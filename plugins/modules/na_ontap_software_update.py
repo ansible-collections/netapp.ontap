@@ -31,6 +31,7 @@ options:
     aliases:
       - node
     type: list
+    elements: str
   package_version:
     required: true
     description:
@@ -103,7 +104,7 @@ class NetAppONTAPSoftwareUpdate(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            nodes=dict(required=False, type='list', aliases=["node"]),
+            nodes=dict(required=False, type='list', elements='str', aliases=["node"]),
             package_version=dict(required=True, type='str'),
             package_url=dict(required=True, type='str'),
             ignore_validation_warning=dict(required=False, type='bool', default=False),

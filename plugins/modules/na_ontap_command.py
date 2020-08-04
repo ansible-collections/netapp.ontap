@@ -26,6 +26,7 @@ options:
         - a comma separated list containing the command and arguments.
         required: true
         type: list
+        elements: str
     privilege:
         description:
         - privilege level at which to run the command.
@@ -112,7 +113,7 @@ class NetAppONTAPCommand(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            command=dict(required=True, type='list'),
+            command=dict(required=True, type='list', elements='str'),
             privilege=dict(required=False, type='str', choices=['admin', 'advanced'], default='admin'),
             return_dict=dict(required=False, type='bool', default=False),
             vserver=dict(required=False, type='str'),

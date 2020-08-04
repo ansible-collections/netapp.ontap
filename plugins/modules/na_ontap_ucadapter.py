@@ -63,6 +63,7 @@ options:
     - If specified adapter works in a group or pair, the other adapters might also need to offline before modify the specified adapter.
     - The mode of pair_adapters are modified along with the adapter, the type of the pair_adapters are not modified.
     type: list
+    elements: str
     version_added: '20.6.0'
 
 '''
@@ -107,7 +108,7 @@ class NetAppOntapadapter(object):
             node_name=dict(required=True, type='str'),
             mode=dict(required=False, type='str'),
             type=dict(required=False, type='str'),
-            pair_adapters=dict(required=False, type='list')
+            pair_adapters=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(

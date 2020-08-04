@@ -39,6 +39,7 @@ options:
     - Specifies the name of port(s).
     required: true
     type: list
+    elements: str
   mtu:
     description:
     - Specifies the maximum transmission unit (MTU) reported by the port.
@@ -106,7 +107,7 @@ class NetAppOntapNetPort(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
             node=dict(required=True, type="str"),
-            ports=dict(required=True, type="list", aliases=['port']),
+            ports=dict(required=True, type='list', elements='str', aliases=['port']),
             mtu=dict(required=False, type="str", default=None),
             autonegotiate_admin=dict(required=False, type="str", default=None),
             duplex_admin=dict(required=False, type="str", default=None),

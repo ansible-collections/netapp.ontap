@@ -61,6 +61,7 @@ options:
     - Make sure the list contains all ports you want to see on the target.
     version_added: 2.8.0
     type: list
+    elements: str
 """
 
 EXAMPLES = """
@@ -125,7 +126,7 @@ class NetAppOntapIfGrp(object):
             name=dict(required=True, type='str'),
             mode=dict(required=False, type='str'),
             node=dict(required=True, type='str'),
-            ports=dict(required=False, type='list', aliases=["port"]),
+            ports=dict(required=False, type='list', elements='str', aliases=["port"]),
         ))
 
         self.module = AnsibleModule(

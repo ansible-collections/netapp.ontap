@@ -44,12 +44,14 @@ options:
     description:
     - File extensions for which On-Access scanning must not be performed.
     type: list
+    elements: str
 
   file_ext_to_include:
     description:
     - File extensions for which On-Access scanning is considered. The default value is '*', which means that all files are considered for scanning except
     - those which are excluded from scanning.
     type: list
+    elements: str
 
   filters:
     description:
@@ -57,6 +59,7 @@ options:
     - scan_ro_volume  Enable scans for read-only volume,
     - scan_execute_access  Scan only files opened with execute-access (CIFS only)
     type: list
+    elements: str
 
   is_scan_mandatory:
     description:
@@ -73,6 +76,7 @@ options:
     description:
     - File paths for which On-Access scanning must not be performed.
     type: list
+    elements: str
 
   scan_files_with_no_ext:
     description:
@@ -150,12 +154,12 @@ class NetAppOntapVscanOnAccessPolicy(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             policy_name=dict(required=True, type='str'),
-            file_ext_to_exclude=dict(required=False, type="list"),
-            file_ext_to_include=dict(required=False, type="list"),
-            filters=dict(required=False, type="list"),
+            file_ext_to_exclude=dict(required=False, type='list', elements='str'),
+            file_ext_to_include=dict(required=False, type='list', elements='str'),
+            filters=dict(required=False, type='list', elements='str'),
             is_scan_mandatory=dict(required=False, type='bool', default=False),
             max_file_size=dict(required=False, type="int"),
-            paths_to_exclude=dict(required=False, type="list"),
+            paths_to_exclude=dict(required=False, type='list', elements='str'),
             scan_files_with_no_ext=dict(required=False, type='bool', default=True),
             policy_status=dict(required=False, type='bool')
         ))

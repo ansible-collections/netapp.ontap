@@ -57,10 +57,12 @@ options:
     description:
       - List of host NQNs (NVMe Qualification Name) associated to the controller.
     type: list
+    elements: str
   paths:
     description:
       - List of Namespace paths to be associated with the subsystem.
     type: list
+    elements: str
 short_description: "NetApp ONTAP Manage NVME Subsystem"
 version_added: 2.8.0
 '''
@@ -141,8 +143,8 @@ class NetAppONTAPNVMESubsystem(object):
             ostype=dict(required=False, type='str', choices=['windows', 'linux', 'vmware', 'xen', 'hyper_v']),
             skip_host_check=dict(required=False, type='bool', default=False),
             skip_mapped_check=dict(required=False, type='bool', default=False),
-            hosts=dict(required=False, type='list'),
-            paths=dict(required=False, type='list')
+            hosts=dict(required=False, type='list', elements='str'),
+            paths=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(

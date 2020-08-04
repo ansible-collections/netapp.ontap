@@ -49,6 +49,7 @@ options:
       If a rule with provided client_match exists, a new rule will not be created, but the existing rule will be modified or deleted.
       If a rule with provided client_match doesn't exist, a new rule will be created if state is present.
     type: list
+    elements: str
 
   anonymous_user_id:
     description:
@@ -60,18 +61,21 @@ options:
     - List of Read only access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
+    elements: str
 
   rw_rule:
     description:
     - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
+    elements: str
 
   super_user_security:
     description:
     - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
+    elements: str
 
   allow_suid:
     description:
@@ -84,6 +88,7 @@ options:
     - Default value is set to 'any' during create.
     choices: [any,nfs,nfs3,nfs4,cifs,flexcache]
     type: list
+    elements: str
 
   rule_index:
     description:
@@ -168,17 +173,17 @@ class NetAppontapExportRule(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str', aliases=['policy_name']),
             protocol=dict(required=False,
-                          type='list', default=None,
+                          type='list', elements='str', default=None,
                           choices=['any', 'nfs', 'nfs3', 'nfs4', 'cifs', 'flexcache']),
-            client_match=dict(required=False, type='list'),
+            client_match=dict(required=False, type='list', elements='str'),
             ro_rule=dict(required=False,
-                         type='list', default=None,
+                         type='list', elements='str', default=None,
                          choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             rw_rule=dict(required=False,
-                         type='list', default=None,
+                         type='list', elements='str', default=None,
                          choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             super_user_security=dict(required=False,
-                                     type='list', default=None,
+                                     type='list', elements='str', default=None,
                                      choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             allow_suid=dict(required=False, type='bool'),
             rule_index=dict(required=False, type='int'),

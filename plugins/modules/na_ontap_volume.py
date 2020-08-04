@@ -160,6 +160,7 @@ options:
     description:
     -  an array of names of aggregates to be used for FlexGroup constituents.
     type: list
+    elements: str
     version_added: 2.8.0
 
   aggr_list_multiplier:
@@ -631,7 +632,7 @@ class NetAppOntapVolume(object):
             group_id=dict(required=False, type='int'),
             user_id=dict(required=False, type='int'),
             snapshot_policy=dict(required=False, type='str'),
-            aggr_list=dict(required=False, type='list'),
+            aggr_list=dict(required=False, type='list', elements='str'),
             aggr_list_multiplier=dict(required=False, type='int'),
             snapdir_access=dict(required=False, type='bool'),
             atime_update=dict(required=False, type='bool'),

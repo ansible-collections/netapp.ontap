@@ -55,6 +55,7 @@ options:
     - Adds a port if it is specified in expected state but not in current state.
     - Deletes a port if it is in current state but not in expected state.
     type: list
+    elements: str
 version_added: 2.8.0
 
 '''
@@ -120,7 +121,7 @@ class NetAppONTAPPortset(object):
             type=dict(required=False, type='str', choices=[
                 'fcp', 'iscsi', 'mixed']),
             force=dict(required=False, type='bool', default=False),
-            ports=dict(required=False, type='list')
+            ports=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(

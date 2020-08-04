@@ -142,6 +142,7 @@ options:
     - Protocol values of none, iscsi, fc-nvme or fcp can't be combined with any other data protocol(s).
     - address, netmask and firewall_policy parameters are not supported for 'fc-nvme' option.
     type: list
+    elements: str
 
   dns_domain_name:
     description:
@@ -284,7 +285,7 @@ class NetAppOntapInterface(object):
             admin_status=dict(required=False, choices=['up', 'down']),
             subnet_name=dict(required=False, type='str'),
             is_auto_revert=dict(required=False, type='bool', default=None),
-            protocols=dict(required=False, type='list'),
+            protocols=dict(required=False, type='list', elements='str'),
             force_subnet_association=dict(required=False, type='bool', default=None),
             dns_domain_name=dict(required=False, type='str'),
             listen_for_dns_query=dict(required=False, type='bool'),

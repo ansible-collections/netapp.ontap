@@ -67,6 +67,7 @@ options:
     - Specifies apply DACL entry.
     choices: ['this_folder', 'sub_folders', 'files']
     type: list
+    elements: str
 
   advanced_access_rights:
     description:
@@ -74,6 +75,7 @@ options:
     choices: ['read_data', 'write_data', 'append_data', 'read_ea', 'write_ea', 'execute_file', 'delete_child',
     'read_attr', 'write_attr', 'delete', 'read_perm', 'write_perm', 'write_owner', 'full_control']
     type: list
+    elements: str
 
 """
 
@@ -147,12 +149,12 @@ class NetAppOntapNtfsDacl(object):
             rights=dict(required=False,
                         choices=['no_access', 'full_control', 'modify', 'read_and_execute', 'read', 'write'],
                         type='str'),
-            apply_to=dict(required=False, choices=['this_folder', 'sub_folders', 'files'], type='list'),
+            apply_to=dict(required=False, choices=['this_folder', 'sub_folders', 'files'], type='list', elements='str'),
             advanced_access_rights=dict(required=False,
                                         choices=['read_data', 'write_data', 'append_data', 'read_ea', 'write_ea',
                                                  'execute_file', 'delete_child', 'read_attr', 'write_attr', 'delete',
                                                  'read_perm', 'write_perm', 'write_owner', 'full_control'],
-                                        type='list'),
+                                        type='list', elements='str'),
         ))
 
         self.module = AnsibleModule(

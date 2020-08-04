@@ -93,6 +93,7 @@ options:
     - http   HTTP protocol,
     - nvme   NVMe protocol
     type: list
+    elements: str
 
   aggr_list:
     description:
@@ -105,6 +106,7 @@ options:
       this will return the list of Vservers
       which have any of the aggregates specified as part of the aggr list.
     type: list
+    elements: str
 
   ipspace:
     description:
@@ -230,8 +232,8 @@ class NetAppOntapSVM(object):
                                                                  'mixed',
                                                                  'unified'
                                                                  ]),
-            allowed_protocols=dict(type='list'),
-            aggr_list=dict(type='list'),
+            allowed_protocols=dict(type='list', elements='str'),
+            aggr_list=dict(type='list', elements='str'),
             ipspace=dict(type='str', required=False),
             snapshot_policy=dict(type='str', required=False),
             language=dict(type='str', required=False),

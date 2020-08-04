@@ -44,6 +44,7 @@ options:
     description:
     - Authentication type.
     type: list
+    elements: str
 
   backup_log_enable:
     description:
@@ -114,6 +115,7 @@ options:
     description:
     - Preferred interface role.
     type: list
+    elements: str
 
   restore_vm_cache_size:
     description:
@@ -189,7 +191,7 @@ class NetAppONTAPNdmp(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.modifiable_options = dict(
             abort_on_disk_error=dict(required=False, type='bool'),
-            authtype=dict(required=False, type='list'),
+            authtype=dict(required=False, type='list', elements='str'),
             backup_log_enable=dict(required=False, type='bool'),
             data_port_range=dict(required=False, type='str'),
             debug_enable=dict(required=False, type='bool'),
@@ -203,7 +205,7 @@ class NetAppONTAPNdmp(object):
             is_secure_control_connection_enabled=dict(required=False, type='bool'),
             offset_map_enable=dict(required=False, type='bool'),
             per_qtree_exclude_enable=dict(required=False, type='bool'),
-            preferred_interface_role=dict(required=False, type='list'),
+            preferred_interface_role=dict(required=False, type='list', elements='str'),
             restore_vm_cache_size=dict(required=False, type='int'),
             secondary_debug_filter=dict(required=False, type='str'),
             tcpnodelay=dict(required=False, type='bool'),

@@ -45,6 +45,7 @@ options:
       - The start and end addresses themselves are included in the range.
       - If not present, the initiator is allowed to log in from any IP address.
     type: list
+    elements: str
   inbound_username:
     description:
       - Inbound CHAP username.
@@ -134,7 +135,7 @@ class NetAppONTAPIscsiSecurity(object):
             inbound_password=dict(required=False, type='str', no_log=True),
             inbound_username=dict(required=False, type='str'),
             initiator=dict(required=True, type='str'),
-            address_ranges=dict(required=False, type='list'),
+            address_ranges=dict(required=False, type='list', elements='str'),
             outbound_password=dict(required=False, type='str', no_log=True),
             outbound_username=dict(required=False, type='str'),
         ))

@@ -41,6 +41,7 @@ options:
       only supported for cron schedule create and modify.
       Range is [-1..59]
     type: list
+    elements: str
   job_hours:
     version_added: 2.8.0
     description:
@@ -50,6 +51,7 @@ options:
       only supported for cron schedule create and modify.
       Range is [-1..23]
     type: list
+    elements: str
   job_months:
     version_added: 2.8.0
     description:
@@ -59,6 +61,7 @@ options:
       only supported for cron schedule create and modify.
       Range is [-1..11]
     type: list
+    elements: str
   job_days_of_month:
     version_added: 2.8.0
     description:
@@ -68,6 +71,7 @@ options:
       only supported for cron schedule create and modify.
       Range is [-1..31]
     type: list
+    elements: str
   job_days_of_week:
     version_added: 2.8.0
     description:
@@ -77,6 +81,7 @@ options:
       only supported for cron schedule create and modify.
       Range is [-1..6]
     type: list
+    elements: str
 '''
 
 EXAMPLES = """
@@ -125,11 +130,11 @@ class NetAppONTAPJob(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
-            job_minutes=dict(required=False, type='list'),
-            job_months=dict(required=False, type='list'),
-            job_hours=dict(required=False, type='list'),
-            job_days_of_month=dict(required=False, type='list'),
-            job_days_of_week=dict(required=False, type='list')
+            job_minutes=dict(required=False, type='list', elements='str'),
+            job_months=dict(required=False, type='list', elements='str'),
+            job_hours=dict(required=False, type='list', elements='str'),
+            job_days_of_month=dict(required=False, type='list', elements='str'),
+            job_days_of_week=dict(required=False, type='list', elements='str')
         ))
 
         self.uuid = None

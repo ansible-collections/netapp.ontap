@@ -75,6 +75,7 @@ options:
     description:
       - List of aggregates to host target FlexCache volume.
     type: list
+    elements: str
   aggr_list_multiplier:
     description:
       - Aggregate list repeat count.
@@ -159,7 +160,7 @@ class NetAppONTAPFlexCache(object):
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                     'pb', 'eb', 'zb', 'yb'], type='str'),
             vserver=dict(required=True, type='str'),
-            aggr_list=dict(required=False, type='list'),
+            aggr_list=dict(required=False, type='list', elements='str'),
             aggr_list_multiplier=dict(required=False, type='int'),
             force_offline=dict(required=False, type='bool', default=False),
             force_unmount=dict(required=False, type='bool', default=False),

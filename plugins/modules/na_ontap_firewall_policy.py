@@ -33,6 +33,7 @@ options:
       - A list of IPs and masks to use.
       - The host bits of the IP addresses used in this list must be set to 0.
     type: list
+    elements: str
   policy:
     description:
       - A policy name for the firewall policy
@@ -133,7 +134,7 @@ class NetAppONTAPFirewallPolicy(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            allow_list=dict(required=False, type="list"),
+            allow_list=dict(required=False, type='list', elements='str'),
             policy=dict(required=False, type='str'),
             service=dict(required=False, type='str', choices=['dns', 'http', 'https', 'ndmp', 'ndmps',
                                                               'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']),

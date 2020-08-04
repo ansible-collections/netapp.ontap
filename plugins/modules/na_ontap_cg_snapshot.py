@@ -32,6 +32,7 @@ options:
   volumes:
     required: true
     type: list
+    elements: str
     description:
       - A list of volumes in this filer that is part of this CG operation.
   snapshot:
@@ -87,7 +88,7 @@ class NetAppONTAPCGSnapshot(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', default='present'),
             vserver=dict(required=True, type='str'),
-            volumes=dict(required=True, type='list'),
+            volumes=dict(required=True, type='list', elements='str'),
             snapshot=dict(required=True, type='str'),
             timeout=dict(required=False, type='str', choices=[
                 'urgent', 'medium', 'relaxed'], default='medium'),

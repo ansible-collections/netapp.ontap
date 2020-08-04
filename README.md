@@ -44,14 +44,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_igroup: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_igroup_initiator: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_security_certificates: allows (`common_name`, `type`) as an alternate key since `name` is not supported in ONTAP 9.6 and 9.7.
-- na_ontap_info: Fixed error causing module to fail on `metrocluster_check_info`, `env_sensors_info` and `volume_move_target_aggr_info`
+- na_ontap_info: Fixed error causing module to fail on `metrocluster_check_info`, `env_sensors_info` and `volume_move_target_aggr_info`.
 - na_ontap_snapmirror: fixed KeyError when accessing `relationship_type` parameter.
 - na_ontap_snapmirror_policy: fixed a race condition when creating a new policy.
 - na_ontap_snapmirror_policy: fixed idempotency issue withis_network_compression_enabled for REST.
 - na_ontap_software_update: ignore connection errors during update as nodes cannot be reachable.
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
-- na_ontap_vscan_on_access_policy: 'policy_status' enable/disable option was not supported.
+- na_ontap_vscan_on_access_policy: `policy_status` enable/disable option was not supported.
+- na_ontap_vscan_on_demand_task: `file_ext_to_include` was not handled properly.
 - na_ontap_vscan_scanner_pool_policy: scanner_pool apply policy support on modification.
 - na_ontap_vserver_create(role): lif creation now defaults to system-defined unless iscsi lif type.
 - use_rest supports case insensitive.

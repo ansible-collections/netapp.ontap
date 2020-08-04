@@ -45,6 +45,7 @@ options:
     description:
     - List of ports.
     type: list
+    elements: str
     required: true
 
   resource_name:
@@ -154,7 +155,7 @@ class NetAppOntapPorts(object):
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=False, type='str'),
-            names=dict(required=True, type='list'),
+            names=dict(required=True, type='list', elements='str'),
             resource_name=dict(required=True, type='str'),
             resource_type=dict(required=True, type='str', choices=['broadcast_domain', 'portset']),
             ipspace=dict(required=False, type='str'),

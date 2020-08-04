@@ -47,6 +47,7 @@ options:
       - The list of properties for the CIFS share
     required: false
     type: list
+    elements: str
     version_added: 2.8.0
 
   symlink_properties:
@@ -54,6 +55,7 @@ options:
       - The list of symlink properties for this CIFS share
     required: false
     type: list
+    elements: str
     version_added: 2.8.0
 
   state:
@@ -138,8 +140,8 @@ class NetAppONTAPCifsShare(object):
             share_name=dict(required=True, type='str'),
             path=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
-            share_properties=dict(required=False, type='list'),
-            symlink_properties=dict(required=False, type='list'),
+            share_properties=dict(required=False, type='list', elements='str'),
+            symlink_properties=dict(required=False, type='list', elements='str'),
             vscan_fileop_profile=dict(required=False, type='str', choices=['no_scan', 'standard', 'strict', 'writes_only'])
         ))
 

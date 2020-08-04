@@ -51,6 +51,7 @@ options:
     - File-Extensions for which scanning must not be performed.
     - File whose extension matches with both inclusion and exclusion list is not considered for scanning.
     type: list
+    elements: str
 
   file_ext_to_include:
     description:
@@ -58,6 +59,7 @@ options:
     - The default value is '*', which means that all files are considered for scanning except those which are excluded from scanning.
     - File whose extension matches with both inclusion and exclusion list is not considered for scanning.
     type: list
+    elements: str
 
   max_file_size:
     description:
@@ -68,6 +70,7 @@ options:
     description:
     - File-paths for which scanning must not be performed.
     type: list
+    elements: str
 
   report_directory:
     description:
@@ -98,6 +101,7 @@ options:
     - List of paths that need to be scanned. The path must be provided in unix-format and from the root of the Vserver.
     - Example /vol1/large_files.
     type: list
+    elements: str
 
   scan_priority:
     description:
@@ -169,15 +173,15 @@ class NetAppOntapVscanOnDemandTask(object):
             vserver=dict(required=True, type='str'),
             cross_junction=dict(required=False, type='bool', default=False),
             directory_recursion=dict(required=False, type='bool', default=False),
-            file_ext_to_exclude=dict(required=False, type="list"),
-            file_ext_to_include=dict(required=False, type="list"),
+            file_ext_to_exclude=dict(required=False, type='list', elements='str'),
+            file_ext_to_include=dict(required=False, type='list', elements='str'),
             max_file_size=dict(required=False, type="str"),
-            paths_to_exclude=dict(required=False, type="list"),
+            paths_to_exclude=dict(required=False, type='list', elements='str'),
             report_directory=dict(required=False, type='str'),
             report_log_level=dict(required=False, type='str', choices=['verbose', 'info', 'error'], default='error'),
             request_timeout=dict(required=False, type='str'),
             scan_files_with_no_ext=dict(required=False, type='bool', default=True),
-            scan_paths=dict(required=False, type="list"),
+            scan_paths=dict(required=False, type='list', elements='str'),
             scan_priority=dict(required=False, type='str', choices=['low', 'normal'], default='low'),
             schedule=dict(required=False, type="str"),
             task_name=dict(required=True, type="str")
@@ -244,7 +248,7 @@ class NetAppOntapVscanOnDemandTask(object):
         if self.parameters.get('file_ext_to_include'):
             ext_to_include_obj = netapp_utils.zapi.NaElement('file-ext-to-include')
             for include_file in self.parameters['file_ext_to_exclude']:
-                ext_to_include_obj.add_child_elem('file-extension', include_file)
+                ext_to_include_obj.add_child_elem(include_file)
             demand_task_obj.add_child_elem(ext_to_include_obj)
         if self.parameters.get('max_file_size'):
             demand_task_obj.add_new_child('max-file-size', self.parameters['max_file_size'])

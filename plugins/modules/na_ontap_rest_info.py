@@ -32,6 +32,7 @@ options:
         choices: ['info']
     gather_subset:
         type: list
+        elements: str
         description:
             - When supplied, this argument will restrict the information collected
                 to a given subset.  Either the info name or the Rest API can be given.
@@ -67,6 +68,7 @@ options:
         default: 1024
     fields:
         type: list
+        elements: str
         description:
             - Request specific fields from subset.
                '*' to return all the fields, one or more subsets are allowed.
@@ -158,9 +160,9 @@ class NetAppONTAPGatherInfo(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(type='str', choices=['info'], default='info', required=False),
-            gather_subset=dict(default=['all'], type='list', required=False),
+            gather_subset=dict(default=['all'], type='list', elements='str', required=False),
             max_records=dict(type='int', default=1024, required=False),
-            fields=dict(type='list', required=False),
+            fields=dict(type='list', elements='str', required=False),
             parameters=dict(type='dict', required=False)
         ))
 

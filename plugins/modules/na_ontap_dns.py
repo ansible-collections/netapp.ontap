@@ -39,11 +39,13 @@ options:
     description:
     - List of DNS domains such as 'sales.bar.com'. The first domain is the one that the Vserver belongs to.
     type: list
+    elements: str
 
   nameservers:
     description:
     - List of IPv4 addresses of name servers such as '123.123.123.123'.
     type: list
+    elements: str
 
   skip_validation:
     type: bool
@@ -91,8 +93,8 @@ class NetAppOntapDns(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            domains=dict(required=False, type='list'),
-            nameservers=dict(required=False, type='list'),
+            domains=dict(required=False, type='list', elements='str'),
+            nameservers=dict(required=False, type='list', elements='str'),
             skip_validation=dict(required=False, type='bool')
         ))
 
