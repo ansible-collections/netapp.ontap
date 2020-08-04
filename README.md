@@ -49,6 +49,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_snapmirror_policy: fixed a race condition when creating a new policy.
 - na_ontap_snapmirror_policy: fixed idempotency issue withis_network_compression_enabled for REST.
 - na_ontap_software_update: ignore connection errors during update as nodes cannot be reachable.
+- na_ontap_user: enable lock state and password to be set in the same task for existing user.
 - na_ontap_volume: issue when snapdir_access and atime_update not passed together.
 - na_ontap_vscan_on_access_policy: `bool` type was not properly set for `scan_files_with_no_ext`.
 - na_ontap_vscan_on_access_policy: `policy_status` enable/disable option was not supported.

@@ -282,8 +282,7 @@ class NetAppOntapUser(object):
 
     def get_user_details_rest(self, name, uuid):
         params = {
-            'name': name,
-            'owner.uuid': uuid,
+            'fields': 'role,applications,locked'
         }
         api = "security/accounts/%s/%s" % (uuid, name)
         message, error = self.restApi.get(api, params)
@@ -360,7 +359,9 @@ class NetAppOntapUser(object):
                 params['owner.name'] = self.parameters['vserver']
             if 'set_password' in self.parameters:
                 params['password'] = self.parameters['set_password']
-            message, error = self.restApi.post(api, params)
+            if 'lock_user' in self.parameters:
+                params['locked'] = self.parameters['lock_user']
+            dummy, error = self.restApi.post(api, params)
             if error:
                 self.module.fail_json(msg='Error while creating user: %s' % error)
 
@@ -409,7 +410,7 @@ class NetAppOntapUser(object):
             'owner.uuid': useruuid,
         }
         api = "security/accounts/%s/%s" % (useruuid, username)
-        message, error = self.restApi.patch(api, data, params)
+        dummy, error = self.restApi.patch(api, data, params)
         if error:
             self.module.fail_json(msg='Error while locking/unlocking user: %s' % error)
 
@@ -465,7 +466,7 @@ class NetAppOntapUser(object):
             'owner.uuid': uuid,
         }
         api = "security/accounts/%s/%s" % (uuid, username)
-        message, error = self.restApi.delete(api, data, params)
+        dummy, error = self.restApi.delete(api, data, params)
         if error:
             self.module.fail_json(msg='Error while deleting user : %s' % error)
 
@@ -559,7 +560,7 @@ class NetAppOntapUser(object):
             'owner.uuid': useruuid,
         }
         api = "security/accounts/%s/%s" % (useruuid, username)
-        message, error = self.restApi.patch(api, data, params)
+        dummy, error = self.restApi.patch(api, data, params)
         if error:
             self.module.fail_json(msg='Error while modifying user details: %s' % error)
 
@@ -589,28 +590,33 @@ class NetAppOntapUser(object):
             current = self.get_user_details_rest(name, uuid)
 
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
         modify_decision = self.na_helper.get_modified_attributes(current, self.parameters)
 
-        if self.na_helper.changed:
+        if current and 'lock_user' not in current:
+            # REST does not return locked if password is not set
+            if cd_action is None and self.parameters.get('lock_user') is not None:
+                if self.parameters.get('set_password') is None:
+                    self.module.fail_json(msg='Error: cannot modify lock state if password is not set.')
+                modify_decision['lock_user'] = self.parameters['lock_user']
+                self.na_helper.changed = True
 
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_user_rest(self.parameters['applications'])
-                elif cd_action == 'delete':
-                    self.delete_user_rest()
-                elif modify_decision:
-                    if 'role_name' in modify_decision or 'applications' in modify_decision:
-                        self.modify_apps_rest(uuid, name, self.parameters['applications'])
-                    if 'lock_user' in modify_decision:
-                        self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
-
-        if not cd_action and self.parameters.get('set_password') is not None:
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_user_rest(self.parameters['applications'])
+            elif cd_action == 'delete':
+                self.delete_user_rest()
+            elif modify_decision:
+                if 'role_name' in modify_decision or 'applications' in modify_decision:
+                    self.modify_apps_rest(uuid, name, self.parameters['applications'])
+        if cd_action is None and self.parameters.get('set_password') is not None:
             # if check_mode, don't attempt to change the password, but assume it would be changed
             if self.module.check_mode or self.change_password_rest(uuid, name):
                 self.na_helper.changed = True
+        if cd_action is None and self.na_helper.changed and not self.module.check_mode:
+            # lock/unlock actions require password to be set
+            if modify_decision and 'lock_user' in modify_decision:
+                self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
+
         self.module.exit_json(changed=self.na_helper.changed)
 
     def apply(self):
@@ -653,15 +659,15 @@ class NetAppOntapUser(object):
                             self.modify_user(application)
                         if 'lock_user' in modify_decision[application]:
                             lock_user = True
-
+                    if not create_delete_decision and self.parameters.get('set_password') is not None:
+                        # if change password return false nothing has changed so we need to set changed to False
+                        self.na_helper.changed = self.change_password()
+                    # NOTE: unlock has to be performed after setting a password
                     if lock_user:
                         if self.parameters.get('lock_user'):
                             self.lock_given_user()
                         else:
                             self.unlock_given_user()
-                    if not create_delete_decision and self.parameters.get('set_password') is not None:
-                        # if change password return false nothing has changed so we need to set changed to False
-                        self.na_helper.changed = self.change_password()
         self.module.exit_json(changed=self.na_helper.changed)
 
 
