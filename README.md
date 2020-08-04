@@ -40,6 +40,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
 - na_ontap_aggregate: `disk-info` error when using `disks` option.
+- na_ontap_autosupport_invoke: `message` has changed to `autosupport_message` as Redhat has reserved this word. `message` has been alias'd to `autosupport_message`.
 - na_ontap_cifs_vserver: fix documentation and add more examples.
 - na_ontap_igroup: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).
 - na_ontap_igroup_initiator: idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).

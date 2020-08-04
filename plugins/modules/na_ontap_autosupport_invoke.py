@@ -32,10 +32,13 @@ options:
     - Not specifying this option invokes AutoSupport on all nodes in the cluster.
     type: str
 
-  message:
+  autosupport_message:
     description:
     - Text sent in the subject line of the AutoSupport message.
     type: str
+    aliases:
+    - message
+    version_added: 20.8.0
 
   type:
     description:
@@ -84,7 +87,7 @@ class NetAppONTAPasupInvoke(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             name=dict(required=False, type='str'),
-            message=dict(required=False, type='str'),
+            autosupport_message=dict(required=False, type='str', aliases=["message"]),
             type=dict(required=False, choices=[
                 'test', 'performance', 'all'], default='all'),
             uri=dict(required=False, type='str')
@@ -138,8 +141,8 @@ class NetAppONTAPasupInvoke(object):
 
     def send_message(self):
         params = dict()
-        if self.parameters.get('message'):
-            params['message'] = self.parameters['message']
+        if self.parameters.get('autosupport_message'):
+            params['message'] = self.parameters['autosupport_message']
         if self.parameters.get('type'):
             params['type'] = self.parameters['type']
         if self.parameters.get('uri'):
