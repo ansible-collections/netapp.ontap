@@ -140,6 +140,30 @@ class NetAppONTAPCluster(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
+    def get_cluster_identity(self, ignore_error=True):
+        ''' get cluster information, but the cluster may not exist yet
+            return:
+                None if the cluster cannot be reached
+                a dictionary of attributes
+        '''
+        zapi = netapp_utils.zapi.NaElement('cluster-identity-get')
+        try:
+            result = self.server.invoke_successfully(zapi, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            if ignore_error:
+                return None
+            self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+        cluster_identity = dict()
+        if result.get_child_by_name('attributes'):
+            identity_info = result.get_child_by_name('attributes').get_child_by_name('cluster-identity-info')
+            if identity_info:
+                cluster_identity['cluster_contact'] = identity_info.get_child_content('cluster-contact')
+                cluster_identity['cluster_location'] = identity_info.get_child_content('cluster-location')
+                cluster_identity['cluster_name'] = identity_info.get_child_content('cluster-name')
+            return cluster_identity
+        return None
+
     def create_cluster(self):
         """
         Create a cluster
@@ -186,16 +210,17 @@ class NetAppONTAPCluster(object):
                                       exception=traceback.format_exc())
         return True
 
-    def modify_cluster_identity(self):
+    def modify_cluster_identity(self, modify):
         """
         Modifies the cluster identity
         """
         cluster_modify = netapp_utils.zapi.NaElement('cluster-identity-modify')
-        cluster_modify.add_new_child("cluster-name", self.parameters.get('cluster_name'))
-        if self.parameters.get('cluster_location') is not None:
-            cluster_modify.add_new_child("cluster-location", self.parameters.get('cluster_location'))
-        if self.parameters.get('cluster_contact') is not None:
-            cluster_modify.add_new_child("cluster-contact", self.parameters.get('cluster_contact'))
+        if modify.get('cluster_name') is not None:
+            cluster_modify.add_new_child("cluster-name", modify.get('cluster_name'))
+        if modify.get('cluster_location') is not None:
+            cluster_modify.add_new_child("cluster-location", modify.get('cluster_location'))
+        if modify.get('cluster_contact') is not None:
+            cluster_modify.add_new_child("cluster-contact", modify.get('cluster_contact'))
 
         try:
             self.server.invoke_successfully(cluster_modify,
@@ -214,8 +239,13 @@ class NetAppONTAPCluster(object):
         cluster_wait = netapp_utils.zapi.NaElement('cluster-create-join-progress-get')
         is_complete = False
         status = ''
+        wait = False    # do not wait on the first call
 
         while not is_complete and status not in ('failed', 'success'):
+            if wait:
+                time.sleep(10)
+            else:
+                wait = True
             try:
                 result = self.server.invoke_successfully(cluster_wait, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
@@ -223,7 +253,6 @@ class NetAppONTAPCluster(object):
                 self.module.fail_json(msg='Error creating cluster %s: %s'
                                           % (self.parameters.get('cluster_name'), to_native(error)),
                                       exception=traceback.format_exc())
-            time.sleep(10)
 
             clus_progress = result.get_child_by_name('attributes')
             result = clus_progress.get_child_by_name('cluster-create-join-progress-info')
@@ -253,8 +282,13 @@ class NetAppONTAPCluster(object):
 
         is_complete = None
         failure_msg = None
+        wait = False    # do not wait on the first call
 
         while is_complete != 'success' and is_complete != 'failure':
+            if wait:
+                time.sleep(10)
+            else:
+                wait = True
             try:
                 result = self.server.invoke_successfully(cluster_node_status, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
@@ -262,7 +296,6 @@ class NetAppONTAPCluster(object):
                 self.module.fail_json(msg='Error adding node with ip address %s: %s'
                                           % (self.parameters.get('cluster_ip_address'), to_native(error)),
                                       exception=traceback.format_exc())
-            time.sleep(10)
 
             attributes_list = result.get_child_by_name('attributes-list')
             join_progress = attributes_list.get_child_by_name('cluster-create-add-node-status-info')
@@ -292,24 +325,26 @@ class NetAppONTAPCluster(object):
         """
         changed = False
         create_flag = False
+        cluster_identity = self.get_cluster_identity(ignore_error=True)
+        modify = self.na_helper.get_modified_attributes(cluster_identity, self.parameters)
+        # temporary hack to fix check_mode for modify
+        changed = self.na_helper.changed
+        # TODO: JIRA-3048 fix check_mode for create and join
 
-        if self.module.check_mode:
-            pass
-        else:
+        if not self.module.check_mode:
             if self.parameters.get('state') == 'present':
                 if self.parameters.get('cluster_name') is not None:
                     create_flag = self.create_cluster()
                     if create_flag:
                         cluster_wait = self.cluster_create_wait()
                         changed = True if cluster_wait else changed
-                    if self.parameters.get('cluster_contact') is not None or self.parameters.get('cluster_location') is not None:
-                        modify_flag = self.modify_cluster_identity()
-                        changed = True if modify_flag is True else changed
                 if not create_flag:
                     join_flag = self.cluster_join()
                     if join_flag:
                         join_wait_flag = self.node_add_wait()
                         changed = True if join_wait_flag == 'success' else changed
+                if modify:
+                    self.modify_cluster_identity(modify)
         self.autosupport_log()
         self.module.exit_json(changed=changed)
 
