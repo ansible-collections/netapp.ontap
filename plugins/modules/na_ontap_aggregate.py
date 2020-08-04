@@ -72,6 +72,10 @@ options:
     - Either C(disk-count) or C(disks) must be supplied. Range [0..2^31-1].
     - Required when C(state=present).
     - Modifiable only if specified disk_count is larger than current disk_count.
+    - Cannot create raidgroup with 1 disk when using raid type raid4.
+    - If the disk_count % raid_size == 1, only disk_count/raid_size * raid_size will be added.
+    - If disk_count is 6, raid_type is raid4, raid_size 4, all 6 disks will be added.
+    - If disk_count is 5, raid_type is raid4, raid_size 4, 5/4 * 4 = 4 will be added. 1 will not be added.
     type: int
 
   disk_size:
@@ -79,6 +83,14 @@ options:
     - Disk size to use in 4K block size.  Disks within 10% of specified size will be used.
     type: int
     version_added: 2.7.0
+
+  disk_size_with_unit:
+    description:
+    - Disk size to use in the specified unit.
+    - It is a positive integer number followed by unit of T/G/M/K. For example, 72G, 1T and 32M.
+    - This option is ignored if a specific list of disks is specified through the "disks" parameter.
+    - You must only use one of either "disk-size" or "disk-size-with-unit" parameters.
+    type: str
 
   raid_size:
     description:
@@ -249,6 +261,7 @@ class NetAppOntapAggregate(object):
             disks=dict(required=False, type='list'),
             disk_count=dict(required=False, type='int', default=None),
             disk_size=dict(required=False, type='int'),
+            disk_size_with_unit=dict(required=False, type='str'),
             disk_type=dict(required=False, choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']),
             from_name=dict(required=False, type='str'),
             mirror_disks=dict(required=False, type='list'),
@@ -277,7 +290,8 @@ class NetAppOntapAggregate(object):
                 ('is_mirrored', 'mirror_disks'),
                 ('is_mirrored', 'spare_pool'),
                 ('spare_pool', 'disks'),
-                ('disk_count', 'disks')
+                ('disk_count', 'disks'),
+                ('disk_size', 'disk_size_with_unit')
             ],
             supports_check_mode=True
         )
@@ -497,6 +511,8 @@ class NetAppOntapAggregate(object):
             options['raid-type'] = self.parameters['raid_type']
         if self.parameters.get('disk_size'):
             options['disk-size'] = str(self.parameters['disk_size'])
+        if self.parameters.get('disk_size_with_unit'):
+            options['disk-size-with-unit'] = str(self.parameters['disk_size_with_unit'])
         if self.parameters.get('is_mirrored'):
             options['is-mirrored'] = str(self.parameters['is_mirrored'])
         if self.parameters.get('spare_pool'):
@@ -530,6 +546,12 @@ class NetAppOntapAggregate(object):
                     retries = retries - 1
                     current = self.get_aggr()
                     status = None if current is None else current['service_state']
+            else:
+                current = self.get_aggr()
+            if current is not None and current.get('disk_count') != self.parameters.get('disk_count'):
+                self.module.exit_json(changed=self.na_helper.changed,
+                                      warnings="Aggregate created with mismatched disk_count: created %s not %s"
+                                               % (current.get('disk_count'), self.parameters.get('disk_count')))
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error provisioning aggregate %s: %s"
                                       % (self.parameters['name'], to_native(error)),
@@ -574,10 +596,16 @@ class NetAppOntapAggregate(object):
         if modify.get('service_state') == 'offline':
             self.aggregate_offline()
         else:
+            disk_size = 0
+            disk_size_with_unit = None
             if modify.get('service_state') == 'online':
                 self.aggregate_online()
+            if modify.get('disk_size'):
+                disk_size = modify.get('disk_size')
+            if modify.get('disk_size_with_unit'):
+                disk_size_with_unit = modify.get('disk_size_with_unit')
             if modify.get('disk_count'):
-                self.add_disks(modify['disk_count'])
+                self.add_disks(modify['disk_count'], disk_size=disk_size, disk_size_with_unit=disk_size_with_unit)
             if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
                 self.add_disks(0, modify.get('disks_to_add'), modify.get('mirror_disks_to_add'))
 
@@ -598,7 +626,7 @@ class NetAppOntapAggregate(object):
                                       (self.parameters['object_store_name'], self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def add_disks(self, count=0, disks=None, mirror_disks=None):
+    def add_disks(self, count=0, disks=None, mirror_disks=None, disk_size=0, disk_size_with_unit=None):
         """
         Add additional disks to aggregate.
         :return: None
@@ -608,6 +636,10 @@ class NetAppOntapAggregate(object):
             options['disk-count'] = str(count)
         if disks and self.parameters.get('ignore_pool_checks'):
             options['ignore-pool-checks'] = str(self.parameters['ignore_pool_checks'])
+        if disk_size:
+            options['disk-size'] = str(disk_size)
+        if disk_size_with_unit:
+            options['disk-size-with-unit'] = disk_size_with_unit
         aggr_add = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-add', **options)
         if disks:

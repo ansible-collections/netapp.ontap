@@ -30,6 +30,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_wait_for_condition: wait for event to be present or absent (currently sp_upgrade in_progress).
 
 ### New Options
+- na_ontap_aggregate: support `disk_size_with_unit` option.
 - na_ontap_ldap_client: support `ad_domain` and `preferred_ad_server` options.
 - na_ontap_rest_info: Support for gather subsets - `cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages, network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info`.
 - na_ontap_rest_info: Support for gather subsets for 9.8+ - `cluster_metrocluster_diagnostics.
