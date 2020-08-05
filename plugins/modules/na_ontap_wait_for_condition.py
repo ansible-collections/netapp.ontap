@@ -100,7 +100,7 @@ EXAMPLES = """
         validate_certs: no
         name: sp_version
         conditions: firmware_version
-        state: absent
+        state: present
         attributes:
           node: "{{ ontap_admin_ip }}"
           expected_version: 3.9
