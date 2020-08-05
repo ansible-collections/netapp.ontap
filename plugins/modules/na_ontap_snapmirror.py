@@ -680,8 +680,7 @@ class NetAppONTAPSnapmirror(object):
         snapmirror_update = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-update', **options)
         try:
-            result = self.server.invoke_successfully(snapmirror_update,
-                                                     enable_tunneling=True)
+            self.server.invoke_successfully(snapmirror_update, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error updating SnapMirror : %s'
                                       % (to_native(error)),

@@ -130,7 +130,8 @@ class TestMyModule(unittest.TestCase):
                 'name': self.mock_export_policy['name'],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_export_policy_mock_object(self, type='zapi', kind=None):

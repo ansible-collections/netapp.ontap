@@ -151,7 +151,8 @@ class TestMyModule(unittest.TestCase):
                 'shrink_threshold_percent': self.mock_autosize['shrink_threshold_percent'],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_autosize_mock_object(self, type='zapi', kind=None):
@@ -192,6 +193,7 @@ class TestMyModule(unittest.TestCase):
         data['password'] = 'test_pass!'
         data['volume'] = 'test_vol'
         data['vserver'] = 'test_vserver'
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_autosize_mock_object('zapi', 'autosize').apply()

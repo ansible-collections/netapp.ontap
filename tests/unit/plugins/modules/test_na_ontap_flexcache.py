@@ -520,8 +520,10 @@ class TestMyModule(unittest.TestCase):
         if not self.onbox:
             my_obj.server = MockONTAPConnection(job_error='time_out')
         with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            with pytest.raises(AnsibleFailJson) as exc:
-                my_obj.apply()
+            # replace time.sleep with a noop
+            with patch('time.sleep', lambda a: None):
+                with pytest.raises(AnsibleFailJson) as exc:
+                    my_obj.apply()
             print('Create: ' + repr(exc.value))
             msg = 'Error when creating flexcache: job completion exceeded expected timer of: %s seconds' \
                 % args['time_out']

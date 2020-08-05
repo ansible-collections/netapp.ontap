@@ -117,7 +117,7 @@ class TestMyModule(unittest.TestCase):
             if kind is None:
                 ipspace_obj.server = MockONTAPConnection()
             else:
-                ipspace_obj.server = MockONTAPConnection(kind=kind, data=status)
+                ipspace_obj.server = MockONTAPConnection(kind=kind, parm1=status)
         return ipspace_obj
 
     def test_fail_requiredargs_missing(self):
@@ -127,8 +127,13 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_get_ipspace_iscalled(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_get_ipspace_iscalled(self, mock_request):
         ''' test if get_ipspace() is called '''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         set_module_args(self.set_default_args())
         my_obj = my_module()
         my_obj.server = self.server
@@ -136,8 +141,13 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_get_ipspace: %s' % repr(ipspace))
         assert ipspace is None
 
-    def test_ipspace_apply_iscalled(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_ipspace_apply_iscalled(self, mock_request):
         ''' test if apply() is called '''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         module_args = {'name': 'test_apply_ips'}
         module_args.update(self.set_default_args())
         set_module_args(module_args)

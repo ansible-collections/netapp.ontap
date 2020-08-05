@@ -131,6 +131,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_enable(self):
         data = self.mock_args()
         data['enable'] = True
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vscan_mock_object('zapi', 'enable', 'false').apply()
@@ -139,6 +140,7 @@ class TestMyModule(unittest.TestCase):
     def test_idempotently_enable(self):
         data = self.mock_args()
         data['enable'] = True
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vscan_mock_object('zapi', 'enable', 'true').apply()
@@ -147,6 +149,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_disable(self):
         data = self.mock_args()
         data['enable'] = False
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vscan_mock_object('zapi', 'enable', 'true').apply()
@@ -155,6 +158,7 @@ class TestMyModule(unittest.TestCase):
     def test_idempotently_disable(self):
         data = self.mock_args()
         data['enable'] = False
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vscan_mock_object('zapi', 'enable', 'false').apply()

@@ -50,12 +50,20 @@ options:
                 "cluster_schedules" or "cluster/schedules",
                 "cluster_software_history" or "cluster/software/history",
                 "cluster_software_packages" or "cluster/software/packages",
-                "network_ports_info" or "network/ethernet/ports",
+                "disk_info" or "storage/disks",
                 "ip_interfaces_info" or "network/ip/interfaces",
                 "ip_routes_info" or "network/ip/routes",
                 "ip_service_policies" or "network/ip/service-policies",
                 "network_ipspaces_info" or "network/ipspaces",
-                "disk_info" or "storage/disks",
+                "network_ports_info" or "network/ethernet/ports",
+                "san_fc_logins_info" or "network/fc/logins",
+                "san_fc_wppn-aliases" or "network/fc/wwpn-aliases",
+                "svm_dns_config_info" or "name-services/dns",
+                "svm_ldap_config_info" or "name-services/ldap",
+                "svm_name_mapping_config_info" or "name-services/name-mappings",
+                "svm_nis_config_info" or "name-services/nis",
+                "svm_peers_info" or "svm/peers",
+                "svm_peer-permissions_info" or "svm/peer-permissions",
                 "vserver_info" or "svm/svms",
                 "volume_info" or "storage/volumes",
                 Can specify a list of values to include a larger subset.
@@ -270,12 +278,20 @@ class NetAppONTAPGatherInfo(object):
             "cluster_schedules": "cluster/schedules",
             "cluster_software_history": "cluster/software/history",
             "cluster_software_packages": "cluster/software/packages",
-            "network_ports_info": "network/ethernet/ports",
+            "disk_info": "storage/disks",
             "ip_interfaces_info": "network/ip/interfaces",
             "ip_routes_info": "network/ip/routes",
             "ip_service_policies": "network/ip/service-policies",
             "network_ipspaces_info": "network/ipspaces",
-            "disk_info": "storage/disks",
+            "network_ports_info": "network/ethernet/ports",
+            "san_fc_logins_info": "network/fc/logins",
+            "san_fc_wppn-aliases": "network/fc/wwpn-aliases",
+            "svm_dns_config_info": "name-services/dns",
+            "svm_ldap_config_info": "name-services/ldap",
+            "svm_name_mapping_config_info": "name-services/name-mappings",
+            "svm_nis_config_info": "name-services/nis",
+            "svm_peers_info": "svm/peers",
+            "svm_peer-permissions_info": "svm/peer-permissions",
             "vserver_info": "svm/svms",
             "volume_info": "storage/volumes"
         }
@@ -302,15 +318,6 @@ class NetAppONTAPGatherInfo(object):
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
-            'storage/aggregates': {
-                'api_call': 'storage/aggregates',
-            },
-            'protocols/cifs/services': {
-                'api_call': 'protocols/cifs/services',
-            },
-            'protocols/cifs/shares': {
-                'api_call': 'protocols/cifs/shares',
-            },
             'cloud/targets': {
                 'api_call': 'cloud/targets',
             },
@@ -342,8 +349,29 @@ class NetAppONTAPGatherInfo(object):
             'cluster/software/packages': {
                 'api_call': 'cluster/software/packages',
             },
+            'name-services/dns': {
+                'api_call': 'name-services/dns',
+            },
+            'name-services/ldap': {
+                'api_call': 'name-services/ldap',
+            },
+            'name-services/name-mappings': {
+                'api_call': 'name-services/name-mappings',
+            },
+            'name-services/nis': {
+                'api_call': 'name-services/nis',
+            },
+            'network/ethernet/broadcast-domains': {
+                'api_call': 'network/ethernet/broadcast-domains',
+            },
             'network/ethernet/ports': {
                 'api_call': 'network/ethernet/ports',
+            },
+            'network/fc/logins': {
+                'api_call': 'network/fc/logins',
+            },
+            'network/fc/wwpn-aliases': {
+                'api_call': 'network/fc/wwpn-aliases',
             },
             'network/ip/interfaces': {
                 'api_call': 'network/ip/interfaces',
@@ -357,18 +385,30 @@ class NetAppONTAPGatherInfo(object):
             'network/ipspaces': {
                 'api_call': 'network/ipspaces',
             },
-            'network/ethernet/broadcast-domains': {
-                'api_call': 'network/ethernet/broadcast-domains',
+            'storage/aggregates': {
+                'api_call': 'storage/aggregates',
             },
             'storage/disks': {
                 'api_call': 'storage/disks',
             },
-            'svm/svms': {
-                'api_call': 'svm/svms',
-            },
             'storage/volumes': {
                 'api_call': 'storage/volumes',
             },
+            'svm/peers': {
+                'api_call': 'svm/peers',
+            },
+            'svm/peer-permissions': {
+                'api_call': 'svm/peer-permissions',
+            },
+            'svm/svms': {
+                'api_call': 'svm/svms',
+            },
+            'protocols/cifs/services': {
+                'api_call': 'protocols/cifs/services',
+            },
+            'protocols/cifs/shares': {
+                'api_call': 'protocols/cifs/shares',
+            }
         }
 
         if 'all' in self.parameters['gather_subset']:

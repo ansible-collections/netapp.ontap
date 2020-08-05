@@ -152,6 +152,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_idempotent_modify_dns(self):
         data = self.mock_args()
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi', 'enable', 'false').apply()
@@ -160,6 +161,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_modify_dns(self):
         data = self.mock_args()
         data['domains'] = ['new_test.com']
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi', 'enable', 'false').apply()
@@ -168,6 +170,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
     def test_idempotent_create_dns(self, mock_ems_log_event):
         data = self.mock_args()
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi').apply()
@@ -178,6 +181,7 @@ class TestMyModule(unittest.TestCase):
         data = self.mock_args()
         print("create dns")
         data['domains'] = ['new_test.com']
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_dns_mock_object('zapi', 'create').apply()

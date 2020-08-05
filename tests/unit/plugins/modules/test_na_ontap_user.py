@@ -148,11 +148,16 @@ class TestMyModule(unittest.TestCase):
             vserver = 'vserver'
             application = 'console'
             authentication_method = 'password'
+        if rest:
+            use_rest = 'auto'
+        else:
+            use_rest = 'never'
 
         return dict({
             'hostname': hostname,
             'username': username,
             'password': password,
+            'use_rest': use_rest,
             'name': user_name,
             'vserver': vserver,
             'applications': application,
@@ -353,7 +358,7 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_applications_snmp(self, mock_request):
-        data = self.set_default_args()
+        data = self.set_default_args(rest=True)
         data.update({'applications': 'snmp'})
         data.update({'name': 'create'})
         data.update({'role_name': 'test123'})

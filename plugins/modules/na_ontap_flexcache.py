@@ -407,25 +407,6 @@ class NetAppONTAPFlexCache(object):
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
-    def flexcache_delete_async(self):
-        """
-        Delete FlexCache relationship at destination cluster
-        """
-        options = {'volume': self.parameters['volume']}
-        flexcache_delete = netapp_utils.zapi.NaElement.create_node_with_children(
-            'flexcache-destroy-async', **options)
-        try:
-            result = self.server.invoke_successfully(flexcache_delete, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error deleting FlexCache : %s'
-                                  % (to_native(error)),
-                                  exception=traceback.format_exc())
-        results = dict()
-        for key in ('result-status', 'result-jobid'):
-            if result.get_child_by_name(key):
-                results[key] = result[key]
-        return results
-
     def flexcache_delete(self):
         """
         Delete FlexCache relationship at destination cluster

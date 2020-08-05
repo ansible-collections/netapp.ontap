@@ -102,9 +102,6 @@ class MockONTAPConnection(object):
             xml = self.build_job_schedule_cron_info(self.params)
         elif self.kind == 'job_multiple':
             xml = self.build_job_schedule_multiple_cron_info(self.params)
-        # TODO: mock invoke_elem for autosupport calls
-        elif self.kind == 'vserver':
-            xml = self.build_vserver_info()
         self.xml_out = xml
         return xml
 
@@ -188,7 +185,8 @@ class TestMyModule(unittest.TestCase):
                 'job_minutes': [self.mock_job['minutes']],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_job_mock_object(self, kind=None, call_type='zapi'):

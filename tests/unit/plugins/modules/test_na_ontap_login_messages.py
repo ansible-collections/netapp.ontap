@@ -173,6 +173,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_create_banner(self):
         data = self.mock_args()
         data['banner'] = 'test banner'
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_login_mock_object('zapi', 'create', data).apply()
@@ -181,6 +182,7 @@ class TestMyModule(unittest.TestCase):
     def test_create_banner_idempotency(self):
         data = self.mock_args()
         data['banner'] = 'test banner'
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_login_mock_object('zapi', 'create_idempotency', data).apply()
@@ -189,6 +191,7 @@ class TestMyModule(unittest.TestCase):
     def test_successfully_create_motd(self):
         data = self.mock_args()
         data['motd_message'] = 'test message'
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_login_mock_object('zapi', 'create', data).apply()
@@ -197,6 +200,7 @@ class TestMyModule(unittest.TestCase):
     def test_create_motd_idempotency(self):
         data = self.mock_args()
         data['motd_message'] = 'test message'
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_login_mock_object('zapi', 'create_idempotency', data).apply()
@@ -204,6 +208,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_get_banner_error(self):
         data = self.mock_args()
+        data['use_rest'] = 'never'
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_login_mock_object('zapi', 'error', data).apply()
@@ -213,6 +218,7 @@ class TestMyModule(unittest.TestCase):
     def test_modify_banner_error(self, get_info):
         data = self.mock_args()
         data['banner'] = 'modify to new banner'
+        data['use_rest'] = 'never'
         set_module_args(data)
         get_info.side_effect = [
             {
@@ -228,6 +234,7 @@ class TestMyModule(unittest.TestCase):
     def test_modify_motd_error(self, get_info):
         data = self.mock_args()
         data['motd_message'] = 'modify to new motd'
+        data['use_rest'] = 'never'
         set_module_args(data)
         get_info.side_effect = [
             {

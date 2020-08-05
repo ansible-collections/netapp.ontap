@@ -151,22 +151,37 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_object_store_get_called(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_ensure_object_store_get_called(self, mock_request):
         ''' fetching details of object store '''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         set_module_args(self.set_default_args())
         my_obj = my_module()
         my_obj.server = self.server
         assert my_obj.get_aggr_object_store() is not None
 
-    def test_ensure_get_called_existing(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_ensure_get_called_existing(self, mock_request):
         ''' test for existing object store'''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         set_module_args(self.set_default_args())
         my_obj = my_module()
         my_obj.server = MockONTAPConnection(kind='object_store')
         assert my_obj.get_aggr_object_store()
 
-    def test_object_store_create(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_object_store_create(self, mock_request):
         ''' test for creating object store'''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         module_args = {
             'provider_type': 'abc',
             'server': 'abc',
@@ -185,8 +200,13 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    def test_object_store_delete(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_object_store_delete(self, mock_request):
         ''' test for deleting object store'''
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         module_args = {
             'state': 'absent',
         }
@@ -195,6 +215,10 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error(self, mock_request):
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         set_module_args(self.set_default_args())
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -248,7 +272,12 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
 
-    def test_if_all_methods_catch_exception(self):
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_if_all_methods_catch_exception(self, mock_request):
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
         module_args = {
             'provider_type': 'abc',
             'server': 'abc',

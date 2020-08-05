@@ -316,12 +316,14 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_all_subsets_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cloud/targets',
-                         'cluster/chassis', 'cluster/jobs', 'cluster/metrics', 'cluster/nodes',
-                         'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
-                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'network/ethernet/broadcast-domains', 'cluster/metrocluster/diagnostics']
+        gather_subset = ['cloud/targets', 'cluster/chassis', 'cluster/jobs', 'cluster/metrocluster/diagnostics',
+                         'cluster/metrics', 'cluster/nodes', 'cluster/peers', 'cluster/schedules', 'cluster/software/history',
+                         'cluster/software/packages', 'name-services/dns', 'name-services/ldap', 'name-services/name-mappings',
+                         'name-services/nis', 'network/ethernet/broadcast-domains', 'network/ethernet/ports',
+                         'network/fc/logins', 'network/fc/wwpn-aliases', 'network/ip/interfaces', 'network/ip/routes',
+                         'network/ip/service-policies', 'network/ipspaces', 'storage/aggregates', 'storage/disks',
+                         'storage/volumes', 'svm/peers', 'svm/peer-permissions', 'svm/svms', 'protocols/cifs/services',
+                         'protocols/cifs/shares']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -331,6 +333,14 @@ class TestMyModule(unittest.TestCase):
             SRR['metrocluster_post'],
             SRR['job'],
             SRR['metrocluster_return'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -361,12 +371,14 @@ class TestMyModule(unittest.TestCase):
     def test_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, mock_request):
         set_module_args(self.set_args_run_Ontap_gather_facts_for_all_subsets_with_fields_section_pass())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['storage/aggregates', 'svm/svms', 'storage/volumes', 'cloud/targets',
-                         'cluster/chassis', 'cluster/jobs', 'cluster/metrics', 'cluster/nodes',
-                         'cluster/peers', 'cluster/schedules', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'storage/disks', 'cluster/software/history', 'cluster/software/packages', 'network/ethernet/ports',
-                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'network/ethernet/broadcast-domains', 'cluster/metrocluster/diagnostics']
+        gather_subset = ['cloud/targets', 'cluster/chassis', 'cluster/jobs', 'cluster/metrocluster/diagnostics',
+                         'cluster/metrics', 'cluster/nodes', 'cluster/peers', 'cluster/schedules', 'cluster/software/history',
+                         'cluster/software/packages', 'name-services/dns', 'name-services/ldap', 'name-services/name-mappings',
+                         'name-services/nis', 'network/ethernet/broadcast-domains', 'network/ethernet/ports',
+                         'network/fc/logins', 'network/fc/wwpn-aliases', 'network/ip/interfaces', 'network/ip/routes',
+                         'network/ip/service-policies', 'network/ipspaces', 'storage/aggregates', 'storage/disks',
+                         'storage/volumes', 'svm/peers', 'svm/peer-permissions', 'svm/svms', 'protocols/cifs/services',
+                         'protocols/cifs/shares']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -393,7 +405,14 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
-
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:

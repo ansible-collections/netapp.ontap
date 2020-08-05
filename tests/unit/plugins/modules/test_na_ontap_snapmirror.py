@@ -205,7 +205,9 @@ class TestMyModule(unittest.TestCase):
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror', 'snapmirrored', status='idle', quiesce_status='InProgress')
         with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
+            # replace time.sleep with a noop
+            with patch('time.sleep', lambda a: None):
+                my_obj.apply()
         assert 'Taking a long time to Quiescing SnapMirror, try again later' in exc.value.args[0]['msg']
 
     def test_successful_break(self):
@@ -478,8 +480,7 @@ class TestMyModule(unittest.TestCase):
         mock_helper.volume_id_exists.side_effect = [1000, None]
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
-        res = my_obj.check_if_elementsw_volume_exists('10.10.10.10:/lun/1000', mock_helper)
-        assert res is None
+        my_obj.check_if_elementsw_volume_exists('10.10.10.10:/lun/1000', mock_helper)
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.check_if_elementsw_volume_exists('10.10.10.10:/lun/1000', mock_helper)
         assert 'Error: Source volume does not exist in the ElementSW cluster' in exc.value.args[0]['msg']
@@ -494,8 +495,7 @@ class TestMyModule(unittest.TestCase):
         mock_helper.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror', status='idle', parm='snapmirrored')
-        res = my_obj.validate_elementsw_svip('10.10.10.10:/lun/1000', mock_helper)
-        assert res is None
+        my_obj.validate_elementsw_svip('10.10.10.10:/lun/1000', mock_helper)
 
     def test_elementsw_svip_exists_negative(self):
         ''' svip_exists negative testing'''

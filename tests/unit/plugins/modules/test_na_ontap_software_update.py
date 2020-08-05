@@ -162,6 +162,8 @@ class TestMyModule(unittest.TestCase):
         if not self.use_vsim:
             my_obj.server = MockONTAPConnection('software_update', 'async_pkg_get_phase_complete', 'abc')
         with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
+            # replace time.sleep with a noop
+            with patch('time.sleep', lambda a: None):
+                my_obj.apply()
         print('Info: test_software_update_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
