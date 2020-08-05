@@ -25,7 +25,7 @@ options:
     name:
         description:
           - The name of the event to check for.
-        choices: ['sp_upgrade']
+        choices: ['sp_upgrade', 'sp_version']
         type: str
         required: true
     state:
@@ -39,6 +39,7 @@ options:
     conditions:
         description:
           - one or more conditions to match
+          - for instance C(is_in_progress) for C(sp_upgrade), C(firmware_version) for C(sp_version).
         type: list
         elements: str
         required: true
@@ -55,7 +56,8 @@ options:
     attributes:
         description:
           - a dictionary of custom attributes for the event.
-          - for instance, C(sp_upgrade) required C(node).
+          - for instance, C(sp_upgrade), C(sp_version) require C(node).
+          - C(sp_version) requires C(expectd_version).
         type: dict
 '''
 
@@ -86,6 +88,22 @@ EXAMPLES = """
         state: absent
         attributes:
           node: "{{ ontap_admin_ip }}"
+        polling_interval: 30
+        timeout: 1800
+
+    - name: wait for sp_version to match 3.9
+      na_ontap_wait_for_condition:
+        hostname: "{{ ontap_admin_ip }}"
+        username: "{{ ontap_admin_username }}"
+        password: "{{ ontap_admin_password }}"
+        https: true
+        validate_certs: no
+        name: sp_version
+        conditions: firmware_version
+        state: absent
+        attributes:
+          node: "{{ ontap_admin_ip }}"
+          expected_version: 3.9
         polling_interval: 30
         timeout: 1800
 """
@@ -120,7 +138,7 @@ class NetAppONTAPWFC(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            name=dict(required=True, type='str', choices=['sp_upgrade']),
+            name=dict(required=True, type='str', choices=['sp_upgrade', 'sp_version']),
             conditions=dict(required=True, type='list', elements='str'),
             polling_interval=dict(required=False, type='int', default=5),
             timeout=dict(required=False, type='int', default=180),
@@ -130,6 +148,7 @@ class NetAppONTAPWFC(object):
             argument_spec=self.argument_spec,
             required_if=[
                 ('name', 'sp_upgrade', ['attributes']),
+                ('name', 'sp_version', ['attributes']),
             ],
             supports_check_mode=True
         )
@@ -147,6 +166,12 @@ class NetAppONTAPWFC(object):
                 required_attributes=['node'],
                 conditions=dict(
                     is_in_progress=('is-in-progress', "true")
+                )
+            ),
+            sp_version=dict(
+                required_attributes=['node', 'expected_version'],
+                conditions=dict(
+                    firmware_version=('firmware-version', self.parameters['attributes'].get('expected_version'))
                 )
             )
         )
@@ -181,6 +206,10 @@ class NetAppONTAPWFC(object):
             zapi_obj = netapp_utils.zapi.NaElement("service-processor-image-update-progress-get")
             zapi_obj.add_new_child('node', self.parameters['attributes']['node'])
             return zapi_obj
+        if name == 'sp_version':
+            zapi_obj = netapp_utils.zapi.NaElement("service-processor-get")
+            zapi_obj.add_new_child('node', self.parameters['attributes']['node'])
+            return zapi_obj
         raise KeyError(name)
 
     def extract_condition(self, name, results):
@@ -194,7 +223,7 @@ class NetAppONTAPWFC(object):
         for condition, (key, value) in self.resource_configuration[name]['conditions'].items():
             status = self.get_key_value(results, key)
             self.states.append(str(status))
-            if status == value:
+            if status == str(value):
                 return condition, error
             if status is None:
                 error = 'Cannot find element with name: %s in results: %s' % (key, results.to_string())

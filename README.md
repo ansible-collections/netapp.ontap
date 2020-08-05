@@ -27,7 +27,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
 - na_ontap_file_directory_policy: create, modify, delete vserver security file directory policy/task.
 - na_ontap_ssh_command: send CLI command over SSH using paramiko for corner cases where ZAPI or REST are not yet ready.
-- na_ontap_wait_for_condition: wait for event to be present or absent (currently sp_upgrade in_progress).
+- na_ontap_wait_for_condition: wait for event to be present or absent (currently sp_upgrade/in_progress and sp_version).
 
 ### New Options
 - na_ontap_aggregate: support `disk_size_with_unit` option.
