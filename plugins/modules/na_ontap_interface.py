@@ -251,8 +251,8 @@ RETURN = """
 
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils._text import to_native
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
@@ -373,6 +373,8 @@ class NetAppOntapInterface(object):
     @staticmethod
     def set_options(options, parameters):
         """ set attributes for create or modify """
+        if parameters.get('role') is not None:
+            options['role'] = parameters['role']
         if parameters.get('home_port') is not None:
             options['home-port'] = parameters['home_port']
         if parameters.get('subnet_name') is not None:
@@ -437,7 +439,7 @@ class NetAppOntapInterface(object):
             result = self.server.invoke_successfully(get_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error fetching node for interface %s: %s' %
-                                      (self.parameters['interface_name'], to_native(exc)),
+                                  (self.parameters['interface_name'], to_native(exc)),
                                   exception=traceback.format_exc())
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             attributes = result.get_child_by_name('attributes-list')
@@ -457,9 +459,9 @@ class NetAppOntapInterface(object):
         # validate if mandatory parameters are present for create
         if not keys.issubset(set(self.parameters.keys())) and self.parameters.get('subnet_name') is None:
             self.module.fail_json(msg='Error: Missing one or more required parameters for creating interface: %s'
-                                      % ', '.join(keys))
+                                  % ', '.join(keys))
         # if role is intercluster, protocol cannot be specified
-        if self.parameters['role'] == "intercluster" and self.parameters.get('protocols') is not None:
+        if self.parameters.get('role') == "intercluster" and self.parameters.get('protocols') is not None:
             self.module.fail_json(msg='Error: Protocol cannot be specified for intercluster role,'
                                       'failed to create interface')
 
@@ -472,11 +474,12 @@ class NetAppOntapInterface(object):
                 if not self.parameters.get('is_ipv4_link_local'):
                     required_keys.add('address')
                     required_keys.add('netmask')
+        if self.parameters.get('service_policy') is not None:
+            required_keys.remove('role')
         data_protocols_obj = self.set_protocol_option(required_keys)
         self.validate_create_parameters(required_keys)
 
         options = {'interface-name': self.parameters['interface_name'],
-                   'role': self.parameters['role'],
                    'home-node': self.parameters.get('home_node'),
                    'vserver': self.parameters['vserver']}
         NetAppOntapInterface.set_options(options, self.parameters)
@@ -507,7 +510,7 @@ class NetAppOntapInterface(object):
             self.server.invoke_successfully(interface_delete, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error deleting interface %s: %s' %
-                                      (self.parameters['interface_name'], to_native(exc)),
+                                  (self.parameters['interface_name'], to_native(exc)),
                                   exception=traceback.format_exc())
 
     def modify_interface(self, modify):
@@ -530,7 +533,7 @@ class NetAppOntapInterface(object):
                 self.server.invoke_successfully(interface_modify, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as err:
                 self.module.fail_json(msg='Error modifying interface %s: %s' %
-                                          (self.parameters['interface_name'], to_native(err)),
+                                      (self.parameters['interface_name'], to_native(err)),
                                       exception=traceback.format_exc())
         # if home node has been changed we need to migrate the interface
         if len(migrate) > 0:
@@ -546,10 +549,10 @@ class NetAppOntapInterface(object):
         interface_migrate.add_new_child('lif', self.parameters['interface_name'])
         interface_migrate.add_new_child('vserver', self.parameters['vserver'])
         try:
-            results = self.server.invoke_successfully(interface_migrate, enable_tunneling=True)
+            self.server.invoke_successfully(interface_migrate, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching migrating %s: %s'
-                                      % (self.parameters['current_node'], to_native(error)),
+                                  % (self.parameters['current_node'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def autosupport_log(self):

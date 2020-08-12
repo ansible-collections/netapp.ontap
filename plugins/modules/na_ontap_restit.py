@@ -225,9 +225,7 @@ error_message:
   type: str
 """
 
-import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
@@ -260,7 +258,7 @@ class NetAppONTAPRestAPI(object):
         self.vserver_uuid = parameters['vserver_uuid']
         self.hal_linking = parameters['hal_linking']
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
 
     def run_api(self):
         ''' calls the REST API '''
@@ -270,9 +268,9 @@ class NetAppONTAPRestAPI(object):
             content_type = 'application/hal+json'
         else:
             content_type = 'application/json'
-        status, response, error = self.restApi.send_request(self.method, self.api, self.query, self.body,
-                                                            return_status_code=True, accept=content_type,
-                                                            vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
+        status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body,
+                                                             return_status_code=True, accept=content_type,
+                                                             vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
         if error:
             if isinstance(error, dict):
                 error_message = error.pop('message', None)
