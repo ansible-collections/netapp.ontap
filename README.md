@@ -22,6 +22,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.9.0
+### New Modules
+- na_ontap_active_directory: configure active directory
+
 ## 20.8.0
 
 ### New Modules
