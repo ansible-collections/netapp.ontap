@@ -8,11 +8,9 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_certificates \
     import NetAppOntapSecurityCertificates as my_module  # module under test
@@ -23,13 +21,13 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
-    'empty_records': ({'records': []}, None),
-    'get_uuid': ({'records': [{'uuid': 'ansible'}]}, None),
-    'error_unexpected_name': (None, {'message': 'Unexpected argument "name".'})
+    'empty_records': (200, {'records': []}, None),
+    'get_uuid': (200, {'records': [{'uuid': 'ansible'}]}, None),
+    'error_unexpected_name': (200, None, {'message': 'Unexpected argument "name".'})
 }
 
 
@@ -41,12 +39,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -108,7 +104,7 @@ def test_rest_error(mock_request, mock_fail):
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+    assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')

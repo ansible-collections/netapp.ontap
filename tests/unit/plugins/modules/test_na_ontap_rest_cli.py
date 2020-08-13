@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli \
@@ -25,11 +25,11 @@ if not netapp_utils.has_netapp_lib():
 SRR = {
     # common responses
     'is_rest': (200, {}, None),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
+    'generic_error': (400, None, "Expected error"),
     # module specific response
-    'allow': ({'Allow': ['GET', 'WHATEVER']}, None)
+    'allow': (200, {'Allow': ['GET', 'WHATEVER']}, None)
 }
 
 
@@ -41,12 +41,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -124,7 +122,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_clii_options(self, mock_request):
+    def test_rest_cli_options(self, mock_request):
         data = dict(self.mock_args())
         data['verb'] = 'OPTIONS'
         set_module_args(data)

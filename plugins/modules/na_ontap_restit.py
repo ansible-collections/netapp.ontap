@@ -269,7 +269,7 @@ class NetAppONTAPRestAPI(object):
         else:
             content_type = 'application/json'
         status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body,
-                                                             return_status_code=True, accept=content_type,
+                                                             accept=content_type,
                                                              vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
         if error:
             if isinstance(error, dict):

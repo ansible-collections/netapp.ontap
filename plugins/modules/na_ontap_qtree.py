@@ -92,6 +92,25 @@ options:
     default: true
     version_added: 20.8.0
 
+  wait_for_completion:
+    description:
+      - Only applicable for REST.  When using ZAPI, the deletion is always synchronous.
+      - Deleting a qtree may take time if many files need to be deleted.
+      - Set this parameter to 'true' for synchronous execution during delete.
+      - Set this parameter to 'false' for asynchronous execution.
+      - For asynchronous, execution exits as soon as the request is sent, and the qtree is deleted in background.
+    type: bool
+    default: true
+    version_added: 2.9.0
+
+  time_out:
+    description:
+      - Maximum time to wait for qtree deletion in seconds when wait_for_completion is True.
+      - Error out if task is not completed in defined time.
+      - Default is set to 3 minutes.
+    default: 180
+    type: int
+    version_added: 2.9.0
 '''
 
 EXAMPLES = """
@@ -151,7 +170,9 @@ class NetAppOntapQTree(object):
             security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),
             oplocks=dict(required=False, type='str', choices=['enabled', 'disabled']),
             unix_permissions=dict(required=False, type='str'),
-            force_delete=dict(required=False, type='bool', default=True)
+            force_delete=dict(required=False, type='bool', default=True),
+            wait_for_completion=dict(required=False, type='bool', default=True),
+            time_out=dict(required=False, type='int', default=180),
         ))
 
         self.module = AnsibleModule(
@@ -164,8 +185,8 @@ class NetAppOntapQTree(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -189,11 +210,11 @@ class NetAppOntapQTree(object):
             name = self.parameters['name']
         if self.use_rest:
             api = "storage/qtrees"
-            params = {'fields': 'export_policy,unix_permissions,security_style,volume',
-                      'svm.name': self.parameters['vserver'],
-                      'volume': self.parameters['flexvol_name'],
-                      'name': name}
-            message, error = self.restApi.get(api, params)
+            query = {'fields': 'export_policy,unix_permissions,security_style,volume',
+                     'svm.name': self.parameters['vserver'],
+                     'volume': self.parameters['flexvol_name'],
+                     'name': name}
+            message, error = self.rest_api.get(api, query)
             if error:
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:
@@ -216,8 +237,7 @@ class NetAppOntapQTree(object):
             result = self.server.invoke_successfully(qtree_list_iter,
                                                      enable_tunneling=True)
             return_q = None
-            if (result.get_child_by_name('num-records') and
-                    int(result.get_child_content('num-records')) >= 1):
+            if (result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1):
                 return_q = {'export_policy': result['attributes-list']['qtree-info']['export-policy'],
                             'oplocks': result['attributes-list']['qtree-info']['oplocks'],
                             'security_style': result['attributes-list']['qtree-info']['security-style']}
@@ -235,15 +255,15 @@ class NetAppOntapQTree(object):
         """
         if self.use_rest:
             api = "storage/qtrees"
-            params = {'name': self.parameters['name'], 'volume': {'name': self.parameters['flexvol_name']},
-                      'svm': {'name': self.parameters['vserver']}}
+            body = {'name': self.parameters['name'], 'volume': {'name': self.parameters['flexvol_name']},
+                    'svm': {'name': self.parameters['vserver']}}
             if self.parameters.get('export_policy'):
-                params['export_policy'] = self.parameters['export_policy']
+                body['export_policy'] = self.parameters['export_policy']
             if self.parameters.get('security_style'):
-                params['security_style'] = self.parameters['security_style']
+                body['security_style'] = self.parameters['security_style']
             if self.parameters.get('unix_permissions'):
-                params['unix_permissions'] = self.parameters['unix_permissions']
-            __, error = self.restApi.post(api, params)
+                body['unix_permissions'] = self.parameters['unix_permissions']
+            __, error = self.rest_api.post(api, body)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -272,12 +292,16 @@ class NetAppOntapQTree(object):
         """
         if self.use_rest:
             uuid = current['volume']['uuid']
-            id = str(current['id'])
-            api = "storage/qtrees/%s/%s" % (uuid, id)
-            params = None
-            dummy, error = self.restApi.delete(api, params)
+            qid = str(current['id'])
+            api = "storage/qtrees/%s/%s" % (uuid, qid)
+            body = None
+            query = {'return_timeout': 3}
+            response, error = self.rest_api.delete(api, body, query)
             if error:
                 self.module.fail_json(msg=error)
+            if 'job' in response and self.parameters['wait_for_completion']:
+                self.rest_api.wait_on_job(response['job'], timeout=self.parameters['time_out'], increment=10)
+
         else:
             path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
             options = {'qtree': path}
@@ -300,11 +324,11 @@ class NetAppOntapQTree(object):
         if self.use_rest:
             if current is None:
                 current = self.get_qtree(self.parameters['from_name'])
-            params = {'name': self.parameters['name']}
+            body = {'name': self.parameters['name']}
             uuid = current['volume']['uuid']
-            id = str(current['id'])
-            api = "storage/qtrees/%s/%s" % (uuid, id)
-            dummy, error = self.restApi.patch(api, params)
+            qid = str(current['id'])
+            api = "storage/qtrees/%s/%s" % (uuid, qid)
+            dummy, error = self.rest_api.patch(api, body)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -330,19 +354,19 @@ class NetAppOntapQTree(object):
             now = datetime.datetime.now()
             if current is None:
                 current = self.get_qtree(self.parameters['name'])
-            params = {}
+            body = {}
             if self.parameters.get('security_style'):
-                params['security_style'] = self.parameters['security_style']
+                body['security_style'] = self.parameters['security_style']
             if self.parameters.get('unix_permissions'):
-                params['unix_permissions'] = self.parameters['unix_permissions']
+                body['unix_permissions'] = self.parameters['unix_permissions']
             if self.parameters.get('export_policy'):
-                params['export_policy'] = {'name': self.parameters['export_policy']}
+                body['export_policy'] = {'name': self.parameters['export_policy']}
             uuid = current['volume']['uuid']
-            id = str(current['id'])
-            api = "storage/qtrees/%s/%s" % (uuid, id)
+            qid = str(current['id'])
+            api = "storage/qtrees/%s/%s" % (uuid, qid)
             timeout = 120
-            data = {'return_timeout': timeout}
-            dummy, error = self.restApi.patch(api, params, data)
+            query = {'return_timeout': timeout}
+            dummy, error = self.rest_api.patch(api, body, query)
 
             later = datetime.datetime.now()
             time_elapsed = later - now

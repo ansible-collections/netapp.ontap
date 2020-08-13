@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_dns \
@@ -27,17 +27,17 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
-    'dns_record': ({"records": [{"domains": ['test.com'],
-                                 "servers": ['0.0.0.0'],
-                                 "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
-    'cluster_data': ({"dns_domains": ['test.com'],
-                      "name_servers": ['0.0.0.0'],
-                      "name": "cserver",
-                      "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None),
-    'cluster_name': ({"name": "cserver"}, None)
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'dns_record': (200, {"records": [{"domains": ['test.com'],
+                                      "servers": ['0.0.0.0'],
+                                      "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
+    'cluster_data': (200, {"dns_domains": ['test.com'],
+                           "name_servers": ['0.0.0.0'],
+                           "name": "cserver",
+                           "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None),
+    'cluster_name': (200, {"name": "cserver"}, None)
 }
 
 
@@ -49,12 +49,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -134,9 +132,9 @@ class TestMyModule(unittest.TestCase):
             'password': 'test_pass!'
         }
 
-    def get_dns_mock_object(self, type='zapi', kind=None, status=None):
+    def get_dns_mock_object(self, cx_type='zapi', kind=None, status=None):
         dns_obj = dns_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             if kind is None:
                 dns_obj.server = MockONTAPConnection()
             else:
@@ -197,8 +195,8 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+            self.get_dns_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_create(self, mock_request):
@@ -212,7 +210,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -228,7 +226,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -241,7 +239,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -256,7 +254,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -271,7 +269,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -287,7 +285,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -305,7 +303,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -319,5 +317,5 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(type='rest').apply()
+            self.get_dns_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']

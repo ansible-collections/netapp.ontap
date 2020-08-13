@@ -4,10 +4,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree \
@@ -21,11 +21,12 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
-    'qtree_record': ({"records": [{"svm": {"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
+    'qtree_record': (200,
+                     {"records": [{"svm": {"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
                                            "name": "ansibleSVM"},
                                    "id": 1,
                                    "name": "string",
@@ -45,12 +46,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -150,13 +149,13 @@ class TestMyModule(unittest.TestCase):
         return args
 
     @staticmethod
-    def get_qtree_mock_object(type='zapi', kind=None, status=None):
+    def get_qtree_mock_object(cx_type='zapi', kind=None):
         qtree_obj = qtree_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             if kind is None:
                 qtree_obj.server = MockONTAPConnection()
             else:
-                qtree_obj.server = MockONTAPConnection(kind=kind, data=status)
+                qtree_obj.server = MockONTAPConnection(kind=kind)
         return qtree_obj
 
     def test_module_fail_when_required_args_missing(self):
@@ -276,8 +275,8 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+            self.get_qtree_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_create_rest(self, mock_request):
@@ -290,7 +289,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -303,7 +302,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -318,7 +317,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -332,7 +331,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -348,7 +347,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -362,5 +361,5 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_qtree_mock_object(type='rest').apply()
+            self.get_qtree_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']

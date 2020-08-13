@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_vscan \
@@ -27,12 +27,12 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
-    'enabled': ({'records': [{'enabled': True, 'svm': {'uuid': 'testuuid'}}]}, None),
-    'disabled': ({'records': [{'enabled': False, 'svm': {'uuid': 'testuuid'}}]}, None),
+    'enabled': (200, {'records': [{'enabled': True, 'svm': {'uuid': 'testuuid'}}]}, None),
+    'disabled': (200, {'records': [{'enabled': False, 'svm': {'uuid': 'testuuid'}}]}, None),
 }
 
 
@@ -44,12 +44,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -111,9 +109,9 @@ class TestMyModule(unittest.TestCase):
             'password': 'test_pass!'
         }
 
-    def get_vscan_mock_object(self, type='zapi', kind=None, status=None):
+    def get_vscan_mock_object(self, cx_type='zapi', kind=None, status=None):
         vscan_obj = vscan_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             if kind is None:
                 vscan_obj.server = MockONTAPConnection()
             else:
@@ -174,8 +172,8 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vscan_mock_object(type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+            self.get_vscan_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successly_enable(self, mock_request):
@@ -189,7 +187,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vscan_mock_object(type='rest').apply()
+            self.get_vscan_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -203,7 +201,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vscan_mock_object(type='rest').apply()
+            self.get_vscan_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -218,7 +216,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vscan_mock_object(type='rest').apply()
+            self.get_vscan_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -232,5 +230,5 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vscan_mock_object(type='rest').apply()
+            self.get_vscan_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']

@@ -31,8 +31,9 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import os
+import ssl
 import time
-from ansible.module_utils.basic import AnsibleModule, missing_required_lib
+from ansible.module_utils.basic import missing_required_lib
 from ansible.module_utils._text import to_native
 
 try:
@@ -53,13 +54,6 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
-
-import ssl
-try:
-    from urlparse import urlparse, urlunparse
-except ImportError:
-    from urllib.parse import urlparse, urlunparse
-
 
 HAS_SF_SDK = False
 SF_BYTE_MAP = dict(
@@ -96,11 +90,8 @@ ERROR_MSG = dict(
 
 try:
     from solidfire.factory import ElementFactory
-    from solidfire.custom.models import TimeIntervalFrequency
-    from solidfire.models import Schedule, ScheduleInfo
-
     HAS_SF_SDK = True
-except Exception:
+except ImportError:
     HAS_SF_SDK = False
 
 
@@ -252,13 +243,13 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
         module.fail_json(msg="the python NetApp-Lib module is required")
 
 
-def ems_log_event(source, server, name="Ansible", id="12345", version=COLLECTION_VERSION,
+def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
     # Host name invoking the API.
     ems_log.add_new_child("computer-name", name)
     # ID of event. A user defined event-id, range [0..2^32-2].
-    ems_log.add_new_child("event-id", id)
+    ems_log.add_new_child("event-id", ident)
     # Name of the application invoking the API.
     ems_log.add_new_child("event-source", source)
     # Version of application invoking the API.
@@ -331,6 +322,10 @@ def get_cserver(connection, is_rest=False):
 
 if HAS_NETAPP_LIB:
     class OntapZAPICx(zapi.NaServer):
+        ''' override zapi NaServer class to:
+        - enable SSL certificate authentication
+        - ignore invalid XML characters in ONTAP output (when using CLI module)
+        '''
         def __init__(self, hostname=None, server_type=zapi.NaServer.SERVER_TYPE_FILER,
                      transport_type=zapi.NaServer.TRANSPORT_TYPE_HTTP,
                      style=zapi.NaServer.STYLE_LOGIN_PASSWORD, username=None,
@@ -347,7 +342,6 @@ if HAS_NETAPP_LIB:
             self.module = module
 
         def _create_certificate_auth_handler(self):
-            import ssl
             try:
                 context = ssl.create_default_context()
             except AttributeError as exc:
@@ -398,6 +392,7 @@ if HAS_NETAPP_LIB:
 
 
 class OntapRestAPI(object):
+    ''' wrapper to send requests to ONTAP REST APIs '''
     def __init__(self, module, timeout=60):
         self.module = module
         self.username = self.module.params['username']
@@ -422,7 +417,7 @@ class OntapRestAPI(object):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
 
-    def send_request(self, method, api, params, json=None, return_status_code=False, accept=None,
+    def send_request(self, method, api, params, json=None, accept=None,
                      vserver_name=None, vserver_uuid=None):
         ''' send http request and process reponse, including error conditions '''
         url = self.url + api
@@ -488,9 +483,7 @@ class OntapRestAPI(object):
         if not json_dict and method == 'OPTIONS':
             # OPTIONS provides the list of supported verbs
             json_dict['Allow'] = response.headers['Allow']
-        if return_status_code:
-            return status_code, json_dict, error_details
-        return json_dict, error_details
+        return status_code, json_dict, error_details
 
     def wait_on_job(self, job, timeout=600, increment=60):
         try:
@@ -498,16 +491,14 @@ class OntapRestAPI(object):
         except Exception as err:
             self.log_error(0, 'URL Incorrect format: %s\n Job: %s' % (err, job))
         # Expecting job to be in the following format
-        """
-        {'job':
-            {'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
-            '_links':
-                {'self':
-                    {'href': '/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7'}
-                }
-            }
-        }
-        """
+        # {'job':
+        #     {'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
+        #     '_links':
+        #         {'self':
+        #             {'href': '/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7'}
+        #         }
+        #     }
+        # }
         keep_running = True
         error = None
         message = None
@@ -526,23 +517,22 @@ class OntapRestAPI(object):
             else:
                 retries = 0
                 # a job looks like this
-                """
-                {
-                  "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
-                  "description": "POST /api/cluster/metrocluster",
-                  "state": "failure",
-                  "message": "There are not enough disks in Pool1.",
-                  "code": 2432836,
-                  "start_time": "2020-02-26T10:35:44-08:00",
-                  "end_time": "2020-02-26T10:47:38-08:00",
-                  "_links": {
-                    "self": {
-                      "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
-                    }
-                  }
-                }
-                """
-                message = job_json['message']
+                # {
+                #   "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
+                #   "description": "POST /api/cluster/metrocluster",
+                #   "state": "failure",
+                #   "message": "There are not enough disks in Pool1.",   **OPTIONAL**
+                #   "code": 2432836,
+                #   "start_time": "2020-02-26T10:35:44-08:00",
+                #   "end_time": "2020-02-26T10:47:38-08:00",
+                #   "_links": {
+                #     "self": {
+                #       "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
+                #     }
+                #   }
+                # }
+
+                message = job_json.get('message', '')
                 if job_json['state'] != 'running':
                     keep_running = False
                 else:
@@ -558,23 +548,28 @@ class OntapRestAPI(object):
 
     def get(self, api, params):
         method = 'GET'
-        return self.send_request(method, api, params)
+        dummy, message, error = self.send_request(method, api, params)
+        return message, error
 
-    def post(self, api, data, params=None):
+    def post(self, api, body, params=None):
         method = 'POST'
-        return self.send_request(method, api, params, json=data)
+        dummy, message, error = self.send_request(method, api, params, json=body)
+        return message, error
 
-    def patch(self, api, data, params=None):
+    def patch(self, api, body, params=None):
         method = 'PATCH'
-        return self.send_request(method, api, params, json=data)
+        dummy, message, error = self.send_request(method, api, params, json=body)
+        return message, error
 
-    def delete(self, api, data, params=None):
+    def delete(self, api, body, params=None):
         method = 'DELETE'
-        return self.send_request(method, api, params, json=data)
+        dummy, message, error = self.send_request(method, api, params, json=body)
+        return message, error
 
     def options(self, api, params=None):
         method = 'OPTIONS'
-        return self.send_request(method, api, params)
+        dummy, message, error = self.send_request(method, api, params)
+        return message, error
 
     def _is_rest(self, used_unsupported_rest_properties=None):
         if self.use_rest not in ['always', 'auto', 'never']:
@@ -592,7 +587,7 @@ class OntapRestAPI(object):
             return False, None
         method = 'HEAD'
         api = 'svm/svms'
-        status_code, dummy, error = self.send_request(method, api, params=None, return_status_code=True)
+        status_code, dummy, error = self.send_request(method, api, params=None)
         if status_code == 200:
             return True, None
         self.log_error(status_code, str(error))
@@ -625,12 +620,12 @@ class OntapRestAPI(object):
             mode = 'a'
         else:
             mode = 'w'
-        with open(filepath, mode) as f:
+        with open(filepath, mode) as afile:
             if data is not None:
-                f.write("%s: %s\n" % (str(tag), str(data)))
+                afile.write("%s: %s\n" % (str(tag), str(data)))
             else:
-                f.write(str(tag))
-                f.write('\n')
+                afile.write(str(tag))
+                afile.write('\n')
 
     def write_errors_to_file(self, tag=None, filepath=None, append=True):
         if tag is None:

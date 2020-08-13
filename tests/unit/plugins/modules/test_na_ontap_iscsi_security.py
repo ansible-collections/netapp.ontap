@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_iscsi_security \
     import NetAppONTAPIscsiSecurity as iscsi_module  # module under test
@@ -21,11 +21,12 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
     'get_uuid': (
+        200,
         {
             "records": [
                 {
@@ -35,6 +36,7 @@ SRR = {
             "num_records": 1
         }, None),
     'get_initiator': (
+        200,
         {
             "records": [
                 {
@@ -71,6 +73,7 @@ SRR = {
             "num_records": 1
         }, None),
     "no_record": (
+        200,
         {
             "num_records": 0
         }, None)
@@ -85,12 +88,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument

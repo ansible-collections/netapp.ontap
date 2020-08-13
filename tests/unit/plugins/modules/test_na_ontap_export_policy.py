@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy \
@@ -25,20 +25,23 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
     'get_uuid_policy_id_export_policy': (
-        {"records": [{
-            "svm": {
-                "uuid": "uuid",
-                "name": "svm"},
-            "id": 123,
-            "name": "ansible"
-        }],
+        200,
+        {
+            "records": [{
+                "svm": {
+                    "uuid": "uuid",
+                    "name": "svm"},
+                "id": 123,
+                "name": "ansible"
+            }],
             "num_records": 1}, None),
     "no_record": (
+        200,
         {"num_records": 0},
         None)
 }
@@ -52,12 +55,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -134,9 +135,9 @@ class TestMyModule(unittest.TestCase):
                 'use_rest': 'never'
             }
 
-    def get_export_policy_mock_object(self, type='zapi', kind=None):
+    def get_export_policy_mock_object(self, cx_type='zapi', kind=None):
         policy_obj = policy_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             if kind is None:
                 policy_obj.server = MockONTAPConnection()
             elif kind == 'export_policy':
@@ -190,7 +191,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -208,7 +209,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -227,7 +228,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -245,7 +246,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert 'Error on creating export policy: Expected error' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -264,7 +265,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert 'Error on deleting export policy: Expected error' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -284,5 +285,5 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_export_policy_mock_object(type='rest').apply()
+            self.get_export_policy_mock_object(cx_type='rest').apply()
         assert 'Error on renaming export policy: Expected error' in exc.value.args[0]['msg']

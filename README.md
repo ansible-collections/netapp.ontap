@@ -12,7 +12,7 @@
 ```bash
 ansible-galaxy collection install netapp.ontap
 ```
-To use Collection add the following to the top of your playbook, with out this you will be using Ansible 2.9 version of the module
+To use this collection, add the following to the top of your playbook, without this you will be using Ansible 2.9 version of the module
 ```
 collections:
   - netapp.ontap
@@ -26,6 +26,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
 - na_ontap_active_directory: configure active directory.
+
+### New Options
+- na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
 
 ### Bug fixes
 - na_ontap_interface: `role` is not required if `service_policy` is present.

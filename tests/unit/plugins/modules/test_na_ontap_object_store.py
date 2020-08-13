@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_object_store \
@@ -26,12 +26,13 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
-    'get_uuid': ({'records': [{'uuid': 'ansible'}]}, None),
-    'get_object_store': ({'uuid': 'ansible',
+    'get_uuid': (200, {'records': [{'uuid': 'ansible'}]}, None),
+    'get_object_store': (200,
+                         {'uuid': 'ansible',
                           'name': 'ansible',
                           }, None)
 }
@@ -45,12 +46,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -91,7 +90,7 @@ class MockONTAPConnection(object):
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'attributes':
                 {'aggr-object-store-config-info':
-                    {'object-store-name': 'ansible'}
+                 {'object-store-name': 'ansible'}
                  }
                 }
         xml.translate_struct(data)
@@ -130,13 +129,13 @@ class TestMyModule(unittest.TestCase):
             'name': name
         })
 
-    def call_command(self, module_args, type='zapi'):
+    def call_command(self, module_args, cx_type='zapi'):
         ''' utility function to call apply '''
         module_args.update(self.set_default_args())
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if type == 'zapi':
+        if cx_type == 'zapi':
             if not self.onbox:
                 # mock the connection
                 my_obj.server = MockONTAPConnection('object_store')
@@ -228,7 +227,7 @@ class TestMyModule(unittest.TestCase):
         my_obj = my_module()
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_create(self, mock_request):

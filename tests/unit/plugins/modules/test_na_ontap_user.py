@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user \
@@ -25,14 +25,16 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (None, "Expected error"),
-    'get_uuid': ({'owner': {'uuid': 'ansible'}}, None),
-    'get_user_rest': ({'num_records': 1,
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
+    'generic_error': (400, None, "Expected error"),
+    'get_uuid': (200, {'owner': {'uuid': 'ansible'}}, None),
+    'get_user_rest': (200,
+                      {'num_records': 1,
                        'records': [{'owner': {'uuid': 'ansible_vserver'},
-                                   'name': 'abcd'}]}, None),
-    'get_user_details_rest': ({'role': {'name': 'vsadmin'},
+                                    'name': 'abcd'}]}, None),
+    'get_user_details_rest': (200,
+                              {'role': {'name': 'vsadmin'},
                                'applications': [{'application': 'http'}],
                                'locked': False}, None)
 }
@@ -46,12 +48,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -105,7 +105,6 @@ class MockONTAPConnection(object):
     @staticmethod
     def set_vserver(vserver):
         '''mock set vserver'''
-        pass
 
     @staticmethod
     def build_user_info(locked, role_name):

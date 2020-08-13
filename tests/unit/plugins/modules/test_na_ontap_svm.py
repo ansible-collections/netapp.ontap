@@ -9,10 +9,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm \
@@ -26,11 +26,12 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
-    'svm_record': ({'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
+    'svm_record': (200,
+                   {'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
                                  "name": "test_svm",
                                  "subtype": "default",
                                  "language": "c.utf_8",
@@ -59,12 +60,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -164,7 +163,7 @@ class TestMyModule(unittest.TestCase):
                 'password': 'test_pass!'
             }
 
-    def get_vserver_mock_object(self, kind=None, data=None, type='zapi'):
+    def get_vserver_mock_object(self, kind=None, data=None, cx_type='zapi'):
         """
         Helper method to return an na_ontap_volume object
         :param kind: passes this param to MockONTAPConnection()
@@ -172,7 +171,7 @@ class TestMyModule(unittest.TestCase):
         :return: na_ontap_volume object
         """
         vserver_obj = svm_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             vserver_obj.asup_log_for_cserver = Mock(return_value=None)
             vserver_obj.cluster = Mock()
             vserver_obj.cluster.invoke_successfully = Mock()
@@ -318,8 +317,8 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][1]
+            self.get_vserver_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_unsupported_parm(self, mock_request):
@@ -332,7 +331,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['msg'] == "REST API currently does not support 'root_volume'"
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -347,7 +346,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -361,7 +360,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -377,7 +376,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -392,7 +391,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -410,7 +409,7 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -427,5 +426,5 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(type='rest').apply()
+            self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']

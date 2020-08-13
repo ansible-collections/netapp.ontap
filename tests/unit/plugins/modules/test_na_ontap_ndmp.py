@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ndmp \
@@ -25,14 +25,14 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'get_uuid': ({'records': [{'uuid': 'testuuid'}]}, None),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, 'Error fetching ndmp from ansible: NetApp API failed. Reason - Unexpected error:',
+    'get_uuid': (200, {'records': [{'uuid': 'testuuid'}]}, None),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, 'Error fetching ndmp from ansible: NetApp API failed. Reason - Unexpected error:',
                       "REST API currently does not support 'backup_log_enable, ignore_ctime_enabled'"),
-    'get_ndmp_uuid': ({"records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
-    'get_ndmp': ({"enabled": True, "authentication_types": ["test"],
-                  "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)
+    'get_ndmp_uuid': (200, {"records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
+    'get_ndmp': (200, {"enabled": True, "authentication_types": ["test"],
+                       "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)
 }
 
 
@@ -44,12 +44,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -147,14 +145,14 @@ class TestMyModule(unittest.TestCase):
                 'password': 'test_pass!'
             }
 
-    def get_ndmp_mock_object(self, kind=None, type='zapi'):
+    def get_ndmp_mock_object(self, kind=None, cx_type='zapi'):
         """
         Helper method to return an na_ontap_ndmp object
         :param kind: passes this param to MockONTAPConnection()
         :return: na_ontap_ndmp object
         """
         obj = ndmp_module()
-        if type == 'zapi':
+        if cx_type == 'zapi':
             obj.asup_log_for_cserver = Mock(return_value=None)
             obj.server = Mock()
             obj.server.invoke_successfully = Mock()
@@ -207,8 +205,8 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_ndmp_mock_object(type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+            self.get_ndmp_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['msg'] == SRR['generic_error'][3]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_modify(self, mock_request):
