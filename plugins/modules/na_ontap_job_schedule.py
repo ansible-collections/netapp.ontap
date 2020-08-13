@@ -267,6 +267,9 @@ class NetAppONTAPJob(object):
                 # -1 means all in zapi, while empty means all in api.
                 if self.parameters.get(key):
                     if len(self.parameters[key]) == 1 and int(self.parameters[key][0]) == -1:
+                        # need to set empty value for minutes as this is required parameter
+                        if value == 'minutes':
+                            cron[value] = []
                         pass
                     else:
                         cron[value] = self.parameters[key]
