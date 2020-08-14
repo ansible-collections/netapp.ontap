@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
 
 ### Bug fixes
+- na_ontap_interface: `home_node` is not required in pre-cluster mode.
 - na_ontap_interface: `role` is not required if `service_policy` is present.
 - na_ontap_job_schedule: allow 'job_minutes' to set number to -1 for job creation with REST too.
 

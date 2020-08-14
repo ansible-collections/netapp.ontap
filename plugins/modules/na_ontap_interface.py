@@ -375,6 +375,8 @@ class NetAppOntapInterface(object):
         """ set attributes for create or modify """
         if parameters.get('role') is not None:
             options['role'] = parameters['role']
+        if parameters.get('home_node') is not None:
+            options['home-node'] = parameters['home_node']
         if parameters.get('home_port') is not None:
             options['home-port'] = parameters['home_port']
         if parameters.get('subnet_name') is not None:
@@ -438,6 +440,8 @@ class NetAppOntapInterface(object):
         try:
             result = self.server.invoke_successfully(get_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
+            if str(exc.code) == '13003' or exc.message == 'ZAPI is not enabled in pre-cluster mode.':
+                return None
             self.module.fail_json(msg='Error fetching node for interface %s: %s' %
                                   (self.parameters['interface_name'], to_native(exc)),
                                   exception=traceback.format_exc())
@@ -480,7 +484,6 @@ class NetAppOntapInterface(object):
         self.validate_create_parameters(required_keys)
 
         options = {'interface-name': self.parameters['interface_name'],
-                   'home-node': self.parameters.get('home_node'),
                    'vserver': self.parameters['vserver']}
         NetAppOntapInterface.set_options(options, self.parameters)
         interface_create = netapp_utils.zapi.NaElement.create_node_with_children('net-interface-create', **options)
