@@ -65,7 +65,7 @@ options:
     - When creating a "cluster" role, the node name will appear as the prefix in the name of LIF.
     - For example, if the specified name is clif and node name is node1, the LIF name appears in the ONTAP as node1_clif.
     - Possible values are 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
-    - Required when C(state=present).
+    - Required when C(state=present) unless service_policy is present and ONTAP version is 9.8 or better.
     type: str
 
   address:
@@ -168,6 +168,7 @@ options:
     - In ONTAP 9.5, you can assign service policies only for LIFs in the admin SVM.
     - In ONTAP 9.6, you can additionally assign service policies for LIFs in the data SVMs.
     - When you specify a service policy for a LIF, you need not specify the data protocol and role for the LIF.
+    - NOTE that role is still required because of a ZAPI issue.  This limitation is removed in ONTAP 9.8.
     - Creating LIFs by specifying the role and data protocols is also supported.
     version_added: '20.4.0'
     type: str

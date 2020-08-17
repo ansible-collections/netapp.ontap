@@ -32,7 +32,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
 - na_ontap_interface: `home_node` is not required in pre-cluster mode.
-- na_ontap_interface: `role` is not required if `service_policy` is present.
+- na_ontap_interface: `role` is not required if `service_policy` is present and ONTAP version is 9.8.
 - na_ontap_job_schedule: allow 'job_minutes' to set number to -1 for job creation with REST too.
 
 ## 20.8.0
