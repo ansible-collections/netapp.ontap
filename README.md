@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
 - na_ontap_active_directory: configure active directory.
+- na_ontap_metrocluster: Configure a metrocluster (Supports Ontap 9.8+).
 
 ### New Options
 - na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
