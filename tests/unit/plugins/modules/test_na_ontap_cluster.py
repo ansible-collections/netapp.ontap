@@ -163,8 +163,10 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_apply_for_cluster_called(self):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    def test_ensure_apply_for_cluster_called(self, get_cl_id):
         ''' creating cluster and checking idempotency '''
+        get_cl_id.return_value = None
         module_args = {}
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -177,9 +179,11 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.create_cluster')
-    def test_cluster_create_called(self, cluster_create):
+    def test_cluster_create_called(self, cluster_create, get_cl_id):
         ''' creating cluster'''
+        get_cl_id.return_value = None
         module_args = {}
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -192,9 +196,13 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         cluster_create.assert_called_with()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.cluster_join')
-    def test_cluster_join_called(self, cluster_join):
-        ''' creating cluster_join'''
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.add_node')
+    def test_add_node_called(self, add_node, get_cl_id, get_cl_ips):
+        ''' creating add_node'''
+        get_cl_ips.return_value = list()
+        get_cl_id.return_value = None
         data = self.set_default_args()
         del data['cluster_name']
         data['cluster_ip_address'] = '10.10.10.10'
@@ -206,7 +214,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         print('Info: test_cluster_apply: %s' % repr(exc.value))
-        cluster_join.assert_called_with()
+        add_node.assert_called_with()
 
     def test_if_all_methods_catch_exception(self):
         module_args = {}
@@ -225,5 +233,5 @@ class TestMyModule(unittest.TestCase):
         if not self.use_vsim:
             my_obj.server = MockONTAPConnection('cluster_fail')
         with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.cluster_join()
+            my_obj.add_node()
         assert 'Error adding node with ip' in exc.value.args[0]['msg']

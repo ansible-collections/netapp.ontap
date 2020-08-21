@@ -29,11 +29,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_metrocluster: Configure a metrocluster (Supports Ontap 9.8+).
 
 ### New Options
+- na_ontap_cluster: `state` can be set to `absent` to remove a node identified with `cluster_ip_address`.
 - na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
 
 ### Bug fixes
+- na_ontap_cluster: `check_mode` is now working properly.
 - na_ontap_interface: `home_node` is not required in pre-cluster mode.
 - na_ontap_interface: `role` is not required if `service_policy` is present and ONTAP version is 9.8.
+- na_ontap_interface: traceback in get_interface if node is not reachable.
 - na_ontap_job_schedule: allow 'job_minutes' to set number to -1 for job creation with REST too.
 
 ## 20.8.0

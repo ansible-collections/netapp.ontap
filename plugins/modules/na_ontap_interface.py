@@ -329,7 +329,12 @@ class NetAppOntapInterface(object):
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(interface_attributes)
         interface_info.add_child_elem(query)
-        result = self.server.invoke_successfully(interface_info, True)
+        try:
+            result = self.server.invoke_successfully(interface_info, True)
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg='Error fetching interface details for %s: %s' %
+                                  (self.parameters['interface_name'], to_native(exc)),
+                                  exception=traceback.format_exc())
         return_value = None
         if result.get_child_by_name('num-records') and \
                 int(result.get_child_content('num-records')) >= 1:
