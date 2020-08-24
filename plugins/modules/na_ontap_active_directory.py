@@ -206,7 +206,7 @@ class NetAppOntapActiveDirectory(object):
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = None
         if cd_action is None and self.parameters['state'] == 'present':
-            modify = self.parameters.get_modified_attributes(current, self.parameters)
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed:
             # TODO add Modify
             if self.module.check_mode:
