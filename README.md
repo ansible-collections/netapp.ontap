@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
 - na_ontap_cluster: `state` can be set to `absent` to remove a node identified with `cluster_ip_address`.
 - na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
+- na_ontap_rest_info: Support for gather subsets - `initiator_groups_info, san_fcp_services, san_iscsi_credentials, san_iscsi_services, san_lun_maps, storage_luns_info, storage_NVMe_namespaces.`
 
 ### Bug fixes
 - na_ontap_cluster: `check_mode` is now working properly.

@@ -51,6 +51,7 @@ options:
                 "cluster_software_history" or "cluster/software/history",
                 "cluster_software_packages" or "cluster/software/packages",
                 "disk_info" or "storage/disks",
+                "initiator_groups_info" or "protocols/san/igroups",
                 "ip_interfaces_info" or "network/ip/interfaces",
                 "ip_routes_info" or "network/ip/routes",
                 "ip_service_policies" or "network/ip/service-policies",
@@ -58,6 +59,12 @@ options:
                 "network_ports_info" or "network/ethernet/ports",
                 "san_fc_logins_info" or "network/fc/logins",
                 "san_fc_wppn-aliases" or "network/fc/wwpn-aliases",
+                "san_fcp_services" or "protocols/san/fcp/services",
+                "san_iscsi_credentials" or "protocols/san/iscsi/credentials",
+                "san_iscsi_services" or "protocols/san/iscsi/services",
+                "san_lun_maps" or "protocols/san/lun-maps",
+                "storage_luns_info" or "storage/luns",
+                "storage_NVMe_namespaces" or "storage/namespaces",
                 "svm_dns_config_info" or "name-services/dns",
                 "svm_ldap_config_info" or "name-services/ldap",
                 "svm_name_mapping_config_info" or "name-services/name-mappings",
@@ -279,6 +286,7 @@ class NetAppONTAPGatherInfo(object):
             "cluster_software_history": "cluster/software/history",
             "cluster_software_packages": "cluster/software/packages",
             "disk_info": "storage/disks",
+            "initiator_groups_info": "protocols/san/igroups",
             "ip_interfaces_info": "network/ip/interfaces",
             "ip_routes_info": "network/ip/routes",
             "ip_service_policies": "network/ip/service-policies",
@@ -286,6 +294,12 @@ class NetAppONTAPGatherInfo(object):
             "network_ports_info": "network/ethernet/ports",
             "san_fc_logins_info": "network/fc/logins",
             "san_fc_wppn-aliases": "network/fc/wwpn-aliases",
+            "san_fcp_services": "protocols/san/fcp/services",
+            "san_iscsi_credentials": "protocols/san/iscsi/credentials",
+            "san_iscsi_services": "protocols/san/iscsi/services",
+            "san_lun_maps": "protocols/san/lun-maps",
+            "storage_luns_info": "storage/luns",
+            "storage_NVMe_namespaces": "storage/namespaces",
             "svm_dns_config_info": "name-services/dns",
             "svm_ldap_config_info": "name-services/ldap",
             "svm_name_mapping_config_info": "name-services/name-mappings",
@@ -385,11 +399,38 @@ class NetAppONTAPGatherInfo(object):
             'network/ipspaces': {
                 'api_call': 'network/ipspaces',
             },
+            'protocols/cifs/services': {
+                'api_call': 'protocols/cifs/services',
+            },
+            'protocols/cifs/shares': {
+                'api_call': 'protocols/cifs/shares',
+            },
+            'protocols/san/fcp/services': {
+                'api_call': 'protocols/san/fcp/services',
+            },
+            'protocols/san/igroups': {
+                'api_call': 'protocols/san/igroups',
+            },
+            'protocols/san/iscsi/credentials': {
+                'api_call': 'protocols/san/iscsi/credentials',
+            },
+            'protocols/san/iscsi/services': {
+                'api_call': 'protocols/san/iscsi/services',
+            },
+            'protocols/san/lun-maps': {
+                'api_call': 'protocols/san/lun-maps',
+            },
             'storage/aggregates': {
                 'api_call': 'storage/aggregates',
             },
             'storage/disks': {
                 'api_call': 'storage/disks',
+            },
+            'storage/luns': {
+                'api_call': 'storage/luns',
+            },
+            'storage/namespaces': {
+                'api_call': 'storage/namespaces',
             },
             'storage/volumes': {
                 'api_call': 'storage/volumes',
@@ -402,12 +443,6 @@ class NetAppONTAPGatherInfo(object):
             },
             'svm/svms': {
                 'api_call': 'svm/svms',
-            },
-            'protocols/cifs/services': {
-                'api_call': 'protocols/cifs/services',
-            },
-            'protocols/cifs/shares': {
-                'api_call': 'protocols/cifs/shares',
             }
         }
 
