@@ -15,7 +15,7 @@ module: na_ontap_broadcast_domain_ports
 short_description: NetApp ONTAP manage broadcast domain ports
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.6'
+version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Add or remove ONTAP broadcast domain ports.  Existing ports that are not listed are kept.

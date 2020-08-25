@@ -17,7 +17,7 @@ module: na_ontap_snapshot
 short_description: NetApp ONTAP manage Snapshots
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.6'
+version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create/Modify/Delete ONTAP snapshots

@@ -20,7 +20,7 @@ module: na_ontap_ucadapter
 short_description: NetApp ONTAP UC adapter configuration
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.6'
+version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:

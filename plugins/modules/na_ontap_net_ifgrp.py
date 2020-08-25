@@ -16,7 +16,7 @@ module: na_ontap_net_ifgrp
 short_description: NetApp Ontap modify network interface group
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: '2.6'
+version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create, modify ports, destroy the network interface group
