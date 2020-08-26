@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -215,6 +213,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         add_node.assert_called_with()
+        assert exc.value.args[0]['changed']
 
     def test_if_all_methods_catch_exception(self):
         module_args = {}
@@ -235,3 +234,142 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.add_node()
         assert 'Error adding node with ip' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.add_node')
+    def test_add_node_idempotent(self, add_node, get_cl_id, get_cl_ips):
+        ''' creating add_node'''
+        get_cl_ips.return_value = ['10.10.10.10']
+        get_cl_id.return_value = None
+        data = self.set_default_args()
+        del data['cluster_name']
+        data['cluster_ip_address'] = '10.10.10.10'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_add')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        try:
+            add_node.assert_not_called()
+        except AttributeError:
+            # not supported with python <= 3.4
+            pass
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.remove_node')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.node_remove_wait')
+    def test_remove_node_ip(self, wait, remove_node, get_cl_id, get_cl_ips):
+        ''' creating add_node'''
+        get_cl_ips.return_value = ['10.10.10.10']
+        get_cl_id.return_value = None
+        wait.return_value = None
+        data = self.set_default_args()
+        # del data['cluster_name']
+        data['cluster_ip_address'] = '10.10.10.10'
+        data['state'] = 'absent'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_add')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        remove_node.assert_called_with()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.remove_node')
+    def test_remove_node_ip_idempotent(self, remove_node, get_cl_id, get_cl_ips):
+        ''' creating add_node'''
+        get_cl_ips.return_value = list()
+        get_cl_id.return_value = None
+        data = self.set_default_args()
+        # del data['cluster_name']
+        data['cluster_ip_address'] = '10.10.10.10'
+        data['state'] = 'absent'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_add')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        try:
+            remove_node.assert_not_called()
+        except AttributeError:
+            # not supported with python <= 3.4
+            pass
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_nodes')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.remove_node')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.node_remove_wait')
+    def test_remove_node_name(self, wait, remove_node, get_cl_id, get_cl_nodes):
+        ''' creating add_node'''
+        get_cl_nodes.return_value = ['node1', 'node2']
+        get_cl_id.return_value = None
+        wait.return_value = None
+        data = self.set_default_args()
+        # del data['cluster_name']
+        data['node_name'] = 'node2'
+        data['state'] = 'absent'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_add')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        remove_node.assert_called_with()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_nodes')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.remove_node')
+    def test_remove_node_name_idempotent(self, remove_node, get_cl_id, get_cl_nodes):
+        ''' creating add_node'''
+        get_cl_nodes.return_value = ['node1', 'node2']
+        get_cl_id.return_value = None
+        data = self.set_default_args()
+        # del data['cluster_name']
+        data['node_name'] = 'node3'
+        data['state'] = 'absent'
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_add')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        try:
+            remove_node.assert_not_called()
+        except AttributeError:
+            # not supported with python <= 3.4
+            pass
+        assert not exc.value.args[0]['changed']
+
+    def test_remove_node_name_and_id(self):
+        ''' creating add_node'''
+        data = self.set_default_args()
+        # del data['cluster_name']
+        data['cluster_ip_address'] = '10.10.10.10'
+        data['node_name'] = 'node3'
+        data['state'] = 'absent'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_module()
+        print('Info: test_remove_node_name_and_id: %s' % repr(exc.value))
+        msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
+        assert msg in exc.value.args[0]['msg']

@@ -55,6 +55,15 @@ options:
     - Cluster contact, only relevant if performing a modify action.
     version_added: 19.11.0
     type: str
+  node_name:
+    description:
+      - Name of the node to be added or removed from the cluster.
+      - Be aware that when adding a node, '-' are converted to '_' by the ONTAP backend.
+      - When creating a cluster, C(node_name) is ignored.
+      - When adding a node using C(cluster_ip_address), C(node_name) is optional.
+      - When used to remove a node, C(cluster_ip_address) and C(node_name) are mutually exclusive.
+    version_added: 20.9.0
+    type: str
 '''
 
 EXAMPLES = """
@@ -72,6 +81,14 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+    - name: Add node to cluster (Join cluster)
+      na_ontap_cluster:
+        state: present
+        cluster_ip_address: 10.10.10.10
+        node_name: my_preferred_node_name
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
     - name: Create a 2 node cluster in one call
       na_ontap_cluster:
         state: present
@@ -84,6 +101,13 @@ EXAMPLES = """
       na_ontap_cluster:
         state: absent
         cluster_ip_address: 10.10.10.10
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Remove node from cluster
+      na_ontap_cluster:
+        state: absent
+        node_name: node002
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -124,7 +148,8 @@ class NetAppONTAPCluster(object):
             cluster_ip_address=dict(required=False, type='str'),
             cluster_location=dict(required=False, type='str'),
             cluster_contact=dict(required=False, type='str'),
-            single_node_cluster=dict(required=False, type='bool', default=False)
+            single_node_cluster=dict(required=False, type='bool', default=False),
+            node_name=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -134,6 +159,14 @@ class NetAppONTAPCluster(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.warnings = list()
+
+        if self.parameters['state'] == 'absent' and self.parameters.get('node_name') is not None and self.parameters.get('cluster_ip_address') is not None:
+            msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
+            self.module.fail_json(msg=msg)
+
+        if self.parameters.get('node_name') is not None and '-' in self.parameters.get('node_name'):
+            self.warnings.append('ONTAP ZAPI converts "-" to "_", node_name: %s may be changed or not matched' % self.parameters.get('node_name'))
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -162,6 +195,29 @@ class NetAppONTAPCluster(object):
                 cluster_identity['cluster_location'] = identity_info.get_child_content('cluster-location')
                 cluster_identity['cluster_name'] = identity_info.get_child_content('cluster-name')
             return cluster_identity
+        return None
+
+    def get_cluster_nodes(self, ignore_error=True):
+        ''' get cluster node names, but the cluster may not exist yet
+            return:
+                None if the cluster cannot be reached
+                a list of nodes
+        '''
+        zapi = netapp_utils.zapi.NaElement('cluster-node-get-iter')
+        try:
+            result = self.server.invoke_successfully(zapi, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            if ignore_error:
+                return None
+            self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+        cluster_nodes = list()
+        if result.get_child_by_name('attributes-list'):
+            for node_info in result.get_child_by_name('attributes-list').get_children():
+                node_name = node_info.get_child_content('node-name')
+                if node_name is not None:
+                    cluster_nodes.append(node_name)
+            return cluster_nodes
         return None
 
     def get_cluster_ip_addresses(self, cluster_ip_address, ignore_error=True):
@@ -211,6 +267,8 @@ class NetAppONTAPCluster(object):
         Create a cluster
         """
         dummy, minor = self.server.get_api_version()
+        # Note: cannot use node_name here:
+        # 13001:The "-node-names" parameter must be used with either the "-node-uuids" or the "-cluster-ips" parameters.
         options = {'cluster-name': self.parameters['cluster_name']}
         if minor >= 140:
             options['single-node-cluster'] = str(self.parameters.get('single_node_cluster'))
@@ -241,6 +299,11 @@ class NetAppONTAPCluster(object):
                 cluster_ips = netapp_utils.zapi.NaElement('cluster-ips')
                 cluster_ips.add_new_child('ip-address', self.parameters.get('cluster_ip_address'))
                 cluster_add_node.add_child_elem(cluster_ips)
+                if self.parameters.get('node_name') is not None:
+                    node_names = netapp_utils.zapi.NaElement('node-names')
+                    node_names.add_new_child('string', self.parameters.get('node_name'))
+                    cluster_add_node.add_child_elem(node_names)
+
         else:
             return False
         try:
@@ -260,20 +323,25 @@ class NetAppONTAPCluster(object):
         """
         Remove a node from an existing cluster
         """
+        cluster_remove_node = netapp_utils.zapi.NaElement('cluster-remove-node')
+        from_node = ''
+        # cluster-ip and node-name are mutually exclusive:
+        # 13115:Element "cluster-ip" within "cluster-remove-node" has been excluded by another element.
         if self.parameters.get('cluster_ip_address') is not None:
-            cluster_remove_node = netapp_utils.zapi.NaElement('cluster-remove-node')
             cluster_remove_node.add_new_child('cluster-ip', self.parameters.get('cluster_ip_address'))
-        else:
-            raise KeyError('TODO: DEVOPS-2336 support other ways to remove a node')
+            from_node = 'IP: %s' % self.parameters.get('cluster_ip_address')
+        elif self.parameters.get('node_name') is not None:
+            cluster_remove_node.add_new_child('node', self.parameters.get('node_name'))
+            from_node = 'name: %s' % self.parameters.get('node_name')
+
         try:
             self.server.invoke_successfully(cluster_remove_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             if error.message == "Unable to find API: cluster-remove-node":
                 msg = 'Error: ZAPI is not available.  Removing a node requires ONTAP 9.4 or newer.'
                 self.module.fail_json(msg=msg)
-            self.module.fail_json(msg='Error removing node with ip %s: %s'
-                                  % (self.parameters.get('cluster_ip_address'), to_native(error)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(msg='Error removing node with %s: %s'
+                                  % (from_node, to_native(error)), exception=traceback.format_exc())
 
     def modify_cluster_identity(self, modify):
         """
@@ -376,6 +444,20 @@ class NetAppONTAPCluster(object):
                 self.module.fail_json(
                     msg='Error adding node with ip address %s' % (self.parameters.get('cluster_ip_address')))
 
+    def node_remove_wait(self):
+        ''' wait for node name or clister IP address to disappear '''
+        node_name = self.parameters.get('node_name')
+        node_ip = self.parameters.get('cluster_ip_address')
+        timer = 180     # 180 seconds
+        while timer > 0:
+            if node_name is not None and node_name not in self.get_cluster_nodes():
+                return
+            if node_ip is not None and self.get_cluster_ip_address(node_ip) is None:
+                return
+            time.sleep(30)
+            timer -= 30
+        self.module.fail_json(msg='Timeout waiting for node to be removed from cluster.')
+
     def autosupport_log(self):
         """
         Autosupport log for cluster
@@ -391,8 +473,6 @@ class NetAppONTAPCluster(object):
         """
         cluster_action = None
         node_action = None
-        # TODO: DEVOPS-2336 remove debug
-        debug = list()
 
         cluster_identity = self.get_cluster_identity(ignore_error=True)
         if self.parameters.get('cluster_name') is not None:
@@ -403,10 +483,11 @@ class NetAppONTAPCluster(object):
                 node_action = 'add_node' if existing_interfaces is None else None
             else:
                 node_action = 'remove_node' if existing_interfaces is not None else None
-            debug.append('existing_interfaces %s' % repr(existing_interfaces))
+        if self.parameters.get('node_name') is not None and self.parameters['state'] == 'absent':
+            nodes = self.get_cluster_nodes()
+            if self.parameters.get('node_name') in nodes:
+                node_action = 'remove_node'
         modify = self.na_helper.get_modified_attributes(cluster_identity, self.parameters)
-        debug.append('cluster_action %s' % cluster_action)
-        debug.append('node_action %s' % node_action)
 
         if node_action is not None:
             self.na_helper.changed = True
@@ -420,13 +501,11 @@ class NetAppONTAPCluster(object):
                     self.node_add_wait()
             elif node_action == 'remove_node':
                 self.remove_node()
-                # TODO: DEVOPS-2336 wait for interface to disappear
-                # leave a bit of time for things to settle in teh meantime
-                time.sleep(60)
+                self.node_remove_wait()
             if modify:
                 self.modify_cluster_identity(modify)
         self.autosupport_log()
-        self.module.exit_json(changed=self.na_helper.changed, debug=debug)
+        self.module.exit_json(changed=self.na_helper.changed, warnings=self.warnings)
 
 
 def main():

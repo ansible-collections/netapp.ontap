@@ -29,7 +29,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_metrocluster: Configure a metrocluster (Supports Ontap 9.8+).
 
 ### New Options
-- na_ontap_cluster: `state` can be set to `absent` to remove a node identified with `cluster_ip_address`.
+- na_ontap_cluster: `node_name` to set the node name when adding a node, or as an alternative to `cluster_ip_address` to remove a node.
+- na_ontap_cluster: `state` can be set to `absent` to remove a node identified with `cluster_ip_address` or `node_name`.
 - na_ontap_qtree: `wait_for_completion` and `time_out` to wait for qtree deletion when using REST.
 - na_ontap_rest_info: Support for gather subsets - `initiator_groups_info, san_fcp_services, san_iscsi_credentials, san_iscsi_services, san_lun_maps, storage_luns_info, storage_NVMe_namespaces.`
 
