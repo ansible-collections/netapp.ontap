@@ -75,7 +75,7 @@ options:
     version_added: 2.9.0
 
 short_description: NetApp ONTAP Manage cifs-share
-version_added: "2.6"
+version_added: 2.6.0
 
 '''
 

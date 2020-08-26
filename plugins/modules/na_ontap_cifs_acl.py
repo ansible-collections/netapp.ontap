@@ -46,7 +46,7 @@ options:
     required: true
     type: str
 short_description: NetApp ONTAP manage cifs-share-access-control
-version_added: "2.6"
+version_added: 2.6.0
 
 '''
 

@@ -39,7 +39,7 @@ options:
     default: 'present'
     type: str
 short_description: NetApp ONTAP SNMP community
-version_added: "2.6"
+version_added: 2.6.0
 '''
 
 EXAMPLES = """

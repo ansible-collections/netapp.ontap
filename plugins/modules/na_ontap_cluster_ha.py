@@ -26,7 +26,7 @@ options:
       - "Whether HA on cluster should be enabled or disabled."
     default: present
 short_description: NetApp ONTAP Manage HA status for cluster
-version_added: "2.6"
+version_added: 2.6.0
 '''
 
 EXAMPLES = """
