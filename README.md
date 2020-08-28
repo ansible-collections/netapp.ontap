@@ -26,7 +26,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
 - na_ontap_active_directory: configure active directory.
-- na_ontap_metrocluster: Configure a metrocluster (Supports Ontap 9.8+).
+- na_ontap_mcc_mediator: Configure a MCC Mediator (Supports ONTAP 9.8+).
+- na_ontap_metrocluster: Configure a metrocluster (Supports ONTAP 9.8+).
 
 ### New Options
 - na_ontap_cluster: `node_name` to set the node name when adding a node, or as an alternative to `cluster_ip_address` to remove a node.
