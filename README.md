@@ -43,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_qtree: fixed `None is not subscriptable` exception on rename operation.
 - na_ontap_volume: fixed `KeyError` exception on `size` when reporting creation error.
 - na_ontap_*: change version_added: '2.6' to version_added: 2.6.0 where applicable to satisfy sanity checker.
+- netapp.py: uncaught exception (traceback) on zapi.NaApiError.
 
 ## 20.8.0
 

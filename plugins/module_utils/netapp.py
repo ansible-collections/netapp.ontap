@@ -243,6 +243,16 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
         module.fail_json(msg="the python NetApp-Lib module is required")
 
 
+def is_zapi_connection_error(message):
+    ''' return True if it is a connection issue '''
+    # netapp-lib message may contain a tuple or a str!
+    if isinstance(message, tuple) and isinstance(message[0], ConnectionError):
+        return True
+    if isinstance(message, str) and message.startswith(('URLError', 'Unauthorized')):
+        return True
+    return False
+
+
 def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
@@ -260,7 +270,14 @@ def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECT
     ems_log.add_new_child("event-description", event)
     ems_log.add_new_child("log-level", "6")
     ems_log.add_new_child("auto-support", autosupport)
-    server.invoke_successfully(ems_log, True)
+    try:
+        server.invoke_successfully(ems_log, True)
+    except zapi.NaApiError as exc:
+        # Do not fail if we can't connect to the server.
+        # The module will report a better error when trying to get some data from ONTAP.
+        if not is_zapi_connection_error(exc.message):
+            # raise on other errors, as it may be a bug in calling the ZAPI
+            raise exc
 
 
 def get_cserver_zapi(server):
@@ -270,8 +287,16 @@ def get_cserver_zapi(server):
     query = zapi.NaElement('query')
     query.add_child_elem(query_details)
     vserver_info.add_child_elem(query)
-    result = server.invoke_successfully(vserver_info,
-                                        enable_tunneling=False)
+    try:
+        result = server.invoke_successfully(vserver_info,
+                                            enable_tunneling=False)
+    except zapi.NaApiError as exc:
+        # Do not fail if we can't connect to the server.
+        # The module will report a better error when trying to get some data from ONTAP.
+        if is_zapi_connection_error(exc.message):
+            return None
+        # raise on other errors, as it may be a bug in calling the ZAPI
+        raise exc
     attribute_list = result.get_child_by_name('attributes-list')
     if attribute_list is not None:
         vserver_list = attribute_list.get_child_by_name('vserver-info')
