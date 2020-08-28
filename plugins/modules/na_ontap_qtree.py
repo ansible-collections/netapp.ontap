@@ -48,7 +48,8 @@ options:
 
   flexvol_name:
     description:
-    - The name of the FlexVol the qtree should exist on. Required when C(state=present).
+    - The name of the FlexVol the qtree should exist on.
+    required: true
     type: str
 
   vserver:
@@ -164,7 +165,7 @@ class NetAppOntapQTree(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
-            flexvol_name=dict(required=False, type='str'),
+            flexvol_name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),
             export_policy=dict(required=False, type='str'),
             security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),
@@ -317,13 +318,11 @@ class NetAppOntapQTree(object):
                 self.module.fail_json(msg="Error deleting qtree %s: %s" % (path, to_native(error)),
                                       exception=traceback.format_exc())
 
-    def rename_qtree(self, current=None):
+    def rename_qtree(self, current):
         """
         Rename a qtree
         """
         if self.use_rest:
-            if current is None:
-                current = self.get_qtree(self.parameters['from_name'])
             body = {'name': self.parameters['name']}
             uuid = current['volume']['uuid']
             qid = str(current['id'])
@@ -346,14 +345,12 @@ class NetAppOntapQTree(object):
                                       % (self.parameters['from_name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def modify_qtree(self, current=None):
+    def modify_qtree(self, current):
         """
         Modify a qtree
         """
         if self.use_rest:
             now = datetime.datetime.now()
-            if current is None:
-                current = self.get_qtree(self.parameters['name'])
             body = {}
             if self.parameters.get('security_style'):
                 body['security_style'] = self.parameters['security_style']
@@ -401,7 +398,12 @@ class NetAppOntapQTree(object):
         current = self.get_qtree()
         rename, cd_action, modify = None, None, None
         if self.parameters.get('from_name'):
-            rename = self.na_helper.is_rename_action(self.get_qtree(self.parameters['from_name']), current)
+            from_qtree = self.get_qtree(self.parameters['from_name'])
+            rename = self.na_helper.is_rename_action(from_qtree, current)
+            if rename is None:
+                self.module.fail_json(msg='Error renaming: qtree %s does not exist' % self.parameters['from_name'])
+            if rename:
+                current = from_qtree
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
@@ -428,14 +430,15 @@ class NetAppOntapQTree(object):
             if self.module.check_mode:
                 pass
             else:
-                if rename:
-                    self.rename_qtree()
-                elif cd_action == 'create':
+                if cd_action == 'create':
                     self.create_qtree()
                 elif cd_action == 'delete':
                     self.delete_qtree(current)
-                elif modify:
-                    self.modify_qtree(current)
+                else:
+                    if rename:
+                        self.rename_qtree(current)
+                    if modify:
+                        self.modify_qtree(current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

@@ -880,8 +880,9 @@ class NetAppOntapVolume(object):
             try:
                 self.server.invoke_successfully(volume_create, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error provisioning volume %s of size %s: %s'
-                                      % (self.parameters['name'], self.parameters['size'], to_native(error)),
+                size_msg = ' of size %s' % self.parameters['size'] if self.parameters.get('size') is not None else ''
+                self.module.fail_json(msg='Error provisioning volume %s%s: %s'
+                                      % (self.parameters['name'], size_msg, to_native(error)),
                                       exception=traceback.format_exc())
             self.ems_log_event("volume-create")
 
@@ -926,8 +927,9 @@ class NetAppOntapVolume(object):
             result = self.server.invoke_successfully(volume_create, enable_tunneling=True)
             self.ems_log_event("volume-create")
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error provisioning volume %s of size %s: %s'
-                                  % (self.parameters['name'], self.parameters['size'], to_native(error)),
+            size_msg = ' of size %s' % self.parameters['size'] if self.parameters.get('size') is not None else ''
+            self.module.fail_json(msg='Error provisioning volume %s%s: %s'
+                                  % (self.parameters['name'], size_msg, to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'create')
 

@@ -245,6 +245,51 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.get_qtree')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.rename_qtree')
+    def test_failed_rename(self, rename_qtree, get_qtree):
+        ''' creating qtree and testing idempotency '''
+        get_qtree.side_effect = [None, None]
+        data = self.set_default_args(use_rest='Never')
+        data['from_name'] = 'ansible_old'
+        set_module_args(data)
+        my_obj = qtree_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = 'Error renaming: qtree %s does not exist' % data['from_name']
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.get_qtree')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree.NetAppOntapQTree.rename_qtree')
+    def test_successful_rename(self, rename_qtree, get_qtree):
+        ''' creating qtree and testing idempotency '''
+        data = self.set_default_args(use_rest='Never')
+        data['from_name'] = 'ansible_old'
+        qtree = dict(
+            security_style=data['security_style'],
+            unix_permissions=data['unix_permissions'],
+            export_policy=data['export_policy']
+        )
+        get_qtree.side_effect = [None, qtree]
+        set_module_args(data)
+        my_obj = qtree_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        rename_qtree.assert_called_with(qtree)
+        # Idempotency
+        get_qtree.side_effect = [qtree, 'whatever']
+        my_obj = qtree_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('qtree')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
     def test_if_all_methods_catch_exception(self):
         data = self.set_default_args(use_rest='Never')
         data['from_name'] = 'ansible'
@@ -363,3 +408,57 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_qtree_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rename_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['from_name'] = 'abcde'
+        # data['unix_permissions'] = 'abcde'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],    # get (current)
+            SRR['qtree_record'],  # get (from)
+            SRR['empty_good'],    # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_qtree_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rename_rest_idempotent(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['from_name'] = 'abcde'
+        # data['unix_permissions'] = 'abcde'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['qtree_record'],  # get (current exists)
+            SRR['empty_good'],    # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_qtree_mock_object(cx_type='rest').apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rename_and_modify_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['from_name'] = 'abcde'
+        data['unix_permissions'] = 'abcde'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],    # get (current)
+            SRR['qtree_record'],  # get (from)
+            SRR['empty_good'],    # patch (rename)
+            SRR['empty_good'],    # patch (modify)
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_qtree_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']

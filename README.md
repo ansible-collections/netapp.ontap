@@ -40,6 +40,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_interface: `role` is not required if `service_policy` is present and ONTAP version is 9.8.
 - na_ontap_interface: traceback in get_interface if node is not reachable.
 - na_ontap_job_schedule: allow 'job_minutes' to set number to -1 for job creation with REST too.
+- na_ontap_qtree: fixed `None is not subscriptable` exception on rename operation.
+- na_ontap_volume: fixed `KeyError` exception on `size` when reporting creation error.
 - na_ontap_*: change version_added: '2.6' to version_added: 2.6.0 where applicable to satisfy sanity checker.
 
 ## 20.8.0
