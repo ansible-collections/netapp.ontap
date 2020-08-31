@@ -72,7 +72,8 @@ class MockONTAPConnection(object):
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
                 'attributes-list': {'quota-entry': {'volume': 'ansible',
-                                                    'file-limit': '-', 'disk-limit': '-', 'threshold': '-'}},
+                                                    'file-limit': '-', 'disk-limit': '-',
+                                                    'soft-file-limit': '-', 'soft-disk-limit': '-', 'threshold': '-'}},
                 'status': 'true'}
         xml.translate_struct(data)
         return xml
@@ -146,7 +147,10 @@ class TestMyModule(unittest.TestCase):
         ''' creating quota and testing idempotency '''
         data = self.set_default_args()
         data.update({'file_limit': '3',
-                     'disk_limit': '4'})
+                     'disk_limit': '4',
+                     'soft_file_limit': '3',
+                     'soft_disk_limit': '4',
+                     })
         # data['file_limit'] = '3'
         # data['disk_limit'] = '4'
         # data['threshold'] = '4'

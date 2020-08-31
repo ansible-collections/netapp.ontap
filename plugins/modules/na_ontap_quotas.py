@@ -67,17 +67,22 @@ options:
   file_limit:
     description:
     - The number of files that the target can have.
-    default: '-'
     type: str
   disk_limit:
     description:
     - The amount of disk space that is reserved for the target.
-    default: '-'
+    type: str
+  soft_file_limit:
+    description:
+    - The number of files the target would have to exceed before a message is logged and an SNMP trap is generated.
+    type: str
+  soft_disk_limit:
+    description:
+    - The amount of disk space the target would have to exceed before a message is logged and an SNMP trap is generated.
     type: str
   threshold:
     description:
     - The amount of disk space the target would have to exceed before a message is logged.
-    default: '-'
     type: str
 '''
 
@@ -153,9 +158,11 @@ class NetAppONTAPQuotas(object):
             type=dict(required=True, type='str', choices=['user', 'group', 'tree']),
             policy=dict(required=False, type='str'),
             set_quota_status=dict(required=False, type='bool'),
-            file_limit=dict(required=False, type='str', default='-'),
-            disk_limit=dict(required=False, type='str', default='-'),
-            threshold=dict(required=False, type='str', default='-')
+            file_limit=dict(required=False, type='str'),
+            disk_limit=dict(required=False, type='str'),
+            soft_file_limit=dict(required=False, type='str'),
+            soft_disk_limit=dict(required=False, type='str'),
+            threshold=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -221,6 +228,8 @@ class NetAppONTAPQuotas(object):
             return_values = {'volume': result['attributes-list']['quota-entry']['volume'],
                              'file_limit': result['attributes-list']['quota-entry']['file-limit'],
                              'disk_limit': result['attributes-list']['quota-entry']['disk-limit'],
+                             'soft_file_limit': result['attributes-list']['quota-entry']['soft-file-limit'],
+                             'soft_disk_limit': result['attributes-list']['quota-entry']['soft-disk-limit'],
                              'threshold': result['attributes-list']['quota-entry']['threshold']}
             return return_values
         return None
@@ -232,10 +241,18 @@ class NetAppONTAPQuotas(object):
         options = {'volume': self.parameters['volume'],
                    'quota-target': self.parameters['quota_target'],
                    'quota-type': self.parameters['type'],
-                   'qtree': self.parameters['qtree'],
-                   'file-limit': self.parameters['file_limit'],
-                   'disk-limit': self.parameters['disk_limit'],
-                   'threshold': self.parameters['threshold']}
+                   'qtree': self.parameters['qtree']}
+
+        if self.parameters.get('file_limit'):
+            options['file-limit'] = self.parameters['file_limit']
+        if self.parameters.get('disk_limit'):
+            options['disk-limit'] = self.parameters['disk_limit']
+        if self.parameters.get('soft_file_limit'):
+            options['soft-file-limit'] = self.parameters['soft_file_limit']
+        if self.parameters.get('soft_disk_limit'):
+            options['soft-disk-limit'] = self.parameters['soft_disk_limit']
+        if self.parameters.get('threshold'):
+            options['threshold'] = self.parameters['threshold']
         if self.parameters.get('policy'):
             options['policy'] = self.parameters['policy']
         set_entry = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -275,6 +292,16 @@ class NetAppONTAPQuotas(object):
                    'quota-type': self.parameters['type'],
                    'qtree': self.parameters['qtree']}
         options.update(modify_attrs)
+        if self.parameters.get('file_limit'):
+            options['file-limit'] = self.parameters['file_limit']
+        if self.parameters.get('disk_limit'):
+            options['disk-limit'] = self.parameters['disk_limit']
+        if self.parameters.get('soft_file_limit'):
+            options['soft-file-limit'] = self.parameters['soft_file_limit']
+        if self.parameters.get('soft_disk_limit'):
+            options['soft-disk-limit'] = self.parameters['soft_disk_limit']
+        if self.parameters.get('threshold'):
+            options['threshold'] = self.parameters['threshold']
         if self.parameters.get('policy'):
             options['policy'] = str(self.parameters['policy'])
         modify_entry = netapp_utils.zapi.NaElement.create_node_with_children(
