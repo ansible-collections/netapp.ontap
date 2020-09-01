@@ -112,7 +112,6 @@ EXAMPLES = """
 
 RETURN = """
 """
-import sys
 import copy
 import traceback
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils

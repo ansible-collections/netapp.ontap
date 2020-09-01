@@ -243,7 +243,7 @@ class NetAppOntapNetRoutes(object):
                     value = current[attribute]
                 route_obj.add_new_child(attribute, str(value))
             try:
-                result = self.server.invoke_successfully(route_obj, True)
+                self.server.invoke_successfully(route_obj, True)
             except netapp_utils.zapi.NaApiError as error:
                 # restore the old route, create the route with the existing metric
                 self.create_net_route(current['metric'])

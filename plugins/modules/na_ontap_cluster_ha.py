@@ -97,7 +97,7 @@ class NetAppOntapClusterHA(object):
         try:
             result = self.server.invoke_successfully(cluster_ha_get,
                                                      enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
+        except netapp_utils.zapi.NaApiError:
             self.module.fail_json(msg='Error fetching cluster HA details',
                                   exception=traceback.format_exc())
         cluster_ha_info = result.get_child_by_name('attributes').get_child_by_name('cluster-ha-info')

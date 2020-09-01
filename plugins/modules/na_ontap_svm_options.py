@@ -95,7 +95,7 @@ class NetAppONTAPSvnOptions(object):
         option_obj.add_new_child('name', self.parameters['name'])
         option_obj.add_new_child('value', self.parameters['value'])
         try:
-            result = self.server.invoke_successfully(option_obj, True)
+            self.server.invoke_successfully(option_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error setting options: %s" % to_native(error), exception=traceback.format_exc())
 
@@ -106,7 +106,7 @@ class NetAppONTAPSvnOptions(object):
         """
         option_obj = netapp_utils.zapi.NaElement("options-list-info")
         try:
-            result = self.server.invoke_successfully(option_obj, True)
+            self.server.invoke_successfully(option_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error getting options: %s" % to_native(error), exception=traceback.format_exc())
 

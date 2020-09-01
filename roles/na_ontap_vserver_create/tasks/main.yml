@@ -65,7 +65,7 @@
     role: data
     protocols: "{{ item.protocol }}"
     admin_status: up
-    failover_policy: "{{ omit if item.protocol.lower() is search('iscsi') else 'system-defined' }}" 
+    failover_policy: "{{ omit if item.protocol.lower() is search('iscsi') else 'system-defined' }}"
     firewall_policy: data
     is_auto_revert: "{{ 'true' if item.protocol.lower() is not search('iscsi') else omit }}"
     address: "{{ item.address }}"
@@ -145,7 +145,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
-  when: 
+  when:
     - item.protocol.lower() is search("nfs")
     - ontap_version >= 130
 - name: Create NFS Server
@@ -164,7 +164,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vservers }}"
-  when: 
+  when:
     - item.protocol.lower() is search("nfs")
     - ontap_version < 130
 - name: Setup default NFS rule

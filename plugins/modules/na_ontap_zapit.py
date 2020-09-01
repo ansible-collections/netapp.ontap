@@ -229,7 +229,7 @@ class NetAppONTAPZapi(object):
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         try:
             netapp_utils.ems_log_event(event_name, cserver)
-        except netapp_utils.zapi.NaApiError as error:
+        except netapp_utils.zapi.NaApiError:
             pass
 
     def jsonify_and_parse_output(self, xml_data):
@@ -249,7 +249,7 @@ class NetAppONTAPZapi(object):
 
         if 'results' not in as_json:
             self.module.fail_json(msg='Error running zapi, no results field: %s: %s' %
-                                  (xml_data.to_string(), str(exc)))
+                                  (xml_data.to_string(), repr(as_json)))
 
         # set status, and if applicable errno/reason, and remove attribute fields
         errno = None

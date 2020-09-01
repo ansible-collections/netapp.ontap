@@ -125,6 +125,10 @@ except ImportError:
     HAS_IPADDRESS_LIB = False
 
 import sys
+# Python 3 merged unicode in to str, this is to make sure nothing breaks
+# https://stackoverflow.com/questions/19877306/nameerror-global-name-unicode-is-not-defined-in-python-3
+if sys.version_info[0] >= 3:
+    unicode = str
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 

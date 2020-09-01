@@ -268,7 +268,7 @@ class NetAppOntapVscanOnDemandTask(object):
         if self.parameters.get('schedule'):
             demand_task_obj.add_new_child('schedule', self.parameters['schedule'])
         try:
-            result = self.server.invoke_successfully(demand_task_obj, True)
+            self.server.invoke_successfully(demand_task_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating on demand task %s: %s' %
                                       (self.parameters['task_name'], to_native(error)),
