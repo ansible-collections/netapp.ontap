@@ -22,6 +22,7 @@ extends_documentation_fragment:
 short_description: NetApp ONTAP information gatherer using REST APIs
 description:
     - This module allows you to gather various information about ONTAP configuration using REST APIs
+version_added: 20.5.0
 
 options:
     state:

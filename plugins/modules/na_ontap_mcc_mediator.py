@@ -20,7 +20,7 @@ module: na_ontap_mcc_mediator
 short_description: NetApp ONTAP Add and Remove MetroCluster Mediator
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: 2.9.0
+version_added: 20.9.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Add and remove ONTAP MCC Mediator
