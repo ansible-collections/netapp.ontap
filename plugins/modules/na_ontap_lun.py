@@ -106,6 +106,12 @@ options:
     type: bool
     default: False
     version_added: 2.7.0
+    
+  use_exact_size:
+    description:
+    - This can be set to "False" which will round the LUN >= 450g.
+    type: pool
+    default: True
 
 '''
 
@@ -184,6 +190,7 @@ class NetAppOntapLUN(object):
             ostype=dict(required=False, type='str', default='image'),
             space_reserve=dict(required=False, type='bool', default=True),
             space_allocation=dict(required=False, type='bool', default=False),
+            use_exact_size=dict()required=False, type='bool', default=True),
         ))
 
         self.module = AnsibleModule(
@@ -212,6 +219,7 @@ class NetAppOntapLUN(object):
         self.ostype = parameters['ostype']
         self.space_reserve = parameters['space_reserve']
         self.space_allocation = parameters['space_allocation']
+        self.use_exact_size = parameters['use_exact_size']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -301,7 +309,8 @@ class NetAppOntapLUN(object):
                                      'size': str(self.size),
                                      'ostype': self.ostype,
                                      'space-reservation-enabled': str(self.space_reserve),
-                                     'space-allocation-enabled': str(self.space_allocation)})
+                                     'space-allocation-enabled': str(self.space_allocation)}),
+                                     'use-exact-size': str(self.use_exact_size)})
 
         try:
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
