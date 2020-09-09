@@ -190,7 +190,7 @@ class NetAppOntapLUN(object):
             ostype=dict(required=False, type='str', default='image'),
             space_reserve=dict(required=False, type='bool', default=True),
             space_allocation=dict(required=False, type='bool', default=False),
-            use_exact_size=dict()required=False, type='bool', default=True),
+            use_exact_size=dict(required=False, type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
@@ -309,7 +309,7 @@ class NetAppOntapLUN(object):
                                      'size': str(self.size),
                                      'ostype': self.ostype,
                                      'space-reservation-enabled': str(self.space_reserve),
-                                     'space-allocation-enabled': str(self.space_allocation)}),
+                                     'space-allocation-enabled': str(self.space_allocation),
                                      'use-exact-size': str(self.use_exact_size)})
 
         try:
