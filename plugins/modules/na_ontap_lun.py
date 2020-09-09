@@ -110,7 +110,7 @@ options:
   use_exact_size:
     description:
     - This can be set to "False" which will round the LUN >= 450g.
-    type: pool
+    type: bool
     default: True
 
 '''
