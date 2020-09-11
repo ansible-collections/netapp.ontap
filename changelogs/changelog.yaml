@@ -849,3 +849,10 @@ releases:
       name: na_ontap_metrocluster
       namespace: ''
     release_date: '2020-09-02'
+  20.10.0:
+    changes:
+      minor_changes:
+      - na_ontap_lun - ``use_exact_size`` to create a lun with the exact given size 
+        so that the lun is not rounded up
+    fragments:
+    - 20.10.0.yaml
