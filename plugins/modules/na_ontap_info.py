@@ -4,6 +4,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_info
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -205,6 +209,8 @@ options:
         - Possible values are always, never, missing_vserver_api_error, rpc_error, other_error.
         - missing_vserver_api_error - most likely the API is available at cluster level but not vserver level.
         - rpc_error - some queries are failing because the node cannot reach another node in the cluster.
+        - key_error - a query is failing because the returned data does not contain an expected key.
+        - for key errors, make sure to report this in Slack.  It may be a change in a new ONTAP version.
         - other_error - anything not in the above list.
         - always will continue on any error, never will fail on any error, they cannot be used with any other keyword.
         type: list
@@ -366,12 +372,12 @@ ontap_info:
     }'
 '''
 
+import copy
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
-import copy
 
 try:
     import xmltodict
@@ -1360,9 +1366,8 @@ class NetAppONTAPGatherInfo(object):
                 error_message = "Error invalid API.  %s" % error_message
             else:
                 error_message = "Error calling API %s: %s" % (call, error_message)
-            if self.error_flags[kind]:
-                if fail_on_error:
-                    self.module.fail_json(msg=error_message, exception=traceback.format_exc())
+            if self.error_flags[kind] and fail_on_error:
+                self.module.fail_json(msg=error_message, exception=traceback.format_exc())
             return None, error_message
 
     def get_ifgrp_info(self):
@@ -1416,7 +1421,9 @@ class NetAppONTAPGatherInfo(object):
         else:
             out = {}
 
+        iteration = 0
         for child in attributes_list.get_children():
+            iteration += 1
             dic = xmltodict.parse(child.to_string(), xml_attribs=False)
 
             if attribute is not None:
@@ -1426,9 +1433,21 @@ class NetAppONTAPGatherInfo(object):
             if self.translate_keys:
                 info = convert_keys(info)
             if isinstance(key_fields, str):
-                unique_key = _finditem(dic, key_fields)
+                try:
+                    unique_key = _finditem(dic, key_fields)
+                except KeyError as exc:
+                    error_message = 'Error: key %s not found for %s, got: %s' % (str(exc), call, repr(info))
+                    if self.error_flags['key_error']:
+                        self.module.fail_json(msg=error_message, exception=traceback.format_exc())
+                    unique_key = 'Error_%d_key_not_found_%s' % (iteration, exc.args[0])
             elif isinstance(key_fields, tuple):
-                unique_key = ':'.join([_finditem(dic, el) for el in key_fields])
+                try:
+                    unique_key = ':'.join([_finditem(dic, el) for el in key_fields])
+                except KeyError as exc:
+                    error_message = 'Error: key %s not found for %s, got: %s' % (str(exc), call, repr(info))
+                    if self.error_flags['key_error']:
+                        self.module.fail_json(msg=error_message, exception=traceback.format_exc())
+                    unique_key = 'Error_%d_key_not_found_%s' % (iteration, exc.args[0])
             else:
                 unique_key = None
             if unique_key is not None:
@@ -1509,7 +1528,7 @@ class NetAppONTAPGatherInfo(object):
 
         runable_subsets = set()
         exclude_subsets = set()
-        usable_subsets = [key for key in self.info_subsets.keys() if version >= self.info_subsets[key]['min_version']]
+        usable_subsets = [key for key in self.info_subsets if version >= self.info_subsets[key]['min_version']]
         if 'help' in gather_subset:
             return usable_subsets
         for subset in gather_subset:
@@ -1544,7 +1563,7 @@ class NetAppONTAPGatherInfo(object):
 
     def get_summary(self, ontap_info):
         for info in ontap_info:
-            if '_info' in info and ontap_info[info] is not None and type(ontap_info[info]) is dict:
+            if '_info' in info and ontap_info[info] is not None and isinstance(ontap_info[info], dict):
                 # don't summarize errors
                 if 'error' not in ontap_info[info]:
                     ontap_info[info] = ontap_info[info].keys()
@@ -1590,7 +1609,7 @@ class NetAppONTAPGatherInfo(object):
             for key in generic_flags:
                 if key in error_flags:
                     self.module.fail_json(msg="%s needs to be the only keyword in 'continue_on_error' option." % key)
-        specific_flags = ('rpc_error', 'missing_vserver_api_error', 'other_error')
+        specific_flags = ('rpc_error', 'missing_vserver_api_error', 'key_error', 'other_error')
         for key in error_flags:
             if key not in generic_flags and key not in specific_flags:
                 self.module.fail_json(msg="%s is not a valid keyword in 'continue_on_error' option." % key)
