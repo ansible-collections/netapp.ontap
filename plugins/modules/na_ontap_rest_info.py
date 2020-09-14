@@ -39,6 +39,10 @@ options:
                 to a given subset.  Either the info name or the Rest API can be given.
                 Possible values for this argument include
                 "aggregate_info" or "storage/aggregates",
+                "application_info" or "application/applications",
+                "application_template_info" or "application/templates",
+                "autosupport_config_info" or "support/autosupport",
+                "autosupport_messages_history" or "support/autosupport/messages",
                 "broadcast_domains_info" or "network/ethernet/broadcast-domains",
                 "cifs_services_info" or "protocols/cifs/services",
                 "cifs_share_info" or "protocols/cifs/shares",
@@ -58,14 +62,27 @@ options:
                 "ip_service_policies" or "network/ip/service-policies",
                 "network_ipspaces_info" or "network/ipspaces",
                 "network_ports_info" or "network/ethernet/ports",
+                "ontap_system_version" or "cluster/software",
                 "san_fc_logins_info" or "network/fc/logins",
                 "san_fc_wppn-aliases" or "network/fc/wwpn-aliases",
                 "san_fcp_services" or "protocols/san/fcp/services",
                 "san_iscsi_credentials" or "protocols/san/iscsi/credentials",
                 "san_iscsi_services" or "protocols/san/iscsi/services",
                 "san_lun_maps" or "protocols/san/lun-maps",
+                "storage_flexcaches_info" or "storage/flexcache/flexcaches",
+                "storage_flexcaches_origin_info" or "storage/flexcache/origins",
                 "storage_luns_info" or "storage/luns",
                 "storage_NVMe_namespaces" or "storage/namespaces",
+                "storage_ports_info" or "storage/ports",
+                "storage_qos_policies" or "storage/qos/policies",
+                "storage_qtrees_config" or "storage/qtrees",
+                "storage_quota_reports" or "storage/quota/reports",
+                "storage_quota_policy_rules" or "storage/quota/rules",
+                "storage_shelves_config" or "storage/shelves",
+                "storage_snapshot_policies" or "storage/snapshot-policies",
+                "support_ems_config" or "support/ems",
+                "support_ems_events" or "support/ems/events",
+                "support_ems_filters" or "support/ems/filters",
                 "svm_dns_config_info" or "name-services/dns",
                 "svm_ldap_config_info" or "name-services/ldap",
                 "svm_name_mapping_config_info" or "name-services/name-mappings",
@@ -273,6 +290,10 @@ class NetAppONTAPGatherInfo(object):
         """
         info_to_rest_mapping = {
             "aggregate_info": "storage/aggregates",
+            "application_info": "application/applications",
+            "application_template_info": "application/templates",
+            "autosupport_config_info": "support/autosupport",
+            "autosupport_messages_history": "support/autosupport/messages",
             "broadcast_domains_info": "network/ethernet/broadcast-domains",
             "cifs_services_info": "protocols/cifs/services",
             "cifs_share_info": "protocols/cifs/shares",
@@ -293,14 +314,27 @@ class NetAppONTAPGatherInfo(object):
             "ip_service_policies": "network/ip/service-policies",
             "network_ipspaces_info": "network/ipspaces",
             "network_ports_info": "network/ethernet/ports",
+            "ontap_system_version": "cluster/software",
             "san_fc_logins_info": "network/fc/logins",
             "san_fc_wppn-aliases": "network/fc/wwpn-aliases",
             "san_fcp_services": "protocols/san/fcp/services",
             "san_iscsi_credentials": "protocols/san/iscsi/credentials",
             "san_iscsi_services": "protocols/san/iscsi/services",
             "san_lun_maps": "protocols/san/lun-maps",
+            "storage_flexcaches_info": "storage/flexcache/flexcaches",
+            "storage_flexcaches_origin_info": "storage/flexcache/origins",
             "storage_luns_info": "storage/luns",
             "storage_NVMe_namespaces": "storage/namespaces",
+            "storage_ports_info": "storage/ports",
+            "storage_qos_policies": "storage/qos/policies",
+            "storage_qtrees_config": "storage/qtrees",
+            "storage_quota_reports": "storage/quota/reports",
+            "storage_quota_policy_rules": "storage/quota/rules",
+            "storage_shelves_config": "storage/shelves",
+            "storage_snapshot_policies": "storage/snapshot-policies",
+            "support_ems_config": "support/ems",
+            "support_ems_events": "support/ems/events",
+            "support_ems_filters": "support/ems/filters",
             "svm_dns_config_info": "name-services/dns",
             "svm_ldap_config_info": "name-services/ldap",
             "svm_name_mapping_config_info": "name-services/name-mappings",
@@ -333,6 +367,12 @@ class NetAppONTAPGatherInfo(object):
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
+            'application/applications': {
+                'api_call': 'application/applications',
+            },
+            'application/templates': {
+                'api_call': 'application/templates',
+            },
             'cloud/targets': {
                 'api_call': 'cloud/targets',
             },
@@ -357,6 +397,9 @@ class NetAppONTAPGatherInfo(object):
             },
             'cluster/schedules': {
                 'api_call': 'cluster/schedules',
+            },
+            'cluster/software': {
+                'api_call': 'cluster/software',
             },
             'cluster/software/history': {
                 'api_call': 'cluster/software/history',
@@ -427,14 +470,56 @@ class NetAppONTAPGatherInfo(object):
             'storage/disks': {
                 'api_call': 'storage/disks',
             },
+            'storage/flexcache/flexcaches': {
+                'api_call': 'storage/flexcache/flexcaches',
+            },
+            'storage/flexcache/origins': {
+                'api_call': 'storage/flexcache/origins',
+            },
             'storage/luns': {
                 'api_call': 'storage/luns',
             },
             'storage/namespaces': {
                 'api_call': 'storage/namespaces',
             },
+            'storage/ports': {
+                'api_call': 'storage/ports',
+            },
+            'storage/qos/policies': {
+                'api_call': 'storage/qos/policies',
+            },
+            'storage/qtrees': {
+                'api_call': 'storage/qtrees',
+            },
+            'storage/quota/reports': {
+                'api_call': 'storage/quota/reports',
+            },
+            'storage/quota/rules': {
+                'api_call': 'storage/quota/rules',
+            },
+            'storage/shelves': {
+                'api_call': 'storage/shelves',
+            },
+            'storage/snapshot-policies': {
+                'api_call': 'storage/snapshot-policies',
+            },
             'storage/volumes': {
                 'api_call': 'storage/volumes',
+            },
+            'support/autosupport': {
+                'api_call': 'support/autosupport',
+            },
+            'support/autosupport/messages': {
+                'api_call': 'support/autosupport/messages',
+            },
+            'support/ems': {
+                'api_call': 'support/ems',
+            },
+            'support/ems/events': {
+                'api_call': 'support/ems/events',
+            },
+            'support/ems/filters': {
+                'api_call': 'support/ems/filters',
             },
             'svm/peers': {
                 'api_call': 'svm/peers',
