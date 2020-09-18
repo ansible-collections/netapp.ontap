@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_aggregate
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -417,7 +421,7 @@ class NetAppOntapAggregate(object):
                      for disk_info in attr.get_children()]
         return disks
 
-    def object_store_get_iter(self):
+    def object_store_get_iter(self, name):
         """
         Return aggr-object-store-get query results
         :return: NaElement if object-store for given aggregate found, None otherwise
@@ -426,7 +430,7 @@ class NetAppOntapAggregate(object):
         object_store_get_iter = netapp_utils.zapi.NaElement('aggr-object-store-get-iter')
         query_details = netapp_utils.zapi.NaElement.create_node_with_children(
             'object-store-information', **{'object-store-name': self.parameters.get('object_store_name'),
-                                           'aggregate': self.parameters.get('name')})
+                                           'aggregate': name})
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(query_details)
         object_store_get_iter.add_child_elem(query)
@@ -437,14 +441,14 @@ class NetAppOntapAggregate(object):
             self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
         return result
 
-    def get_object_store(self):
+    def get_object_store(self, name):
         """
         Fetch details if object store attached to the given aggregate exists.
         :return:
             Dictionary of current details if object store attached to the given aggregate is found
             None if object store is not found
         """
-        object_store_get = self.object_store_get_iter()
+        object_store_get = self.object_store_get_iter(name)
         if (object_store_get and object_store_get.get_child_by_name('num-records') and
                 int(object_store_get.get_child_content('num-records')) >= 1):
             current_object_store = dict()
@@ -554,10 +558,10 @@ class NetAppOntapAggregate(object):
             if current is not None and current.get('disk_count') != self.parameters.get('disk_count'):
                 self.module.exit_json(changed=self.na_helper.changed,
                                       warnings="Aggregate created with mismatched disk_count: created %s not %s"
-                                               % (current.get('disk_count'), self.parameters.get('disk_count')))
+                                      % (current.get('disk_count'), self.parameters.get('disk_count')))
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error provisioning aggregate %s: %s"
-                                      % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def delete_aggr(self):
@@ -587,7 +591,7 @@ class NetAppOntapAggregate(object):
             self.server.invoke_successfully(aggr_rename, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error renaming aggregate %s: %s"
-                                      % (self.parameters['from_name'], to_native(error)),
+                                  % (self.parameters['from_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def modify_aggr(self, modify):
@@ -626,7 +630,7 @@ class NetAppOntapAggregate(object):
                                             enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error attaching object store %s to aggregate %s: %s" %
-                                      (self.parameters['object_store_name'], self.parameters['name'], to_native(error)),
+                                  (self.parameters['object_store_name'], self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def add_disks(self, count=0, disks=None, mirror_disks=None, disk_size=0, disk_size_with_unit=None):
@@ -756,20 +760,25 @@ class NetAppOntapAggregate(object):
         """
         self.asup_log_for_cserver("na_ontap_aggregate")
         object_store_cd_action = None
+        aggr_name = self.parameters['name']
         current = self.get_aggr()
         # rename and create are mutually exclusive
         rename, cd_action, object_store_current = None, None, None
         if self.parameters.get('from_name'):
-            rename = self.na_helper.is_rename_action(self.get_aggr(self.parameters['from_name']), current)
+            old_aggr = self.get_aggr(self.parameters['from_name'])
+            rename = self.na_helper.is_rename_action(old_aggr, current)
             if rename is None:
                 self.module.fail_json(msg="Error renaming: aggregate %s does not exist" % self.parameters['from_name'])
+            if rename:
+                current = old_aggr
+                aggr_name = self.parameters['from_name']
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if cd_action is None and self.parameters.get('disks') and current is not None:
             modify['disks_to_add'], modify['mirror_disks_to_add'] = \
-                self.get_disks_to_add(self.parameters['name'], self.parameters['disks'], self.parameters.get('mirror_disks'))
+                self.get_disks_to_add(aggr_name, self.parameters['disks'], self.parameters.get('mirror_disks'))
 
         if modify.get('disk_count'):
             if int(modify['disk_count']) < int(current['disk_count']):
@@ -777,26 +786,28 @@ class NetAppOntapAggregate(object):
             else:
                 modify['disk_count'] = modify['disk_count'] - current['disk_count']
 
-        if self.parameters.get('object_store_name') and cd_action is None and rename is None:
-            object_store_current = self.get_object_store()
-            object_store_cd_action = self.na_helper.get_cd_action(object_store_current,
-                                                                  self.parameters.get('object_store_name'))
+        if self.parameters.get('object_store_name'):
+            object_store_current = None
+            if current:
+                object_store_current = self.get_object_store(aggr_name)
+            object_store_cd_action = self.na_helper.get_cd_action(object_store_current, self.parameters.get('object_store_name'))
+            if object_store_cd_action is None and object_store_current is not None\
+                    and object_store_current['object_store_name'] != self.parameters.get('object_store_name'):
+                self.module.fail_json(msg='Error: object store %s is already associated with aggregate %s.' %
+                                      (object_store_current['object_store_name'], aggr_name))
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_aggr()
+            elif cd_action == 'delete':
+                self.delete_aggr()
             else:
                 if rename:
                     self.rename_aggregate()
-                elif cd_action == 'create':
-                    self.create_aggr()
-                elif cd_action == 'delete':
-                    self.delete_aggr()
-                else:
-                    if modify:
-                        self.modify_aggr(modify)
-                    if object_store_cd_action is not None:
-                        self.attach_object_store_to_aggr()
+                if modify:
+                    self.modify_aggr(modify)
+            if object_store_cd_action == 'create':
+                self.attach_object_store_to_aggr()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

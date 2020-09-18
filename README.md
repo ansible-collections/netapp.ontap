@@ -28,6 +28,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_rest_info: Support for gather subsets - `application_info, application_template_info, autosupport_config_info , autosupport_messages_history, ontap_system_version, storage_flexcaches_info, storage_flexcaches_origin_info, storage_ports_info, storage_qos_policies, storage_qtrees_config, storage_quota_reports, storage_quota_policy_rules, storage_shelves_config, storage_snapshot_policies, support_ems_config, support_ems_events, support_ems_filters`
 
 ### Bug fixes
+- na_ontap_aggregate: support concurrent actions for rename/modify/add_object_store and create/add_object_store.
 - na_ontap_info: better reporting on KeyError traceback, option to ignore error.
 
 ## 20.9.0

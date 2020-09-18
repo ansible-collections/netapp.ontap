@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_aggregate \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -50,6 +48,10 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
+AGGR_NAME = 'aggr_name'
+OS_NAME = 'abc'
+
+
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
@@ -60,39 +62,65 @@ class MockONTAPConnection(object):
         self.parm2 = parm2
         self.xml_in = None
         self.xml_out = None
+        self.zapis = list()
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         print('request:', xml.to_string())
-        if self.type in ('aggregate', 'aggr_disks', 'aggr_mirrors'):
-            xml = self.build_aggregate_info(self.parm1, self.parm2)
+        zapi = xml.get_name()
+        self.zapis.append(zapi)
+        if zapi == 'aggr-object-store-get-iter':
+            if self.type in ('aggregate_no_object_store',):
+                xml = None
+            else:
+                xml = self.build_object_store_info()
+        elif self.type in ('aggregate', 'aggr_disks', 'aggr_mirrors', 'aggregate_no_object_store'):
+            with_os = self.type != 'aggregate_no_object_store'
+            xml = self.build_aggregate_info(self.parm1, self.parm2, with_object_store=with_os)
             if self.type in ('aggr_disks', 'aggr_mirrors'):
                 self.type = 'disks'
+        elif self.type == 'no_aggregate':
+            xml = None
+        elif self.type == 'no_aggregate_then_aggregate':
+            xml = None
+            self.type = 'aggregate'
         elif self.type == 'disks':
-            xml = self.build_disk_info(self.parm2)
+            xml = self.build_disk_info()
         elif self.type == 'aggregate_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
 
     @staticmethod
-    def build_aggregate_info(vserver, aggregate):
+    def build_aggregate_info(vserver, aggregate, with_object_store):
         ''' build xml data for aggregate and vserser-info '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 3,
                 'attributes-list':
                     {'aggr-attributes':
-                        {'aggregate-name': aggregate,
-                         'aggr-raid-attributes':
-                             {'state': 'offline'
-                              }
-                         },
-                     'object-store-information':
-                        {'object-store-name': 'abc'}
+                     {'aggregate-name': aggregate,
+                      'aggr-raid-attributes': {'state': 'offline'}
+                      },
+                     'object-store-information': {'object-store-name': 'abc'}
                      },
                 'vserver-info':
                     {'vserver-name': vserver
+                     }
+                }
+        if not with_object_store:
+            del data['attributes-list']['object-store-information']
+        xml.translate_struct(data)
+        print(xml.to_string())
+        return xml
+
+    @staticmethod
+    def build_object_store_info():
+        ''' build xml data for object_store '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'num-records': 3,
+                'attributes-list':
+                    {'object-store-information': {'object-store-name': 'abc'}
                      }
                 }
         xml.translate_struct(data)
@@ -100,43 +128,35 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_disk_info(vserver):
+    def build_disk_info():
         ''' build xml data for disk '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
                 'attributes-list': [
                     {'disk-info':
-                        {'disk-name': '1',
-                         'disk-raid-info':
-                            {'disk-aggregate-info':
-                                {'plex-name': 'plex0'}
-                             }
-                         }
-                     },
+                     {'disk-name': '1',
+                      'disk-raid-info':
+                      {'disk-aggregate-info':
+                       {'plex-name': 'plex0'}
+                       }}},
                     {'disk-info':
-                        {'disk-name': '2',
-                         'disk-raid-info':
-                            {'disk-aggregate-info':
-                                {'plex-name': 'plex0'}
-                             }
-                         }
-                     },
+                     {'disk-name': '2',
+                      'disk-raid-info':
+                      {'disk-aggregate-info':
+                       {'plex-name': 'plex0'}
+                       }}},
                     {'disk-info':
-                        {'disk-name': '3',
-                         'disk-raid-info':
-                            {'disk-aggregate-info':
-                                {'plex-name': 'plexM'}
-                             }
-                         }
-                     },
+                     {'disk-name': '3',
+                      'disk-raid-info':
+                      {'disk-aggregate-info':
+                       {'plex-name': 'plexM'}
+                       }}},
                     {'disk-info':
-                        {'disk-name': '4',
-                         'disk-raid-info':
-                            {'disk-aggregate-info':
-                                {'plex-name': 'plexM'}
-                             }
-                         }
-                     },
+                     {'disk-name': '4',
+                      'disk-raid-info':
+                      {'disk-aggregate-info':
+                       {'plex-name': 'plexM'}
+                       }}},
                 ]}
         xml.translate_struct(data)
         print(xml.to_string())
@@ -155,6 +175,7 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection('aggregate', '12', 'name')
         # whether to use a mock or a simulator
         self.onbox = False
+        self.zapis = list()
 
     def set_default_args(self):
         if self.onbox:
@@ -166,7 +187,7 @@ class TestMyModule(unittest.TestCase):
             hostname = 'hostname'
             username = 'username'
             password = 'password'
-            name = 'aggr_name'
+            name = AGGR_NAME
         return dict({
             'hostname': hostname,
             'username': username,
@@ -176,8 +197,9 @@ class TestMyModule(unittest.TestCase):
 
     def call_command(self, module_args, what=None):
         ''' utility function to call apply '''
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
+        args = dict(self.set_default_args())
+        args.update(module_args)
+        set_module_args(args)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         aggregate = 'aggregate'
@@ -185,10 +207,13 @@ class TestMyModule(unittest.TestCase):
             aggregate = 'aggr_disks'
         elif what == 'mirrors':
             aggregate = 'aggr_mirrors'
+        elif what is not None:
+            aggregate = what
 
         if not self.onbox:
             # mock the connection
-            my_obj.server = MockONTAPConnection(aggregate, '12', 'test_name')
+            my_obj.server = MockONTAPConnection(aggregate, '12', AGGR_NAME)
+            self.zapis = my_obj.server.zapis
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         return exc.value.args[0]['changed']
@@ -199,6 +224,25 @@ class TestMyModule(unittest.TestCase):
             set_module_args({})
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
+
+    def test_create(self):
+        module_args = {
+            'disk_count': '2',
+            'is_mirrored': 'true',
+        }
+        changed = self.call_command(module_args, what='no_aggregate')
+        assert changed
+        assert 'aggr-object-store-attach' not in self.zapis
+
+    def test_create_with_object_store(self):
+        module_args = {
+            'disk_count': '2',
+            'is_mirrored': 'true',
+            'object_store_name': 'abc'
+        }
+        changed = self.call_command(module_args, what='no_aggregate')
+        assert changed
+        assert 'aggr-object-store-attach' in self.zapis
 
     def test_is_mirrored(self):
         module_args = {
@@ -235,15 +279,49 @@ class TestMyModule(unittest.TestCase):
         module_args = {
             'from_name': 'test_name2'
         }
-        changed = self.call_command(module_args)
+        changed = self.call_command(module_args, 'no_aggregate_then_aggregate')
+        assert changed
+        assert 'aggr-rename' in self.zapis
+
+    def test_rename_error_no_from(self):
+        module_args = {
+            'from_name': 'test_name2'
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args, 'no_aggregate')
+        msg = 'Error renaming: aggregate %s does not exist' % module_args['from_name']
+        assert msg in exc.value.args[0]['msg']
+
+    def test_rename_with_add_object_store(self):
+        module_args = {
+            'from_name': 'test_name2'
+        }
+        changed = self.call_command(module_args, 'aggregate_no_object_store')
         assert not changed
 
-    def test_object_store(self):
+    def test_object_store_present(self):
         module_args = {
             'object_store_name': 'abc'
         }
         changed = self.call_command(module_args)
         assert not changed
+
+    def test_object_store_create(self):
+        module_args = {
+            'object_store_name': 'abc'
+        }
+        changed = self.call_command(module_args, 'aggregate_no_object_store')
+        assert changed
+
+    def test_object_store_modify(self):
+        ''' not supported '''
+        module_args = {
+            'object_store_name': 'def'
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.call_command(module_args)
+        msg = 'Error: object store %s is already associated with aggregate %s.' % (OS_NAME, AGGR_NAME)
+        assert msg in exc.value.args[0]['msg']
 
     def test_if_all_methods_catch_exception(self):
         module_args = {}
@@ -284,7 +362,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error mapping disks for aggregate %s: cannot not match disks with current aggregate disks." % module_args['name']
+        msg = "Error mapping disks for aggregate %s: cannot not match disks with current aggregate disks." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
 
     def test_disks_overlapping_mirror(self):
@@ -293,7 +371,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error mapping disks for aggregate %s: found overlapping plexes:" % module_args['name']
+        msg = "Error mapping disks for aggregate %s: found overlapping plexes:" % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
 
     def test_disks_removing_disk(self):
@@ -302,7 +380,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['2']." % module_args['name']
+        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['2']." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
 
     def test_disks_removing_mirror_disk(self):
@@ -312,7 +390,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['3']." % module_args['name']
+        msg = "Error removing disks is not supported.  Aggregate %s: these disks cannot be removed: ['3']." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
 
     def test_disks_add(self):
@@ -337,5 +415,5 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error cannot add mirror disks ['6'] without adding disks for aggregate %s." % module_args['name']
+        msg = "Error cannot add mirror disks ['6'] without adding disks for aggregate %s." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
