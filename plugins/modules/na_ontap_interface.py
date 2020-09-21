@@ -182,7 +182,9 @@ EXAMPLES = '''
         home_port: e0d
         home_node: laurentn-vsim1
         role: data
-        protocols: nfs
+        protocols: 
+          - nfs
+          - cifs
         admin_status: up
         failover_policy: local-only
         firewall_policy: mgmt
