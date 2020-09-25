@@ -3,6 +3,10 @@
 # (c) 2017-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_cluster
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -262,15 +266,14 @@ class NetAppONTAPCluster(object):
         nodes = self.get_cluster_ip_addresses(cluster_ip_address, ignore_error=ignore_error)
         return nodes if len(nodes) > 0 else None
 
-    def create_cluster(self):
+    def create_cluster(self, older_api=False):
         """
         Create a cluster
         """
-        dummy, minor = self.server.get_api_version()
         # Note: cannot use node_name here:
         # 13001:The "-node-names" parameter must be used with either the "-node-uuids" or the "-cluster-ips" parameters.
         options = {'cluster-name': self.parameters['cluster_name']}
-        if minor >= 140:
+        if not older_api:
             options['single-node-cluster'] = str(self.parameters.get('single_node_cluster'))
         cluster_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'cluster-create', **options)
@@ -278,6 +281,8 @@ class NetAppONTAPCluster(object):
             self.server.invoke_successfully(cluster_create,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
+            if error.message == "Extra input: single-node-cluster" and not older_api:
+                return self.create_cluster(older_api=True)
             # Error 36503 denotes node already being used.
             if to_native(error.code) == "36503":
                 return False
@@ -309,7 +314,7 @@ class NetAppONTAPCluster(object):
         try:
             self.server.invoke_successfully(cluster_add_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            if error.message == "Extra input: cluster-ips":
+            if error.message == "Extra input: cluster-ips" and not older_api:
                 return self.add_node(older_api=True)
             # skip if error says no failed operations to retry.
             if to_native(error) == "NetApp API failed. Reason - 13001:There are no failed \"cluster create\" or \"cluster add-node\" operations to retry.":

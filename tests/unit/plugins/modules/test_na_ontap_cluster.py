@@ -66,13 +66,17 @@ class MockONTAPConnection(object):
             xml = self.build_cluster_info_success()
         elif self.type == 'cluster_add':
             xml = self.build_add_node_info()
+        elif self.type == 'cluster_extra_input':
+            self.type = 'cluster'   # success on second call
+            raise netapp_utils.zapi.NaApiError(code='TEST1', message="Extra input: single-node-cluster")
+        elif self.type == 'cluster_extra_input_loop':
+            raise netapp_utils.zapi.NaApiError(code='TEST2', message="Extra input: single-node-cluster")
+        elif self.type == 'cluster_extra_input_other':
+            raise netapp_utils.zapi.NaApiError(code='TEST3', message="Extra input: other-unexpected-element")
         elif self.type == 'cluster_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
+            raise netapp_utils.zapi.NaApiError(code='TEST4', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
-
-    def get_api_version(self):
-        return 1, 130
 
     def autosupport_log(self):
         ''' mock autosupport log'''
@@ -193,6 +197,56 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         cluster_create.assert_called_with()
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    def test_cluster_create_old_api(self, get_cl_id):
+        ''' creating cluster'''
+        get_cl_id.return_value = None
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_extra_input')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    def test_cluster_create_old_api_loop(self, get_cl_id):
+        ''' creating cluster'''
+        get_cl_id.return_value = None
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_extra_input_loop')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = 'TEST2:Extra input: single-node-cluster'
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
+    def test_cluster_create_old_api_other_extra(self, get_cl_id):
+        ''' creating cluster'''
+        get_cl_id.return_value = None
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('cluster_extra_input_other')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = 'TEST3:Extra input: other-unexpected-element'
+        print('Info: test_cluster_apply: %s' % repr(exc.value))
+        assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
