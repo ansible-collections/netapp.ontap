@@ -46,7 +46,7 @@ options:
   single_node_cluster:
     description:
     - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
-    default: False
+    - If present, it was observed that 'Cluster' interfaces were deleted, whatever the value.
     version_added: 19.11.0
     type: bool
   cluster_location:
@@ -152,7 +152,7 @@ class NetAppONTAPCluster(object):
             cluster_ip_address=dict(required=False, type='str'),
             cluster_location=dict(required=False, type='str'),
             cluster_contact=dict(required=False, type='str'),
-            single_node_cluster=dict(required=False, type='bool', default=False),
+            single_node_cluster=dict(required=False, type='bool'),
             node_name=dict(required=False, type='str')
         ))
 
@@ -273,8 +273,8 @@ class NetAppONTAPCluster(object):
         # Note: cannot use node_name here:
         # 13001:The "-node-names" parameter must be used with either the "-node-uuids" or the "-cluster-ips" parameters.
         options = {'cluster-name': self.parameters['cluster_name']}
-        if not older_api:
-            options['single-node-cluster'] = str(self.parameters.get('single_node_cluster'))
+        if not older_api and self.parameters.get('single_node_cluster') is not None:
+            options['single-node-cluster'] = str(self.parameters['single_node_cluster']).lower()
         cluster_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'cluster-create', **options)
         try:
