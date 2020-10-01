@@ -1625,6 +1625,8 @@ class NetAppONTAPGatherInfo(object):
 def __finditem(obj, key):
 
     if key in obj:
+        if obj[key] is None:
+            return "None"
         return obj[key]
     for dummy, val in obj.items():
         if isinstance(val, dict):

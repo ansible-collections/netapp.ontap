@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_aggregate: support concurrent actions for rename/modify/add_object_store and create/add_object_store.
 - na_ontap_cluster: `single_node_cluster` option was ignored.
 - na_ontap_info: better reporting on KeyError traceback, option to ignore error.
+- na_ontap_info: KeyError on `tree` for quota_report_info.
 
 ## 20.9.0
 
