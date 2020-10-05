@@ -32,6 +32,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 - na_ontap_cluster: `single_node_cluster` option was ignored.
 - na_ontap_info: better reporting on KeyError traceback, option to ignore error.
 - na_ontap_info: KeyError on `tree` for quota_report_info.
+- na_ontap_snapmirror_policy: report error when attempting to change `policy_type` rather than taking no action.
 
 ## 20.9.0
 

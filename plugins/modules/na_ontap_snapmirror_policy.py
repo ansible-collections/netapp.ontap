@@ -3,6 +3,10 @@
 # (c) 2019-2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_snapmirror_policy
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -271,12 +275,12 @@ class NetAppOntapSnapMirrorPolicy(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # API should be used for ONTAP 9.6 or higher, Zapi for lower version
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['owner', 'restart', 'transfer_priority', 'tries', 'ignore_atime',
                                        'common_snapshot_schedule']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
 
         if error:
             self.module.fail_json(msg=error)
@@ -293,7 +297,7 @@ class NetAppOntapSnapMirrorPolicy(object):
                     'name': self.parameters['policy_name'],
                     'svm.name': self.parameters['vserver']}
             api = "snapmirror/policies"
-            message, error = self.restApi.get(api, data)
+            message, error = self.rest_api.get(api, data)
             if error:
                 self.module.fail_json(msg=error)
             if len(message['records']) != 0:
@@ -467,11 +471,11 @@ class NetAppOntapSnapMirrorPolicy(object):
             else:
                 data = self.create_snapmirror_policy_obj_for_rest(data)
             api = "snapmirror/policies"
-            response, error = self.restApi.post(api, data)
+            response, error = self.rest_api.post(api, data)
             if error:
                 self.module.fail_json(msg=error)
             if 'job' in response:
-                self.restApi.wait_on_job(response['job'], increment=5)
+                self.rest_api.wait_on_job(response['job'], increment=5)
         else:
             snapmirror_policy_obj = netapp_utils.zapi.NaElement("snapmirror-policy-create")
             snapmirror_policy_obj.add_new_child("policy-name", self.parameters['policy_name'])
@@ -540,7 +544,7 @@ class NetAppOntapSnapMirrorPolicy(object):
         if self.use_rest:
             api = "snapmirror/policies"
             data = {'uuid': uuid}
-            dummy, error = self.restApi.delete(api, data)
+            dummy, error = self.rest_api.delete(api, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -560,7 +564,7 @@ class NetAppOntapSnapMirrorPolicy(object):
         if self.use_rest:
             api = "snapmirror/policies/" + uuid
             data = self.create_snapmirror_policy_obj_for_rest(dict(), policy_type)
-            dummy, error = self.restApi.patch(api, data)
+            dummy, error = self.rest_api.patch(api, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -731,7 +735,7 @@ class NetAppOntapSnapMirrorPolicy(object):
 
             # As rule 'prefix' can't be unset, have to delete existing rules first.
             # Builtin rules remain.
-            dummy, error = self.restApi.patch(api, data)
+            dummy, error = self.rest_api.patch(api, data)
             if error:
                 self.module.fail_json(msg=error)
 
@@ -740,7 +744,7 @@ class NetAppOntapSnapMirrorPolicy(object):
             data['retention'] = self.create_snapmirror_policy_retention_obj_for_rest(rules)
 
             if len(data['retention']) > 0:
-                dummy, error = self.restApi.patch(api, data)
+                dummy, error = self.rest_api.patch(api, data)
                 if error:
                     self.module.fail_json(msg=error)
         else:
@@ -789,6 +793,9 @@ class NetAppOntapSnapMirrorPolicy(object):
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if current and cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if 'policy_type' in modify:
+                self.module.fail_json(msg='Error: policy type cannot be changed: current=%s, expected=%s' %
+                                      (current.get('policy_type'), modify['policy_type']))
 
         if self.na_helper.changed:
             if self.module.check_mode:
