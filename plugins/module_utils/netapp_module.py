@@ -31,31 +31,31 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from copy import deepcopy
 import re
+import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 
-def cmp(a, b):
+def cmp(obj1, obj2):
     """
     Python 3 does not have a cmp function, this will do the cmp.
-    :param a: first object to check
-    :param b: second object to check
+    :param obj1: first object to check
+    :param obj2: second object to check
     :return:
     """
     # convert to lower case for string comparison.
-    if a is None:
+    if obj1 is None:
         return -1
-    if type(a) is str and type(b) is str:
-        a = a.lower()
-        b = b.lower()
+    if isinstance(obj1, str) and isinstance(obj2, str):
+        obj1 = obj1.lower()
+        obj2 = obj2.lower()
     # if list has string element, convert string to lower case.
-    if type(a) is list and type(b) is list:
-        a = [x.lower() if type(x) is str else x for x in a]
-        b = [x.lower() if type(x) is str else x for x in b]
-        a.sort()
-        b.sort()
-    return (a > b) - (a < b)
+    if isinstance(obj1, list) and isinstance(obj2, list):
+        obj1 = [x.lower() if isinstance(x, str) else x for x in obj1]
+        obj2 = [x.lower() if isinstance(x, str) else x for x in obj2]
+        obj1.sort()
+        obj2.sort()
+    return (obj1 > obj2) - (obj1 < obj2)
 
 
 class NetAppModule(object):
@@ -94,7 +94,11 @@ class NetAppModule(object):
                 module.fail_json(msg="%s requires a value, got: None" % param)
         return self.parameters
 
-    def get_value_for_bool(self, from_zapi, value):
+    @staticmethod
+    def type_error_message(type_str, key, value):
+        return "expecting '%s' type for %s: %s, got: %s" % (type_str, repr(key), repr(value), type(value))
+
+    def get_value_for_bool(self, from_zapi, value, key=None):
         """
         Convert boolean values to string or vice-versa
         If from_zapi = True, value is converted from string (as it appears in ZAPI) to boolean
@@ -103,16 +107,22 @@ class NetAppModule(object):
         For modify(), create(), from_zapi = False
         :param from_zapi: convert the value from ZAPI or to ZAPI acceptable type
         :param value: value of the boolean attribute
+        :param key: if present, force error checking to validate type, and accepted values
         :return: string or boolean
         """
         if value is None:
             return None
         if from_zapi:
-            return True if value == 'true' else False
-        else:
-            return 'true' if value else 'false'
+            if key is not None and not isinstance(value, str):
+                raise TypeError(self.type_error_message('str', key, value))
+            if key is not None and value not in ('true', 'false'):
+                raise ValueError('Unexpected value: %s received from ZAPI for boolean attribute: %s' % (repr(value), repr(key)))
+            return value == 'true'
+        if key is not None and not isinstance(value, bool):
+            raise TypeError(self.type_error_message('bool', key, value))
+        return 'true' if value else 'false'
 
-    def get_value_for_int(self, from_zapi, value):
+    def get_value_for_int(self, from_zapi, value, key=None):
         """
         Convert integer values to string or vice-versa
         If from_zapi = True, value is converted from string (as it appears in ZAPI) to integer
@@ -121,14 +131,18 @@ class NetAppModule(object):
         For modify(), create(), from_zapi = False
         :param from_zapi: convert the value from ZAPI or to ZAPI acceptable type
         :param value: value of the integer attribute
+        :param key: if present, force error checking to validate type
         :return: string or integer
         """
         if value is None:
             return None
         if from_zapi:
+            if key is not None and not isinstance(value, str):
+                raise TypeError(self.type_error_message('str', key, value))
             return int(value)
-        else:
-            return str(value)
+        if key is not None and not isinstance(value, int):
+            raise TypeError(self.type_error_message('int', key, value))
+        return str(value)
 
     def get_value_for_list(self, from_zapi, zapi_parent, zapi_child=None, data=None):
         """
@@ -144,13 +158,12 @@ class NetAppModule(object):
         if from_zapi:
             if zapi_parent is None:
                 return []
-            else:
-                return [zapi_child.get_content() for zapi_child in zapi_parent.get_children()]
-        else:
-            zapi_parent = netapp_utils.zapi.NaElement(zapi_parent)
-            for item in data:
-                zapi_parent.add_new_child(zapi_child, item)
-            return zapi_parent
+            return [zapi_child.get_content() for zapi_child in zapi_parent.get_children()]
+
+        zapi_parent = netapp_utils.zapi.NaElement(zapi_parent)
+        for item in data:
+            zapi_parent.add_new_child(zapi_child, item)
+        return zapi_parent
 
     def get_cd_action(self, current, desired):
         ''' takes a desired state and a current state, and return an action:
@@ -199,7 +212,6 @@ class NetAppModule(object):
             with the exception of:
             new_name, state in desired
         '''
-        pass
 
     @staticmethod
     def compare_lists(current, desired, get_list_diff):
@@ -265,12 +277,18 @@ class NetAppModule(object):
         # collect changed attributes
         for key, value in current.items():
             if key in desired and desired[key] is not None:
-                if type(value) is list:
+                if isinstance(value, list):
                     modified_list = self.compare_lists(value, desired[key], get_list_diff)  # get modified list from current and desired
                     if modified_list is not None:
                         modified[key] = modified_list
-                elif cmp(value, desired[key]) != 0:
-                    modified[key] = desired[key]
+                else:
+                    try:
+                        result = cmp(value, desired[key])
+                    except TypeError as exc:
+                        raise TypeError("%s, key: %s, value: %s, desired: %s" % (repr(exc), key, repr(value), repr(desired[key])))
+                    else:
+                        if result != 0:
+                            modified[key] = desired[key]
         if modified:
             self.changed = True
         return modified

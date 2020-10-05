@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_volume
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -583,10 +587,10 @@ RETURN = """
 
 import time
 import traceback
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
+import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -671,11 +675,6 @@ class NetAppOntapVolume(object):
         if self.parameters.get('size'):
             self.parameters['size'] = self.parameters['size'] * \
                 self._size_unit_map[self.parameters['size_unit']]
-        # ONTAP will return True and False as the string true and false.
-        if 'snapdir_access' in self.parameters:
-            self.parameters['snapdir_access'] = str(self.parameters['snapdir_access']).lower()
-        if 'atime_update' in self.parameters:
-            self.parameters['atime_update'] = str(self.parameters['atime_update']).lower()
         if 'snapshot_auto_delete' in self.parameters:
             for key in self.parameters['snapshot_auto_delete']:
                 if key not in ['commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
@@ -752,9 +751,10 @@ class NetAppOntapVolume(object):
                 'name': vol_name,
                 'size': int(volume_space_attributes['size']),
                 'is_online': is_online,
-                'unix_permissions': volume_security_unix_attributes['permissions'],
-                'snapshot_policy': volume_snapshot_attributes['snapshot-policy']
+                'unix_permissions': volume_security_unix_attributes['permissions']
             }
+            if volume_snapshot_attributes.get_child_by_name('snapshot-policy'):
+                return_value['snapshot_policy'] = volume_snapshot_attributes['snapshot-policy']
             if volume_export_attributes is not None:
                 return_value['policy'] = volume_export_attributes['policy']
             else:
@@ -768,15 +768,15 @@ class NetAppOntapVolume(object):
             if volume_comp_aggr_attributes is not None:
                 return_value['tiering_policy'] = volume_comp_aggr_attributes['tiering-policy']
             if volume_space_attributes.get_child_by_name('encrypt'):
-                return_value['encrypt'] = volume_attributes['encrypt']
+                return_value['encrypt'] = self.na_helper.get_value_for_bool(True, volume_space_attributes['encrypt'], 'encrypt')
             if volume_space_attributes.get_child_by_name('percentage-snapshot-reserve'):
                 return_value['percent_snapshot_space'] = int(volume_space_attributes['percentage-snapshot-reserve'])
             if volume_space_attributes.get_child_by_name('space-slo'):
                 return_value['space_slo'] = volume_space_attributes['space-slo']
             else:
                 return_value['space_slo'] = None
-            if volume_state_attributes.get_child_by_name('is-nvfail-enabled') is not None:
-                return_value['nvfail_enabled'] = volume_state_attributes['is-nvfail-enabled'] == 'true'
+            if volume_state_attributes.get_child_by_name('is-nvfail-enabled'):
+                return_value['nvfail_enabled'] = self.na_helper.get_value_for_bool(True, volume_state_attributes['is-nvfail-enabled'], 'is-nvfail-enabled')
             else:
                 return_value['nvfail_enabled'] = None
             if volume_id_attributes.get_child_by_name('containing-aggregate-name'):
@@ -803,11 +803,15 @@ class NetAppOntapVolume(object):
             else:
                 return_value['space_guarantee'] = None
             if volume_snapshot_attributes.get_child_by_name('snapdir-access-enabled'):
-                return_value['snapdir_access'] = volume_snapshot_attributes['snapdir-access-enabled']
+                return_value['snapdir_access'] = self.na_helper.get_value_for_bool(True,
+                                                                                   volume_snapshot_attributes['snapdir-access-enabled'],
+                                                                                   'snapdir-access-enabled')
             else:
                 return_value['snapdir_access'] = None
             if volume_performance_attributes.get_child_by_name('is-atime-update-enabled'):
-                return_value['atime_update'] = volume_performance_attributes['is-atime-update-enabled']
+                return_value['atime_update'] = self.na_helper.get_value_for_bool(True,
+                                                                                 volume_performance_attributes['is-atime-update-enabled'],
+                                                                                 'is-atime-update-enabled')
             else:
                 return_value['atime_update'] = None
             if volume_attributes.get_child_by_name('volume-qos-attributes'):
@@ -848,10 +852,10 @@ class NetAppOntapVolume(object):
             else:
                 auto_delete['destroy_list'] = None
             if volume_snapshot_auto_delete_attributes.get_child_by_name('is-autodelete-enabled'):
-                if volume_snapshot_auto_delete_attributes['is-autodelete-enabled'] == 'false':
-                    auto_delete['state'] = 'off'
-                else:
+                if self.na_helper.get_value_for_bool(True, volume_snapshot_auto_delete_attributes['is-autodelete-enabled'], 'is-autodelete-enabled'):
                     auto_delete['state'] = 'on'
+                else:
+                    auto_delete['state'] = 'off'
             else:
                 auto_delete['is_autodelete_enabled'] = None
             if volume_snapshot_auto_delete_attributes.get_child_by_name('prefix'):
@@ -941,11 +945,11 @@ class NetAppOntapVolume(object):
         options = {}
         if self.volume_style == 'flexGroup':
             options['volume-name'] = self.parameters['name']
-            if self.parameters.get('aggr_list_multiplier'):
+            if self.parameters.get('aggr_list_multiplier') is not None:
                 options['aggr-list-multiplier'] = str(self.parameters['aggr_list_multiplier'])
-            if self.parameters.get('auto_provision_as'):
+            if self.parameters.get('auto_provision_as') is not None:
                 options['auto-provision-as'] = self.parameters['auto_provision_as']
-            if self.parameters.get('space_guarantee'):
+            if self.parameters.get('space_guarantee') is not None:
                 options['space-guarantee'] = self.parameters['space_guarantee']
         else:
             options['volume'] = self.parameters['name']
@@ -953,12 +957,12 @@ class NetAppOntapVolume(object):
                 self.module.fail_json(msg='Error provisioning volume %s: aggregate_name is required'
                                       % self.parameters['name'])
             options['containing-aggr-name'] = self.parameters['aggregate_name']
-            if self.parameters.get('space_guarantee'):
+            if self.parameters.get('space_guarantee') is not None:
                 options['space-reserve'] = self.parameters['space_guarantee']
 
-        if self.parameters.get('size'):
+        if self.parameters.get('size') is not None:
             options['size'] = str(self.parameters['size'])
-        if self.parameters.get('snapshot_policy'):
+        if self.parameters.get('snapshot_policy') is not None:
             options['snapshot-policy'] = self.parameters['snapshot_policy']
         if self.parameters.get('unix_permissions') is not None:
             options['unix-permissions'] = self.parameters['unix_permissions']
@@ -966,33 +970,33 @@ class NetAppOntapVolume(object):
             options['group-id'] = str(self.parameters['group_id'])
         if self.parameters.get('user_id') is not None:
             options['user-id'] = str(self.parameters['user_id'])
-        if self.parameters.get('volume_security_style'):
+        if self.parameters.get('volume_security_style') is not None:
             options['volume-security-style'] = self.parameters['volume_security_style']
-        if self.parameters.get('policy'):
+        if self.parameters.get('policy') is not None:
             options['export-policy'] = self.parameters['policy']
-        if self.parameters.get('junction_path'):
+        if self.parameters.get('junction_path') is not None:
             options['junction-path'] = self.parameters['junction_path']
-        if self.parameters.get('comment'):
+        if self.parameters.get('comment') is not None:
             options['volume-comment'] = self.parameters['comment']
-        if self.parameters.get('type'):
+        if self.parameters.get('type') is not None:
             options['volume-type'] = self.parameters['type']
         if self.parameters.get('percent_snapshot_space') is not None:
             options['percentage-snapshot-reserve'] = str(self.parameters['percent_snapshot_space'])
-        if self.parameters.get('language'):
+        if self.parameters.get('language') is not None:
             options['language-code'] = self.parameters['language']
-        if self.parameters.get('qos_policy_group'):
+        if self.parameters.get('qos_policy_group') is not None:
             options['qos-policy-group-name'] = self.parameters['qos_policy_group']
-        if self.parameters.get('qos_adaptive_policy_group'):
+        if self.parameters.get('qos_adaptive_policy_group') is not None:
             options['qos-adaptive-policy-group-name'] = self.parameters['qos_adaptive_policy_group']
         if self.parameters.get('nvfail_enabled') is not None:
             options['is-nvfail-enabled'] = str(self.parameters['nvfail_enabled'])
-        if self.parameters.get('space_slo'):
+        if self.parameters.get('space_slo') is not None:
             options['space-slo'] = self.parameters['space_slo']
-        if self.parameters.get('tiering_policy'):
+        if self.parameters.get('tiering_policy') is not None:
             options['tiering-policy'] = self.parameters['tiering_policy']
-        if self.parameters.get('encrypt'):
-            options['encrypt'] = str(self.parameters['encrypt'])
-        if self.parameters.get('vserver_dr_protection'):
+        if self.parameters.get('encrypt') is not None:
+            options['encrypt'] = self.na_helper.get_value_for_bool(False, self.parameters['encrypt'], 'encrypt')
+        if self.parameters.get('vserver_dr_protection') is not None:
             options['vserver-dr-protection'] = self.parameters['vserver_dr_protection']
         if self.parameters['is_online']:
             options['volume-state'] = 'online'
@@ -1066,8 +1070,8 @@ class NetAppOntapVolume(object):
                 waiting = False
             if volume_move_status in ['failed', 'alert']:
                 self.module.fail_json(msg='Error moving volume %s: %s' %
-                                          (self.parameters['name'],
-                                           result.get_child_by_name('attributes-list')[0].get_child_by_name('details')))
+                                      (self.parameters['name'],
+                                       result.get_child_by_name('attributes-list')[0].get_child_by_name('details')))
             time.sleep(self.parameters['check_interval'])
 
     def rename_volume(self):
@@ -1165,7 +1169,6 @@ class NetAppOntapVolume(object):
         modify volume parameter 'policy','unix_permissions','snapshot_policy','space_guarantee', 'percent_snapshot_space',
                                 'qos_policy_group', 'qos_adaptive_policy_group'
         """
-        # TODO: refactor this method
         if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
             vol_mod_iter = netapp_utils.zapi.NaElement('volume-modify-iter-async')
         else:
@@ -1175,24 +1178,25 @@ class NetAppOntapVolume(object):
         # Volume-attributes is split in to 25 sub categories
         # volume-space-attributes
         vol_space_attributes = netapp_utils.zapi.NaElement('volume-space-attributes')
-        if self.parameters.get('space_guarantee'):
+        if self.parameters.get('space_guarantee') is not None:
             self.create_volume_attribute(vol_space_attributes, vol_mod_attributes,
                                          'space-guarantee', self.parameters['space_guarantee'])
         if self.parameters.get('percent_snapshot_space') is not None:
             self.create_volume_attribute(vol_space_attributes, vol_mod_attributes,
                                          'percentage-snapshot-reserve', str(self.parameters['percent_snapshot_space']))
-        if self.parameters.get('space_slo'):
+        if self.parameters.get('space_slo') is not None:
             self.create_volume_attribute(vol_space_attributes, vol_mod_attributes, 'space-slo', self.parameters['space_slo'])
         # volume-snapshot-attributes
         vol_snapshot_attributes = netapp_utils.zapi.NaElement('volume-snapshot-attributes')
-        if self.parameters.get('snapshot_policy'):
+        if self.parameters.get('snapshot_policy') is not None:
             self.create_volume_attribute(vol_snapshot_attributes, vol_mod_attributes,
                                          'snapshot-policy', self.parameters['snapshot_policy'])
-        if self.parameters.get('snapdir_access'):
+        if self.parameters.get('snapdir_access') is not None:
             self.create_volume_attribute(vol_snapshot_attributes, vol_mod_attributes,
-                                         'snapdir-access-enabled', self.parameters['snapdir_access'])
+                                         'snapdir-access-enabled',
+                                         self.na_helper.get_value_for_bool(False, self.parameters['snapdir_access'], 'snapdir_access'))
         # volume-export-attributes
-        if self.parameters.get('policy'):
+        if self.parameters.get('policy') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-export-attributes',
                                          'policy', self.parameters['policy'])
         # volume-security-attributes
@@ -1209,23 +1213,23 @@ class NetAppOntapVolume(object):
                 self.create_volume_attribute(vol_security_unix_attributes, vol_security_attributes,
                                              'user-id', str(self.parameters['user_id']))
             vol_mod_attributes.add_child_elem(vol_security_attributes)
-        if params and params.get('volume_security_style'):
+        if params and params.get('volume_security_style') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-security-attributes',
                                          'style', self.parameters['volume_security_style'])
 
         # volume-performance-attributes
-        if self.parameters.get('atime_update'):
+        if self.parameters.get('atime_update') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-performance-attributes',
-                                         'is-atime-update-enabled', self.parameters['atime_update'])
+                                         'is-atime-update-enabled', self.na_helper.get_value_for_bool(False, self.parameters['atime_update'], 'atime_update'))
         # volume-qos-attributes
-        if self.parameters.get('qos_policy_group'):
+        if self.parameters.get('qos_policy_group') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-qos-attributes',
                                          'policy-group-name', self.parameters['qos_policy_group'])
-        if self.parameters.get('qos_adaptive_policy_group'):
+        if self.parameters.get('qos_adaptive_policy_group') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-qos-attributes',
                                          'adaptive-policy-group-name', self.parameters['qos_adaptive_policy_group'])
         # volume-comp-aggr-attributes
-        if params and params.get('tiering_policy'):
+        if params and params.get('tiering_policy') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-comp-aggr-attributes',
                                          'tiering-policy', self.parameters['tiering_policy'])
         # volume-state-attributes
@@ -1303,8 +1307,8 @@ class NetAppOntapVolume(object):
             self.server.invoke_successfully(vol_mount, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error mounting volume %s on path %s: %s'
-                                      % (self.parameters['name'], self.parameters['junction_path'],
-                                         to_native(error)), exception=traceback.format_exc())
+                                  % (self.parameters['name'], self.parameters['junction_path'],
+                                     to_native(error)), exception=traceback.format_exc())
 
     def volume_unmount(self):
         """
@@ -1317,7 +1321,7 @@ class NetAppOntapVolume(object):
             self.server.invoke_successfully(vol_unmount, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error unmounting volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
+                                  % (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
 
     def modify_volume(self, modify):
         '''Modify volume action'''
@@ -1498,7 +1502,7 @@ class NetAppOntapVolume(object):
                 pass
             else:
                 self.module.fail_json(msg='Error enable efficiency on volume %s: %s'
-                                          % (self.parameters['name'], to_native(error)),
+                                      % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
         options['policy-name'] = self.parameters['efficiency_policy']
@@ -1507,7 +1511,7 @@ class NetAppOntapVolume(object):
             self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error setting up an efficiency policy %s on volume %s: %s'
-                                      % (self.parameters['efficiency_policy'], self.parameters['name'], to_native(error)),
+                                  % (self.parameters['efficiency_policy'], self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def assign_efficiency_policy_async(self):
@@ -1518,7 +1522,7 @@ class NetAppOntapVolume(object):
             result = self.server.invoke_successfully(efficiency_enable, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error enable efficiency on volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'enable efficiency on')
 
@@ -1528,7 +1532,7 @@ class NetAppOntapVolume(object):
             result = self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error setting up an efficiency policy on volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'set efficiency policy on')
 
@@ -1565,9 +1569,9 @@ class NetAppOntapVolume(object):
     def set_snapshot_auto_delete(self):
         options = {'volume': self.parameters['name']}
         desired_options = self.parameters['snapshot_auto_delete']
-        for k, v in desired_options.items():
-            options['option-name'] = k
-            options['option-value'] = str(v)
+        for key, value in desired_options.items():
+            options['option-name'] = key
+            options['option-value'] = str(value)
 
             snapshot_auto_delete = netapp_utils.zapi.NaElement.create_node_with_children('snapshot-autodelete-set-option', **options)
 
@@ -1592,7 +1596,7 @@ class NetAppOntapVolume(object):
             self.ems_log_event("volume-rehost")
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error rehosting volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def snapshot_restore_volume(self):
@@ -1608,7 +1612,7 @@ class NetAppOntapVolume(object):
             self.ems_log_event("snapshot-restore-volume")
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error restoring volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def apply(self):
