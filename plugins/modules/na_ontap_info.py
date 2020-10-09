@@ -429,7 +429,7 @@ class NetAppONTAPGatherInfo(object):
                 'method': self.get_generic_get_iter,
                 'kwargs': {
                     'call': 'cluster-image-get-iter',
-                    'attribute': 'cluster-image-info',
+                    'attribute': 'node-id',
                     'key_fields': 'current-version',
                     'query': {'max-records': self.max_records},
                 },
