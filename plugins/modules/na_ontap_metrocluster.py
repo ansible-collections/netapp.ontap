@@ -73,9 +73,9 @@ EXAMPLES = '''
       na_ontap_metrocluster:
         <<: *login
         dr_pairs:
-          - partner_name: carchi_cluster3_01
-            node_name: carchi_cluster1_01
-        partner_cluster_name: carchi_cluster3
+          - partner_node_name: rha17-a2
+            node_name: rha17-b2
+        partner_cluster_name: rha2-b2b1_siteB
 '''
 
 RETURN = '''
