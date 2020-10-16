@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.11.0
+
+### Bug fixes
+  - na_ontap_info - Use `node-id` as key rather than `current-version`.
+
 ## 20.10.0
 
 ### New Options

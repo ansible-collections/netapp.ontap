@@ -1,7 +1,11 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+'''
+na_ontap_export_policy_rule
+'''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -36,7 +40,7 @@ options:
 
   name:
     description:
-    - The name of the export rule to manage.
+    - The name of the export policy this rule will be added to (or modified, or removed from).
     required: True
     type: str
     aliases:
@@ -92,7 +96,7 @@ options:
 
   rule_index:
     description:
-    - rule index of the export policy
+    - index of the export policy rule
     type: int
 
   vserver:

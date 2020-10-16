@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_export_policy_rule
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -182,7 +186,9 @@ EXAMPLES = '''
         home_port: e0d
         home_node: laurentn-vsim1
         role: data
-        protocols: nfs
+        protocols:
+          - nfs
+          - cifs
         admin_status: up
         failover_policy: local-only
         firewall_policy: mgmt
