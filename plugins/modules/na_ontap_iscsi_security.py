@@ -211,7 +211,7 @@ class NetAppONTAPIscsiSecurity(object):
             params['initiator_address'] = {'ranges': address_info}
         params['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
         api = '/protocols/san/iscsi/credentials'
-        message, error = self.restApi.post(api, params)
+        dummy, error = self.restApi.post(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on creating initiator: %s" % error)
 
@@ -221,7 +221,7 @@ class NetAppONTAPIscsiSecurity(object):
         :return: None.
         """
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        message, error = self.restApi.delete(api, {})
+        dummy, error = self.restApi.delete(api)
         if error is not None:
             self.module.fail_json(msg="Error on deleting initiator: %s" % error)
 
@@ -271,7 +271,7 @@ class NetAppONTAPIscsiSecurity(object):
         if address_info is not None:
             params['initiator_address'] = {'ranges': address_info}
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        message, error = self.restApi.patch(api, params)
+        dummy, error = self.restApi.patch(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on modifying initiator: %s" % error)
 

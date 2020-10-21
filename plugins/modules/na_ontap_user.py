@@ -460,13 +460,8 @@ class NetAppOntapUser(object):
 
     def delete_user_rest(self):
         uuid, username = self.get_user_rest()
-        data = {}
-        params = {
-            'name': username,
-            'owner.uuid': uuid,
-        }
         api = "security/accounts/%s/%s" % (uuid, username)
-        dummy, error = self.restApi.delete(api, data, params)
+        dummy, error = self.restApi.delete(api)
         if error:
             self.module.fail_json(msg='Error while deleting user : %s' % error)
 
@@ -537,7 +532,7 @@ class NetAppOntapUser(object):
             if to_native(error.code) == '13214' and self.is_repeated_password(error.message):
                 return False
             self.module.fail_json(msg='Error setting password for user %s: %s' % (self.parameters['name'], to_native(error)),
-                                      exception=traceback.format_exc())
+                                  exception=traceback.format_exc())
 
         self.server.set_vserver(None)
         return True

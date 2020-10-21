@@ -3,6 +3,10 @@
 # (c) 2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_wwpn_alias
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -83,7 +87,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 
 
 class NetAppOntapWwpnAlias(object):
-
+    ''' ONTAP WWPN alias operations '''
     def __init__(self):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -104,18 +108,18 @@ class NetAppOntapWwpnAlias(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # REST API should be used for ONTAP 9.6 or higher.
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            self.module.fail_json(msg="This module only supports REST API.")
+            self.module.fail_json(msg=self.rest_api.requires_ontap_9_6('na_ontap_wwpn_alias'))
 
     def get_alias(self, uuid):
         params = {'fields': 'alias,wwpn',
                   'alias': self.parameters['name'],
                   'svm.uuid': uuid}
         api = 'network/fc/wwpn-aliases'
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on fetching wwpn alias: %s" % error)
         if message['num_records'] > 0:
@@ -130,7 +134,7 @@ class NetAppOntapWwpnAlias(object):
                   'wwpn': self.parameters['wwpn'],
                   'svm.uuid': uuid}
         api = 'network/fc/wwpn-aliases'
-        message, error = self.restApi.post(api, params)
+        dummy, error = self.rest_api.post(api, params)
         if error is not None:
             if is_modify:
                 self.module.fail_json(msg="Error on modifying wwpn alias when trying to re-create alias: %s." % error)
@@ -138,10 +142,8 @@ class NetAppOntapWwpnAlias(object):
                 self.module.fail_json(msg="Error on creating wwpn alias: %s." % error)
 
     def delete_alias(self, uuid, is_modify=False):
-        params = {'alias': self.parameters['name'],
-                  'svm.uuid': uuid}
-        api = 'network/fc/wwpn-aliases/'
-        message, error = self.restApi.delete(api, params)
+        api = 'network/fc/wwpn-aliases/%s/%s' % (uuid, self.parameters['name'])
+        dummy, error = self.rest_api.delete(api)
         if error is not None:
             if is_modify:
                 self.module.fail_json(msg="Error on modifying wwpn alias when trying to delete alias: %s." % error)
@@ -155,7 +157,7 @@ class NetAppOntapWwpnAlias(object):
         """
         params = {'fields': 'uuid', 'name': self.parameters['vserver']}
         api = "svm/svms"
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on fetching svm uuid: %s" % error)
         return message['records'][0]['uuid']

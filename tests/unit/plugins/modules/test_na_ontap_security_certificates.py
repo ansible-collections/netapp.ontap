@@ -30,6 +30,10 @@ SRR = {
     'error_unexpected_name': (200, None, {'message': 'Unexpected argument "name".'})
 }
 
+NAME_ERROR = "Error calling API: security/certificates - ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
+TYPE_ERROR = "Error calling API: security/certificates - When using 'common_name', 'type' is required."
+EXPECTED_ERROR = "Error calling API: security/certificates - Expected error"
+
 
 def set_module_args(args):
     """prepare arguments so that they will be picked up during module creation"""
@@ -104,7 +108,7 @@ def test_rest_error(mock_request, mock_fail):
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+    assert exc.value.args[0]['msg'] == EXPECTED_ERROR
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
@@ -324,8 +328,7 @@ def test_rest_failed_on_name(mock_request, mock_fail, mock_exit):
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    msg = "ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
-    assert exc.value.args[0]['msg'] == msg
+    assert exc.value.args[0]['msg'] == NAME_ERROR
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
@@ -349,8 +352,7 @@ def test_rest_cannot_ignore_name_error_no_common_name(mock_request, mock_fail, m
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    msg = "ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
-    assert exc.value.args[0]['msg'] == msg
+    assert exc.value.args[0]['msg'] == NAME_ERROR
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
@@ -375,8 +377,7 @@ def test_rest_cannot_ignore_name_error_no_type(mock_request, mock_fail, mock_exi
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    msg = "When using 'common_name', 'type' is required."
-    assert exc.value.args[0]['msg'] == msg
+    assert exc.value.args[0]['msg'] == TYPE_ERROR
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')

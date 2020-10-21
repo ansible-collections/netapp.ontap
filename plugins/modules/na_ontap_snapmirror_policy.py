@@ -542,9 +542,8 @@ class NetAppOntapSnapMirrorPolicy(object):
         Deletes a snapmirror policy
         """
         if self.use_rest:
-            api = "snapmirror/policies"
-            data = {'uuid': uuid}
-            dummy, error = self.rest_api.delete(api, data)
+            api = "snapmirror/policies/%s" % uuid
+            dummy, error = self.rest_api.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:

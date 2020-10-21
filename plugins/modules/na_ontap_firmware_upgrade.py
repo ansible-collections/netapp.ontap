@@ -531,10 +531,15 @@ class NetAppONTAPFirmwareUpgrade(object):
             output = self.server.invoke_successfully(command_obj, True)
 
         except netapp_utils.zapi.NaApiError as error:
-            if int(error.code) == 60:                                                   # API did not finish on time
+            # with nettap_lib, error.code may be a number or a string
+            try:
+                err_num = int(error.code)
+            except ValueError:
+                err_num = -1
+            if err_num == 60:                                                   # API did not finish on time
                 # even if the ZAPI reports a timeout error, it does it after the command completed
                 msg = MSGS['dl_completed_slowly']
-            elif int(error.code) == 502 and not self.parameters['fail_on_502_error']:   # Bad Gateway
+            elif err_num == 502 and not self.parameters['fail_on_502_error']:   # Bad Gateway
                 # ONTAP proxy breaks the connection after 5 minutes, we can assume the download is progressing slowly
                 msg = MSGS['dl_in_progress']
             else:

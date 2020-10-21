@@ -95,14 +95,13 @@ class NetAppONTAPSnmpTraphosts(object):
     def create_snmp_traphost(self):
         api = '/support/snmp/traphosts'
         params = {'host': self.parameters['ip_address']}
-        message, error = self.restApi.post(api, params)
+        dummy, error = self.restApi.post(api, params)
         if error:
             self.module.fail_json(msg=error)
 
     def delete_snmp_traphost(self):
         api = '/support/snmp/traphosts/' + self.parameters['ip_address']
-        params = None
-        message, error = self.restApi.delete(api, params)
+        dummy, error = self.restApi.delete(api)
         if error is not None:
             self.module.fail_json(msg="Error deleting traphost: %s" % error)
 

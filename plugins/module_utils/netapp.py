@@ -27,6 +27,10 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+'''
+netapp.py
+'''
+
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -406,6 +410,7 @@ if HAS_NETAPP_LIB:
                     try:
                         return super(OntapZAPICx, self)._parse_response(new_response)
                     except Exception:
+                        # ignore a second exception, we'll report the first one
                         pass
                 try:
                     # report first exception, but include full response
@@ -433,10 +438,22 @@ class OntapRestAPI(object):
             self.url = 'https://' + self.hostname + '/api/'
         else:
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
+        self.is_rest_error = None
+        self.ontap_version = dict(
+            full='unknown',
+            generation=-1,
+            major=-1,
+            minor=-1,
+            valid=False
+        )
         self.errors = list()
         self.debug_logs = list()
         self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
+
+    def requires_ontap_9_6(self, module_name):
+        suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
+        return "%s only support REST, and requires ONTAP 9.6 or later.%s" % (module_name, suffix)
 
     def check_required_library(self):
         if not HAS_REQUESTS:
@@ -586,7 +603,7 @@ class OntapRestAPI(object):
         dummy, message, error = self.send_request(method, api, params, json=body)
         return message, error
 
-    def delete(self, api, body, params=None):
+    def delete(self, api, body=None, params=None):
         method = 'DELETE'
         dummy, message, error = self.send_request(method, api, params, json=body)
         return message, error
@@ -595,6 +612,23 @@ class OntapRestAPI(object):
         method = 'OPTIONS'
         dummy, message, error = self.send_request(method, api, params)
         return message, error
+
+    def set_version(self, message):
+        try:
+            version = message.get('version', 'not found')
+        except AttributeError:
+            self.ontap_version['full'] = 'unreadable message'
+            return
+        for key in self.ontap_version:
+            try:
+                self.ontap_version[key] = version.get(key, -1)
+            except AttributeError:
+                self.ontap_version[key] = 'unreadable version'
+        self.ontap_version['valid'] = True
+        for key in self.ontap_version:
+            if self.ontap_version == -1:
+                self.ontap_version['valid'] = False
+                break
 
     def _is_rest(self, used_unsupported_rest_properties=None):
         if self.use_rest not in ['always', 'auto', 'never']:
@@ -610,9 +644,13 @@ class OntapRestAPI(object):
         if self.use_rest == 'never' or used_unsupported_rest_properties:
             # force ZAPI if requested or if some parameter requires it
             return False, None
-        method = 'HEAD'
-        api = 'svm/svms'
-        status_code, dummy, error = self.send_request(method, api, params=None)
+        # using GET rather than HEAD because the error messages are different
+        method = 'GET'
+        api = 'cluster'
+        params = {'fields': ['version']}
+        status_code, message, error = self.send_request(method, api, params=params)
+        self.set_version(message)
+        self.is_rest_error = str(error) if error else None
         if status_code == 200:
             return True, None
         self.log_error(status_code, str(error))

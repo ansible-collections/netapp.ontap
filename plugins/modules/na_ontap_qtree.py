@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_qtree
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -295,9 +299,8 @@ class NetAppOntapQTree(object):
             uuid = current['volume']['uuid']
             qid = str(current['id'])
             api = "storage/qtrees/%s/%s" % (uuid, qid)
-            body = None
             query = {'return_timeout': 3}
-            response, error = self.rest_api.delete(api, body, query)
+            response, error = self.rest_api.delete(api, params=query)
             if error:
                 self.module.fail_json(msg=error)
             if 'job' in response and self.parameters['wait_for_completion']:

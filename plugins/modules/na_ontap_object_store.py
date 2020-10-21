@@ -191,7 +191,7 @@ class NetAppOntapObjectStoreConfig(object):
             if self.parameters.get('secret_password'):
                 data['secret_password'] = self.parameters['secret_password']
             api = "cloud/targets"
-            message, error = self.restApi.post(api, data)
+            dummy, error = self.restApi.post(api, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -208,7 +208,7 @@ class NetAppOntapObjectStoreConfig(object):
                 self.server.invoke_successfully(object_store_create, enable_tunneling=False)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg="Error provisioning object store config %s: %s"
-                                          % (self.parameters['name'], to_native(error)),
+                                      % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
     def delete_aggr_object_store(self, uuid=None):
@@ -217,9 +217,8 @@ class NetAppOntapObjectStoreConfig(object):
         :return: None
         """
         if self.use_rest:
-            api = "cloud/targets/"
-            data = {'uuid': uuid}
-            message, error = self.restApi.delete(api, data)
+            api = "cloud/targets/%s" % uuid
+            dummy, error = self.restApi.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -231,7 +230,7 @@ class NetAppOntapObjectStoreConfig(object):
                                                 enable_tunneling=False)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg="Error removing object store config %s: %s" %
-                                          (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
+                                      (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
 
     def asup_log_for_cserver(self, event_name):
         """

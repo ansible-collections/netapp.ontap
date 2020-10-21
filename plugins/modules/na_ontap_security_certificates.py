@@ -3,6 +3,10 @@
 # (c) 2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_security_certificates
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -281,11 +285,11 @@ class NetAppOntapSecurityCertificates(object):
         self.ignore_name_param = False
 
         # API should be used for ONTAP 9.6 or higher
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            self.module.fail_json(msg="this module requires ONTAP 9.6 or later.")
+            self.module.fail_json(msg=self.rest_api.requires_ontap_9_6('na_ontap_security_certificates'))
 
     def get_certificate(self):
         """
@@ -315,11 +319,11 @@ class NetAppOntapSecurityCertificates(object):
                     break
 
             api = "security/certificates"
-            message, error = self.restApi.get(api, data)
+            message, error = self.rest_api.get(api, data)
             if error:
                 try:
                     name_not_supported_error = (key == 'name') and (error['message'] == 'Unexpected argument "name".')
-                except Exception:
+                except (KeyError, TypeError):
                     name_not_supported_error = False
                 if name_not_supported_error:
                     if self.parameters['ignore_name_if_not_supported'] and self.parameters.get('common_name') is not None:
@@ -331,7 +335,7 @@ class NetAppOntapSecurityCertificates(object):
             break
 
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error calling API: %s - %s' % (api, error))
 
         if len(message['records']) == 1:
             return message['records'][0]
@@ -362,7 +366,7 @@ class NetAppOntapSecurityCertificates(object):
             if self.parameters.get(key) is not None:
                 data[key] = self.parameters[key]
         api = "security/certificates"
-        message, error = self.restApi.post(api, data)
+        message, error = self.rest_api.post(api, data)
         if error:
             if self.parameters.get('svm') is None and error.get('target') == 'uuid':
                 error['target'] = 'cluster'
@@ -382,7 +386,7 @@ class NetAppOntapSecurityCertificates(object):
         for key in optional_keys:
             if self.parameters.get(key) is not None:
                 data[key] = self.parameters[key]
-        message, error = self.restApi.post(api, data)
+        message, error = self.rest_api.post(api, data)
         if error:
             self.module.fail_json(msg="Error signing certificate: %s" % error)
         return message
@@ -392,9 +396,8 @@ class NetAppOntapSecurityCertificates(object):
         Delete certificate
         :return: message (should be empty dict)
         """
-        api = "security/certificates/"
-        data = {'uuid': uuid}
-        message, error = self.restApi.delete(api, data)
+        api = "security/certificates/%s" % uuid
+        message, error = self.rest_api.delete(api)
         if error:
             self.module.fail_json(msg="Error deleting certificate: %s" % error)
         return message
@@ -444,8 +447,8 @@ def main():
     Create instance and invoke apply
     :return: None
     """
-    secCert = NetAppOntapSecurityCertificates()
-    secCert.apply()
+    sec_cert = NetAppOntapSecurityCertificates()
+    sec_cert.apply()
 
 
 if __name__ == '__main__':

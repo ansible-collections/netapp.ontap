@@ -3,6 +3,7 @@
 this is ipspace module
 
 # (c) 2018, NTT Europe Ltd.
+# (c) 2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -82,11 +83,11 @@ RETURN = """
 
 import traceback
 
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible.module_utils._text import to_native
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -142,7 +143,7 @@ class NetAppOntapIpspace(object):
             if to_native(error.code) == "14636" or to_native(error.code) == "13073":
                 return None
             else:
-                self.module.self.fail_json(
+                self.module.fail_json(
                     msg=to_native(error),
                     exception=traceback.format_exc())
         return result
@@ -193,7 +194,7 @@ class NetAppOntapIpspace(object):
         if self.use_rest:
             api = 'network/ipspaces'
             params = {'name': self.parameters['name']}
-            message, error = self.restApi.post(api, params)
+            dummy, error = self.restApi.post(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -203,7 +204,7 @@ class NetAppOntapIpspace(object):
                 self.server.invoke_successfully(ipspace_create,
                                                 enable_tunneling=False)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.self.fail_json(
+                self.module.fail_json(
                     msg="Error provisioning ipspace %s: %s" % (
                         self.parameters['name'],
                         to_native(error)),
@@ -219,8 +220,7 @@ class NetAppOntapIpspace(object):
             if current is not None:
                 uuid = current['uuid']
                 api = 'network/ipspaces/' + uuid
-                params = None
-                message, error = self.restApi.delete(api, params)
+                dummy, error = self.restApi.delete(api)
                 if error:
                     self.module.fail_json(msg=error)
         else:
@@ -231,7 +231,7 @@ class NetAppOntapIpspace(object):
                 self.server.invoke_successfully(
                     ipspace_destroy, enable_tunneling=False)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.self.fail_json(
+                self.module.fail_json(
                     msg="Error removing ipspace %s: %s" % (
                         self.parameters['name'],
                         to_native(error)),
@@ -249,7 +249,7 @@ class NetAppOntapIpspace(object):
             uuid = current['uuid']
             api = 'network/ipspaces/' + uuid
             params = {'name': self.parameters['name']}
-            message, error = self.restApi.patch(api, params)
+            dummy, error = self.restApi.patch(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:

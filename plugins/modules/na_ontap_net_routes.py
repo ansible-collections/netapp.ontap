@@ -179,8 +179,7 @@ class NetAppOntapNetRoutes(object):
         if self.use_rest:
             uuid = params['uuid']
             api = "network/ip/routes/" + uuid
-            data = None
-            message, error = self.restApi.delete(api, data)
+            dummy, error = self.restApi.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:

@@ -270,7 +270,6 @@ class NetAppONTAPJob(object):
                         # need to set empty value for minutes as this is required parameter
                         if value == 'minutes':
                             cron[value] = []
-                        pass
                     else:
                         cron[value] = self.parameters[key]
 
@@ -279,7 +278,7 @@ class NetAppONTAPJob(object):
                 'cron': cron
             }
             api = '/cluster/schedules'
-            message, error = self.restApi.post(api, params)
+            dummy, error = self.restApi.post(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on creating job schedule: %s" % error)
 
@@ -300,7 +299,7 @@ class NetAppONTAPJob(object):
         """
         if self.use_rest:
             api = '/cluster/schedules/' + self.uuid
-            message, error = self.restApi.delete(api, {})
+            dummy, error = self.restApi.delete(api)
             if error is not None:
                 self.module.fail_json(msg="Error on deleting job schedule: %s" % error)
         else:
@@ -335,7 +334,7 @@ class NetAppONTAPJob(object):
                 'cron': cron
             }
             api = '/cluster/schedules/' + self.uuid
-            message, error = self.restApi.patch(api, params)
+            dummy, error = self.restApi.patch(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on modifying job schedule: %s" % error)
         else:

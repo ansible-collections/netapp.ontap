@@ -375,6 +375,21 @@ class TestMyModule(unittest.TestCase):
         msg = "NetApp API failed. Reason - 502:Bad GW"
         assert msg in exc.value.args[0]['msg']
 
+    def test_firmware_download_no_num_error(self):
+        ''' Test firmware download '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_url': 'dummy_url'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
+        if not self.use_vsim:
+            my_obj.server = MockONTAPConnection('firmware_download_exception', 'some error string', 'whatever')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.apply()
+        msg = "NetApp API failed. Reason - some error string:whatever"
+        assert msg in exc.value.args[0]['msg']
+
     def test_firmware_download_no_status_attr(self):
         ''' Test firmware download '''
         module_args = {}

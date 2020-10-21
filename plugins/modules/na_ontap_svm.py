@@ -437,10 +437,9 @@ class NetAppOntapSVM(object):
             if current is None:
                 self.module.fail_json(msg='Internal error, expecting SVM object in delete')
             api = 'svm/svms/%s' % current['uuid']
-            params = {}
             # for a sync operation
-            data = {'return_timeout': self.timeout}
-            __, error = self.restApi.delete(api, params, data)
+            query = {'return_timeout': self.timeout}
+            __, error = self.restApi.delete(api, params=query)
             if error:
                 self.module.fail_json(msg=error)
         else:

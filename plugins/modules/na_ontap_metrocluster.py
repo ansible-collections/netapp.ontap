@@ -90,6 +90,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppONTAPMetroCluster(object):
+    ''' ONTAP metrocluster operations '''
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -106,17 +107,17 @@ class NetAppONTAPMetroCluster(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.restApi = OntapRestAPI(self.module)
-        self.use_rest = self.restApi.is_rest()
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
-            self.module.fail_json(msg="na_ontap_metrocluster only supports REST API")
+            self.module.fail_json(msg=self.rest_api.requires_ontap_9_6('na_ontap_metrocluster'))
 
     def get_metrocluster(self):
         attrs = None
         api = 'cluster/metrocluster'
         options = {'fields': '*'}
-        message, error = self.restApi.get(api, options)
+        message, error = self.rest_api.get(api, options)
         if error:
             self.module.fail_json(msg=error)
         if message is not None:
@@ -138,10 +139,10 @@ class NetAppONTAPMetroCluster(object):
                              'partner': {'name': pair['partner_node_name']}})
         partner_cluster = {'name': self.parameters['partner_cluster_name']}
         data = {'dr_pairs': dr_pairs, 'partner_cluster': partner_cluster}
-        message, error = self.restApi.post(api, data, options)
+        message, error = self.rest_api.post(api, data, options)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
-        self.restApi.wait_on_job(message['job'], self.parameters['hostname'])
+        self.rest_api.wait_on_job(message['job'], self.parameters['hostname'])
 
     def apply(self):
         current = self.get_metrocluster()

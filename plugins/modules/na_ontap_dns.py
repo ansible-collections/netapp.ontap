@@ -138,7 +138,7 @@ class NetAppOntapDns(object):
                     'dns_domains': self.parameters['domains'],
                     'name_servers': self.parameters['nameservers']
                 }
-                message, error = self.restApi.patch(api, params)
+                dummy, error = self.restApi.patch(api, params)
                 if error:
                     self.module.fail_json(msg=error)
             else:
@@ -150,7 +150,7 @@ class NetAppOntapDns(object):
                         'name': self.parameters['vserver']
                     }
                 }
-                message, error = self.restApi.post(api, params)
+                dummy, error = self.restApi.post(api, params)
                 if error:
                     self.module.fail_json(msg=error)
         else:
@@ -175,7 +175,7 @@ class NetAppOntapDns(object):
                 self.server.invoke_successfully(dns, True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error creating dns: %s' %
-                                          (to_native(error)),
+                                      (to_native(error)),
                                       exception=traceback.format_exc())
 
     def destroy_dns(self, dns_attrs):
@@ -188,8 +188,7 @@ class NetAppOntapDns(object):
                 error = 'cluster operation for deleting DNS is not supported with REST.'
                 self.module.fail_json(msg=error)
             api = 'name-services/dns/' + dns_attrs['uuid']
-            data = None
-            message, error = self.restApi.delete(api, data)
+            dummy, error = self.restApi.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -197,7 +196,7 @@ class NetAppOntapDns(object):
                 self.server.invoke_successfully(netapp_utils.zapi.NaElement('net-dns-destroy'), True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error destroying dns %s' %
-                                          (to_native(error)),
+                                      (to_native(error)),
                                       exception=traceback.format_exc())
 
     def get_cluster(self):
@@ -289,7 +288,7 @@ class NetAppOntapDns(object):
                         'dns_domains': self.parameters['domains'],
                         'name_servers': self.parameters['nameservers']
                     }
-                message, error = self.restApi.patch(api, params)
+                dummy, error = self.restApi.patch(api, params)
                 if error:
                     self.module.fail_json(msg=error)
 
@@ -321,7 +320,7 @@ class NetAppOntapDns(object):
                     self.server.invoke_successfully(dns, True)
                 except netapp_utils.zapi.NaApiError as error:
                     self.module.fail_json(msg='Error modifying dns %s' %
-                                              (to_native(error)), exception=traceback.format_exc())
+                                          (to_native(error)), exception=traceback.format_exc())
         return changed
 
     def apply(self):

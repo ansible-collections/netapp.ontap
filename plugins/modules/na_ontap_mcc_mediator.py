@@ -8,6 +8,10 @@
 # This module requires REST APIs for Mediator which is supported from
 # ONTAP 9.8 (DW) or later
 
+'''
+na_ontap_mcc_mediator
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -104,11 +108,11 @@ class NetAppOntapMccipMediator(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.restApi = OntapRestAPI(self.module)
-        self.use_rest = self.restApi.is_rest()
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
-            self.module.fail_json(msg="na_ontap_metrocluster only supports REST API")
+            self.module.fail_json(msg=self.rest_api.requires_ontap_9_6('na_ontap_mcc_mediator'))
 
     def add_mediator(self):
         """
@@ -120,7 +124,7 @@ class NetAppOntapMccipMediator(object):
             'password': self.parameters['mediator_password'],
             'user': self.parameters['mediator_user']
         }
-        message, error = self.restApi.post(api, params)
+        dummy, error = self.rest_api.post(api, params)
         if error:
             self.module.fail_json(msg=error)
 
@@ -128,14 +132,14 @@ class NetAppOntapMccipMediator(object):
         """
         Removes the ONTAP Mediator from MCC configuration
         """
-        api = 'cluster/mediators'
+        api = 'cluster/mediators/%s' % current_uuid
         params = {
             'ip_address': self.parameters['mediator_address'],
             'password': self.parameters['mediator_password'],
             'user': self.parameters['mediator_user'],
             'uuid': current_uuid
         }
-        message, error = self.restApi.delete(api, params)
+        dummy, error = self.rest_api.delete(api, params)
         if error:
             self.module.fail_json(msg=error)
 
@@ -144,7 +148,7 @@ class NetAppOntapMccipMediator(object):
         Determine if the MCC configuration has added an ONTAP Mediator
         """
         api = "cluster/mediators"
-        message, error = self.restApi.get(api, None)
+        message, error = self.rest_api.get(api, None)
         if error:
             self.module.fail_json(msg=error)
         if message['num_records'] > 0:
