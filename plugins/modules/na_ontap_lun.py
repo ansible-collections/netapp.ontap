@@ -3,9 +3,12 @@
 # (c) 2017-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_lun
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -112,6 +115,7 @@ options:
     - This can be set to "False" which will round the LUN >= 450g.
     type: bool
     default: True
+    version_added: 20.11.0
 
 '''
 
@@ -158,7 +162,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapLUN(object):
-
+    ''' create, modify, delete LUN '''
     def __init__(self):
 
         self._size_unit_map = dict(
@@ -314,8 +318,8 @@ class NetAppOntapLUN(object):
 
         try:
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error provisioning lun %s of size %s: %s" % (self.name, self.size, to_native(e)),
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg="Error provisioning lun %s of size %s: %s" % (self.name, self.size, to_native(exc)),
                                   exception=traceback.format_exc())
 
     def delete_lun(self):
@@ -332,8 +336,8 @@ class NetAppOntapLUN(object):
 
         try:
             self.server.invoke_successfully(lun_delete, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error deleting lun %s: %s" % (path, to_native(e)),
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg="Error deleting lun %s: %s" % (path, to_native(exc)),
                                   exception=traceback.format_exc())
 
     def resize_lun(self):
@@ -351,8 +355,8 @@ class NetAppOntapLUN(object):
                              'force': str(self.force_resize)})
         try:
             self.server.invoke_successfully(lun_resize, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as e:
-            if to_native(e.code) == "9042":
+        except netapp_utils.zapi.NaApiError as exc:
+            if to_native(exc.code) == "9042":
                 # Error 9042 denotes the new LUN size being the same as the
                 # old LUN size. This happens when there's barely any difference
                 # in the two sizes. For example, from 8388608 bytes to
@@ -361,7 +365,7 @@ class NetAppOntapLUN(object):
                 # larger unit (MB/GB/TB).
                 return False
             else:
-                self.module.fail_json(msg="Error resizing lun %s: %s" % (path, to_native(e)),
+                self.module.fail_json(msg="Error resizing lun %s: %s" % (path, to_native(exc)),
                                       exception=traceback.format_exc())
 
         return True
@@ -409,13 +413,12 @@ class NetAppOntapLUN(object):
                     self.delete_lun()
 
         changed = property_changed or size_changed
-        # TODO: include other details about the lun (size, etc.)
         self.module.exit_json(changed=changed)
 
 
 def main():
-    v = NetAppOntapLUN()
-    v.apply()
+    lun = NetAppOntapLUN()
+    lun.apply()
 
 
 if __name__ == '__main__':

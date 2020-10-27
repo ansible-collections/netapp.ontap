@@ -33,6 +33,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_firmware_upgrade - fix ValueError issue when processing URL error.
   - na_ontap_info - Use `node-id` as key rather than `current-version`.
   - na_ontap_ipspace - invalid call in error reporting (double error).
+  - na_ontap_lun - `use_exact_size` to create a lun with the exact given size so that the lun is not rounded up.
 
 ## 20.10.0
 
