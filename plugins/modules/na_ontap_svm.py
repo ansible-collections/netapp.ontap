@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_svm
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -207,9 +211,9 @@ RETURN = """
 import copy
 import traceback
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
+import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
@@ -217,6 +221,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapSVM(object):
+    ''' create, delete, modify, rename SVM (aka vserver) '''
 
     def __init__(self):
         self.use_rest = False
@@ -251,13 +256,13 @@ class NetAppOntapSVM(object):
         if 'language' in self.parameters and self.parameters['language'].lower() == 'c.utf-8':
             self.parameters['language'] = 'c.utf_8'
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         # with REST, to force synchronous operations
-        self.timeout = self.restApi.timeout
+        self.timeout = self.rest_api.timeout
         # root volume not supported with rest api
         unsupported_rest_properties = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             self.module.fail_json(msg=error)
         if not self.use_rest:
@@ -316,7 +321,7 @@ class NetAppOntapSVM(object):
         if self.use_rest:
             api = 'svm/svms'
             params = {'fields': 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme'}
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error:
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:
@@ -352,7 +357,7 @@ class NetAppOntapSVM(object):
                 attributes_list = result.get_child_by_name('attributes-list')
                 vserver_info = attributes_list.get_child_by_name('vserver-info')
                 aggr_list = list()
-                ''' vserver aggr-list can be empty by default'''
+                # vserver aggr-list can be empty by default
                 get_list = vserver_info.get_child_by_name('aggr-list')
                 if get_list is not None:
                     aggregates = get_list.get_children()
@@ -360,7 +365,7 @@ class NetAppOntapSVM(object):
                         aggr_list.append(aggr.get_content())
 
                 protocols = list()
-                '''allowed-protocols is not empty for data SVM, but is for node SVM'''
+                # allowed-protocols is not empty for data SVM, but is for node SVM
                 allowed_protocols = vserver_info.get_child_by_name('allowed-protocols')
                 if allowed_protocols is not None:
                     get_protocols = allowed_protocols.get_children()
@@ -402,7 +407,7 @@ class NetAppOntapSVM(object):
                     params[protocol] = {'enabled': 'true'}
             # for a sync operation
             data = {'return_timeout': self.timeout}
-            __, error = self.restApi.post(api, params, data)
+            __, error = self.rest_api.post(api, params, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -419,9 +424,9 @@ class NetAppOntapSVM(object):
             try:
                 self.server.invoke_successfully(vserver_create,
                                                 enable_tunneling=False)
-            except netapp_utils.zapi.NaApiError as e:
+            except netapp_utils.zapi.NaApiError as exc:
                 self.module.fail_json(msg='Error provisioning SVM %s: %s'
-                                          % (self.parameters['name'], to_native(e)),
+                                      % (self.parameters['name'], to_native(exc)),
                                       exception=traceback.format_exc())
             # add allowed-protocols, aggr-list after creation,
             # since vserver-create doesn't allow these attributes during creation
@@ -439,7 +444,7 @@ class NetAppOntapSVM(object):
             api = 'svm/svms/%s' % current['uuid']
             # for a sync operation
             query = {'return_timeout': self.timeout}
-            __, error = self.restApi.delete(api, params=query)
+            __, error = self.rest_api.delete(api, params=query)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -449,9 +454,9 @@ class NetAppOntapSVM(object):
             try:
                 self.server.invoke_successfully(vserver_delete,
                                                 enable_tunneling=False)
-            except netapp_utils.zapi.NaApiError as e:
+            except netapp_utils.zapi.NaApiError as exc:
                 self.module.fail_json(msg='Error deleting SVM %s: %s'
-                                          % (self.parameters['name'], to_native(e)),
+                                      % (self.parameters['name'], to_native(exc)),
                                       exception=traceback.format_exc())
 
     def rename_vserver(self, current=None):
@@ -462,7 +467,7 @@ class NetAppOntapSVM(object):
             params = {'name': self.parameters['name']}
             # for a sync operation
             data = {'return_timeout': self.timeout}
-            __, error = self.restApi.patch(api, params, data)
+            __, error = self.rest_api.patch(api, params, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -473,9 +478,9 @@ class NetAppOntapSVM(object):
             try:
                 self.server.invoke_successfully(vserver_rename,
                                                 enable_tunneling=False)
-            except netapp_utils.zapi.NaApiError as e:
+            except netapp_utils.zapi.NaApiError as exc:
                 self.module.fail_json(msg='Error renaming SVM %s: %s'
-                                      % (self.parameters['from_name'], to_native(e)),
+                                      % (self.parameters['from_name'], to_native(exc)),
                                       exception=traceback.format_exc())
 
     def modify_vserver(self, modify, current=None):
@@ -493,7 +498,7 @@ class NetAppOntapSVM(object):
                     self.module.fail_json(msg='REST API does not support modify of %s' % attribute)
             # for a sync operation
             data = {'return_timeout': self.timeout}
-            __, error = self.restApi.patch(api, modify, data)
+            __, error = self.rest_api.patch(api, modify, data)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -519,9 +524,9 @@ class NetAppOntapSVM(object):
             try:
                 self.server.invoke_successfully(vserver_modify,
                                                 enable_tunneling=False)
-            except netapp_utils.zapi.NaApiError as e:
+            except netapp_utils.zapi.NaApiError as exc:
                 self.module.fail_json(msg='Error modifying SVM %s: %s'
-                                      % (self.parameters['name'], to_native(e)),
+                                      % (self.parameters['name'], to_native(exc)),
                                       exception=traceback.format_exc())
 
     def add_parameter_to_dict(self, adict, name, key=None, tostr=False):
@@ -557,20 +562,22 @@ class NetAppOntapSVM(object):
         for attribute in modify:
             if attribute in ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']:
                 self.module.fail_json(msg='Error modifying SVM %s: can not modify %s.' % (self.parameters['name'], attribute))
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    self.rename_vserver(old_svm)
-                # If rename is True, cd_action is None, but modify could be true or false.
-                if cd_action == 'create':
-                    self.create_vserver()
-                elif cd_action == 'delete':
-                    self.delete_vserver(current)
-                elif modify:
-                    self.modify_vserver(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed)
+
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_vserver(old_svm)
+            # If rename is True, cd_action is None, but modify could be true or false.
+            if cd_action == 'create':
+                self.create_vserver()
+            elif cd_action == 'delete':
+                self.delete_vserver(current)
+            elif modify:
+                self.modify_vserver(modify, current)
+
+        results = dict(changed=self.na_helper.changed)
+        if modify and netapp_utils.has_feature(self.module, 'show_modified'):
+            results['modify'] = str(modify)
+        self.module.exit_json(**results)
 
     def asup_log_for_cserver(self, event_name):
         """
@@ -586,8 +593,8 @@ class NetAppOntapSVM(object):
 
 def main():
     '''Apply vserver operations from playbook'''
-    v = NetAppOntapSVM()
-    v.apply()
+    svm = NetAppOntapSVM()
+    svm.apply()
 
 
 if __name__ == '__main__':

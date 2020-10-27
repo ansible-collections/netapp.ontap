@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # import untangle
 
+'''
+na_ontap_cifs
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -135,8 +139,7 @@ class NetAppONTAPCifsShare(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, type='str', choices=[
-                       'present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             share_name=dict(required=True, type='str'),
             path=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
@@ -218,8 +221,8 @@ class NetAppONTAPCifsShare(object):
         if self.parameters.get('share_properties'):
             property_attrs = netapp_utils.zapi.NaElement('share-properties')
             cifs_create.add_child_elem(property_attrs)
-            for property in self.parameters.get('share_properties'):
-                property_attrs.add_new_child('cifs-share-properties', property)
+            for aproperty in self.parameters.get('share_properties'):
+                property_attrs.add_new_child('cifs-share-properties', aproperty)
         if self.parameters.get('symlink_properties'):
             symlink_attrs = netapp_utils.zapi.NaElement('symlink-properties')
             cifs_create.add_child_elem(symlink_attrs)
@@ -266,13 +269,13 @@ class NetAppONTAPCifsShare(object):
         if self.parameters.get('share_properties'):
             property_attrs = netapp_utils.zapi.NaElement('share-properties')
             cifs_modify.add_child_elem(property_attrs)
-            for property in self.parameters.get('share_properties'):
-                property_attrs.add_new_child('cifs-share-properties', property)
+            for aproperty in self.parameters.get('share_properties'):
+                property_attrs.add_new_child('cifs-share-properties', aproperty)
         if self.parameters.get('symlink_properties'):
             symlink_attrs = netapp_utils.zapi.NaElement('symlink-properties')
             cifs_modify.add_child_elem(symlink_attrs)
-            for property in self.parameters.get('symlink_properties'):
-                symlink_attrs.add_new_child('cifs-share-symlink-properties', property)
+            for aproperty in self.parameters.get('symlink_properties'):
+                symlink_attrs.add_new_child('cifs-share-symlink-properties', aproperty)
         if self.parameters.get('vscan_fileop_profile'):
             fileop_attrs = netapp_utils.zapi.NaElement('vscan-fileop-profile')
             fileop_attrs.set_content(self.parameters['vscan_fileop_profile'])
@@ -290,19 +293,25 @@ class NetAppONTAPCifsShare(object):
         netapp_utils.ems_log_event("na_ontap_cifs", self.server)
         current = self.get_cifs_share()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        modify = None
         if cd_action is None:
+            # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter
+            if 'show-previous-versions' in self.parameters.get('share_properties', []) and\
+               'show_previous_versions' in current.get('share_properties', []):
+                self.parameters['share_properties'].remove('show-previous-versions')
+                self.parameters['share_properties'].append('show_previous_versions')
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_cifs_share()
-                elif cd_action == 'delete':
-                    self.delete_cifs_share()
-                elif modify:
-                    self.modify_cifs_share()
-        self.module.exit_json(changed=self.na_helper.changed)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_cifs_share()
+            elif cd_action == 'delete':
+                self.delete_cifs_share()
+            elif modify:
+                self.modify_cifs_share()
+        results = dict(changed=self.na_helper.changed)
+        if modify and netapp_utils.has_feature(self.module, 'show_modified'):
+            results['modify'] = str(modify)
+        self.module.exit_json(**results)
 
 
 def main():

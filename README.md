@@ -25,11 +25,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.11.0
 
 ### Minor changes
+  - na_ontap_cifs - output `modified` if a modify action is taken.
   - na_ontap_mcc_mediator - improve error reporting when REST is not available.
   - na_ontap_metrocluster - improve error reporting when REST is not available.
   - na_ontap_wwpn_alias - improve error reporting when REST is not available.
+  - na_ontap_svm - output `modified` if a modify action is taken.
 
 ### Bug fixes
+  - na_ontap_cifs - fix idempotency issue when `show-previous-versions` is used.
   - na_ontap_firmware_upgrade - fix ValueError issue when processing URL error.
   - na_ontap_info - Use `node-id` as key rather than `current-version`.
   - na_ontap_ipspace - invalid call in error reporting (double error).

@@ -136,10 +136,11 @@ def get_feature(module, feature_name):
         otherwise, use our default
     '''
     default_flags = dict(
-        deprecation_warning=True,
         check_required_params_for_none=True,
+        deprecation_warning=True,
         sanitize_xml=True,
-        sanitize_code_points=[8]     # unicode values, 8 is backspace
+        sanitize_code_points=[8],       # unicode values, 8 is backspace
+        show_modified=True
     )
 
     if feature_name in module.params['feature_flags']:
