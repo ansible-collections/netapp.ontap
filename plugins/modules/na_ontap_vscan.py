@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_vscan
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -70,6 +74,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapVscan(object):
+    ''' enable/disable vscan '''
     def __init__(self):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -85,8 +90,8 @@ class NetAppOntapVscan(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # API should be used for ONTAP 9.6 or higher, Zapi for lower version
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -99,7 +104,7 @@ class NetAppOntapVscan(object):
             params = {'fields': 'svm,enabled',
                       "svm.name": self.parameters['vserver']}
             api = "protocols/vscan"
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error:
                 self.module.fail_json(msg=error)
             return message['records'][0]
@@ -114,7 +119,7 @@ class NetAppOntapVscan(object):
                 result = self.server.invoke_successfully(vscan_status_iter, True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error getting Vscan info for Vserver %s: %s' %
-                                          (self.parameters['vserver'], to_native(error)),
+                                      (self.parameters['vserver'], to_native(error)),
                                       exception=traceback.format_exc())
             if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
                 return result.get_child_by_name('attributes-list').get_child_by_name('vscan-status-info')
@@ -124,10 +129,9 @@ class NetAppOntapVscan(object):
             params = {"svm.name": self.parameters['vserver']}
             data = {"enabled": self.parameters['enable']}
             api = "protocols/vscan/" + uuid
-            message, error = self.restApi.patch(api, data, params)
+            dummy, error = self.rest_api.patch(api, data, params)
             if error is not None:
                 self.module.fail_json(msg=error)
-                # self.module.fail_json(msg=repr(self.restApi.errors), log=repr(self.restApi.debug_logs))
         else:
             vscan_status_obj = netapp_utils.zapi.NaElement("vscan-status-modify")
             vscan_status_obj.add_new_child('is-vscan-enabled', str(self.parameters['enable']))
@@ -146,7 +150,7 @@ class NetAppOntapVscan(object):
                 netapp_utils.ems_log_event("na_ontap_vscan", self.server)
             except Exception:
                 # TODO: we may fail to connect to REST or ZAPI, the line below shows REST issues only
-                # self.module.fail_json(msg=repr(self.restApi.errors), log=repr(self.restApi.debug_logs))
+                # self.module.fail_json(msg=repr(self.rest_api.errors), log=repr(self.rest_api.debug_logs))
                 pass
 
     def apply(self):

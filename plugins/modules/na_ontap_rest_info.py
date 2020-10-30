@@ -209,7 +209,7 @@ class NetAppONTAPGatherInfo(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.fields = list()
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
 
     def validate_ontap_version(self):
         """
@@ -219,7 +219,7 @@ class NetAppONTAPGatherInfo(object):
         api = 'cluster'
         data = {'fields': ['version']}
 
-        ontap_version, error = self.restApi.get(api, data)
+        ontap_version, error = self.rest_api.get(api, data)
 
         if error:
             self.module.fail_json(msg=error)
@@ -242,7 +242,7 @@ class NetAppONTAPGatherInfo(object):
             for each in self.parameters['parameters']:
                 data[each] = self.parameters['parameters'][each]
 
-        gathered_ontap_info, error = self.restApi.get(api, data)
+        gathered_ontap_info, error = self.rest_api.get(api, data)
 
         if error:
             # Fail the module if error occurs from REST APIs call
@@ -264,10 +264,10 @@ class NetAppONTAPGatherInfo(object):
 
     def run_post(self, gather_subset_info):
         api = gather_subset_info['api_call']
-        post_return, error = self.restApi.post(api, None)
+        post_return, error = self.rest_api.post(api, None)
         if error:
             return None
-        self.restApi.wait_on_job(post_return['job'], increment=5)
+        self.rest_api.wait_on_job(post_return['job'], increment=5)
 
     def get_next_records(self, api):
         """
@@ -277,7 +277,7 @@ class NetAppONTAPGatherInfo(object):
         """
 
         data = {}
-        gather_subset_info, error = self.restApi.get(api, data)
+        gather_subset_info, error = self.rest_api.get(api, data)
 
         if error:
             self.module.fail_json(msg=error)

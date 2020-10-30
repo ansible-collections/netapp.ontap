@@ -3,6 +3,10 @@
 # (c) 2018, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_dns
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -110,11 +114,11 @@ class NetAppOntapDns(object):
         self.is_cluster = False
 
         # REST API should be used for ONTAP 9.6 or higher, ZAPI for lower version
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['skip_validation']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
 
         if error is not None:
             self.module.fail_json(msg=error)
@@ -138,7 +142,7 @@ class NetAppOntapDns(object):
                     'dns_domains': self.parameters['domains'],
                     'name_servers': self.parameters['nameservers']
                 }
-                dummy, error = self.restApi.patch(api, params)
+                dummy, error = self.rest_api.patch(api, params)
                 if error:
                     self.module.fail_json(msg=error)
             else:
@@ -150,7 +154,7 @@ class NetAppOntapDns(object):
                         'name': self.parameters['vserver']
                     }
                 }
-                dummy, error = self.restApi.post(api, params)
+                dummy, error = self.rest_api.post(api, params)
                 if error:
                     self.module.fail_json(msg=error)
         else:
@@ -188,7 +192,7 @@ class NetAppOntapDns(object):
                 error = 'cluster operation for deleting DNS is not supported with REST.'
                 self.module.fail_json(msg=error)
             api = 'name-services/dns/' + dns_attrs['uuid']
-            dummy, error = self.restApi.delete(api)
+            dummy, error = self.rest_api.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -201,7 +205,7 @@ class NetAppOntapDns(object):
 
     def get_cluster(self):
         api = "cluster"
-        message, error = self.restApi.get(api, None)
+        message, error = self.rest_api.get(api, None)
         if error:
             self.module.fail_json(msg=error)
         if len(message.keys()) == 0:
@@ -227,7 +231,7 @@ class NetAppOntapDns(object):
             api = "name-services/dns"
             params = {'fields': 'domains,servers,svm',
                       "svm.name": self.parameters['vserver']}
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error:
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:
@@ -288,7 +292,7 @@ class NetAppOntapDns(object):
                         'dns_domains': self.parameters['domains'],
                         'name_servers': self.parameters['nameservers']
                     }
-                dummy, error = self.restApi.patch(api, params)
+                dummy, error = self.rest_api.patch(api, params)
                 if error:
                     self.module.fail_json(msg=error)
 

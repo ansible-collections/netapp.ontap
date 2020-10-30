@@ -225,7 +225,7 @@ class NetAppONTAPNdmp(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # API should be used for ONTAP 9.6 or higher, ZAPI for lower version
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = ['abort_on_disk_error', 'backup_log_enable', 'data_port_range',
                                        'debug_enable', 'debug_filter', 'dump_detailed_stats',
                                        'dump_logical_find', 'fh_dir_retry_interval', 'fh_node_retry_interval',
@@ -233,7 +233,7 @@ class NetAppONTAPNdmp(object):
                                        'offset_map_enable', 'per_qtree_exclude_enable', 'preferred_interface_role',
                                        'restore_vm_cache_size', 'secondary_debug_filter', 'tcpnodelay', 'tcpwinsize']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             self.module.fail_json(msg=error)
         if not self.use_rest:
@@ -250,7 +250,7 @@ class NetAppONTAPNdmp(object):
             """
         params = {'svm.name': self.parameters['vserver']}
         api = "protocols/ndmp/svms"
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg=error)
         if 'records' in message and len(message['records']) == 0:
@@ -272,7 +272,7 @@ class NetAppONTAPNdmp(object):
             data = dict()
             params = {'fields': 'authentication_types,enabled'}
             api = '/protocols/ndmp/svms/' + uuid
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             data['enable'] = message['enabled']
             data['authtype'] = message['authentication_types']
 
@@ -291,7 +291,7 @@ class NetAppONTAPNdmp(object):
                 result = self.server.invoke_successfully(ndmp_get, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error fetching ndmp from %s: %s'
-                                          % (self.parameters['vserver'], to_native(error)),
+                                      % (self.parameters['vserver'], to_native(error)),
                                       exception=traceback.format_exc())
 
             if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
@@ -305,7 +305,7 @@ class NetAppONTAPNdmp(object):
         :param ndmp_attributes: ndmp returned from api call in xml format.
         :return: None
         """
-        for option in self.modifiable_options.keys():
+        for option in self.modifiable_options:
             option_type = self.modifiable_options[option]['type']
             if option_type == 'bool':
                 ndmp_details[option] = self.str_to_bool(ndmp_attributes.get_child_content(self.attribute_to_name(option)))
@@ -331,7 +331,7 @@ class NetAppONTAPNdmp(object):
             if self.parameters.get('authtype'):
                 ndmp['authentication_types'] = self.parameters['authtype']
             api = "protocols/ndmp/svms/" + uuid
-            message, error = self.restApi.patch(api, ndmp)
+            dummy, error = self.rest_api.patch(api, ndmp)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -354,9 +354,9 @@ class NetAppONTAPNdmp(object):
                     ndmp_modify.add_new_child(self.attribute_to_name(attribute), str(self.parameters[attribute]))
             try:
                 self.server.invoke_successfully(ndmp_modify, enable_tunneling=True)
-            except netapp_utils.zapi.NaApiError as e:
+            except netapp_utils.zapi.NaApiError as exc:
                 self.module.fail_json(msg='Error modifying ndmp on %s: %s'
-                                      % (self.parameters['vserver'], to_native(e)),
+                                      % (self.parameters['vserver'], to_native(exc)),
                                       exception=traceback.format_exc())
 
     @staticmethod
@@ -364,11 +364,8 @@ class NetAppONTAPNdmp(object):
         return str.replace(attribute, '_', '-')
 
     @staticmethod
-    def str_to_bool(s):
-        if s == 'true':
-            return True
-        else:
-            return False
+    def str_to_bool(value):
+        return value == 'true'
 
     def apply(self):
         """Call modify operations."""

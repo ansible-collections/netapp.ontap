@@ -2,6 +2,11 @@
 
 # (c) 2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+'''
+na_ontap_iscsi_security
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -153,7 +158,7 @@ class NetAppONTAPIscsiSecurity(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         self.uuid = self.get_svm_uuid()
 
     def get_initiator(self):
@@ -163,7 +168,7 @@ class NetAppONTAPIscsiSecurity(object):
         """
         params = {'fields': '*', 'initiator': self.parameters['initiator']}
         api = '/protocols/san/iscsi/credentials/'
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on fetching initiator: %s" % error)
         if message['num_records'] > 0:
@@ -211,7 +216,7 @@ class NetAppONTAPIscsiSecurity(object):
             params['initiator_address'] = {'ranges': address_info}
         params['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
         api = '/protocols/san/iscsi/credentials'
-        dummy, error = self.restApi.post(api, params)
+        dummy, error = self.rest_api.post(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on creating initiator: %s" % error)
 
@@ -221,7 +226,7 @@ class NetAppONTAPIscsiSecurity(object):
         :return: None.
         """
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        dummy, error = self.restApi.delete(api)
+        dummy, error = self.rest_api.delete(api)
         if error is not None:
             self.module.fail_json(msg="Error on deleting initiator: %s" % error)
 
@@ -271,7 +276,7 @@ class NetAppONTAPIscsiSecurity(object):
         if address_info is not None:
             params['initiator_address'] = {'ranges': address_info}
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        dummy, error = self.restApi.patch(api, params)
+        dummy, error = self.rest_api.patch(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on modifying initiator: %s" % error)
 
@@ -318,7 +323,7 @@ class NetAppONTAPIscsiSecurity(object):
         """
         params = {'fields': 'uuid', 'name': self.parameters['vserver']}
         api = "svm/svms"
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on fetching svm uuid: %s" % error)
         return message['records'][0]['uuid']

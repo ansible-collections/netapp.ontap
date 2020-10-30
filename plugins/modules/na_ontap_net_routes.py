@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_net_routes
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -125,11 +129,11 @@ class NetAppOntapNetRoutes(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['metric', 'from_metric']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
 
         if error is not None:
             self.module.fail_json(msg=error)
@@ -150,9 +154,9 @@ class NetAppOntapNetRoutes(object):
             params = {'gateway': self.parameters['gateway'],
                       'svm': self.parameters['vserver']}
             if self.parameters.get('destination') is not None:
-                d = self.parameters['destination'].split('/')
-                params['destination'] = {'address': d[0], 'netmask': d[1]}
-            __, error = self.restApi.post(api, params)
+                dest = self.parameters['destination'].split('/')
+                params['destination'] = {'address': dest[0], 'netmask': dest[1]}
+            __, error = self.rest_api.post(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -179,7 +183,7 @@ class NetAppOntapNetRoutes(object):
         if self.use_rest:
             uuid = params['uuid']
             api = "network/ip/routes/" + uuid
-            dummy, error = self.restApi.delete(api)
+            dummy, error = self.rest_api.delete(api)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -202,8 +206,8 @@ class NetAppOntapNetRoutes(object):
         """
         if self.use_rest:
             if desired.get('destination') is not None:
-                d = desired['destination'].split('/')
-                if d[0] != current['destination']['address'] or d[1] != current['destination']['netmask']:
+                dest = desired['destination'].split('/')
+                if dest[0] != current['destination']['address'] or dest[1] != current['destination']['netmask']:
                     self.na_helper.changed = True
                 self.parameters['destination'] = desired['destination']
             else:
@@ -266,7 +270,7 @@ class NetAppOntapNetRoutes(object):
         if self.use_rest:
             api = "network/ip/routes"
             data = {'fields': 'destination,gateway,svm'}
-            message, error = self.restApi.get(api, data)
+            message, error = self.rest_api.get(api, data)
             if error:
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:

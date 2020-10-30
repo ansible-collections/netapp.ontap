@@ -111,8 +111,8 @@ class NetAppOntapIpspace(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -161,7 +161,7 @@ class NetAppOntapIpspace(object):
         if self.use_rest:
             api = 'network/ipspaces'
             params = None
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error:
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:
@@ -194,7 +194,7 @@ class NetAppOntapIpspace(object):
         if self.use_rest:
             api = 'network/ipspaces'
             params = {'name': self.parameters['name']}
-            dummy, error = self.restApi.post(api, params)
+            dummy, error = self.rest_api.post(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:
@@ -220,7 +220,7 @@ class NetAppOntapIpspace(object):
             if current is not None:
                 uuid = current['uuid']
                 api = 'network/ipspaces/' + uuid
-                dummy, error = self.restApi.delete(api)
+                dummy, error = self.rest_api.delete(api)
                 if error:
                     self.module.fail_json(msg=error)
         else:
@@ -249,7 +249,7 @@ class NetAppOntapIpspace(object):
             uuid = current['uuid']
             api = 'network/ipspaces/' + uuid
             params = {'name': self.parameters['name']}
-            dummy, error = self.restApi.patch(api, params)
+            dummy, error = self.rest_api.patch(api, params)
             if error:
                 self.module.fail_json(msg=error)
         else:

@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_volume_autosize
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -114,16 +118,17 @@ RETURN = """
 """
 import copy
 import traceback
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible.module_utils._text import to_native
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapVolumeAutosize(object):
+    ''' volume autosize configuration '''
     def __init__(self):
         self.use_rest = False
         # Volume_autosize returns KB and not B like Volume so values are shifted down 1
@@ -160,8 +165,8 @@ class NetAppOntapVolumeAutosize(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # API should be used for ONTAP 9.6 or higher, ZAPI for lower version
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
             # increment size and reset are not supported with rest api
             if self.parameters.get('increment_size'):
@@ -182,7 +187,7 @@ class NetAppOntapVolumeAutosize(object):
         if self.use_rest:
             params = {'fields': 'autosize'}
             api = 'storage/volumes/' + uuid
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error is not None:
                 self.module.fail_json(msg="%s" % error)
             return self._create_get_volume_return(message['autosize'])
@@ -253,7 +258,7 @@ class NetAppOntapVolumeAutosize(object):
                 autosize['shrink_threshold'] = self.parameters['shrink_threshold_percent']
             data['autosize'] = autosize
             api = "storage/volumes/" + uuid
-            message, error = self.restApi.patch(api, data, params)
+            dummy, error = self.rest_api.patch(api, data, params)
             if error is not None:
                 self.module.fail_json(msg="%s" % error)
 
@@ -319,7 +324,7 @@ class NetAppOntapVolumeAutosize(object):
                   'name': self.parameters['volume'],
                   'svm.name': self.parameters['vserver']}
         api = "storage/volumes"
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
         return message['records'][0]['uuid']

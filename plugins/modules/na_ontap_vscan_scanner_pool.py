@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_vscan_scanner_pool
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -109,6 +113,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapVscanScannerPool(object):
+    ''' create, modify, delete vscan scanner pool '''
     def __init__(self):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -127,7 +132,7 @@ class NetAppOntapVscanScannerPool(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
@@ -154,7 +159,7 @@ class NetAppOntapVscanScannerPool(object):
             self.server.invoke_successfully(scanner_pool_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating Vscan Scanner Pool %s: %s' %
-                                      (self.parameters['scanner_policy'], to_native(error)),
+                                  (self.parameters['scanner_policy'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def apply_policy(self):
@@ -169,7 +174,7 @@ class NetAppOntapVscanScannerPool(object):
             self.server.invoke_successfully(apply_policy_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error appling policy %s to pool %s: %s' %
-                                      (self.parameters['scanner_policy'], self.parameters['scanner_policy'], to_native(error)),
+                                  (self.parameters['scanner_policy'], self.parameters['scanner_policy'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def get_scanner_pool(self):
@@ -192,7 +197,7 @@ class NetAppOntapVscanScannerPool(object):
                 result = self.server.invoke_successfully(scanner_pool_obj, True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error searching for Vscan Scanner Pool %s: %s' %
-                                          (self.parameters['scanner_pool'], to_native(error)), exception=traceback.format_exc())
+                                      (self.parameters['scanner_pool'], to_native(error)), exception=traceback.format_exc())
             if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
                 if result.get_child_by_name('attributes-list').get_child_by_name('vscan-scanner-pool-info').get_child_content(
                         'scanner-pool') == self.parameters['scanner_pool']:
@@ -221,7 +226,7 @@ class NetAppOntapVscanScannerPool(object):
             self.server.invoke_successfully(scanner_pool_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error deleting Vscan Scanner Pool %s: %s' %
-                                      (self.parameters['scanner_pool'], to_native(error)),
+                                  (self.parameters['scanner_pool'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def modify_scanner_pool(self, modify):
@@ -249,7 +254,7 @@ class NetAppOntapVscanScannerPool(object):
             self.server.invoke_successfully(vscan_pool_modify, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying Vscan Scanner Pool %s: %s' %
-                                      (self.parameters['scanner_pool'], to_native(error)),
+                                  (self.parameters['scanner_pool'], to_native(error)),
                                   exception=traceback.format_exc())
 
     @staticmethod

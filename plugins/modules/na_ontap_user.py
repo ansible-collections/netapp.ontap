@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_user
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -242,12 +246,12 @@ class NetAppOntapUser(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # REST API should be used for ONTAP 9.6 or higher
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['authentication_password', 'authentication_protocol', 'engine_id',
                                        'privacy_password', 'privacy_protocol']
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.restApi.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             self.module.fail_json(msg=error)
         if not self.use_rest:
@@ -270,7 +274,7 @@ class NetAppOntapUser(object):
         else:
             params['owner.name'] = self.parameters['vserver']
 
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error:
             self.module.fail_json(msg='Error while fetching user info: %s' % error)
         if message['num_records'] == 1:
@@ -285,7 +289,7 @@ class NetAppOntapUser(object):
             'fields': 'role,applications,locked'
         }
         api = "security/accounts/%s/%s" % (uuid, name)
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error:
             self.module.fail_json(msg='Error while fetching user details: %s' % error)
         if message:
@@ -361,7 +365,7 @@ class NetAppOntapUser(object):
                 params['password'] = self.parameters['set_password']
             if 'lock_user' in self.parameters:
                 params['locked'] = self.parameters['lock_user']
-            dummy, error = self.restApi.post(api, params)
+            dummy, error = self.rest_api.post(api, params)
             if error:
                 self.module.fail_json(msg='Error while creating user: %s' % error)
 
@@ -410,7 +414,7 @@ class NetAppOntapUser(object):
             'owner.uuid': useruuid,
         }
         api = "security/accounts/%s/%s" % (useruuid, username)
-        dummy, error = self.restApi.patch(api, data, params)
+        dummy, error = self.rest_api.patch(api, data, params)
         if error:
             self.module.fail_json(msg='Error while locking/unlocking user: %s' % error)
 
@@ -461,7 +465,7 @@ class NetAppOntapUser(object):
     def delete_user_rest(self):
         uuid, username = self.get_user_rest()
         api = "security/accounts/%s/%s" % (uuid, username)
-        dummy, error = self.restApi.delete(api)
+        dummy, error = self.rest_api.delete(api)
         if error:
             self.module.fail_json(msg='Error while deleting user : %s' % error)
 
@@ -499,7 +503,7 @@ class NetAppOntapUser(object):
             'owner.uuid': useruuid,
         }
         api = "security/accounts/%s/%s" % (useruuid, username)
-        dummy, error = self.restApi.patch(api, data, params)
+        dummy, error = self.rest_api.patch(api, data, params)
         if error:
             if 'message' in error and self.is_repeated_password(error['message']):
                 # if the password is reused, assume idempotency
@@ -555,7 +559,7 @@ class NetAppOntapUser(object):
             'owner.uuid': useruuid,
         }
         api = "security/accounts/%s/%s" % (useruuid, username)
-        dummy, error = self.restApi.patch(api, data, params)
+        dummy, error = self.rest_api.patch(api, data, params)
         if error:
             self.module.fail_json(msg='Error while modifying user details: %s' % error)
 

@@ -7,14 +7,15 @@ __metaclass__ = type
 
 import json
 import os.path
-import pytest
 import tempfile
+
+import pytest
 
 from ansible.module_utils.ansible_release import __version__ as ansible_version
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import COLLECTION_VERSION
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
@@ -30,7 +31,6 @@ def set_module_args(args):
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -132,11 +132,11 @@ def create_module(args):
 def create_restapi_object(args):
     module = create_module(args)
     module.fail_json = fail_json
-    restApi = netapp_utils.OntapRestAPI(module)
-    return restApi
+    rest_api = netapp_utils.OntapRestAPI(module)
+    return rest_api
 
 
-def create_OntapZAPICx_object(args, feature_flags=None):
+def create_ontapzapicx_object(args, feature_flags=None):
     module_args = dict(args)
     if feature_flags is not None:
         module_args['feature_flags'] = feature_flags
@@ -150,15 +150,15 @@ def create_OntapZAPICx_object(args, feature_flags=None):
 
 def test_write_to_file():
     ''' check error and debug logs can be written to disk '''
-    restApi = create_restapi_object(mock_args())
+    rest_api = create_restapi_object(mock_args())
     # logging an error also add a debug record
-    restApi.log_error(404, '404 error')
-    print(restApi.errors)
-    print(restApi.debug_logs)
+    rest_api.log_error(404, '404 error')
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
     # logging a debug record only
-    restApi.log_debug(501, '501 error')
-    print(restApi.errors)
-    print(restApi.debug_logs)
+    rest_api.log_debug(501, '501 error')
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
 
     try:
         tempdir = tempfile.TemporaryDirectory()
@@ -167,48 +167,48 @@ def test_write_to_file():
         # python 2.7 does not support tempfile.TemporaryDirectory
         # we're taking a small chance that there is a race condition
         filepath = '/tmp/deleteme354.txt'
-    restApi.write_debug_log_to_file(filepath=filepath, append=False)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_debug_log_to_file(filepath=filepath, append=False)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 4
         assert lines[0].strip() == 'Debug: 404'
         assert lines[2].strip() == 'Debug: 501'
 
     # Idempotent, as append is False
-    restApi.write_debug_log_to_file(filepath=filepath, append=False)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_debug_log_to_file(filepath=filepath, append=False)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 4
         assert lines[0].strip() == 'Debug: 404'
         assert lines[2].strip() == 'Debug: 501'
 
     # Duplication, as append is True
-    restApi.write_debug_log_to_file(filepath=filepath, append=True)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_debug_log_to_file(filepath=filepath, append=True)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 8
         assert lines[0].strip() == 'Debug: 404'
         assert lines[2].strip() == 'Debug: 501'
         assert lines[4].strip() == 'Debug: 404'
         assert lines[6].strip() == 'Debug: 501'
 
-    restApi.write_errors_to_file(filepath=filepath, append=False)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_errors_to_file(filepath=filepath, append=False)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 1
         assert lines[0].strip() == 'Error: 404 error'
 
     # Idempotent, as append is False
-    restApi.write_errors_to_file(filepath=filepath, append=False)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_errors_to_file(filepath=filepath, append=False)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 1
         assert lines[0].strip() == 'Error: 404 error'
 
     # Duplication, as append is True
-    restApi.write_errors_to_file(filepath=filepath, append=True)
-    with open(filepath, 'r') as f:
-        lines = f.readlines()
+    rest_api.write_errors_to_file(filepath=filepath, append=True)
+    with open(filepath, 'r') as log:
+        lines = log.readlines()
         assert len(lines) == 2
         assert lines[0].strip() == 'Error: 404 error'
         assert lines[1].strip() == 'Error: 404 error'
@@ -220,10 +220,10 @@ def test_is_rest_true(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
     ]
-    restApi = create_restapi_object(mock_args())
-    is_rest = restApi.is_rest()
-    print(restApi.errors)
-    print(restApi.debug_logs)
+    rest_api = create_restapi_object(mock_args())
+    is_rest = rest_api.is_rest()
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
     assert is_rest
 
 
@@ -233,14 +233,14 @@ def test_is_rest_false(mock_request):
     mock_request.side_effect = [
         SRR['is_zapi'],
     ]
-    restApi = create_restapi_object(mock_args())
-    is_rest = restApi.is_rest()
-    print(restApi.errors)
-    print(restApi.debug_logs)
+    rest_api = create_restapi_object(mock_args())
+    is_rest = rest_api.is_rest()
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
     assert not is_rest
-    assert restApi.errors[0] == SRR['is_zapi'][2]
-    assert restApi.debug_logs[0][0] == SRR['is_zapi'][0]    # status_code
-    assert restApi.debug_logs[0][1] == SRR['is_zapi'][2]    # error
+    assert rest_api.errors[0] == SRR['is_zapi'][2]
+    assert rest_api.debug_logs[0][0] == SRR['is_zapi'][0]    # status_code
+    assert rest_api.debug_logs[0][1] == SRR['is_zapi'][2]    # error
 
 
 def test_has_feature_success_default():
@@ -327,29 +327,29 @@ def test_fail_has_password_and_cert():
 def test_has_username_password():
     ''' auth_method reports expected value '''
     args = mock_args()
-    restApi = create_restapi_object(args)
-    assert restApi.auth_method == 'basic_auth'
+    rest_api = create_restapi_object(args)
+    assert rest_api.auth_method == 'basic_auth'
 
 
 def test_has_cert_no_key():
     ''' auth_method reports expected value '''
     args = cert_args()
     del args['key_filepath']
-    restApi = create_restapi_object(args)
-    assert restApi.auth_method == 'single_cert'
+    rest_api = create_restapi_object(args)
+    assert rest_api.auth_method == 'single_cert'
 
 
 def test_has_cert_and_key():
     ''' auth_method reports expected value '''
     args = cert_args()
-    restApi = create_restapi_object(args)
-    assert restApi.auth_method == 'cert_key'
+    rest_api = create_restapi_object(args)
+    assert rest_api.auth_method == 'cert_key'
 
 
 def test_certificate_method_zapi():
     ''' should fail when trying to read the certificate file '''
     args = cert_args()
-    zapi_cx = create_OntapZAPICx_object(args)
+    zapi_cx = create_ontapzapicx_object(args)
     with pytest.raises(AnsibleFailJson) as exc:
         zapi_cx._create_certificate_auth_handler()
     msg1 = 'Cannot load SSL certificate, check files exist.'
@@ -393,7 +393,7 @@ def test_classify_zapi_exception_other_error():
 def test_zapi_parse_response_sanitized():
     ''' should not fail when trying to read invalid XML characters (\x08) '''
     args = mock_args()
-    zapi_cx = create_OntapZAPICx_object(args)
+    zapi_cx = create_ontapzapicx_object(args)
     response = b"<?xml version='1.0' encoding='UTF-8' ?>\n<!DOCTYPE netapp SYSTEM 'file:/etc/netapp_gx.dtd'>\n"
     response += b"<netapp version='1.180' xmlns='http://www.netapp.com/filer/admin'>\n<results status=\"passed\">"
     response += b"<cli-output>  (cluster log-forwarding create)\n\n"
@@ -419,7 +419,7 @@ def test_zapi_parse_response_unsanitized():
     ''' should fail when trying to read invalid XML characters (\x08) '''
     args = mock_args()
     # use feature_flags to disable sanitization
-    zapi_cx = create_OntapZAPICx_object(args, dict(sanitize_xml=False))
+    zapi_cx = create_ontapzapicx_object(args, dict(sanitize_xml=False))
     response = b"<?xml version='1.0' encoding='UTF-8' ?>\n<!DOCTYPE netapp SYSTEM 'file:/etc/netapp_gx.dtd'>\n"
     response += b"<netapp version='1.180' xmlns='http://www.netapp.com/filer/admin'>\n<results status=\"passed\">"
     response += b"<cli-output>  (cluster log-forwarding create)\n\n"

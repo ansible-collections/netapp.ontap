@@ -3,6 +3,10 @@
 # (c) 2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_rest_cli
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -87,7 +91,7 @@ class NetAppONTAPCommandREST(object):
             argument_spec=self.argument_spec,
             supports_check_mode=True
         )
-        self.restApi = OntapRestAPI(self.module)
+        self.rest_api = OntapRestAPI(self.module)
         parameters = self.module.params
         # set up state variables
         self.command = parameters['command']
@@ -95,7 +99,7 @@ class NetAppONTAPCommandREST(object):
         self.params = parameters['params']
         self.body = parameters['body']
 
-        if self.restApi.is_rest():
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             self.module.fail_json(msg="use na_ontap_command for non-rest cli")
@@ -104,15 +108,15 @@ class NetAppONTAPCommandREST(object):
         api = "private/cli/" + self.command
 
         if self.verb == 'POST':
-            message, error = self.restApi.post(api, self.body, self.params)
+            message, error = self.rest_api.post(api, self.body, self.params)
         elif self.verb == 'GET':
-            message, error = self.restApi.get(api, self.params)
+            message, error = self.rest_api.get(api, self.params)
         elif self.verb == 'PATCH':
-            message, error = self.restApi.patch(api, self.body, self.params)
+            message, error = self.rest_api.patch(api, self.body, self.params)
         elif self.verb == 'DELETE':
-            message, error = self.restApi.delete(api, self.body, self.params)
+            message, error = self.rest_api.delete(api, self.body, self.params)
         elif self.verb == 'OPTIONS':
-            message, error = self.restApi.options(api, self.params)
+            message, error = self.rest_api.options(api, self.params)
         else:
             self.module.fail_json(msg='Error running command %s:' % self.command,
                                   exception=traceback.format_exc())

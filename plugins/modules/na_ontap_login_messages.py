@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_login_messages
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -104,8 +108,8 @@ class NetAppOntapLoginMessages(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -119,7 +123,7 @@ class NetAppOntapLoginMessages(object):
             params = {
                 'fields': '*'
             }
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error:
                 self.module.fail_json(msg='Error when fetching login_banner info: %s' % error)
             return_result = dict()
@@ -179,7 +183,7 @@ class NetAppOntapLoginMessages(object):
             params = {
                 "banner": modify['banner']
             }
-            message, error = self.restApi.patch(api, params)
+            dummy, error = self.rest_api.patch(api, params)
             if error:
                 self.module.fail_json(msg='Error when modifying banner: %s' % error)
         else:
@@ -204,7 +208,7 @@ class NetAppOntapLoginMessages(object):
             }
             if modify.get('show_cluster_motd'):
                 params['show_cluster_message'] = modify['show_cluster_motd']
-            message, error = self.restApi.patch(api, params)
+            dummy, error = self.rest_api.patch(api, params)
             if error:
                 self.module.fail_json(msg='Error when modifying motd: %s' % error)
         else:
@@ -233,7 +237,7 @@ class NetAppOntapLoginMessages(object):
                   'fields': 'uuid'
                   }
         api = 'svm/svms'
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
         if message['num_records'] == 0:

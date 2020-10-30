@@ -3,6 +3,11 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+'''
+na_ontap_job_schedule
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -148,8 +153,8 @@ class NetAppONTAPJob(object):
         self.set_playbook_zapi_key_map()
         self.set_playbook_api_key_map()
 
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -190,7 +195,7 @@ class NetAppONTAPJob(object):
         if self.use_rest:
             params = {'name': self.parameters['name']}
             api = '/cluster/schedules'
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on fetching job schedule: %s" % error)
             if message['num_records'] > 0:
@@ -203,8 +208,7 @@ class NetAppONTAPJob(object):
                 # convert list of int to list of string
                 for key, value in job_details.items():
                     if isinstance(value, list):
-                        for i in range(len(value)):
-                            value[i] = str(value[i])
+                        job_details[key] = [str(x) for x in value]
                 return job_details
 
         else:
@@ -278,7 +282,7 @@ class NetAppONTAPJob(object):
                 'cron': cron
             }
             api = '/cluster/schedules'
-            dummy, error = self.restApi.post(api, params)
+            dummy, error = self.rest_api.post(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on creating job schedule: %s" % error)
 
@@ -299,7 +303,7 @@ class NetAppONTAPJob(object):
         """
         if self.use_rest:
             api = '/cluster/schedules/' + self.uuid
-            dummy, error = self.restApi.delete(api)
+            dummy, error = self.rest_api.delete(api)
             if error is not None:
                 self.module.fail_json(msg="Error on deleting job schedule: %s" % error)
         else:
@@ -334,7 +338,7 @@ class NetAppONTAPJob(object):
                 'cron': cron
             }
             api = '/cluster/schedules/' + self.uuid
-            dummy, error = self.restApi.patch(api, params)
+            dummy, error = self.rest_api.patch(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on modifying job schedule: %s" % error)
         else:

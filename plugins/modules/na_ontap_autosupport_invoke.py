@@ -3,6 +3,10 @@
 # (c) 2020, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_dns
+'''
+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -81,7 +85,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppONTAPasupInvoke(object):
-
+    ''' send ASUP message '''
     def __init__(self):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -101,8 +105,8 @@ class NetAppONTAPasupInvoke(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # REST API should be used for ONTAP 9.6 or higher.
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if not HAS_NETAPP_LIB:
@@ -155,7 +159,7 @@ class NetAppONTAPasupInvoke(object):
             else:
                 node_name = '*'
             api = 'support/autosupport/messages'
-            dummy, error = self.restApi.post(api, params)
+            dummy, error = self.rest_api.post(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on sending autosupport message to node %s: %s."
                                       % (node_name, error))

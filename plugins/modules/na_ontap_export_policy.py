@@ -3,6 +3,10 @@
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_export_policy
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -107,8 +111,8 @@ class NetAppONTAPExportPolicy(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.restApi = OntapRestAPI(self.module)
-        if self.restApi.is_rest():
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
             self.use_rest = True
         else:
             if HAS_NETAPP_LIB is False:
@@ -131,7 +135,7 @@ class NetAppONTAPExportPolicy(object):
                       'name': name,
                       'svm.uuid': uuid}
             api = 'protocols/nfs/export-policies/'
-            message, error = self.restApi.get(api, params)
+            message, error = self.rest_api.get(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on fetching export policy: %s" % error)
             if message['num_records'] > 0:
@@ -167,7 +171,7 @@ class NetAppONTAPExportPolicy(object):
             params = {'name': self.parameters['name'],
                       'svm.uuid': uuid}
             api = 'protocols/nfs/export-policies'
-            dummy, error = self.restApi.post(api, params)
+            dummy, error = self.rest_api.post(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on creating export policy: %s" % error)
         else:
@@ -187,7 +191,7 @@ class NetAppONTAPExportPolicy(object):
         """
         if self.use_rest:
             api = 'protocols/nfs/export-policies/' + str(policy_id)
-            dummy, error = self.restApi.delete(api)
+            dummy, error = self.rest_api.delete(api)
             if error is not None:
                 self.module.fail_json(msg=" Error on deleting export policy: %s" % error)
         else:
@@ -208,7 +212,7 @@ class NetAppONTAPExportPolicy(object):
         if self.use_rest:
             params = {'name': self.parameters['name']}
             api = 'protocols/nfs/export-policies/' + str(policy_id)
-            dummy, error = self.restApi.patch(api, params)
+            dummy, error = self.rest_api.patch(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on renaming export policy: %s" % error)
         else:
@@ -236,7 +240,7 @@ class NetAppONTAPExportPolicy(object):
                   'name': name
                   }
         api = 'protocols/nfs/export-policies'
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
         if message['num_records'] == 0:
@@ -251,7 +255,7 @@ class NetAppONTAPExportPolicy(object):
         """
         params = {'svm.name': self.parameters['vserver']}
         api = 'protocols/nfs/export-policies'
-        message, error = self.restApi.get(api, params)
+        message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
         return message['records'][0]['svm']['uuid']
