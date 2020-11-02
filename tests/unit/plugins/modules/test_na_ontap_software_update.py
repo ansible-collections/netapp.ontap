@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_software_update \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -64,7 +62,10 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
-        if self.type == 'software_update':
+        print(xml.to_string())
+        if xml.to_string().startswith(b'<cluster-image-get><node-id>'):
+            xml = self.build_image_info()
+        elif self.type == 'software_update':
             xml = self.build_software_update_info(self.parm1, self.parm2)
         self.xml_out = xml
         return xml
@@ -72,6 +73,18 @@ class MockONTAPConnection(object):
     def autosupport_log(self):
         ''' mock autosupport log'''
         return None
+
+    @staticmethod
+    def build_image_info():
+        ''' build xml data for software-update-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {
+            'attributes': {'cluster-image-info': {'node-id': 'node4test',
+                                                  'current-version': 'Fattire__9.3.0'}},
+        }
+        xml.translate_struct(data)
+        print(xml.to_string())
+        return xml
 
     @staticmethod
     def build_software_update_info(status, node):
@@ -115,7 +128,7 @@ class TestMyModule(unittest.TestCase):
             username = 'username'
             password = 'password'
             node = 'abc'
-            package_version = 'test'
+            package_version = 'Fattire__9.3.0'
             package_url = 'abc.com'
             stabilize_minutes = 10
         return dict({
@@ -143,13 +156,12 @@ class TestMyModule(unittest.TestCase):
         my_obj.server = self.server
         cluster_image_get = my_obj.cluster_image_get()
         print('Info: test_software_update_get: %s' % repr(cluster_image_get))
-        assert cluster_image_get is None
+        assert cluster_image_get == list()
 
-    def test_ensure_apply_for_update_called(self):
+    def test_ensure_apply_for_update_called_idempotent(self):
         ''' updating software and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'package_url': 'abc.com'})
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.autosupport_log = Mock(return_value=None)
@@ -159,6 +171,15 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_software_update_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
+
+    def test_ensure_apply_for_update_called(self):
+        ''' updating software and checking idempotency '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'package_version': 'PlinyTheElder'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.autosupport_log = Mock(return_value=None)
         if not self.use_vsim:
             my_obj.server = MockONTAPConnection('software_update', 'async_pkg_get_phase_complete', 'abc')
         with pytest.raises(AnsibleExitJson) as exc:

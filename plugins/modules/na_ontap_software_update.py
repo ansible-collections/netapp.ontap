@@ -2,6 +2,11 @@
 
 # (c) 2018-2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+'''
+na_ontap_software_update
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -52,17 +57,23 @@ options:
       - Allows to download image without update.
     default: False
     type: bool
-    version_added: "20.4.0"
+    version_added: 20.4.0
   stabilize_minutes:
     description:
       - Number of minutes that the update should wait after a takeover or giveback is completed.
     type: int
-    version_added: "20.6.0"
+    version_added: 20.6.0
   timeout:
     description:
       - how long to wait for the update to complete, in seconds.
     default: 1800
     type: int
+  force_update:
+    description:
+      - force an update, even if package_version matches what is reported as installed.
+    default: false
+    type: bool
+    version_added: 20.11.0
 short_description: NetApp ONTAP Update Software
 version_added: 2.7.0
 '''
@@ -85,12 +96,12 @@ EXAMPLES = """
 RETURN = """
 """
 
+import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-import time
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -110,12 +121,13 @@ class NetAppONTAPSoftwareUpdate(object):
             ignore_validation_warning=dict(required=False, type='bool', default=False),
             download_only=dict(required=False, type='bool', default=False),
             stabilize_minutes=dict(required=False, type='int'),
-            timeout=dict(required=False, type='int', default=1800)
+            timeout=dict(required=False, type='int', default=1800),
+            force_update=dict(required=False, type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=False
+            supports_check_mode=True
         )
 
         self.na_helper = NetAppModule()
@@ -126,7 +138,8 @@ class NetAppONTAPSoftwareUpdate(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def cluster_image_get_iter(self):
+    @staticmethod
+    def cluster_image_get_iter():
         """
         Compose NaElement object to query current version
         :return: NaElement object for cluster-image-get-iter with query
@@ -148,13 +161,15 @@ class NetAppONTAPSoftwareUpdate(object):
             result = self.server.invoke_successfully(cluster_image_get_iter, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching cluster image details: %s: %s'
-                                      % (self.parameters['package_version'], to_native(error)),
+                                  % (self.parameters['package_version'], to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster image details
+        node_versions = list()
         if result.get_child_by_name('num-records') and \
                 int(result.get_child_content('num-records')) > 0:
-            return True
-        return None
+            for image_info in result.get_child_by_name('attributes-list').get_children():
+                node_versions.append((image_info.get_child_content('node-id'), image_info.get_child_content('current-version')))
+        return node_versions
 
     def cluster_image_get_for_node(self, node_name):
         """
@@ -163,11 +178,17 @@ class NetAppONTAPSoftwareUpdate(object):
         cluster_image_get = netapp_utils.zapi.NaElement('cluster-image-get')
         cluster_image_get.add_new_child('node-id', node_name)
         try:
-            self.server.invoke_successfully(cluster_image_get, enable_tunneling=True)
+            result = self.server.invoke_successfully(cluster_image_get, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching cluster image details for %s: %s'
-                                      % (node_name, to_native(error)),
+                                  % (node_name, to_native(error)),
                                   exception=traceback.format_exc())
+        # return cluster image version
+        if result.get_child_by_name('attributes').get_child_by_name('cluster-image-info'):
+            image_info = result.get_child_by_name('attributes').get_child_by_name('cluster-image-info')
+            if image_info:
+                return image_info.get_child_content('node-id'), image_info.get_child_content('current-version')
+        return None, None
 
     @staticmethod
     def get_localname(tag):
@@ -226,6 +247,8 @@ class NetAppONTAPSoftwareUpdate(object):
             msg = 'Error updating cluster image for %s: %s' % (self.parameters['package_version'], to_native(error))
             cluster_update_progress_info = self.cluster_image_update_progress_get(ignore_connection_error=True)
             validation_reports = str(cluster_update_progress_info.get('validation_reports'))
+            if validation_reports == "None":
+                validation_reports = str(self.cluster_image_validate())
             self.module.fail_json(msg=msg, validation_reports=validation_reports, exception=traceback.format_exc())
 
     def cluster_image_package_download(self):
@@ -240,10 +263,11 @@ class NetAppONTAPSoftwareUpdate(object):
         except netapp_utils.zapi.NaApiError as error:
             # Error 18408 denotes Package image with the same name already exists
             if to_native(error.code) == "18408":
+                # TODO: if another package is using the same image name, we're stuck
                 return True
             else:
                 self.module.fail_json(msg='Error downloading cluster image package for %s: %s'
-                                          % (self.parameters['package_url'], to_native(error)),
+                                      % (self.parameters['package_url'], to_native(error)),
                                       exception=traceback.format_exc())
         return False
 
@@ -257,7 +281,7 @@ class NetAppONTAPSoftwareUpdate(object):
             self.server.invoke_successfully(cluster_image_package_delete_info, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error deleting cluster image package for %s: %s'
-                                      % (self.parameters['package_version'], to_native(error)),
+                                  % (self.parameters['package_version'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def cluster_image_package_download_progress(self):
@@ -272,7 +296,7 @@ class NetAppONTAPSoftwareUpdate(object):
                 cluster_image_package_download_progress_info, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching cluster image package download progress for %s: %s'
-                                      % (self.parameters['package_url'], to_native(error)),
+                                  % (self.parameters['package_url'], to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster image download progress details
         cluster_download_progress_info = dict()
@@ -283,6 +307,30 @@ class NetAppONTAPSoftwareUpdate(object):
             return cluster_download_progress_info
         return None
 
+    def cluster_image_validate(self):
+        """
+        Validate that NDU is feasible.
+        :return: List of dictionaries
+        """
+        cluster_image_validation_info = netapp_utils.zapi.NaElement('cluster-image-validate')
+        cluster_image_validation_info.add_new_child('package-version', self.parameters['package_version'])
+        try:
+            result = self.server.invoke_successfully(
+                cluster_image_validation_info, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            msg = 'Error running cluster image validate: %s' % to_native(error)
+            return msg
+        # return cluster validation report
+        cluster_report_info = list()
+        if result.get_child_by_name('cluster-image-validation-report-list'):
+            for report in result.get_child_by_name('cluster-image-validation-report-list').get_children():
+                cluster_report_info.append(dict(
+                    ndu_check=report.get_child_content('ndu-check'),
+                    ndu_status=report.get_child_content('ndu-status'),
+                    required_action=report.get_child_content('required-action')
+                ))
+        return cluster_report_info
+
     def autosupport_log(self):
         """
         Autosupport log for software_update
@@ -292,37 +340,43 @@ class NetAppONTAPSoftwareUpdate(object):
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_software_update", cserver)
 
+    def is_update_required(self):
+        ''' return True if at least one node is not at the correct version '''
+        if self.parameters.get('nodes'):
+            versions = [self.cluster_image_get_for_node(node) for node in self.parameters['nodes']]
+        else:
+            versions = self.cluster_image_get()
+        current_versions = set([x[1] for x in versions])
+        if len(current_versions) != 1:
+            # mixed set, need to update
+            return True
+        # only update if versions differ
+        return current_versions.pop() != self.parameters['package_version']
+
     def apply(self):
         """
         Apply action to update ONTAP software
         """
+        # TODO: cluster image update only works for HA configurations.
+        # check if node image update can be used for other cases.
         if self.parameters.get('https') is not True:
             self.module.fail_json(msg='https parameter must be True')
-        changed = False
         self.autosupport_log()
-        current = self.cluster_image_get()
+        changed = self.parameters['force_update'] or self.is_update_required()
         validation_reports = 'only available after update'
-        if self.module.check_mode:
-            pass
-        else:
-            if self.parameters.get('nodes'):
-                for node in self.parameters['nodes']:
-                    self.cluster_image_get_for_node(node)
-            if self.parameters.get('state') == 'present' and current:
+        if not self.module.check_mode and changed:
+            if self.parameters.get('state') == 'present':
                 package_exists = self.cluster_image_package_download()
                 if package_exists is False:
                     cluster_download_progress = self.cluster_image_package_download_progress()
                     while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
                         time.sleep(5)
                         cluster_download_progress = self.cluster_image_package_download_progress()
-                    if cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
-                        changed = True
-                    else:
+                    if not cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
                         self.module.fail_json(msg='Error downloading package: %s'
-                                                  % (cluster_download_progress['failure_reason']))
+                                              % (cluster_download_progress['failure_reason']))
                 if self.parameters['download_only'] is False:
                     self.cluster_image_update()
-                    changed = True
                     # delete package once update is completed
                     cluster_update_progress = dict()
                     time_left = self.parameters['timeout']

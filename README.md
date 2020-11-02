@@ -29,6 +29,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_mcc_mediator - improve error reporting when REST is not available.
   - na_ontap_metrocluster - improve error reporting when REST is not available.
   - na_ontap_wwpn_alias - improve error reporting when REST is not available.
+  - na_ontap_software_update - add `force_update` option to ignore current version.
   - na_ontap_svm - output `modified` if a modify action is taken.
 
 ### Bug fixes
@@ -37,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_info - Use `node-id` as key rather than `current-version`.
   - na_ontap_ipspace - invalid call in error reporting (double error).
   - na_ontap_lun - `use_exact_size` to create a lun with the exact given size so that the lun is not rounded up.
+  - na_ontap_software_update - module is not idempotent.
 
 ## 20.10.0
 
