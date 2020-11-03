@@ -267,7 +267,9 @@ class NetAppONTAPGatherInfo(object):
         post_return, error = self.rest_api.post(api, None)
         if error:
             return None
-        self.rest_api.wait_on_job(post_return['job'], increment=5)
+        message, error = self.rest_api.wait_on_job(post_return['job'], increment=5)
+        if error:
+            self.module.fail_json(msg="%s" % error)
 
     def get_next_records(self, api):
         """

@@ -142,7 +142,9 @@ class NetAppONTAPMetroCluster(object):
         message, error = self.rest_api.post(api, data, options)
         if error is not None:
             self.module.fail_json(msg="%s" % error)
-        self.rest_api.wait_on_job(message['job'], self.parameters['hostname'])
+        message, error = self.rest_api.wait_on_job(message['job'], self.parameters['hostname'])
+        if error:
+            self.module.fail_json(msg="%s" % error)
 
     def apply(self):
         current = self.get_metrocluster()

@@ -33,6 +33,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_svm - output `modified` if a modify action is taken.
 
 ### Bug fixes
+  - All REST modules, will not fail if a job fails
   - na_ontap_cifs - fix idempotency issue when `show-previous-versions` is used.
   - na_ontap_firmware_upgrade - fix ValueError issue when processing URL error.
   - na_ontap_info - Use `node-id` as key rather than `current-version`.

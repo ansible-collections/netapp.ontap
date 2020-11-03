@@ -304,7 +304,9 @@ class NetAppOntapQTree(object):
             if error:
                 self.module.fail_json(msg=error)
             if 'job' in response and self.parameters['wait_for_completion']:
-                self.rest_api.wait_on_job(response['job'], timeout=self.parameters['time_out'], increment=10)
+                message, error = self.rest_api.wait_on_job(response['job'], timeout=self.parameters['time_out'], increment=10)
+                if error:
+                    self.module.fail_json(msg="%s" % error)
 
         else:
             path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])

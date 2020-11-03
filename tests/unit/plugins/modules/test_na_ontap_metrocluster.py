@@ -44,7 +44,7 @@ SRR = {
     'job': (200, {
         "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
         "description": "POST /api/cluster/metrocluster",
-        "state": "failure",
+        "state": "success",
         "message": "There are not enough disks in Pool1.",
         "code": 2432836,
         "start_time": "2020-02-26T10:35:44-08:00",

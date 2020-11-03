@@ -475,7 +475,9 @@ class NetAppOntapSnapMirrorPolicy(object):
             if error:
                 self.module.fail_json(msg=error)
             if 'job' in response:
-                self.rest_api.wait_on_job(response['job'], increment=5)
+                message, error = self.rest_api.wait_on_job(response['job'], increment=5)
+                if error:
+                    self.module.fail_json(msg="%s" % error)
         else:
             snapmirror_policy_obj = netapp_utils.zapi.NaElement("snapmirror-policy-create")
             snapmirror_policy_obj.add_new_child("policy-name", self.parameters['policy_name'])

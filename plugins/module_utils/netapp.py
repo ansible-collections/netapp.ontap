@@ -576,6 +576,9 @@ class OntapRestAPI(object):
                 # }
 
                 message = job_json.get('message', '')
+                if job_json['state'] == 'failure':
+                    # if the job as failed, return message as error
+                    return None, message
                 if job_json['state'] != 'running':
                     keep_running = False
                 else:
