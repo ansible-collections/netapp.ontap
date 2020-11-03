@@ -258,6 +258,14 @@ def is_zapi_connection_error(message):
     return False
 
 
+def is_zapi_write_access_error(message):
+    ''' return True if it is a connection issue '''
+    # netapp-lib message may contain a tuple or a str!
+    if isinstance(message, str) and message.startswith('Insufficient privileges:'):
+        return 'does not have write access' in message
+    return False
+
+
 def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
@@ -280,7 +288,8 @@ def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECT
     except zapi.NaApiError as exc:
         # Do not fail if we can't connect to the server.
         # The module will report a better error when trying to get some data from ONTAP.
-        if not is_zapi_connection_error(exc.message):
+        # Do not fail if we don't have write privileges.
+        if not is_zapi_connection_error(exc.message) and not is_zapi_write_access_error(exc.message):
             # raise on other errors, as it may be a bug in calling the ZAPI
             raise exc
 

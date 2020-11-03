@@ -26,6 +26,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Minor changes
   - na_ontap_cifs - output `modified` if a modify action is taken.
+  - na_ontap_info - do not require write access privileges.   This also enables other modules to work in check_mode without write access permissions.
   - na_ontap_mcc_mediator - improve error reporting when REST is not available.
   - na_ontap_metrocluster - improve error reporting when REST is not available.
   - na_ontap_wwpn_alias - improve error reporting when REST is not available.
