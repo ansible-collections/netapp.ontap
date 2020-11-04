@@ -24,6 +24,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.11.0
 
+
+### New Modules
+  - na_ontap_metrocluster_dr_group: Configure a Metrocluster DR group (Supports ONTAP 9.8+)
+
 ### Minor changes
   - na_ontap_cifs - output `modified` if a modify action is taken.
   - na_ontap_cluster_peer: optional parameter 'ipspace' added for cluster peer.
@@ -42,6 +46,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_info - Use `node-id` as key rather than `current-version`.
   - na_ontap_ipspace - invalid call in error reporting (double error).
   - na_ontap_lun - `use_exact_size` to create a lun with the exact given size so that the lun is not rounded up.
+  - na_ontap_metrocluster: Fix issue where module would fail on waiting for rest api job
   - na_ontap_software_update - module is not idempotent.
 
 ## 20.10.0

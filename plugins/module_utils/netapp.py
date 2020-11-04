@@ -462,8 +462,11 @@ class OntapRestAPI(object):
         self.check_required_library()
 
     def requires_ontap_9_6(self, module_name):
+        self.requires_ontap_version(module_name)
+
+    def requires_ontap_version(self, module_name, version='9.6'):
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
-        return "%s only support REST, and requires ONTAP 9.6 or later.%s" % (module_name, suffix)
+        return "%s only support REST, and requires ONTAP %s or later.%s" % (module_name, version, suffix)
 
     def check_required_library(self):
         if not HAS_REQUESTS:
