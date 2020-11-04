@@ -157,6 +157,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -164,19 +165,6 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 class NetAppOntapLUN(object):
     ''' create, modify, delete LUN '''
     def __init__(self):
-
-        self._size_unit_map = dict(
-            bytes=1,
-            b=1,
-            kb=1024,
-            mb=1024 ** 2,
-            gb=1024 ** 3,
-            tb=1024 ** 4,
-            pb=1024 ** 5,
-            eb=1024 ** 6,
-            zb=1024 ** 7,
-            yb=1024 ** 8
-        )
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -205,39 +193,24 @@ class NetAppOntapLUN(object):
             supports_check_mode=True
         )
 
-        parameters = self.module.params
-
         # set up state variables
-        self.state = parameters['state']
-        self.name = parameters['name']
-        self.size_unit = parameters['size_unit']
-        if parameters['size'] is not None:
-            self.size = parameters['size'] * self._size_unit_map[self.size_unit]
-        else:
-            self.size = None
-        self.force_resize = parameters['force_resize']
-        self.force_remove = parameters['force_remove']
-        self.force_remove_fenced = parameters['force_remove_fenced']
-        self.flexvol_name = parameters['flexvol_name']
-        self.vserver = parameters['vserver']
-        self.ostype = parameters['ostype']
-        self.space_reserve = parameters['space_reserve']
-        self.space_allocation = parameters['space_allocation']
-        self.use_exact_size = parameters['use_exact_size']
+        self.na_helper = NetAppModule()
+        self.parameters = self.na_helper.set_parameters(self.module.params)
+        if self.parameters.get('size') is not None:
+            self.parameters['size'] *= netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
-    def get_lun(self):
+    def get_luns(self):
         """
-        Return details about the LUN
+        Return list of LUNs matching vserver and volume names.
 
-        :return: Details about the lun
-        :rtype: dict
+        :return: list of LUNs in XML format.
+        :rtype: list
         """
-
         luns = []
         tag = None
         while True:
@@ -246,8 +219,8 @@ class NetAppOntapLUN(object):
                 lun_info.add_new_child('tag', tag, True)
 
             query_details = netapp_utils.zapi.NaElement('lun-info')
-            query_details.add_new_child('vserver', self.vserver)
-            query_details.add_new_child('volume', self.flexvol_name)
+            query_details.add_new_child('vserver', self.parameters['vserver'])
+            query_details.add_new_child('volume', self.parameters['flexvol_name'])
 
             query = netapp_utils.zapi.NaElement('query')
             query.add_child_elem(query_details)
@@ -263,76 +236,104 @@ class NetAppOntapLUN(object):
 
             if tag is None:
                 break
+        return luns
 
+    def get_lun_details(self, name, lun):
+        """
+        Extract LUN details, from XML to python dict
+
+        :return: Details about the lun
+        :rtype: dict
+        """
+        return_value = dict(name=name)
+        return_value['size'] = int(lun.get_child_content('size'))
+        bool_attr_map = {
+            'is-space-alloc-enabled': 'space_allocation',
+            'is-space-reservation-enabled': 'space_reserve'
+        }
+        for attr in bool_attr_map:
+            value = lun.get_child_content(attr)
+            if value is not None:
+                return_value[bool_attr_map[attr]] = self.na_helper.get_value_for_bool(True, value)
+        attr = 'multiprotocol-type'
+        value = lun.get_child_content(attr)
+        if value is not None:
+            return_value['ostype'] = value
+
+        # Find out if the lun is attached
+        attached_to = None
+        lun_id = None
+        if lun.get_child_content('mapped') == 'true':
+            lun_map_list = netapp_utils.zapi.NaElement.create_node_with_children(
+                'lun-map-list-info', **{'path': lun.get_child_content('path')})
+            result = self.server.invoke_successfully(
+                lun_map_list, enable_tunneling=True)
+            igroups = result.get_child_by_name('initiator-groups')
+            if igroups:
+                for igroup_info in igroups.get_children():
+                    igroup = igroup_info.get_child_content(
+                        'initiator-group-name')
+                    attached_to = igroup
+                    lun_id = igroup_info.get_child_content('lun-id')
+
+        return_value.update({
+            'attached_to': attached_to,
+            'lun_id': lun_id
+        })
+        return return_value
+
+    def get_lun(self):
+        """
+        Return details about the LUN
+
+        :return: Details about the lun
+        :rtype: dict
+        """
+        return_value = dict()
+        luns = self.get_luns()
         # The LUNs have been extracted.
         # Find the specified lun and extract details.
-        return_value = None
         for lun in luns:
             path = lun.get_child_content('path')
             _rest, _splitter, found_name = path.rpartition('/')
 
-            if found_name == self.name:
-                size = lun.get_child_content('size')
+            if found_name == self.parameters['name']:
+                return_value = self.get_lun_details(found_name, lun)
+                break
 
-                # Find out if the lun is attached
-                attached_to = None
-                lun_id = None
-                if lun.get_child_content('mapped') == 'true':
-                    lun_map_list = netapp_utils.zapi.NaElement.create_node_with_children(
-                        'lun-map-list-info', **{'path': path})
-
-                    result = self.server.invoke_successfully(
-                        lun_map_list, enable_tunneling=True)
-
-                    igroups = result.get_child_by_name('initiator-groups')
-                    if igroups:
-                        for igroup_info in igroups.get_children():
-                            igroup = igroup_info.get_child_content(
-                                'initiator-group-name')
-                            attached_to = igroup
-                            lun_id = igroup_info.get_child_content('lun-id')
-
-                return_value = {
-                    'name': found_name,
-                    'size': size,
-                    'attached_to': attached_to,
-                    'lun_id': lun_id
-                }
-            else:
-                continue
-
-        return return_value
+        return return_value if return_value else None
 
     def create_lun(self):
         """
         Create LUN with requested name and size
         """
-        path = '/vol/%s/%s' % (self.flexvol_name, self.name)
+        path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
         lun_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-create-by-size', **{'path': path,
-                                     'size': str(self.size),
-                                     'ostype': self.ostype,
-                                     'space-reservation-enabled': str(self.space_reserve),
-                                     'space-allocation-enabled': str(self.space_allocation),
-                                     'use-exact-size': str(self.use_exact_size)})
+                                     'size': str(self.parameters['size']),
+                                     'ostype': self.parameters['ostype'],
+                                     'space-reservation-enabled': str(self.parameters['space_reserve']),
+                                     'space-allocation-enabled': str(self.parameters['space_allocation']),
+                                     'use-exact-size': str(self.parameters['use_exact_size'])})
 
         try:
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
-            self.module.fail_json(msg="Error provisioning lun %s of size %s: %s" % (self.name, self.size, to_native(exc)),
+            self.module.fail_json(msg="Error provisioning lun %s of size %s: %s"
+                                  % (self.parameters['name'], self.parameters['size'], to_native(exc)),
                                   exception=traceback.format_exc())
 
     def delete_lun(self):
         """
         Delete requested LUN
         """
-        path = '/vol/%s/%s' % (self.flexvol_name, self.name)
+        path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
 
         lun_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-destroy', **{'path': path,
-                              'force': str(self.force_remove),
+                              'force': str(self.parameters['force_remove']),
                               'destroy-fenced-lun':
-                                  str(self.force_remove_fenced)})
+                                  str(self.parameters['force_remove_fenced'])})
 
         try:
             self.server.invoke_successfully(lun_delete, enable_tunneling=True)
@@ -347,12 +348,12 @@ class NetAppOntapLUN(object):
         :return: True if LUN was actually re-sized, false otherwise.
         :rtype: bool
         """
-        path = '/vol/%s/%s' % (self.flexvol_name, self.name)
+        path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
 
         lun_resize = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-resize', **{'path': path,
-                             'size': str(self.size),
-                             'force': str(self.force_resize)})
+                             'size': str(self.parameters['size']),
+                             'force': str(self.parameters['force_resize'])})
         try:
             self.server.invoke_successfully(lun_resize, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
@@ -370,50 +371,60 @@ class NetAppOntapLUN(object):
 
         return True
 
-    def apply(self):
-        property_changed = False
-        size_changed = False
-        lun_exists = False
-        netapp_utils.ems_log_event("na_ontap_lun", self.server)
-        lun_detail = self.get_lun()
-
-        if lun_detail:
-            lun_exists = True
-            current_size = lun_detail['size']
-
-            if self.state == 'absent':
-                property_changed = True
-
-            elif self.state == 'present':
-                if not int(current_size) == self.size:
-                    size_changed = True
-                    property_changed = True
-
+    def set_lun_value(self, key, value):
+        key_to_zapi = dict(
+            space_allocation='lun-set-space-alloc',
+            space_reserve='lun-set-space-reservation-info'
+        )
+        if key in key_to_zapi:
+            zapi = key_to_zapi[key]
         else:
-            if self.state == 'present':
-                property_changed = True
+            self.module.fail_json(msg="option %s cannot be modified to %s" % (key, value))
 
-        if property_changed:
-            if self.module.check_mode:
-                pass
+        path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
+        enable = self.na_helper.get_value_for_bool(False, value)
+        lun_set = netapp_utils.zapi.NaElement.create_node_with_children(zapi, path=path, enable=enable)
+        try:
+            self.server.invoke_successfully(lun_set, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg="Error setting lun option %s: %s" % (key, to_native(exc)),
+                                  exception=traceback.format_exc())
+        return
+
+    def modify_lun(self, modify):
+        """
+        update LUN properties (except size or name)
+        """
+        for key, value in modify.items():
+            self.set_lun_value(key, value)
+
+    def apply(self):
+        netapp_utils.ems_log_event("na_ontap_lun", self.server)
+        current = self.get_lun()
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        modify = None
+        if cd_action is None and self.parameters['state'] == 'present':
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('size') is None:
+            self.module.fail_json(msg="size is a required parameter for create.")
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_lun()
+            elif cd_action == 'delete':
+                self.delete_lun()
             else:
-                if self.state == 'present':
-                    if not lun_exists:
-                        self.create_lun()
+                size_changed = False
+                if 'size' in modify:
+                    # Ensure that size was actually changed. Please
+                    # read notes in 'resize_lun' function for details.
+                    size_changed = self.resize_lun()
+                    modify.pop('size')
+                if modify:
+                    self.modify_lun(modify)
+                else:
+                    self.na_helper.changed = size_changed
 
-                    else:
-                        if size_changed:
-                            # Ensure that size was actually changed. Please
-                            # read notes in 'resize_lun' function for details.
-                            size_changed = self.resize_lun()
-                            if not size_changed:
-                                property_changed = False
-
-                elif self.state == 'absent':
-                    self.delete_lun()
-
-        changed = property_changed or size_changed
-        self.module.exit_json(changed=changed)
+        self.module.exit_json(changed=self.na_helper.changed)
 
 
 def main():

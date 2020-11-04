@@ -73,6 +73,12 @@ options:
      - Destination password.
      - Optional if this is same as source password.
     type: str
+  ipspace:
+    description:
+    - IPspace of the local intercluster LIFs.
+    - Assumes Default IPspace if not provided.
+    type: str
+    version_added: '20.11.0'
   encryption_protocol_proposed:
     description:
      - Encryption protocol to be used for inter-cluster communication.
@@ -139,6 +145,7 @@ class NetAppONTAPClusterPeer(object):
             dest_password=dict(required=False, type='str', no_log=True),
             source_cluster_name=dict(required=False, type='str'),
             dest_cluster_name=dict(required=False, type='str'),
+            ipspace=dict(required=False, type='str'),
             encryption_protocol_proposed=dict(required=False, type='str', choices=['tls_psk', 'none'])
         ))
 
@@ -260,6 +267,8 @@ class NetAppONTAPClusterPeer(object):
         cluster_peer_create.add_child_elem(peer_addresses)
         if self.parameters.get('encryption_protocol_proposed') is not None:
             cluster_peer_create.add_new_child('encryption-protocol-proposed', self.parameters['encryption_protocol_proposed'])
+        if self.parameters.get('ipspace') is not None:
+            cluster_peer_create.add_new_child('ipspace-name', self.parameters['ipspace'])
 
         try:
             server.invoke_successfully(cluster_peer_create, enable_tunneling=True)
