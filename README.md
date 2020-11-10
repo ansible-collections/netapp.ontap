@@ -22,6 +22,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 20.12.0
+
+
+### Bug fixes
+  - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.
+
 ## 20.11.0
 
 

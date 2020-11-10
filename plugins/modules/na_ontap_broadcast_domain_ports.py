@@ -156,7 +156,6 @@ class NetAppOntapBroadcastDomainPorts(object):
                 ports_obj.add_new_child('net-qualified-port-name', port)
         try:
             self.server.invoke_successfully(domain_obj, True)
-            return True
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating port for broadcast domain %s: %s' %
                                   (self.broadcast_domain, to_native(error)),
@@ -177,7 +176,6 @@ class NetAppOntapBroadcastDomainPorts(object):
                 ports_obj.add_new_child('net-qualified-port-name', port)
         try:
             self.server.invoke_successfully(domain_obj, True)
-            return True
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error deleting port for broadcast domain %s: %s' %
                                   (self.broadcast_domain, to_native(error)),
@@ -194,17 +192,18 @@ class NetAppOntapBroadcastDomainPorts(object):
         netapp_utils.ems_log_event("na_ontap_broadcast_domain_ports", cserver)
         if broadcast_domain_details is None:
             self.module.fail_json(msg='Error broadcast domain not found: %s' % self.broadcast_domain)
-        if self.module.check_mode:
-            pass
-        else:
-            if self.state == 'present':  # execute create
-                ports_to_add = [port for port in self.ports if port not in broadcast_domain_details['ports']]
-                if len(ports_to_add) > 0:
-                    changed = self.create_broadcast_domain_ports(ports_to_add)
-            elif self.state == 'absent':  # execute delete
-                ports_to_delete = [port for port in self.ports if port in broadcast_domain_details['ports']]
-                if len(ports_to_delete) > 0:
-                    changed = self.delete_broadcast_domain_ports(ports_to_delete)
+        if self.state == 'present':  # execute create
+            ports_to_add = [port for port in self.ports if port not in broadcast_domain_details['ports']]
+            if len(ports_to_add) > 0:
+                if not self.module.check_mode:
+                    self.create_broadcast_domain_ports(ports_to_add)
+                changed = True
+        elif self.state == 'absent':  # execute delete
+            ports_to_delete = [port for port in self.ports if port in broadcast_domain_details['ports']]
+            if len(ports_to_delete) > 0:
+                if not self.module.check_mode:
+                    self.delete_broadcast_domain_ports(ports_to_delete)
+                changed = True
 
         self.module.exit_json(changed=changed)
 
