@@ -328,7 +328,7 @@ def test_has_username_password():
     ''' auth_method reports expected value '''
     args = mock_args()
     rest_api = create_restapi_object(args)
-    assert rest_api.auth_method == 'basic_auth'
+    assert rest_api.auth_method == 'speedy_basic_auth'
 
 
 def test_has_cert_no_key():
@@ -432,3 +432,37 @@ def test_zapi_parse_response_unsanitized():
         zapi_cx._parse_response(response)
     msg = 'PCDATA invalid Char value 8'
     assert exc.value.msg.startswith(msg)
+
+
+def test_zapi_cx_add_auth_header():
+    ''' should add header '''
+    args = mock_args()
+    module = create_module(args)
+    zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
+    assert isinstance(zapi_cx, netapp_utils.OntapZAPICx)
+    assert zapi_cx.base64_creds is not None
+    request, dummy = zapi_cx._create_request(netapp_utils.zapi.NaElement('dummy_tag'))
+    assert "Authorization" in [x[0] for x in request.header_items()]
+
+
+def test_zapi_cx_add_auth_header_explicit():
+    ''' should add header '''
+    args = mock_args()
+    args['feature_flags'] = dict(classic_basic_authorization=False)
+    module = create_module(args)
+    zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
+    assert isinstance(zapi_cx, netapp_utils.OntapZAPICx)
+    assert zapi_cx.base64_creds is not None
+    request, dummy = zapi_cx._create_request(netapp_utils.zapi.NaElement('dummy_tag'))
+    assert "Authorization" in [x[0] for x in request.header_items()]
+
+
+def test_zapi_cx_no_auth_header():
+    ''' should add header '''
+    args = mock_args()
+    args['feature_flags'] = dict(classic_basic_authorization=True)
+    module = create_module(args)
+    zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
+    assert not isinstance(zapi_cx, netapp_utils.OntapZAPICx)
+    request, dummy = zapi_cx._create_request(netapp_utils.zapi.NaElement('dummy_tag'))
+    assert "Authorization" not in [x[0] for x in request.header_items()]

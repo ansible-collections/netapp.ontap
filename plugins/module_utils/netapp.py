@@ -34,6 +34,7 @@ netapp.py
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import base64
 import os
 import ssl
 import time
@@ -137,13 +138,14 @@ def get_feature(module, feature_name):
     '''
     default_flags = dict(
         check_required_params_for_none=True,
+        classic_basic_authorization=False,      # use ZAPI wrapper to send Authorization header
         deprecation_warning=True,
         sanitize_xml=True,
-        sanitize_code_points=[8],       # unicode values, 8 is backspace
+        sanitize_code_points=[8],               # unicode values, 8 is backspace
         show_modified=True
     )
 
-    if feature_name in module.params['feature_flags']:
+    if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:
         return module.params['feature_flags'][feature_name]
     if feature_name in default_flags:
         return default_flags[feature_name]
@@ -180,8 +182,10 @@ def set_auth_method(module, username, password, cert_filepath, key_filepath):
         if cert_filepath is not None or key_filepath is not None:
             error = 'Error: cannot have both basic authentication (username/password) ' +\
                     'and certificate authentication (cert/key files)'
-        else:
+        elif has_feature(module, 'classic_basic_authorization'):
             auth_method = 'basic_auth'
+        else:
+            auth_method = 'speedy_basic_auth'
     else:
         error = 'Error: username and password have to be provided together'
         if cert_filepath is not None or key_filepath is not None:
@@ -205,16 +209,19 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
 
     if HAS_NETAPP_LIB:
         # set up zapi
-        if auth_method != 'basic_auth':
+        if auth_method in ('single_cert', 'cert_key'):
             # override NaServer in netapp-lib to enable certificate authentication
             server = OntapZAPICx(hostname, module=module, username=username, password=password,
                                  validate_certs=validate_certs, cert_filepath=cert_filepath,
-                                 key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE)
+                                 key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE,
+                                 auth_method=auth_method)
             # SSL certificate authentication requires SSL
             https = True
-        elif wrap_zapi:
+        elif auth_method == 'speedy_basic_auth' or wrap_zapi:
+            # override NaServer in netapp-lib to add Authorization header preemptively
+            # use wrapper to handle parse error (mostly for na_ontap_command)
             server = OntapZAPICx(hostname, module=module, username=username, password=password,
-                                 validate_certs=validate_certs)
+                                 validate_certs=validate_certs, auth_method=auth_method)
         else:
             # legacy netapp-lib
             server = zapi.NaServer(hostname)
@@ -364,12 +371,14 @@ if HAS_NETAPP_LIB:
         ''' override zapi NaServer class to:
         - enable SSL certificate authentication
         - ignore invalid XML characters in ONTAP output (when using CLI module)
+        - add Authorization header when using basic authentication
         '''
         def __init__(self, hostname=None, server_type=zapi.NaServer.SERVER_TYPE_FILER,
                      transport_type=zapi.NaServer.TRANSPORT_TYPE_HTTP,
                      style=zapi.NaServer.STYLE_LOGIN_PASSWORD, username=None,
                      password=None, port=None, trace=False, module=None,
-                     cert_filepath=None, key_filepath=None, validate_certs=None):
+                     cert_filepath=None, key_filepath=None, validate_certs=None,
+                     auth_method=None):
             # python 2.x syntax, but works for python 3 as well
             super(OntapZAPICx, self).__init__(hostname, server_type=server_type,
                                               transport_type=transport_type,
@@ -379,6 +388,10 @@ if HAS_NETAPP_LIB:
             self.key_filepath = key_filepath
             self.validate_certs = validate_certs
             self.module = module
+            self.base64_creds = None
+            if auth_method == 'speedy_basic_auth':
+                auth = '%s:%s' % (username, password)
+                self.base64_creds = base64.b64encode(auth.encode()).decode()
 
         def _create_certificate_auth_handler(self):
             try:
@@ -429,6 +442,13 @@ if HAS_NETAPP_LIB:
                     # in case the response is very badly formatted, ignore it
                     pass
                 raise exc
+
+        def _create_request(self, na_element, enable_tunneling=False):
+            ''' intercept newly created request to add Authorization header '''
+            request, netapp_element = super(OntapZAPICx, self)._create_request(na_element, enable_tunneling=enable_tunneling)
+            if self.base64_creds is not None:
+                request.add_header("Authorization", "Basic %s" % self.base64_creds)
+            return request, netapp_element
 
 
 class OntapRestAPI(object):
@@ -506,7 +526,8 @@ class OntapRestAPI(object):
             kwargs = dict(cert=self.cert_filepath)
         elif self.auth_method == 'cert_key':
             kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
-        elif self.auth_method == 'basic_auth':
+        elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
+            # with requests, there is no challenge, eg no 401.
             kwargs = dict(auth=(self.username, self.password))
         else:
             raise KeyError(self.auth_method)

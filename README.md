@@ -46,6 +46,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_wwpn_alias - improve error reporting when REST is not available.
   - na_ontap_software_update - add `force_update` option to ignore current version.
   - na_ontap_svm - output `modified` if a modify action is taken.
+  - all ZAPI modules - optimize Basic Authentication by adding Authorization header proactively.
+  - This can be disabled by setting the `classic_basic_authorization` feature_flag to True.
 
 ### Bug fixes
   - All REST modules, will not fail if a job fails
