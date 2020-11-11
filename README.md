@@ -27,6 +27,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
   - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.
+  - na_ontap_volume - change in volume type was ignored and now reporting an error.
+
 
 ## 20.11.0
 

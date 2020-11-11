@@ -79,6 +79,7 @@ options:
   reset:
     description:
     - "Sets the values of maximum_size, increment_size, minimum_size, grow_threshold_percent, shrink_threshold_percent and mode to their defaults"
+    - If reset paramater is present system will always perform reset action, so idempotency is not supported.
     type: bool
 
   shrink_threshold_percent:

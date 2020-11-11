@@ -771,6 +771,8 @@ class NetAppOntapVolume(object):
                 return_value['encrypt'] = self.na_helper.get_value_for_bool(True, volume_space_attributes['encrypt'], 'encrypt')
             if volume_space_attributes.get_child_by_name('percentage-snapshot-reserve'):
                 return_value['percent_snapshot_space'] = int(volume_space_attributes['percentage-snapshot-reserve'])
+            if volume_id_attributes.get_child_by_name('type'):
+                return_value['type'] = volume_id_attributes['type']
             if volume_space_attributes.get_child_by_name('space-slo'):
                 return_value['space_slo'] = volume_space_attributes['space-slo']
             else:
@@ -1643,6 +1645,8 @@ class NetAppOntapVolume(object):
             # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
             auto_delete_info = current.pop('snapshot_auto_delete', None)
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if modify is not None and 'type' in modify:
+                self.module.fail_json(msg="Changing the same volume from one type to another is not allowed.")
             if self.parameters.get('snapshot_auto_delete') is not None:
                 auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
                                                                             self.parameters['snapshot_auto_delete'])
