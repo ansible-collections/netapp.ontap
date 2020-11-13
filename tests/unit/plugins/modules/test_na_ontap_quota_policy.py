@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_quota_policy \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -64,7 +62,9 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         if self.kind == 'quota':
-            xml = self.build_quota_policy_info(self.params)
+            xml = self.build_quota_policy_info(self.params, True)
+        if self.kind == 'quota_not_assigned':
+            xml = self.build_quota_policy_info(self.params, False)
         elif self.kind == 'zapi_error':
             error = netapp_utils.zapi.NaApiError('test', 'error')
             raise error
@@ -72,12 +72,15 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_quota_policy_info(sis_details):
+    def build_quota_policy_info(params, assigned):
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {'num-records': 1,
                       'attributes-list': {
                           'quota-policy-info': {
-                              'policy-name': sis_details['name']}}}
+                              'policy-name': params['name']},
+                          'vserver-info': {
+                              'quota-policy': params['name'] if assigned else 'default'}
+                      }}
         xml.translate_struct(attributes)
         return xml
 
@@ -112,10 +115,8 @@ class TestMyModule(unittest.TestCase):
         netapp_utils.ems_log_event = Mock(return_value=None)
         if kind is None:
             policy_obj.server = MockONTAPConnection()
-        elif kind == 'quota':
-            policy_obj.server = MockONTAPConnection(kind='quota', data=self.mock_quota_policy)
-        elif kind == 'zapi_error':
-            policy_obj.server = MockONTAPConnection(kind='zapi_error', data=self.mock_quota_policy)
+        else:
+            policy_obj.server = MockONTAPConnection(kind=kind, data=self.mock_quota_policy)
         return policy_obj
 
     def test_module_fail_when_required_args_missing(self):
@@ -137,12 +138,21 @@ class TestMyModule(unittest.TestCase):
             self.get_quota_policy_mock_object('quota').apply()
         assert not exc.value.args[0]['changed']
 
+    def test_cannot_delete(self):
+        data = self.mock_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_quota_policy_mock_object('quota').apply()
+        msg = 'Error policy test_policy cannot be deleted as it is assigned to the vserver test_vserver'
+        assert msg == exc.value.args[0]['msg']
+
     def test_successfully_delete(self):
         data = self.mock_args()
         data['state'] = 'absent'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_quota_policy_mock_object('quota').apply()
+            self.get_quota_policy_mock_object('quota_not_assigned').apply()
         assert exc.value.args[0]['changed']
 
     def test_delete_idempotency(self):
@@ -152,6 +162,13 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_quota_policy_mock_object().apply()
         assert not exc.value.args[0]['changed']
+
+    def test_successfully_assign(self):
+        data = self.mock_args()
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_quota_policy_mock_object('quota_not_assigned').apply()
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_quota_policy.NetAppOntapQuotaPolicy.get_quota_policy')
     def test_successful_rename(self, get_volume):

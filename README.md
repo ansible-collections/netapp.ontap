@@ -24,14 +24,17 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 20.12.0
 
+### New Options
+  - na_ontap_quota_policy - new option ``auto_assign`` to assign quota policy to vserver.
+
+### New Options:
+  - na_ontap_lun - new option ``from_name`` to rename a LUN.
 
 ### Bug fixes
   - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.
   - na_ontap_volume - change in volume type was ignored and now reporting an error.
 
-
 ## 20.11.0
-
 
 ### New Modules
   - na_ontap_metrocluster_dr_group: Configure a Metrocluster DR group (Supports ONTAP 9.8+)

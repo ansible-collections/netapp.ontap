@@ -43,6 +43,12 @@ options:
     required: true
     type: str
 
+  from_name:
+    description:
+    - The name of the LUN to be renamed.
+    type: str
+    version_added: 20.12.0
+
   flexvol_name:
     description:
     - The name of the FlexVol the LUN should exist on.
@@ -170,6 +176,7 @@ class NetAppOntapLUN(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
+            from_name=dict(required=False, type='str'),
             size=dict(type='int'),
             size_unit=dict(default='gb',
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
@@ -187,9 +194,6 @@ class NetAppOntapLUN(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[
-                ('state', 'present', ['size'])
-            ],
             supports_check_mode=True
         )
 
@@ -282,7 +286,7 @@ class NetAppOntapLUN(object):
         })
         return return_value
 
-    def get_lun(self):
+    def get_lun(self, name):
         """
         Return details about the LUN
 
@@ -297,7 +301,7 @@ class NetAppOntapLUN(object):
             path = lun.get_child_content('path')
             _rest, _splitter, found_name = path.rpartition('/')
 
-            if found_name == self.parameters['name']:
+            if found_name == name:
                 return_value = self.get_lun_details(found_name, lun)
                 break
 
@@ -398,13 +402,41 @@ class NetAppOntapLUN(object):
         for key, value in modify.items():
             self.set_lun_value(key, value)
 
+    def rename_lun(self):
+        """
+        rename LUN
+        """
+        path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['from_name'])
+        new_path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
+
+        lun_move = netapp_utils.zapi.NaElement.create_node_with_children(
+            'lun-move', **{'path': path,
+                           'new-path': new_path})
+        try:
+            self.server.invoke_successfully(lun_move, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as exc:
+            self.module.fail_json(msg="Error moving lun %s: %s" % (path, to_native(exc)),
+                                  exception=traceback.format_exc())
+
     def apply(self):
+        results = dict()
         netapp_utils.ems_log_event("na_ontap_lun", self.server)
-        current = self.get_lun()
+        current = self.get_lun(self.parameters['name'])
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = None
+        modify, rename = None, None
+        from_name = self.parameters.get('from_name')
+        if cd_action == 'create' and from_name is not None:
+            # create by renaming existing LUN, if it really exists
+            old_lun = self.get_lun(from_name)
+            rename = self.na_helper.is_rename_action(old_lun, current)
+            if rename is None:
+                self.module.fail_json(msg="Error renaming lun: %s does not exist" % self.parameters['from_name'])
+            if rename:
+                current = old_lun
+                cd_action = None
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            results['modify'] = dict(modify)
         if cd_action == 'create' and self.parameters.get('size') is None:
             self.module.fail_json(msg="size is a required parameter for create.")
         if self.na_helper.changed and not self.module.check_mode:
@@ -413,6 +445,8 @@ class NetAppOntapLUN(object):
             elif cd_action == 'delete':
                 self.delete_lun()
             else:
+                if rename:
+                    self.rename_lun()
                 size_changed = False
                 if 'size' in modify:
                     # Ensure that size was actually changed. Please
@@ -420,11 +454,15 @@ class NetAppOntapLUN(object):
                     size_changed = self.resize_lun()
                     modify.pop('size')
                 if modify:
+                    # we already handled rename if required
+                    modify.pop('name', None)
                     self.modify_lun(modify)
-                else:
+                if not modify and not rename:
+                    # size may not have changed
                     self.na_helper.changed = size_changed
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        results['changed'] = self.na_helper.changed
+        self.module.exit_json(**results)
 
 
 def main():
