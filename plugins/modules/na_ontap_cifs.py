@@ -297,7 +297,7 @@ class NetAppONTAPCifsShare(object):
         if cd_action is None:
             # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter
             if 'show-previous-versions' in self.parameters.get('share_properties', []) and\
-               'show_previous_versions' in current.get('share_properties', []):
+               current and 'show_previous_versions' in current.get('share_properties', []):
                 self.parameters['share_properties'].remove('show-previous-versions')
                 self.parameters['share_properties'].append('show_previous_versions')
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
