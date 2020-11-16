@@ -27,6 +27,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_lun - new option ``from_name`` to rename a LUN.
   - na_ontap_quota_policy - new option ``auto_assign`` to assign quota policy to vserver.
+  - na_ontap_volume - `nas_application_template` to create a volume using nas application REST API.
+  - na_ontap_volume - `size_change_threshold` to ignore small changes in volume size.
 
 ### Bug fixes
   - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.

@@ -329,3 +329,31 @@ class NetAppModule(object):
         if re.match(wwn_format, initiator):
             initiator = initiator.lower()
         return initiator
+
+    def safe_get(self, an_object, key_list, allow_sparse_dict=True):
+        ''' recursively traverse a dictionary or a any object supporting get_item
+            (in our case, python dicts and NAElement responses)
+            It is expected that some keys can be missing, this is controlled with allow_sparse_dict
+
+            return value if the key chain is exhausted
+            return None if a key is not found and allow_sparse_dict is True
+            raise KeyError is a key is not found and allow_sparse_dict is False (looking for exact match)
+            raise TypeError if an intermediate element cannot be indexed,
+              unless the element is None and allow_sparse_dict is True
+        '''
+        if not key_list:
+            # we've exhausted the keys, good!
+            return an_object
+        key = key_list.pop(0)
+        try:
+            return self.safe_get(an_object[key], key_list, allow_sparse_dict=allow_sparse_dict)
+        except KeyError as exc:
+            # error, key not found
+            if allow_sparse_dict:
+                return None
+            raise exc
+        except TypeError as exc:
+            # error, we were expecting a dict or NAElement
+            if allow_sparse_dict and an_object is None:
+                return None
+            raise exc

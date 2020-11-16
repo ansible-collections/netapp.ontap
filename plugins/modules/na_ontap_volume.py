@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2020, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -70,9 +70,62 @@ options:
 
   aggregate_name:
     description:
-    - The name of the aggregate the flexvol should exist on.
-    - Required when C(state=present).
+      - The name of the aggregate the flexvol should exist on.
+      - Cannot be set when using the na_application_template option.
     type: str
+
+  nas_application_template:
+    description:
+      - additional options when using the application/applications REST API to create a volume.
+      - the module is using ZAPI by default, and switches to REST if any suboption is present.
+      - create a FlexVol by default.
+      - create a FlexGroup if C(auto_provision_as) is set and C(FlexCache) option is not present.
+      - create a FlexCache if C(flexcache) option is present.
+    type: dict
+    version_added: 20.12.0
+    suboptions:
+      flexcache:
+        description: whether to create a flexcache.  If absent, a FlexVol or FlexGroup is created.
+        type: dict
+        suboptions:
+          origin_svm_name:
+            description: the remote SVM for the flexcache.
+            type: str
+            required: true
+          origin_component_name:
+            description: the remote component for the flexcache.
+            type: str
+            required: true
+      storage_service:
+        description:
+          - The performance service level (PSL) for this volume
+        type: str
+        choices: ['value', 'performance', 'extreme']
+      tiering:
+        description:
+          - Cloud tiering policy (see C(tiering_policy) for a more complete description).
+        type: dict
+        suboptions:
+          control:
+            description: Storage tiering placement rules for the container.
+            choices: ['required', 'best_effort', 'disallowed']
+            type: str
+          policy:
+            description:
+              - Cloud tiering policy (see C(tiering_policy)).
+              - Must match C(tiering_policy) if both are present.
+            choices: ['snapshot-only', 'auto', 'backup', 'none']
+            type: str
+          object_stores:
+            description: list of object store names for tiering.
+            type: list
+            elements: str
+      use_nas_application:
+        description:
+          - Whether to use the application/applications REST/API to create a volume.
+          - This will default to true if any other suboption is present.
+        type: bool
+        default: true
 
   size:
     description:
@@ -86,15 +139,26 @@ options:
     type: str
     default: 'gb'
 
+  size_change_threshold:
+    description:
+    - Percentage in size change to trigger a resize.
+    - When this parameter is greater than 0, a difference in size between what is expected and what is configured is ignored if it is below the threshold.
+    - For instance, the nas application allocates a larger size than specified to account for overhead.
+    - Set this to 0 for an exact match.
+    type: int
+    default: 10
+    version_added: 20.12.0
+
   type:
     description:
     - The volume type, either read-write (RW) or data-protection (DP).
     type: str
 
-  policy:
+  export_policy:
     description:
     - Name of the export policy.
     type: str
+    aliases: ['policy']
 
   junction_path:
     description:
@@ -117,7 +181,6 @@ options:
     description:
     - The security style associated with this volume.
     choices: ['mixed', 'ntfs', 'unified', 'unix']
-    default: 'unix'
     type: str
 
   encrypt:
@@ -417,7 +480,7 @@ EXAMPLES = """
         group_id: 2002
         space_guarantee: none
         tiering_policy: auto
-        policy: default
+        export_policy: default
         percent_snapshot_space: 60
         qos_policy_group: max_performance_gold
         vserver: ansibleVServer
@@ -460,7 +523,7 @@ EXAMPLES = """
         size: 200
         size_unit: mb
         space_guarantee: none
-        policy: default
+        export_policy: default
         vserver: "{{ vserver }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -479,7 +542,7 @@ EXAMPLES = """
         size: 200
         size_unit: mb
         space_guarantee: none
-        policy: default
+        export_policy: default
         vserver: "{{ vserver }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -498,7 +561,7 @@ EXAMPLES = """
         size: 100
         size_unit: gb
         space_guarantee: none
-        policy: default
+        export_policy: default
         percent_snapshot_space: 10
         qos_adaptive_policy_group: extreme
         vserver: ansibleVServer
@@ -579,7 +642,31 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-        https: false
+        https: true
+        validate_certs: false
+
+    - name: Volume create using application/applications nas template
+      na_ontap_volume:
+        state: present
+        name: ansibleVolume12
+        vserver: ansibleSVM
+        size: 100000000
+        size_unit: b
+        space_guarantee: none
+        policy: default
+        language: es
+        percent_snapshot_space: 60
+        unix_permissions: ---rwxrwxrwx
+        snapshot_policy: default
+        efficiency_policy: default
+        comment: testing
+        nas_application_template:
+          tiering:      # the mere presence of a suboption is enough to enable this new feature
+                hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
+        validate_certs: false
 """
 
 RETURN = """
@@ -625,11 +712,11 @@ class NetAppOntapVolume(object):
             size_unit=dict(default='gb', choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'], type='str'),
             aggregate_name=dict(type='str', default=None),
             type=dict(type='str', default=None),
-            policy=dict(type='str', default=None),
+            export_policy=dict(type='str', default=None, aliases=['policy']),
             junction_path=dict(type='str', default=None),
             space_guarantee=dict(choices=['none', 'file', 'volume'], default=None),
             percent_snapshot_space=dict(type='int', default=None),
-            volume_security_style=dict(choices=['mixed', 'ntfs', 'unified', 'unix'], default='unix'),
+            volume_security_style=dict(choices=['mixed', 'ntfs', 'unified', 'unix']),
             encrypt=dict(required=False, type='bool', default=False),
             efficiency_policy=dict(required=False, type='str'),
             unix_permissions=dict(required=False, type='str'),
@@ -659,8 +746,23 @@ class NetAppOntapVolume(object):
             force_unmap_luns=dict(required=False, type='bool'),
             force_restore=dict(required=False, type='bool'),
             preserve_lun_ids=dict(required=False, type='bool'),
-            snapshot_restore=dict(required=False, type='str')
+            snapshot_restore=dict(required=False, type='str'),
+            nas_application_template=dict(type='dict', options=dict(
+                use_nas_application=dict(type='bool', default=True),
+                flexcache=dict(type='dict', options=dict(
+                    origin_svm_name=dict(required=True, type='str'),
+                    origin_component_name=dict(required=True, type='str')
+                )),
+                storage_service=dict(type='str', choices=['value', 'performance', 'extreme']),
+                tiering=dict(type='dict', options=dict(
+                    control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
+                    policy=dict(type='str', choices=['snapshot-only', 'auto', 'backup', 'none']),
+                    object_stores=dict(type='list', elements='str')     # create only
+                ))
+            )),
+            size_change_threshold=dict(type='int', default=10),
         ))
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
@@ -671,6 +773,7 @@ class NetAppOntapVolume(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
+        self.warnings = list()
 
         if self.parameters.get('size'):
             self.parameters['size'] = self.parameters['size'] * \
@@ -680,6 +783,7 @@ class NetAppOntapVolume(object):
                 if key not in ['commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
                                'prefix', 'destroy_list', 'state']:
                     self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
+
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
                 msg="the python NetApp-Lib module is required")
@@ -687,6 +791,29 @@ class NetAppOntapVolume(object):
             self.server = netapp_utils.setup_na_ontap_zapi(
                 module=self.module, vserver=self.parameters['vserver'])
             self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
+
+        # REST API for application/applications if needed
+        self.use_application_template = self.set_use_application_template()
+        if self.use_application_template:
+            self.rest_api = netapp_utils.OntapRestAPI(self.module)
+
+    def set_use_application_template(self):
+        use_application_template = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application'])
+        if use_application_template:
+            # consistency checks
+            # tiering policy is duplicated, make sure values are matching
+            tiering_policy_nas = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering', 'policy'])
+            tiering_policy = self.na_helper.safe_get(self.parameters, ['tiering_policy'])
+            if tiering_policy_nas is not None and tiering_policy is not None and tiering_policy_nas != tiering_policy:
+                msg = 'Conflict: if tiering_policy and nas_application_template tiering policy are both set, they must match.'
+                msg += '  Found "%s" and "%s".' % (tiering_policy, tiering_policy_nas)
+                self.module.fail_json(msg=msg)
+            # aggregate_name will force a move if present
+            if self.parameters.get('aggregate_name') is not None:
+                msg = 'Conflict: aggregate_name is not supported when application template is enabled.'\
+                      '  Found: aggregate_name: %s' % self.parameters['aggregate_name']
+                self.module.fail_json(msg=msg)
+        return use_application_template
 
     def volume_get_iter(self, vol_name=None):
         """
@@ -735,7 +862,9 @@ class NetAppOntapVolume(object):
                 volume_export_attributes = volume_attributes['volume-export-attributes']
             except KeyError:  # does not exist for MDV volumes
                 volume_export_attributes = None
-            volume_security_unix_attributes = volume_attributes['volume-security-attributes']['volume-security-unix-attributes']
+            volume_security_unix_attributes = self.na_helper.safe_get(volume_attributes,
+                                                                      ['volume-security-attributes', 'volume-security-unix-attributes'],
+                                                                      allow_sparse_dict=False)
             volume_snapshot_attributes = volume_attributes['volume-snapshot-attributes']
             volume_performance_attributes = volume_attributes['volume-performance-attributes']
             volume_snapshot_auto_delete_attributes = volume_attributes['volume-snapshot-autodelete-attributes']
@@ -756,9 +885,9 @@ class NetAppOntapVolume(object):
             if volume_snapshot_attributes.get_child_by_name('snapshot-policy'):
                 return_value['snapshot_policy'] = volume_snapshot_attributes['snapshot-policy']
             if volume_export_attributes is not None:
-                return_value['policy'] = volume_export_attributes['policy']
+                return_value['export_policy'] = volume_export_attributes['policy']
             else:
-                return_value['policy'] = None
+                return_value['export_policy'] = None
             if volume_security_unix_attributes.get_child_by_name('group-id'):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
             if volume_security_unix_attributes.get_child_by_name('user-id'):
@@ -876,8 +1005,107 @@ class NetAppOntapVolume(object):
 
         return return_value
 
+    def create_volume_body(self):
+        '''Create body for nas template'''
+        required_options = ('name', 'size')
+        for option in required_options:
+            if self.parameters.get(option) is None:
+                self.module.fail_json(msg='Error: "%s" is required to create nas application.' % option)
+
+        application_component = dict(
+            name=self.parameters['name'],
+            total_size=self.parameters['size'],
+            share_count=1,      # 1 is the maximum value for nas
+            scale_out=(self.volume_style == 'flexGroup'),
+        )
+        name = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'storage_service'])
+        if name is not None:
+            application_component['storage_service'] = dict(name=name)
+
+        flexcache = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'flexcache'])
+        if flexcache is not None:
+            application_component['flexcache'] = dict(
+                origin=dict(
+                    svm=dict(name=flexcache['origin_svm_name']),
+                    component=dict(name=flexcache['origin_component_name'])
+                )
+            )
+
+        tiering = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering'])
+        if tiering is not None or self.parameters.get('tiering_policy') is not None:
+            application_component['tiering'] = dict()
+            if tiering is None:
+                tiering = dict()
+            if 'policy' not in tiering:
+                tiering['policy'] = self.parameters.get('tiering_policy')
+            for attr in ('control', 'policy', 'object_stores'):
+                value = tiering.get(attr)
+                if attr == 'object_stores' and value is not None:
+                    value = [dict(name=x) for x in value]
+                if value is not None:
+                    application_component['tiering'][attr] = value
+        if self.parameters.get('qos_policy') is not None:
+            application_component['qos'] = {
+                "policy": {
+                    "name": self.parameters['qos_policy'],
+                }
+            }
+        if self.parameters.get('export_policy') is not None:
+            application_component['export_policy'] = {
+                "name": self.parameters['export_policy'],
+            }
+
+        # TODO: confirm these 3 blocks are needed or not
+        # export policy should remove the need to support nfs_access ot cifs_access
+        # but for CIFS shares: see vserver cifs share access-control (na_ontap_cifs_acl)
+        # nfs_access = {
+        #     "host": "0.0.0.0/0",
+        #     "access": "rw"
+        # }
+        # cifs_access = {
+        #     "user_or_group": "everyone",
+        #     "access": "full_control"
+        # }
+
+        # protection_type = {
+        #     "local_rpo": "none",
+        #     "remote_rpo": "none",
+        #     "local_policy": ""
+        # }
+
+        body = {
+            "name": "nas-%s" % self.parameters['name'],
+            "svm": {"name": self.parameters['vserver']},
+            "smart_container": True,
+            "nas": {
+                "application_components": [application_component],
+                # "nfs_access": [nfs_access],           -- ignored, use export policy
+                # "cifs_access": [cifs_access],         -- ignored, use export policy
+                # "protection_type": protection_type
+            }
+        }
+        return body
+
+    def create_nas_application(self):
+        '''Use REST application/applications nas template to create a volume'''
+        api = '/application/applications'
+        body = self.create_volume_body()
+
+        query = {'return_timeout': 30, 'return_records': 'true'}
+        response, error = self.rest_api.post(api, body, params=query)
+        if error:
+            self.module.fail_json(msg=error)
+        if 'job' in response:
+            job_response, error = self.rest_api.wait_on_job(response['job'])
+            if error:
+                self.module.fail_json(msg="job reported error: %s" % error, response=response)
+            response['job_response'] = job_response
+        return response
+
     def create_volume(self):
         '''Create ONTAP volume'''
+        if self.use_application_template:
+            return self.create_nas_application()
         if self.volume_style == 'flexGroup':
             self.create_volume_async()
         else:
@@ -912,12 +1140,6 @@ class NetAppOntapVolume(object):
                     self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
                                           % (self.parameters['name'], str(errors)))
 
-        if self.parameters.get('efficiency_policy'):
-            self.assign_efficiency_policy()
-
-        if self.parameters.get('snapshot_auto_delete'):
-            self.set_snapshot_auto_delete()
-
     def create_volume_async(self):
         '''
         create volume async.
@@ -938,9 +1160,6 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], size_msg, to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'create')
-
-        if self.parameters.get('efficiency_policy'):
-            self.assign_efficiency_policy_async()
 
     def create_volume_options(self):
         '''Set volume options for create operation'''
@@ -974,8 +1193,8 @@ class NetAppOntapVolume(object):
             options['user-id'] = str(self.parameters['user_id'])
         if self.parameters.get('volume_security_style') is not None:
             options['volume-security-style'] = self.parameters['volume_security_style']
-        if self.parameters.get('policy') is not None:
-            options['export-policy'] = self.parameters['policy']
+        if self.parameters.get('export_policy') is not None:
+            options['export-policy'] = self.parameters['export_policy']
         if self.parameters.get('junction_path') is not None:
             options['junction-path'] = self.parameters['junction_path']
         if self.parameters.get('comment') is not None:
@@ -1168,7 +1387,7 @@ class NetAppOntapVolume(object):
 
     def volume_modify_attributes(self, params):
         """
-        modify volume parameter 'policy','unix_permissions','snapshot_policy','space_guarantee', 'percent_snapshot_space',
+        modify volume parameter 'export_policy','unix_permissions','snapshot_policy','space_guarantee', 'percent_snapshot_space',
                                 'qos_policy_group', 'qos_adaptive_policy_group'
         """
         if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
@@ -1198,9 +1417,9 @@ class NetAppOntapVolume(object):
                                          'snapdir-access-enabled',
                                          self.na_helper.get_value_for_bool(False, self.parameters['snapdir_access'], 'snapdir_access'))
         # volume-export-attributes
-        if self.parameters.get('policy') is not None:
+        if self.parameters.get('export_policy') is not None:
             self.create_volume_attribute(vol_mod_attributes, 'volume-export-attributes',
-                                         'policy', self.parameters['policy'])
+                                         'policy', self.parameters['export_policy'])
         # volume-security-attributes
         if self.parameters.get('unix_permissions') is not None or self.parameters.get('group_id') is not None or self.parameters.get('user_id') is not None:
             vol_security_attributes = netapp_utils.zapi.NaElement('volume-security-attributes')
@@ -1332,7 +1551,7 @@ class NetAppOntapVolume(object):
         if 'is_online' in attributes:
             self.change_volume_state()
         for attribute in attributes:
-            if attribute in ['space_guarantee', 'policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
+            if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
                 self.volume_modify_attributes(modify)
@@ -1617,9 +1836,54 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def adjust_size(self, current, after_create):
+        """
+        ignore small change in size by resetting expectations
+        """
+        if after_create:
+            # ignore change in size immediately after a create:
+            self.parameters['size'] = current['size']
+        elif self.parameters['size_change_threshold'] > 0:
+            if 'size' in current and self.parameters.get('size') is not None:
+                # ignore a less than XX% difference
+                if abs(current['size'] - self.parameters['size']) * 100 / current['size'] < self.parameters['size_change_threshold']:
+                    self.parameters['size'] = current['size']
+
+    def set_modify_dict(self, current, after_create=False):
+        '''Fill modify dict with changes'''
+        # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
+        auto_delete_info = current.pop('snapshot_auto_delete', None)
+        # ignore small changes in size by adjusting self.parameters['size']
+        self.adjust_size(current, after_create)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if modify is not None and 'type' in modify:
+            self.module.fail_json(msg="Changing the same volume from one type to another is not allowed.")
+        if self.parameters.get('snapshot_auto_delete') is not None:
+            auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
+                                                                        self.parameters['snapshot_auto_delete'])
+            if len(auto_delete_modify) > 0:
+                modify['snapshot_auto_delete'] = auto_delete_modify
+        return modify
+
+    def take_modify_actions(self, modify):
+        if modify.get('is_online'):
+            # when moving to online, include parameters that get does not return when volume is offline
+            for field in ['volume_security_style', 'group_id', 'user_id', 'percent_snapshot_space']:
+                if self.parameters.get(field) is not None:
+                    modify[field] = self.parameters[field]
+        self.modify_volume(modify)
+
+        if modify.get('efficiency_policy'):
+            if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
+                efficiency_policy_modify = 'async'
+            else:
+                efficiency_policy_modify = 'sync'
+            self.modify_volume_efficiency_policy(efficiency_policy_modify)
+
     def apply(self):
         '''Call create/modify/delete operations'''
-        efficiency_policy_modify = None
+        response = None
+        modify_after_create = None
         current = self.get_volume()
         self.volume_style = self.get_volume_style(current)
         # rename and create are mutually exclusive
@@ -1642,22 +1906,8 @@ class NetAppOntapVolume(object):
                 # can't change permissions if not online
                 del self.parameters['unix_permissions']
         if cd_action is None and rename is None and rehost is None and self.parameters['state'] == 'present':
-            # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
-            auto_delete_info = current.pop('snapshot_auto_delete', None)
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            if modify is not None and 'type' in modify:
-                self.module.fail_json(msg="Changing the same volume from one type to another is not allowed.")
-            if self.parameters.get('snapshot_auto_delete') is not None:
-                auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
-                                                                            self.parameters['snapshot_auto_delete'])
-                if len(auto_delete_modify) > 0:
-                    modify['snapshot_auto_delete'] = auto_delete_modify
+            modify = self.set_modify_dict(current)
 
-            if modify.get('efficiency_policy'):
-                if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
-                    efficiency_policy_modify = 'async'
-                else:
-                    efficiency_policy_modify = 'sync'
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
@@ -1669,24 +1919,34 @@ class NetAppOntapVolume(object):
                 if snapshot_restore:
                     self.snapshot_restore_volume()
                 if cd_action == 'create':
-                    self.create_volume()
-                    # if we create, and modify only variable are set (snapdir_access or atime_update) we need to run a modify
-                    if 'snapdir_access' in self.parameters:
-                        self.volume_modify_attributes({'snapdir_access': self.parameters['snapdir_access']})
-                    if 'atime_update' in self.parameters:
-                        self.volume_modify_attributes({'atime_update': self.parameters['atime_update']})
+                    response = self.create_volume()
+                    # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
+                    # The modify also takes care of efficiency_policy and snapshot_auto_delete.
+                    # If we create using REST application, some options are not available, we may need to run a modify.
+                    current = self.get_volume()
+                    if current:
+                        modify_after_create = self.set_modify_dict(current, after_create=True)
+                        if modify_after_create:
+                            self.take_modify_actions(modify_after_create)
+                    # restore this, as set_modify_dict could set it to False
+                    self.na_helper.changed = True
                 elif cd_action == 'delete':
                     self.delete_volume(current)
                 elif modify:
-                    if modify.get('is_online'):
-                        # when moving to online, include parameters that get does not return when volume is offline
-                        for field in ['volume_security_style', 'group_id', 'user_id', 'percent_snapshot_space']:
-                            if self.parameters.get(field) is not None:
-                                modify[field] = self.parameters[field]
-                    self.modify_volume(modify)
-                    if efficiency_policy_modify is not None:
-                        self.modify_volume_efficiency_policy(efficiency_policy_modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+                    self.take_modify_actions(modify)
+
+        result = dict(
+            changed=self.na_helper.changed
+        )
+        if response is not None:
+            result['response'] = response
+        if modify:
+            result['modify'] = modify
+        if modify_after_create:
+            result['modify_after_create'] = modify_after_create
+        if self.warnings:
+            result['warnings'] = self.warnings
+        self.module.exit_json(**result)
 
     def ems_log_event(self, state):
         '''Autosupport log event'''
