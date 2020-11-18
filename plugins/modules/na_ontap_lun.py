@@ -102,6 +102,12 @@ options:
     default: 'image'
     type: str
 
+  qos_policy_group:
+    description:
+    - The QoS policy group to be set on the LUN.
+    type: str
+    version_added: 20.12.0
+
   space_reserve:
     description:
     - This can be set to "false" which will create a LUN without any space being reserved.
@@ -187,6 +193,7 @@ class NetAppOntapLUN(object):
             flexvol_name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),
             ostype=dict(required=False, type='str', default='image'),
+            qos_policy_group=dict(required=False, type='str'),
             space_reserve=dict(required=False, type='bool', default=True),
             space_allocation=dict(required=False, type='bool', default=False),
             use_exact_size=dict(required=False, type='bool', default=True),
@@ -259,10 +266,14 @@ class NetAppOntapLUN(object):
             value = lun.get_child_content(attr)
             if value is not None:
                 return_value[bool_attr_map[attr]] = self.na_helper.get_value_for_bool(True, value)
-        attr = 'multiprotocol-type'
-        value = lun.get_child_content(attr)
-        if value is not None:
-            return_value['ostype'] = value
+        str_attr_map = {
+            'qos-policy-group': 'qos_policy_group',
+            'multiprotocol-type': 'ostype'
+        }
+        for attr in str_attr_map:
+            value = lun.get_child_content(attr)
+            if value is not None:
+                return_value[str_attr_map[attr]] = value
 
         # Find out if the lun is attached
         attached_to = None
@@ -312,13 +323,16 @@ class NetAppOntapLUN(object):
         Create LUN with requested name and size
         """
         path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
+        options = {'path': path,
+                   'size': str(self.parameters['size']),
+                   'ostype': self.parameters['ostype'],
+                   'space-reservation-enabled': str(self.parameters['space_reserve']),
+                   'space-allocation-enabled': str(self.parameters['space_allocation']),
+                   'use-exact-size': str(self.parameters['use_exact_size'])}
+        if self.parameters.get('qos_policy_group') is not None:
+            options['qos-policy-group'] = self.parameters['qos_policy_group']
         lun_create = netapp_utils.zapi.NaElement.create_node_with_children(
-            'lun-create-by-size', **{'path': path,
-                                     'size': str(self.parameters['size']),
-                                     'ostype': self.parameters['ostype'],
-                                     'space-reservation-enabled': str(self.parameters['space_reserve']),
-                                     'space-allocation-enabled': str(self.parameters['space_allocation']),
-                                     'use-exact-size': str(self.parameters['use_exact_size'])})
+            'lun-create-by-size', **options)
 
         try:
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
@@ -377,17 +391,23 @@ class NetAppOntapLUN(object):
 
     def set_lun_value(self, key, value):
         key_to_zapi = dict(
-            space_allocation='lun-set-space-alloc',
-            space_reserve='lun-set-space-reservation-info'
+            qos_policy_group=('lun-set-qos-policy-group', 'qos-policy-group'),
+            space_allocation=('lun-set-space-alloc', 'enable'),
+            space_reserve=('lun-set-space-reservation-info', 'enable')
         )
         if key in key_to_zapi:
-            zapi = key_to_zapi[key]
+            zapi, option = key_to_zapi[key]
         else:
             self.module.fail_json(msg="option %s cannot be modified to %s" % (key, value))
 
         path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
-        enable = self.na_helper.get_value_for_bool(False, value)
-        lun_set = netapp_utils.zapi.NaElement.create_node_with_children(zapi, path=path, enable=enable)
+        options = dict(path=path)
+        if option == 'enable':
+            options[option] = self.na_helper.get_value_for_bool(False, value)
+        else:
+            options[option] = value
+
+        lun_set = netapp_utils.zapi.NaElement.create_node_with_children(zapi, **options)
         try:
             self.server.invoke_successfully(lun_set, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
