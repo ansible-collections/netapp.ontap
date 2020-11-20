@@ -84,6 +84,13 @@ options:
     description:
     - The amount of disk space the target would have to exceed before a message is logged.
     type: str
+  activate_quota_on_change:
+    description:
+    - Method to use to activate quota on a change.
+    choices: ['resize', 'reinitialize', 'none']
+    default: resize
+    type: str
+    version_added: 20.12.0
 '''
 
 EXAMPLES = """
@@ -98,6 +105,36 @@ EXAMPLES = """
         file_limit: 2
         disk_limit: 3
         set_quota_status: True
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Resize quota
+      na_ontap_quotas:
+        state: present
+        vserver: ansible
+        volume: ansible
+        quota_target: /vol/ansible
+        type: user
+        policy: ansible
+        file_limit: 2
+        disk_limit: 3
+        set_quota_status: True
+        activate_quota_on_change: resize
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Reinitialize quota
+      na_ontap_quotas:
+        state: present
+        vserver: ansible
+        volume: ansible
+        quota_target: /vol/ansible
+        type: user
+        policy: ansible
+        file_limit: 2
+        disk_limit: 3
+        set_quota_status: True
+        activate_quota_on_change: reinitialize
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -133,7 +170,7 @@ RETURN = """
 
 """
 
-
+import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -162,7 +199,8 @@ class NetAppONTAPQuotas(object):
             disk_limit=dict(required=False, type='str'),
             soft_file_limit=dict(required=False, type='str'),
             soft_disk_limit=dict(required=False, type='str'),
-            threshold=dict(required=False, type='str')
+            threshold=dict(required=False, type='str'),
+            activate_quota_on_change=dict(required=False, type='str', choices=['resize', 'reinitialize', 'none'], default='resize')
         ))
 
         self.module = AnsibleModule(
@@ -327,6 +365,20 @@ class NetAppONTAPQuotas(object):
                                   % (status, self.parameters['volume'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def resize_quota(self):
+        """
+        resize quota
+        """
+        quota = netapp_utils.zapi.NaElement.create_node_with_children(
+            'quota-resize', **{'volume': self.parameters['volume']})
+        try:
+            self.server.invoke_successfully(quota,
+                                            enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error setting %s for %s: %s'
+                                  % ('quota-resize', self.parameters['volume'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def apply(self):
         """
         Apply action to quotas
@@ -334,17 +386,22 @@ class NetAppONTAPQuotas(object):
         netapp_utils.ems_log_event("na_ontap_quotas", self.server)
         modify_quota_status = None
         modify_quota = None
+        quota_status = None
         current = self.get_quotas()
-        if 'set_quota_status' in self.parameters:
-            quota_status = self.get_quota_status()
-            if quota_status is not None:
-                quota_status_action = self.na_helper.get_modified_attributes(
-                    {'set_quota_status': True if quota_status == 'on' else False}, self.parameters)
-                if quota_status_action:
-                    modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
             modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
+        if 'set_quota_status' in self.parameters or modify_quota:
+            quota_status = self.get_quota_status()
+        if 'set_quota_status' in self.parameters and quota_status is not None:
+            quota_status_action = self.na_helper.get_modified_attributes(
+                {'set_quota_status': True if quota_status == 'on' else False}, self.parameters)
+            if quota_status_action:
+                modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
+        if modify_quota is not None and modify_quota_status is None and quota_status == 'on':
+            # do we need to resize or reinitialize:
+            if self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']:
+                modify_quota_status = self.parameters['activate_quota_on_change']
         if self.na_helper.changed:
             if self.module.check_mode:
                 pass
@@ -357,8 +414,15 @@ class NetAppONTAPQuotas(object):
                     for key in list(modify_quota):
                         modify_quota[key.replace("_", "-")] = modify_quota.pop(key)
                     self.quota_entry_modify(modify_quota)
-                if modify_quota_status is not None:
+                if modify_quota_status in ['quota-off', 'quota-on']:
                     self.on_or_off_quota(modify_quota_status)
+                elif modify_quota_status == 'resize':
+                    self.resize_quota()
+                elif modify_quota_status == 'reinitialize':
+                    self.on_or_off_quota('quota-off')
+                    time.sleep(10)  # status switch interval
+                    self.on_or_off_quota('quota-on')
+
         self.module.exit_json(changed=self.na_helper.changed)
 
 
