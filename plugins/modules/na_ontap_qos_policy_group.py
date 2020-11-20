@@ -4,6 +4,10 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_qos_policy_group
+'''
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -57,6 +61,12 @@ options:
     - Minimum throughput defined by this policy.
     type: str
 
+  is_shared:
+    description:
+    - Whether the SLOs of the policy group are shared between the workloads or if the SLOs are applied separately to each workload.
+    type: bool
+    version_added: 20.12.0
+
   force:
     type: bool
     default: False
@@ -103,10 +113,10 @@ RETURN = """
 
 import traceback
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
+import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -127,6 +137,7 @@ class NetAppOntapQosPolicyGroup(object):
             vserver=dict(required=True, type='str'),
             max_throughput=dict(required=False, type='str'),
             min_throughput=dict(required=False, type='str'),
+            is_shared=dict(required=False, type='bool'),
             force=dict(required=False, type='bool', default=False)
         ))
 
@@ -170,7 +181,8 @@ class NetAppOntapQosPolicyGroup(object):
                 'name': policy_info.get_child_content('policy-group'),
                 'vserver': policy_info.get_child_content('vserver'),
                 'max_throughput': policy_info.get_child_content('max-throughput'),
-                'min_throughput': policy_info.get_child_content('min-throughput')
+                'min_throughput': policy_info.get_child_content('min-throughput'),
+                'is_shared': self.na_helper.get_value_for_bool(True, policy_info.get_child_content('is-shared'))
             }
         return policy_group_detail
 
@@ -185,6 +197,8 @@ class NetAppOntapQosPolicyGroup(object):
             policy_group.add_new_child('max-throughput', self.parameters['max_throughput'])
         if self.parameters.get('min_throughput'):
             policy_group.add_new_child('min-throughput', self.parameters['min_throughput'])
+        if self.parameters.get('is_shared') is not None:
+            policy_group.add_new_child('is-shared', self.na_helper.get_value_for_bool(False, self.parameters['is_shared']))
         try:
             self.server.invoke_successfully(policy_group, True)
         except netapp_utils.zapi.NaApiError as error:
@@ -224,7 +238,7 @@ class NetAppOntapQosPolicyGroup(object):
             self.server.invoke_successfully(policy_group_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying qos policy group %s: %s' %
-                                      (self.parameters['name'], to_native(error)),
+                                  (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def rename_policy_group(self):
@@ -238,7 +252,7 @@ class NetAppOntapQosPolicyGroup(object):
             self.server.invoke_successfully(rename_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error renaming qos policy group %s: %s' %
-                                      (self.parameters['from_name'], to_native(error)),
+                                  (self.parameters['from_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def modify_helper(self, modify):
@@ -246,9 +260,10 @@ class NetAppOntapQosPolicyGroup(object):
         helper method to modify policy group.
         :param modify: modified attributes.
         """
-        for attribute in modify.keys():
-            if attribute in ['max_throughput', 'min_throughput']:
-                self.modify_policy_group()
+        if 'is_shared' in modify:
+            self.module.fail_json(msg='Error cannot modify is_shared attribute.')
+        if any([attribute in modify for attribute in ['max_throughput', 'min_throughput']]):
+            self.modify_policy_group()
 
     def apply(self):
         """
@@ -257,23 +272,27 @@ class NetAppOntapQosPolicyGroup(object):
         self.asup_log_for_cserver("na_ontap_qos_policy_group")
         current = self.get_policy_group()
         rename, cd_action = None, None
-        if self.parameters.get('from_name'):
-            rename = self.na_helper.is_rename_action(self.get_policy_group(self.parameters['from_name']), current)
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            # create policy by renaming an existing one
+            old_policy = self.get_policy_group(self.parameters['from_name'])
+            rename = self.na_helper.is_rename_action(old_policy, current)
+            if rename:
+                current = old_policy
+                cd_action = None
+            if rename is None:
+                self.module.fail_json(msg='Error renaming qos policy group: cannot find %s' %
+                                      self.parameters['from_name'])
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    self.rename_policy_group()
-                if cd_action == 'create':
-                    self.create_policy_group()
-                elif cd_action == 'delete':
-                    self.delete_policy_group()
-                elif modify:
-                    self.modify_helper(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_policy_group()
+            if cd_action == 'create':
+                self.create_policy_group()
+            elif cd_action == 'delete':
+                self.delete_policy_group()
+            elif modify:
+                self.modify_helper(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
     def asup_log_for_cserver(self, event_name):

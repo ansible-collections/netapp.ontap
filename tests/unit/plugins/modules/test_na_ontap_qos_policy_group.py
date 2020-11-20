@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qos_policy_group \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -266,6 +264,16 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_policy_group_mock_object('error').apply()
         assert exc.value.args[0]['msg'] == 'Error modifying qos policy group policy_1: NetApp API failed. Reason - test:error'
+
+    def test_modify_is_shared_error(self):
+        ''' Test create idempotency '''
+        data = self.mock_args()
+        data['max_throughput'] = '900KB/s,900IOPS'
+        data['is_shared'] = False
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_policy_group_mock_object('policy').apply()
+        assert exc.value.args[0]['msg'] == 'Error cannot modify is_shared attribute.'
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_qos_policy_group.NetAppOntapQosPolicyGroup.get_policy_group')
     def test_rename(self, get_policy_group):
