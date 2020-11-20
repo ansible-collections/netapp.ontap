@@ -28,6 +28,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - new option `from_name` to rename a LUN.
   - na_ontap_lun - new option `qos_policy_group` to assign a qos_policy_group to a LUN.
   - na_ontap_quota_policy - new option `auto_assign` to assign quota policy to vserver.
+  - na_ontap_volume - `compression` to enable compression on a FAS volume.
+  - na_ontap_volume - `inline-compression` to enable inline compression on a volume.
   - na_ontap_volume - `nas_application_template` to create a volume using nas application REST API.
   - na_ontap_volume - `size_change_threshold` to ignore small changes in volume size.
 

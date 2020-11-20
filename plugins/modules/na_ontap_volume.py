@@ -464,6 +464,19 @@ options:
     - Not supported on Infinite Volume.
     type: str
     version_added: '20.6.0'
+
+  compression:
+    description:
+    - Whether to enable compression for the volume (HDD and Flash Pool aggregates).
+    - If this option is not present, it is automatically set to true if inline_compression is true.
+    type: bool
+    version_added: '20.12.0'
+
+  inline_compression:
+    description:
+    - Whether to enable inline compression for the volume (HDD and Flash Pool aggregates, AFF platforms).
+    type: bool
+    version_added: '20.12.0'
 '''
 
 EXAMPLES = """
@@ -745,6 +758,8 @@ class NetAppOntapVolume(object):
             auto_remap_luns=dict(required=False, type='bool'),
             force_unmap_luns=dict(required=False, type='bool'),
             force_restore=dict(required=False, type='bool'),
+            compression=dict(required=False, type='bool'),
+            inline_compression=dict(required=False, type='bool'),
             preserve_lun_ids=dict(required=False, type='bool'),
             snapshot_restore=dict(required=False, type='str'),
             nas_application_template=dict(type='dict', options=dict(
@@ -774,6 +789,14 @@ class NetAppOntapVolume(object):
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
         self.warnings = list()
+        self.sis_keys2zapi_get = dict(
+            efficiency_policy='policy',
+            compression='is-compression-enabled',
+            inline_compression='is-inline-compression-enabled')
+        self.sis_keys2zapi_set = dict(
+            efficiency_policy='policy-name',
+            compression='enable-compression',
+            inline_compression='enable-inline-compression')
 
         if self.parameters.get('size'):
             self.parameters['size'] = self.parameters['size'] * \
@@ -892,8 +915,6 @@ class NetAppOntapVolume(object):
                 return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
             if volume_security_unix_attributes.get_child_by_name('user-id'):
                 return_value['user_id'] = int(volume_security_unix_attributes['user-id'])
-            if self.parameters.get('efficiency_policy'):
-                return_value['efficiency_policy'] = self.get_efficiency_policy()
             if volume_comp_aggr_attributes is not None:
                 return_value['tiering_policy'] = volume_comp_aggr_attributes['tiering-policy']
             if volume_space_attributes.get_child_by_name('encrypt'):
@@ -1002,6 +1023,7 @@ class NetAppOntapVolume(object):
             else:
                 auto_delete['trigger'] = None
             return_value['snapshot_auto_delete'] = auto_delete
+            self.get_efficiency_info(return_value)
 
         return return_value
 
@@ -1066,7 +1088,6 @@ class NetAppOntapVolume(object):
         #     "user_or_group": "everyone",
         #     "access": "full_control"
         # }
-
         # protection_type = {
         #     "local_rpo": "none",
         #     "remote_rpo": "none",
@@ -1711,8 +1732,19 @@ class NetAppOntapVolume(object):
         if status == 'failed':
             self.module.fail_json(msg='Operation failed when %s volume.' % action)
 
-    def assign_efficiency_policy(self):
-        '''Set efficiency policy'''
+    def set_efficiency_attributes(self, options):
+        for key, attr in self.sis_keys2zapi_set.items():
+            value = self.parameters.get(key)
+            if value is not None:
+                if self.argument_spec[key]['type'] == 'bool':
+                    value = self.na_helper.get_value_for_bool(False, value)
+                options[attr] = value
+        # ZAPI requires compression to be set for inline-compression
+        if options.get('enable-inline-compression') == 'true' and 'enable-compression' not in options:
+            options['enable-compression'] = 'true'
+
+    def set_efficiency_config(self):
+        '''Set efficiency policy and compression attributes'''
         options = {'path': '/vol/' + self.parameters['name']}
         efficiency_enable = netapp_utils.zapi.NaElement.create_node_with_children('sis-enable', **options)
         try:
@@ -1726,17 +1758,17 @@ class NetAppOntapVolume(object):
                                       % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-        options['policy-name'] = self.parameters['efficiency_policy']
+        self.set_efficiency_attributes(options)
         efficiency_start = netapp_utils.zapi.NaElement.create_node_with_children('sis-set-config', **options)
         try:
             self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error setting up an efficiency policy %s on volume %s: %s'
-                                  % (self.parameters['efficiency_policy'], self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
+                                  % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def assign_efficiency_policy_async(self):
-        """Set efficiency policy in asynchronous mode"""
+    def set_efficiency_config_async(self):
+        """Set efficiency policy and compression attributes in asynchronous mode"""
         options = {'volume-name': self.parameters['name']}
         efficiency_enable = netapp_utils.zapi.NaElement.create_node_with_children('sis-enable-async', **options)
         try:
@@ -1747,20 +1779,21 @@ class NetAppOntapVolume(object):
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'enable efficiency on')
 
-        options['policy-name'] = self.parameters['efficiency_policy']
+        self.set_efficiency_attributes(options)
         efficiency_start = netapp_utils.zapi.NaElement.create_node_with_children('sis-set-config-async', **options)
         try:
             result = self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error setting up an efficiency policy on volume %s: %s'
+            self.module.fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'set efficiency policy on')
 
-    def get_efficiency_policy(self):
+    def get_efficiency_info(self, return_value):
         """
-        get the name of the efficiency policy assigned to volume.
-        :return: String, name of the policy. If it doesn't exist, return None.
+        get the name of the efficiency policy assigned to volume, as well as compression values
+        if attribute does not exist, set its value to None
+        :return: update return_value dict.
         """
         sis_info = netapp_utils.zapi.NaElement('sis-get-iter')
         sis_status_info = netapp_utils.zapi.NaElement('sis-status-info')
@@ -1770,22 +1803,25 @@ class NetAppOntapVolume(object):
         sis_info.add_child_elem(query)
         try:
             result = self.server.invoke_successfully(sis_info, True)
-            if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
-                sis_attributes = result.get_child_by_name('attributes-list'). get_child_by_name('sis-status-info')
-                return_value = sis_attributes.get_child_content('policy')
-                return return_value
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching efficiency policy for volume %s : %s'
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        for key in self.sis_keys2zapi_get:
+            return_value[key] = None
+        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
+            sis_attributes = result.get_child_by_name('attributes-list'). get_child_by_name('sis-status-info')
+            for key, attr in self.sis_keys2zapi_get.items():
+                value = sis_attributes.get_child_content(attr)
+                if self.argument_spec[key]['type'] == 'bool':
+                    value = self.na_helper.get_value_for_bool(True, value)
+                return_value[key] = value
 
-        return None
-
-    def modify_volume_efficiency_policy(self, efficiency_policy_modify_value):
-        if efficiency_policy_modify_value == 'async':
-            self.assign_efficiency_policy_async()
-        elif efficiency_policy_modify_value == 'sync':
-            self.assign_efficiency_policy()
+    def modify_volume_efficiency_config(self, efficiency_config_modify_value):
+        if efficiency_config_modify_value == 'async':
+            self.set_efficiency_config_async()
+        else:
+            self.set_efficiency_config()
 
     def set_snapshot_auto_delete(self):
         options = {'volume': self.parameters['name']}
@@ -1793,9 +1829,7 @@ class NetAppOntapVolume(object):
         for key, value in desired_options.items():
             options['option-name'] = key
             options['option-value'] = str(value)
-
             snapshot_auto_delete = netapp_utils.zapi.NaElement.create_node_with_children('snapshot-autodelete-set-option', **options)
-
             try:
                 self.server.invoke_successfully(snapshot_auto_delete, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
@@ -1873,12 +1907,12 @@ class NetAppOntapVolume(object):
                     modify[field] = self.parameters[field]
         self.modify_volume(modify)
 
-        if modify.get('efficiency_policy'):
+        if any([modify.get(key) is not None for key in self.sis_keys2zapi_get]):
             if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
-                efficiency_policy_modify = 'async'
+                efficiency_config_modify = 'async'
             else:
-                efficiency_policy_modify = 'sync'
-            self.modify_volume_efficiency_policy(efficiency_policy_modify)
+                efficiency_config_modify = 'sync'
+            self.modify_volume_efficiency_config(efficiency_config_modify)
 
     def apply(self):
         '''Call create/modify/delete operations'''
@@ -1921,7 +1955,7 @@ class NetAppOntapVolume(object):
                 if cd_action == 'create':
                     response = self.create_volume()
                     # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
-                    # The modify also takes care of efficiency_policy and snapshot_auto_delete.
+                    # The modify also takes care of efficiency (sis) parameters and snapshot_auto_delete.
                     # If we create using REST application, some options are not available, we may need to run a modify.
                     current = self.get_volume()
                     if current:

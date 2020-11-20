@@ -63,6 +63,10 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         # print("request: ", xml.to_string())
+        request = xml.to_string().decode('utf-8')
+        print(request)
+        if request.startswith('<sis-get-iter>'):
+            return self.build_sis_info()
         if isinstance(self.kind, list):
             kind = self.kind.pop(0)
             if len(self.kind) == 0:
@@ -250,6 +254,21 @@ class MockONTAPConnection(object):
         info_list_obj.add_new_child('error-message', 'modify error message')
         attributes.add_child_elem(info_list_obj)
         xml.add_child_elem(attributes)
+        return xml
+
+    @staticmethod
+    def build_sis_info():
+        ''' build xml data for sis config '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        attributes = {
+            'num-records': 1,
+            'attributes-list': {
+                'sis-status-info': {
+                    'policy': 'testme'
+                }
+            }
+        }
+        xml.translate_struct(attributes)
         return xml
 
 
@@ -958,22 +977,22 @@ class TestMyModule(unittest.TestCase):
             obj.check_job_status('123')
         assert exc.value.args[0]['failed']
 
-    def test_error_assign_efficiency_policy(self):
+    def test_error_set_efficiency_policy(self):
         data = self.mock_args()
         data['efficiency_policy'] = 'test_policy'
         set_module_args(data)
         obj = self.get_volume_mock_object('zapi_error')
         with pytest.raises(AnsibleFailJson) as exc:
-            obj.assign_efficiency_policy()
+            obj.set_efficiency_config()
         assert exc.value.args[0]['msg'] == 'Error enable efficiency on volume test_vol: NetApp API failed. Reason - test:error'
 
-    def test_error_assign_efficiency_policy_async(self):
+    def test_error_set_efficiency_policy_async(self):
         data = self.mock_args()
         data['efficiency_policy'] = 'test_policy'
         set_module_args(data)
         obj = self.get_volume_mock_object('zapi_error')
         with pytest.raises(AnsibleFailJson) as exc:
-            obj.assign_efficiency_policy_async()
+            obj.set_efficiency_config_async()
         assert exc.value.args[0]['msg'] == 'Error enable efficiency on volume test_vol: NetApp API failed. Reason - test:error'
 
     def test_successful_modify_tiering_policy(self):
