@@ -47,17 +47,21 @@ options:
                 to a given subset.  Possible values for this argument include
                 "aggregate_info",
                 "aggr_efficiency_info",
+                "cifs_options_info",
                 "cifs_server_info",
                 "cifs_share_info",
                 "cifs_vserver_security_info",
                 "cluster_identity_info",
                 "cluster_image_info",
+                "cluster_log_forwarding_info",
                 "cluster_node_info",
                 "cluster_peer_info",
                 "cluster_switch_info",
                 "clock_info",
                 "disk_info",
                 "env_sensors_info",
+                "event_notification_destination_info",
+                "event_notification_info",
                 "export_policy_info",
                 "export_rule_info",
                 "fcp_adapter_info",
@@ -105,6 +109,8 @@ options:
                 "role_info",
                 "security_key_manager_key_info",
                 "security_login_account_info",
+                "security_login_role_config_info",
+                "security_login_role_info",
                 "service_processor_info",
                 "service_processor_network_info",
                 "shelf_info"
@@ -435,6 +441,16 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '0',
             },
+            'cluster_log_forwarding_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'cluster-log-forward-get-iter',
+                    'attribute': 'cluster-log-forward-info',
+                    'key_fields': ('destination', 'port'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
             'cluster_node_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -451,6 +467,26 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'security-login-get-iter',
                     'attribute': 'security-login-account-info',
                     'key_fields': ('vserver', 'user-name', 'application', 'authentication-method'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'security_login_role_config_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'security-login-role-config-get-iter',
+                    'attribute': 'security-login-role-config-info',
+                    'key_fields': ('vserver', 'role-name'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'security_login_role_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'security-login-role-get-iter',
+                    'attribute': 'security-login-role-info',
+                    'key_fields': ('vserver', 'role-name', 'command-directory-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
@@ -837,6 +873,16 @@ class NetAppONTAPGatherInfo(object):
                 },
                 'min_version': '140',
             },
+            'cifs_options_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'cifs-options-get-iter',
+                    'attribute': 'cifs-options',
+                    'key_fields': ('vserver'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
             'cifs_server_info': {
                 'method': self.get_generic_get_iter,
                 'kwargs': {
@@ -907,6 +953,26 @@ class NetAppONTAPGatherInfo(object):
                     'key_fields': ('node-name', 'sensor-name'),
                     'query': {'max-records': self.max_records},
                     'fail_on_error': False,
+                },
+                'min_version': '0',
+            },
+            'event_notification_destination_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'ems-event-notification-destination-get-iter',
+                    'attribute': 'event-notification-destination-info',
+                    'key_fields': ('name', 'type'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'event_notification_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'ems-event-notification-get-iter',
+                    'attribute': 'event-notification',
+                    'key_fields': ('id'),
+                    'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
             },

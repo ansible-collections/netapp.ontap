@@ -25,6 +25,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.12.0
 
 ### New Options
+  - na_ontap_info - new fact: cifs_options_info.
+  - na_ontap_info - new fact: cluster_log_forwarding_info.
+  - na_ontap_info - new fact: event_notification_destination_info.
+  - na_ontap_info - new fact: event_notification_info. 
+  - na_ontap_info - new fact: security_login_role_config_info.
+  - na_ontap_info - new fact: security_login_role_info.
   - na_ontap_lun - new option `from_name` to rename a LUN.
   - na_ontap_lun - new option `qos_policy_group` to assign a qos_policy_group to a LUN.
   - na_ontap_qos_policy_group - new option `is_shared` for sharing QOS SLOs or not.
