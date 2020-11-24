@@ -510,8 +510,12 @@ class NetAppOntapSVM(object):
                 self.modify_vserver(modify, current)
 
         results = dict(changed=self.na_helper.changed)
-        if modify and netapp_utils.has_feature(self.module, 'show_modified'):
-            results['modify'] = str(modify)
+        if modify:
+            if netapp_utils.has_feature(self.module, 'show_modified'):
+                results['modify'] = str(modify)
+            if 'aggr_list' in modify:
+                if '*' in modify['aggr_list']:
+                    results['warnings'] = "Changed always 'True' when aggr_list is '*'."
         self.module.exit_json(**results)
 
     def asup_log_for_cserver(self, event_name):
