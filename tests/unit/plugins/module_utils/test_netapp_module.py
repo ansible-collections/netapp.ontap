@@ -5,6 +5,8 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import sys
+
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
@@ -13,7 +15,6 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 class MockModule(object):
@@ -311,3 +312,89 @@ class TestMyModule(unittest.TestCase):
         my_obj = na_helper()
         result = my_obj.sanitize_wwn(initiator)
         assert result == expected
+
+    def test_filter_empty_dict(self):
+        ''' empty dict return empty dict '''
+        my_obj = na_helper()
+        arg = dict()
+        result = my_obj.filter_out_none_entries(arg)
+        assert arg == result
+
+    def test_filter_empty_list(self):
+        ''' empty list return empty list '''
+        my_obj = na_helper()
+        arg = list()
+        result = my_obj.filter_out_none_entries(arg)
+        assert arg == result
+
+    def test_filter_typeerror_on_none(self):
+        ''' empty list return empty list '''
+        my_obj = na_helper()
+        arg = None
+        with pytest.raises(TypeError) as exc:
+            my_obj.filter_out_none_entries(arg)
+        msg = "unexpected type <class 'NoneType'>"
+        if sys.version_info < (3, 0):
+            # the assert fails on 2.x
+            return
+        assert exc.value.args[0] == msg
+
+    def test_filter_typeerror_on_str(self):
+        ''' empty list return empty list '''
+        my_obj = na_helper()
+        arg = ""
+        with pytest.raises(TypeError) as exc:
+            my_obj.filter_out_none_entries(arg)
+        msg = "unexpected type <class 'str'>"
+        if sys.version_info < (3, 0):
+            # the assert fails on 2.x
+            return
+        assert exc.value.args[0] == msg
+
+    def test_filter_simple_dict(self):
+        ''' simple dict return simple dict '''
+        my_obj = na_helper()
+        arg = dict(a=None, b=1, c=None, d=2, e=3)
+        expected = dict(b=1, d=2, e=3)
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result
+
+    def test_filter_simple_list(self):
+        ''' simple list return simple list '''
+        my_obj = na_helper()
+        arg = [None, 2, 3, None, 5]
+        expected = [2, 3, 5]
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result
+
+    def test_filter_dict_dict(self):
+        ''' simple dict return simple dict '''
+        my_obj = na_helper()
+        arg = dict(a=None, b=dict(u=1, v=None, w=2), c=dict(), d=2, e=3)
+        expected = dict(b=dict(u=1, w=2), d=2, e=3)
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result
+
+    def test_filter_list_list(self):
+        ''' simple list return simple list '''
+        my_obj = na_helper()
+        arg = [None, [1, None, 3], 3, None, 5]
+        expected = [[1, 3], 3, 5]
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result
+
+    def test_filter_dict_list_dict(self):
+        ''' simple dict return simple dict '''
+        my_obj = na_helper()
+        arg = dict(a=None, b=[dict(u=1, v=None, w=2), 5, None, dict(x=6, y=None)], c=dict(), d=2, e=3)
+        expected = dict(b=[dict(u=1, w=2), 5, dict(x=6)], d=2, e=3)
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result
+
+    def test_filter_list_dict_list(self):
+        ''' simple list return simple list '''
+        my_obj = na_helper()
+        arg = [None, [1, None, 3], dict(a=None, b=[7, None, 9], c=None, d=dict(u=None, v=10)), None, 5]
+        expected = [[1, 3], dict(b=[7, 9], d=dict(v=10)), 5]
+        result = my_obj.filter_out_none_entries(arg)
+        assert expected == result

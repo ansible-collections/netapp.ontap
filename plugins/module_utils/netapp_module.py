@@ -357,3 +357,36 @@ class NetAppModule(object):
             if allow_sparse_dict and an_object is None:
                 return None
             raise exc
+
+    def filter_out_none_entries(self, list_or_dict):
+        """take a dict or list as input and return a dict/list without keys/elements whose values are None
+           skip empty dicts or lists.
+        """
+
+        if isinstance(list_or_dict, dict):
+            result = dict()
+            for key, value in list_or_dict.items():
+                if isinstance(value, (list, dict)):
+                    sub = self.filter_out_none_entries(value)
+                    if sub:
+                        # skip empty dict or list
+                        result[key] = sub
+                elif value is not None:
+                    # skip None value
+                    result[key] = value
+            return result
+
+        if isinstance(list_or_dict, list):
+            alist = list()
+            for item in list_or_dict:
+                if isinstance(item, (list, dict)):
+                    sub = self.filter_out_none_entries(item)
+                    if sub:
+                        # skip empty dict or list
+                        alist.append(sub)
+                elif item is not None:
+                    # skip None value
+                    alist.append(item)
+            return alist
+
+        raise TypeError('unexpected type %s' % type(list_or_dict))

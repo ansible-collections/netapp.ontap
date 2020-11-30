@@ -625,7 +625,7 @@ class OntapRestAPI(object):
                 runtime += increment
         return message, error
 
-    def get(self, api, params):
+    def get(self, api, params=None):
         method = 'GET'
         dummy, message, error = self.send_request(method, api, params)
         return message, error

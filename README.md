@@ -25,6 +25,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 20.12.0
 
 ### New Options
+  - na_ontap_igroup - new option `os_type` to replace `ostype` (but ostype is still accepted).
   - na_ontap_info - new fact: cifs_options_info.
   - na_ontap_info - new fact: cluster_log_forwarding_info.
   - na_ontap_info - new fact: event_notification_destination_info.
@@ -32,7 +33,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_info - new fact: security_login_role_config_info.
   - na_ontap_info - new fact: security_login_role_info.
   - na_ontap_lun - new option `from_name` to rename a LUN.
+  - na_ontap_lun - new option `os_type` to replace `ostype` (but ostype is still accepted), and removed default to `image`.
   - na_ontap_lun - new option `qos_policy_group` to assign a qos_policy_group to a LUN.
+  - na_ontap_lun - new option `san_application_template` to create LUNs without explicitly creating a volume and using REST APIs.
   - na_ontap_qos_policy_group - new option `is_shared` for sharing QOS SLOs or not.
   - na_ontap_quota_policy - new option `auto_assign` to assign quota policy to vserver.
   - na_ontap_quotas - new option `activate_quota_on_change` to resize or reinitialize quotas.

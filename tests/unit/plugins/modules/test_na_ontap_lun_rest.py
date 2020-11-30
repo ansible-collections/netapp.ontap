@@ -48,6 +48,41 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    # module specific responses
+    'get_apps_empty': (200,
+                       {'records': [],
+                        'num_records': 0
+                        },
+                       None
+                       ),
+    'get_apps_found': (200,
+                       {'records': [dict(name='san_appli', uuid='1234')],
+                        'num_records': 1
+                        },
+                       None
+                       ),
+    'get_app_components': (200,
+                           {'records': [dict(name='san_appli', uuid='1234')],
+                            'num_records': 1
+                            },
+                           None
+                           ),
+    'get_app_component_details': (200,
+                                  {'backing_storage': dict(luns=[]),
+                                   },
+                                  None
+                                  ),
+}
+
+
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
@@ -101,7 +136,6 @@ class TestMyModule(unittest.TestCase):
         }
 
     def mock_args(self):
-
         return {
             'vserver': self.mock_lun_args['vserver'],
             'name': self.mock_lun_args['name'],
@@ -135,43 +169,109 @@ class TestMyModule(unittest.TestCase):
         ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
         data = self.mock_args()
         set_module_args(data)
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_lun_mock_object().apply()
         msg = 'size is a required parameter for create.'
         assert msg == exc.value.args[0]['msg']
 
-    def test_successful_create(self):
+    def test_create_error_missing_param2(self):
+        ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
+        data = self.mock_args()
+        data.pop('flexvol_name')
+        data['size'] = 5
+        data['san_application_template'] = dict(lun_count=6)
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        msg = 'missing required arguments: name found in san_application_template'
+        assert msg == exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_create_appli(self, mock_request):
         ''' Test successful create '''
+        mock_request.side_effect = [
+            SRR['get_apps_empty'],      # GET application/applications
+            SRR['empty_good'],          # POST application/applications
+            SRR['end_of_sequence']
+        ]
         data = dict(self.mock_args())
         data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_lun_mock_object().apply()
         assert exc.value.args[0]['changed']
 
-    def test_create_rename_idempotency(self):
-        ''' Test create idempotency '''
-        set_module_args(self.mock_args())
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_create_appli_idem(self, mock_request):
+        ''' Test successful create idempotent '''
+        mock_request.side_effect = [
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ]
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
+        set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object('lun', 'lun_name').apply()
+            self.get_lun_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
-    def test_successful_rename(self):
-        ''' Test successful create '''
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_create_appli_idem_no_comp(self, mock_request):
+        ''' Test successful create idempotent '''
+        mock_request.side_effect = [
+            SRR['get_apps_found'],      # GET application/applications
+            SRR['get_apps_empty'],      # GET application/applications/<uuid>/components
+            SRR['end_of_sequence']
+        ]
         data = dict(self.mock_args())
-        data['from_name'] = 'lun_from_name'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object('lun', 'lun_from_name').apply()
-        assert exc.value.args[0]['changed']
-        assert 'renamed' in exc.value.args[0]
-
-    def test_failed_rename(self):
-        ''' Test failed rename '''
-        data = dict(self.mock_args())
-        data['from_name'] = 'lun_from_name'
+        data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object('lun', 'other_lun_name').apply()
-        msg = 'Error renaming lun: lun_from_name does not exist'
+            self.get_lun_mock_object().apply()
+        msg = 'Error: no component for application san_appli'
         assert msg == exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_delete_appli(self, mock_request):
+        ''' Test successful create '''
+        mock_request.side_effect = [
+            SRR['get_apps_found'],      # GET application/applications
+            SRR['empty_good'],          # POST application/applications
+            SRR['end_of_sequence']
+        ]
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
+        data['state'] = 'absent'
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_lun_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_delete_appli_idem(self, mock_request):
+        ''' Test successful deelte idempotent '''
+        mock_request.side_effect = [
+            SRR['get_apps_empty'],      # GET application/applications
+            SRR['end_of_sequence']
+        ]
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli')
+        data['state'] = 'absent'
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_lun_mock_object().apply()
+        assert not exc.value.args[0]['changed']

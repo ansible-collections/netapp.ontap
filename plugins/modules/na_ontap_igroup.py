@@ -54,10 +54,11 @@ options:
     version_added: 2.7.0
     type: str
 
-  ostype:
+  os_type:
     description:
     - OS type of the initiators within the group.
     type: str
+    aliases: ['ostype']
 
   initiators:
     description:
@@ -94,7 +95,7 @@ EXAMPLES = '''
         state: present
         name: ansibleIgroup3
         initiator_group_type: iscsi
-        ostype: linux
+        os_type: linux
         initiators: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com,abc.com:redhat.com
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
@@ -106,7 +107,7 @@ EXAMPLES = '''
         state: present
         name: ansibleIgroup4
         initiator_group_type: fcp
-        ostype: linux
+        os_type: linux
         initiators: 20:00:00:50:56:9f:19:82
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
@@ -119,7 +120,7 @@ EXAMPLES = '''
         from_name: ansibleIgroup3
         name: testexamplenewname
         initiator_group_type: iscsi
-        ostype: linux
+        os_type: linux
         initiators: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
@@ -131,7 +132,7 @@ EXAMPLES = '''
         state: present
         name: ansibleIgroup3
         initiator_group_type: iscsi
-        ostype: linux
+        os_type: linux
         initiator: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
@@ -162,7 +163,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapIgroup(object):
-
+    """Create/Delete/Rename Igroups and Modify initiators list"""
     def __init__(self):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -170,7 +171,7 @@ class NetAppOntapIgroup(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str', default=None),
-            ostype=dict(required=False, type='str'),
+            os_type=dict(required=False, type='str', aliases=['ostype']),
             initiator_group_type=dict(required=False, type='str',
                                       choices=['fcp', 'iscsi', 'mixed']),
             initiators=dict(required=False, type='list', elements='str', aliases=['initiator']),
@@ -269,8 +270,8 @@ class NetAppOntapIgroup(object):
         Create the igroup.
         """
         options = {'initiator-group-name': self.parameters['name']}
-        if self.parameters.get('ostype') is not None:
-            options['os-type'] = self.parameters['ostype']
+        if self.parameters.get('os_type') is not None:
+            options['os-type'] = self.parameters['os_type']
         if self.parameters.get('initiator_group_type') is not None:
             options['initiator-group-type'] = self.parameters['initiator_group_type']
         if self.parameters.get('bind_portset') is not None:
