@@ -44,6 +44,7 @@ options:
                 "autosupport_config_info" or "support/autosupport",
                 "autosupport_messages_history" or "support/autosupport/messages",
                 "broadcast_domains_info" or "network/ethernet/broadcast-domains",
+                "cifs_home_directory_info" or "protocols/cifs/home-directory/search-paths",
                 "cifs_services_info" or "protocols/cifs/services",
                 "cifs_share_info" or "protocols/cifs/shares",
                 "cloud_targets_info" or "cloud/targets",
@@ -53,9 +54,12 @@ options:
                 "cluster_node_info" or "cluster/nodes",
                 "cluster_peer_info" or "cluster/peers",
                 "cluster_schedules" or "cluster/schedules",
+                "cluster_software_download" or "cluster/software/download",
                 "cluster_software_history" or "cluster/software/history",
                 "cluster_software_packages" or "cluster/software/packages",
                 "disk_info" or "storage/disks",
+                "event_notification_info" or "support/ems/destinations",
+                "event_notification_destination_info" or "support/ems/destinations",
                 "initiator_groups_info" or "protocols/san/igroups",
                 "ip_interfaces_info" or "network/ip/interfaces",
                 "ip_routes_info" or "network/ip/routes",
@@ -69,6 +73,8 @@ options:
                 "san_iscsi_credentials" or "protocols/san/iscsi/credentials",
                 "san_iscsi_services" or "protocols/san/iscsi/services",
                 "san_lun_maps" or "protocols/san/lun-maps",
+                "security_login_info" or "security/accounts",
+                "security_login_rest_role_info" or "security/roles",
                 "storage_flexcaches_info" or "storage/flexcache/flexcaches",
                 "storage_flexcaches_origin_info" or "storage/flexcache/origins",
                 "storage_luns_info" or "storage/luns",
@@ -297,6 +303,7 @@ class NetAppONTAPGatherInfo(object):
             "autosupport_config_info": "support/autosupport",
             "autosupport_messages_history": "support/autosupport/messages",
             "broadcast_domains_info": "network/ethernet/broadcast-domains",
+            "cifs_home_directory_info": "protocols/cifs/home-directory/search-paths",
             "cifs_services_info": "protocols/cifs/services",
             "cifs_share_info": "protocols/cifs/shares",
             "cloud_targets_info": "cloud/targets",
@@ -307,9 +314,12 @@ class NetAppONTAPGatherInfo(object):
             "cluster_node_info": "cluster/nodes",
             "cluster_peer_info": "cluster/peers",
             "cluster_schedules": "cluster/schedules",
+            "cluster_software_download": "cluster/software/download",
             "cluster_software_history": "cluster/software/history",
             "cluster_software_packages": "cluster/software/packages",
             "disk_info": "storage/disks",
+            "event_notification_info": "support/ems/destinations",
+            "event_notification_destination_info": "support/ems/destinations",
             "initiator_groups_info": "protocols/san/igroups",
             "ip_interfaces_info": "network/ip/interfaces",
             "ip_routes_info": "network/ip/routes",
@@ -323,6 +333,8 @@ class NetAppONTAPGatherInfo(object):
             "san_iscsi_credentials": "protocols/san/iscsi/credentials",
             "san_iscsi_services": "protocols/san/iscsi/services",
             "san_lun_maps": "protocols/san/lun-maps",
+            "security_login_info": "security/accounts",
+            "security_login_rest_role_info": "security/roles",
             "storage_flexcaches_info": "storage/flexcache/flexcaches",
             "storage_flexcaches_origin_info": "storage/flexcache/origins",
             "storage_luns_info": "storage/luns",
@@ -403,6 +415,9 @@ class NetAppONTAPGatherInfo(object):
             'cluster/software': {
                 'api_call': 'cluster/software',
             },
+            'cluster/software/download': {
+                'api_call': 'cluster/software/download',
+            },
             'cluster/software/history': {
                 'api_call': 'cluster/software/history',
             },
@@ -445,6 +460,9 @@ class NetAppONTAPGatherInfo(object):
             'network/ipspaces': {
                 'api_call': 'network/ipspaces',
             },
+            'protocols/cifs/home-directory/search-paths': {
+                'api_call': 'protocols/cifs/home-directory/search-paths',
+            },
             'protocols/cifs/services': {
                 'api_call': 'protocols/cifs/services',
             },
@@ -465,6 +483,12 @@ class NetAppONTAPGatherInfo(object):
             },
             'protocols/san/lun-maps': {
                 'api_call': 'protocols/san/lun-maps',
+            },
+            'security/accounts': {
+                'api_call': 'security/accounts',
+            },
+            'security/roles': {
+                'api_call': 'security/roles',
             },
             'storage/aggregates': {
                 'api_call': 'storage/aggregates',
@@ -516,6 +540,9 @@ class NetAppONTAPGatherInfo(object):
             },
             'support/ems': {
                 'api_call': 'support/ems',
+            },
+            'support/ems/destinations': {
+                'api_call': 'support/ems/destinations',
             },
             'support/ems/events': {
                 'api_call': 'support/ems/events',
