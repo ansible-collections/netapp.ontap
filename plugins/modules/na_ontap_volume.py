@@ -1496,39 +1496,6 @@ class NetAppOntapVolume(object):
         vol_mod_iter.add_child_elem(query)
         try:
             result = self.server.invoke_successfully(vol_mod_iter, enable_tunneling=True)
-            failures = result.get_child_by_name('failure-list')
-            if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
-                success = result.get_child_by_name('success-list')
-                success = success.get_child_by_name('volume-modify-iter-async-info')
-                results = dict()
-                for key in ('status', 'jobid'):
-                    if success.get_child_by_name(key):
-                        results[key] = success[key]
-                status = results.get('status')
-                if status == 'in_progress' and 'jobid' in results:
-                    if self.parameters['time_out'] == 0:
-                        return
-                    error = self.check_job_status(results['jobid'])
-                    if error is None:
-                        return
-                    else:
-                        self.module.fail_json(msg='Error when modify volume: %s' % error)
-                self.module.fail_json(msg='Unexpected error when modify volume: results is: %s' % repr(results))
-            # handle error if modify space, policy, or unix-permissions parameter fails
-            if failures is not None:
-                if failures.get_child_by_name('volume-modify-iter-info') is not None:
-                    return_info = 'volume-modify-iter-info'
-                    error_msg = failures.get_child_by_name(return_info).get_child_content('error-message')
-                    self.module.fail_json(msg="Error modifying volume %s: %s"
-                                          % (self.parameters['name'], error_msg),
-                                          exception=traceback.format_exc())
-                elif failures.get_child_by_name('volume-modify-iter-async-info') is not None:
-                    return_info = 'volume-modify-iter-async-info'
-                    error_msg = failures.get_child_by_name(return_info).get_child_content('error-message')
-                    self.module.fail_json(msg="Error modifying volume %s: %s"
-                                          % (self.parameters['name'], error_msg),
-                                          exception=traceback.format_exc())
-            self.ems_log_event("volume-modify")
         except netapp_utils.zapi.NaApiError as error:
             error_msg = to_native(error)
             if 'volume-comp-aggr-attributes' in error_msg:
@@ -1536,6 +1503,35 @@ class NetAppOntapVolume(object):
             self.module.fail_json(msg='Error modifying volume %s: %s'
                                   % (self.parameters['name'], error_msg),
                                   exception=traceback.format_exc())
+
+        self.ems_log_event("volume-modify")
+        failures = result.get_child_by_name('failure-list')
+        # handle error if modify space, policy, or unix-permissions parameter fails
+        if failures is not None:
+            error_msgs = list()
+            for return_info in ('volume-modify-iter-info', 'volume-modify-iter-async-info'):
+                if failures.get_child_by_name(return_info) is not None:
+                    error_msgs.append(failures.get_child_by_name(return_info).get_child_content('error-message'))
+            if error_msgs and any([x is not None for x in error_msgs]):
+                self.module.fail_json(msg="Error modifying volume %s: %s"
+                                      % (self.parameters['name'], ' --- '.join(error_msgs)),
+                                      exception=traceback.format_exc())
+        if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
+            success = result.get_child_by_name('success-list')
+            success = success.get_child_by_name('volume-modify-iter-async-info')
+            results = dict()
+            for key in ('status', 'jobid'):
+                if success and success.get_child_by_name(key):
+                    results[key] = success[key]
+            status = results.get('status')
+            if status == 'in_progress' and 'jobid' in results:
+                if self.parameters['time_out'] == 0:
+                    return
+                error = self.check_job_status(results['jobid'])
+                if error is None:
+                    return
+                self.module.fail_json(msg='Error when modify volume: %s' % error)
+            self.module.fail_json(msg='Unexpected error when modifying volume: result is: %s' % str(result.to_string()))
 
     def volume_mount(self):
         """

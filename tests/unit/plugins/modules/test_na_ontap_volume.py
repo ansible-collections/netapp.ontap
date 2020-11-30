@@ -83,6 +83,8 @@ class MockONTAPConnection(object):
             xml = self.build_modify_error()
         elif kind == 'failure_modify_async':
             xml = self.build_failure_modify_async()
+        elif kind == 'missing_element_modify_async':
+            xml = self.build_missing_element_modify_async()
         elif kind == 'success_modify_async':
             xml = self.build_success_modify_async()
         elif kind == 'zapi_error':
@@ -237,6 +239,18 @@ class MockONTAPConnection(object):
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = netapp_utils.zapi.NaElement('success-list')
         info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-async-info')
+        info_list_obj.add_new_child('status', 'in_progress')
+        info_list_obj.add_new_child('jobid', '1234')
+        attributes.add_child_elem(info_list_obj)
+        xml.add_child_elem(attributes)
+        return xml
+
+    @staticmethod
+    def build_missing_element_modify_async():
+        ''' build xml data for success modify async '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        attributes = netapp_utils.zapi.NaElement('success-list')
+        info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-info')      # no async!
         info_list_obj.add_new_child('status', 'in_progress')
         info_list_obj.add_new_child('jobid', '1234')
         attributes.add_child_elem(info_list_obj)
@@ -844,6 +858,31 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+    def test_successful_modify_unix_permissions_flex_group_0_missing_result(self, get_volume):
+        ''' Test successful modify unix permissions flexGroup '''
+        data = self.mock_args('flexGroup_manual')
+        data['time_out'] = 0
+        data['unix_permissions'] = '---rw-r-xr-x'
+        set_module_args(data)
+        current = {
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'name': self.mock_vol['name'],
+            'vserver': self.mock_vol['vserver'],
+            'style_extended': 'flexgroup',
+            'unix_permissions': '777'
+        }
+        get_volume.side_effect = [
+            current
+        ]
+        obj = self.get_volume_mock_object('missing_element_modify_async')
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj.apply()
+        msg = "Unexpected error when modifying volume: result is:"
+        assert exc.value.args[0]['msg'].startswith(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.check_job_status')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
