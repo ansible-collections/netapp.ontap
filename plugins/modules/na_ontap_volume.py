@@ -1279,9 +1279,28 @@ class NetAppOntapVolume(object):
                                              enable_tunneling=True)
             self.ems_log_event("volume-move")
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error moving volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            if not self.move_volume_with_rest_passthrough():
+                self.module.fail_json(msg='Error moving volume %s: %s'
+                                          % (self.parameters['name'], to_native(error)),
+                                      exception=traceback.format_exc())
+
+    def move_volume_with_rest_passthrough(self):
+        # MDV volume will fail on a move, but will work using the REST CLI pass through
+        # vol move start -volume MDV_CRS_d6b0b313ff5611e9837100a098544e51_A -destination-aggregate data_a3 -vserver wmc66-a
+        rest_api = netapp_utils.OntapRestAPI(self.module)
+        use_rest = rest_api.is_rest()
+        # if REST isn't available fail with the original error
+        if not use_rest:
+            return False
+        # if REST exists let's try moving using the passthrough CLI
+        api = 'private/cli/volume/move/start'
+        data = {'volume:': self.parameters['name'],
+                'destination-aggregate': self.parameters['aggregate_name'],
+                'vserver': self.parameters['vserver']}
+        message, error = rest_api.patch(api, data)
+        if error is not None:
+            self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], error))
+        return True
 
     def wait_for_volume_move(self):
         waiting = True
