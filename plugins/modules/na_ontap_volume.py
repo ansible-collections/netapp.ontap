@@ -96,6 +96,33 @@ options:
             description: the remote component for the flexcache.
             type: str
             required: true
+      cifs_access:
+        description:
+          - The list of CIFS access controls.  You must provide I(user_or_group) or I(access) to enable CIFS access.
+        type: list
+        elements: dict
+        suboptions:
+          access:
+            description: The CIFS access granted to the user or group.  Default is full_control.
+            type: str
+            choices: [change, full_control, no_access, read]
+          user_or_group:
+            description: The name of the CIFS user or group that will be granted access.  Default is Everyone.
+            type: str
+      nfs_access:
+        description:
+          - The list of NFS access controls.  You must provide I(host) or I(access) to enable NFS access.
+          - Mutually exclusive with export_policy option in nas_application_template.
+        type: list
+        elements: dict
+        suboptions:
+          access:
+            description: The NFS access granted.  Default is rw.
+            type: str
+            choices: [none, ro, rw]
+          host:
+            description: The name of the NFS entity granted access.  Default is 0.0.0.0/0.
+            type: str
       storage_service:
         description:
           - The performance service level (PSL) for this volume
@@ -156,7 +183,8 @@ options:
 
   export_policy:
     description:
-    - Name of the export policy.
+      - Name of the export policy.
+      - Mutually exclusive with nfs_access suboption in nas_application_template.
     type: str
     aliases: ['policy']
 
@@ -219,7 +247,8 @@ options:
   snapshot_policy:
     description:
     - The name of the snapshot policy.
-    - the default policy name is 'default'.
+    - The default policy name is 'default'.
+    - If present, this will set the protection_type when using C(nas_application_template).
     type: str
     version_added: 2.8.0
 
@@ -666,7 +695,6 @@ EXAMPLES = """
         size: 100000000
         size_unit: b
         space_guarantee: none
-        policy: default
         language: es
         percent_snapshot_space: 60
         unix_permissions: ---rwxrwxrwx
@@ -674,8 +702,11 @@ EXAMPLES = """
         efficiency_policy: default
         comment: testing
         nas_application_template:
-          tiering:      # the mere presence of a suboption is enough to enable this new feature
-                hostname: "{{ netapp_hostname }}"
+          nfs_access:   # the mere presence of a suboption is enough to enable this new feature
+            - access: ro
+            - access: rw
+              host: 10.0.0.0/8
+        hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
         https: true
@@ -691,6 +722,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -768,6 +800,14 @@ class NetAppOntapVolume(object):
                     origin_svm_name=dict(required=True, type='str'),
                     origin_component_name=dict(required=True, type='str')
                 )),
+                cifs_access=dict(type='list', elements='dict', options=dict(
+                    access=dict(type='str', choices=['change', 'full_control', 'no_access', 'read']),
+                    user_or_group=dict(type='str')
+                )),
+                nfs_access=dict(type='list', elements='dict', options=dict(
+                    access=dict(type='str', choices=['none', 'ro', 'rw']),
+                    host=dict(type='str')
+                )),
                 storage_service=dict(type='str', choices=['value', 'performance', 'extreme']),
                 tiering=dict(type='dict', options=dict(
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
@@ -816,12 +856,11 @@ class NetAppOntapVolume(object):
             self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
         # REST API for application/applications if needed
-        self.use_application_template = self.set_use_application_template()
-        if self.use_application_template:
-            self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.rest_api, self.rest_app = self.setup_rest_application()
 
-    def set_use_application_template(self):
+    def setup_rest_application(self):
         use_application_template = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application'])
+        rest_api, rest_app = None, None
         if use_application_template:
             # consistency checks
             # tiering policy is duplicated, make sure values are matching
@@ -836,7 +875,13 @@ class NetAppOntapVolume(object):
                 msg = 'Conflict: aggregate_name is not supported when application template is enabled.'\
                       '  Found: aggregate_name: %s' % self.parameters['aggregate_name']
                 self.module.fail_json(msg=msg)
-        return use_application_template
+            nfs_access = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'nfs_access'])
+            if nfs_access is not None and self.na_helper.safe_get(self.parameters, ['export_policy']) is not None:
+                msg = 'Conflict: export_policy option and nfs_access suboption in nas_application_template are mutually exclusive.'
+                self.module.fail_json(msg=msg)
+            rest_api = netapp_utils.OntapRestAPI(self.module)
+            rest_app = RestApplication(rest_api, self.parameters['vserver'], self.parameters['name'])
+        return rest_api, rest_app
 
     def volume_get_iter(self, vol_name=None):
         """
@@ -1027,8 +1072,16 @@ class NetAppOntapVolume(object):
 
         return return_value
 
-    def create_volume_body(self):
-        '''Create body for nas template'''
+    def fail_on_error(self, error, stack=False):
+        if error is None:
+            return
+        results = dict(msg="Error: %s" % error)
+        if stack:
+            results['stack'] = traceback.format_stack()
+        self.module.fail_json(**results)
+
+    def create_nas_application_component(self):
+        '''Create application component for nas template'''
         required_options = ('name', 'size')
         for option in required_options:
             if self.parameters.get(option) is None:
@@ -1076,90 +1129,69 @@ class NetAppOntapVolume(object):
             application_component['export_policy'] = {
                 "name": self.parameters['export_policy'],
             }
+        return application_component
 
-        # TODO: confirm these 3 blocks are needed or not
-        # export policy should remove the need to support nfs_access ot cifs_access
-        # but for CIFS shares: see vserver cifs share access-control (na_ontap_cifs_acl)
-        # nfs_access = {
-        #     "host": "0.0.0.0/0",
-        #     "access": "rw"
-        # }
-        # cifs_access = {
-        #     "user_or_group": "everyone",
-        #     "access": "full_control"
-        # }
-        # protection_type = {
-        #     "local_rpo": "none",
-        #     "remote_rpo": "none",
-        #     "local_policy": ""
-        # }
-
-        body = {
-            "name": "nas-%s" % self.parameters['name'],
-            "svm": {"name": self.parameters['vserver']},
-            "smart_container": True,
-            "nas": {
-                "application_components": [application_component],
-                # "nfs_access": [nfs_access],           -- ignored, use export policy
-                # "cifs_access": [cifs_access],         -- ignored, use export policy
-                # "protection_type": protection_type
-            }
-        }
-        return body
+    def create_volume_body(self):
+        '''Create body for nas template'''
+        nas = dict(application_components=[self.create_nas_application_component()])
+        value = self.na_helper.safe_get(self.parameters, ['snapshot_policy'])
+        if value is not None:
+            nas['protection_type'] = dict(local_policy=value)
+        for attr in ('nfs_access', 'cifs_access'):
+            value = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+            if value is not None:
+                # we expect value to be a list of dicts, with maybe some empty entries
+                value = self.na_helper.filter_out_none_entries(value)
+                if value:
+                    nas[attr] = value
+        return self.rest_app.create_application_body("nas", nas)
 
     def create_nas_application(self):
         '''Use REST application/applications nas template to create a volume'''
-        api = '/application/applications'
-        body = self.create_volume_body()
-
-        query = {'return_timeout': 30, 'return_records': 'true'}
-        response, error = self.rest_api.post(api, body, params=query)
-        if error:
-            self.module.fail_json(msg=error)
-        if 'job' in response:
-            job_response, error = self.rest_api.wait_on_job(response['job'])
-            if error:
-                self.module.fail_json(msg="job reported error: %s" % error, response=response)
-            response['job_response'] = job_response
+        body, error = self.create_volume_body()
+        self.fail_on_error(error)
+        response, error = self.rest_app.create_application(body)
+        self.fail_on_error(error)
         return response
 
     def create_volume(self):
         '''Create ONTAP volume'''
-        if self.use_application_template:
+        if self.rest_app:
             return self.create_nas_application()
         if self.volume_style == 'flexGroup':
-            self.create_volume_async()
-        else:
-            options = self.create_volume_options()
-            volume_create = netapp_utils.zapi.NaElement.create_node_with_children('volume-create', **options)
-            try:
-                self.server.invoke_successfully(volume_create, enable_tunneling=True)
-            except netapp_utils.zapi.NaApiError as error:
-                size_msg = ' of size %s' % self.parameters['size'] if self.parameters.get('size') is not None else ''
-                self.module.fail_json(msg='Error provisioning volume %s%s: %s'
-                                      % (self.parameters['name'], size_msg, to_native(error)),
-                                      exception=traceback.format_exc())
-            self.ems_log_event("volume-create")
+            return self.create_volume_async()
 
-            if self.parameters.get('wait_for_completion'):
-                # round off time_out
-                retries = (self.parameters['time_out'] + 5) // 10
-                is_online = None
-                errors = list()
-                while not is_online and retries > 0:
-                    try:
-                        current = self.get_volume()
-                        is_online = None if current is None else current['is_online']
-                    except KeyError as err:
-                        # get_volume may receive incomplete data as the volume is being created
-                        errors.append(repr(err))
-                    if not is_online:
-                        time.sleep(10)
-                    retries = retries - 1
+        options = self.create_volume_options()
+        volume_create = netapp_utils.zapi.NaElement.create_node_with_children('volume-create', **options)
+        try:
+            self.server.invoke_successfully(volume_create, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            size_msg = ' of size %s' % self.parameters['size'] if self.parameters.get('size') is not None else ''
+            self.module.fail_json(msg='Error provisioning volume %s%s: %s'
+                                  % (self.parameters['name'], size_msg, to_native(error)),
+                                  exception=traceback.format_exc())
+        self.ems_log_event("volume-create")
+
+        if self.parameters.get('wait_for_completion'):
+            # round off time_out
+            retries = (self.parameters['time_out'] + 5) // 10
+            is_online = None
+            errors = list()
+            while not is_online and retries > 0:
+                try:
+                    current = self.get_volume()
+                    is_online = None if current is None else current['is_online']
+                except KeyError as err:
+                    # get_volume may receive incomplete data as the volume is being created
+                    errors.append(repr(err))
                 if not is_online:
-                    errors.append("Timeout after %s seconds" % self.parameters['time_out'])
-                    self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
-                                          % (self.parameters['name'], str(errors)))
+                    time.sleep(10)
+                retries = retries - 1
+            if not is_online:
+                errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+                self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
+                                      % (self.parameters['name'], str(errors)))
+        return None
 
     def create_volume_async(self):
         '''
@@ -1181,6 +1213,7 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], size_msg, to_native(error)),
                                   exception=traceback.format_exc())
         self.check_invoke_result(result, 'create')
+        return None
 
     def create_volume_options(self):
         '''Set volume options for create operation'''
@@ -1281,7 +1314,7 @@ class NetAppOntapVolume(object):
         except netapp_utils.zapi.NaApiError as error:
             if not self.move_volume_with_rest_passthrough():
                 self.module.fail_json(msg='Error moving volume %s: %s'
-                                          % (self.parameters['name'], to_native(error)),
+                                      % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
     def move_volume_with_rest_passthrough(self):
@@ -1297,7 +1330,7 @@ class NetAppOntapVolume(object):
         data = {'volume:': self.parameters['name'],
                 'destination-aggregate': self.parameters['aggregate_name'],
                 'vserver': self.parameters['vserver']}
-        message, error = rest_api.patch(api, data)
+        dummy, error = rest_api.patch(api, data)
         if error is not None:
             self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], error))
         return True

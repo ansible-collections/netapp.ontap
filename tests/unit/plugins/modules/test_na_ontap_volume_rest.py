@@ -262,7 +262,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+        assert exc.value.args[0]['msg'] == 'Error: calling: /application/applications: got %s' % SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_created(self, mock_request):
