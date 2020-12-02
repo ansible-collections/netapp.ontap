@@ -64,6 +64,12 @@ options:
     description:
     - Whether the specified volume should have quota status on or off.
     type: bool
+  perform_user_mapping:
+    description:
+    - Whether quota management will perform user mapping for the user specified in quota-target.
+    - User mapping can be specified only for a user quota rule.
+    type: bool
+    version_added: 20.12.0
   file_limit:
     description:
     - The number of files that the target can have.
@@ -195,6 +201,7 @@ class NetAppONTAPQuotas(object):
             type=dict(required=True, type='str', choices=['user', 'group', 'tree']),
             policy=dict(required=False, type='str'),
             set_quota_status=dict(required=False, type='bool'),
+            perform_user_mapping=dict(required=False, type='bool'),
             file_limit=dict(required=False, type='str'),
             disk_limit=dict(required=False, type='str'),
             soft_file_limit=dict(required=False, type='str'),
@@ -269,6 +276,9 @@ class NetAppONTAPQuotas(object):
                              'soft_file_limit': result['attributes-list']['quota-entry']['soft-file-limit'],
                              'soft_disk_limit': result['attributes-list']['quota-entry']['soft-disk-limit'],
                              'threshold': result['attributes-list']['quota-entry']['threshold']}
+            value = self.na_helper.safe_get(result, ['attributes-list', 'quota-entry', 'perform-user-mapping'])
+            if value is not None:
+                return_values['perform_user_mapping'] = self.na_helper.get_value_for_bool(True, value)
             return return_values
         return None
 
@@ -285,6 +295,8 @@ class NetAppONTAPQuotas(object):
             options['file-limit'] = self.parameters['file_limit']
         if self.parameters.get('disk_limit'):
             options['disk-limit'] = self.parameters['disk_limit']
+        if self.parameters.get('perform_user_mapping') is not None:
+            options['perform-user-mapping'] = str(self.parameters['perform_user_mapping'])
         if self.parameters.get('soft_file_limit'):
             options['soft-file-limit'] = self.parameters['soft_file_limit']
         if self.parameters.get('soft_disk_limit'):
@@ -334,6 +346,8 @@ class NetAppONTAPQuotas(object):
             options['file-limit'] = self.parameters['file_limit']
         if self.parameters.get('disk_limit'):
             options['disk-limit'] = self.parameters['disk_limit']
+        if self.parameters.get('perform_user_mapping') is not None:
+            options['perform-user-mapping'] = str(self.parameters['perform_user_mapping'])
         if self.parameters.get('soft_file_limit'):
             options['soft-file-limit'] = self.parameters['soft_file_limit']
         if self.parameters.get('soft_disk_limit'):

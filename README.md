@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_qos_policy_group - new option `is_shared` for sharing QOS SLOs or not.
   - na_ontap_quota_policy - new option `auto_assign` to assign quota policy to vserver.
   - na_ontap_quotas - new option `activate_quota_on_change` to resize or reinitialize quotas.
+  - na_ontap_quotas - new option `perform_user_mapping` to perform user mapping for the user specified in quota-target.
   - na_ontap_rest_info - Support for gather subsets: `cifs_home_directory_info, cluster_software_download, event_notification_info, event_notification_destination_info, security_login_info, security_login_rest_role_info` 
   - na_ontap_svm - warning for `aggr_list` wildcard value(`*`) in create\modify idempotency.
   - na_ontap_volume - `compression` to enable compression on a FAS volume.
