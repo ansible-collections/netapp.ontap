@@ -796,7 +796,8 @@ class TestMyModule(unittest.TestCase):
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
             'size': 20971520,
-            'unix_permissions': '755'
+            'unix_permissions': '755',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -821,7 +822,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
-            'unix_permissions': '777'
+            'unix_permissions': '777',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -849,7 +851,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
-            'unix_permissions': '777'
+            'unix_permissions': '777',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -873,7 +876,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
-            'unix_permissions': '777'
+            'unix_permissions': '777',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -899,7 +903,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
-            'unix_permissions': '777'
+            'unix_permissions': '777',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -924,7 +929,8 @@ class TestMyModule(unittest.TestCase):
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexvol',
-            'unix_permissions': '777'
+            'unix_permissions': '777',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -949,7 +955,8 @@ class TestMyModule(unittest.TestCase):
             'style_extended': 'flexgroup',
             'is_online': True,
             'junction_path': 'anything',
-            'unix_permissions': '755'
+            'unix_permissions': '755',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -973,7 +980,8 @@ class TestMyModule(unittest.TestCase):
             'style_extended': 'flexgroup',
             'is_online': False,
             'junction_path': 'anything',
-            'unix_permissions': '755'
+            'unix_permissions': '755',
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current
@@ -1090,7 +1098,8 @@ class TestMyModule(unittest.TestCase):
             'vserver': self.mock_vol['vserver'],
             'snapshot_auto_delete': {'delete_order': 'newest_first', 'destroy_list': 'lun_clone,vol_clone',
                                      'target_free_space': 30, 'prefix': 'test', 'commitment': 'try',
-                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'}
+                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
+            'uuid': '1234'
         }
         get_volume.side_effect = [
             current

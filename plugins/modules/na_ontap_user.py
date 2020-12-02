@@ -45,11 +45,13 @@ options:
     description:
     - List of application to grant access to.
     - Creating a login with application console, telnet, rsh, and service-processor for a data Vserver is not supported.
+    - Module supports both service-processor and service_processor choices.
+    - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
     - snmp is not supported in REST.
     required: true
     type: list
     elements: str
-    choices: ['console', 'http','ontapi','rsh','snmp','service-processor','sp','ssh','telnet']
+    choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
     aliases:
       - application
   authentication_method:
@@ -219,7 +221,7 @@ class NetAppOntapUser(object):
 
             applications=dict(required=True, type='list', elements='str', aliases=['application'],
                               choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
-                                       'sp', 'service-processor', 'ssh', 'telnet'],),
+                                       'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
             authentication_method=dict(required=True, type='str',
                                        choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']),
             set_password=dict(required=False, type='str', no_log=True),
@@ -366,6 +368,26 @@ class NetAppOntapUser(object):
             if 'lock_user' in self.parameters:
                 params['locked'] = self.parameters['lock_user']
             dummy, error = self.rest_api.post(api, params)
+            error_sp = None
+            if error:
+                if 'invalid value' in error['message']:
+                    if 'service-processor' in error['message'] or 'service_processor' in error['message']:
+                        # find if there is error for service processor application value
+                        # update value as per ONTAP version support
+                        app_list_sp = params['applications']
+                        for app_item in app_list_sp:
+                            if 'service-processor' == app_item['application']:
+                                app_item['application'] = 'service_processor'
+                            elif 'service_processor' == app_item['application']:
+                                app_item['application'] = 'service-processor'
+                        params['applications'] = app_list_sp
+                        # post again and throw first error in case of an error
+                        dummy, error_sp = self.rest_api.post(api, params)
+                        if error_sp:
+                            self.module.fail_json(msg='Error while creating user: %s' % error)
+                        return True
+
+            # non-sp errors thrown
             if error:
                 self.module.fail_json(msg='Error while creating user: %s' % error)
 
@@ -581,12 +603,23 @@ class NetAppOntapUser(object):
             self.module.fail_json(msg='Error modifying user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def change_sp_application(self, current_app):
+        if 'service-processor' or 'service_processor' in self.parameters['applications']:
+            if 'service-processor' in current_app:
+                if 'service_processor' in self.parameters['applications']:
+                    index = self.parameters['applications'].index('service_processor')
+                    self.parameters['applications'][index] = 'service-processor'
+            if 'service_processor' in current_app:
+                if 'service-processor' in self.parameters['applications']:
+                    index = self.parameters['applications'].index('service-processor')
+                    self.parameters['applications'][index] = 'service_processor'
+
     def apply_for_rest(self):
         current = self.get_user_rest()
-
         if current is not None:
             uuid, name = current
             current = self.get_user_details_rest(name, uuid)
+            self.change_sp_application(current['applications'])
 
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify_decision = self.na_helper.get_modified_attributes(current, self.parameters)

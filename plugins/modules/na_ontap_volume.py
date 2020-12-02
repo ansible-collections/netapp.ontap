@@ -176,6 +176,16 @@ options:
     default: 10
     version_added: 20.12.0
 
+  sizing_method:
+    description:
+    - Represents the method to modify the size of a FlexGroup.
+    - use_existing_resources - Increases or decreases the size of the FlexGroup by increasing or decreasing the size of the current FlexGroup resources.
+    - add_new_resources - Increases the size of the FlexGroup by adding new resources. This is limited to two new resources per available aggregate.
+    - This is only supported if REST is enabled (ONTAP 9.6 or later) and only for FlexGroups.  ONTAP defaults to use_existing_resources.
+    type: str
+    choices: ['add_new_resources', 'use_existing_resources']
+    version_added: 20.12.0
+
   type:
     description:
     - The volume type, either read-write (RW) or data-protection (DP).
@@ -755,6 +765,7 @@ class NetAppOntapVolume(object):
             is_online=dict(required=False, type='bool', default=True),
             size=dict(type='int', default=None),
             size_unit=dict(default='gb', choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'], type='str'),
+            sizing_method=dict(choices=['add_new_resources', 'use_existing_resources'], type='str'),
             aggregate_name=dict(type='str', default=None),
             type=dict(type='str', default=None),
             export_policy=dict(type='str', default=None, aliases=['policy']),
@@ -988,6 +999,7 @@ class NetAppOntapVolume(object):
                 return_value['comment'] = volume_id_attributes['comment']
             else:
                 return_value['comment'] = None
+            return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['instance-uuid'])
             if volume_attributes['volume-security-attributes'].get_child_by_name('style'):
                 # style is not present if the volume is still offline or of type: dp
                 return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
@@ -1072,9 +1084,11 @@ class NetAppOntapVolume(object):
 
         return return_value
 
-    def fail_on_error(self, error, stack=False):
+    def fail_on_error(self, error, api=None, stack=False):
         if error is None:
             return
+        if api is not None:
+            error = 'calling api: %s: %s' % (api, error)
         results = dict(msg="Error: %s" % error)
         if stack:
             results['stack'] = traceback.format_stack()
@@ -1390,13 +1404,31 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def rest_resize_volume(self):
+        """
+        Re-size the volume using REST PATCH method.
+        """
+        uuid = self.parameters['uuid']
+        if uuid is None:
+            self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
+        api = '/storage/volumes/%s' % uuid
+        body = dict(size=self.parameters['size'])
+        query = dict(sizing_method=self.parameters['sizing_method'])
+        rest_api = netapp_utils.OntapRestAPI(self.module)
+        response, error = rest_api.patch(api, body, query)
+        self.fail_on_error(error, api)
+        return response
+
     def resize_volume(self):
         """
         Re-size the volume.
 
-        Note: 'is_infinite' needs to be set to True in order to rename an
+        Note: 'is_infinite' needs to be set to True in order to resize an
         Infinite Volume.
         """
+        if self.parameters.get('sizing_method') is not None:
+            return self.rest_resize_volume()
+
         vol_size_zapi, vol_name_zapi = ['volume-size-async', 'volume-name']\
             if (self.parameters['is_infinite'] or self.volume_style == 'flexGroup')\
             else ['volume-size', 'volume']
@@ -1412,6 +1444,7 @@ class NetAppOntapVolume(object):
             self.module.fail_json(msg='Error re-sizing volume %s: %s'
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        return None
 
     def change_volume_state(self, call_from_delete_vol=False):
         """
@@ -2015,6 +2048,7 @@ class NetAppOntapVolume(object):
                 elif cd_action == 'delete':
                     self.delete_volume(current)
                 elif modify:
+                    self.parameters['uuid'] = current['uuid']
                     self.take_modify_actions(modify)
 
         result = dict(

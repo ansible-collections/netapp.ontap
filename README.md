@@ -46,10 +46,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - `inline-compression` to enable inline compression on a volume.
   - na_ontap_volume - `nas_application_template` to create a volume using nas application REST API.
   - na_ontap_volume - `size_change_threshold` to ignore small changes in volume size.
+  - na_ontap_volume - `sizing_method` to resize a FlexGroup using REST.
 
 ### Bug fixes
   - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.
   - na_ontap_cifs - fix for AttributeError - 'NoneType' object has no attribute 'get' on line 300
+  - na_ontap_user - application parameter expects only ``service_processor`` but module supports ``service-processor``.
   - na_ontap_volume - change in volume type was ignored and now reporting an error.
   - na_ontap_volume - checking for success before failure lead to 'NoneType' object has no attribute 'get_child_by_name' when modifying a Flexcache volume.
 

@@ -132,7 +132,8 @@ class MockONTAPConnection(object):
                 'attributes-list': [{
                     'volume-attributes': {
                         'volume-id-attributes': {
-                            'name': name
+                            'name': name,
+                            'instance-uuid': '123'
                         },
                         'volume-performance-attributes': {
                             'is-atime-update-enabled': 'true'
@@ -309,3 +310,24 @@ class TestMyModule(unittest.TestCase):
         assert 'unix_permissions' in exc.value.args[0]['modify_after_create']
         assert 'language' not in exc.value.args[0]['modify_after_create']        # eh!
         assert 'volume-modify-iter' in my_volume.server.zapis
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_resized(self, mock_request):
+        ''' make sure resize if using RESP API if sizing_method is present
+        '''
+        data = dict(self.mock_args())
+        data['sizing_method'] = 'add_new_resources'
+        data['size'] = 20737418240
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['empty_good'],       # PATCH application/applications
+            SRR['end_of_sequence']
+        ]
+        my_volume = self.get_volume_mock_object(get_volume=['test'])
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_volume.apply()
+        assert exc.value.args[0]['changed']
+        print(exc.value.args[0])
+        assert 'volume-size' not in my_volume.server.zapis
+        print(mock_request.call_args)
+        mock_request.assert_called_with('PATCH', '/storage/volumes/123', {'sizing_method': 'add_new_resources'}, json={'size': 22266633286068469760})
