@@ -15,6 +15,8 @@ DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - "Run system-cli commands on ONTAP"
+  - Can't be used with cert authentication and domain authentication accounts.
+  - Requires ontapi and console permissions. Console is not supported for data vservers.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_command
