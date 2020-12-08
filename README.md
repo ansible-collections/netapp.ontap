@@ -27,6 +27,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
   - na_ontap_debug: Diagnose netapp-lib import errors and provide useful information.
 
+### Minor changes:
+  - na_ontap_snapmirror: use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
+
 ## 20.12.0
 
 ### New Options

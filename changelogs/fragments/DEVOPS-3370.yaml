@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).

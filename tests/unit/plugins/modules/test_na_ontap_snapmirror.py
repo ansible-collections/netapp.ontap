@@ -5,10 +5,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror \
@@ -26,12 +26,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -45,6 +43,18 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
+
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    # module specific responses
+}
 
 
 class MockONTAPConnection(object):
@@ -628,3 +638,52 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.snapmirror_modify({'policy': 'ansible2', 'schedule': 'abc2'})
         assert 'Error modifying SnapMirror schedule or policy :' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rest_create(self, mock_request):
+        ''' creating snapmirror and testing idempotency '''
+        data = self.set_default_args()
+        data.pop('relationship_type')
+        data['initialize'] = False      # the first get fails, as we pretend the relationship does not exist
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],             # REST support
+            SRR['empty_good'],          # POST
+            SRR['end_of_sequence']
+        ]
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+                                        json={'source': {'path': 'ansible:ansible'}, 'destination': {'path': 'ansible:ansible'}})
+        # to reset na_helper from remembering the previous 'changed' value
+        data = self.set_default_args()
+        data['update'] = False
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],             # REST support
+            SRR['end_of_sequence']
+        ]
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', 'snapmirrored', status='idle')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    def test_negative_rest_create(self):
+        ''' creating snapmirror with unsupported REST options '''
+        data = self.set_default_args()
+        data['schedule'] = 'abc'
+        data['identity_preserve'] = True
+        data['use_rest'] = 'always'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_module()
+        msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"
+        assert msg in exc.value.args[0]['msg']
