@@ -22,6 +22,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.1.0
+
+### New Modules
+  - na_ontap_debug: Diagnose netapp-lib import errors and provide useful information.
+
 ## 20.12.0
 
 ### New Options

@@ -46,7 +46,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "20.12.0"
+COLLECTION_VERSION = "21.1.0"
 
 try:
     from netapp_lib.api.zapi import zapi
