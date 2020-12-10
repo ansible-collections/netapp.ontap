@@ -203,6 +203,44 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
 
+    def test_ensure_user_sp_apply_called(self):
+        ''' creating user with service_processor application and idempotency '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'name': 'create'})
+        module_args.update({'role_name': 'test'})
+        module_args.update({'application': 'service-processor'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_sp: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user', 'false')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_sp: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        ''' creating user with service_processor application and idempotency '''
+        module_args.update({'application': 'service_processor'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_sp: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user', 'false')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_sp: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+
     def test_ensure_user_apply_for_delete_called(self):
         ''' deleting user and checking idempotency '''
         module_args = {}
