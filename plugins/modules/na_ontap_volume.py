@@ -141,7 +141,7 @@ options:
             description:
               - Cloud tiering policy (see C(tiering_policy)).
               - Must match C(tiering_policy) if both are present.
-            choices: ['snapshot-only', 'auto', 'backup', 'none']
+            choices: ['all', 'auto', 'none', 'snapshot-only']
             type: str
           object_stores:
             description: list of object store names for tiering.
@@ -382,10 +382,11 @@ options:
     - snapshot-only policy allows tiering of only the volume snapshot copies not associated with the active file system.
     - auto policy allows tiering of both snapshot and active file system user data to the capacity tier.
     - backup policy on DP volumes allows all transferred user data blocks to start in the capacity tier.
+    - all is the REST equivalent for backup.
     - When set to none, the Volume blocks will not be tiered to the capacity tier.
     - If no value specified, the volume is assigned snapshot only by default.
     - Requires ONTAP 9.4 or later.
-    choices: ['snapshot-only', 'auto', 'backup', 'none']
+    choices: ['snapshot-only', 'auto', 'backup', 'none', 'all']
     type: str
     version_added: 2.9.0
 
@@ -791,7 +792,7 @@ class NetAppOntapVolume(object):
             qos_adaptive_policy_group=dict(required=False, type='str'),
             nvfail_enabled=dict(type='bool', required=False),
             space_slo=dict(type='str', required=False, choices=['none', 'thick', 'semi-thick']),
-            tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none']),
+            tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none', 'all']),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
             comment=dict(type='str', required=False),
             snapshot_auto_delete=dict(type='dict', required=False),
@@ -822,7 +823,7 @@ class NetAppOntapVolume(object):
                 storage_service=dict(type='str', choices=['value', 'performance', 'extreme']),
                 tiering=dict(type='dict', options=dict(
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
-                    policy=dict(type='str', choices=['snapshot-only', 'auto', 'backup', 'none']),
+                    policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
                     object_stores=dict(type='list', elements='str')     # create only
                 ))
             )),
@@ -866,12 +867,18 @@ class NetAppOntapVolume(object):
                 module=self.module, vserver=self.parameters['vserver'])
             self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
+        unsupported_rest_properties = []        # TODO: place holder when moving to REST for create/modify
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
+        if error is not None:
+            self.module.fail_json(msg=error)
         # REST API for application/applications if needed
-        self.rest_api, self.rest_app = self.setup_rest_application()
+        self.rest_app = self.setup_rest_application()
 
     def setup_rest_application(self):
         use_application_template = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application'])
-        rest_api, rest_app = None, None
+        rest_app = None
         if use_application_template:
             # consistency checks
             # tiering policy is duplicated, make sure values are matching
@@ -890,9 +897,8 @@ class NetAppOntapVolume(object):
             if nfs_access is not None and self.na_helper.safe_get(self.parameters, ['export_policy']) is not None:
                 msg = 'Conflict: export_policy option and nfs_access suboption in nas_application_template are mutually exclusive.'
                 self.module.fail_json(msg=msg)
-            rest_api = netapp_utils.OntapRestAPI(self.module)
-            rest_app = RestApplication(rest_api, self.parameters['vserver'], self.parameters['name'])
-        return rest_api, rest_app
+            rest_app = RestApplication(self.rest_api, self.parameters['vserver'], self.parameters['name'])
+        return rest_app
 
     def volume_get_iter(self, vol_name=None):
         """
@@ -999,7 +1005,6 @@ class NetAppOntapVolume(object):
                 return_value['comment'] = volume_id_attributes['comment']
             else:
                 return_value['comment'] = None
-            return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['instance-uuid'])
             if volume_attributes['volume-security-attributes'].get_child_by_name('style'):
                 # style is not present if the volume is still offline or of type: dp
                 return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
@@ -1007,6 +1012,12 @@ class NetAppOntapVolume(object):
                 return_value['style_extended'] = volume_id_attributes['style-extended']
             else:
                 return_value['style_extended'] = None
+            if return_value['style_extended'] == 'flexvol':
+                return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['instance-uuid'])
+            elif return_value['style_extended'] is not None and return_value['style_extended'].startswith('flexgroup'):
+                return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['flexgroup-uuid'])
+            else:
+                return_value['uuid'] = None
             if volume_space_attributes.get_child_by_name('space-guarantee'):
                 return_value['space_guarantee'] = volume_space_attributes['space-guarantee']
             else:
@@ -1293,8 +1304,22 @@ class NetAppOntapVolume(object):
             options['volume-state'] = 'offline'
         return options
 
+    def rest_delete_volume(self):
+        """
+        Delete the volume using REST DELETE method (it scrubs better than ZAPI).
+        """
+        uuid = self.parameters['uuid']
+        if uuid is None:
+            self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
+        api = '/storage/volumes/%s' % uuid
+        response, error = self.rest_api.delete(api)
+        self.fail_on_error(error, api)
+        return response
+
     def delete_volume(self, current):
         '''Delete ONTAP volume'''
+        if self.use_rest and self.parameters['uuid'] is not None:
+            return self.rest_delete_volume()
         if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
             if current['is_online']:
                 self.change_volume_state(call_from_delete_vol=True)
@@ -1334,17 +1359,15 @@ class NetAppOntapVolume(object):
     def move_volume_with_rest_passthrough(self):
         # MDV volume will fail on a move, but will work using the REST CLI pass through
         # vol move start -volume MDV_CRS_d6b0b313ff5611e9837100a098544e51_A -destination-aggregate data_a3 -vserver wmc66-a
-        rest_api = netapp_utils.OntapRestAPI(self.module)
-        use_rest = rest_api.is_rest()
         # if REST isn't available fail with the original error
-        if not use_rest:
+        if not self.use_rest:
             return False
         # if REST exists let's try moving using the passthrough CLI
         api = 'private/cli/volume/move/start'
         data = {'volume:': self.parameters['name'],
                 'destination-aggregate': self.parameters['aggregate_name'],
                 'vserver': self.parameters['vserver']}
-        dummy, error = rest_api.patch(api, data)
+        dummy, error = self.rest_api.patch(api, data)
         if error is not None:
             self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], error))
         return True
@@ -1414,8 +1437,7 @@ class NetAppOntapVolume(object):
         api = '/storage/volumes/%s' % uuid
         body = dict(size=self.parameters['size'])
         query = dict(sizing_method=self.parameters['sizing_method'])
-        rest_api = netapp_utils.OntapRestAPI(self.module)
-        response, error = rest_api.patch(api, body, query)
+        response, error = self.rest_api.patch(api, body, query)
         self.fail_on_error(error, api)
         return response
 
@@ -1462,17 +1484,22 @@ class NetAppOntapVolume(object):
                 'volume-unmount', **{'volume-name': self.parameters['name']})
         volume_change_state = netapp_utils.zapi.NaElement.create_node_with_children(
             vol_state_zapi, **{vol_name_zapi: self.parameters['name']})
-        try:
-            if not self.parameters['is_online'] or call_from_delete_vol:  # Unmount before offline
+
+        errors = list()
+        if not self.parameters['is_online'] or call_from_delete_vol:  # Unmount before offline
+            try:
                 self.server.invoke_successfully(volume_unmount, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                errors.append('Error unmounting volume %s: %s' % (self.parameters['name'], to_native(error)))
+        try:
             result = self.server.invoke_successfully(volume_change_state, enable_tunneling=True)
             if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
                 self.check_invoke_result(result, action)
             self.ems_log_event("change-state")
         except netapp_utils.zapi.NaApiError as error:
-            state = "online" if self.parameters['is_online'] else "offline"
-            self.module.fail_json(msg='Error changing the state of volume %s to %s: %s'
-                                  % (self.parameters['name'], state, to_native(error)),
+            state = "online" if self.parameters['is_online'] and not call_from_delete_vol else "offline"
+            errors.append('Error changing the state of volume %s to %s: %s' % (self.parameters['name'], state, to_native(error)))
+            self.module.fail_json(msg=', '.join(errors),
                                   exception=traceback.format_exc())
 
     def create_volume_attribute(self, zapi_object, parent_attribute, attribute, value):
@@ -2046,6 +2073,7 @@ class NetAppOntapVolume(object):
                     # restore this, as set_modify_dict could set it to False
                     self.na_helper.changed = True
                 elif cd_action == 'delete':
+                    self.parameters['uuid'] = current['uuid']
                     self.delete_volume(current)
                 elif modify:
                     self.parameters['uuid'] = current['uuid']

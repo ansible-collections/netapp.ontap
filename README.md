@@ -27,8 +27,19 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
   - na_ontap_debug: Diagnose netapp-lib import errors and provide useful information.
 
-### Minor changes:
-  - na_ontap_snapmirror: use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
+### New Options
+  - na_ontap_snapmirror - new option `create_destination` to automatically create destination endpoint (ONTAP 9.7).
+  - na_ontap_snapmirror - new option `destination_cluster` to automatically create destination SVM for SVM DR (ONTAP 9.7).
+  - na_ontap_snapmirror - new option `source_cluster` to automatically set SVM peering (ONTAP 9.7).
+
+### Minor changes
+  - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
+  - na_ontap_volume - use REST API for delete operation if targets supports it.
+
+### Bug fixes
+  - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.
+  - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing a delete.
+  - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
 
 ## 20.12.0
 

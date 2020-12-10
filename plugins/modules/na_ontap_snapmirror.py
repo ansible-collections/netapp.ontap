@@ -153,6 +153,65 @@ options:
      - If the parameter is set to false, then only the source Vserver's volumes and RBAC configuration are replicated to the destination.
     type: bool
     version_added: 2.9.0
+  create_destination:
+    description:
+      - Requires ONTAP 9.7 or later.
+      - Creates the destination volume if enabled and destination_volume is present or destination_path includes a volume name.
+      - Creates and peers the destination vserver for SVM DR.
+    type: dict
+    version_added: 21.1.0
+    suboptions:
+      enabled:
+        description:
+          - Whether to create the destination volume or vserver.
+          - This is automatically enabled if any other suboption is present.
+        type: bool
+        default: true
+      storage_service:
+        description: storage service associated with the destination endpoint.
+        type: dict
+        suboptions:
+          enabled:
+            description: whether to create the destination endpoint using storage service.
+            type: bool
+          enforce_performance:
+            description: whether to enforce storage service performance on the destination endpoint.
+            type: bool
+          name:
+            description: the performance service level (PSL) for this volume endpoint.
+            type: str
+            choices: ['value', 'performance', 'extreme']
+      tiering:
+        description:
+          - Cloud tiering policy.
+        type: dict
+        suboptions:
+          control:
+            description: storage tiering placement rules for the container.
+            choices: ['required', 'best_effort', 'disallowed']
+            type: str
+          policy:
+            description:
+              - Cloud tiering policy.
+            choices: ['all', 'auto', 'none', 'snapshot-only']
+            type: str
+          object_stores:
+            description: list of object store names for tiering.
+            type: list
+            elements: str
+  destination_cluster:
+    description:
+      - Requires ONTAP 9.7 or higher.
+      - Required to create the destination vserver for SVM DR or the destination volume.
+    type: str
+    version_added: 21.1.0
+  source_cluster:
+    description:
+      - Requires ONTAP 9.7 or higher.
+      - Required to create the peering relationship between source and destination SVMs.
+    type: str
+    version_added: 21.1.0
+
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
 '''
@@ -186,7 +245,7 @@ EXAMPLES = """
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
 
-    # existing snapmirror relation with status 'snapmirrored' will be initiailzed
+    # existing snapmirror relation with status 'snapmirrored' will be initialized
     - name: Inititalize ONTAP/ONTAP SnapMirror
       na_ontap_snapmirror:
         state: present
@@ -207,7 +266,7 @@ EXAMPLES = """
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
 
-    - name: Break Snapmirror
+    - name: Break SnapMirror
       na_ontap_snapmirror:
         state: present
         relationship_state: broken
@@ -217,7 +276,7 @@ EXAMPLES = """
         username: "{{ destination_cluster_username }}"
         password: "{{ destination_cluster_password }}"
 
-    - name: Restore Snapmirror volume using location (Idempotency)
+    - name: Restore SnapMirror volume using location (Idempotency)
       na_ontap_snapmirror:
         state: present
         source_path: <path>
@@ -265,13 +324,46 @@ EXAMPLES = """
         source_hostname: " {{ netapp_hostname }}"
         source_username: "{{ netapp_username }}"
         source_password: "{{ netapp_password }}"
+
+    - name: Create SnapMirror relationship (creating destination volume)
+      na_ontap_snapmirror:
+        state: present
+        source_volume: "{{ source_volume }}"
+        source_vserver: "{{ source_vserver }}"
+        destination_volume: "{{ destination_volume }}"
+        destination_vserver: "{{ destination_vserver }}"
+        destination_cluster: "{{ destination_cluster | default(omit) }}"
+        create_destination:
+          enabled: true
+        policy: "{{ policy | default(omit) }}"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: "{{ https }}"
+        validate_certs: "{{ validate_certs }}"
+
+    - name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
+      na_ontap_snapmirror:
+        state: present
+        source_vserver: "{{ source_vserver }}"
+        source_cluster: "{{ source_cluster | default(omit) }}"
+        destination_vserver: "{{ destination_vserver }}"
+        destination_cluster: "{{ destination_cluster | default(omit) }}"
+        create_destination:
+          enabled: true
+        policy: "{{ policy | default(omit) }}"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: "{{ https }}"
+        validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """
 """
 
-import time
 import re
+import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -291,7 +383,7 @@ except ImportError:
 
 class NetAppONTAPSnapmirror(object):
     """
-    Class with Snapmirror methods
+    Class with SnapMirror methods
     """
 
     def __init__(self):
@@ -325,7 +417,22 @@ class NetAppONTAPSnapmirror(object):
             identity_preserve=dict(required=False, type='bool'),
             relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active'),
             relationship_info_only=dict(required=False, type='bool', default=False),
-            source_snapshot=dict(required=False, type='str')
+            source_snapshot=dict(required=False, type='str'),
+            create_destination=dict(required=False, type='dict', options=dict(
+                enabled=dict(type='bool', default=True),
+                storage_service=dict(type='dict', options=dict(
+                    enabled=dict(type='bool'),
+                    enforce_performance=dict(type='bool'),
+                    name=dict(type='str', choices=['value', 'performance', 'extreme']),
+                )),
+                tiering=dict(type='dict', options=dict(
+                    control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
+                    policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
+                    object_stores=dict(type='list', elements='str')     # create only
+                )),
+            )),
+            source_cluster=dict(required=False, type='str'),
+            destination_cluster=dict(required=False, type='str'),
         ))
 
         self.module = AnsibleModule(
@@ -355,6 +462,10 @@ class NetAppONTAPSnapmirror(object):
             if 'relationship_type' in error:
                 error = error.replace('relationship_type', 'relationship_type: %s' % rtype)
             self.module.fail_json(msg=error)
+
+        ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
+        if not self.use_rest and any(x in self.parameters for x in ontap_97_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -418,12 +529,23 @@ class NetAppONTAPSnapmirror(object):
             snap_info['schedule'] = snapmirror_info.get_child_content('schedule')
             snap_info['policy'] = snapmirror_info.get_child_content('policy')
             snap_info['relationship'] = snapmirror_info.get_child_content('relationship-type')
+            snap_info['current-transfer-type'] = snapmirror_info.get_child_content('current-transfer-type')
             if snapmirror_info.get_child_by_name('max-transfer-rate'):
                 snap_info['max_transfer_rate'] = int(snapmirror_info.get_child_content('max-transfer-rate'))
             if snap_info['schedule'] is None:
                 snap_info['schedule'] = ""
             return snap_info
         return None
+
+    def wait_for_status(self):
+        timeout = 300       # 5 minutes
+        while timeout > 0:
+            time.sleep(30)
+            current = self.snapmirror_get()
+            if current['status'] != 'transferring':
+                return True
+            timeout -= 30
+        return False
 
     def check_if_remote_volume_exists(self):
         """
@@ -455,18 +577,29 @@ class NetAppONTAPSnapmirror(object):
     def snapmirror_policy_rest_get(self, policy_name, svm_name):
         """
         get policy type
+        There is a set of system level policies, and users can create their own for a SVM
+        REST does not return a svm entry for system policies
+        svm_name may not exist yet as it can be created when creating the snapmirror relationship
         """
         policy_type = None
-        api = '/api/snapmirror/policies'
+        system_policy_type = None           # policies not associated to a SVM
+        api = '/snapmirror/policies'
         query = {
             "name": policy_name,
-            "svm.name": svm_name,
-            "fields": "type"
+            "fields": "svm,type"
         }
         response, error = self.rest_api.get(api, query)
-        record, error = rrh.check_for_0_or_1_records(api, response, error, query)
-        if error is None and record is not None:
-            policy_type = record['type']
+        records, error = rrh.check_for_0_or_more_records(api, response, error)
+        if error is None and records is not None:
+            for record in records:
+                if 'svm' in record:
+                    if record['svm']['name'] == svm_name:
+                        policy_type = record['type']
+                        break
+                else:
+                    system_policy_type = record['type']
+        if policy_type is None:
+            policy_type = system_policy_type
         return policy_type, error
 
     def set_initialization_state(self):
@@ -475,7 +608,7 @@ class NetAppONTAPSnapmirror(object):
         'snapmirrored' for relationships with a policy of type 'async'
         'in_sync' for relationships with a policy of type 'sync'
         """
-        policy_type = 'async'
+        policy_type = 'async'                               # REST defaults to Asynchronous
         if self.parameters.get('policy') is not None:
             # TODO: choose source if ???
             svm_name = self.parameters['destination_vserver']
@@ -484,31 +617,45 @@ class NetAppONTAPSnapmirror(object):
                 pass
             elif policy_type is None:
                 error = 'Error: cannot find policy %s for vserver %s' % (self.parameters['policy'], svm_name)
-            if policy_type not in ('async', 'sync'):
+            elif policy_type not in ('async', 'sync'):
                 error = 'Error: unexpected type: %s for policy %s for vserver %s' % (policy_type, self.parameters['policy'], svm_name)
             if error:
                 self.module.fail_json(msg=error)
         return 'snapmirrored' if policy_type == 'async' else 'in_sync'
 
+    def get_create_body(self):
+        initialized = False
+        source = dict(path=self.parameters['source_path'])
+        if self.na_helper.safe_get(self.parameters, ['source_cluster']):
+            source['cluster'] = dict(name=self.parameters['source_cluster'])
+        destination = dict(path=self.parameters['destination_path'])
+        if self.na_helper.safe_get(self.parameters, ['destination_cluster']):
+            destination['cluster'] = dict(name=self.parameters['destination_cluster'])
+        body = dict(
+            source=source,
+            destination=destination,
+        )
+        if self.na_helper.safe_get(self.parameters, ['create_destination', 'enabled']):     # testing for True
+            body['create_destination'] = self.na_helper.filter_out_none_entries(self.parameters['create_destination'])
+            if self.parameters['initialize']:
+                body['state'] = self.set_initialization_state()
+                initialized = True
+        if self.na_helper.safe_get(self.parameters, ['policy']) is not None:
+            body['policy'] = self.parameters['policy']
+        return body, initialized
+
     def snapmirror_rest_create(self):
         """
         Create a SnapMirror relationship using REST
         """
-        source = dict(path=self.parameters['source_path'])
-        destination = dict(path=self.parameters['destination_path'])
-        body = dict(
-            source=source,
-            destination=destination,
-            # state=self.set_initialization_state() only for create_destination
-        )
-
+        body, initialized = self.get_create_body()
         query = dict(return_timeout=60)
         api = 'snapmirror/relationships/'
         response, error = self.rest_api.post(api, body, query)
         response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
         if error:
             self.module.fail_json(msg=error)
-        if self.parameters['initialize']:
+        if self.parameters['initialize'] and not initialized:
             self.snapmirror_initialize()
         return response
 
@@ -928,11 +1075,11 @@ class NetAppONTAPSnapmirror(object):
                 actions.append('abort')
                 if not self.module.check_mode:
                     self.snapmirror_abort()
-            else:
-                actions.append('delete')
-                if not self.module.check_mode:
-                    element_snapmirror = self.parameters.get('connection_type') == 'elementsw_ontap'
-                    self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
+                    self.wait_for_status()
+            actions.append('delete')
+            if not self.module.check_mode:
+                element_snapmirror = self.parameters.get('connection_type') == 'elementsw_ontap'
+                self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
         else:
             if modify:
                 actions.append('modify')
@@ -951,7 +1098,7 @@ class NetAppONTAPSnapmirror(object):
                     self.na_helper.changed = True
             # check for initialize
             elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active'\
-                    and current['mirror_state'] == 'uninitialized':
+                    and current['mirror_state'] == 'uninitialized' and current['current-transfer-type'] != 'initialize':
                 actions.append('initialize')
                 if not self.module.check_mode:
                     self.snapmirror_initialize()

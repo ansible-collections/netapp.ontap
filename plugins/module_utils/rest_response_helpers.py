@@ -78,6 +78,22 @@ def check_for_0_or_1_records(api, response, error, query=None):
     return response['records'][0], None
 
 
+def check_for_0_or_more_records(api, response, error):
+    """return None if no record was returned by the API
+       return records if one or more records was returned by the API
+       return error otherwise (error, no response)
+    """
+    if error:
+        if api:
+            return None, api_error(api, error)
+        return None, error
+    if not response:
+        return None, no_response_error(api, response)
+    if response['num_records'] == 0:
+        return None, None     # not found
+    return response['records'], None
+
+
 def check_for_error_and_job_results(api, response, error, rest_api):
     """report first error if present
        otherwise call wait_on_job and retrieve job response or error

@@ -167,7 +167,7 @@ options:
         choices: ['value', 'performance', 'extreme']
       tiering:
         description:
-          - Cloud tiering policy (see C(tiering_policy) for a more complete description).
+          - Cloud tiering policy.
         type: dict
         suboptions:
           control:
@@ -176,9 +176,8 @@ options:
             type: str
           policy:
             description:
-              - Cloud tiering policy (see C(tiering_policy)).
-              - Must match C(tiering_policy) if both are present.
-            choices: ['snapshot-only', 'auto', 'backup', 'none']
+              - Cloud tiering policy.
+            choices: ['all', 'auto', 'none', 'snapshot-only']
             type: str
           object_stores:
             description: list of object store names for tiering.
@@ -290,7 +289,7 @@ class NetAppOntapLUN(object):
                 storage_service=dict(type='str', choices=['value', 'performance', 'extreme']),
                 tiering=dict(type='dict', options=dict(
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
-                    policy=dict(type='str', choices=['snapshot-only', 'auto', 'backup', 'none']),
+                    policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
                     object_stores=dict(type='list', elements='str')     # create only
                 )),
             ))

@@ -486,7 +486,15 @@ class OntapRestAPI(object):
 
     def requires_ontap_version(self, module_name, version='9.6'):
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
-        return "%s only support REST, and requires ONTAP %s or later.%s" % (module_name, version, suffix)
+        return "%s only supports REST, and requires ONTAP %s or later.%s" % (module_name, version, suffix)
+
+    def options_require_ontap_version(self, options, version='9.6'):
+        suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
+        if isinstance(options, list) and len(options) > 1:
+            tag = "any of %s" % options
+        else:
+            tag = str(options)
+        return 'using %s requires ONTAP %s or later and REST must be enabled.%s' % (tag, version, suffix)
 
     def check_required_library(self):
         if not HAS_REQUESTS:
@@ -532,6 +540,8 @@ class OntapRestAPI(object):
         else:
             raise KeyError(self.auth_method)
 
+        self.log_debug('sending', repr(dict(method=method, url=url, verify=self.verify, params=params,
+                                            timeout=self.timeout, json=json, headers=headers, **kwargs)))
         try:
             response = requests.request(method, url, verify=self.verify, params=params,
                                         timeout=self.timeout, json=json, headers=headers, **kwargs)

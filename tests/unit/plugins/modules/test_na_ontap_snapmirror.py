@@ -54,6 +54,8 @@ SRR = {
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'generic_error': (400, None, "Expected error"),
     # module specific responses
+    'snapmirror_policy': (200, dict(num_records=1, records=[dict(type='async')]), None),
+    'snapmirror_policy_unexpected_type': (200, dict(num_records=1, records=[dict(type='ohlala')]), None)
 }
 
 
@@ -390,8 +392,10 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         snapmirror_restore.assert_called_with()
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.delete_snapmirror')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.wait_for_status')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_abort')
-    def test_successful_abort(self, snapmirror_abort):
+    def test_successful_abort(self, snapmirror_abort, wait_for_status, delete_snapmirror):
         ''' deleting snapmirror and testing idempotency '''
         data = self.set_default_args()
         data['state'] = 'absent'
@@ -405,6 +409,8 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
         snapmirror_abort.assert_called_with()
+        wait_for_status.assert_called_with()
+        delete_snapmirror.assert_called_with(False, 'data_protection', None)
         # to reset na_helper from remembering the previous 'changed' value
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -659,7 +665,10 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
         mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
-                                        json={'source': {'path': 'ansible:ansible'}, 'destination': {'path': 'ansible:ansible'}})
+                                        json={'source': {'path': 'ansible:ansible'},
+                                              'destination': {'path': 'ansible:ansible'},
+                                              'policy': 'ansible'})
+        # Idempotency, relationship already exists
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
         data['update'] = False
@@ -687,3 +696,32 @@ class TestMyModule(unittest.TestCase):
             my_module()
         msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"
         assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rest_create_with_create_destination(self, mock_request):
+        ''' creating snapmirror and testing idempotency '''
+        data = self.set_default_args()
+        data.pop('relationship_type')
+        data['create_destination'] = dict(
+            tiering=dict(policy='all')
+        )
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],             # REST support
+            SRR['snapmirror_policy'],   # GET policy
+            SRR['empty_good'],          # POST to crate snapmirror relationship
+            SRR['end_of_sequence']
+        ]
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+                                        json={'source': {'path': 'ansible:ansible'},
+                                              'destination': {'path': 'ansible:ansible'},
+                                              'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},
+                                              'policy': 'ansible',
+                                              'state': 'snapmirrored'})

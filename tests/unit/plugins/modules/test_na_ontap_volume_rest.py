@@ -133,7 +133,8 @@ class MockONTAPConnection(object):
                     'volume-attributes': {
                         'volume-id-attributes': {
                             'name': name,
-                            'instance-uuid': '123'
+                            'instance-uuid': '123',
+                            'style-extended': 'flexvol'
                         },
                         'volume-performance-attributes': {
                             'is-atime-update-enabled': 'true'
@@ -258,6 +259,7 @@ class TestMyModule(unittest.TestCase):
         data = dict(self.mock_args())
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['generic_error'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -270,6 +272,7 @@ class TestMyModule(unittest.TestCase):
         data = dict(self.mock_args())
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['empty_good'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -282,6 +285,7 @@ class TestMyModule(unittest.TestCase):
         data = dict(self.mock_args())
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -299,6 +303,7 @@ class TestMyModule(unittest.TestCase):
         data['unix_permissions'] = '---rw-rx-r--'
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['empty_good'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -320,6 +325,7 @@ class TestMyModule(unittest.TestCase):
         data['size'] = 20737418240
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['empty_good'],       # PATCH application/applications
             SRR['end_of_sequence']
         ]

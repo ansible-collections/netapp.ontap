@@ -104,6 +104,7 @@ class MockONTAPConnection(object):
                 'volume-attributes': {
                     'volume-id-attributes': {
                         'containing-aggregate-name': vol_details['aggregate'],
+                        'instance-uuid': 'uuid',
                         'junction-path': vol_details['junction_path'],
                         'style-extended': 'flexvol'
                     },
@@ -166,6 +167,7 @@ class MockONTAPConnection(object):
                 'volume-attributes': {
                     'volume-id-attributes': {
                         'aggr-list': vol_details['aggregate'],
+                        'flexgroup-uuid': 'uuid',
                         'junction-path': vol_details['junction_path'],
                         'style-extended': 'flexgroup'
                     },
@@ -771,7 +773,8 @@ class TestMyModule(unittest.TestCase):
             'vserver': self.mock_vol['vserver'],
             'style_extended': 'flexgroup',
             'unix_permissions': '755',
-            'is_online': True
+            'is_online': True,
+            'uuid': 'uuid'
         }
         get_volume.side_effect = [
             current
