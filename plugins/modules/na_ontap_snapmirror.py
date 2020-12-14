@@ -528,7 +528,7 @@ class NetAppONTAPSnapmirror(object):
             snap_info['status'] = snapmirror_info.get_child_content('relationship-status')
             snap_info['schedule'] = snapmirror_info.get_child_content('schedule')
             snap_info['policy'] = snapmirror_info.get_child_content('policy')
-            snap_info['relationship'] = snapmirror_info.get_child_content('relationship-type')
+            snap_info['relationship_type'] = snapmirror_info.get_child_content('relationship-type')
             snap_info['current-transfer-type'] = snapmirror_info.get_child_content('current-transfer-type')
             if snapmirror_info.get_child_by_name('max-transfer-rate'):
                 snap_info['max_transfer_rate'] = int(snapmirror_info.get_child_content('max-transfer-rate'))
@@ -891,12 +891,14 @@ class NetAppONTAPSnapmirror(object):
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-modify', **options)
-        if modify.get('schedule') is not None:
+        if modify.pop('schedule', None) is not None:
             snapmirror_modify.add_new_child('schedule', modify.get('schedule'))
-        if modify.get('policy'):
+        if modify.pop('policy', None) is not None:
             snapmirror_modify.add_new_child('policy', modify.get('policy'))
-        if modify.get('max_transfer_rate'):
+        if modify.pop('max_transfer_rate', None) is not None:
             snapmirror_modify.add_new_child('max-transfer-rate', str(modify.get('max_transfer_rate')))
+        if modify:
+            self.module.fail_json('Error: unexpected value in modify: %s' % repr(modify))
         try:
             self.server.invoke_successfully(snapmirror_modify,
                                             enable_tunneling=True)
@@ -905,13 +907,18 @@ class NetAppONTAPSnapmirror(object):
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
-    def snapmirror_update(self):
+    def snapmirror_update(self, relationship_type):
         """
         Update data in destination endpoint
         """
+        zapi = 'snapmirror-update'
         options = {'destination-location': self.parameters['destination_path']}
+        if relationship_type == 'load_sharing':
+            zapi = 'snapmirror-update-ls-set'
+            options = {'source-location': self.parameters['source_path']}
+
         snapmirror_update = netapp_utils.zapi.NaElement.create_node_with_children(
-            'snapmirror-update', **options)
+            zapi, **options)
         try:
             self.server.invoke_successfully(snapmirror_update, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -1056,8 +1063,15 @@ class NetAppONTAPSnapmirror(object):
                                           'established SnapMirror relation from ElementSW to ONTAP cluster')
         restore = self.parameters.get('relationship_type', '') == 'restore'
         current = self.snapmirror_get() if not restore else None
+        # ONTAP automatically convert DP to XDP
+        if current and current['relationship_type'] == 'extended_data_protection':
+            if self.parameters.get('relationship_type') == 'data_protection':
+                self.parameters['relationship_type'] = 'extended_data_protection'
         cd_action = self.na_helper.get_cd_action(current, self.parameters) if not restore else None
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if not restore else None
+        if modify and 'relationship_type' in modify:
+            self.module.fail_json(msg='Error: cannot modify relationship_type from %s to %s.' %
+                                  (current['relationship_type'], modify['relationship_type']))
         actions = list()
         response = None
         element_snapmirror = False
@@ -1079,7 +1093,7 @@ class NetAppONTAPSnapmirror(object):
             actions.append('delete')
             if not self.module.check_mode:
                 element_snapmirror = self.parameters.get('connection_type') == 'elementsw_ontap'
-                self.delete_snapmirror(element_snapmirror, current['relationship'], current['mirror_state'])
+                self.delete_snapmirror(element_snapmirror, current['relationship_type'], current['mirror_state'])
         else:
             if modify:
                 actions.append('modify')
@@ -1089,7 +1103,7 @@ class NetAppONTAPSnapmirror(object):
             if current and self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'broken':
                 if current['mirror_state'] == 'uninitialized':
                     self.module.fail_json(msg='SnapMirror relationship cannot be broken if mirror state is uninitialized')
-                elif current['relationship'] in ['load_sharing', 'vault']:
+                elif current['relationship_type'] in ['load_sharing', 'vault']:
                     self.module.fail_json(msg='SnapMirror break is not allowed in a load_sharing or vault relationship')
                 elif current['mirror_state'] != 'broken-off':
                     actions.append('break')
@@ -1125,7 +1139,7 @@ class NetAppONTAPSnapmirror(object):
                     if current['mirror_state'] == 'snapmirrored':
                         actions.append('update')
                         if not self.module.check_mode:
-                            self.snapmirror_update()
+                            self.snapmirror_update(current['relationship_type'])
                         self.na_helper.changed = True
         results = dict(changed=self.na_helper.changed)
         if actions:

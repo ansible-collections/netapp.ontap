@@ -17,6 +17,11 @@ To use this collection, add the following to the top of your playbook, without t
 collections:
   - netapp.ontap
 ```
+# Requirements
+- ansible version >= 2.9
+- requests >= 2.20
+- netapp-lib version >= 2018.11.13
+
 # Need help
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
@@ -38,6 +43,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
   - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.
+  - na_ontap_snapmirror - report error when attempting to change relationship_type.
+  - na_ontap_snapmirror - fix job update failures for load_sharing mirrors.
   - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing a delete.
   - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
 

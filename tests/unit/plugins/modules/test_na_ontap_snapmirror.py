@@ -623,7 +623,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.snapmirror_initialize()
         assert 'Error initializing SnapMirror :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_update()
+            my_obj.snapmirror_update('data_protection')
         assert 'Error updating SnapMirror :' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.set_source_cluster_connection = Mock(return_value=True)

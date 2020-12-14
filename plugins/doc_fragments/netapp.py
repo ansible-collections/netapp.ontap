@@ -91,13 +91,11 @@ options:
 
 
 requirements:
-  - A physical or virtual clustered Data ONTAP system. The modules support Data ONTAP 9.1 and onward.
-  - REST support requires ONTAP 9.6 or later.
-  - Ansible 2.6
-  - Ansible 2.9 or later is strongly recommended as it enables the new collection delivery system.
-  - Python2 netapp-lib (2017.10.30) or later. Install using 'pip install netapp-lib'
+  - Ansible 2.9
   - Python3 netapp-lib (2018.11.13) or later. Install using 'pip install netapp-lib'
   - netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - A physical or virtual clustered Data ONTAP system. The modules support Data ONTAP 9.1 and onward.
+  - REST support requires ONTAP 9.6 or later.
   - To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
 
 notes:
