@@ -94,9 +94,11 @@ options:
       - disk firmware upgrade is idempotent if disk_fw is provided .
       - With check mode, SP, ACP, disk, and shelf firmware upgrade is not idempotent.
       - This operation will only update firmware on shelves/disk that do not have the latest firmware-revision.
-      - Not used if force_disruptive_update is False (ONTAP will automatically detect the firmware type)
-    choices: ['service-processor', 'shelf', 'acp', 'disk']
+      - For normal operations, choose one of storage or service-processor.
+      - Type storage includes acp, shelf and disk and ONTAP will automatically determine what to do.
+    choices: ['storage','service-processor', 'shelf', 'acp', 'disk']
     type: str
+    default: storage
   fail_on_502_error:
     description:
       - The firmware download may take time if the web server is slow and if there are many nodes in the cluster.
@@ -257,7 +259,7 @@ class NetAppONTAPFirmwareUpgrade(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', default='present'),
             node=dict(required=False, type='str'),
-            firmware_type=dict(required=False, type='str', choices=['service-processor', 'shelf', 'acp', 'disk']),
+            firmware_type=dict(type='str', choices=['storage', 'service-processor', 'shelf', 'acp', 'disk'], default='storage'),
             clear_logs=dict(required=False, type='bool', default=True),
             package=dict(required=False, type='str'),
             install_baseline_image=dict(required=False, type='bool', default=False),
@@ -285,7 +287,12 @@ class NetAppONTAPFirmwareUpgrade(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        if self.parameters.get('firmware_type') == 'storage':
+            if self.parameters.get('force_disruptive_update'):
+                self.module.fail_json(msg='Do not set force_disruptive_update to True, unless directed by NetApp Tech Support')
         if self.parameters.get('firmware_type') == 'service-processor':
+            if 'node' not in self.parameters:
+                self.module.fail_json(msg='Parameter node should be present when firmware type is service-processor')
             if self.parameters.get('install_baseline_image') and self.parameters.get('package') is not None:
                 self.module.fail_json(msg='Do not specify both package and install_baseline_image: true')
             if not self.parameters.get('package') and self.parameters.get('install_baseline_image') == 'False':
@@ -531,7 +538,7 @@ class NetAppONTAPFirmwareUpgrade(object):
             output = self.server.invoke_successfully(command_obj, True)
 
         except netapp_utils.zapi.NaApiError as error:
-            # with nettap_lib, error.code may be a number or a string
+            # with netapp_lib, error.code may be a number or a string
             try:
                 err_num = int(error.code)
             except ValueError:

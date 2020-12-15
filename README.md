@@ -40,6 +40,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor changes
   - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
   - na_ontap_volume - use REST API for delete operation if targets supports it.
+  - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware-type.
 
 ### Bug fixes
   - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.

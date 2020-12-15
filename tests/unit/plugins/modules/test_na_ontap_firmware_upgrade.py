@@ -185,19 +185,6 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_invalid_firmware_type_parameters(self):
-        ''' fail if firmware_type is missing '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args.update({'firmware_type': 'service_test'})
-        set_module_args(module_args)
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args(module_args)
-            my_module()
-        msg = 'value of firmware_type must be one of: service-processor, shelf, acp, disk, got: %s' % module_args['firmware_type']
-        print('Info: %s' % exc.value.args[0]['msg'])
-        assert exc.value.args[0]['msg'] == msg
-
     def test_ensure_sp_firmware_get_called(self):
         ''' a more interesting test '''
         module_args = {}
