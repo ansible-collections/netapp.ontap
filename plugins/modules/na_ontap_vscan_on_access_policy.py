@@ -66,6 +66,7 @@ options:
     - Specifies whether access to a file is allowed if there are no external virus-scanning servers available for virus scanning. It is true if not provided at
      the time of creating a policy.
     type: bool
+    default: false
 
   max_file_size:
     description:
@@ -87,7 +88,6 @@ options:
   policy_status:
     description:
     - Status for the created policy
-    default: false
     type: bool
     version_added: 20.8.0
 '''

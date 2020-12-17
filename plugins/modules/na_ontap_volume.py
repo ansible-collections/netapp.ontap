@@ -61,6 +61,7 @@ options:
     description:
       Set True if the volume is an Infinite Volume.
       Deleting an infinite volume is asynchronous.
+    default: false
 
   is_online:
     type: bool

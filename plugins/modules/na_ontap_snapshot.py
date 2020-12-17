@@ -48,6 +48,7 @@ options:
     description:
     - If true, the snapshot is to be created asynchronously.
     type: bool
+    default: false
   comment:
     description:
       A human readable comment attached with the snapshot.
@@ -63,6 +64,7 @@ options:
     - if this field is true, snapshot will be deleted
       even if some other processes are accessing it.
     type: bool
+    default: false
   snapshot_instance_uuid:
     description:
     - The 128 bit unique snapshot identifier expressed in the form of UUID.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-create Debug module to diagnose netapp-lib import
+create Debug module to diagnose netapp-lib import and connection
 """
 
 # (c) 2020, NetApp, Inc
@@ -16,13 +16,13 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_debug
-short_description: NetApp ONTAP Debug netapp-lib import.
+short_description: NetApp ONTAP Debug netapp-lib import and connection.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 21.1.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Display issues related to importing netapp-lib and diagnose
+- Display issues related to importing netapp-lib and connection with diagnose
 '''
 
 EXAMPLES = """
@@ -39,6 +39,7 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible.module_utils._text import to_native
 
 
 class NetAppONTAPDebug(object):
@@ -63,6 +64,27 @@ class NetAppONTAPDebug(object):
                                   pythonversion='Python Version: %s.' % sys.version,
                                   syspath='System Path: %s.' % syspath)
 
+    def check_zapi_connection(self):
+        """
+        check zapi connection errors and diagnose
+        """
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        version_obj = netapp_utils.zapi.NaElement("system-get-version")
+
+        output = None
+        try:
+            output = self.server.invoke_successfully(version_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            error_string = to_native(error)
+            if 'Connection timed out' in error_string or 'Resource temporarily unavailable' in error_string:
+                self.module.fail_json(msg='Error in hostname - Address does not exist or is not reachable: %s' % error_string,
+                                      summary='Invalid or unreachable hostname: %s' % self.parameters['hostname'])
+            if 'Name or service not known' in error_string or 'Name does not resolve' in error_string:
+                self.module.fail_json(msg='Error in hostname - DNS name cannot be resolved: %s' % error_string,
+                                      summary='Error in hostname, %s cannot be resolved.' % self.parameters['hostname'])
+            self.module.fail_json(msg='Other error: %s' % error_string,
+                                      summary='Unclassified, see msg')
+
     def asup_log_for_cserver(self, event_name):
         """
         Fetch admin vserver for the given cluster
@@ -70,7 +92,6 @@ class NetAppONTAPDebug(object):
         :param event_name: Name of the event log
         :return: None
         """
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
         cserver = netapp_utils.get_cserver(self.server)
         if cserver is None:
             server = self.server
@@ -84,10 +105,14 @@ class NetAppONTAPDebug(object):
         """
         Apply debug
         """
+        # check import netapp-lib
         self.import_lib()
 
-        self.asup_log_for_cserver("na_ontap_debug")
+        # check zapi connection errors
+        self.check_zapi_connection()
 
+        # log asup event with current event_name
+        self.asup_log_for_cserver("na_ontap_debug")
         self.module.exit_json()
 
 

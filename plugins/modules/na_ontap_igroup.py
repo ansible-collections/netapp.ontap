@@ -80,6 +80,7 @@ options:
     description:
     -  Forcibly remove the initiator even if there are existing LUNs mapped to this initiator group.
     type: bool
+    default: false
 
   vserver:
     description:
