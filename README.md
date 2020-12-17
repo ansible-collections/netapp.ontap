@@ -39,9 +39,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - new option `source_cluster` to automatically set SVM peering (ONTAP 9.7).
 
 ### Minor changes
+  - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware_type.
   - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
   - na_ontap_volume - use REST API for delete operation if targets supports it.
-  - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware-type.
+  - general - improve error reporting when older version of netapp-lib is used.
 
 ### Bug fixes
   - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.

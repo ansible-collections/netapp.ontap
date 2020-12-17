@@ -48,6 +48,16 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+}
+
+
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
@@ -358,7 +368,12 @@ class TestMyModule(unittest.TestCase):
         :param job_error: error message when getting job status.
         :return: na_ontap_volume object
         """
-        vol_obj = vol_module()
+        with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request') as mock_send:
+            mock_send.side_effect = [
+                SRR['is_zapi'],
+                SRR['end_of_sequence']
+            ]
+            vol_obj = vol_module()
         vol_obj.ems_log_event = Mock(return_value=None)
         vol_obj.get_efficiency_policy = Mock(return_value='test_efficiency')
         vol_obj.volume_style = None

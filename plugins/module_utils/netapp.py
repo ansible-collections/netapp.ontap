@@ -35,6 +35,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import base64
+import logging
 import os
 import ssl
 import time
@@ -93,6 +94,8 @@ ERROR_MSG = dict(
     no_cserver='This module is expected to run as cluster admin'
 )
 
+LOG = logging.getLogger(__name__)
+
 try:
     from solidfire.factory import ElementFactory
     HAS_SF_SDK = True
@@ -142,7 +145,9 @@ def get_feature(module, feature_name):
         deprecation_warning=True,
         sanitize_xml=True,
         sanitize_code_points=[8],               # unicode values, 8 is backspace
-        show_modified=True
+        show_modified=True,
+        always_wrap_zapi=True,                  # for better error reporting
+        trace_apis=False                        # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
     )
 
     if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:
@@ -163,8 +168,7 @@ def create_sf_connection(module, port=None):
             return return_val
         except Exception:
             raise Exception("Unable to create SF connection")
-    else:
-        module.fail_json(msg="the python SolidFire SDK module is required")
+    module.fail_json(msg="the python SolidFire SDK module is required")
 
 
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
@@ -206,6 +210,13 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
     cert_filepath = module.params['cert_filepath']
     key_filepath = module.params['key_filepath']
     auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
+    if has_feature(module, 'trace_apis'):
+        logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG)
+        trace = True
+    else:
+        trace = False
+    if has_feature(module, 'always_wrap_zapi'):
+        wrap_zapi = True
 
     if HAS_NETAPP_LIB:
         # set up zapi
@@ -214,19 +225,17 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
             server = OntapZAPICx(hostname, module=module, username=username, password=password,
                                  validate_certs=validate_certs, cert_filepath=cert_filepath,
                                  key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE,
-                                 auth_method=auth_method)
+                                 auth_method=auth_method, trace=trace)
             # SSL certificate authentication requires SSL
             https = True
         elif auth_method == 'speedy_basic_auth' or wrap_zapi:
             # override NaServer in netapp-lib to add Authorization header preemptively
             # use wrapper to handle parse error (mostly for na_ontap_command)
             server = OntapZAPICx(hostname, module=module, username=username, password=password,
-                                 validate_certs=validate_certs, auth_method=auth_method)
+                                 validate_certs=validate_certs, auth_method=auth_method, trace=trace)
         else:
             # legacy netapp-lib
-            server = zapi.NaServer(hostname)
-            server.set_username(username)
-            server.set_password(password)
+            server = zapi.NaServer(hostname, username=username, password=password, trace=trace)
         if vserver:
             server.set_vserver(vserver)
         if version:
@@ -450,6 +459,50 @@ if HAS_NETAPP_LIB:
                 request.add_header("Authorization", "Basic %s" % self.base64_creds)
             return request, netapp_element
 
+        # as is from latest version of netapp-lib
+        def invoke_elem(self, na_element, enable_tunneling=False):
+            """Invoke the API on the server."""
+            if not na_element or not isinstance(na_element, zapi.NaElement):
+                raise ValueError('NaElement must be supplied to invoke API')
+
+            request, request_element = self._create_request(na_element,
+                                                            enable_tunneling)
+
+            if self._trace:
+                zapi.LOG.debug("Request: %s", request_element.to_string(pretty=True))
+
+            if not hasattr(self, '_opener') or not self._opener \
+                    or self._refresh_conn:
+                self._build_opener()
+            try:
+                if hasattr(self, '_timeout'):
+                    response = self._opener.open(request, timeout=self._timeout)
+                else:
+                    response = self._opener.open(request)
+            except zapi.urllib.error.HTTPError as exc:
+                raise zapi.NaApiError(exc.code, exc.reason)
+            except zapi.urllib.error.URLError as exc:
+                msg = 'URL error'
+                error = repr(exc)
+                try:
+                    # ConnectionRefusedError is not defined in python 2.7
+                    if isinstance(exc.reason, ConnectionRefusedError):
+                        msg = 'Unable to connect'
+                        error = exc.args
+                except Exception:
+                    pass
+                raise zapi.NaApiError(msg, error)
+            except Exception as exc:
+                raise zapi.NaApiError('Unexpected error', repr(exc))
+
+            response_xml = response.read()
+            response_element = self._get_result(response_xml)
+
+            if self._trace:
+                zapi.LOG.debug("Response: %s", response_element.to_string(pretty=True))
+
+            return response_element
+
 
 class OntapRestAPI(object):
     ''' wrapper to send requests to ONTAP REST APIs '''
@@ -480,6 +533,8 @@ class OntapRestAPI(object):
         self.debug_logs = list()
         self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
+        if has_feature(module, 'trace_apis'):
+            logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG)
 
     def requires_ontap_9_6(self, module_name):
         self.requires_ontap_version(module_name)
@@ -715,6 +770,7 @@ class OntapRestAPI(object):
         self.debug_logs.append((status_code, message))
 
     def log_debug(self, status_code, content):
+        LOG.debug("%s: %s", status_code, content)
         self.debug_logs.append((status_code, content))
 
     def write_to_file(self, tag, data=None, filepath=None, append=True):

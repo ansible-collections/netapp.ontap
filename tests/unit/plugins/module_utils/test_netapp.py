@@ -460,7 +460,7 @@ def test_zapi_cx_add_auth_header_explicit():
 def test_zapi_cx_no_auth_header():
     ''' should add header '''
     args = mock_args()
-    args['feature_flags'] = dict(classic_basic_authorization=True)
+    args['feature_flags'] = dict(classic_basic_authorization=True, always_wrap_zapi=False)
     module = create_module(args)
     zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
     assert not isinstance(zapi_cx, netapp_utils.OntapZAPICx)
