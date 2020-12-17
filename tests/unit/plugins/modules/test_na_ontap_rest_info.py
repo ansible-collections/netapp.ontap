@@ -238,7 +238,7 @@ class TestMyModule(unittest.TestCase):
 
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
-        assert exc.value.args[0]['changed']
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_run_ontap_version_check_for_10_2_pass(self, mock_request):
@@ -251,7 +251,7 @@ class TestMyModule(unittest.TestCase):
 
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
-        assert exc.value.args[0]['changed']
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_run_ontap_version_check_for_9_2_fail(self, mock_request):

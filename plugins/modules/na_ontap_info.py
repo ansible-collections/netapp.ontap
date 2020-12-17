@@ -30,9 +30,8 @@ options:
     state:
         type: str
         description:
-            - Returns "info"
-        default: "info"
-        choices: ['info']
+            - deprecated as of 21.1.0.
+            - this option was ignored and continues to be ignored.
     vserver:
         type: str
         description:
@@ -227,7 +226,6 @@ options:
 EXAMPLES = '''
 - name: Get NetApp info as Cluster Admin (Password Authentication)
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -237,7 +235,6 @@ EXAMPLES = '''
 
 - name: Get NetApp version as Vserver admin
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "vsadmin"
     vserver: trident_svm
@@ -256,7 +253,6 @@ EXAMPLES = '''
 
 - name: Limit Info Gathering to Aggregate Information as Cluster Admin
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -265,7 +261,6 @@ EXAMPLES = '''
 
 - name: Limit Info Gathering to Volume and Lun Information as Cluster Admin
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -276,7 +271,6 @@ EXAMPLES = '''
 
 - name: Gather all info except for volume and lun information as Cluster Admin
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -287,7 +281,6 @@ EXAMPLES = '''
 
 - name: Gather Volume move information for a specific volume
   na_ontap_info:
-    state: info
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -1739,7 +1732,7 @@ def main():
 
     argument_spec = netapp_utils.na_ontap_host_argument_spec()
     argument_spec.update(dict(
-        state=dict(type='str', default='info', choices=['info']),
+        state=dict(type='str'),
         gather_subset=dict(default=['all'], type='list', elements='str'),
         vserver=dict(type='str', required=False),
         max_records=dict(type='int', default=1024, required=False),
@@ -1769,7 +1762,6 @@ def main():
     if not HAS_JSON:
         module.fail_json(msg="json missing")
 
-    state = module.params['state']
     gather_subset = module.params['gather_subset']
     summary = module.params['summary']
     if gather_subset is None:
@@ -1779,8 +1771,11 @@ def main():
     gf_all = gf_obj.get_all(gather_subset)
     if summary:
         gf_all = gf_obj.get_summary(gf_all)
-    result = {'state': state, 'changed': False}
-    module.exit_json(ontap_info=gf_all, **result)
+    results = {'changed': False}
+    if module.params['state'] is not None:
+        results['state'] = module.params['state']
+        results['warnings'] = "option 'state' is deprecated."
+    module.exit_json(ontap_info=gf_all, **results)
 
 
 if __name__ == '__main__':

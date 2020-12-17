@@ -6,13 +6,13 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import json
-import pytest
 import sys
+import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info import main as info_main
@@ -34,12 +34,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -244,15 +242,27 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_info.NetAppONTAPGatherInfo.get_all')
     def test_main(self, get_all):
-        '''test main method.'''
+        '''test main method - default: no state.'''
         set_module_args(self.mock_args())
         get_all.side_effect = [
-            {'test_get_all':
-                {'vserver_login_banner_info': 'test_vserver_login_banner_info', 'vserver_info': 'test_vserver_info'}}
+            {'test_get_all': {'vserver_login_banner_info': 'test_vserver_login_banner_info', 'vserver_info': 'test_vserver_info'}}
         ]
         with pytest.raises(AnsibleExitJson) as exc:
             info_main()
-        assert exc.value.args[0]['state'] == 'info'
+        assert 'state' not in exc.value.args[0]
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_info.NetAppONTAPGatherInfo.get_all')
+    def test_main_with_state(self, get_all):
+        '''test main method with explicit state.'''
+        args = self.mock_args()
+        args['state'] = 'some_state'
+        set_module_args(args)
+        get_all.side_effect = [
+            {'test_get_all': {'vserver_login_banner_info': 'test_vserver_login_banner_info', 'vserver_info': 'test_vserver_info'}}
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            info_main()
+        assert exc.value.args[0]['state'] == 'some_state'
 
     def test_get_ifgrp_info_no_ifgrp(self):
         '''test get_ifgrp_info with empty ifgrp_info'''
@@ -499,7 +509,7 @@ class TestMyModule(unittest.TestCase):
         args['continue_on_error'] = ['never', 'whatever']
         set_module_args(args)
         with pytest.raises(AnsibleFailJson) as exc:
-            obj = self.get_info_mock_object('vserver')
+            self.get_info_mock_object('vserver')
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = "never needs to be the only keyword in 'continue_on_error' option."
         assert exc.value.args[0]['msg'] == msg
@@ -510,7 +520,7 @@ class TestMyModule(unittest.TestCase):
         args['continue_on_error'] = ['whatever', 'always']
         set_module_args(args)
         with pytest.raises(AnsibleFailJson) as exc:
-            obj = self.get_info_mock_object('vserver')
+            self.get_info_mock_object('vserver')
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = "always needs to be the only keyword in 'continue_on_error' option."
         assert exc.value.args[0]['msg'] == msg
@@ -521,7 +531,7 @@ class TestMyModule(unittest.TestCase):
         args['continue_on_error'] = ['whatever', 'else']
         set_module_args(args)
         with pytest.raises(AnsibleFailJson) as exc:
-            obj = self.get_info_mock_object('vserver')
+            self.get_info_mock_object('vserver')
         print('Info: %s' % exc.value.args[0]['msg'])
         msg = "whatever is not a valid keyword in 'continue_on_error' option."
         assert exc.value.args[0]['msg'] == msg

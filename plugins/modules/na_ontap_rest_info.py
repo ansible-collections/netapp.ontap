@@ -28,9 +28,8 @@ options:
     state:
         type: str
         description:
-            - Returns "info"
-        default: "info"
-        choices: ['info']
+            - deprecated as of 21.1.0.
+            - this option was ignored and continues to be ignored.
     gather_subset:
         type: list
         elements: str
@@ -198,7 +197,7 @@ class NetAppONTAPGatherInfo(object):
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(type='str', choices=['info'], default='info', required=False),
+            state=dict(type='str', required=False),
             gather_subset=dict(default=['all'], type='list', elements='str', required=False),
             max_records=dict(type='int', default=1024, required=False),
             fields=dict(type='list', elements='str', required=False),
@@ -273,7 +272,7 @@ class NetAppONTAPGatherInfo(object):
         post_return, error = self.rest_api.post(api, None)
         if error:
             return None
-        message, error = self.rest_api.wait_on_job(post_return['job'], increment=5)
+        dummy, error = self.rest_api.wait_on_job(post_return['job'], increment=5)
         if error:
             self.module.fail_json(msg="%s" % error)
 
@@ -602,7 +601,11 @@ class NetAppONTAPGatherInfo(object):
                         # Getting total number of records
                         result_message[subset]['num_records'] = len(result_message[subset]['records'])
 
-        self.module.exit_json(changed='False', state=self.parameters['state'], ontap_info=result_message)
+        results = {'changed': False}
+        if self.parameters.get('state') is not None:
+            results['state'] = self.parameters['state']
+            results['warnings'] = "option 'state' is deprecated."
+        self.module.exit_json(ontap_info=result_message, **results)
 
 
 def main():
