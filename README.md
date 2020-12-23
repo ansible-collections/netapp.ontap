@@ -48,6 +48,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
   - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.
+  - na_ontap_quotas - Handle blank string idempotency issue for ``quota_target`` in quotas module.
   - na_ontap_rest_info - ``changed`` was set to "False" rather than boolean False.
   - na_ontap_snapmirror - report error when attempting to change relationship_type.
   - na_ontap_snapmirror - fix job update failures for load_sharing mirrors.

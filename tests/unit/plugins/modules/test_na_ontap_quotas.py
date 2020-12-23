@@ -72,7 +72,7 @@ class MockONTAPConnection(object):
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
                 'attributes-list': {'quota-entry': {'volume': 'ansible',
-                                                    'file-limit': '-', 'disk-limit': '-',
+                                                    'file-limit': '-', 'disk-limit': '-', 'quota-target': '/vol/ansible',
                                                     'soft-file-limit': '-', 'soft-disk-limit': '-', 'threshold': '-'}},
                 'status': 'true'}
         xml.translate_struct(data)

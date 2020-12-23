@@ -218,6 +218,10 @@ class NetAppONTAPQuotas(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
+        # converted blank parameter to * as shown in vsim
+        if self.parameters['quota_target'] == "":
+            self.parameters['quota_target'] = '*'
+
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
                 msg="the python NetApp-Lib module is required")
@@ -270,16 +274,21 @@ class NetAppONTAPQuotas(object):
             self.module.fail_json(msg='Error fetching quotas info: %s' % to_native(error),
                                   exception=traceback.format_exc())
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
-            return_values = {'volume': result['attributes-list']['quota-entry']['volume'],
-                             'file_limit': result['attributes-list']['quota-entry']['file-limit'],
-                             'disk_limit': result['attributes-list']['quota-entry']['disk-limit'],
-                             'soft_file_limit': result['attributes-list']['quota-entry']['soft-file-limit'],
-                             'soft_disk_limit': result['attributes-list']['quota-entry']['soft-disk-limit'],
-                             'threshold': result['attributes-list']['quota-entry']['threshold']}
-            value = self.na_helper.safe_get(result, ['attributes-list', 'quota-entry', 'perform-user-mapping'])
-            if value is not None:
-                return_values['perform_user_mapping'] = self.na_helper.get_value_for_bool(True, value)
-            return return_values
+            # if quota-target is '*', the query treats it as a wildcard. But a blank entry is represented as '*'.
+            # Hence the need to loop through all records to find a match.
+            for quota_entry in result.get_child_by_name('attributes-list').get_children():
+                quota_target = quota_entry.get_child_content('quota-target')
+                if quota_target == self.parameters['quota_target']:
+                    return_values = {'volume': quota_entry.get_child_content('volume'),
+                                     'file_limit': quota_entry.get_child_content('file-limit'),
+                                     'disk_limit': quota_entry.get_child_content('disk-limit'),
+                                     'soft_file_limit': quota_entry.get_child_content('soft-file-limit'),
+                                     'soft_disk_limit': quota_entry.get_child_content('soft-disk-limit'),
+                                     'threshold': quota_entry.get_child_content('threshold')}
+                    value = self.na_helper.safe_get(quota_entry, ['perform-user-mapping'])
+                    if value is not None:
+                        return_values['perform_user_mapping'] = self.na_helper.get_value_for_bool(True, value)
+                    return return_values
         return None
 
     def quota_entry_set(self):
