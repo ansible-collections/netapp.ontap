@@ -33,6 +33,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_debug: Diagnose netapp-lib import errors and provide useful information.
 
 ### New Options
+  - na_ontap_cluster - `time_out` to wait for cluster creation, adding and removing a node.
   - na_ontap_debug - connection diagnostics added for invalid ipaddress and DNS hostname errors.
   - na_ontap_snapmirror - new option `create_destination` to automatically create destination endpoint (ONTAP 9.7).
   - na_ontap_snapmirror - new option `destination_cluster` to automatically create destination SVM for SVM DR (ONTAP 9.7).

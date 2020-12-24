@@ -68,6 +68,15 @@ options:
       - When used to remove a node, C(cluster_ip_address) and C(node_name) are mutually exclusive.
     version_added: 20.9.0
     type: str
+  time_out:
+    description:
+    - time to wait for cluster creation in seconds.
+    - Error out if task is not completed in defined time.
+    - if 0, the request is asynchronous.
+    - default is set to 3 minutes.
+    default: 180
+    type: int
+    version_added: 21.1.0
 '''
 
 EXAMPLES = """
@@ -75,6 +84,7 @@ EXAMPLES = """
       na_ontap_cluster:
         state: present
         cluster_name: new_cluster
+        time_out: 0
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -153,7 +163,8 @@ class NetAppONTAPCluster(object):
             cluster_location=dict(required=False, type='str'),
             cluster_contact=dict(required=False, type='str'),
             single_node_cluster=dict(required=False, type='bool'),
-            node_name=dict(required=False, type='str')
+            node_name=dict(required=False, type='str'),
+            time_out=dict(required=False, type='int', default=180)
         ))
 
         self.module = AnsibleModule(
@@ -377,20 +388,17 @@ class NetAppONTAPCluster(object):
         cluster_wait = netapp_utils.zapi.NaElement('cluster-create-join-progress-get')
         is_complete = False
         status = ''
-        wait = False    # do not wait on the first call
-
-        while not is_complete and status not in ('failed', 'success'):
-            if wait:
-                time.sleep(10)
-            else:
-                wait = True
+        retries = self.parameters['time_out']
+        errors = list()
+        while not is_complete and status not in ('failed', 'success') and retries > 0:
+            retries = retries - 10
+            time.sleep(10)
             try:
                 result = self.server.invoke_successfully(cluster_wait, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
-
-                self.module.fail_json(msg='Error creating cluster %s: %s'
-                                      % (self.parameters.get('cluster_name'), to_native(error)),
-                                      exception=traceback.format_exc())
+                # collecting errors, and retrying
+                errors.append(repr(error))
+                continue
 
             clus_progress = result.get_child_by_name('attributes')
             result = clus_progress.get_child_by_name('cluster-create-join-progress-info')
@@ -398,11 +406,16 @@ class NetAppONTAPCluster(object):
                                                             value=result.get_child_content('is-complete'))
             status = result.get_child_content('status')
 
+        if self.parameters['time_out'] == 0:
+            is_complete = True
+            status = "success"
         if not is_complete and status != 'success':
             current_status_message = result.get_child_content('current-status-message')
-
-            self.module.fail_json(
-                msg='Failed to create cluster %s: %s' % (self.parameters.get('cluster_name'), current_status_message))
+            errors.append('Failed to confirm cluster creation %s: %s' % (self.parameters.get('cluster_name'), current_status_message))
+            if retries <= 0:
+                errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+            self.module.fail_json(msg='Error creating cluster %s: %s'
+                                  % (self.parameters['cluster_name'], str(errors)))
 
         return is_complete
 
@@ -419,13 +432,11 @@ class NetAppONTAPCluster(object):
 
         is_complete = None
         failure_msg = None
-        wait = False    # do not wait on the first call
-
-        while is_complete != 'success' and is_complete != 'failure':
-            if wait:
-                time.sleep(10)
-            else:
-                wait = True
+        retries = self.parameters['time_out']
+        errors = list()
+        while is_complete != 'success' and is_complete != 'failure' and retries > 0:
+            retries = retries - 10
+            time.sleep(10)
             try:
                 result = self.server.invoke_successfully(cluster_node_status, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
@@ -433,34 +444,37 @@ class NetAppONTAPCluster(object):
                     # This API is not supported for 9.3 or earlier releases, just wait a bit
                     time.sleep(60)
                     return
-                self.module.fail_json(msg='Error adding node with ip address %s: %s'
-                                      % (self.parameters.get('cluster_ip_address'), to_native(error)),
-                                      exception=traceback.format_exc())
+                # collecting errors, and retrying
+                errors.append(repr(error))
+                continue
 
             attributes_list = result.get_child_by_name('attributes-list')
             join_progress = attributes_list.get_child_by_name('cluster-create-add-node-status-info')
             is_complete = join_progress.get_child_content('status')
             failure_msg = join_progress.get_child_content('failure-msg')
 
+        if self.parameters['time_out'] == 0:
+            is_complete = 'success'
         if is_complete != 'success':
             if 'Node is already in a cluster' in failure_msg:
                 return
-            else:
-                self.module.fail_json(
-                    msg='Error adding node with ip address %s' % (self.parameters.get('cluster_ip_address')))
+            elif retries <= 0:
+                errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+            self.module.fail_json(msg='Error adding node with ip address %s: %s'
+                                  % (self.parameters['cluster_ip_address'], str(errors)))
 
     def node_remove_wait(self):
         ''' wait for node name or clister IP address to disappear '''
         node_name = self.parameters.get('node_name')
         node_ip = self.parameters.get('cluster_ip_address')
-        timer = 180     # 180 seconds
-        while timer > 0:
+        retries = self.parameters['time_out']
+        while retries > 0:
+            retries = retries - 10
             if node_name is not None and node_name not in self.get_cluster_nodes():
                 return
             if node_ip is not None and self.get_cluster_ip_address(node_ip) is None:
                 return
-            time.sleep(30)
-            timer -= 30
+            time.sleep(10)
         self.module.fail_json(msg='Timeout waiting for node to be removed from cluster.')
 
     def autosupport_log(self):
