@@ -42,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor changes
   - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware_type.
   - na_ontap_info - deprecate ``state`` option.
+  - na_ontap_quota - allow to turn quota on/off without providing quota_target or type.
   - na_ontap_rest_info - deprecate ``state`` option.
   - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
   - na_ontap_volume - use REST API for delete operation if targets supports it.
@@ -54,6 +55,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - report error when attempting to change relationship_type.
   - na_ontap_snapmirror - fix job update failures for load_sharing mirrors.
   - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing a delete.
+  - na_ontap_snmp - SNMP module wrong access_control issue and error handling fix.
   - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
 
 ## 20.12.0

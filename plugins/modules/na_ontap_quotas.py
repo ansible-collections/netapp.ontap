@@ -6,6 +6,9 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+'''
+na_ontap_quotas
+'''
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -41,7 +44,7 @@ options:
   quota_target:
     description:
     - The quota target of the type specified.
-    required: true
+    - Required to create or modify a rule.
     type: str
   qtree:
     description:
@@ -53,8 +56,8 @@ options:
   type:
     description:
     - The type of quota rule
+    - Required to create or modify a rule.
     choices: ['user', 'group', 'tree']
-    required: true
     type: str
   policy:
     description:
@@ -196,9 +199,9 @@ class NetAppONTAPQuotas(object):
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             volume=dict(required=True, type='str'),
-            quota_target=dict(required=True, type='str'),
+            quota_target=dict(required=False, type='str'),
             qtree=dict(required=False, type='str', default=""),
-            type=dict(required=True, type='str', choices=['user', 'group', 'tree']),
+            type=dict(required=False, type='str', choices=['user', 'group', 'tree']),
             policy=dict(required=False, type='str'),
             set_quota_status=dict(required=False, type='bool'),
             perform_user_mapping=dict(required=False, type='bool'),
@@ -212,6 +215,16 @@ class NetAppONTAPQuotas(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_by={
+                'policy': ['quota_target', 'type'],
+                'perform_user_mapping': ['quota_target', 'type'],
+                'file_limit': ['quota_target', 'type'],
+                'disk_limit': ['quota_target', 'type'],
+                'soft_file_limit': ['quota_target', 'type'],
+                'soft_disk_limit': ['quota_target', 'type'],
+                'threshold': ['quota_target', 'type'],
+            },
+            required_together=[['quota_target', 'type']],
             supports_check_mode=True
         )
 
@@ -219,7 +232,7 @@ class NetAppONTAPQuotas(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # converted blank parameter to * as shown in vsim
-        if self.parameters['quota_target'] == "":
+        if self.parameters.get('quota_target') == "":
             self.parameters['quota_target'] = '*'
 
         if HAS_NETAPP_LIB is False:
@@ -254,6 +267,8 @@ class NetAppONTAPQuotas(object):
         Get quota details
         :return: name of volume if quota exists, None otherwise
         """
+        if self.parameters.get('type') is None:
+            return None
         quota_get = netapp_utils.zapi.NaElement('quota-list-entries-iter')
         query = {
             'query': {
@@ -407,13 +422,15 @@ class NetAppONTAPQuotas(object):
         Apply action to quotas
         """
         netapp_utils.ems_log_event("na_ontap_quotas", self.server)
+        cd_action = None
         modify_quota_status = None
         modify_quota = None
         quota_status = None
         current = self.get_quotas()
-        cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action is None:
-            modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
+        if self.parameters.get('type') is not None:
+            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+            if cd_action is None:
+                modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
         if 'set_quota_status' in self.parameters or modify_quota:
             quota_status = self.get_quota_status()
         if 'set_quota_status' in self.parameters and quota_status is not None:

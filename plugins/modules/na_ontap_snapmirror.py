@@ -186,19 +186,16 @@ options:
           - Cloud tiering policy.
         type: dict
         suboptions:
-          control:
-            description: storage tiering placement rules for the container.
-            choices: ['required', 'best_effort', 'disallowed']
-            type: str
           policy:
             description:
               - Cloud tiering policy.
             choices: ['all', 'auto', 'none', 'snapshot-only']
             type: str
-          object_stores:
-            description: list of object store names for tiering.
-            type: list
-            elements: str
+          supported:
+            description:
+              - enable provisioning of the destination endpoint volumes on FabricPool aggregates.
+              - only supported for FlexVol volume, FlexGroup volume, and Consistency Group endpoints.
+            type: bool
   destination_cluster:
     description:
       - Requires ONTAP 9.7 or higher.
@@ -426,9 +423,8 @@ class NetAppONTAPSnapmirror(object):
                     name=dict(type='str', choices=['value', 'performance', 'extreme']),
                 )),
                 tiering=dict(type='dict', options=dict(
-                    control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
                     policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
-                    object_stores=dict(type='list', elements='str')     # create only
+                    supported=dict(type='bool')
                 )),
             )),
             source_cluster=dict(required=False, type='str'),

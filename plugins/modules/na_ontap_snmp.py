@@ -23,9 +23,10 @@ extends_documentation_fragment:
 module: na_ontap_snmp
 options:
   access_control:
+    choices: ['ro']
     description:
       - "Access control for the community. The only supported value is 'ro' (read-only)"
-    required: true
+    default: 'ro'
     type: str
   community_name:
     description:
@@ -63,8 +64,11 @@ EXAMPLES = """
 
 RETURN = """
 """
+import traceback
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -78,19 +82,18 @@ class NetAppONTAPSnmp(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             community_name=dict(required=True, type='str'),
-            access_control=dict(required=True, type='str'),
+            access_control=dict(required=False, type='str', choices=['ro'], default='ro'),
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=False
+            supports_check_mode=True
         )
 
-        parameters = self.module.params
+        self.na_helper = NetAppModule()
+
         # set up state variables
-        self.state = parameters['state']
-        self.community_name = parameters['community_name']
-        self.access_control = parameters['access_control']
+        self.parameters = self.na_helper.set_parameters(self.module.params)
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -103,13 +106,37 @@ class NetAppONTAPSnmp(object):
         @return: SUCCESS / FAILURE with an error_message
         """
         snmp_community = netapp_utils.zapi.NaElement.create_node_with_children(
-            zapi, **{'community': self.community_name,
-                     'access-control': self.access_control})
+            zapi, **{'community': self.parameters['community_name'],
+                     'access-control': self.parameters['access_control']})
         try:
             self.server.invoke_successfully(snmp_community, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError:  # return False for duplicate entry
-            return False
-        return True
+        except netapp_utils.zapi.NaApiError as error:
+            if zapi == 'snmp-community-add':
+                action = 'adding'
+            elif zapi == 'snmp-community-delete':
+                action = 'deleting'
+            else:
+                action = 'unexpected'
+            self.module.fail_json(msg='Error %s community %s: %s' % (action, self.parameters['community_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def get_snmp(self):
+        """
+        Check if SNMP community exists
+        """
+        snmp_obj = netapp_utils.zapi.NaElement('snmp-status')
+        try:
+            result = self.server.invoke_successfully(snmp_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+        if result.get_child_by_name('communities') is not None:
+            for snmp_entry in result.get_child_by_name('communities').get_children():
+                community_name = snmp_entry.get_child_content('community')
+                if community_name == self.parameters['community_name']:
+                    return_values = {'community_name': snmp_entry.get_child_content('community'),
+                                     'access_control': snmp_entry.get_child_content('access-control')}
+                    return return_values
+        return None
 
     def add_snmp_community(self):
         """
@@ -131,17 +158,18 @@ class NetAppONTAPSnmp(object):
         to add an already existing snmp community
         """
         changed = False
+        current = self.get_snmp()
         results = netapp_utils.get_cserver(self.server)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_snmp", cserver)
-        if self.state == 'present':  # add
-            if self.add_snmp_community():
-                changed = True
-        elif self.state == 'absent':  # delete
-            if self.delete_snmp_community():
-                changed = True
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.add_snmp_community()
+            elif cd_action == 'delete':
+                self.delete_snmp_community()
 
-        self.module.exit_json(changed=changed)
+        self.module.exit_json(changed=self.na_helper.changed)
 
 
 def main():
