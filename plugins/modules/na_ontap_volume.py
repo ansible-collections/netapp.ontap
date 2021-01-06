@@ -313,7 +313,7 @@ options:
 
   time_out:
     description:
-    - time to wait for flexGroup creation, modification, or deletion in seconds.
+    - time to wait for Flexgroup creation, modification, or deletion in seconds.
     - Error out if task is not completed in defined time.
     - if 0, the request is asynchronous.
     - default is set to 3 minutes.
@@ -567,7 +567,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: Create flexGroup volume manually
+    - name: Create Flexgroup volume manually
       na_ontap_volume:
         state: present
         name: ansibleVolume
@@ -587,7 +587,7 @@ EXAMPLES = """
         snapshot_policy: default
         time_out: 0
 
-    - name: Create flexGroup volume auto provsion as flex group
+    - name: Create Flexgroup volume auto provsion as flex group
       na_ontap_volume:
         state: present
         name: ansibleVolume
@@ -1117,7 +1117,7 @@ class NetAppOntapVolume(object):
             name=self.parameters['name'],
             total_size=self.parameters['size'],
             share_count=1,      # 1 is the maximum value for nas
-            scale_out=(self.volume_style == 'flexGroup'),
+            scale_out=(self.volume_style == 'flexgroup'),
         )
         name = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'storage_service'])
         if name is not None:
@@ -1184,7 +1184,7 @@ class NetAppOntapVolume(object):
         '''Create ONTAP volume'''
         if self.rest_app:
             return self.create_nas_application()
-        if self.volume_style == 'flexGroup':
+        if self.volume_style == 'flexgroup':
             return self.create_volume_async()
 
         options = self.create_volume_options()
@@ -1244,7 +1244,7 @@ class NetAppOntapVolume(object):
     def create_volume_options(self):
         '''Set volume options for create operation'''
         options = {}
-        if self.volume_style == 'flexGroup':
+        if self.volume_style == 'flexgroup':
             options['volume-name'] = self.parameters['name']
             if self.parameters.get('aggr_list_multiplier') is not None:
                 options['aggr-list-multiplier'] = str(self.parameters['aggr_list_multiplier'])
@@ -1321,7 +1321,7 @@ class NetAppOntapVolume(object):
         '''Delete ONTAP volume'''
         if self.use_rest and self.parameters['uuid'] is not None:
             return self.rest_delete_volume()
-        if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
+        if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
             if current['is_online']:
                 self.change_volume_state(call_from_delete_vol=True)
             volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -1331,7 +1331,7 @@ class NetAppOntapVolume(object):
                 'volume-destroy', **{'name': self.parameters['name'], 'unmount-and-offline': 'true'})
         try:
             result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
-            if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
+            if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
                 self.check_invoke_result(result, 'delete')
             self.ems_log_event("volume-delete")
         except netapp_utils.zapi.NaApiError as error:
@@ -1352,9 +1352,10 @@ class NetAppOntapVolume(object):
                                              enable_tunneling=True)
             self.ems_log_event("volume-move")
         except netapp_utils.zapi.NaApiError as error:
-            if not self.move_volume_with_rest_passthrough():
-                self.module.fail_json(msg='Error moving volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
+            rest_error = self.move_volume_with_rest_passthrough()
+            if rest_error is not None:
+                self.module.fail_json(msg='Error moving volume %s: %s -  Retry failed with REST error: %s'
+                                      % (self.parameters['name'], to_native(error), rest_error),
                                       exception=traceback.format_exc())
 
     def move_volume_with_rest_passthrough(self):
@@ -1365,13 +1366,13 @@ class NetAppOntapVolume(object):
             return False
         # if REST exists let's try moving using the passthrough CLI
         api = 'private/cli/volume/move/start'
-        data = {'volume:': self.parameters['name'],
-                'destination-aggregate': self.parameters['aggregate_name'],
-                'vserver': self.parameters['vserver']}
-        dummy, error = self.rest_api.patch(api, data)
-        if error is not None:
-            self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], error))
-        return True
+        data = {'destination-aggregate': self.parameters['aggregate_name']
+                }
+        query = {'volume': self.parameters['name'],
+                 'vserver': self.parameters['vserver']
+                 }
+        dummy, error = self.rest_api.patch(api, data, query)
+        return error
 
     def wait_for_volume_move(self):
         waiting = True
@@ -1453,7 +1454,7 @@ class NetAppOntapVolume(object):
             return self.rest_resize_volume()
 
         vol_size_zapi, vol_name_zapi = ['volume-size-async', 'volume-name']\
-            if (self.parameters['is_infinite'] or self.volume_style == 'flexGroup')\
+            if (self.parameters['is_infinite'] or self.volume_style == 'flexgroup')\
             else ['volume-size', 'volume']
         volume_resize = netapp_utils.zapi.NaElement.create_node_with_children(
             vol_size_zapi, **{vol_name_zapi: self.parameters['name'],
@@ -1475,11 +1476,11 @@ class NetAppOntapVolume(object):
         """
         if self.parameters['is_online'] and not call_from_delete_vol:    # Desired state is online, setup zapi APIs respectively
             vol_state_zapi, vol_name_zapi, action = ['volume-online-async', 'volume-name', 'online']\
-                if (self.parameters['is_infinite'] or self.volume_style == 'flexGroup')\
+                if (self.parameters['is_infinite'] or self.volume_style == 'flexgroup')\
                 else ['volume-online', 'name', 'online']
         else:   # Desired state is offline, setup zapi APIs respectively
             vol_state_zapi, vol_name_zapi, action = ['volume-offline-async', 'volume-name', 'offline']\
-                if (self.parameters['is_infinite'] or self.volume_style == 'flexGroup')\
+                if (self.parameters['is_infinite'] or self.volume_style == 'flexgroup')\
                 else ['volume-offline', 'name', 'offline']
             volume_unmount = netapp_utils.zapi.NaElement.create_node_with_children(
                 'volume-unmount', **{'volume-name': self.parameters['name']})
@@ -1494,7 +1495,7 @@ class NetAppOntapVolume(object):
                 errors.append('Error unmounting volume %s: %s' % (self.parameters['name'], to_native(error)))
         try:
             result = self.server.invoke_successfully(volume_change_state, enable_tunneling=True)
-            if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
+            if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
                 self.check_invoke_result(result, action)
             self.ems_log_event("change-state")
         except netapp_utils.zapi.NaApiError as error:
@@ -1524,7 +1525,7 @@ class NetAppOntapVolume(object):
         modify volume parameter 'export_policy','unix_permissions','snapshot_policy','space_guarantee', 'percent_snapshot_space',
                                 'qos_policy_group', 'qos_adaptive_policy_group'
         """
-        if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
+        if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
             vol_mod_iter = netapp_utils.zapi.NaElement('volume-modify-iter-async')
         else:
             vol_mod_iter = netapp_utils.zapi.NaElement('volume-modify-iter')
@@ -1629,7 +1630,7 @@ class NetAppOntapVolume(object):
                 self.module.fail_json(msg="Error modifying volume %s: %s"
                                       % (self.parameters['name'], ' --- '.join(error_msgs)),
                                       exception=traceback.format_exc())
-        if self.volume_style == 'flexGroup' or self.parameters['is_infinite']:
+        if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
             success = result.get_child_by_name('success-list')
             success = success.get_child_by_name('volume-modify-iter-async-info')
             results = dict()
@@ -1742,15 +1743,10 @@ class NetAppOntapVolume(object):
 
     def get_volume_style(self, current):
         '''Get volume style, infinite or standard flexvol'''
-        if current is None:
-            if self.parameters.get('aggr_list') or self.parameters.get('aggr_list_multiplier') or self.parameters.get('auto_provision_as'):
-                return 'flexGroup'
-        else:
-            if current.get('style_extended'):
-                if current['style_extended'] == 'flexgroup':
-                    return 'flexGroup'
-                else:
-                    return current['style_extended']
+        if current is not None:
+            return current.get('style_extended')
+        if self.parameters.get('aggr_list') or self.parameters.get('aggr_list_multiplier') or self.parameters.get('auto_provision_as'):
+            return 'flexgroup'
         return None
 
     def get_job(self, jobid, server):
@@ -2000,7 +1996,14 @@ class NetAppOntapVolume(object):
         self.adjust_size(current, after_create)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if modify is not None and 'type' in modify:
-            self.module.fail_json(msg="Changing the same volume from one type to another is not allowed.")
+            msg = "Error: changing a volume from one type to another is not allowed."
+            msg += '  Current: %s, desired: %s.' % (current['type'], self.parameters['type'])
+            self.module.fail_json(msg=msg)
+        desired_style = self.get_volume_style(None)
+        if desired_style is not None and desired_style != self.volume_style:
+            msg = "Error: changing a volume from one backend to another is not allowed."
+            msg += '  Current: %s, desired: %s.' % (self.volume_style, desired_style)
+            self.module.fail_json(msg=msg)
         if self.parameters.get('snapshot_auto_delete') is not None:
             auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
                                                                         self.parameters['snapshot_auto_delete'])
@@ -2017,7 +2020,7 @@ class NetAppOntapVolume(object):
         self.modify_volume(modify)
 
         if any([modify.get(key) is not None for key in self.sis_keys2zapi_get]):
-            if self.parameters.get('is_infinite') or self.volume_style == 'flexGroup':
+            if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
                 efficiency_config_modify = 'async'
             else:
                 efficiency_config_modify = 'sync'
@@ -2029,8 +2032,10 @@ class NetAppOntapVolume(object):
         modify_after_create = None
         current = self.get_volume()
         self.volume_style = self.get_volume_style(current)
-        # rename and create are mutually exclusive
+        if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
+            self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')
         rename, rehost, snapshot_restore, cd_action, modify = None, None, None, None, None
+        # rename and create are mutually exclusive
         if self.parameters.get('from_name'):
             rename = self.na_helper.is_rename_action(self.get_volume(self.parameters['from_name']), current)
         elif self.parameters.get('from_vserver'):

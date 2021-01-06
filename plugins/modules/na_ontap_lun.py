@@ -59,7 +59,7 @@ options:
   size:
     description:
     - The size of the LUN in C(size_unit).
-    - Required when C(state=present).
+    - Required when creating a single LUN if application template is not used.
     type: int
 
   size_unit:
@@ -183,6 +183,21 @@ options:
             description: list of object store names for tiering.
             type: list
             elements: str
+      total_size:
+        description:
+          - The total size of the application component, split across the member LUNs in C(total_size_unit).
+          - Recommended when C(lun_count) is present.
+          - Required when C(lun_count) is present and greater than 1.
+          - Note - if lun_count is equal to 1, and total_size is not present, size is used to maintain backward compatibility.
+        type: int
+        version_added: 21.1.0
+      total_size_unit:
+        description:
+          - The unit used to interpret the total_size parameter.
+          - Defaults to size_unit if not present.
+        choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
+        type: str
+        version_added: 21.1.0
       use_san_application:
         description:
           - Whether to use the application/applications REST/API to create LUNs.
@@ -244,6 +259,7 @@ RETURN = """
 
 """
 
+import copy
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -292,6 +308,9 @@ class NetAppOntapLUN(object):
                     policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
                     object_stores=dict(type='list', elements='str')     # create only
                 )),
+                total_size=dict(type='int'),
+                total_size_unit=dict(choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
+                                              'pb', 'eb', 'zb', 'yb'], type='str'),
             ))
         ))
 
@@ -303,8 +322,18 @@ class NetAppOntapLUN(object):
         # set up state variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+
         if self.parameters.get('size') is not None:
             self.parameters['size'] *= netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
+        if self.na_helper.safe_get(self.parameters, ['san_application_template', 'total_size']) is not None:
+            unit = self.na_helper.safe_get(self.parameters, ['san_application_template', 'total_size_unit'])
+            if unit is None:
+                unit = self.parameters['size_unit']
+            self.parameters['san_application_template']['total_size'] *= netapp_utils.POW2_BYTE_MAP[unit]
+
+        self.warnings = list()
+        self.debug = dict()
+        # self.debug['got'] = 'empty'     # uncomment to enable collecting data
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -473,31 +502,39 @@ class NetAppOntapLUN(object):
                 return path
         return None
 
-    def create_san_app_component(self):
+    def create_san_app_component(self, modify):
         '''Create SAN application component'''
-        required_options = ('name', 'size')
+        if modify:
+            required_options = ['name']
+            action = 'modify'
+            if 'lun_count' in modify:
+                required_options.append('total_size')
+        else:
+            required_options = ('name', 'total_size')
+            action = 'create'
         for option in required_options:
             if self.parameters.get(option) is None:
-                self.module.fail_json(msg='Error: "%s" is required to create san application.' % option)
+                self.module.fail_json(msg='Error: "%s" is required to %s a san application.' % (option, action))
 
-        application_component = dict(
-            name=self.parameters['name'],
-            total_size=self.parameters['size'],
-            lun_count=1                           # default value, may be overriden below
-        )
+        application_component = dict(name=self.parameters['name'])
+        if not modify:
+            application_component['lun_count'] = 1      # default value for create, may be overriden below
+
         for attr in ('igroup_name', 'lun_count', 'storage_service'):
-            value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
-            if value is not None:
-                application_component[attr] = value
-        for attr in ('os_type', 'qos_policy_group'):
-            value = self.na_helper.safe_get(self.parameters, [attr])
-            if value is not None:
-                if attr == 'qos_policy_group':
-                    attr = 'qos'
-                    value = dict(policy=dict(name=value))
-                application_component[attr] = value
+            if not modify or attr in modify:
+                value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
+                if value is not None:
+                    application_component[attr] = value
+        for attr in ('os_type', 'qos_policy_group', 'total_size'):
+            if not modify or attr in modify:
+                value = self.na_helper.safe_get(self.parameters, [attr])
+                if value is not None:
+                    if attr == 'qos_policy_group':
+                        attr = 'qos'
+                        value = dict(policy=dict(name=value))
+                    application_component[attr] = value
         tiering = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering'])
-        if tiering is not None:
+        if tiering is not None and not modify:
             application_component['tiering'] = dict()
             for attr in ('control', 'policy', 'object_stores'):
                 value = tiering.get(attr)
@@ -507,26 +544,28 @@ class NetAppOntapLUN(object):
                     application_component['tiering'][attr] = value
         return application_component
 
-    def create_san_app_body(self):
+    def create_san_app_body(self, modify=None):
         '''Create body for san template'''
         # TODO:
         # Should we support new_igroups?
         # It may raise idempotency issues if the REST call fails if the igroup already exists.
         # And we already have na_ontap_igroups.
         san = {
-            'application_components': [self.create_san_app_component()],
+            'application_components': [self.create_san_app_component(modify)],
         }
         for attr in ('protection_type',):
-            value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
-            if value is not None:
-                # we expect value to be a dict, but maybe an empty dict
-                value = self.na_helper.filter_out_none_entries(value)
-                if value:
-                    san[attr] = value
+            if not modify or attr in modify:
+                value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
+                if value is not None:
+                    # we expect value to be a dict, but maybe an empty dict
+                    value = self.na_helper.filter_out_none_entries(value)
+                    if value:
+                        san[attr] = value
         for attr in ('os_type',):
-            value = self.na_helper.safe_get(self.parameters, [attr])
-            if value is not None:
-                san[attr] = value
+            if not modify:      # not supported for modify operation, but required at applicaiton component level
+                value = self.na_helper.safe_get(self.parameters, [attr])
+                if value is not None:
+                    san[attr] = value
         body, error = self.rest_app.create_application_body('san', san)
         return body, error
 
@@ -535,6 +574,17 @@ class NetAppOntapLUN(object):
         body, error = self.create_san_app_body()
         self.fail_on_error(error)
         dummy, error = self.rest_app.create_application(body)
+        self.fail_on_error(error)
+
+    def modify_san_application(self, modify):
+        '''Use REST application/applications san template to add one or more LUNs'''
+        body, error = self.create_san_app_body(modify)
+        self.fail_on_error(error)
+        # these cannot be present when using PATCH
+        body.pop('name')
+        body.pop('svm')
+        body.pop('smart_container')
+        dummy, error = self.rest_app.patch_application(body)
         self.fail_on_error(error)
 
     def delete_san_application(self):
@@ -662,40 +712,138 @@ class NetAppOntapLUN(object):
             elements['stack'] = traceback.format_stack()
         self.module.fail_json(**elements)
 
+    def set_total_size(self, validate):
+        # fix total_size attribute, report error if total_size is misisng (or size is mssing)
+        attr = 'total_size'
+        value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
+        if value is not None or not validate:
+            self.parameters[attr] = value
+            return
+        lun_count = self.na_helper.safe_get(self.parameters, ['san_application_template', 'lun_count'])
+        value = self.parameters.get('size')
+        if value is not None and (lun_count is None or lun_count == 1):
+            self.parameters[attr] = value
+            return
+        self.module.fail_json("Error: 'total_size' is a required SAN application template attribute when creating a LUN application")
+
+    def validate_app_create(self):
+        # fix total_size attribute
+        self.set_total_size(validate=True)
+
+    def validate_app_changes(self, modify, warning):
+        errors = list()
+        for key in modify:
+            if key not in ('lun_count', 'total_size'):
+                errors.append("Error: the following application parameter cannot be modified: %s: %s."
+                              % (key, modify[key]))
+        if 'lun_count' in modify:
+            for attr in ('total_size', 'os_type', 'igroup_name'):
+                value = self.parameters.get(attr)
+                if value is None:
+                    value = self.na_helper.safe_get(self.parameters['san_application_template'], [attr])
+                if value is None:
+                    errors.append('Error: %s is a required parameter when increasing lun_count.' % attr)
+                else:
+                    modify[attr] = value
+            if warning:
+                errors.append('Error: %s' % warning)
+        if errors:
+            self.module.fail_json(msg='\n'.join(errors))
+        if 'total_size' in modify:
+            self.set_total_size(validate=False)
+            if warning:
+                # can't change total_size, let's ignore it
+                self.warnings.append(warning)
+                modify.pop('total_size')
+
+    def app_changes(self):
+        # find and validate app changes
+        app_current, error = self.rest_app.get_application_details('san')
+        self.fail_on_error(error)
+        # save application name, as it is overriden in the flattening operation
+        app_name = app_current['name']
+        # there is an issue with total_size not reflecting the real total_size, and some additional overhead
+        provisioned_size = self.na_helper.safe_get(app_current, ['statistics', 'space', 'provisioned'])
+        if provisioned_size is None:
+            provisioned_size = 0
+        if self.debug:
+            self.debug['app_current'] = app_current             # will be updated below as it is mutable
+            self.debug['got'] = copy.deepcopy(app_current)      # fixed copy
+        # flatten
+        app_current = app_current['san']                                # app template
+        app_current.update(app_current['application_components'][0])    # app component
+        del app_current['application_components']
+        # if component name does not match, assume a change at LUN level
+        comp_name = app_current['name']
+        if comp_name != self.parameters['name']:
+            return None, "name: %s does not match component name: %s" % (self.parameters['name'], comp_name)
+
+        # restore app name
+        app_current['name'] = app_name
+
+        # ready to compare, except for a quirk in size handling
+        total_size = app_current['total_size']
+        desired = dict(self.parameters['san_application_template'])
+        desired_size = desired.get('total_size')
+
+        warning = None
+        if desired_size is not None:
+            if desired_size < total_size:
+                self.module.fail_json("Error: can't reduce size: total_size=%d, provisioned=%d, requested=%d"
+                                      % (total_size, provisioned_size, desired_size))
+            elif desired_size > total_size and desired_size < provisioned_size:
+                # we can't increase, but we can't say it is a problem, as the size is already bigger!
+                warning = "requested size is too small: total_size=%d, provisioned=%d, requested=%d" % (total_size, provisioned_size, desired_size)
+
+        # preserve change state before calling modify in case an ignorable total_size change is the only change
+        changed = self.na_helper.changed
+        app_modify = self.na_helper.get_modified_attributes(app_current, desired)
+        self.validate_app_changes(app_modify, warning)
+        if not app_modify:
+            self.na_helper.changed = changed
+            app_modify = None
+        return app_modify, None
+
     def apply(self):
         results = dict()
-        warnings = list()
         netapp_utils.ems_log_event("na_ontap_lun", self.server)
-        app_cd_action = None
+        app_cd_action, app_modify, lun_cd_action, lun_modify, lun_rename = None, None, None, None, None
+        app_modify_warning = None
+        actions = list()
         if self.rest_app:
             app_current, error = self.rest_app.get_application_uuid()
             self.fail_on_error(error)
             app_cd_action = self.na_helper.get_cd_action(app_current, self.parameters)
-            if app_cd_action == 'create' and self.parameters.get('size') is None:
-                self.module.fail_json(msg="size is a required parameter for create.")
+            if app_cd_action is not None:
+                actions.append('app_%s' % app_cd_action)
+            if app_cd_action == 'create':
+                self.validate_app_create()
+            if app_cd_action is None and app_current is not None:
+                app_modify, app_modify_warning = self.app_changes()
+                if app_modify:
+                    actions.append('app_modify')
+                    results['app_modify'] = dict(app_modify)
 
-        # For LUNs created using a SAN application, we're getting lun paths from the backing storage
-        lun_path, from_lun_path = None, None
-        from_name = self.parameters.get('from_name')
-        if self.rest_app and app_cd_action is None and app_current:
-            lun_path = self.get_lun_path_from_backend(self.parameters['name'])
-            if from_name is not None:
-                from_lun_path = self.get_lun_path_from_backend(from_name)
-
-        if app_cd_action is None:
+        if app_cd_action is None and app_modify is None:
             # actions at LUN level
+            lun_path, from_lun_path = None, None
+            from_name = self.parameters.get('from_name')
+            if self.rest_app and app_current:
+                # For LUNs created using a SAN application, we're getting lun paths from the backing storage
+                lun_path = self.get_lun_path_from_backend(self.parameters['name'])
+                if from_name is not None:
+                    from_lun_path = self.get_lun_path_from_backend(from_name)
             current = self.get_lun(self.parameters['name'], lun_path)
             if current is not None and lun_path is None:
                 lun_path = current['path']
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-            modify, rename = None, None
-            if cd_action == 'create' and from_name is not None:
+            lun_cd_action = self.na_helper.get_cd_action(current, self.parameters)
+            if lun_cd_action == 'create' and from_name is not None:
                 # create by renaming existing LUN, if it really exists
                 old_lun = self.get_lun(from_name, from_lun_path)
-                rename = self.na_helper.is_rename_action(old_lun, current)
-                if rename is None:
+                lun_rename = self.na_helper.is_rename_action(old_lun, current)
+                if lun_rename is None:
                     self.module.fail_json(msg="Error renaming lun: %s does not exist" % from_name)
-                if rename:
+                if lun_rename:
                     current = old_lun
                     if from_lun_path is None:
                         from_lun_path = current['path']
@@ -703,47 +851,61 @@ class NetAppOntapLUN(object):
                     if tail:
                         self.module.fail_json(msg="Error renaming lun: %s does not match lun_path %s" % (from_name, from_lun_path))
                     lun_path = head + self.parameters['name']
-                    results['renamed'] = True
-                    cd_action = None
-            if cd_action == 'create' and self.parameters.get('size') is None:
-                self.module.fail_json(msg="size is a required parameter for create.")
-            if cd_action is None and self.parameters['state'] == 'present':
+                    lun_cd_action = None
+                    actions.append('lun_rename')
+                    app_modify_warning = None       # reset warning as we found a match
+            if lun_cd_action is not None:
+                actions.append(actions.append('lun_%s' % lun_cd_action))
+            if lun_cd_action is None and self.parameters['state'] == 'present':
                 # we already handled rename if required
                 current.pop('name', None)
-                modify = self.na_helper.get_modified_attributes(current, self.parameters)
-                results['modify'] = dict(modify)
-            if cd_action and self.rest_app and app_cd_action is None and app_current:
+                lun_modify = self.na_helper.get_modified_attributes(current, self.parameters)
+                if lun_modify:
+                    actions.append('lun_modify')
+                    results['lun_modify'] = dict(lun_modify)
+                    app_modify_warning = None       # reset warning as we found a match
+            if lun_cd_action and self.rest_app and app_current:
                 msg = 'This module does not support %s a LUN by name %s a SAN application.' %\
-                      ('adding', 'to') if cd_action == 'create' else ('removing', 'from')
-                warnings.append(msg)
-                cd_action = None
+                      ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
+                self.warnings.append(msg)
+                lun_cd_action = None
                 self.na_helper.changed = False
+            if lun_cd_action == 'create' and self.parameters.get('size') is None:
+                self.module.fail_json(msg="size is a required parameter for create.")
 
         if self.na_helper.changed and not self.module.check_mode:
             if app_cd_action == 'create':
                 self.create_san_application()
             elif app_cd_action == 'delete':
                 self.rest_app.delete_application()
-            elif cd_action == 'create':
+            elif app_modify:
+                self.modify_san_application(app_modify)
+            elif lun_cd_action == 'create':
                 self.create_lun()
-            elif cd_action == 'delete':
+            elif lun_cd_action == 'delete':
                 self.delete_lun(lun_path)
             else:
-                if rename:
+                if lun_rename:
                     self.rename_lun(from_lun_path, lun_path)
                 size_changed = False
-                if modify and 'size' in modify:
+                if lun_modify and 'size' in lun_modify:
                     # Ensure that size was actually changed. Please
                     # read notes in 'resize_lun' function for details.
                     size_changed = self.resize_lun(lun_path)
-                    modify.pop('size')
-                if modify:
-                    self.modify_lun(lun_path, modify)
-                if not modify and not rename:
+                    lun_modify.pop('size')
+                if lun_modify:
+                    self.modify_lun(lun_path, lun_modify)
+                if not lun_modify and not lun_rename:
                     # size may not have changed
                     self.na_helper.changed = size_changed
 
+        if app_modify_warning:
+            self.warnings.append(app_modify_warning)
         results['changed'] = self.na_helper.changed
+        results['actions'] = actions
+        if self.warnings:
+            results['warnings'] = self.warnings
+        results.update(self.debug)
         self.module.exit_json(**results)
 
 

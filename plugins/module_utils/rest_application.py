@@ -62,23 +62,42 @@ class RestApplication():
             dummy, error = self._set_application_uuid()
         return self.app_uuid, error
 
-    def get_application_details(self):
+    def get_application_details(self, template=None):
         """Use REST application/applications to get application details"""
         uuid, error = self.get_application_uuid()
         if error:
             return uuid, error
         if uuid is None:    # not found
             return None, None
+        if template:
+            query = dict(fields='name,%s,statistics' % template)
+        else:
+            query = None
         api = '/application/applications/%s' % uuid
-        response, error = self.rest_api.get(api)
+        response, error = self.rest_api.get(api, query)
         return response, rrh.api_error(api, error)
 
     def create_application(self, body):
         """Use REST application/applications san template to create one or more LUNs"""
-        self.fail_if_uuid()
+        dummy, error = self.fail_if_uuid()
+        if error is not None:
+            return dummy, error
         api = '/application/applications'
         query = {'return_timeout': 30, 'return_records': 'true'}
         response, error = self.rest_api.post(api, body, params=query)
+        return rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+
+    def patch_application(self, body):
+        """Use REST application/applications san template to add one or more LUNs"""
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
+        uuid, error = self.get_application_uuid()
+        if error is not None:
+            return dummy, error
+        api = '/application/applications/%s' % uuid
+        query = {'return_timeout': 30, 'return_records': 'true'}
+        response, error = self.rest_api.patch(api, body, params=query)
         return rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
 
     def create_application_body(self, template_name, template_body, smart_container=True):
@@ -95,7 +114,9 @@ class RestApplication():
 
     def delete_application(self):
         """Use REST application/applications to delete app"""
-        self.fail_if_no_uuid()
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
         api = '/application/applications/%s' % self.app_uuid
         query = {'return_timeout': 30}
         response, error = self.rest_api.delete(api, params=query)
@@ -105,7 +126,9 @@ class RestApplication():
 
     def get_application_components(self):
         """Use REST application/applications to get application components"""
-        self.fail_if_no_uuid()
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
         api = '/application/applications/%s/components' % self.app_uuid
         response, error = self.rest_api.get(api)
         return response, rrh.api_error(api, error)
@@ -114,7 +137,9 @@ class RestApplication():
         """Use REST application/applications to get component uuid
            Assume a single component per application
         """
-        self.fail_if_no_uuid()
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
         response, error = self.get_application_components()
         record, error = rrh.check_for_0_or_1_records(None, response, error, None)
         if error is None and record is not None:
@@ -123,7 +148,9 @@ class RestApplication():
 
     def get_application_component_details(self, comp_uuid=None):
         """Use REST application/applications to get application components"""
-        self.fail_if_no_uuid()
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
         if comp_uuid is None:
             # assume a single component
             comp_uuid, error = self.get_application_component_uuid()
@@ -141,7 +168,9 @@ class RestApplication():
 
            Assume a single component per application
         """
-        self.fail_if_no_uuid()
+        dummy, error = self.fail_if_no_uuid()
+        if error is not None:
+            return dummy, error
         response, error = self.get_application_component_details()
         if error or response is None:
             return response, error
@@ -152,9 +181,11 @@ class RestApplication():
         if self.app_uuid is None:
             msg = 'function should not be called before application uuid is set.'
             return None, msg
+        return None, None
 
     def fail_if_uuid(self):
         """Prevent a logic error."""
         if self.app_uuid is not None:
             msg = 'function should not be called when application uuid is set.'
             return None, msg
+        return None, None

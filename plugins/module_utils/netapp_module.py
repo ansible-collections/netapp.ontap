@@ -281,6 +281,10 @@ class NetAppModule(object):
                     modified_list = self.compare_lists(value, desired[key], get_list_diff)  # get modified list from current and desired
                     if modified_list is not None:
                         modified[key] = modified_list
+                elif isinstance(value, dict):
+                    modified_dict = self.get_modified_attributes(value, desired[key])
+                    if modified_dict:
+                        modified[key] = modified_dict
                 else:
                     try:
                         result = cmp(value, desired[key])

@@ -164,7 +164,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_lun_mock_object('lun', 'lun_from_name').apply()
         assert exc.value.args[0]['changed']
-        assert 'renamed' in exc.value.args[0]
+        assert 'lun_rename' in exc.value.args[0]['actions']
 
     def test_failed_rename(self):
         ''' Test failed rename '''

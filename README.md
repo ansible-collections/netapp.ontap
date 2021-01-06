@@ -35,13 +35,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_cluster - `time_out` to wait for cluster creation, adding and removing a node.
   - na_ontap_debug - connection diagnostics added for invalid ipaddress and DNS hostname errors.
-  - na_ontap_snapmirror - new option `create_destination` to automatically create destination endpoint (ONTAP 9.7).
-  - na_ontap_snapmirror - new option `destination_cluster` to automatically create destination SVM for SVM DR (ONTAP 9.7).
-  - na_ontap_snapmirror - new option `source_cluster` to automatically set SVM peering (ONTAP 9.7).
+  - na_ontap_lun - `total_size` and `total_size_unit` when using SAN application template.
+  - na_ontap_snapmirror - `create_destination` to automatically create destination endpoint (ONTAP 9.7).
+  - na_ontap_snapmirror - `destination_cluster` to automatically create destination SVM for SVM DR (ONTAP 9.7).
+  - na_ontap_snapmirror - `source_cluster` to automatically set SVM peering (ONTAP 9.7).
 
 ### Minor changes
   - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware_type.
   - na_ontap_info - deprecate ``state`` option.
+  - na_ontap_lun - support increasing lun_count and total_size when using SAN application template.
   - na_ontap_quota - allow to turn quota on/off without providing quota_target or type.
   - na_ontap_rest_info - deprecate ``state`` option.
   - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
@@ -57,6 +59,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing a delete.
   - na_ontap_snmp - SNMP module wrong access_control issue and error handling fix.
   - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
+  - na_ontap_volume - detect and report error when attempting to change FlexVol into FlexGroup.
+  - na_ontap_volume - report error if ``aggregate_name`` option is used with a FlexGroup.
 
 ## 20.12.0
 

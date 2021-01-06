@@ -5,6 +5,7 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+import copy
 import json
 import pytest
 
@@ -75,6 +76,12 @@ SRR = {
                             },
                            None
                            ),
+    'get_app_details': (200,
+                        dict(name='san_appli', uuid='1234', san=dict(
+                            application_components=[dict(name='lun_name', lun_count=3, total_size=1000)]
+                        )),
+                        None
+                        ),
     'get_app_component_details': (200,
                                   {'backing_storage': dict(luns=[]),
                                    },
@@ -208,12 +215,13 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_create_appli_idem(self, mock_request):
         ''' Test successful create idempotent '''
-        mock_request.side_effect = [
+        mock_request.side_effect = copy.deepcopy([
             SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
             SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
             SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
             SRR['end_of_sequence']
-        ]
+        ])
         data = dict(self.mock_args())
         data['size'] = 5
         data.pop('flexvol_name')
@@ -226,11 +234,12 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_create_appli_idem_no_comp(self, mock_request):
         ''' Test successful create idempotent '''
-        mock_request.side_effect = [
+        mock_request.side_effect = copy.deepcopy([
             SRR['get_apps_found'],      # GET application/applications
+            SRR['get_app_details'],     # GET application/applications/<uuid>
             SRR['get_apps_empty'],      # GET application/applications/<uuid>/components
             SRR['end_of_sequence']
-        ]
+        ])
         data = dict(self.mock_args())
         data['size'] = 5
         data.pop('flexvol_name')
@@ -238,6 +247,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_lun_mock_object().apply()
+        # print(mock_request.call_args_list)
         msg = 'Error: no component for application san_appli'
         assert msg == exc.value.args[0]['msg']
 
@@ -261,7 +271,7 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_delete_appli_idem(self, mock_request):
-        ''' Test successful deelte idempotent '''
+        ''' Test successful delete idempotent '''
         mock_request.side_effect = [
             SRR['get_apps_empty'],      # GET application/applications
             SRR['end_of_sequence']
@@ -274,4 +284,70 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_lun_mock_object().apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_modify_appli(self, mock_request):
+        ''' Test successful modify application '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['empty_good'],                      # PATCH application/applications/<uuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data['os_type'] = 'xyz'
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', lun_count=5, total_size=1000, igroup_name='abc')
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_lun_mock_object().apply()
+        print(exc.value.args[0])
+        # print(mock_request.call_args_list)
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_error_modify_appli_missing_igroup(self, mock_request):
+        ''' Test successful modify application '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', lun_count=5)
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        msg = 'Error: igroup_name is a required parameter when increasing lun_count.'
+        assert msg in exc.value.args[0]['msg']
+        msg = 'Error: total_size is a required parameter when increasing lun_count.'
+        assert msg in exc.value.args[0]['msg']
+        msg = 'Error: os_type is a required parameter when increasing lun_count.'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_no_action(self, mock_request):
+        ''' Test successful modify application '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data['name'] = 'unknown'
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', lun_count=5)
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_lun_mock_object().apply()
+        print(exc.value.args[0])
         assert not exc.value.args[0]['changed']

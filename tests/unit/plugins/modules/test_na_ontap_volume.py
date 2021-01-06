@@ -87,6 +87,8 @@ class MockONTAPConnection(object):
 
         if kind == 'volume':
             xml = self.build_volume_info(self.params)
+        if kind == 'flexgroup':
+            xml = self.build_flexgroup_info(self.params)
         elif kind == 'job_info':
             xml = self.build_job_info(self.job_error)
         elif kind == 'error_modify':
@@ -168,7 +170,7 @@ class MockONTAPConnection(object):
         return xml
 
     @staticmethod
-    def build_flex_group_info(vol_details):
+    def build_flexgroup_info(vol_details):
         ''' build xml data for flexGroup volume-attributes '''
         xml = netapp_utils.zapi.NaElement('xml')
         attributes = {
@@ -191,7 +193,7 @@ class MockONTAPConnection(object):
                         'is-atime-update-enabled': 'true'
                     },
                     'volume-state-attributes': {
-                        'state': "online"
+                        'state': "online",
                     },
                     'volume-space-attributes': {
                         'space-guarantee': 'none',
@@ -204,6 +206,9 @@ class MockONTAPConnection(object):
                         'volume-security-unix-attributes': {
                             'permissions': vol_details['unix_permissions']
                         }
+                    },
+                    'volume-snapshot-autodelete-attributes': {
+                        'commitment': 'try'
                     }
                 }
             }
@@ -946,7 +951,7 @@ class TestMyModule(unittest.TestCase):
             'password': 'test_pass!',
             'name': self.mock_vol['name'],
             'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexvol',
+            'style_extended': 'flexgroup',
             'unix_permissions': '777',
             'uuid': '1234'
         }
@@ -1199,3 +1204,23 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object('zapi_error').snapshot_restore_volume()
         assert exc.value.args[0]['msg'] == 'Error restoring volume test_vol: NetApp API failed. Reason - test:error'
+
+    def test_error_modify_flexvol_to_flexgroup(self):
+        ''' Test successful modify vserver_dr_protection '''
+        data = self.mock_args()
+        data['auto_provision_as'] = 'flexgroup'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object('volume').apply()
+        msg = 'Error: changing a volume from one backend to another is not allowed.  Current: flexvol, desired: flexgroup.'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_error_modify_flexgroup_to_flexvol(self):
+        ''' Test successful modify vserver_dr_protection '''
+        data = self.mock_args()
+        data['aggregate_name'] = 'nothing'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object('flexgroup').apply()
+        msg = 'Error: aggregate_name option cannot be used with FlexGroups.'
+        assert msg == exc.value.args[0]['msg']
