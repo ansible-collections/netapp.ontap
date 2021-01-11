@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.1.0"
+COLLECTION_VERSION = "21.1.1"
 
 try:
     from netapp_lib.api.zapi import zapi
@@ -719,6 +719,7 @@ class OntapRestAPI(object):
         try:
             version = message.get('version', 'not found')
         except AttributeError:
+            self.ontap_version['valid'] = False
             self.ontap_version['full'] = 'unreadable message'
             return
         for key in self.ontap_version:
@@ -731,6 +732,11 @@ class OntapRestAPI(object):
             if self.ontap_version == -1:
                 self.ontap_version['valid'] = False
                 break
+
+    def get_ontap_version(self):
+        if self.ontap_version['valid']:
+            return self.ontap_version['generation'], self.ontap_version['major']
+        return None, None
 
     def _is_rest(self, used_unsupported_rest_properties=None):
         if self.use_rest not in ['always', 'auto', 'never']:
@@ -753,6 +759,9 @@ class OntapRestAPI(object):
         status_code, message, error = self.send_request(method, api, params=params)
         self.set_version(message)
         self.is_rest_error = str(error) if error else None
+        if self.get_ontap_version() in ((9, 4), (9, 5)):
+            # we can't trust REST support on 9.5, and not at all on 9.4
+            return False, None
         if status_code == 200:
             return True, None
         self.log_error(status_code, str(error))
