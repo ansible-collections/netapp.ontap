@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.2.0
+
+### New Options
+  - na_ontap_lun: add `comment` option.
+
 ## 21.1.1
 
 ### Bug fixes

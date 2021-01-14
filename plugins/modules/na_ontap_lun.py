@@ -69,6 +69,12 @@ options:
     default: 'gb'
     type: str
 
+  comment:
+    description:
+    - Optional descriptive comment for the LUN.
+    type: str
+    version_added: 21.2.0
+
   force_resize:
     description:
       Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
@@ -284,6 +290,7 @@ class NetAppOntapLUN(object):
             size_unit=dict(default='gb',
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                     'pb', 'eb', 'zb', 'yb'], type='str'),
+            comment=dict(required=False, type='str'),
             force_resize=dict(default=False, type='bool'),
             force_remove=dict(default=False, type='bool'),
             force_remove_fenced=dict(default=False, type='bool'),
@@ -410,10 +417,11 @@ class NetAppOntapLUN(object):
             if value is not None:
                 return_value[bool_attr_map[attr]] = self.na_helper.get_value_for_bool(True, value)
         str_attr_map = {
+            'comment': 'comment',
+            'multiprotocol-type': 'os_type',
             'name': 'name',
             'path': 'path',
             'qos-policy-group': 'qos_policy_group',
-            'multiprotocol-type': 'os_type'
         }
         for attr in str_attr_map:
             value = lun.get_child_content(attr)
@@ -602,6 +610,8 @@ class NetAppOntapLUN(object):
                    'space-reservation-enabled': str(self.parameters['space_reserve']),
                    'space-allocation-enabled': str(self.parameters['space_allocation']),
                    'use-exact-size': str(self.parameters['use_exact_size'])}
+        if self.parameters.get('comment') is not None:
+            options['comment'] = self.parameters['comment']
         if self.parameters.get('os_type') is not None:
             options['ostype'] = self.parameters['os_type']
         if self.parameters.get('qos_policy_group') is not None:
@@ -662,6 +672,7 @@ class NetAppOntapLUN(object):
 
     def set_lun_value(self, path, key, value):
         key_to_zapi = dict(
+            comment=('lun-set-comment', 'comment'),
             qos_policy_group=('lun-set-qos-policy-group', 'qos-policy-group'),
             space_allocation=('lun-set-space-alloc', 'enable'),
             space_reserve=('lun-set-space-reservation-info', 'enable')
