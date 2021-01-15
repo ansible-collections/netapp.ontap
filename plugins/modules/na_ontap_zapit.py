@@ -318,7 +318,7 @@ class NetAppONTAPZapi(object):
         if self.vserver:
             try:
                 netapp_utils.ems_log_event("na_ontap_zapi" + str(zapi), self.server)
-            except netapp_utils.zapi.NaApiError as error:
+            except netapp_utils.zapi.NaApiError:
                 pass
         else:
             self.asup_log_for_cserver("na_ontap_zapi: " + str(zapi))

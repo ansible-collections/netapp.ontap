@@ -38,7 +38,6 @@ RETURN = """
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible.module_utils._text import to_native
 
 
@@ -55,7 +54,8 @@ class NetAppONTAPDebug(object):
 
     def import_lib(self):
         try:
-            from netapp_lib.api.zapi import zapi
+            # flake8 dosn't like this, but this is just a check to make sure something exist so going to leave it here.
+            from netapp_lib.api.zapi import zapi  # noqa: F401
         except ImportError:
             import sys
             syspath = ','.join(sys.path)
@@ -71,9 +71,8 @@ class NetAppONTAPDebug(object):
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
         version_obj = netapp_utils.zapi.NaElement("system-get-version")
 
-        output = None
         try:
-            output = self.server.invoke_successfully(version_obj, True)
+            self.server.invoke_successfully(version_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             error_string = to_native(error)
             if 'Connection timed out' in error_string or 'Resource temporarily unavailable' in error_string:

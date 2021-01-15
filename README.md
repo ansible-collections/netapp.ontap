@@ -37,6 +37,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug fixes
   - All REST modules: ONTAP 9.4 and 9.5 are incorrectly detected as supporting REST with `use_rest: auto`.
 
+
 ## 21.1.0
 
 ### New Modules

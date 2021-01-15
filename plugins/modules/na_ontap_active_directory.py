@@ -157,7 +157,7 @@ class NetAppOntapActiveDirectory(object):
         if self.parameters.get('organizational_unit'):
             active_directory_obj.add_new_child('organizational-unit', self.parameters['organizational_unit'])
         try:
-            result = self.server.invoke_successfully(active_directory_obj, True)
+            self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating on Active Directory %s: %s' %
                                       (self.parameters['account_name'], to_native(error)),
@@ -168,7 +168,7 @@ class NetAppOntapActiveDirectory(object):
         active_directory_obj.add_new_child('admin-password', self.parameters['admin_password'])
         active_directory_obj.add_new_child('admin-username', self.parameters['admin_username'])
         try:
-            result = self.server.invoke_successfully(active_directory_obj, True)
+            self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error deleting on Active Directory %s: %s' %
                                       (self.parameters['account_name'], to_native(error)),
@@ -183,7 +183,7 @@ class NetAppOntapActiveDirectory(object):
         if self.parameters.get('force_account_overwrite'):
             active_directory_obj.add_new_child('force-account-overwrite', str(self.parameters['force_account_overwrite']))
         try:
-            result = self.server.invoke_successfully(active_directory_obj, True)
+            self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error deleting on Active Directory %s: %s' %
                                       (self.parameters['account_name'], to_native(error)),

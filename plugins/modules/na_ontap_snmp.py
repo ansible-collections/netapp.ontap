@@ -157,7 +157,6 @@ class NetAppONTAPSnmp(object):
         Add doesn't fail the playbook if user is trying
         to add an already existing snmp community
         """
-        changed = False
         current = self.get_snmp()
         results = netapp_utils.get_cserver(self.server)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
