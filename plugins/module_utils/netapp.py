@@ -544,7 +544,10 @@ class OntapRestAPI(object):
         return "%s only supports REST, and requires ONTAP %s or later.%s" % (module_name, version, suffix)
 
     def options_require_ontap_version(self, options, version='9.6'):
+        current_version = self.get_ontap_version()
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
+        if current_version != (-1, -1):
+            suffix += " - ONTAP version: %s.%s" % current_version
         if isinstance(options, list) and len(options) > 1:
             tag = "any of %s" % options
         else:
@@ -726,45 +729,57 @@ class OntapRestAPI(object):
             try:
                 self.ontap_version[key] = version.get(key, -1)
             except AttributeError:
-                self.ontap_version[key] = 'unreadable version'
+                self.ontap_version[key] = -1
         self.ontap_version['valid'] = True
         for key in self.ontap_version:
-            if self.ontap_version == -1:
+            if self.ontap_version[key] == -1:
                 self.ontap_version['valid'] = False
                 break
 
     def get_ontap_version(self):
         if self.ontap_version['valid']:
             return self.ontap_version['generation'], self.ontap_version['major']
-        return None, None
+        return -1, -1
 
-    def _is_rest(self, used_unsupported_rest_properties=None):
-        if self.use_rest not in ['always', 'auto', 'never']:
-            error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
-            return False, error
-        if self.use_rest == "always":
-            if used_unsupported_rest_properties:
-                error = "REST API currently does not support '%s'" % \
-                        ', '.join(used_unsupported_rest_properties)
-                return True, error
-            else:
-                return True, None
-        if self.use_rest == 'never' or used_unsupported_rest_properties:
-            # force ZAPI if requested or if some parameter requires it
-            return False, None
-        # using GET rather than HEAD because the error messages are different
+    def get_ontap_version_using_rest(self):
+        # using GET rather than HEAD because the error messages are different,
+        # and we need the version as some REST options are not available in earlier versions
         method = 'GET'
         api = 'cluster'
         params = {'fields': ['version']}
         status_code, message, error = self.send_request(method, api, params=params)
         self.set_version(message)
         self.is_rest_error = str(error) if error else None
+        if error:
+            self.log_error(status_code, str(error))
+        return status_code
+
+    def _is_rest(self, used_unsupported_rest_properties=None):
+        if self.use_rest not in ['always', 'auto', 'never']:
+            error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
+            return False, error
+        if self.use_rest == "always" and used_unsupported_rest_properties:
+            error = "REST API currently does not support '%s'" % \
+                    ', '.join(used_unsupported_rest_properties)
+            return True, error
+        if self.use_rest == 'never':
+            # force ZAPI if requested
+            return False, None
+        status_code = self.get_ontap_version_using_rest()
+        if self.use_rest == 'always':
+            # ignore error, it will show up later when calling another REST API
+            return True, None
+        # we're now using 'auto'
+        if used_unsupported_rest_properties:
+            # force ZAPI if some parameter requires it
+            if self.get_ontap_version() > (9, 5):
+                self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
+            return False, None
         if self.get_ontap_version() in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None
         if status_code == 200:
             return True, None
-        self.log_error(status_code, str(error))
         return False, None
 
     def is_rest(self, used_unsupported_rest_properties=None):

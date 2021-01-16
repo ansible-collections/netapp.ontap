@@ -26,6 +26,15 @@ collections:
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
+## 21.2.0
+
+### New Options
+  - na_ontap_snapmirror - add new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
+  - na_ontap_snapmirror - add new suboptions `consistency_group_volumes` and `ipspace` to endpoint options.
+
+### Minor changes
+  - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
+  - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters. 
 
 ## 21.2.0
 

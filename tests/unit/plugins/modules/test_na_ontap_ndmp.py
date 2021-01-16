@@ -214,7 +214,7 @@ class TestMyModule(unittest.TestCase):
         data['use_rest'] = 'Always'
         set_module_args(data)
         mock_request.side_effect = [
-            # SRR['is_rest'],           # WHY IS IT NOT CALLED HERE?
+            SRR['is_rest'],             # Was not called because of Always, but we now call it :)
             SRR['get_ndmp_uuid'],       # for get svm uuid: protocols/ndmp/svms
             SRR['get_ndmp'],            # for get ndmp details: '/protocols/ndmp/svms/' + uuid
             SRR['get_ndmp_uuid'],       # for get svm uuid: protocols/ndmp/svms   (before modify)

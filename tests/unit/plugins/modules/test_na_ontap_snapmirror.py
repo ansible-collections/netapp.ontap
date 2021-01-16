@@ -48,7 +48,7 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -127,6 +127,7 @@ class TestMyModule(unittest.TestCase):
             source_password = 'password'
             relationship_state = 'active'
             update = True
+            use_rest = 'never'
         else:
             hostname = '10.10.10.10'
             username = 'admin'
@@ -142,6 +143,7 @@ class TestMyModule(unittest.TestCase):
             source_password = 'password'
             relationship_state = 'active'
             update = True
+            use_rest = 'never'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -156,7 +158,8 @@ class TestMyModule(unittest.TestCase):
             'source_username': source_username,
             'source_password': source_password,
             'relationship_state': relationship_state,
-            'update': update
+            'update': update,
+            'use_rest': use_rest
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -650,6 +653,7 @@ class TestMyModule(unittest.TestCase):
         ''' creating snapmirror and testing idempotency '''
         data = self.set_default_args()
         data.pop('relationship_type')
+        data.pop('use_rest')
         data['initialize'] = False      # the first get fails, as we pretend the relationship does not exist
         set_module_args(data)
         mock_request.side_effect = [
@@ -672,6 +676,7 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
         data['update'] = False
+        data['use_rest'] = 'auto'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],             # REST support
@@ -702,6 +707,7 @@ class TestMyModule(unittest.TestCase):
         ''' creating snapmirror and testing idempotency '''
         data = self.set_default_args()
         data.pop('relationship_type')
+        data.pop('use_rest')
         data['create_destination'] = dict(
             tiering=dict(policy='all')
         )

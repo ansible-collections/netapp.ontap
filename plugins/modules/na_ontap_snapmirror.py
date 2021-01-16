@@ -40,18 +40,22 @@ options:
   source_volume:
     description:
       - Specifies the name of the source volume for the SnapMirror.
+      - Deprecated as of 21.2.0, use source_endpoint and path.
     type: str
   destination_volume:
     description:
       - Specifies the name of the destination volume for the SnapMirror.
+      - Deprecated as of 21.2.0, use source_endpoint and path.
     type: str
   source_vserver:
     description:
       - Name of the source vserver for the SnapMirror.
+      - Deprecated as of 21.2.0, use source_endpoint and path, or svm.
     type: str
   destination_vserver:
     description:
       - Name of the destination vserver for the SnapMirror.
+      - Deprecated as of 21.2.0, use destination_endpoint and path, or svm.
     type: str
   source_path:
     description:
@@ -59,10 +63,12 @@ options:
       - If the source is an ONTAP volume, format should be <[vserver:][volume]> or <[[cluster:]//vserver/]volume>
       - If the source is an ElementSW volume, format should be <[Element_SVIP]:/lun/[Element_VOLUME_ID]>
       - If the source is an ElementSW volume, the volume should have SnapMirror enabled.
+      - Deprecated as of 21.2.0, use source_endpoint and path.
     type: str
   destination_path:
     description:
       - Specifies the destination endpoint of the SnapMirror relationship.
+      - Deprecated as of 21.2.0, use destination_endpoint and path.
     type: str
   relationship_type:
     choices: ['data_protection', 'load_sharing', 'vault', 'restore', 'transition_data_protection',
@@ -200,14 +206,84 @@ options:
     description:
       - Requires ONTAP 9.7 or higher.
       - Required to create the destination vserver for SVM DR or the destination volume.
+      - Deprecated as of 21.2.0, use destination_endpoint and cluster.
     type: str
     version_added: 21.1.0
   source_cluster:
     description:
       - Requires ONTAP 9.7 or higher.
       - Required to create the peering relationship between source and destination SVMs.
+      - Deprecated as of 21.2.0, use source_endpoint and cluster.
     type: str
     version_added: 21.1.0
+  source_endpoint:
+    description:
+      - source endpoint of a SnapMirror relationship.
+    type: dict
+    version_added: 21.2.0
+    suboptions:
+      cluster:
+        description:
+          - Requires ONTAP 9.7 or higher.
+          - Required to create the peering relationship between source and destination SVMs.
+        type: str
+      consistency_goup_volumes:
+        description:
+          - Requires ONTAP 9.8 or higher.
+          - Mandatory property for a Consistency Group endpoint. Specifies the list of FlexVol volumes for a Consistency Group.
+        type: list
+        elements: str
+      ipspace:
+        description:
+          - Requires ONTAP 9.8 or higher.
+          - Optional property to specify the IPSpace of the SVM.
+        type: str
+      path:
+        description:
+          - The source endpoint for the relationship.
+          - If the source is an ONTAP volume (FlexVol or FlexGroup), format should be <vserver:volume>
+          - For SVM DR, format should be <vserver:>
+          - For a consistency group, format should be <vserver:/cg/cg_name>
+          - If the source is an ElementSW volume, format should be <Element_SVIP:/lun/Element_VOLUME_ID>
+          - If the source is an ElementSW volume, the volume should have SnapMirror enabled.
+        type: str
+        required: true
+      svm:
+        description:
+          - The name of the SVM.  Not sure when this is needed.
+        type: str
+  destination_endpoint:
+    description:
+      - destination endpoint of a SnapMirror relationship.
+    type: dict
+    version_added: 21.2.0
+    suboptions:
+      cluster:
+        description:
+          - Requires ONTAP 9.7 or higher.
+          - Required to create the destination vserver for SVM DR or the destination volume.
+        type: str
+      consistency_goup_volumes:
+        description:
+          - Requires ONTAP 9.8 or higher.
+          - Mandatory property for a Consistency Group endpoint. Specifies the list of FlexVol volumes for a Consistency Group.
+        type: list
+        elements: str
+      ipspace:
+        description:
+          - Requires ONTAP 9.8 or higher.
+          - Optional property to specify the IPSpace of the SVM.
+        type: str
+      path:
+        description:
+          - The destination endpoint for the relationship.
+          - format is <vserver:volume>, <vserver:>, <vserver:/cg/cg_name>
+        type: str
+        required: true
+      svm:
+        description:
+          - The name of the SVM.  Not sure when this is needed.
+        type: str
 
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
@@ -322,38 +398,41 @@ EXAMPLES = """
         source_username: "{{ netapp_username }}"
         source_password: "{{ netapp_password }}"
 
-    - name: Create SnapMirror relationship (creating destination volume)
+    - name: Create Snapmirror relationship (create destination volume)
+      tags: create
       na_ontap_snapmirror:
         state: present
-        source_volume: "{{ source_volume }}"
-        source_vserver: "{{ source_vserver }}"
-        destination_volume: "{{ destination_volume }}"
-        destination_vserver: "{{ destination_vserver }}"
-        destination_cluster: "{{ destination_cluster | default(omit) }}"
+        source_endpoint:
+          cluster: "{{ _source_cluster }}"
+          path: "{{ source_vserver + ':' + source_volume }}"
+        destination_endpoint:
+          cluster: "{{ _destination_cluster }}"
+          path: "{{ destination_vserver_VOLDP + ':' + destination_volume }}"
         create_destination:
           enabled: true
-        policy: "{{ policy | default(omit) }}"
-        hostname: "{{ hostname }}"
+        hostname: "{{ destination_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
-        https: "{{ https }}"
-        validate_certs: "{{ validate_certs }}"
+        https: true
+        validate_certs: false
 
     - name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
+      tags: create_svmdr
       na_ontap_snapmirror:
         state: present
-        source_vserver: "{{ source_vserver }}"
-        source_cluster: "{{ source_cluster | default(omit) }}"
-        destination_vserver: "{{ destination_vserver }}"
-        destination_cluster: "{{ destination_cluster | default(omit) }}"
+        source_endpoint:
+          cluster: "{{ _source_cluster }}"
+          path: "{{ source_vserver + ':' }}"
+        destination_endpoint:
+          cluster: "{{ _destination_cluster }}"
+          path: "{{ destination_vserver_SVMDR + ':' }}"
         create_destination:
           enabled: true
-        policy: "{{ policy | default(omit) }}"
-        hostname: "{{ hostname }}"
+        hostname: "{{ destination_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
-        https: "{{ https }}"
-        validate_certs: "{{ validate_certs }}"
+        https: true
+        validate_certs: false
 """
 
 RETURN = """
@@ -388,6 +467,20 @@ class NetAppONTAPSnapmirror(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
+            destination_endpoint=dict(type='dict', options=dict(
+                cluster=dict(type='str'),
+                consistency_goup_volumes=dict(type='list', elements='str'),
+                ipspace=dict(type='str'),
+                path=dict(required=True, type='str'),
+                svm=dict(type='str'),
+            )),
+            source_endpoint=dict(type='dict', options=dict(
+                cluster=dict(type='str'),
+                consistency_goup_volumes=dict(type='list', elements='str'),
+                ipspace=dict(type='str'),
+                path=dict(required=True, type='str'),
+                svm=dict(type='str'),
+            )),
             source_vserver=dict(required=False, type='str'),
             destination_vserver=dict(required=False, type='str'),
             source_volume=dict(required=False, type='str'),
@@ -433,13 +526,27 @@ class NetAppONTAPSnapmirror(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ('source_endpoint', 'source_cluster'),
+                ('source_endpoint', 'source_path'),
+                ('source_endpoint', 'source_volume'),
+                ('source_endpoint', 'source_vserver'),
+                ('destination_endpoint', 'destination_cluster'),
+                ('destination_endpoint', 'destination_path'),
+                ('destination_endpoint', 'destination_volume'),
+                ('destination_endpoint', 'destination_vserver'),
+            ],
             required_together=(['source_volume', 'destination_volume'],
-                               ['source_vserver', 'destination_vserver']),
+                               ['source_vserver', 'destination_vserver'],
+                               ['source_endpoint', 'destination_endpoint'],
+                               ),
             supports_check_mode=True
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.new_style = False
+        self.warnings = list()
         # setup later if required
         self.source_server = None
         # only for ElementSW -> ONTAP snapmirroring, validate if ElementSW SDK is available
@@ -621,15 +728,9 @@ class NetAppONTAPSnapmirror(object):
 
     def get_create_body(self):
         initialized = False
-        source = dict(path=self.parameters['source_path'])
-        if self.na_helper.safe_get(self.parameters, ['source_cluster']):
-            source['cluster'] = dict(name=self.parameters['source_cluster'])
-        destination = dict(path=self.parameters['destination_path'])
-        if self.na_helper.safe_get(self.parameters, ['destination_cluster']):
-            destination['cluster'] = dict(name=self.parameters['destination_cluster'])
         body = dict(
-            source=source,
-            destination=destination,
+            source=self.na_helper.filter_out_none_entries(self.parameters['source_endpoint']),
+            destination=self.na_helper.filter_out_none_entries(self.parameters['destination_endpoint']),
         )
         if self.na_helper.safe_get(self.parameters, ['create_destination', 'enabled']):     # testing for True
             body['create_destination'] = self.na_helper.filter_out_none_entries(self.parameters['create_destination'])
@@ -927,19 +1028,77 @@ class NetAppONTAPSnapmirror(object):
         Validate parameters and fail if one or more required params are missing
         Update source and destination path from vserver and volume parameters
         """
-        if self.parameters['state'] == 'present'\
-                and (self.parameters.get('source_path') or self.parameters.get('destination_path')):
+        def new_option(option, prefix):
+            new_option_name = option[len(prefix):]
+            if new_option_name == 'vserver':
+                new_option_name = 'path (or svm)'
+            elif new_option_name == 'volume':
+                new_option_name = 'path'
+            return '%sendpoint:%s' % (prefix, new_option_name)
+
+        def too_old(minimum_generation, minimum_major):
+            return not self.use_rest or self.rest_api.get_ontap_version() < (minimum_generation, minimum_major)
+
+        for option in ['source_cluster', 'source_path', 'source_volume', 'source_vserver']:
+            if option in self.parameters:
+                self.warnings.append('option: %s is deprecated, please use %s' % (option, new_option(option, 'source_')))
+        for option in ['destination_cluster', 'destination_path', 'destination_volume', 'destination_vserver']:
+            if option in self.parameters:
+                self.warnings.append('option: %s is deprecated, please use %s' % (option, new_option(option, 'destination_')))
+
+        ontap_97_options = ['create_destination']
+        if too_old(9, 7) and any(x in self.parameters for x in ontap_97_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+        if self.parameters.get('source_endpoint') or self.parameters.get('destination_endpoint'):
+            if not self.parameters.get('destination_endpoint') or not self.parameters.get('source_endpoint'):
+                self.module.fail_json(msg='Missing parameters: Source endpoint or Destination endpoint')
+            ontap_97_options = ['cluster', 'ipspace']
+            if too_old(9, 7) and any(x in self.parameters['source_endpoint'] for x in ontap_97_options):
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+            if too_old(9, 7) and any(x in self.parameters['destination_endpoint'] for x in ontap_97_options):
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+            ontap_98_options = ['consistency_group_volumes']
+            if too_old(9, 8) and any(x in self.parameters['source_endpoint'] for x in ontap_98_options):
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
+            if too_old(9, 8) and any(x in self.parameters['destination_endpoint'] for x in ontap_98_options):
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
+            # fill in old style parameters
+            self.parameters['source_cluster'] = self.na_helper.safe_get(self.parameters, ['source_endpoint', 'cluster'])
+            self.parameters['source_path'] = self.na_helper.safe_get(self.parameters, ['source_endpoint', 'path'])
+            self.parameters['source_vserver'] = self.na_helper.safe_get(self.parameters, ['source_endpoint', 'svm'])
+            self.parameters['destination_cluster'] = self.na_helper.safe_get(self.parameters, ['destination_endpoint', 'cluster'])
+            self.parameters['destination_path'] = self.na_helper.safe_get(self.parameters, ['destination_endpoint', 'path'])
+            self.parameters['destination_vserver'] = self.na_helper.safe_get(self.parameters, ['destination_endpoint', 'svm'])
+            self.new_style = True
+
+        if self.parameters.get('source_path') or self.parameters.get('destination_path'):
             if not self.parameters.get('destination_path') or not self.parameters.get('source_path'):
-                self.module.fail_json(msg='Missing parameters: Source path or Destination path')
+                if self.new_style:
+                    msg = 'Missing parameters: source_endpoint path or destination_endpoint path'
+                else:
+                    msg = 'Missing parameters: Source path or Destination path'
+                self.module.fail_json(msg=msg)
         elif self.parameters.get('source_volume'):
             if not self.parameters.get('source_vserver') or not self.parameters.get('destination_vserver'):
                 self.module.fail_json(msg='Missing parameters: source vserver or destination vserver or both')
             self.parameters['source_path'] = self.parameters['source_vserver'] + ":" + self.parameters['source_volume']
             self.parameters['destination_path'] = self.parameters['destination_vserver'] + ":" +\
                 self.parameters['destination_volume']
-        elif self.parameters.get('source_vserver'):
+        elif self.parameters.get('source_vserver') and self.parameters.get('source_endpoint') is None:
             self.parameters['source_path'] = self.parameters['source_vserver'] + ":"
             self.parameters['destination_path'] = self.parameters['destination_vserver'] + ":"
+
+        if self.use_rest and not self.new_style:
+            # use new structures for source and destination endpoints
+            for location in ('source', 'destination'):
+                endpoint = '%s_endpoint' % location
+                self.parameters[endpoint] = dict()
+                # skipping svm for now, as it is not accepted and not needed with path
+                # for old, new in (('path', 'path'), ('vserver', 'svm'), ('cluster', 'cluster')):
+                for old, new in (('path', 'path'), ('cluster', 'cluster')):
+                    value = self.parameters.get('%s_%s' % (location, old))
+                    if value is not None:
+                        self.parameters[endpoint][new] = value
 
     def get_destination(self):
         result = None
@@ -1142,6 +1301,8 @@ class NetAppONTAPSnapmirror(object):
             results['actions'] = actions
         if response:
             results['response'] = response
+        if self.warnings:
+            results['warnings'] = self.warnings
         self.module.exit_json(**results)
 
 

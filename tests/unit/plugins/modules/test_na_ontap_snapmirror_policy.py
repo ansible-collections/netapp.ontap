@@ -22,9 +22,9 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
     # module specific responses
     'get_snapmirror_policy': {'vserver': 'ansible',
                               'policy_name': 'ansible',
@@ -55,12 +55,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -90,14 +88,14 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         if self.type == 'snapmirror_policy':
-            xml = self.build_snapmirror_policy_info(self.parm)
+            xml = self.build_snapmirror_policy_info()
         elif self.type == 'snapmirror_policy_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
 
     @staticmethod
-    def build_snapmirror_policy_info(mirror_state):
+    def build_snapmirror_policy_info():
         ''' build xml data for snapmirror_policy-entry '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
@@ -219,11 +217,13 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.create_snapmirror_policy')
-    def test_successful_create_with_rest(self, snapmirror_create_policy):
+    def test_successful_create_with_rest(self, snapmirror_create_policy, send_request):
         ''' creating snapmirror policy without rules via REST and testing idempotency '''
         data = self.set_default_args()
         data['use_rest'] = 'Always'
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -237,6 +237,7 @@ class TestMyModule(unittest.TestCase):
         data = self.set_default_args(use_rest='Never')
         data['use_rest'] = 'Always'
         set_module_args(data)
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
@@ -270,12 +271,13 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy_rules')
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.create_snapmirror_policy')
-    def test_successful_create_with_rules_via_rest(self, snapmirror_create_policy, modify_snapmirror_policy_rules):
+    def test_successful_create_with_rules_via_rest(self, snapmirror_create_policy, send_request):
         ''' creating snapmirror policy with rules via rest and testing idempotency '''
         data = self.set_default_args(use_rest='Always', with_rules=True)
         set_module_args(data)
+        send_request.side_effect = [SRR['is_rest'], SRR['empty_good'], SRR['empty_good'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock()
@@ -287,6 +289,7 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args(use_rest='Always', with_rules=True)
         set_module_args(data)
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy_with_rules'])
@@ -317,12 +320,14 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.delete_snapmirror_policy')
-    def test_successful_delete_with_rest(self, delete_snapmirror_policy):
+    def test_successful_delete_with_rest(self, delete_snapmirror_policy, send_request):
         ''' deleting snapmirror policy via REST and testing idempotency '''
         data = self.set_default_args()
         data['state'] = 'absent'
         data['use_rest'] = 'Always'
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -331,6 +336,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
         delete_snapmirror_policy.assert_called_with('abcdef12-3456-7890-abcd-ef1234567890')
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock(return_value=None)
@@ -368,12 +374,14 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy')
-    def test_successful_modify_with_rest(self, snapmirror_policy_modify):
+    def test_successful_modify_with_rest(self, snapmirror_policy_modify, send_request):
         ''' modifying snapmirror policy without rules via REST and testing idempotency '''
         data = self.set_default_args()
         data['comment'] = 'old comment'
         data['use_rest'] = 'Always'
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -385,6 +393,7 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
         data['use_rest'] = 'Always'
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         set_module_args(data)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
@@ -419,12 +428,13 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy_rules')
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy.NetAppOntapSnapMirrorPolicy.modify_snapmirror_policy')
-    def test_successful_modify_with_rules_via_rest(self, snapmirror_policy_modify, modify_snapmirror_policy_rules):
+    def test_successful_modify_with_rules_via_rest(self, snapmirror_policy_modify, send_request):
         ''' modifying snapmirror policy with rules via rest and testing idempotency '''
         data = self.set_default_args(use_rest='Always', with_rules=True)
         set_module_args(data)
+        send_request.side_effect = [SRR['is_rest'], SRR['empty_good'], SRR['empty_good'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy'])
@@ -435,6 +445,7 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args(use_rest='Always', with_rules=True)
         set_module_args(data)
+        send_request.side_effect = [SRR['is_rest'], SRR['end_of_sequence']]
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         my_obj.get_snapmirror_policy = Mock(return_value=SRR['get_snapmirror_policy_with_rules'])
