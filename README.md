@@ -26,26 +26,25 @@ collections:
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
+
 ## 21.2.0
+
+### New Modules
+  - na_ontap_cifs_local_group_member: Add or remove CIFS local group member
 
 ### New Options
   - na_ontap_snapmirror - add new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
   - na_ontap_snapmirror - add new suboptions `consistency_group_volumes` and `ipspace` to endpoint options.
 
 ### Minor changes
+  - na_ontap_lun: add `comment` option.
   - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
   - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters. 
-
-## 21.2.0
-
-### New Options
-  - na_ontap_lun: add `comment` option.
 
 ## 21.1.1
 
 ### Bug fixes
   - All REST modules: ONTAP 9.4 and 9.5 are incorrectly detected as supporting REST with `use_rest: auto`.
-
 
 ## 21.1.0
 
