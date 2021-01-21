@@ -165,8 +165,9 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
-    def test_ensure_apply_for_cluster_called(self, get_cl_id):
+    def test_ensure_apply_for_cluster_called(self, get_cl_id, sleep_mock):
         ''' creating cluster and checking idempotency '''
         get_cl_id.return_value = None
         module_args = {}
@@ -181,9 +182,10 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.create_cluster')
-    def test_cluster_create_called(self, cluster_create, get_cl_id):
+    def test_cluster_create_called(self, cluster_create, get_cl_id, sleep_mock):
         ''' creating cluster'''
         get_cl_id.return_value = None
         module_args = {}
@@ -198,8 +200,9 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         cluster_create.assert_called_with()
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
-    def test_cluster_create_old_api(self, get_cl_id):
+    def test_cluster_create_old_api(self, get_cl_id, sleep_mock):
         ''' creating cluster'''
         get_cl_id.return_value = None
         module_args = {}
@@ -248,10 +251,11 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_cluster_apply: %s' % repr(exc.value))
         assert msg in exc.value.args[0]['msg']
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_ip_addresses')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.get_cluster_identity')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.add_node')
-    def test_add_node_called(self, add_node, get_cl_id, get_cl_ips):
+    def test_add_node_called(self, add_node, get_cl_id, get_cl_ips, sleep_mock):
         ''' creating add_node'''
         get_cl_ips.return_value = list()
         get_cl_id.return_value = None

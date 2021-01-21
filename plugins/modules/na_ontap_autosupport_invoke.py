@@ -4,7 +4,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
-na_ontap_dns
+na_ontap_autosupport_invoke
 '''
 
 from __future__ import absolute_import, division, print_function
