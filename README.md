@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
   - na_ontap_cifs_local_group_member: Add or remove CIFS local group member
+  - na_ontap_volume_efficiency: Enables, disables or modifies volume efficiency  
 
 ### New Options
   - na_ontap_snapmirror - add new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
