@@ -208,10 +208,10 @@ class NetAppONTAPZapi(object):
 
         if not HAS_JSON:
             self.module.fail_json(msg="the python json module is required")
-        if not HAS_XMLTODICT:
-            self.module.fail_json(msg="the python xmltodict module is required")
         if not HAS_NETAPP_LIB:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
+        if not HAS_XMLTODICT:
+            self.module.fail_json(msg="the python xmltodict module is required")
 
         if self.vserver is not None:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)

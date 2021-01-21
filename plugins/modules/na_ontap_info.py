@@ -377,7 +377,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
-
 try:
     import xmltodict
     HAS_XMLTODICT = True
@@ -1756,11 +1755,12 @@ def main():
         supports_check_mode=True
     )
 
+    if not HAS_NETAPP_LIB:
+        module.fail_json(msg="the python NetApp-Lib module is required")
     if not HAS_XMLTODICT:
-        module.fail_json(msg="xmltodict missing")
-
+        module.fail_json(msg="the python xmltodict module is required")
     if not HAS_JSON:
-        module.fail_json(msg="json missing")
+        module.fail_json(msg="the python json module is required")
 
     gather_subset = module.params['gather_subset']
     summary = module.params['summary']
