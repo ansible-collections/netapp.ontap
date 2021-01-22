@@ -227,7 +227,7 @@ options:
           - Requires ONTAP 9.7 or higher.
           - Required to create the peering relationship between source and destination SVMs.
         type: str
-      consistency_goup_volumes:
+      consistency_group_volumes:
         description:
           - Requires ONTAP 9.8 or higher.
           - Mandatory property for a Consistency Group endpoint. Specifies the list of FlexVol volumes for a Consistency Group.
@@ -263,7 +263,7 @@ options:
           - Requires ONTAP 9.7 or higher.
           - Required to create the destination vserver for SVM DR or the destination volume.
         type: str
-      consistency_goup_volumes:
+      consistency_group_volumes:
         description:
           - Requires ONTAP 9.8 or higher.
           - Mandatory property for a Consistency Group endpoint. Specifies the list of FlexVol volumes for a Consistency Group.
@@ -469,14 +469,14 @@ class NetAppONTAPSnapmirror(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             destination_endpoint=dict(type='dict', options=dict(
                 cluster=dict(type='str'),
-                consistency_goup_volumes=dict(type='list', elements='str'),
+                consistency_group_volumes=dict(type='list', elements='str'),
                 ipspace=dict(type='str'),
                 path=dict(required=True, type='str'),
                 svm=dict(type='str'),
             )),
             source_endpoint=dict(type='dict', options=dict(
                 cluster=dict(type='str'),
-                consistency_goup_volumes=dict(type='list', elements='str'),
+                consistency_group_volumes=dict(type='list', elements='str'),
                 ipspace=dict(type='str'),
                 path=dict(required=True, type='str'),
                 svm=dict(type='str'),
@@ -632,9 +632,13 @@ class NetAppONTAPSnapmirror(object):
             snap_info['schedule'] = snapmirror_info.get_child_content('schedule')
             snap_info['policy'] = snapmirror_info.get_child_content('policy')
             snap_info['relationship_type'] = snapmirror_info.get_child_content('relationship-type')
-            snap_info['current-transfer-type'] = snapmirror_info.get_child_content('current-transfer-type')
+            snap_info['current_transfer_type'] = snapmirror_info.get_child_content('current-transfer-type')
             if snapmirror_info.get_child_by_name('max-transfer-rate'):
                 snap_info['max_transfer_rate'] = int(snapmirror_info.get_child_content('max-transfer-rate'))
+            if snapmirror_info.get_child_by_name('last-transfer-error'):
+                snap_info['last_transfer_error'] = snapmirror_info.get_child_content('last-transfer-error')
+            if snapmirror_info.get_child_by_name('unhealthy-reason'):
+                snap_info['unhealthy_reason'] = snapmirror_info.get_child_content('unhealthy-reason')
             if snap_info['schedule'] is None:
                 snap_info['schedule'] = ""
             return snap_info
@@ -712,6 +716,9 @@ class NetAppONTAPSnapmirror(object):
         'in_sync' for relationships with a policy of type 'sync'
         """
         policy_type = 'async'                               # REST defaults to Asynchronous
+        if self.na_helper.safe_get(self.parameters, ['destination_endpoint', 'consistency_group_volumes']) is not None:
+            # except for consistency groups
+            policy_type = 'sync'
         if self.parameters.get('policy') is not None:
             # TODO: choose source if ???
             svm_name = self.parameters['destination_vserver']
@@ -1267,7 +1274,7 @@ class NetAppONTAPSnapmirror(object):
                     self.na_helper.changed = True
             # check for initialize
             elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active'\
-                    and current['mirror_state'] == 'uninitialized' and current['current-transfer-type'] != 'initialize':
+                    and current['mirror_state'] == 'uninitialized' and current['current_transfer_type'] != 'initialize':
                 actions.append('initialize')
                 if not self.module.check_mode:
                     self.snapmirror_initialize()
