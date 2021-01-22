@@ -46,6 +46,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
   - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters. 
 
+### Bug fixes
+  - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
+
 ## 21.1.1
 
 ### Bug fixes

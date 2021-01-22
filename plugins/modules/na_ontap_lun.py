@@ -457,7 +457,7 @@ class NetAppOntapLUN(object):
         }
         for attr in str_attr_map:
             value = lun.get_child_content(attr)
-            if value is None and attr == 'comment':
+            if value is None and attr in ('comment', 'qos-policy-group'):
                 value = ''
             if value is not None:
                 return_value[str_attr_map[attr]] = value
