@@ -79,7 +79,7 @@ class RestApplication():
 
     def create_application(self, body):
         """Use REST application/applications san template to create one or more LUNs"""
-        dummy, error = self.fail_if_uuid()
+        dummy, error = self.fail_if_uuid('create_application')
         if error is not None:
             return dummy, error
         api = '/application/applications'
@@ -183,9 +183,9 @@ class RestApplication():
             return None, msg
         return None, None
 
-    def fail_if_uuid(self):
+    def fail_if_uuid(self, fname):
         """Prevent a logic error."""
         if self.app_uuid is not None:
-            msg = 'function should not be called when application uuid is set.'
+            msg = 'function %s should not be called when application uuid is set: %s.' % (fname, self.app_uuid)
             return None, msg
         return None, None

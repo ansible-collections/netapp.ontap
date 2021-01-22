@@ -40,6 +40,7 @@ options:
   name:
     description:
     - The name of the LUN to manage.
+    - Or LUN group name (volume name) when san_application_template is used.
     required: true
     type: str
 
@@ -139,9 +140,8 @@ options:
   san_application_template:
     description:
       - additional options when using the application/applications REST API to create LUNs.
-      - the module is using ZAPI by default, and switches to REST if any suboption is present.
+      - the module is using ZAPI by default, and switches to REST if san_application_template is present.
       - create one or more LUNs (and the associated volume as needed).
-      - only creation or deletion of a SAN application is supported.  Changes are ignored.
       - operations at the LUN level are supported, they require to know the LUN short name.
       - this requires ONTAP 9.6 or higher.
     type: dict
@@ -210,7 +210,17 @@ options:
           - This will default to true if any other suboption is present.
         type: bool
         default: true
-
+      scope:
+        description:
+          - whether the top level name identifies a single LUN or a LUN group (application).
+          - By default, the module will try to make the right choice, but can report extra warnings.
+          - Setting scope to 'application' is required to convert an existing volume to a smart container.
+          - The module reports an error when 'lun' or 'application' is used and the desired action cannot be completed.
+          - The module issues warnings when the default 'auto' is used, and there is ambiguity regarding the desired actions.
+        type: str
+        choices: ['application', 'auto', 'lun']
+        default: auto
+        version_added: 21.2.0
 '''
 
 EXAMPLES = """
@@ -259,6 +269,26 @@ EXAMPLES = """
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+
+- name: Convert existing volume to SAN application
+  tags: create
+  na_ontap_lun:
+    state: present
+    name: someVolume
+    size: 22
+    size_unit: mb
+    os_type: linux
+    space_reserve: false
+    san_application_template:
+      name: san-ansibleLUN
+      igroup_name: testme_igroup
+      lun_count: 3
+      protection_type:
+      local_policy: default
+      scope: application
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """
@@ -273,6 +303,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -318,6 +349,7 @@ class NetAppOntapLUN(object):
                 total_size=dict(type='int'),
                 total_size_unit=dict(choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                               'pb', 'eb', 'zb', 'yb'], type='str'),
+                scope=dict(type='str', choices=['application', 'auto', 'lun'], default='auto'),
             ))
         ))
 
@@ -524,7 +556,7 @@ class NetAppOntapLUN(object):
             action = 'create'
         for option in required_options:
             if self.parameters.get(option) is None:
-                self.module.fail_json(msg='Error: "%s" is required to %s a san application.' % (option, action))
+                self.module.fail_json(msg="Error: '%s' is required to %s a san application." % (option, action))
 
         application_component = dict(name=self.parameters['name'])
         if not modify:
@@ -596,6 +628,26 @@ class NetAppOntapLUN(object):
         body.pop('smart_container')
         dummy, error = self.rest_app.patch_application(body)
         self.fail_on_error(error)
+
+    def convert_to_san_application(self, scope):
+        '''First convert volume to smart container using POST
+           Second modify app to add new luns using PATCH
+        '''
+        # dummy modify, so that we don't fill in the body
+        modify = dict(dummy='dummy')
+        body, error = self.create_san_app_body(modify)
+        self.fail_on_error(error)
+        dummy, error = self.rest_app.create_application(body)
+        self.fail_on_error(error)
+        app_current, error = self.rest_app.get_application_uuid()
+        self.fail_on_error(error)
+        if app_current is None:
+            self.module.fail_json('Error: failed to create smart container for %s' % self.parameters['name'])
+        app_modify, app_modify_warning = self.app_changes(scope)
+        if app_modify_warning is not None:
+            self.warnings.append(app_modify_warning)
+        if app_modify:
+            self.modify_san_application(app_modify)
 
     def delete_san_application(self):
         '''Use REST application/applications san template to delete one or more LUNs'''
@@ -726,7 +778,7 @@ class NetAppOntapLUN(object):
         self.module.fail_json(**elements)
 
     def set_total_size(self, validate):
-        # fix total_size attribute, report error if total_size is misisng (or size is mssing)
+        # fix total_size attribute, report error if total_size is missing (or size is missing)
         attr = 'total_size'
         value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
         if value is not None or not validate:
@@ -769,7 +821,7 @@ class NetAppOntapLUN(object):
                 self.warnings.append(warning)
                 modify.pop('total_size')
 
-    def app_changes(self):
+    def app_changes(self, scope):
         # find and validate app changes
         app_current, error = self.rest_app.get_application_details('san')
         self.fail_on_error(error)
@@ -789,8 +841,10 @@ class NetAppOntapLUN(object):
         # if component name does not match, assume a change at LUN level
         comp_name = app_current['name']
         if comp_name != self.parameters['name']:
-            return None, "name: %s does not match component name: %s" % (self.parameters['name'], comp_name)
-
+            msg = "desired component/volume name: %s does not match existing component name: %s" % (self.parameters['name'], comp_name)
+            if scope == 'application':
+                self.module.fail_json(msg='Error: ' + msg + ".  scope=%s" % scope)
+            return None, msg + ".  scope=%s, assuming 'lun' scope." % scope
         # restore app name
         app_current['name'] = app_name
 
@@ -824,20 +878,42 @@ class NetAppOntapLUN(object):
         app_modify_warning = None
         actions = list()
         if self.rest_app:
+            scope = self.na_helper.safe_get(self.parameters, ['san_application_template', 'scope'])
             app_current, error = self.rest_app.get_application_uuid()
             self.fail_on_error(error)
+            if scope == 'lun' and app_current is None:
+                self.module.fail_json('Application not found: %s.  scope=%s.' %
+                                      (self.na_helper.safe_get(self.parameters, ['san_application_template', 'name']), scope))
+        else:
+            # no application template, fall back to LUN only
+            scope = 'lun'
+
+        if self.rest_app and scope != 'lun':
             app_cd_action = self.na_helper.get_cd_action(app_current, self.parameters)
+            if app_cd_action == 'create':
+                # check if target volume already exists
+                cp_volume_name = self.parameters['name']
+                volume, error = rest_volume.get_volume(self.rest_api, self.parameters['vserver'], cp_volume_name)
+                self.fail_on_error(error)
+                if volume is not None:
+                    if scope == 'application':
+                        # volume already exists, but not as part of this application
+                        app_cd_action = 'convert'
+                    else:
+                        # default name already in use, ask user to clarify intent
+                        msg = "Error: volume '%s' already exists.  Please use a different group name, or use 'application' scope.  scope=%s"
+                        self.module.fail_json(msg=msg % (cp_volume_name, scope))
             if app_cd_action is not None:
                 actions.append('app_%s' % app_cd_action)
             if app_cd_action == 'create':
                 self.validate_app_create()
             if app_cd_action is None and app_current is not None:
-                app_modify, app_modify_warning = self.app_changes()
+                app_modify, app_modify_warning = self.app_changes(scope)
                 if app_modify:
                     actions.append('app_modify')
                     results['app_modify'] = dict(app_modify)
 
-        if app_cd_action is None and app_modify is None:
+        if app_cd_action is None and scope != 'application':
             # actions at LUN level
             lun_path, from_lun_path = None, None
             from_name = self.parameters.get('from_name')
@@ -868,7 +944,7 @@ class NetAppOntapLUN(object):
                     actions.append('lun_rename')
                     app_modify_warning = None       # reset warning as we found a match
             if lun_cd_action is not None:
-                actions.append(actions.append('lun_%s' % lun_cd_action))
+                actions.append('lun_%s' % lun_cd_action)
             if lun_cd_action is None and self.parameters['state'] == 'present':
                 # we already handled rename if required
                 current.pop('name', None)
@@ -879,25 +955,32 @@ class NetAppOntapLUN(object):
                     app_modify_warning = None       # reset warning as we found a match
             if lun_cd_action and self.rest_app and app_current:
                 msg = 'This module does not support %s a LUN by name %s a SAN application.' %\
-                      ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
-                self.warnings.append(msg)
+                    ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
+                if scope == 'auto':
+                    # ignore LUN not found, as name can be a group name
+                    self.warnings.append(msg + ".  scope=%s, assuming 'application'" % scope)
+                    if not app_modify:
+                        self.na_helper.changed = False
+                elif scope == 'lun':
+                    self.module.fail_json(msg=msg + ".  scope=%s." % scope)
                 lun_cd_action = None
-                self.na_helper.changed = False
             if lun_cd_action == 'create' and self.parameters.get('size') is None:
                 self.module.fail_json(msg="size is a required parameter for create.")
 
         if self.na_helper.changed and not self.module.check_mode:
             if app_cd_action == 'create':
                 self.create_san_application()
+            elif app_cd_action == 'convert':
+                self.convert_to_san_application(scope)
             elif app_cd_action == 'delete':
                 self.rest_app.delete_application()
-            elif app_modify:
-                self.modify_san_application(app_modify)
             elif lun_cd_action == 'create':
                 self.create_lun()
             elif lun_cd_action == 'delete':
                 self.delete_lun(lun_path)
             else:
+                if app_modify:
+                    self.modify_san_application(app_modify)
                 if lun_rename:
                     self.rename_lun(from_lun_path, lun_path)
                 size_changed = False
@@ -908,7 +991,7 @@ class NetAppOntapLUN(object):
                     lun_modify.pop('size')
                 if lun_modify:
                     self.modify_lun(lun_path, lun_modify)
-                if not lun_modify and not lun_rename:
+                if not lun_modify and not lun_rename and not app_modify:
                     # size may not have changed
                     self.na_helper.changed = size_changed
 

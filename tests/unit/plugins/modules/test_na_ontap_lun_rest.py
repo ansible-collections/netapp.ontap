@@ -200,6 +200,7 @@ class TestMyModule(unittest.TestCase):
         ''' Test successful create '''
         mock_request.side_effect = [
             SRR['get_apps_empty'],      # GET application/applications
+            SRR['get_apps_empty'],      # GET volumes
             SRR['empty_good'],          # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -292,8 +293,8 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = copy.deepcopy([
             SRR['get_apps_found'],                  # GET application/applications
             SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
             SRR['empty_good'],                      # PATCH application/applications/<uuid>
             SRR['end_of_sequence']
         ])

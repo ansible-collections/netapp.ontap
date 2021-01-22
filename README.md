@@ -34,11 +34,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume_efficiency: Enables, disables or modifies volume efficiency  
 
 ### New Options
-  - na_ontap_snapmirror - add new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
-  - na_ontap_snapmirror - add new suboptions `consistency_group_volumes` and `ipspace` to endpoint options.
+  - na_ontap_lun - new `comment` option.
+  - na_ontap_lun - new option `scope` to explicitly force operations on the SAN application or a single LUN.
+  - na_ontap_snapmirror - new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
+  - na_ontap_snapmirror - new suboptions `consistency_group_volumes` and `ipspace` to endpoint options.
 
 ### Minor changes
-  - na_ontap_lun: add `comment` option.
+  - na_ontap_lun - convert existing LUNs and supporting volume to a smart container within a SAN application.
   - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
   - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters. 
 
