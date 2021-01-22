@@ -36,6 +36,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_lun - new `comment` option.
   - na_ontap_lun - new option `scope` to explicitly force operations on the SAN application or a single LUN.
+  - na_ontap_node - added modify function for location and asset tag for node.
   - na_ontap_snapmirror - new options `source_endpoint` and `destination_endpoint` to group endpoint suboptions.
   - na_ontap_snapmirror - new suboptions `consistency_group_volumes` and `ipspace` to endpoint options.
 

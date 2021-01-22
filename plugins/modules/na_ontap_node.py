@@ -13,34 +13,61 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_node
-short_description: NetApp ONTAP Rename a node.
+short_description: NetApp ONTAP Modify or Rename a node.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.7.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Rename an ONTAP node.
+- Modify or Rename an ONTAP node.
 options:
   name:
     description:
-    - The new name for the node
+    - The name for the node
     required: true
     type: str
 
   from_name:
     description:
     - The name of the node to be renamed.  If I(name) already exists, no action will be performed.
-    required: true
+    type: str
+
+  location:
+    description:
+    - The location for the node
+    type: str
+
+  asset_tag:
+    description:
+    - The asset tag for the node
     type: str
 
 '''
 
 EXAMPLES = """
+- name: modify node
+  na_ontap_node:
+    name: laurentncluster-2
+    location: SF1
+    asset_tag: mytag
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
 - name: rename node
   na_ontap_node:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+    from_name: laurentn-vsim1
+    name: laurentncluster-2
+
+- name: modify and rename node
+  na_ontap_node:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    location: SF2
     from_name: laurentn-vsim1
     name: laurentncluster-2
 """
@@ -53,6 +80,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
@@ -67,7 +95,9 @@ class NetAppOntapNode(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             name=dict(required=True, type='str'),
-            from_name=dict(required=True, type='str'),
+            from_name=dict(required=False, type='str'),
+            location=dict(required=False, type='str'),
+            asset_tag=dict(required=False, type='str'),
         ))
 
         self.module = AnsibleModule(
@@ -84,6 +114,24 @@ class NetAppOntapNode(object):
             self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
         return
 
+    def modify_node(self):
+        """
+        Modify an existing node
+        :return: none
+        """
+        node_obj = netapp_utils.zapi.NaElement('system-node-modify')
+        node_obj.add_new_child('node', self.parameters['name'])
+        if 'location' in self.parameters:
+            node_obj.add_new_child('node-location', self.parameters['location'])
+        if 'asset_tag' in self.parameters:
+            node_obj.add_new_child('node-asset-tag', self.parameters['asset_tag'])
+        try:
+            self.cluster.invoke_successfully(node_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error modifying node: %s' %
+                                  (to_native(error)),
+                                  exception=traceback.format_exc())
+
     def rename_node(self):
         """
         Rename an existing node
@@ -95,7 +143,7 @@ class NetAppOntapNode(object):
         try:
             self.cluster.invoke_successfully(node_obj, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error creating node: %s' %
+            self.module.fail_json(msg='Error renaming node: %s' %
                                   (to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -103,7 +151,7 @@ class NetAppOntapNode(object):
         node_obj = netapp_utils.zapi.NaElement('system-node-get')
         node_obj.add_new_child('node', name)
         try:
-            self.cluster.invoke_successfully(node_obj, True)
+            result = self.cluster.invoke_successfully(node_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             if to_native(error.code) == "13115":
                 # 13115 (EINVALIDINPUTERROR) if the node does not exist
@@ -111,28 +159,43 @@ class NetAppOntapNode(object):
             else:
                 self.module.fail_json(msg=to_native(
                     error), exception=traceback.format_exc())
-        return True
+        attributes = result.get_child_by_name('attributes')
+        if attributes is not None:
+            node_info = attributes.get_child_by_name('node-details-info')
+            return dict(
+                name=node_info['node'],
+                location=node_info['node-location'],
+                asset_tag=node_info['node-asset-tag'])
+        return None
 
     def apply(self):
         # logging ems event
         results = netapp_utils.get_cserver(self.cluster)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_node", cserver)
+        from_exists = None
+        modify = None
+        current = self.get_node(self.parameters['name'])
+        if current is None and 'from_name' in self.parameters:
+            from_exists = self.get_node(self.parameters['from_name'])
+            # since from_exists contains the node name, modify will at least contain the node name if a rename is required.
+            modify = self.na_helper.get_modified_attributes(from_exists, self.parameters)
+        elif current is not None:
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
-        exists = self.get_node(self.parameters['name'])
-        from_exists = self.get_node(self.parameters['from_name'])
-        changed = False
-        if exists:
-            pass
-        else:
-            if from_exists:
-                if not self.module.check_mode:
+        if current is None and from_exists is None:
+            msg = 'from_name: %s' % self.parameters.get('from_name') if 'from_name' in self.parameters \
+                  else 'name: %s' % self.parameters['name']
+            self.module.fail_json(msg='Node not found: %s' % msg)
+        if self.na_helper.changed:
+            if not self.module.check_mode:
+                if 'name' in modify:
                     self.rename_node()
-                changed = True
-            else:
-                self.module.fail_json(msg='Error renaming node, from_name %s does not exist' % self.parameters['from_name'])
+                    modify.pop('name')
+                if modify:
+                    self.modify_node()
 
-        self.module.exit_json(changed=changed)
+        self.module.exit_json(changed=self.na_helper.changed)
 
 
 def main():
