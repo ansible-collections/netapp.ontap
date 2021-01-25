@@ -637,6 +637,8 @@ class NetAppONTAPSnapmirror(object):
                 snap_info['max_transfer_rate'] = int(snapmirror_info.get_child_content('max-transfer-rate'))
             if snapmirror_info.get_child_by_name('last-transfer-error'):
                 snap_info['last_transfer_error'] = snapmirror_info.get_child_content('last-transfer-error')
+            if snapmirror_info.get_child_by_name('is-healthy') is not None:
+                snap_info['is_healthy'] = self.na_helper.get_value_for_bool(True, snapmirror_info.get_child_content('is-healthy'))
             if snapmirror_info.get_child_by_name('unhealthy-reason'):
                 snap_info['unhealthy_reason'] = snapmirror_info.get_child_content('unhealthy-reason')
             if snap_info['schedule'] is None:
@@ -1187,6 +1189,19 @@ class NetAppONTAPSnapmirror(object):
         if volume_id is None:
             self.module.fail_json(msg="Error: Source volume does not exist in the ElementSW cluster")
 
+    def check_health(self):
+        if self.parameters.get('connection_type') == 'ontap_elementsw':
+            return
+        current = self.snapmirror_get()
+        msg = list()
+        if current is not None and not current.get('is_healthy', True):
+            msg.append('SnapMirror relationship exists but is not healthy.')
+            if 'unhealthy_reason' in current:
+                msg.append('Unhealthy reason: %s' % current['unhealthy_reason'])
+            if 'last_transfer_error' in current:
+                msg.append('Last transfer error: %s' % current['last_transfer_error'])
+            self.module.warn('  '.join(msg))
+
     def asup_log_for_cserver(self, event_name):
         """
         Fetch admin vserver for the given cluster
@@ -1303,6 +1318,8 @@ class NetAppONTAPSnapmirror(object):
                         if not self.module.check_mode:
                             self.snapmirror_update(current['relationship_type'])
                         self.na_helper.changed = True
+
+        self.check_health()
         results = dict(changed=self.na_helper.changed)
         if actions:
             results['actions'] = actions

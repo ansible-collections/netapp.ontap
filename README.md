@@ -44,8 +44,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor changes
   - na_ontap_lun - convert existing LUNs and supporting volume to a smart container within a SAN application.
   - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
-  - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters. 
-
+  - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters.
+  - na_ontap_snapmirror - report warning when relationship is present but not healthy.
+  
 ### Bug fixes
   - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
 
