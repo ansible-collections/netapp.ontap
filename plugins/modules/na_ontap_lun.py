@@ -116,6 +116,14 @@ options:
     type: str
     version_added: 20.12.0
 
+  qos_adaptive_policy_group:
+    description:
+    - The adaptive QoS policy group to be set on the LUN.
+    - Defines measurable service level objectives (SLOs) and service level agreements (SLAs) that adjust based on the LUN's allocated space or used space.
+    - Requires ONTAP 9.4 or later.
+    type: str
+    version_added: 21.2.0
+
   space_reserve:
     description:
     - This can be set to "false" which will create a LUN without any space being reserved.
@@ -329,6 +337,7 @@ class NetAppOntapLUN(object):
             vserver=dict(required=True, type='str'),
             os_type=dict(required=False, type='str', aliases=['ostype']),
             qos_policy_group=dict(required=False, type='str'),
+            qos_adaptive_policy_group=dict(required=False, type='str'),
             space_reserve=dict(required=False, type='bool', default=True),
             space_allocation=dict(required=False, type='bool', default=False),
             use_exact_size=dict(required=False, type='bool', default=True),
@@ -355,7 +364,8 @@ class NetAppOntapLUN(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            mutually_exclusive=[('qos_policy_group', 'qos_adaptive_policy_group')]
         )
 
         # set up state variables
@@ -454,10 +464,11 @@ class NetAppOntapLUN(object):
             'name': 'name',
             'path': 'path',
             'qos-policy-group': 'qos_policy_group',
+            'qos-adaptive-policy-group': 'qos_adaptive_policy_group',
         }
         for attr in str_attr_map:
             value = lun.get_child_content(attr)
-            if value is None and attr in ('comment', 'qos-policy-group'):
+            if value is None and attr in ('comment', 'qos-policy-group', 'qos-adaptive-policy-group'):
                 value = ''
             if value is not None:
                 return_value[str_attr_map[attr]] = value
@@ -567,11 +578,12 @@ class NetAppOntapLUN(object):
                 value = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
                 if value is not None:
                     application_component[attr] = value
-        for attr in ('os_type', 'qos_policy_group', 'total_size'):
+        for attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group', 'total_size'):
             if not modify or attr in modify:
                 value = self.na_helper.safe_get(self.parameters, [attr])
                 if value is not None:
-                    if attr == 'qos_policy_group':
+                    # only one of them can be present at most
+                    if attr in ('qos_policy_group', 'qos_adaptive_policy_group'):
                         attr = 'qos'
                         value = dict(policy=dict(name=value))
                     application_component[attr] = value
@@ -670,6 +682,8 @@ class NetAppOntapLUN(object):
             options['ostype'] = self.parameters['os_type']
         if self.parameters.get('qos_policy_group') is not None:
             options['qos-policy-group'] = self.parameters['qos_policy_group']
+        if self.parameters.get('qos_adaptive_policy_group') is not None:
+            options['qos-adaptive-policy-group'] = self.parameters['qos_adaptive_policy_group']
         lun_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-create-by-size', **options)
 
@@ -727,7 +741,9 @@ class NetAppOntapLUN(object):
     def set_lun_value(self, path, key, value):
         key_to_zapi = dict(
             comment=('lun-set-comment', 'comment'),
+            # The same ZAPI is used for both QOS attributes
             qos_policy_group=('lun-set-qos-policy-group', 'qos-policy-group'),
+            qos_adaptive_policy_group=('lun-set-qos-policy-group', 'qos-adaptive-policy-group'),
             space_allocation=('lun-set-space-alloc', 'enable'),
             space_reserve=('lun-set-space-reservation-info', 'enable')
         )
