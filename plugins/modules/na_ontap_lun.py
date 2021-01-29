@@ -587,7 +587,7 @@ class NetAppOntapLUN(object):
                         attr = 'qos'
                         value = dict(policy=dict(name=value))
                     application_component[attr] = value
-        tiering = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering'])
+        tiering = self.na_helper.safe_get(self.parameters, ['san_application_template', 'tiering'])
         if tiering is not None and not modify:
             application_component['tiering'] = dict()
             for attr in ('control', 'policy', 'object_stores'):

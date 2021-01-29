@@ -160,7 +160,8 @@ class TestMyModule(unittest.TestCase):
                 'subtype': 'default',
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_vserver_mock_object(self, kind=None, data=None, cx_type='zapi'):

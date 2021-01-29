@@ -12,7 +12,7 @@ import pytest
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun \
@@ -207,11 +207,17 @@ class TestMyModule(unittest.TestCase):
         data = dict(self.mock_args())
         data['size'] = 5
         data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
+        tiering = dict(control='required')
+        data['san_application_template'] = dict(name='san_appli', tiering=tiering)
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_lun_mock_object().apply()
         assert exc.value.args[0]['changed']
+        expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
+                         'san': {'application_components':
+                                 [{'name': 'lun_name', 'lun_count': 1, 'total_size': 5368709120, 'tiering': {'control': 'required'}}]}}
+        expected_call = call('POST', '/application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
+        assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_create_appli_idem(self, mock_request):

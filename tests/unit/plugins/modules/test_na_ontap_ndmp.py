@@ -142,7 +142,8 @@ class TestMyModule(unittest.TestCase):
                 'enable': self.mock_ndmp['enable'],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_ndmp_mock_object(self, kind=None, cx_type='zapi'):

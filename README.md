@@ -50,6 +50,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   
 ### Bug fixes
   - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
+  - na_ontap_lun - `tiering` options were ignored in san_application_template.
 
 ## 21.1.1
 

@@ -146,7 +146,8 @@ class TestMyModule(unittest.TestCase):
                 'from_gateway': self.mock_net_route['gateway'],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
         else:
             return {
@@ -156,7 +157,8 @@ class TestMyModule(unittest.TestCase):
                 'metric': self.mock_net_route['metric'],
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
 
     def get_net_route_mock_object(self, kind=None, data=None, cx_type='zapi'):
@@ -430,6 +432,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_modify(self, mock_request):
         data = self.mock_args(modify=True)
         data['state'] = 'present'
+        data['use_rest'] = 'auto'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -449,6 +452,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_idempotently_modify(self, mock_request):
         data = self.mock_args(modify=True)
         data['state'] = 'present'
+        data['use_rest'] = 'auto'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
