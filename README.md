@@ -49,8 +49,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - report warning when relationship is present but not healthy.
   
 ### Bug fixes
+  - na_ontap_igroup - report error when attempting to modify an option that cannot be changed.
   - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
   - na_ontap_lun - `tiering` options were ignored in san_application_template.
+
+### Added REST support to existing modules
+  - na_ontap_igroup - added REST support for ONTAP igroup creation, modification, and deletion.
 
 ## 21.1.1
 

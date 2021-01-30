@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup \
@@ -19,6 +19,26 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup \
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'zero_record': (200, dict(records=[], num_records=0), None),
+    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'one_igroup_record': (200, dict(records=[
+        dict(uuid='a1b2c3',
+             name='test',
+             svm=dict(name='vserver'),
+             protocol='fcp',
+             os_type='aix')
+    ], num_records=1), None),
+}
 
 
 def set_module_args(args):
@@ -29,12 +49,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -77,6 +95,8 @@ class MockONTAPConnection(object):
         attributes = {
             'num-records': 1,
             'attributes-list': {
+                'vserver': 'vserver',
+                'initiator-group-os-type': 'linux',
                 'initiator-group-info': {
                     'initiators': [
                         {
@@ -114,14 +134,19 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
+        self.warnings = list()
+
+        def warn(other_self, msg):  # pylint: disable=unused-argument
+            self.warnings.append(msg)
         self.mock_module_helper = patch.multiple(basic.AnsibleModule,
                                                  exit_json=exit_json,
-                                                 fail_json=fail_json)
+                                                 fail_json=fail_json,
+                                                 warn=warn)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
         self.server = MockONTAPConnection()
 
-    def mock_args(self):
+    def mock_args(self, use_rest='never'):
         return {
             'vserver': 'vserver',
             'name': 'test',
@@ -131,7 +156,8 @@ class TestMyModule(unittest.TestCase):
             'bind_portset': 'true',
             'hostname': 'hostname',
             'username': 'username',
-            'password': 'password'
+            'password': 'password',
+            'use_rest': use_rest
         }
 
     def get_igroup_mock_object(self, kind=None):
@@ -153,6 +179,8 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             set_module_args({})
             igroup()
+        msg = 'missing required arguments:'
+        assert msg in exc.value.args[0]['msg']
 
     def test_get_nonexistent_igroup(self):
         ''' Test if get_igroup returns None for non-existent igroup '''
@@ -187,20 +215,22 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             current = obj.get_igroup(data['name'])
             obj.apply()
-        remove.assert_called_with(current['initiators'])
-        add.assert_called_with()
+        remove.assert_called_with(None, current['initiators'])
+        add.assert_called_with(None, current['initiators'])
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup.NetAppOntapIgroup.modify_initiator')
     def test_modify_called_from_add(self, modify):
         '''Test remove_initiator() and add_initiator() calls modify'''
         data = self.mock_args()
         data['initiators'] = 'replacewithme'
-        add, remove = 'igroup-add', 'igroup-remove'
+        add = 'igroup-add'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_igroup_mock_object('igroup_no_initiators').apply()
         modify.assert_called_with('replacewithme', add)
         assert modify.call_count == 1      # remove nothing, add 1 new
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup.NetAppOntapIgroup.modify_initiator')
     def test_modify_called_from_remove(self, modify):
@@ -213,6 +243,7 @@ class TestMyModule(unittest.TestCase):
             self.get_igroup_mock_object('igroup').apply()
         modify.assert_called_with('init2', remove)
         assert modify.call_count == 2  # remove existing 2, add nothing
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup.NetAppOntapIgroup.add_initiators')
     def test_successful_create(self, add):
@@ -221,7 +252,21 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_igroup_mock_object().apply()
         assert exc.value.args[0]['changed']
-        add.assert_called_with()
+        add.assert_called_with(None, [])
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_create_rest(self, mock_request):
+        ''' Test successful create '''
+        set_module_args(self.mock_args('always'))
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['zero_record'],     # get
+            SRR['empty_good'],      # post
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        assert exc.value.args[0]['changed']
 
     def test_successful_delete(self):
         ''' Test successful delete '''
@@ -232,6 +277,41 @@ class TestMyModule(unittest.TestCase):
             self.get_igroup_mock_object('igroup').apply()
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_incomplete_record_rest(self, mock_request):
+        ''' Test successful create '''
+        set_module_args(self.mock_args('always'))
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['one_record_uuid'],     # get
+            SRR['empty_good'],          # post
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            igroup().apply()
+        msg = 'Error: unexpected igroup body:'
+        assert msg in exc.value.args[0]['msg']
+        msg = "KeyError on 'name'"
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_delete_rest(self, mock_request):
+        ''' Test successful delete '''
+        data = dict(self.mock_args('always'))
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # delete
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        assert exc.value.args[0]['changed']
+        expected_call = call('DELETE', 'protocols/san/igroups/a1b2c3', None, json=None)
+        assert expected_call in mock_request.mock_calls
+
     def test_successful_modify(self):
         ''' Test successful modify '''
         data = self.mock_args()
@@ -240,6 +320,25 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_igroup_mock_object('igroup').apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_modify_rest(self, mock_request):
+        ''' Test successful modify '''
+        set_module_args(self.mock_args('always'))
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post (add initiators)
+            SRR['empty_good'],          # patch (modify os_type)
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        assert exc.value.args[0]['changed']
+        expected_call = call('POST', 'protocols/san/igroups/a1b2c3/initiators', None, json={'records': [{'name': 'init1'}]})
+        assert expected_call in mock_request.mock_calls
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'})
+        assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup.NetAppOntapIgroup.get_igroup')
     def test_successful_rename(self, get_vserver):
@@ -258,3 +357,116 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_igroup_mock_object().apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rename_rest(self, mock_request):
+        ''' Test successful rename '''
+        data = dict(self.mock_args('always'))
+        data['from_name'] = 'test'
+        data['name'] = 'test_new'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['zero_record'],         # get
+            SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post for add initiator
+            SRR['empty_good'],          # patch for rename
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        assert exc.value.args[0]['changed']
+        # print(mock_request.mock_calls)
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'name': 'test_new', 'os_type': 'linux'})
+        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_zapi_or_rest99_option(self, mock_request):
+        ''' Test ZAPI option not currently supported in REST is rejected '''
+        data = dict(self.mock_args('always'))
+        data['bind_portset'] = 'my_portset'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_8'],
+            SRR['end_of_sequence']
+        ]
+        obj = self.get_igroup_mock_object('igroup')
+        with pytest.raises(AnsibleExitJson) as exc:
+            obj.apply()
+        assert exc.value.args[0]['changed']
+        msg = "Warning: falling back to ZAPI: using ['bind_portset'] requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
+        assert msg in self.warnings
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_positive_zapi_or_rest99_option(self, mock_request):
+        ''' Test ZAPI option not currently supported in REST forces ZAPI calls '''
+        data = dict(self.mock_args('auto'))
+        data['bind_portset'] = 'my_portset'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_8'],
+            SRR['end_of_sequence']
+        ]
+        obj = self.get_igroup_mock_object('igroup')
+        with pytest.raises(AnsibleExitJson) as exc:
+            obj.apply()
+        assert exc.value.args[0]['changed']
+        msg = "Warning: falling back to ZAPI: using ['bind_portset'] requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
+        assert msg in self.warnings
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_create_rest_99(self, mock_request):
+        ''' Test 9.9 option works with REST '''
+        data = dict(self.mock_args('auto'))
+        data['bind_portset'] = 'my_portset'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['zero_record'],         # get
+            SRR['empty_good'],          # post
+            SRR['end_of_sequence']
+        ]
+        obj = self.get_igroup_mock_object('igroup')
+        with pytest.raises(AnsibleExitJson) as exc:
+            obj.apply()
+        assert exc.value.args[0]['changed']
+        assert not self.warnings
+        expected_json = {'name': 'test', 'os_type': 'linux', 'svm': {'name': 'vserver'}, 'protocol': 'fcp', 'portset': 'my_portset',
+                         'initiators': [{'name': 'init1'}]}
+        expected_call = call('POST', 'protocols/san/igroups', None, json=expected_json)
+        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_modify_anything_zapi(self, mock_request):
+        ''' Test ZAPI option not currently supported in REST is rejected '''
+        data = dict(self.mock_args('never'))
+        data['vserver'] = 'my_vserver'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        obj = self.get_igroup_mock_object('igroup')
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj.apply()
+        print(mock_request.mock_calls)
+        msg = "Error: modifying  {'vserver': 'my_vserver'} is not supported in ZAPI"
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_modify_vserver_rest(self, mock_request):
+        ''' Test ZAPI option not currently supported in REST is rejected '''
+        data = dict(self.mock_args('auto'))
+        data['vserver'] = 'my_vserver'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['one_igroup_record'],   # get
+            SRR['end_of_sequence']
+        ]
+        obj = self.get_igroup_mock_object('igroup')
+        with pytest.raises(AnsibleFailJson) as exc:
+            obj.apply()
+        print(mock_request.mock_calls)
+        msg = "Error: modifying  {'vserver': 'my_vserver'} is not supported in REST"
+        assert msg in exc.value.args[0]['msg']
