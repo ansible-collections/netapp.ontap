@@ -1315,7 +1315,10 @@ class NetAppOntapVolume(object):
         api = '/storage/volumes/%s' % uuid
         response, error = self.rest_api.delete(api)
         self.fail_on_error(error, api)
-        return response
+        message, error = self.rest_api.wait_on_job(response['job'], increment=10)
+        if error:
+            self.module.fail_json(msg="%s" % error)
+        return message
 
     def delete_volume(self, current):
         '''Delete ONTAP volume'''
