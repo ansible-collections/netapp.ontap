@@ -33,6 +33,7 @@ __metaclass__ = type
 
 from copy import deepcopy
 import re
+import traceback
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 
@@ -65,7 +66,8 @@ class NetAppModule(object):
     on the current state of the system, and a desired state
     '''
 
-    def __init__(self):
+    def __init__(self, module=None):
+        self.module = module
         self.log = list()
         self.changed = False
         self.parameters = {'name': 'not initialized'}
@@ -394,3 +396,42 @@ class NetAppModule(object):
             return alist
 
         raise TypeError('unexpected type %s' % type(list_or_dict))
+
+    @staticmethod
+    def get_caller(depth):
+        '''return the name of:
+             our caller if depth is 1
+             the caller of our caller if depth is 2
+             the caller of the caller of our caller if depth is 3
+             ...
+        '''
+        # one more caller in the stack
+        depth += 1
+        frames = traceback.extract_stack(limit=depth)
+        try:
+            function_name = frames[0].name
+            return function_name
+        except AttributeError:
+            pass
+
+        # python 2.7 does not have named attributes for frames
+        try:
+            function_name = frames[0][2]
+        except Exception as exc:
+            function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
+        return function_name
+
+    def fail_on_error(self, error, api=None, stack=False, depth=1):
+        '''depth identifies how far is the caller in the call stack'''
+        if error is None:
+            return
+        # one more caller to account for this function
+        depth += 1
+        if api is not None:
+            error = 'calling api: %s: %s' % (api, error)
+        results = dict(msg='Error in %s: %s' % (self.get_caller(depth), error))
+        if stack:
+            results['stack'] = traceback.format_stack()
+        if self.module is not None:
+            self.module.fail_json(**results)
+        raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))

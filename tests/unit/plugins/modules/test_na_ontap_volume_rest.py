@@ -265,7 +265,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['msg'] == 'Error: calling: /application/applications: got %s' % SRR['generic_error'][2]
+        msg = 'Error in create_nas_application: calling: application/applications: got %s' % SRR['generic_error'][2]
+        assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_created(self, mock_request):
@@ -336,4 +337,5 @@ class TestMyModule(unittest.TestCase):
         print(exc.value.args[0])
         assert 'volume-size' not in my_volume.server.zapis
         print(mock_request.call_args)
-        mock_request.assert_called_with('PATCH', '/storage/volumes/123', {'sizing_method': 'add_new_resources'}, json={'size': 22266633286068469760})
+        query = {'return_timeout': 30, 'sizing_method': 'add_new_resources'}
+        mock_request.assert_called_with('PATCH', 'storage/volumes/123', query, json={'size': 22266633286068469760})

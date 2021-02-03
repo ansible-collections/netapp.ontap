@@ -34,11 +34,11 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rest_response_helpers
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
 def get_volumes(rest_api, vserver=None, name=None):
-    api = '/storage/volumes/'
+    api = 'storage/volumes/'
     query = dict()
     if vserver is not None:
         query['svm.name'] = vserver
@@ -47,14 +47,39 @@ def get_volumes(rest_api, vserver=None, name=None):
     if not query:
         query = None
     response, error = rest_api.get(api, query)
-    volumes, error = rest_response_helpers.check_for_0_or_more_records(api, response, error)
+    volumes, error = rrh.check_for_0_or_more_records(api, response, error)
     return volumes, error
 
 
 def get_volume(rest_api, vserver, name):
-    api = '/storage/volumes/'
+    api = 'storage/volumes/'
     query = dict(name=name)
     query['svm.name'] = vserver
     response, error = rest_api.get(api, query)
-    volume, error = rest_response_helpers.check_for_0_or_1_records(api, response, error, query)
+    volume, error = rrh.check_for_0_or_1_records(api, response, error, query)
     return volume, error
+
+
+def delete_volume(rest_api, uuid):
+    api = 'storage/volumes/%s' % uuid
+    # without return_timeout, REST returns immediately with a 202 and a job link
+    #   but the job status is 'running'
+    # with return_timeout, REST returns quickly with a 200 and a job link
+    #   and the job status is 'success'
+    # I guess that if the operation was taking more than 30 seconds, we'd get a 202 with 'running'.
+    # I tried with a value of 1 second, I got a 202, but the job showed as complete (success) :)
+    query = dict(return_timeout=30)
+    response, error = rest_api.delete(api, params=query)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=20)
+    return response, error
+
+
+def patch_volume(rest_api, uuid, body, query=None):
+    api = 'storage/volumes/%s' % uuid
+    # see delete_volume for async and sync operations and status codes
+    params = dict(return_timeout=30)
+    if query is not None:
+        params.update(query)
+    response, error = rest_api.patch(api, body=body, params=params)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=20)
+    return response, error

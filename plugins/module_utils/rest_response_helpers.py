@@ -94,14 +94,18 @@ def check_for_0_or_more_records(api, response, error):
     return response['records'], None
 
 
-def check_for_error_and_job_results(api, response, error, rest_api):
+def check_for_error_and_job_results(api, response, error, rest_api, **kwargs):
     """report first error if present
        otherwise call wait_on_job and retrieve job response or error
     """
     if error:
         error = api_error(api, error)
-    elif 'job' in response:
-        job_response, error = rest_api.wait_on_job(response['job'])
+    # we expect two types of response
+    #   a plain response, for synchronous calls
+    #   or a job response, for asynchronous calls
+    # and it's possible to expect both when 'return_timeout' > 0
+    elif isinstance(response, dict) and 'job' in response:
+        job_response, error = rest_api.wait_on_job(response['job'], **kwargs)
         if error:
             error = job_error(response, error)
         else:

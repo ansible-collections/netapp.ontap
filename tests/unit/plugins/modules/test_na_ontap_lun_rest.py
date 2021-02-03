@@ -216,7 +216,7 @@ class TestMyModule(unittest.TestCase):
         expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
                          'san': {'application_components':
                                  [{'name': 'lun_name', 'lun_count': 1, 'total_size': 5368709120, 'tiering': {'control': 'required'}}]}}
-        expected_call = call('POST', '/application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
+        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

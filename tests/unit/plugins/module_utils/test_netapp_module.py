@@ -398,3 +398,20 @@ class TestMyModule(unittest.TestCase):
         expected = [[1, 3], dict(b=[7, 9], d=dict(v=10)), 5]
         result = my_obj.filter_out_none_entries(arg)
         assert expected == result
+
+    def test_get_caller(self):
+        my_obj = na_helper()
+        fname = my_obj.get_caller(1)
+        assert fname == 'test_get_caller'
+
+        def one(depth):
+            return my_obj.get_caller(depth)
+        assert one(1) == 'one'
+
+        def two():
+            return one(2)
+        assert two() == 'two'
+
+        def three():
+            return two(), one(3)
+        assert three() == ('two', 'test_get_caller')

@@ -735,6 +735,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -838,7 +839,7 @@ class NetAppOntapVolume(object):
             ],
             supports_check_mode=True
         )
-        self.na_helper = NetAppModule()
+        self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
         self.warnings = list()
@@ -1096,16 +1097,6 @@ class NetAppOntapVolume(object):
 
         return return_value
 
-    def fail_on_error(self, error, api=None, stack=False):
-        if error is None:
-            return
-        if api is not None:
-            error = 'calling api: %s: %s' % (api, error)
-        results = dict(msg="Error: %s" % error)
-        if stack:
-            results['stack'] = traceback.format_stack()
-        self.module.fail_json(**results)
-
     def create_nas_application_component(self):
         '''Create application component for nas template'''
         required_options = ('name', 'size')
@@ -1175,9 +1166,9 @@ class NetAppOntapVolume(object):
     def create_nas_application(self):
         '''Use REST application/applications nas template to create a volume'''
         body, error = self.create_volume_body()
-        self.fail_on_error(error)
+        self.na_helper.fail_on_error(error)
         response, error = self.rest_app.create_application(body)
-        self.fail_on_error(error)
+        self.na_helper.fail_on_error(error)
         return response
 
     def create_volume(self):
@@ -1312,13 +1303,9 @@ class NetAppOntapVolume(object):
         uuid = self.parameters['uuid']
         if uuid is None:
             self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
-        api = '/storage/volumes/%s' % uuid
-        response, error = self.rest_api.delete(api)
-        self.fail_on_error(error, api)
-        message, error = self.rest_api.wait_on_job(response['job'], increment=10)
-        if error:
-            self.module.fail_json(msg="%s" % error)
-        return message
+        response, error = rest_volume.delete_volume(self.rest_api, uuid)
+        self.na_helper.fail_on_error(error)
+        return response
 
     def delete_volume(self, current):
         '''Delete ONTAP volume'''
@@ -1439,11 +1426,10 @@ class NetAppOntapVolume(object):
         uuid = self.parameters['uuid']
         if uuid is None:
             self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
-        api = '/storage/volumes/%s' % uuid
         body = dict(size=self.parameters['size'])
         query = dict(sizing_method=self.parameters['sizing_method'])
-        response, error = self.rest_api.patch(api, body, query)
-        self.fail_on_error(error, api)
+        response, error = rest_volume.patch_volume(self.rest_api, uuid, body, query)
+        self.na_helper.fail_on_error(error)
         return response
 
     def resize_volume(self):

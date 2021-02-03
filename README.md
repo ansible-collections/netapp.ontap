@@ -53,6 +53,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
   - na_ontap_lun - `tiering` options were ignored in san_application_template.
   - na_ontap_volume - returns an error now if deleting a volume with REST api fails.
+  - na_ontap_volume - report error from resize operation when using REST.
 
 ### Added REST support to existing modules
   - na_ontap_igroup - added REST support for ONTAP igroup creation, modification, and deletion.
