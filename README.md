@@ -33,6 +33,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_cifs_local_group_member: Add or remove CIFS local group member
   - na_ontap_volume_efficiency: Enables, disables or modifies volume efficiency
   - na_ontap_log_forward: Create, delete or modify the log forward configuration
+  - na_ontap_lun_map_reporting_nodes: Add and remove lun map reporting nodes
 
 ### New Options
   - na_ontap_lun - new option `comment`.
