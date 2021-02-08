@@ -4,7 +4,7 @@
 
  NetApp ONTAP Collection
 
- Copyright (c) 2019 NetApp, Inc. All rights reserved.
+ Copyright (c) 2021 NetApp, Inc. All rights reserved.
  Specifications subject to change without notice.
 
 =============================================================
@@ -26,6 +26,11 @@ collections:
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
+
+## 21.3.0
+
+### New Modules
+  - na_ontap_domain_tunnel: Create, delete or modify the domain tunnel.
 
 ## 21.2.0
 
