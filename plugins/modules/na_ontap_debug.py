@@ -23,8 +23,13 @@ version_added: 21.1.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Display issues related to importing netapp-lib and connection with diagnose
+options:
+  vserver:
+    description:
+    - The vserver name to test for ZAPI tunneling.
+    required: false
+    type: str
 '''
-
 EXAMPLES = """
     - name: Check import netapp-lib
       na_ontap_debug:
@@ -35,9 +40,11 @@ EXAMPLES = """
 
 RETURN = """
 """
+import sys
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible.module_utils._text import to_native
 
 
@@ -46,43 +53,84 @@ class NetAppONTAPDebug(object):
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec.update(dict(
+            vserver=dict(required=False, type="str"),
+
+        ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.rest_api = OntapRestAPI(self.module)
+        self.log_list = []
+        self.error_list = []
+        self.is_error = False
+        self.server = None
 
     def import_lib(self):
         try:
             # flake8 dosn't like this, but this is just a check to make sure something exist so going to leave it here.
             from netapp_lib.api.zapi import zapi  # noqa: F401
         except ImportError:
-            import sys
             syspath = ','.join(sys.path)
-            self.module.fail_json(msg='Install the python NetApp-Lib module. Some useful diagnostic information here:',
-                                  pythonbinarypath='Python Executable Path: %s.' % sys.executable,
-                                  pythonversion='Python Version: %s.' % sys.version,
-                                  syspath='System Path: %s.' % syspath)
+            self.error_list.append('Install the python netapp-lib module. Some useful diagnostic information here:')
+            self.error_list.append('Python Executable Path: ' + sys.executable)
+            self.error_list.append('Python Version: Python Version: %s.' + sys.version)
+            self.error_list.append('System Path: ' + syspath)
+            self.is_error = True
+            return
+        self.log_list.append('netapp-lib imported successfully.')
 
-    def check_zapi_connection(self):
+    def check_connection(self, connection_type):
         """
-        check zapi connection errors and diagnose
+        check connection errors and diagnose
         """
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        version_obj = netapp_utils.zapi.NaElement("system-get-version")
+        error_string = None
+        if connection_type == "rest":
+            api = 'cluster/'
+            message, error_string = self.rest_api.get(api)
+        elif connection_type == "zapi":
+            if 'vserver' not in self.parameters:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            version_obj = netapp_utils.zapi.NaElement("system-get-version")
+            try:
+                result = self.server.invoke_successfully(version_obj, True)
+            except netapp_utils.zapi.NaApiError as error:
+                error_string = to_native(error)
+        if error_string is not None:
+            summary_msg = None
+            error_patterns = ['Connection timed out',
+                              'Resource temporarily unavailable',
+                              'ConnectTimeoutError',
+                              'Network is unreachable']
+            if any([x in error_string for x in error_patterns]):
+                summary_msg = 'Error: invalid or unreachable hostname: %s' % self.parameters['hostname']
+                if 'vserver' in self.parameters:
+                    summary_msg += ' for SVM: %s ' % self.parameters['vserver']
+                self.error_list.append('Error in hostname - Address does not exist or is not reachable: ' + error_string)
+                self.error_list.append(summary_msg + ' using %s.' % connection_type)
+                return
+            error_patterns = ['Name or service not known', 'Name does not resolve']
+            if any([x in error_string for x in error_patterns]):
+                summary_msg = 'Error: unknown or not resolvable hostname: %s' % self.parameters['hostname']
+                if 'vserver' in self.parameters:
+                    summary_msg += ' for SVM: %s ' % self.parameters['vserver']
+                self.error_list.append('Error in hostname - DNS name cannot be resolved: ' + error_string)
+                self.error_list.append(summary_msg + ' cannot be resolved using' + connection_type)
+            else:
+                self.error_list.append('Other error for hostname: %s using %s: %s.' % (self.parameters['hostname'], connection_type, error_string))
+                self.error_list.append('Unclassified, see msg')
+        else:
+            if connection_type == 'zapi':
+                ontap_version = result['version']
+            elif connection_type == 'rest':
+                ontap_version = message['version']['full']
 
-        try:
-            self.server.invoke_successfully(version_obj, True)
-        except netapp_utils.zapi.NaApiError as error:
-            error_string = to_native(error)
-            if 'Connection timed out' in error_string or 'Resource temporarily unavailable' in error_string:
-                self.module.fail_json(msg='Error in hostname - Address does not exist or is not reachable: %s' % error_string,
-                                      summary='Invalid or unreachable hostname: %s' % self.parameters['hostname'])
-            if 'Name or service not known' in error_string or 'Name does not resolve' in error_string:
-                self.module.fail_json(msg='Error in hostname - DNS name cannot be resolved: %s' % error_string,
-                                      summary='Error in hostname, %s cannot be resolved.' % self.parameters['hostname'])
-            self.module.fail_json(msg='Other error: %s' % error_string,
-                                      summary='Unclassified, see msg')
+            self.log_list.append(connection_type + ' connected successfully.')
+            self.log_list.append('ONTAP version: %s' % ontap_version)
 
     def asup_log_for_cserver(self, event_name):
         """
@@ -107,12 +155,19 @@ class NetAppONTAPDebug(object):
         # check import netapp-lib
         self.import_lib()
 
-        # check zapi connection errors
-        self.check_zapi_connection()
+        # check zapi connection errors only if import successful
+        if not self.is_error:
+            self.check_connection("zapi")
+
+        # check rest connection errors
+        self.check_connection("rest")
 
         # log asup event with current event_name
         self.asup_log_for_cserver("na_ontap_debug")
-        self.module.exit_json()
+
+        if self.error_list != []:
+            self.module.fail_json(msg=self.error_list, msg_passed=self.log_list)
+        self.module.exit_json(msg=self.log_list)
 
 
 def main():
