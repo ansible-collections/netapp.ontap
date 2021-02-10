@@ -33,6 +33,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_domain_tunnel: Create, delete or modify the domain tunnel.
   - na_ontap_storage_failover: Enables and disables storage failover.
 
+### Bug fixes
+  - na_ontap_volume - unmount volume before deleting it when using REST.
+
 ## 21.2.0
 
 ### New Modules

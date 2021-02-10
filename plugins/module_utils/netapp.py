@@ -554,6 +554,9 @@ class OntapRestAPI(object):
             tag = str(options)
         return 'using %s requires ONTAP %s or later and REST must be enabled.%s' % (tag, version, suffix)
 
+    def meets_rest_minimum_version(self, use_rest, minimum_generation, minimum_major):
+        return use_rest and self.get_ontap_version() >= (minimum_generation, minimum_major)
+
     def check_required_library(self):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
@@ -678,7 +681,7 @@ class OntapRestAPI(object):
 
                 message = job_json.get('message', '')
                 if job_json['state'] == 'failure':
-                    # if the job as failed, return message as error
+                    # if the job has failed, return message as error
                     return None, message
                 if job_json['state'] != 'running':
                     keep_running = False

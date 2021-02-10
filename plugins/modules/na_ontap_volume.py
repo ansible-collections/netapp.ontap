@@ -875,6 +875,11 @@ class NetAppOntapVolume(object):
         self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             self.module.fail_json(msg=error)
+
+        ontap_97_options = ['nas_application_template']
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()
 
@@ -1296,13 +1301,25 @@ class NetAppOntapVolume(object):
             options['volume-state'] = 'offline'
         return options
 
-    def rest_delete_volume(self):
+    def rest_unmount_volume(self, uuid, current):
+        """
+        Unmount the volume using REST PATCH method.
+        """
+        response = None
+        if current.get('junction_path'):
+            body = dict(nas=dict(path=''))
+            response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
+            self.na_helper.fail_on_error(error)
+        return response
+
+    def rest_delete_volume(self, current):
         """
         Delete the volume using REST DELETE method (it scrubs better than ZAPI).
         """
         uuid = self.parameters['uuid']
         if uuid is None:
             self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
+        dummy = self.rest_unmount_volume(uuid, current)
         response, error = rest_volume.delete_volume(self.rest_api, uuid)
         self.na_helper.fail_on_error(error)
         return response
@@ -1310,7 +1327,7 @@ class NetAppOntapVolume(object):
     def delete_volume(self, current):
         '''Delete ONTAP volume'''
         if self.use_rest and self.parameters['uuid'] is not None:
-            return self.rest_delete_volume()
+            return self.rest_delete_volume(current)
         if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
             if current['is_online']:
                 self.change_volume_state(call_from_delete_vol=True)

@@ -25,7 +25,7 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -217,6 +217,7 @@ class TestMyModule(unittest.TestCase):
         data['aggregate_name'] = 'should_fail'
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
@@ -230,6 +231,7 @@ class TestMyModule(unittest.TestCase):
         data.pop('size')
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
@@ -246,6 +248,7 @@ class TestMyModule(unittest.TestCase):
         )
         set_module_args(data)
         mock_request.side_effect = [
+            SRR['is_rest'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
