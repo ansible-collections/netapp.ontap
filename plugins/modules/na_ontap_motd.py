@@ -198,6 +198,7 @@ class NetAppONTAPMotd(object):
                 pass
             else:
                 self.modify_motd()
+        self.module.warn('Module is deprecated. Recommended to use na_ontap_login_messages module.')
         self.module.exit_json(changed=self.na_helper.changed)
 
 

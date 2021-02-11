@@ -34,7 +34,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_storage_failover: Enables and disables storage failover.
 
 ### Bug fixes
+  - na_ontap_motd - added warning for deprecated and to use na_ontap_login_messages module.
   - na_ontap_volume - unmount volume before deleting it when using REST.
+  - na_ontap_volume_efficiency - `policy` updated to allow for supported '-' as a valid entry.
 
 ## 21.2.0
 
@@ -57,7 +59,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - improve error reporting or warn when REST option is not supported.
   - na_ontap_snapmirror - deprecate older options for source and destination paths, volumes, vservers, and clusters.
   - na_ontap_snapmirror - report warning when relationship is present but not healthy.
-  
+
 ### Bug fixes
   - na_ontap_igroup - report error when attempting to modify an option that cannot be changed.
   - na_ontap_lun - `qos_policy_group` could not be modified if a value was not provided at creation.
@@ -115,7 +117,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_info - new fact: cifs_options_info.
   - na_ontap_info - new fact: cluster_log_forwarding_info.
   - na_ontap_info - new fact: event_notification_destination_info.
-  - na_ontap_info - new fact: event_notification_info. 
+  - na_ontap_info - new fact: event_notification_info.
   - na_ontap_info - new fact: security_login_role_config_info.
   - na_ontap_info - new fact: security_login_role_info.
   - na_ontap_lun - new option `from_name` to rename a LUN.
@@ -126,7 +128,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_quota_policy - new option `auto_assign` to assign quota policy to vserver.
   - na_ontap_quotas - new option `activate_quota_on_change` to resize or reinitialize quotas.
   - na_ontap_quotas - new option `perform_user_mapping` to perform user mapping for the user specified in quota-target.
-  - na_ontap_rest_info - Support for gather subsets: `cifs_home_directory_info, cluster_software_download, event_notification_info, event_notification_destination_info, security_login_info, security_login_rest_role_info` 
+  - na_ontap_rest_info - Support for gather subsets: `cifs_home_directory_info, cluster_software_download, event_notification_info, event_notification_destination_info, security_login_info, security_login_rest_role_info`
   - na_ontap_svm - warning for `aggr_list` wildcard value(`*`) in create\modify idempotency.
   - na_ontap_volume - `compression` to enable compression on a FAS volume.
   - na_ontap_volume - `inline-compression` to enable inline compression on a volume.

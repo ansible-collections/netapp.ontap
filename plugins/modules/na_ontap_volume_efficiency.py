@@ -13,7 +13,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = """
 module: na_ontap_volume_efficiency
-short_description: NetApp Ontap enables, disables or modifies volume efficiency
+short_description: NetApp ONTAP enables, disables or modifies volume efficiency
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '21.2.0'
@@ -48,7 +48,7 @@ options:
   policy:
     description:
     - Specifies the storage efficiency policy to use, only supported on AFF systems.
-    choices: ['auto', 'default', 'inline-only']
+    choices: ['auto', 'default', 'inline-only', '-']
     type: str
 
   enable_compression:
@@ -84,45 +84,35 @@ options:
 """
 
 EXAMPLES = """
-    - name: Enable Volume efficiency
-      na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        ontapi: "{{ ontap_facts.ontap_version }}"
-        https: true
-        validate_certs: false
+  - name: Enable Volume efficiency
+    na_ontap_volume_efficiency:
+      state: present
+      vserver: TESTSVM
+      path: "/vol/test_sis"
+      hostname: "{{ hostname }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
 
-    - name: Disable Volume efficiency test
-      na_ontap_volume_efficiency:
-        state: absent
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        ontapi: "{{ ontap_facts.ontap_version }}"
-        https: true
-        validate_certs: false
+  - name: Disable Volume efficiency
+    na_ontap_volume_efficiency:
+      state: absent
+      vserver: TESTSVM
+      path: "/vol/test_sis"
+      hostname: "{{ hostname }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
 
-    - name: Modify storage efficiency policy
-      na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        schedule: "mon-sun@0,1,23"
-        enable_compression: "True"
-        enable_inline_compression: "True"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        ontapi: "{{ ontap_facts.ontap_version }}"
-        https: true
-        validate_certs: false
-
+  - name: Modify storage efficiency policy
+    na_ontap_volume_efficiency:
+      state: present
+      vserver: TESTSVM
+      path: "/vol/test_sis"
+      schedule: "mon-sun@0,1,23"
+      enable_compression: "True"
+      enable_inline_compression: "True"
+      hostname: "{{ hostname }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
 
 """
 
@@ -146,7 +136,7 @@ class NetAppOntapVolumeEfficiency(object):
     """
     def __init__(self):
         """
-            Initialize the Ontap Volume Efficiency class
+            Initialize the ONTAP Volume Efficiency class
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -154,7 +144,7 @@ class NetAppOntapVolumeEfficiency(object):
             vserver=dict(required=True, type='str'),
             path=dict(required=True, type='str'),
             schedule=dict(required=False, type='str'),
-            policy=dict(required=False, choices=['auto', 'default', 'inline-only'], type='str'),
+            policy=dict(required=False, choices=['auto', 'default', 'inline-only', '-'], type='str'),
             enable_inline_compression=dict(required=False, type='bool'),
             enable_compression=dict(required=False, type='bool'),
             enable_inline_dedupe=dict(required=False, type='bool'),
@@ -423,7 +413,7 @@ class NetAppOntapVolumeEfficiency(object):
 
 def main():
     """
-    Enables, modifies or disables NetApp Ontap volume efficiency
+    Enables, modifies or disables NetApp ONTAP volume efficiency
     """
     obj = NetAppOntapVolumeEfficiency()
     obj.apply()
