@@ -48,6 +48,7 @@ except ImportError:
     ansible_version = 'unknown'
 
 COLLECTION_VERSION = "21.3.0"
+CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 
 try:
     from netapp_lib.api.zapi import zapi
@@ -455,8 +456,9 @@ if HAS_NETAPP_LIB:
         def _create_request(self, na_element, enable_tunneling=False):
             ''' intercept newly created request to add Authorization header '''
             request, netapp_element = super(OntapZAPICx, self)._create_request(na_element, enable_tunneling=enable_tunneling)
+            request.add_header('X-Dot-Client-App', CLIENT_APP_VERSION % self.module._name)
             if self.base64_creds is not None:
-                request.add_header("Authorization", "Basic %s" % self.base64_creds)
+                request.add_header('Authorization', 'Basic %s' % self.base64_creds)
             return request, netapp_element
 
         # as is from latest version of netapp-lib
@@ -561,6 +563,19 @@ class OntapRestAPI(object):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
 
+    def build_headers(self, accept=None, vserver_name=None, vserver_uuid=None):
+        headers = dict()
+        headers['X-Dot-Client-App'] = CLIENT_APP_VERSION % self.module._name
+        # accept is used to turn on/off HAL linking
+        if accept is not None:
+            headers['accept'] = accept
+        # vserver tunneling using vserver name and/or UUID
+        if vserver_name is not None:
+            headers['X-Dot-SVM-Name'] = vserver_name
+        if vserver_uuid is not None:
+            headers['X-Dot-SVM-UUID'] = vserver_uuid
+        return headers
+
     def send_request(self, method, api, params, json=None, accept=None,
                      vserver_name=None, vserver_uuid=None):
         ''' send http request and process reponse, including error conditions '''
@@ -570,17 +585,7 @@ class OntapRestAPI(object):
         json_dict = None
         json_error = None
         error_details = None
-        headers = None
-        if accept is not None or vserver_name is not None or vserver_uuid is not None:
-            headers = dict()
-            # accept is used to turn on/off HAL linking
-            if accept is not None:
-                headers['accept'] = accept
-            # vserver tunneling using vserver name and/or UUID
-            if vserver_name is not None:
-                headers['X-Dot-SVM-Name'] = vserver_name
-            if vserver_uuid is not None:
-                headers['X-Dot-SVM-UUID'] = vserver_uuid
+        headers = self.build_headers(accept, vserver_name, vserver_uuid)
 
         def get_json(response):
             ''' extract json, and error message if present '''
