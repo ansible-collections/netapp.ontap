@@ -61,12 +61,24 @@ options:
     type: str
     aliases: ['ostype']
 
+  igroups:
+    description:
+      - List of igroups to be mapped to the igroup.
+      - For a modify operation, this list replaces the existing igroups, or existing initiators.
+      - This module does not add or remove specific igroup(s) in an igroup.
+      - Mutually exclusive with initiators.
+      - Requires ONTAP 9.9 or newer.
+    type: list
+    elements: str
+    version_added: 21.3.0
+
   initiators:
     description:
     - List of initiators to be mapped to the igroup.
     - WWPN, WWPN Alias, or iSCSI name of Initiator to add or remove.
-    - For a modify operation, this list replaces the exisiting initiators
+    - For a modify operation, this list replaces the existing initiators, or existing igroups.
     - This module does not add or remove specific initiator(s) in an igroup
+    - Mutually exclusive with initiators.
     aliases:
     - initiator
     type: list
@@ -177,6 +189,7 @@ class NetAppOntapIgroup(object):
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str', default=None),
             os_type=dict(required=False, type='str', aliases=['ostype']),
+            igroups=dict(required=False, type='list', elements='str'),
             initiator_group_type=dict(required=False, type='str',
                                       choices=['fcp', 'iscsi', 'mixed'],
                                       aliases=['protocol']),
@@ -188,7 +201,8 @@ class NetAppOntapIgroup(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            mutually_exclusive=[('igroups', 'initiators')]
         )
 
         self.na_helper = NetAppModule()
@@ -215,6 +229,18 @@ class NetAppOntapIgroup(object):
             self.module.warn('Warning: falling back to ZAPI: %s' % self.rest_api.options_require_ontap_version(ontap_99_options, version='9.9'))
             self.use_rest = False
 
+        ontap_99_options = ['igroups']
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and any(x in self.parameters for x in ontap_99_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_99_options, version='9.9'))
+
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9):
+            if 'igroups' in self.parameters:
+                # we may need to remove existing initiators
+                self.parameters['initiators'] = list()
+            elif 'initiators' in self.parameters:
+                # we may need to remove existing igroups
+                self.parameters['igroups'] = list()
+
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(
@@ -232,7 +258,10 @@ class NetAppOntapIgroup(object):
 
     def get_igroup_rest(self, name):
         api = "protocols/san/igroups"
-        query = dict(name=name, fields='name,uuid,svm,initiators,os_type,protocol')
+        fields = 'name,uuid,svm,initiators,os_type,protocol'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9):
+            fields += ',igroups'
+        query = dict(name=name, fields=fields)
         query['svm.name'] = self.parameters['vserver']
         response, error = self.rest_api.get(api, query)
         igroup, error = rrh.check_for_0_or_1_records(api, response, error)
@@ -245,13 +274,19 @@ class NetAppOntapIgroup(object):
                     vserver=igroup['svm']['name'],
                     os_type=igroup['os_type'],
                     initiator_group_type=igroup['protocol'],
+                    name_to_uuid=dict()
                 )
             except KeyError as exc:
                 self.module.fail_json(msg='Error: unexpected igroup body: %s, KeyError on %s' % (str(igroup), str(exc)))
-            if 'initiators' in igroup:
-                igroup_details['initiators'] = [item['name'] for item in igroup['initiators']]
-            else:
-                igroup_details['initiators'] = []
+            igroup_details['name_to_key'] = dict()
+            for attr in ('igroups', 'initiators'):
+                if attr in igroup:
+                    igroup_details[attr] = [item['name'] for item in igroup[attr]]
+                    # for initiators, there is no uuid, so we're using name as the key
+                    igroup_details['name_to_uuid'][attr] = dict((item['name'], item.get('uuid', item['name'])) for item in igroup[attr])
+                else:
+                    igroup_details[attr] = []
+                    igroup_details['name_to_uuid'][attr] = dict()
             return igroup_details
         return None
 
@@ -287,7 +322,9 @@ class NetAppOntapIgroup(object):
                 for initiator in current_initiators:
                     initiators.append(initiator['initiator-name'])
             current = {
-                'initiators': initiators
+                'initiators': initiators,
+                # place holder, not used for ZAPI
+                'name_to_uuid': dict(initiators=dict())
             }
             zapi_to_params = {
                 'vserver': 'vserver',
@@ -301,44 +338,55 @@ class NetAppOntapIgroup(object):
                     current[zapi_to_params[attr]] = value
         return current
 
-    def add_initiators_rest(self, uuid, initiators):
-        api = "protocols/san/igroups/%s/initiators" % uuid
-        records = [dict(name=initiator) for initiator in initiators]
+    def check_what_is_valid(self, what):
+        if self.use_rest and what in ('igroups', 'initiators'):
+            return
+        if what == 'initiators':
+            return
+        raise KeyError('what=%s' % what)
+
+    def add_initiators_or_igroups_rest(self, uuid, what, names):
+        self.check_what_is_valid(what)
+        api = "protocols/san/igroups/%s/%s" % (uuid, what)
+        records = [dict(name=name) for name in names]
         body = dict(records=records)
         dummy, error = self.rest_api.post(api, body)
         self.fail_on_error(error)
 
-    def add_initiators(self, uuid, current_initiators):
+    def add_initiators_or_igroups(self, uuid, what, current_names):
         """
         Add the list of desired initiators to igroup unless they are already set
         :return: None
         """
-        # don't add if initiators is empty string
-        if self.parameters.get('initiators') == [''] or self.parameters.get('initiators') is None:
+        self.check_what_is_valid(what)
+        # don't add if initiators/igroups is empty string
+        if self.parameters.get(what) == [''] or self.parameters.get(what) is None:
             return
-        initiators_to_add = [initiator for initiator in self.parameters['initiators'] if initiator not in current_initiators]
-        if self.use_rest and uuid is not None and initiators_to_add:
-            self.add_initiators_rest(uuid, initiators_to_add)
+        names_to_add = [name for name in self.parameters[what] if name not in current_names]
+        if self.use_rest and uuid is not None and names_to_add:
+            self.add_initiators_or_igroups_rest(uuid, what, names_to_add)
         else:
-            for initiator in initiators_to_add:
-                self.modify_initiator(initiator, 'igroup-add')
+            for name in names_to_add:
+                self.modify_initiator(name, 'igroup-add')
 
-    def delete_initiator_rest(self, uuid, initiator):
-        api = "protocols/san/igroups/%s/initiators/%s" % (uuid, initiator)
+    def delete_initiator_or_igroup_rest(self, uuid, what, name):
+        self.check_what_is_valid(what)
+        api = "protocols/san/igroups/%s/%s/%s" % (uuid, what, name)
         dummy, error = self.rest_api.delete(api)
         self.fail_on_error(error)
 
-    def remove_initiators(self, uuid, current_initiators):
+    def remove_initiators_or_igroups(self, uuid, what, current_names, mapping):
         """
-        Removes current initiators from igroup unless they are still desired
+        Removes current names from igroup unless they are still desired
         :return: None
         """
-        for initiator in current_initiators:
-            if initiator not in self.parameters.get('initiators', list()):
+        self.check_what_is_valid(what)
+        for name in current_names:
+            if name not in self.parameters.get(what, list()):
                 if self.use_rest:
-                    self.delete_initiator_rest(uuid, initiator)
+                    self.delete_initiator_or_igroup_rest(uuid, what, mapping[name])
                 else:
-                    self.modify_initiator(initiator, 'igroup-remove')
+                    self.modify_initiator(name, 'igroup-remove')
 
     def modify_initiator(self, initiator, zapi):
         """
@@ -365,14 +413,17 @@ class NetAppOntapIgroup(object):
         mapping = dict(
             initiator_group_type='protocol',
             bind_portset='portset',
+            igroups='igroups',
             initiators='initiators'
         )
         for option in mapping:
             value = self.parameters.get(option)
             if value is not None:
-                if option == 'initiators':
-                    value = [dict(name=initiator) for initiator in value]
-                body[mapping[option]] = value
+                if option in ('igroups', 'initiators'):
+                    # we may have an empty list, ignore it
+                    value = [dict(name=name) for name in value] if value else None
+                if value is not None:
+                    body[mapping[option]] = value
         dummy, error = self.rest_api.post(api, body)
         self.fail_on_error(error)
 
@@ -401,7 +452,7 @@ class NetAppOntapIgroup(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error provisioning igroup %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
-        self.add_initiators(None, [])
+        self.add_initiators_or_igroups(None, 'initiators', [])
 
     def modify_igroup_rest(self, uuid, modify):
         api = "protocols/san/igroups/%s" % uuid
@@ -473,6 +524,7 @@ class NetAppOntapIgroup(object):
         if not modify:
             return
         modify_local = dict(modify)
+        modify_local.pop('igroups', None)
         modify_local.pop('initiators', None)
         if not self.use_rest:
             self.report_error_in_modify(modify_local, 'ZAPI')
@@ -525,9 +577,14 @@ class NetAppOntapIgroup(object):
             elif cd_action == 'delete':
                 self.delete_igroup(uuid)
             if modify:
-                self.remove_initiators(uuid, current['initiators'])
-                self.add_initiators(uuid, current['initiators'])
-                modify.pop('initiators', None)
+                for attr in ('igroups', 'initiators'):
+                    if attr in current:
+                        # we need to remove everything first
+                        self.remove_initiators_or_igroups(uuid, attr, current[attr], current['name_to_uuid'][attr])
+                for attr in ('igroups', 'initiators'):
+                    if attr in current:
+                        self.add_initiators_or_igroups(uuid, attr, current[attr])
+                    modify.pop(attr, None)
                 if modify:
                     self.modify_igroup_rest(uuid, modify)
         self.module.exit_json(changed=self.na_helper.changed, current=current, modify=modify)

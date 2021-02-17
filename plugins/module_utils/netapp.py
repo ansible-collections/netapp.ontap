@@ -49,12 +49,14 @@ except ImportError:
 
 COLLECTION_VERSION = "21.3.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
+IMPORT_EXCEPTION = None
 
 try:
     from netapp_lib.api.zapi import zapi
     HAS_NETAPP_LIB = True
-except ImportError:
+except ImportError as exc:
     HAS_NETAPP_LIB = False
+    IMPORT_EXCEPTION = exc
 
 try:
     import requests
@@ -106,6 +108,10 @@ except ImportError:
 
 def has_netapp_lib():
     return HAS_NETAPP_LIB
+
+
+def netapp_lib_is_required():
+    return "the python NetApp-Lib module is required.  Import error: %s" % str(IMPORT_EXCEPTION)
 
 
 def has_sf_sdk():
@@ -262,7 +268,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
         server.set_server_type('FILER')
         return server
     else:
-        module.fail_json(msg="the python NetApp-Lib module is required")
+        module.fail_json(msg=netapp_lib_is_required())
 
 
 def is_zapi_connection_error(message):

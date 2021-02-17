@@ -377,17 +377,20 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
+IMPORT_ERRORS = list()
 try:
     import xmltodict
     HAS_XMLTODICT = True
-except ImportError:
+except ImportError as exc:
     HAS_XMLTODICT = False
+    IMPORT_ERRORS.append(str(exc))
 
 try:
     import json
     HAS_JSON = True
-except ImportError:
+except ImportError as exc:
     HAS_JSON = False
+    IMPORT_ERRORS.append(str(exc))
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -1353,11 +1356,8 @@ class NetAppONTAPGatherInfo(object):
             },
         }
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            # use vserver tunneling if vserver is present (not None)
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=module.params['vserver'])
+        # use vserver tunneling if vserver is present (not None)
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=module.params['vserver'])
 
     def ontapi(self):
         '''Method to get ontapi version'''
@@ -1756,11 +1756,11 @@ def main():
     )
 
     if not HAS_NETAPP_LIB:
-        module.fail_json(msg="the python NetApp-Lib module is required")
+        module.fail_json(msg=netapp_utils.netapp_lib_is_required())
     if not HAS_XMLTODICT:
-        module.fail_json(msg="the python xmltodict module is required")
+        module.fail_json(msg="the python xmltodict module is required.  Import error: %s" % str(IMPORT_ERRORS))
     if not HAS_JSON:
-        module.fail_json(msg="the python json module is required")
+        module.fail_json(msg="the python json module is required.  Import error: %s" % str(IMPORT_ERRORS))
 
     gather_subset = module.params['gather_subset']
     summary = module.params['summary']

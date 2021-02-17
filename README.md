@@ -34,6 +34,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_storage_failover: Enables and disables storage failover.
   - na_ontap_security_config: Modify the security configuration for SSL.
 
+### New Options
+  - na_ontap_igroups - new option `igroups` to support nested igroups (requires ONTAP 9.9).
+
+### Minor changes
+  - na_ontap_debug - improve error reporting for import errors on netapp_lib.
+  - na_ontap_info - improve error reporting for import errors on netapp_lib, json, xlmtodict.
+
 ### Bug fixes
   - na_ontap_motd - added warning for deprecated and to use na_ontap_login_messages module.
   - na_ontap_volume - unmount volume before deleting it when using REST.

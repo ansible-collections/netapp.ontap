@@ -42,10 +42,9 @@ RETURN = """
 """
 import sys
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible.module_utils._text import to_native
 
 
 class NetAppONTAPDebug(object):
@@ -62,23 +61,22 @@ class NetAppONTAPDebug(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.log_list = []
         self.error_list = []
-        self.is_error = False
         self.server = None
 
     def import_lib(self):
-        try:
-            # flake8 dosn't like this, but this is just a check to make sure something exist so going to leave it here.
-            from netapp_lib.api.zapi import zapi  # noqa: F401
-        except ImportError:
+        if not netapp_utils.has_netapp_lib():
             syspath = ','.join(sys.path)
-            self.error_list.append('Install the python netapp-lib module. Some useful diagnostic information here:')
-            self.error_list.append('Python Executable Path: ' + sys.executable)
-            self.error_list.append('Python Version: Python Version: %s.' + sys.version)
-            self.error_list.append('System Path: ' + syspath)
-            self.is_error = True
+            msgs = list()
+            msgs.append('Error importing netapp-lib or a dependency: %s.' % str(netapp_utils.IMPORT_EXCEPTION))
+            msgs.append('Install the python netapp-lib module or a missing dependency.')
+            msgs.append('Additional diagnostic information:')
+            msgs.append('Python Executable Path: ' + sys.executable)
+            msgs.append('Python Version: Python Version: %s.' + sys.version)
+            msgs.append('System Path: ' + syspath)
+            self.error_list.append('  '.join(msgs))
             return
         self.log_list.append('netapp-lib imported successfully.')
 
@@ -142,7 +140,6 @@ class NetAppONTAPDebug(object):
         cserver = netapp_utils.get_cserver(self.server)
         if cserver is None:
             server = self.server
-            self.using_vserver_msg = netapp_utils.ERROR_MSG['no_cserver']
             event_name += ':error_no_cserver'
         else:
             server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
@@ -156,14 +153,18 @@ class NetAppONTAPDebug(object):
         self.import_lib()
 
         # check zapi connection errors only if import successful
-        if not self.is_error:
+        if netapp_utils.has_netapp_lib():
             self.check_connection("zapi")
 
         # check rest connection errors
         self.check_connection("rest")
 
         # log asup event with current event_name
-        self.asup_log_for_cserver("na_ontap_debug")
+        if netapp_utils.has_netapp_lib():
+            try:
+                self.asup_log_for_cserver("na_ontap_debug")
+            except netapp_utils.zapi.NaApiError as error:
+                self.log_list.append('Failed to log EMS message: %s' % str(error))
 
         if self.error_list != []:
             self.module.fail_json(msg=self.error_list, msg_passed=self.log_list)
