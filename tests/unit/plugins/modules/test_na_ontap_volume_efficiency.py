@@ -23,11 +23,13 @@ SRR = {
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
+    'nonempty_good': (200, {'num_records': 1, 'cli_output': 'Efficiency for volume "volTest" of Vserver "vs1" is enabled.'}, None),
     'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (400, None, "Expected error"),
     # module specific responses
     'volume_efficiency_enabled_record': (200, {
-        "records": [{
+        'num_records': 1,
+        'records': [{
             'path': '/vol/volTest',
             'state': 'enabled',
             'schedule': None,
@@ -41,7 +43,8 @@ SRR = {
         }]
     }, None),
     'volume_efficiency_disabled_record': (200, {
-        "records": [{
+        'num_records': 1,
+        'records': [{
             'path': '/vol/volTest',
             'state': 'disabled',
             'schedule': None,
@@ -313,13 +316,13 @@ class TestMyModule(unittest.TestCase):
             my_obj.server = MockONTAPConnection('volume_efficiency_fail')
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.enable_volume_efficiency()
-        assert 'Error enabling efficiency for volume' in exc.value.args[0]['msg']
+        assert 'Error enabling storage efficiency' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.disable_volume_efficiency()
-        assert 'Error disabling efficiency for volume' in exc.value.args[0]['msg']
+        assert 'Error disabling storage efficiency' in exc.value.args[0]['msg']
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.modify_volume_efficiency()
-        assert 'Error modifying efficiency for volume' in exc.value.args[0]['msg']
+        assert 'Error modifying storage efficiency' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error(self, mock_request):
@@ -341,7 +344,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['volume_efficiency_disabled_record'],  # get
-            SRR['empty_good'],  # patch
+            SRR['nonempty_good'],  # patch
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:

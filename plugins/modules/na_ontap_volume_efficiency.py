@@ -84,35 +84,42 @@ options:
 """
 
 EXAMPLES = """
-  - name: Enable Volume efficiency
-    na_ontap_volume_efficiency:
-      state: present
-      vserver: TESTSVM
-      path: "/vol/test_sis"
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
+    - name: Enable Volume efficiency
+      na_ontap_volume_efficiency:
+        state: present
+        vserver: "TESTSVM"
+        path: "/vol/test_sis"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
 
-  - name: Disable Volume efficiency
-    na_ontap_volume_efficiency:
-      state: absent
-      vserver: TESTSVM
-      path: "/vol/test_sis"
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
+    - name: Disable Volume efficiency test
+      na_ontap_volume_efficiency:
+        state: absent
+        vserver: "TESTSVM"
+        path: "/vol/test_sis"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
 
-  - name: Modify storage efficiency policy
-    na_ontap_volume_efficiency:
-      state: present
-      vserver: TESTSVM
-      path: "/vol/test_sis"
-      schedule: "mon-sun@0,1,23"
-      enable_compression: "True"
-      enable_inline_compression: "True"
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
+    - name: Modify storage efficiency policy
+      na_ontap_volume_efficiency:
+        state: present
+        vserver: "TESTSVM"
+        path: "/vol/test_sis"
+        schedule: "mon-sun@0,1,23"
+        enable_compression: "True"
+        enable_inline_compression: "True"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
+
 
 """
 
@@ -198,9 +205,9 @@ class NetAppOntapVolumeEfficiency(object):
                 self.module.fail_json(msg=error)
             if len(message.keys()) == 0:
                 return None
-            elif 'records' in message and len(message['records']) == 0:
+            if 'records' in message and len(message['records']) == 0:
                 return None
-            elif 'records' not in message:
+            if 'records' not in message:
                 error = "Unexpected response in api call from %s: %s" % (api, repr(message))
                 self.module.fail_json(msg=error)
             return_value = {
@@ -279,8 +286,13 @@ class NetAppOntapVolumeEfficiency(object):
                 'path': self.parameters['path'],
                 'vserver': self.parameters['vserver']
             }
-            dummy, error = self.rest_api.patch(api, body, query)
+            message, error = self.rest_api.patch(api, body, query)
+
             if error:
+                self.module.fail_json(msg=error)
+            elif message['num_records'] == 0:
+                error = 'Error enabling storage efficiency for path %s on vserver %s as the path provided does not exist.' % (self.parameters['path'],
+                                                                                                                              self.parameters['vserver'])
                 self.module.fail_json(msg=error)
 
         else:
@@ -290,12 +302,12 @@ class NetAppOntapVolumeEfficiency(object):
             try:
                 self.server.invoke_successfully(sis_enable, True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error enabling efficiency for volume %s: %s' % (self.parameters['path'], to_native(error)),
-                                      exception=traceback.format_exc())
+                self.module.fail_json(msg='Error enabling storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
     def disable_volume_efficiency(self):
         """
-        Enables Volume efficiency for a given volume by path
+        Disables Volume efficiency for a given volume by path
         """
         if self.use_rest:
             api = 'private/cli/volume/efficiency/off'
@@ -316,7 +328,7 @@ class NetAppOntapVolumeEfficiency(object):
             try:
                 self.server.invoke_successfully(sis_disable, True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error disabling efficiency for volume %s: %s' % (self.parameters['path'], to_native(error)),
+                self.module.fail_json(msg='Error disabling storage efficiency for path %s: %s' % (self.parameters['path'], to_native(error)),
                                       exception=traceback.format_exc())
 
     def modify_volume_efficiency(self):
@@ -387,7 +399,7 @@ class NetAppOntapVolumeEfficiency(object):
             try:
                 self.server.invoke_successfully(sis_config_obj, True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error modifying efficiency for volume %s: %s' % (self.parameters['path'], to_native(error)),
+                self.module.fail_json(msg='Error modifying storage efficiency for path %s: %s' % (self.parameters['path'], to_native(error)),
                                       exception=traceback.format_exc())
 
     def apply(self):
@@ -395,6 +407,12 @@ class NetAppOntapVolumeEfficiency(object):
             netapp_utils.ems_log_event("na_ontap_volume_efficiency", self.server)
 
         current = self.get_volume_efficiency()
+
+        # If the volume efficiency does not exist for a given path to create this current is set to disabled
+        # this is for ONTAP systems that do not enable efficiency by default.
+        if current is None:
+            current = {'enabled': 'disabled'}
+
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
@@ -403,17 +421,19 @@ class NetAppOntapVolumeEfficiency(object):
                     self.enable_volume_efficiency()
                 elif self.parameters['state'] == 'absent' and current['enabled'] == 'enabled':
                     self.disable_volume_efficiency()
+
                 if 'enabled' in modify:
                     del modify['enabled']
                 # Removed the enabled key if there is anything remaining in the modify dict we need to modify.
                 if modify:
                     self.modify_volume_efficiency()
+
         self.module.exit_json(changed=self.na_helper.changed)
 
 
 def main():
     """
-    Enables, modifies or disables NetApp ONTAP volume efficiency
+    Enables, modifies or disables NetApp Ontap volume efficiency
     """
     obj = NetAppOntapVolumeEfficiency()
     obj.apply()

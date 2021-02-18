@@ -47,6 +47,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - changes in `encrypt` settings were ignored.
   - na_ontap_volume - unmount volume before deleting it when using REST.
   - na_ontap_volume_efficiency - `policy` updated to allow for supported '-' as a valid entry.
+  - na_ontap_volume_efficiency - to allow for FAS ONTAP systems to enable volume efficiency.
 
 ## 21.2.0
 
