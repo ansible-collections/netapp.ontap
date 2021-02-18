@@ -43,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug fixes
   - na_ontap_motd - added warning for deprecated and to use na_ontap_login_messages module.
+  - na_ontap_node - KeyError fix for location and asset-tag.
   - na_ontap_volume - changes in `encrypt` settings were ignored.
   - na_ontap_volume - unmount volume before deleting it when using REST.
   - na_ontap_volume_efficiency - `policy` updated to allow for supported '-' as a valid entry.

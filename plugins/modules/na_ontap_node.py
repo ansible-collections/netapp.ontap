@@ -162,10 +162,14 @@ class NetAppOntapNode(object):
         attributes = result.get_child_by_name('attributes')
         if attributes is not None:
             node_info = attributes.get_child_by_name('node-details-info')
+            node_location = node_info.get_child_content('node-location')
+            node_location = node_location if node_location is not None else ''
+            node_tag = node_info.get_child_content('node-tag')
+            node_tag = node_tag if node_tag is not None else ''
             return dict(
                 name=node_info['node'],
-                location=node_info['node-location'],
-                asset_tag=node_info['node-asset-tag'])
+                location=node_location,
+                asset_tag=node_tag)
         return None
 
     def apply(self):
