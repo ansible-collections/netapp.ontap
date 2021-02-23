@@ -36,6 +36,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_igroups - new option `igroups` to support nested igroups (requires ONTAP 9.9).
+  - na_ontap_volume - new suboption `dr_cache` when creating flexcache using NAS application template (requires ONTAP 9.9).
 
 ### Minor changes
   - na_ontap_debug - improve error reporting for import errors on netapp_lib.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2020, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -89,6 +89,13 @@ options:
         description: whether to create a flexcache.  If absent, a FlexVol or FlexGroup is created.
         type: dict
         suboptions:
+          dr_cache:
+            description:
+               - whether to use the same flexgroup msid as the origin.
+               - requires ONTAP 9.9 and REST.
+               - create only option, ignored if the flexcache already exists.
+            type: bool
+            version_added: 21.3.0
           origin_svm_name:
             description: the remote SVM for the flexcache.
             type: str
@@ -812,6 +819,7 @@ class NetAppOntapVolume(object):
             nas_application_template=dict(type='dict', options=dict(
                 use_nas_application=dict(type='bool', default=True),
                 flexcache=dict(type='dict', options=dict(
+                    dr_cache=dict(type='bool'),
                     origin_svm_name=dict(required=True, type='str'),
                     origin_component_name=dict(required=True, type='str')
                 )),
@@ -880,6 +888,9 @@ class NetAppOntapVolume(object):
         ontap_97_options = ['nas_application_template']
         if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and\
+           self.na_helper.safe_get(self.parameters, ['nas_application_template', 'flexcache', 'dr_cache']) is not None:
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('flexcache: dr_cache', version='9.9'))
 
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()
@@ -1128,6 +1139,11 @@ class NetAppOntapVolume(object):
                     component=dict(name=flexcache['origin_component_name'])
                 )
             )
+            # scale_out should be absent or set to True for FlexCache
+            del application_component['scale_out']
+            dr_cache = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'flexcache', 'dr_cache'])
+            if dr_cache is not None:
+                application_component['flexcache']['dr_cache'] = dr_cache
 
         tiering = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering'])
         if tiering is not None or self.parameters.get('tiering_policy') is not None:
@@ -1142,6 +1158,7 @@ class NetAppOntapVolume(object):
                     value = [dict(name=x) for x in value]
                 if value is not None:
                     application_component['tiering'][attr] = value
+
         if self.parameters.get('qos_policy') is not None:
             application_component['qos'] = {
                 "policy": {
