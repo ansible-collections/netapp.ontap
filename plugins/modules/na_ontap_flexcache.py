@@ -2,6 +2,11 @@
 
 # (c) 2019, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+"""
+na_ontap_flexcache
+"""
+
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
@@ -41,19 +46,23 @@ options:
       - Defaults to cluster associated with target vserver if absent.
       - Not used for creation.
     type: str
-  volume:
+  name:
     description:
       - Name of the target volume for the FlexCache.
     required: true
     type: str
+    aliases: ['volume']
+    version_added: 21.3.0
   junction_path:
     description:
       - Junction path of the cache volume.
     type: str
+    aliases: ['path']
   auto_provision_as:
     description:
-      - Use this parameter to automatically select existing aggregates for volume provisioning.Eg flexgroup
+      - Use this parameter to automatically select existing aggregates for volume provisioning.  Eg flexgroup
       - Note that the fastest aggregate type with at least one aggregate on each node of the cluster will be selected.
+      - Ignored when using REST - omit aggr_list for automatic selection.
     type: str
   size:
     description:
@@ -76,10 +85,13 @@ options:
       - List of aggregates to host target FlexCache volume.
     type: list
     elements: str
+    aliases: ['aggregates']
   aggr_list_multiplier:
     description:
       - Aggregate list repeat count.
+      - REST - Number of FlexCache constituents per aggregate when the C(aggregates) field is mentioned.
     type: int
+    aliases: ['constituents_per_aggregate']
   force_unmount:
     description:
       - Unmount FlexCache volume. Delete the junction path at which the volume is mounted before deleting the FlexCache relationship.
@@ -107,7 +119,7 @@ EXAMPLES = """
       na_ontap_FlexCache:
         state: present
         origin_volume: test_src
-        volume: test_dest
+        name: test_dest
         origin_vserver: ansible_src
         vserver: ansible_dest
         hostname: "{{ netapp_hostname }}"
@@ -117,7 +129,7 @@ EXAMPLES = """
     - name: Delete FlexCache
       na_ontap_FlexCache:
         state: absent
-        volume: test_dest
+        name: test_dest
         vserver: ansible_dest
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -134,8 +146,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_flexcache as rest_flexcache
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
 
 
 class NetAppONTAPFlexCache(object):
@@ -149,19 +161,19 @@ class NetAppONTAPFlexCache(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'],
                        default='present'),
-            origin_volume=dict(required=False, type='str'),
-            origin_vserver=dict(required=False, type='str'),
-            origin_cluster=dict(required=False, type='str'),
-            auto_provision_as=dict(required=False, type='str'),
-            volume=dict(required=True, type='str'),
-            junction_path=dict(required=False, type='str'),
+            origin_volume=dict(required=False, type='str'),                     # origins[0]
+            origin_vserver=dict(required=False, type='str'),                    # origins[0]
+            origin_cluster=dict(required=False, type='str'),                    # origins[0]
+            auto_provision_as=dict(required=False, type='str'),                 # ignored with REST
+            name=dict(required=True, type='str', aliases=['volume']),
+            junction_path=dict(required=False, type='str', aliases=['path']),
             size=dict(required=False, type='int'),
             size_unit=dict(default='gb',
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                     'pb', 'eb', 'zb', 'yb'], type='str'),
             vserver=dict(required=True, type='str'),
-            aggr_list=dict(required=False, type='list', elements='str'),
-            aggr_list_multiplier=dict(required=False, type='int'),
+            aggr_list=dict(required=False, type='list', elements='str', aliases=['aggregates']),
+            aggr_list_multiplier=dict(required=False, type='int', aliases=['constituents_per_aggregate']),
             force_offline=dict(required=False, type='bool', default=False),
             force_unmount=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=180),
@@ -175,17 +187,22 @@ class NetAppONTAPFlexCache(object):
             supports_check_mode=True
         )
 
-        self.na_helper = NetAppModule()
+        self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.set_parameters(self.module.params)
         if self.parameters.get('size'):
             self.parameters['size'] = self.parameters['size'] * \
                 netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
         # setup later if required
         self.origin_server = None
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def add_parameter_to_dict(self, adict, name, key=None, tostr=False):
         ''' add defined parameter (not None) to adict using key '''
@@ -267,7 +284,7 @@ class NetAppONTAPFlexCache(object):
         """
         Compose NaElement object to query current FlexCache relation
         """
-        options = {'volume': self.parameters['volume']}
+        options = {'volume': self.parameters['name']}
         self.add_parameter_to_dict(options, 'origin_volume', 'origin-volume')
         self.add_parameter_to_dict(options, 'origin_vserver', 'origin-vserver')
         self.add_parameter_to_dict(options, 'origin_cluster', 'origin-cluster')
@@ -284,6 +301,19 @@ class NetAppONTAPFlexCache(object):
         Get current FlexCache relations
         :return: Dictionary of current FlexCache details if query successful, else None
         """
+        fields = 'svm,name,uuid,path'
+        if self.use_rest:
+            flexcache, error = rest_flexcache.get_flexcache(self.rest_api, self.parameters['vserver'], self.parameters['name'], fields=fields)
+            self.na_helper.fail_on_error(error)
+            if flexcache is None:
+                return None
+            return dict(
+                vserver=flexcache['svm']['name'],
+                name=flexcache['name'],
+                uuid=flexcache['uuid'],
+                junction_path=flexcache.get('path')
+            )
+
         flexcache_get_iter = self.flexcache_get_iter()
         flex_info = dict()
         try:
@@ -299,16 +329,45 @@ class NetAppONTAPFlexCache(object):
             flex_info['origin_volume'] = flexcache_info.get_child_content('origin-volume')
             flex_info['origin_vserver'] = flexcache_info.get_child_content('origin-vserver')
             flex_info['size'] = flexcache_info.get_child_content('size')
-            flex_info['volume'] = flexcache_info.get_child_content('volume')
+            flex_info['name'] = flexcache_info.get_child_content('volume')
             flex_info['vserver'] = flexcache_info.get_child_content('vserver')
             flex_info['auto_provision_as'] = flexcache_info.get_child_content('auto-provision-as')
 
             return flex_info
         if result.get_child_by_name('num-records') and \
                 int(result.get_child_content('num-records')) > 1:
-            msg = 'Multiple records found for %s:' % self.parameters['volume']
+            msg = 'Multiple records found for %s:' % self.parameters['name']
             self.module.fail_json(msg='Error fetching FlexCache info: %s' % msg)
         return None
+
+    def flexcache_rest_create(self):
+        origin = dict(
+            volume=dict(name=self.parameters['origin_volume']),
+            svm=dict(name=self.parameters['origin_vserver'])
+        )
+        if 'origin_cluster' in self.parameters:
+            origin['cluster'] = dict(name=self.parameters['origin_cluster'])
+        body = dict(
+            name=self.parameters['name'],
+            origins=[origin]
+        )
+        body['svm.name'] = self.parameters['vserver']
+
+        mappings = dict(
+            junction_path='path',
+            size='size',
+            aggr_list='aggregates',
+            aggr_list_multiplier='constituents_per_aggregate'
+        )
+        for key, value in mappings.items():
+            if key in self.parameters:
+                if key == 'aggr_list':
+                    body[value] = [dict(name=aggr) for aggr in self.parameters[key]]
+                else:
+                    body[value] = self.parameters[key]
+        response, error = rest_flexcache.post_flexcache(self.rest_api, body, timeout=self.parameters['time_out'])
+        self.na_helper.fail_on_error(error)
+        return response
 
     def flexcache_create_async(self):
         """
@@ -316,14 +375,12 @@ class NetAppONTAPFlexCache(object):
         """
         options = {'origin-volume': self.parameters['origin_volume'],
                    'origin-vserver': self.parameters['origin_vserver'],
-                   'volume': self.parameters['volume']}
+                   'volume': self.parameters['name']}
         self.add_parameter_to_dict(options, 'junction_path', 'junction-path')
         self.add_parameter_to_dict(options, 'auto_provision_as', 'auto-provision-as')
         self.add_parameter_to_dict(options, 'size', 'size', tostr=True)
-        if self.parameters.get('aggr_list'):
-            if self.parameters.get('aggr_list_multiplier'):
-                self.tobytes_aggr_list_multiplier = bytes(self.parameters['aggr_list_multiplier'])
-                self.add_parameter_to_dict(options, 'tobytes_aggr_list_multiplier', 'aggr-list-multiplier')
+        if self.parameters.get('aggr_list') and self.parameters.get('aggr_list_multiplier'):
+            self.add_parameter_to_dict(options, 'aggr_list_multiplier', 'aggr-list-multiplier', tostr=True)
         flexcache_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'flexcache-create-async', **options)
         if self.parameters.get('aggr_list'):
@@ -347,6 +404,9 @@ class NetAppONTAPFlexCache(object):
         Create a FlexCache relationship
         Check job status
         """
+        if self.use_rest:
+            return self.flexcache_rest_create()
+
         results = self.flexcache_create_async()
         status = results.get('result-status')
         if status == 'in_progress' and 'result-jobid' in results:
@@ -364,7 +424,7 @@ class NetAppONTAPFlexCache(object):
         """
         Delete FlexCache relationship at destination cluster
         """
-        options = {'volume': self.parameters['volume']}
+        options = {'volume': self.parameters['name']}
         flexcache_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'flexcache-destroy-async', **options)
         try:
@@ -379,43 +439,94 @@ class NetAppONTAPFlexCache(object):
                 results[key] = result[key]
         return results
 
-    def volume_offline(self):
+    def rest_offline_volume(self, current):
+        """
+        Offline the volume using REST PATCH method.
+        """
+        response = None
+        uuid = current.get('uuid')
+        if uuid is None:
+            error = 'Error, no uuid in current: %s' % str(current)
+            self.na_helper.fail_on_error(error)
+        body = dict(state='offline')
+        response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
+        self.na_helper.fail_on_error(error)
+        return response
+
+    def volume_offline(self, current):
         """
         Offline FlexCache volume at destination cluster
         """
-        options = {'name': self.parameters['volume']}
-        xml = netapp_utils.zapi.NaElement.create_node_with_children(
-            'volume-offline', **options)
-        try:
-            self.server.invoke_successfully(xml, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error offlining FlexCache volume: %s'
-                                  % (to_native(error)),
-                                  exception=traceback.format_exc())
+        if self.use_rest:
+            self.rest_offline_volume(current)
+        else:
+            options = {'name': self.parameters['name']}
+            xml = netapp_utils.zapi.NaElement.create_node_with_children(
+                'volume-offline', **options)
+            try:
+                self.server.invoke_successfully(xml, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error offlining FlexCache volume: %s'
+                                      % (to_native(error)),
+                                      exception=traceback.format_exc())
 
-    def volume_unmount(self):
+    def rest_unmount_volume(self, current):
+        """
+        Unmount the volume using REST PATCH method.
+        """
+        response = None
+        if current.get('junction_path'):
+            uuid = current.get('uuid')
+            if uuid is None:
+                error = 'Error, no uuid in current: %s' % str(current)
+                self.na_helper.fail_on_error(error)
+            body = dict(nas=dict(path=''))
+            response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
+            self.na_helper.fail_on_error(error)
+        return response
+
+    def volume_unmount(self, current):
         """
         Unmount FlexCache volume at destination cluster
         """
-        options = {'volume-name': self.parameters['volume']}
-        xml = netapp_utils.zapi.NaElement.create_node_with_children(
-            'volume-unmount', **options)
-        try:
-            self.server.invoke_successfully(xml, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error unmounting FlexCache volume: %s'
-                                  % (to_native(error)),
-                                  exception=traceback.format_exc())
+        if self.use_rest:
+            self.rest_unmount_volume(current)
+        else:
+            options = {'volume-name': self.parameters['name']}
+            xml = netapp_utils.zapi.NaElement.create_node_with_children(
+                'volume-unmount', **options)
+            try:
+                self.server.invoke_successfully(xml, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error unmounting FlexCache volume: %s'
+                                      % (to_native(error)),
+                                      exception=traceback.format_exc())
 
-    def flexcache_delete(self):
+    def flexcache_rest_delete(self, current):
+        """
+        Delete the flexcache using REST DELETE method.
+        """
+        response = None
+        uuid = current.get('uuid')
+        if uuid is None:
+            error = 'Error, no uuid in current: %s' % str(current)
+            self.na_helper.fail_on_error(error)
+        rto = netapp_utils.get_feature(self.module, 'flexcache_delete_return_timeout')
+        response, error = rest_flexcache.delete_flexcache(self.rest_api, uuid, timeout=self.parameters['time_out'], return_timeout=rto)
+        self.na_helper.fail_on_error(error)
+        return response
+
+    def flexcache_delete(self, current):
         """
         Delete FlexCache relationship at destination cluster
         Check job status
         """
         if self.parameters['force_unmount']:
-            self.volume_unmount()
+            self.volume_unmount(current)
         if self.parameters['force_offline']:
-            self.volume_offline()
+            self.volume_offline(current)
+        if self.use_rest:
+            return self.flexcache_rest_delete(current)
         results = self.flexcache_delete_async()
         status = results.get('result-status')
         if status == 'in_progress' and 'result-jobid' in results:
@@ -448,16 +559,18 @@ class NetAppONTAPFlexCache(object):
         """
         Apply action to FlexCache
         """
-        netapp_utils.ems_log_event("na_ontap_flexcache", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_flexcache", self.server)
         current = self.flexcache_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        response = None
         if not self.module.check_mode:
             if cd_action == 'create':
                 self.check_parameters()
-                self.flexcache_create()
+                response = self.flexcache_create()
             elif cd_action == 'delete':
-                self.flexcache_delete()
-        self.module.exit_json(changed=self.na_helper.changed)
+                response = self.flexcache_delete(current)
+        self.module.exit_json(changed=self.na_helper.changed, response=response)
 
 
 def main():

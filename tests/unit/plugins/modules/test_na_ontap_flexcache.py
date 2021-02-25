@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_flexcache \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -142,6 +140,7 @@ class TestMyModule(unittest.TestCase):
         self.dummy_args = dict()
         for arg in ('hostname', 'username', 'password'):
             self.dummy_args[arg] = arg
+            self.dummy_args['use_rest'] = 'never'
         if self.onbox:
             self.args = {
                 'hostname': '10.193.78.219',
@@ -222,7 +221,7 @@ class TestMyModule(unittest.TestCase):
         args = {
             'vserver': 'vserver',
             'origin_volume': 'origin_volume',
-            'volume': 'volume'
+            'volume': 'volume',
         }
         args.update(self.dummy_args)
         set_module_args(args)
@@ -361,7 +360,7 @@ class TestMyModule(unittest.TestCase):
             'aggr_list': 'aggr1',
             'origin_volume': 'fc_vol_origin',
             'origin_vserver': 'ansibleSVM',
-            'aggr_list_multiplier': '2',
+            'aggr_list_multiplier': 2,
         }
         self.delete_flexcache(args['vserver'], args['volume'])
         args.update(self.args)
@@ -384,7 +383,7 @@ class TestMyModule(unittest.TestCase):
             'aggr_list': 'aggr1',
             'origin_volume': 'fc_vol_origin',
             'origin_vserver': 'ansibleSVM',
-            'aggr_list_multiplier': '2',
+            'aggr_list_multiplier': 2,
         }
         args.update(self.args)
         set_module_args(args)
@@ -413,7 +412,9 @@ class TestMyModule(unittest.TestCase):
             print('Delete: ' + repr(exc.value))
             msg = 'Error deleting FlexCache : NetApp API failed. Reason - %s' % error
             assert exc.value.args[0]['msg'] == msg
-            mock_delete.assert_called_with()
+            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
+                       'size': None, 'name': 'volume', 'vserver': 'flex', 'auto_provision_as': None}
+            mock_delete.assert_called_with(current)
 
     def test_delete_flexcache_exists_with_force(self):
         ''' delete flexcache '''
@@ -428,7 +429,9 @@ class TestMyModule(unittest.TestCase):
                 my_obj.apply()
             print('Delete: ' + repr(exc.value))
             assert exc.value.args[0]['changed']
-            mock_delete.assert_called_with()
+            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
+                       'size': None, 'name': 'volume', 'vserver': 'flex', 'auto_provision_as': None}
+            mock_delete.assert_called_with(current)
 
     def test_delete_flexcache_exists_junctionpath_no_force(self):
         ''' delete flexcache '''
@@ -446,7 +449,9 @@ class TestMyModule(unittest.TestCase):
             print('Delete: ' + repr(exc.value))
             msg = 'Error deleting FlexCache : NetApp API failed. Reason - %s' % error
             assert exc.value.args[0]['msg'] == msg
-            mock_delete.assert_called_with()
+            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
+                       'size': None, 'name': 'volume', 'vserver': 'flex', 'auto_provision_as': None}
+            mock_delete.assert_called_with(current)
 
     def test_delete_flexcache_exists_junctionpath_with_force(self):
         ''' delete flexcache '''
@@ -462,7 +467,9 @@ class TestMyModule(unittest.TestCase):
                 my_obj.apply()
             print('Delete: ' + repr(exc.value))
             assert exc.value.args[0]['changed']
-            mock_delete.assert_called_with()
+            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
+                       'size': None, 'name': 'volume', 'vserver': 'flex', 'auto_provision_as': None}
+            mock_delete.assert_called_with(current)
 
     def test_delete_flexcache_not_exist(self):
         ''' delete flexcache '''
@@ -512,7 +519,7 @@ class TestMyModule(unittest.TestCase):
             'aggr_list': 'aggr1',
             'origin_volume': 'fc_vol_origin',
             'origin_vserver': 'ansibleSVM',
-            'time_out': '2'
+            'time_out': '2',
         }
         args.update(self.args)
         set_module_args(args)
@@ -529,3 +536,211 @@ class TestMyModule(unittest.TestCase):
                 % args['time_out']
             assert exc.value.args[0]['msg'] == msg
             mock_create.assert_called_with()
+
+
+def default_args():
+    args = {
+        'volume': 'volume_err',
+        'size': '50',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'vserver': 'ansibleSVM',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'time_out': '2',
+        'hostname': '10.10.10.10',
+        'username': 'username',
+        'password': 'password',
+        'use_rest': 'always'
+    }
+    return args
+
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'zero_record': (200, dict(records=[], num_records=0), None),
+    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'one_flexcache_record': (200, dict(records=[
+        dict(uuid='a1b2c3',
+             name='test',
+             svm=dict(name='vserver'),
+             )
+    ], num_records=1), None),
+    'one_flexcache_record_with_path': (200, dict(records=[
+        dict(uuid='a1b2c3',
+             name='test',
+             svm=dict(name='vserver'),
+             path='path'
+             )
+    ], num_records=1), None),
+}
+
+
+# using pytest natively, without unittest.TestCase
+@pytest.fixture
+def patch_ansible():
+    with patch.multiple(basic.AnsibleModule,
+                        exit_json=exit_json,
+                        fail_json=fail_json) as mocks:
+        yield mocks
+
+
+def test_rest_missing_arguments(patch_ansible):
+    ''' create flexcache '''
+    args = dict(default_args())
+    del args['hostname']
+    set_module_args(args)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = 'missing required arguments: hostname'
+    assert exc.value.args[0]['msg'] == msg
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_create(mock_request, patch_ansible):
+    ''' create flexcache '''
+    args = dict(default_args())
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['zero_record'],     # get
+        SRR['empty_good'],      # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_create_no_action(mock_request, patch_ansible):
+    ''' delete flexcache '''
+    args = dict(default_args())
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['one_flexcache_record'],     # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is False
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 2
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_delete_no_action(mock_request, patch_ansible):
+    ''' delete flexcache '''
+    args = dict(default_args())
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['zero_record'],             # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is False
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 2
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_delete(mock_request, patch_ansible):
+    ''' delete flexcache '''
+    args = dict(default_args())
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['one_flexcache_record'],    # get
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_delete_with_force(mock_request, patch_ansible):
+    ''' delete flexcache, since there is no path, unmount is not called '''
+    args = dict(default_args())
+    args['state'] = 'absent'
+    args['force_unmount'] = True
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['one_flexcache_record'],    # get
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_delete_with_force_and_path(mock_request, patch_ansible):
+    ''' delete flexcache with unmount '''
+    args = dict(default_args())
+    args['state'] = 'absent'
+    args['force_unmount'] = True
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['one_flexcache_record_with_path'],      # get
+        SRR['empty_good'],                          # post - unmount
+        SRR['empty_good'],                          # post - delete
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 4
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_delete_with_force2_and_path(mock_request, patch_ansible):
+    ''' delete flexcache  with unmount and offline'''
+    args = dict(default_args())
+    args['state'] = 'absent'
+    args['force_offline'] = True
+    args['force_unmount'] = True
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['one_flexcache_record_with_path'],      # get
+        SRR['empty_good'],                          # post - unmount
+        SRR['empty_good'],                          # post - offline
+        SRR['empty_good'],                          # post - delete
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 5

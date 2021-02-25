@@ -111,7 +111,7 @@ def has_netapp_lib():
 
 
 def netapp_lib_is_required():
-    return "the python NetApp-Lib module is required.  Import error: %s" % str(IMPORT_EXCEPTION)
+    return "Error: the python NetApp-Lib module is required.  Import error: %s" % str(IMPORT_EXCEPTION)
 
 
 def has_sf_sdk():
@@ -154,7 +154,8 @@ def get_feature(module, feature_name):
         sanitize_code_points=[8],               # unicode values, 8 is backspace
         show_modified=True,
         always_wrap_zapi=True,                  # for better error reporting
-        trace_apis=False                        # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
+        trace_apis=False,                       # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
+        flexcache_delete_return_timeout=5       # ONTAP bug if too big?
     )
 
     if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:
@@ -542,7 +543,7 @@ class OntapRestAPI(object):
         self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
         if has_feature(module, 'trace_apis'):
-            logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG)
+            logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
 
     def requires_ontap_9_6(self, module_name):
         self.requires_ontap_version(module_name)
@@ -694,7 +695,7 @@ class OntapRestAPI(object):
                 if job_json['state'] == 'failure':
                     # if the job has failed, return message as error
                     return None, message
-                if job_json['state'] != 'running':
+                if job_json['state'] not in ('queued', 'running'):
                     keep_running = False
                 else:
                     # Would like to post a message to user (not sure how)
@@ -804,6 +805,7 @@ class OntapRestAPI(object):
         return use_rest, error
 
     def log_error(self, status_code, message):
+        LOG.error("%s: %s", status_code, message)
         self.errors.append(message)
         self.debug_logs.append((status_code, message))
 

@@ -43,6 +43,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_debug - improve error reporting for import errors on netapp_lib.
   - na_ontap_info - improve error reporting for import errors on netapp_lib, json, xlmtodict.
 
+### Added REST support to existing modules
+  - na_ontap_flexcache - added REST support for ONTAP FlexCache creation and deletion.
+
 ### Bug fixes
   - na_ontap_motd - added warning for deprecated and to use na_ontap_login_messages module.
   - na_ontap_node - KeyError fix for location and asset-tag.
