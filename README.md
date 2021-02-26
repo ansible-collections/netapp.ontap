@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_storage_failover: Enables and disables storage failover.
   - na_ontap_security_config: Modify the security configuration for SSL.
   - na_ontap_storage_auto_giveback: Enables and disables storage auto giveback.
+  - na_ontap_fpolicy_policy: Create, delete or modify an fpolicy policy
 
 ### New Options
   - na_ontap_igroups - new option `igroups` to support nested igroups (requires ONTAP 9.9).
