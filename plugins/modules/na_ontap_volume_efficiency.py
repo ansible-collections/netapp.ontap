@@ -419,6 +419,9 @@ class NetAppOntapVolumeEfficiency(object):
             if not self.module.check_mode:
                 if self.parameters['state'] == 'present' and current['enabled'] == 'disabled':
                     self.enable_volume_efficiency()
+                    # Checking to see if there are any additional parameters that need to be set after enabling volume efficiency required for Non-AFF systems
+                    current = self.get_volume_efficiency()
+                    modify = self.na_helper.get_modified_attributes(current, self.parameters)
                 elif self.parameters['state'] == 'absent' and current['enabled'] == 'enabled':
                     self.disable_volume_efficiency()
 

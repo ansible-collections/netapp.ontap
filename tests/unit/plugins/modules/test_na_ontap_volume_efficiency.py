@@ -345,6 +345,7 @@ class TestMyModule(unittest.TestCase):
             SRR['is_rest'],
             SRR['volume_efficiency_disabled_record'],  # get
             SRR['nonempty_good'],  # patch
+            SRR['empty_good'],  # get
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
