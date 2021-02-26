@@ -711,6 +711,15 @@ class NetAppONTAPSnapmirror(object):
             policy_type = system_policy_type
         return policy_type, error
 
+    def get_svm_from_destination_vserver_or_path(self):
+        svm_name = self.parameters.get('destination_vserver')
+        if svm_name is None:
+            path = self.parameters.get('destination_path')
+            if path is not None:
+                # if there is no ':' in path, it returns path
+                svm_name = path.split(':', 1)[0]
+        return svm_name
+
     def set_initialization_state(self):
         """
         return:
@@ -722,8 +731,7 @@ class NetAppONTAPSnapmirror(object):
             # except for consistency groups
             policy_type = 'sync'
         if self.parameters.get('policy') is not None:
-            # TODO: choose source if ???
-            svm_name = self.parameters['destination_vserver']
+            svm_name = self.get_svm_from_destination_vserver_or_path()
             policy_type, error = self.snapmirror_policy_rest_get(self.parameters['policy'], svm_name)
             if error:
                 pass

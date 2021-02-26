@@ -45,6 +45,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_flexcache - added REST support for ONTAP FlexCache creation and deletion.
+  - na_ontap_snapmirror - SVM scoped policies were not found when using a destination path with REST application.
 
 ### Bug fixes
   - na_ontap_motd - added warning for deprecated and to use na_ontap_login_messages module.

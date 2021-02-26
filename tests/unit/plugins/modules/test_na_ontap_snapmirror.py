@@ -89,7 +89,7 @@ class MockONTAPConnection(object):
                 'status': quiesce_status,
                 'attributes-list': {'snapmirror-info': {'mirror-state': mirror_state, 'schedule': None,
                                                         'source-location': 'ansible:ansible',
-                                                        'relationship-status': status, 'policy': 'ansible',
+                                                        'relationship-status': status, 'policy': 'ansible_policy',
                                                         'relationship-type': 'data_protection',
                                                         'max-transfer-rate': 1000,
                                                         'identity-preserve': 'true'},
@@ -134,7 +134,7 @@ class TestMyModule(unittest.TestCase):
             password = 'password'
             source_path = 'ansible:ansible'
             destination_path = 'ansible:ansible'
-            policy = 'ansible'
+            policy = 'ansible_policy'
             source_vserver = 'ansible'
             destination_vserver = 'ansible'
             relationship_type = 'data_protection'
@@ -671,7 +671,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible:ansible'},
-                                              'policy': 'ansible'})
+                                              'policy': 'ansible_policy'})
         # Idempotency, relationship already exists
         # to reset na_helper from remembering the previous 'changed' value
         data = self.set_default_args()
@@ -715,7 +715,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],             # REST support
             SRR['snapmirror_policy'],   # GET policy
-            SRR['empty_good'],          # POST to crate snapmirror relationship
+            SRR['empty_good'],          # POST to create snapmirror relationship
             SRR['end_of_sequence']
         ]
         my_obj = my_module()
@@ -729,5 +729,51 @@ class TestMyModule(unittest.TestCase):
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible:ansible'},
                                               'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},
-                                              'policy': 'ansible',
+                                              'policy': 'ansible_policy',
                                               'state': 'snapmirrored'})
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_policy_rest_get')
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_rest_create_with_create_destination_new_style(self, mock_request, mock_get_policy):
+        ''' creating snapmirror and testing idempotency '''
+        data = self.set_default_args()
+        data.pop('relationship_type')
+        data.pop('use_rest')
+        data.pop('destination_path')
+        data.pop('source_path')
+        data.pop('destination_vserver')
+        data.pop('source_vserver')
+        data['create_destination'] = dict(
+            tiering=dict(policy='all')
+        )
+        data['destination_endpoint'] = dict(
+            path='ansible_svm:ansible'
+        )
+        data['source_endpoint'] = dict(
+            path='ansible:ansible'
+        )
+        data['source_endpoint'] = dict(
+            path='ansible:ansible'
+        )
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],             # REST support
+            SRR['empty_good'],          # POST to create snapmirror relationship
+            SRR['end_of_sequence']
+        ]
+        mock_get_policy.return_value = 'async', None
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+                                        json={'source': {'path': 'ansible:ansible'},
+                                              'destination': {'path': 'ansible_svm:ansible'},
+                                              'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},
+                                              'policy': 'ansible_policy',
+                                              'state': 'snapmirrored'})
+        # print(mock_get_policy.mock_calls)
+        mock_get_policy.assert_called_with('ansible_policy', 'ansible_svm')
