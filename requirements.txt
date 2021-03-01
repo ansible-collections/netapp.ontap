@@ -1,0 +1,6 @@
+solidfire
+requests
+netapp-lib
+xmltodict
+json
+six
