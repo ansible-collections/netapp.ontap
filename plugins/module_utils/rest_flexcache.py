@@ -79,12 +79,12 @@ def post_flexcache(rest_api, body, query=None, timeout=180):
     return response, error
 
 
-def patch_flexcache(rest_api, uuid, body, query=None):
+def patch_flexcache(rest_api, uuid, body, query=None, timeout=180):
     api = 'storage/flexcache/flexcaches/%s' % uuid
     # see delete_flexcache for async and sync operations and status codes
     params = dict(return_timeout=30)
     if query is not None:
         params.update(query)
     response, error = rest_api.patch(api, body=body, params=params)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=20)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=20, timeout=timeout)
     return response, error

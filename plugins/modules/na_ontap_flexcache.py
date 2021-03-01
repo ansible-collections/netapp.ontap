@@ -19,10 +19,16 @@ DOCUMENTATION = '''
 short_description: NetApp ONTAP FlexCache - create/delete relationship
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - Create/Delete FlexCache volume relationships
+  - Create/Delete FlexCache volume relationships.
+  - This module does not modify an existing FlexCache volume with two exceptions.
+  - When using REST, a prepopulate can be started on an exising FlexCache volume.
+  - When using REST, the volume can be mounted or unmounted.  Set path to '' to unmount it.
+  - It is required the volume is mounted to prepopulate it.
+  - Some actions are also available through the na_ontap_volume.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_flexcache
+version_added: 2.8.0
 options:
   state:
     choices: ['present', 'absent']
@@ -110,7 +116,39 @@ options:
       - default is set to 3 minutes
     type: int
     default: 180
-version_added: 2.8.0
+  prepopulate:
+    version_added: 21.3.0
+    description:
+      - prepopulate FlexCache with data from origin volume.
+      - requires ONTAP 9.8 or later, and REST support.
+      - dir_paths must be set for this option to be effective.
+    type: dict
+    suboptions:
+      dir_paths:
+        description:
+          - List of directory paths in the owning SVM's namespace at which the FlexCache volume is mounted.
+          - Path must begin with '/'.
+        type: list
+        elements: str
+        required: true
+      exclude_dir_paths:
+        description:
+          - Directory path which needs to be excluded from prepopulation.
+          - Path must begin with '/'.
+          - Requires ONTAP 9.9 or later.
+        type: list
+        elements: str
+      recurse:
+        description:
+          - Specifies whether or not the prepopulate action should search through the directory-path recursively.
+          - If not set, the default value 'true' is used.
+        type: bool
+      force_prepopulate_if_already_created:
+        description:
+          - by default, this module will start a prepopulate task each time it is called, and is not idempotent.
+          - if set to false, the prepopulate task is not started if the FlexCache already exists.
+        type: bool
+        default: true
 '''
 
 EXAMPLES = """
@@ -177,6 +215,12 @@ class NetAppONTAPFlexCache(object):
             force_offline=dict(required=False, type='bool', default=False),
             force_unmount=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=180),
+            prepopulate=dict(required=False, type='dict', options=dict(
+                dir_paths=dict(required=True, type='list', elements='str'),
+                exclude_dir_paths=dict(required=False, type='list', elements='str'),
+                recurse=dict(required=False, type='bool'),
+                force_prepopulate_if_already_created=dict(required=False, type='bool', default=True),
+            ))
         ))
 
         self.module = AnsibleModule(
@@ -197,6 +241,21 @@ class NetAppONTAPFlexCache(object):
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
+
+        ontap_98_options = ['prepopulate']
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8) and any(x in self.parameters for x in ontap_98_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
+
+        if 'prepopulate' in self.parameters:
+            # sanitize the dictionary, as Ansible fills everything with None values
+            self.parameters['prepopulate'] = self.na_helper.filter_out_none_entries(self.parameters['prepopulate'])
+            ontap_99_options = ['exclude_dir_paths']
+            if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and any(x in self.parameters['prepopulate'] for x in ontap_99_options):
+                options = ['prepopulate: ' + x for x in ontap_99_options]
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(options, version='9.9'))
+            if not self.parameters['prepopulate']:
+                # remove entry if the dict is empty
+                del self.parameters['prepopulate']
 
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -331,7 +390,6 @@ class NetAppONTAPFlexCache(object):
             flex_info['size'] = flexcache_info.get_child_content('size')
             flex_info['name'] = flexcache_info.get_child_content('volume')
             flex_info['vserver'] = flexcache_info.get_child_content('vserver')
-            flex_info['auto_provision_as'] = flexcache_info.get_child_content('auto-provision-as')
 
             return flex_info
         if result.get_child_by_name('num-records') and \
@@ -340,32 +398,50 @@ class NetAppONTAPFlexCache(object):
             self.module.fail_json(msg='Error fetching FlexCache info: %s' % msg)
         return None
 
-    def flexcache_rest_create(self):
-        origin = dict(
-            volume=dict(name=self.parameters['origin_volume']),
-            svm=dict(name=self.parameters['origin_vserver'])
-        )
-        if 'origin_cluster' in self.parameters:
-            origin['cluster'] = dict(name=self.parameters['origin_cluster'])
-        body = dict(
-            name=self.parameters['name'],
-            origins=[origin]
-        )
-        body['svm.name'] = self.parameters['vserver']
-
-        mappings = dict(
-            junction_path='path',
-            size='size',
-            aggr_list='aggregates',
-            aggr_list_multiplier='constituents_per_aggregate'
-        )
+    def flexcache_rest_create_body(self, mappings):
+        ''' maps self.parameters to REST API body attributes, using mappings to identify fields to add '''
+        body = dict()
         for key, value in mappings.items():
             if key in self.parameters:
                 if key == 'aggr_list':
                     body[value] = [dict(name=aggr) for aggr in self.parameters[key]]
                 else:
                     body[value] = self.parameters[key]
+            elif key == 'origins':
+                # this is an artificial key, to match the REST list of dict structure
+                origin = dict(
+                    volume=dict(name=self.parameters['origin_volume']),
+                    svm=dict(name=self.parameters['origin_vserver'])
+                )
+                if 'origin_cluster' in self.parameters:
+                    origin['cluster'] = dict(name=self.parameters['origin_cluster'])
+                body[value] = [origin]
+        return body
+
+    def flexcache_rest_create(self):
+        ''' use POST to create a FlexCache '''
+        mappings = dict(
+            name='name',
+            vserver='svm.name',
+            junction_path='path',
+            size='size',
+            aggr_list='aggregates',
+            aggr_list_multiplier='constituents_per_aggregate',
+            origins='origins',
+            prepopulate='prepopulate'
+        )
+        body = self.flexcache_rest_create_body(mappings)
         response, error = rest_flexcache.post_flexcache(self.rest_api, body, timeout=self.parameters['time_out'])
+        self.na_helper.fail_on_error(error)
+        return response
+
+    def flexcache_rest_modify(self, uuid):
+        ''' use PATCH to start prepopulating a FlexCache '''
+        mappings = dict(                # name cannot be set, though swagger example shows it
+            prepopulate='prepopulate'
+        )
+        body = self.flexcache_rest_create_body(mappings)
+        response, error = rest_flexcache.patch_flexcache(self.rest_api, uuid, body)
         self.na_helper.fail_on_error(error)
         return response
 
@@ -470,19 +546,28 @@ class NetAppONTAPFlexCache(object):
                                       % (to_native(error)),
                                       exception=traceback.format_exc())
 
+    def rest_mount_volume(self, current, path):
+        """
+        Mount the volume using REST PATCH method.
+        If path is empty string, unmount the volume.
+        """
+        response = None
+        uuid = current.get('uuid')
+        if uuid is None:
+            error = 'Error, no uuid in current: %s' % str(current)
+            self.na_helper.fail_on_error(error)
+        body = dict(nas=dict(path=path))
+        response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
+        self.na_helper.fail_on_error(error)
+        return response
+
     def rest_unmount_volume(self, current):
         """
         Unmount the volume using REST PATCH method.
         """
         response = None
         if current.get('junction_path'):
-            uuid = current.get('uuid')
-            if uuid is None:
-                error = 'Error, no uuid in current: %s' % str(current)
-                self.na_helper.fail_on_error(error)
-            body = dict(nas=dict(path=''))
-            response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
-            self.na_helper.fail_on_error(error)
+            response = self.rest_mount_volume(current, '')
         return response
 
     def volume_unmount(self, current):
@@ -532,18 +617,19 @@ class NetAppONTAPFlexCache(object):
         if status == 'in_progress' and 'result-jobid' in results:
             if self.parameters['time_out'] == 0:
                 # asynchronous call, assuming success!
-                return
+                return None
             error = self.check_job_status(results['result-jobid'])
-            if error is None:
-                return
-            else:
+            if error is not None:
                 self.module.fail_json(msg='Error when deleting flexcache: %s' % error)
+            return None
         self.module.fail_json(msg='Unexpected error when deleting flexcache: results is: %s' % repr(results))
 
-    def check_parameters(self):
+    def check_parameters(self, cd_action):
         """
         Validate parameters and fail if one or more required params are missing
         """
+        if cd_action != 'create':
+            return
         missings = list()
         expected = ('origin_volume', 'origin_vserver')
         if self.parameters['state'] == 'present':
@@ -563,14 +649,40 @@ class NetAppONTAPFlexCache(object):
             netapp_utils.ems_log_event("na_ontap_flexcache", self.server)
         current = self.flexcache_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        modify, mount_unmount = None, None
+        prepopulate_if_already_created = None
+
+        if self.parameters['state'] == 'present' and 'prepopulate' in self.parameters:
+            prepopulate_if_already_created = self.parameters['prepopulate'].pop('force_prepopulate_if_already_created')
+
+        if cd_action is None:
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if modify:
+                if self.use_rest:
+                    mount_unmount = modify.pop('junction_path', None)
+                if modify:
+                    self.module.fail_json('FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
+            if current and prepopulate_if_already_created:
+                # force a prepopulate action
+                modify = dict(prepopulate=self.parameters['prepopulate'])
+                self.na_helper.changed = True
+                self.module.warn('na_ontap_flexcache is not idempotent when prepopulate is present and force_prepopulate_if_already_created=true')
+                if mount_unmount == '' or current['junction_path'] == '':
+                    self.module.warn('prepopulate requires the FlexCache volume to be mounted')
+        self.check_parameters(cd_action)
         response = None
-        if not self.module.check_mode:
+        if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.check_parameters()
                 response = self.flexcache_create()
             elif cd_action == 'delete':
                 response = self.flexcache_delete(current)
-        self.module.exit_json(changed=self.na_helper.changed, response=response)
+            else:
+                if mount_unmount is not None:
+                    # mount first, as this is required for prepopulate to succeed (or fail for unmount)
+                    self.rest_mount_volume(current, mount_unmount)
+                if modify:
+                    response = self.flexcache_rest_modify(current['uuid'])
+        self.module.exit_json(changed=self.na_helper.changed, response=response, modify=modify)
 
 
 def main():

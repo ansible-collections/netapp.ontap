@@ -557,8 +557,13 @@ class OntapRestAPI(object):
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
         if current_version != (-1, -1):
             suffix += " - ONTAP version: %s.%s" % current_version
-        if isinstance(options, list) and len(options) > 1:
-            tag = "any of %s" % options
+        if isinstance(options, list):
+            if len(options) > 1:
+                tag = "any of %s" % options
+            elif len(options) == 1:
+                tag = str(options[0])
+            else:
+                tag = str(options)
         else:
             tag = str(options)
         return 'using %s requires ONTAP %s or later and REST must be enabled.%s' % (tag, version, suffix)

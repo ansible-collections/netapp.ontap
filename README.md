@@ -37,11 +37,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_fpolicy_policy: Create, delete or modify an fpolicy policy
 
 ### New Options
+  - na_ontap_flexcache - support for `prepopulate` option when using REST (requires ONTAP 9.8).
   - na_ontap_igroups - new option `igroups` to support nested igroups (requires ONTAP 9.9).
   - na_ontap_volume - new suboption `dr_cache` when creating flexcache using NAS application template (requires ONTAP 9.9).
 
 ### Minor changes
   - na_ontap_debug - improve error reporting for import errors on netapp_lib.
+  - na_ontap_flexcache - mount/unmount the FlexCache volume when using REST.
   - na_ontap_info - improve error reporting for import errors on netapp_lib, json, xlmtodict.
 
 ### Added REST support to existing modules

@@ -420,7 +420,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        msg = "Warning: falling back to ZAPI: using ['bind_portset'] requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
+        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
         assert msg in self.warnings
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -437,7 +437,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        msg = "Warning: falling back to ZAPI: using ['bind_portset'] requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
+        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled. - ONTAP version: 9.8"
         assert msg in self.warnings
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
