@@ -88,10 +88,11 @@ options:
     type: list
     elements: str
 
-  port:
+  tcp_port:
     description:
-    - LDAP server port
+    - LDAP server TCP port
     type: int
+    version_added: 21.3.0
 
   query_timeout:
     description:
@@ -150,9 +151,9 @@ RETURN = '''
 '''
 
 import traceback
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
+import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
@@ -176,7 +177,7 @@ class NetAppOntapLDAPClient(object):
             ldap_servers=dict(required=False, type='list', elements='str'),
             min_bind_level=dict(required=False, default=None, choices=['anonymous', 'simple', 'sasl']),
             preferred_ad_servers=dict(required=False, type='list', elements='str'),
-            port=dict(required=False, default=None, type='int'),
+            tcp_port=dict(required=False, default=None, type='int'),
             query_timeout=dict(required=False, default=None, type='int'),
             referral_enabled=dict(required=False, type='bool'),
             schema=dict(required=False, default=None, choices=['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']),
@@ -214,7 +215,7 @@ class NetAppOntapLDAPClient(object):
             'bind_dn',
             'bind_password',
             'min_bind_level',
-            'port',
+            'tcp_port',
             'query_timeout',
             'referral_enabled',
             'session_security',
@@ -278,7 +279,7 @@ class NetAppOntapLDAPClient(object):
                 'bind_dn': client_config_info.get_child_content('bind-dn'),
                 'bind_password': client_config_info.get_child_content('bind-password'),
                 'min_bind_level': client_config_info.get_child_content('min-bind-level'),
-                'port': self.na_helper.get_value_for_int(from_zapi=True, value=client_config_info.get_child_content('port')),
+                'tcp_port': self.na_helper.get_value_for_int(from_zapi=True, value=client_config_info.get_child_content('tcp-port')),
                 'preferred_ad_servers': preferred_ad_servers_list,
                 'query_timeout': self.na_helper.get_value_for_int(from_zapi=True,
                                                                   value=client_config_info.get_child_content('query-timeout')),
@@ -391,7 +392,12 @@ class NetAppOntapLDAPClient(object):
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         # create an ems log event for users with auto support turned on
-        netapp_utils.ems_log_event("na_ontap_ldap_client", self.server)
+        try:
+            netapp_utils.ems_log_event("na_ontap_ldap_client", self.server)
+        except netapp_utils.zapi.NaApiError as errcatch:
+            self.module.fail_json(
+                msg='Error connecting to %s: %s' % (self.parameters['hostname'], to_native(errcatch)),
+                exception=traceback.format_exc())
 
         if self.na_helper.changed:
             if self.module.check_mode:
