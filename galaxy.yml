@@ -1,6 +1,6 @@
 namespace: "netapp"
 name: "ontap"
-version: "21.3.0"
+version: "21.3.1"
 authors:
     - "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
 license: "GPL-2.0-or-later"
@@ -10,3 +10,5 @@ repository: https://github.com/ansible-collections/netapp
 homepage: https://netapp.io/configuration-management-and-automation/
 tags:
     - storage
+    - ontap
+    - netapp

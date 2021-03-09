@@ -546,7 +546,6 @@ class NetAppONTAPSnapmirror(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.new_style = False
-        self.warnings = list()
         # setup later if required
         self.source_server = None
         # only for ElementSW -> ONTAP snapmirroring, validate if ElementSW SDK is available
@@ -746,8 +745,8 @@ class NetAppONTAPSnapmirror(object):
     def get_create_body(self):
         initialized = False
         body = dict(
-            source=self.na_helper.filter_out_none_entries(self.parameters['source_endpoint']),
-            destination=self.na_helper.filter_out_none_entries(self.parameters['destination_endpoint']),
+            source=self.parameters['source_endpoint'],
+            destination=self.parameters['destination_endpoint'],
         )
         if self.na_helper.safe_get(self.parameters, ['create_destination', 'enabled']):     # testing for True
             body['create_destination'] = self.na_helper.filter_out_none_entries(self.parameters['create_destination'])
@@ -1058,10 +1057,10 @@ class NetAppONTAPSnapmirror(object):
 
         for option in ['source_cluster', 'source_path', 'source_volume', 'source_vserver']:
             if option in self.parameters:
-                self.warnings.append('option: %s is deprecated, please use %s' % (option, new_option(option, 'source_')))
+                self.module.warn('option: %s is deprecated, please use %s' % (option, new_option(option, 'source_')))
         for option in ['destination_cluster', 'destination_path', 'destination_volume', 'destination_vserver']:
             if option in self.parameters:
-                self.warnings.append('option: %s is deprecated, please use %s' % (option, new_option(option, 'destination_')))
+                self.module.warn('option: %s is deprecated, please use %s' % (option, new_option(option, 'destination_')))
 
         ontap_97_options = ['create_destination']
         if too_old(9, 7) and any(x in self.parameters for x in ontap_97_options):
@@ -1069,11 +1068,16 @@ class NetAppONTAPSnapmirror(object):
         if self.parameters.get('source_endpoint') or self.parameters.get('destination_endpoint'):
             if not self.parameters.get('destination_endpoint') or not self.parameters.get('source_endpoint'):
                 self.module.fail_json(msg='Missing parameters: Source endpoint or Destination endpoint')
+            # sanitize inputs
+            self.parameters['source_endpoint'] = self.na_helper.filter_out_none_entries(self.parameters['source_endpoint'])
+            self.parameters['destination_endpoint'] = self.na_helper.filter_out_none_entries(self.parameters['destination_endpoint'])
+            # options requiring 9.7 or better, and REST
             ontap_97_options = ['cluster', 'ipspace']
             if too_old(9, 7) and any(x in self.parameters['source_endpoint'] for x in ontap_97_options):
                 self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
             if too_old(9, 7) and any(x in self.parameters['destination_endpoint'] for x in ontap_97_options):
                 self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+            # options requiring 9.8 or better, and REST
             ontap_98_options = ['consistency_group_volumes']
             if too_old(9, 8) and any(x in self.parameters['source_endpoint'] for x in ontap_98_options):
                 self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
@@ -1333,8 +1337,6 @@ class NetAppONTAPSnapmirror(object):
             results['actions'] = actions
         if response:
             results['response'] = response
-        if self.warnings:
-            results['warnings'] = self.warnings
         self.module.exit_json(**results)
 
 
