@@ -51,10 +51,12 @@ def get_volumes(rest_api, vserver=None, name=None):
     return volumes, error
 
 
-def get_volume(rest_api, vserver, name):
+def get_volume(rest_api, vserver, name, fields=None):
     api = 'storage/volumes/'
     query = dict(name=name)
     query['svm.name'] = vserver
+    if fields is not None:
+        query['fields'] = fields
     response, error = rest_api.get(api, query)
     volume, error = rrh.check_for_0_or_1_records(api, response, error, query)
     return volume, error

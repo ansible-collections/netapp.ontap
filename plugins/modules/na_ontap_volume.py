@@ -851,7 +851,6 @@ class NetAppOntapVolume(object):
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
-        self.warnings = list()
         self.sis_keys2zapi_get = dict(
             efficiency_policy='policy',
             compression='is-compression-enabled',
@@ -943,6 +942,19 @@ class NetAppOntapVolume(object):
                                   exception=traceback.format_exc())
         return result
 
+    def get_application(self):
+        if self.rest_app:
+            app, error = self.rest_app.get_application_details('nas')
+            self.na_helper.fail_on_error(error)
+            # flatten component list
+            comps = self.na_helper.safe_get(app, ['nas', 'application_components'])
+            if comps:
+                comp = comps[0]
+                app['nas'].pop('application_components')
+                app['nas'].update(comp)
+                return app['nas']
+        return None
+
     def get_volume(self, vol_name=None):
         """
         Return details about the volume
@@ -951,168 +963,78 @@ class NetAppOntapVolume(object):
         :return: Details about the volume. None if not found.
         :rtype: dict
         """
+        result = None
         if vol_name is None:
             vol_name = self.parameters['name']
-        volume_get_iter = self.volume_get_iter(vol_name)
-        return_value = None
-        if volume_get_iter.get_child_by_name('num-records') and \
-                int(volume_get_iter.get_child_content('num-records')) > 0:
-
-            volume_attributes = volume_get_iter['attributes-list']['volume-attributes']
-            volume_space_attributes = volume_attributes['volume-space-attributes']
-            volume_state_attributes = volume_attributes['volume-state-attributes']
-            volume_id_attributes = volume_attributes['volume-id-attributes']
-            try:
-                volume_export_attributes = volume_attributes['volume-export-attributes']
-            except KeyError:  # does not exist for MDV volumes
-                volume_export_attributes = None
-            volume_security_unix_attributes = self.na_helper.safe_get(volume_attributes,
-                                                                      ['volume-security-attributes', 'volume-security-unix-attributes'],
-                                                                      allow_sparse_dict=False)
-            volume_snapshot_attributes = volume_attributes['volume-snapshot-attributes']
-            volume_performance_attributes = volume_attributes['volume-performance-attributes']
-            volume_snapshot_auto_delete_attributes = volume_attributes['volume-snapshot-autodelete-attributes']
-            try:
-                volume_comp_aggr_attributes = volume_attributes['volume-comp-aggr-attributes']
-            except KeyError:  # Not supported in 9.1 to 9.3
-                volume_comp_aggr_attributes = None
-            # Get volume's state (online/offline)
-            current_state = volume_state_attributes['state']
-            is_online = (current_state == "online")
-
-            return_value = {
-                'name': vol_name,
-                'size': int(volume_space_attributes['size']),
-                'is_online': is_online,
-                'unix_permissions': volume_security_unix_attributes['permissions']
-            }
-            if volume_snapshot_attributes.get_child_by_name('snapshot-policy'):
-                return_value['snapshot_policy'] = volume_snapshot_attributes['snapshot-policy']
-            if volume_export_attributes is not None:
-                return_value['export_policy'] = volume_export_attributes['policy']
-            else:
-                return_value['export_policy'] = None
-            if volume_security_unix_attributes.get_child_by_name('group-id'):
-                return_value['group_id'] = int(volume_security_unix_attributes['group-id'])
-            if volume_security_unix_attributes.get_child_by_name('user-id'):
-                return_value['user_id'] = int(volume_security_unix_attributes['user-id'])
-            if volume_comp_aggr_attributes is not None:
-                return_value['tiering_policy'] = volume_comp_aggr_attributes['tiering-policy']
-            if volume_attributes.get_child_by_name('encrypt'):
-                return_value['encrypt'] = self.na_helper.get_value_for_bool(True, volume_attributes['encrypt'], 'encrypt')
-            if volume_space_attributes.get_child_by_name('percentage-snapshot-reserve'):
-                return_value['percent_snapshot_space'] = int(volume_space_attributes['percentage-snapshot-reserve'])
-            if volume_id_attributes.get_child_by_name('type'):
-                return_value['type'] = volume_id_attributes['type']
-            if volume_space_attributes.get_child_by_name('space-slo'):
-                return_value['space_slo'] = volume_space_attributes['space-slo']
-            else:
-                return_value['space_slo'] = None
-            if volume_state_attributes.get_child_by_name('is-nvfail-enabled'):
-                return_value['nvfail_enabled'] = self.na_helper.get_value_for_bool(True, volume_state_attributes['is-nvfail-enabled'], 'is-nvfail-enabled')
-            else:
-                return_value['nvfail_enabled'] = None
-            if volume_id_attributes.get_child_by_name('containing-aggregate-name'):
-                return_value['aggregate_name'] = volume_id_attributes['containing-aggregate-name']
-            else:
-                return_value['aggregate_name'] = None
-            if volume_id_attributes.get_child_by_name('junction-path'):
-                return_value['junction_path'] = volume_id_attributes['junction-path']
-            else:
-                return_value['junction_path'] = ''
-            if volume_id_attributes.get_child_by_name('comment'):
-                return_value['comment'] = volume_id_attributes['comment']
-            else:
-                return_value['comment'] = None
-            if volume_attributes['volume-security-attributes'].get_child_by_name('style'):
+        volume_info = self.volume_get_iter(vol_name)
+        if self.na_helper.zapi_get_value(volume_info, ['num-records'], convert_to=int, default=0) > 0:
+            # extract values from volume record
+            attrs = dict(
+                # The keys are used to index a result dictionary, values are read from a ZAPI object indexed by key_list.
+                # If required is True, an error is reported if a key in key_list is not found.
+                # I'm not sure there is much value in omitnone, but it preserves backward compatibility
+                # If omitnone is absent or False, a None value is recorded, if True, the key is not set
+                encrypt=dict(key_list=['encrypt'], convert_to=bool, omitnone=True),
+                tiering_policy=dict(key_list=['volume-comp-aggr-attributes', 'tiering-policy'], omitnone=True),
+                export_policy=dict(key_list=['volume-export-attributes', 'policy']),
+                aggregate_name=dict(key_list=['volume-id-attributes', 'containing-aggregate-name']),
+                flexgroup_uuid=dict(key_list=['volume-id-attributes', 'flexgroup-uuid']),
+                instance_uuid=dict(key_list=['volume-id-attributes', 'instance-uuid']),
+                junction_path=dict(key_list=['volume-id-attributes', 'junction-path'], default=''),
+                style_extended=dict(key_list=['volume-id-attributes', 'style-extended']),
+                type=dict(key_list=['volume-id-attributes', 'type'], omitnone=True),
+                comment=dict(key_list=['volume-id-attributes', 'comment']),
+                atime_update=dict(key_list=['volume-performance-attributes', 'is-atime-update-enabled'], convert_to=bool),
+                qos_policy_group=dict(key_list=['volume-qos-attributes', 'policy-group-name']),
+                qos_adaptive_policy_group=dict(key_list=['volume-qos-attributes', 'adaptive-policy-group-name']),
                 # style is not present if the volume is still offline or of type: dp
-                return_value['volume_security_style'] = volume_attributes['volume-security-attributes']['style']
-            if volume_id_attributes.get_child_by_name('style-extended'):
-                return_value['style_extended'] = volume_id_attributes['style-extended']
+                volume_security_style=dict(key_list=['volume-security-attributes', 'style'], omitnone=True),
+                group_id=dict(key_list=['volume-security-attributes', 'volume-security-unix-attributes', 'group-id'], convert_to=int, omitnone=True),
+                unix_permissions=dict(key_list=['volume-security-attributes', 'volume-security-unix-attributes', 'permissions'], required=True),
+                user_id=dict(key_list=['volume-security-attributes', 'volume-security-unix-attributes', 'user-id'], convert_to=int, omitnone=True),
+                snapdir_access=dict(key_list=['volume-snapshot-attributes', 'snapdir-access-enabled'], convert_to=bool),
+                snapshot_policy=dict(key_list=['volume-snapshot-attributes', 'snapshot-policy'], omitnone=True),
+                percent_snapshot_space=dict(key_list=['volume-space-attributes', 'percentage-snapshot-reserve'], convert_to=int, omitnone=True),
+                size=dict(key_list=['volume-space-attributes', 'size'], required=True, convert_to=int),
+                space_guarantee=dict(key_list=['volume-space-attributes', 'space-guarantee']),
+                space_slo=dict(key_list=['volume-space-attributes', 'space-slo']),
+                nvfail_enabled=dict(key_list=['volume-state-attributes', 'is-nvfail-enabled'], convert_to=bool),
+                is_online=dict(key_list=['volume-state-attributes', 'state'], required=True, convert_to='bool_online'),
+                vserver_dr_protection=dict(key_list=['volume-vserver-dr-protection-attributes', 'vserver-dr-protection']),
+            )
+
+            volume_attributes = self.na_helper.zapi_get_value(volume_info, ['attributes-list', 'volume-attributes'], required=True)
+            result = dict(name=vol_name)
+            self.na_helper.zapi_get_attrs(volume_attributes, attrs, result)
+
+            if result['style_extended'] == 'flexvol':
+                result['uuid'] = result['instance_uuid']
+            elif result['style_extended'] is not None and result['style_extended'].startswith('flexgroup'):
+                result['uuid'] = result['flexgroup_uuid']
             else:
-                return_value['style_extended'] = None
-            if return_value['style_extended'] == 'flexvol':
-                return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['instance-uuid'])
-            elif return_value['style_extended'] is not None and return_value['style_extended'].startswith('flexgroup'):
-                return_value['uuid'] = self.na_helper.safe_get(volume_id_attributes, ['flexgroup-uuid'])
-            else:
-                return_value['uuid'] = None
-            if volume_space_attributes.get_child_by_name('space-guarantee'):
-                return_value['space_guarantee'] = volume_space_attributes['space-guarantee']
-            else:
-                return_value['space_guarantee'] = None
-            if volume_snapshot_attributes.get_child_by_name('snapdir-access-enabled'):
-                return_value['snapdir_access'] = self.na_helper.get_value_for_bool(True,
-                                                                                   volume_snapshot_attributes['snapdir-access-enabled'],
-                                                                                   'snapdir-access-enabled')
-            else:
-                return_value['snapdir_access'] = None
-            if volume_performance_attributes.get_child_by_name('is-atime-update-enabled'):
-                return_value['atime_update'] = self.na_helper.get_value_for_bool(True,
-                                                                                 volume_performance_attributes['is-atime-update-enabled'],
-                                                                                 'is-atime-update-enabled')
-            else:
-                return_value['atime_update'] = None
-            if volume_attributes.get_child_by_name('volume-qos-attributes'):
-                volume_qos_attributes = volume_attributes['volume-qos-attributes']
-                if volume_qos_attributes.get_child_by_name('policy-group-name'):
-                    return_value['qos_policy_group'] = volume_qos_attributes['policy-group-name']
-                else:
-                    return_value['qos_policy_group'] = None
-                if volume_qos_attributes.get_child_by_name('adaptive-policy-group-name'):
-                    return_value['qos_adaptive_policy_group'] = volume_qos_attributes['adaptive-policy-group-name']
-                else:
-                    return_value['qos_adaptive_policy_group'] = None
-            else:
-                return_value['qos_policy_group'] = None
-                return_value['qos_adaptive_policy_group'] = None
-            if volume_attributes.get_child_by_name('volume-vserver-dr-protection-attributes'):
-                volume_vserver_dr_protection_attributes = volume_attributes['volume-vserver-dr-protection-attributes']
-                if volume_vserver_dr_protection_attributes.get_child_by_name('vserver-dr-protection'):
-                    return_value['vserver_dr_protection'] = volume_vserver_dr_protection_attributes['vserver-dr-protection']
-                else:
-                    return_value['vserver_dr_protection'] = None
+                result['uuid'] = None
+
             # snapshot_auto_delete options
             auto_delete = dict()
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('commitment'):
-                auto_delete['commitment'] = volume_snapshot_auto_delete_attributes['commitment']
-            else:
-                auto_delete['commitment'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('defer-delete'):
-                auto_delete['defer_delete'] = volume_snapshot_auto_delete_attributes['defer-delete']
-            else:
-                auto_delete['defer_delete'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('delete-order'):
-                auto_delete['delete_order'] = volume_snapshot_auto_delete_attributes['delete-order']
-            else:
-                auto_delete['delete_order'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('destroy-list'):
-                auto_delete['destroy_list'] = volume_snapshot_auto_delete_attributes['destroy-list']
-            else:
-                auto_delete['destroy_list'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('is-autodelete-enabled'):
-                if self.na_helper.get_value_for_bool(True, volume_snapshot_auto_delete_attributes['is-autodelete-enabled'], 'is-autodelete-enabled'):
-                    auto_delete['state'] = 'on'
-                else:
-                    auto_delete['state'] = 'off'
-            else:
-                auto_delete['is_autodelete_enabled'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('prefix'):
-                auto_delete['prefix'] = volume_snapshot_auto_delete_attributes['prefix']
-            else:
-                auto_delete['prefix'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('target-free-space'):
-                auto_delete['target_free_space'] = int(volume_snapshot_auto_delete_attributes['target-free-space'])
-            else:
-                auto_delete['target_free_space'] = None
-            if volume_snapshot_auto_delete_attributes.get_child_by_name('trigger'):
-                auto_delete['trigger'] = volume_snapshot_auto_delete_attributes['trigger']
-            else:
-                auto_delete['trigger'] = None
-            return_value['snapshot_auto_delete'] = auto_delete
-            self.get_efficiency_info(return_value)
+            attrs = dict(
+                commitment=dict(key_list=['volume-snapshot-autodelete-attributes', 'commitment']),
+                defer_delete=dict(key_list=['volume-snapshot-autodelete-attributes', 'defer-delete']),
+                delete_order=dict(key_list=['volume-snapshot-autodelete-attributes', 'delete-order']),
+                destroy_list=dict(key_list=['volume-snapshot-autodelete-attributes', 'destroy-list']),
+                is_autodelete_enabled=dict(key_list=['volume-snapshot-autodelete-attributes', 'is-autodelete-enabled'], convert_to=bool),
+                prefix=dict(key_list=['volume-snapshot-autodelete-attributes', 'prefix']),
+                target_free_space=dict(key_list=['volume-snapshot-autodelete-attributes', 'target-free-space'], convert_to=int),
+                trigger=dict(key_list=['volume-snapshot-autodelete-attributes', 'trigger']),
+            )
+            self.na_helper.zapi_get_attrs(volume_attributes, attrs, auto_delete)
+            if auto_delete['is_autodelete_enabled'] is not None:
+                auto_delete['state'] = 'on' if auto_delete['is_autodelete_enabled'] else 'off'
+                del auto_delete['is_autodelete_enabled']
+            result['snapshot_auto_delete'] = auto_delete
 
-        return return_value
+            self.get_efficiency_info(result)
+
+        return result
 
     def create_nas_application_component(self):
         '''Create application component for nas template'''
@@ -2139,6 +2061,14 @@ class NetAppOntapVolume(object):
                 del self.parameters['unix_permissions']
         if cd_action is None and rename is None and rehost is None and self.parameters['state'] == 'present':
             modify = self.set_modify_dict(current)
+        if self.parameters.get('nas_application_template') is not None:
+            application = self.get_application()
+            changed = self.na_helper.changed
+            modify_app = self.na_helper.get_modified_attributes(application, self.parameters.get('nas_application_template'))
+            # restore current change state, as we ignore this
+            if modify_app:
+                self.na_helper.changed = changed
+                self.module.warn('Modifying an app is not supported at present: ignoring: %s' % str(modify_app))
 
         if self.na_helper.changed:
             if self.module.check_mode:
@@ -2178,8 +2108,6 @@ class NetAppOntapVolume(object):
             result['modify'] = modify
         if modify_after_create:
             result['modify_after_create'] = modify_after_create
-        if self.warnings:
-            result['warnings'] = self.warnings
         self.module.exit_json(**result)
 
     def ems_log_event(self, state):

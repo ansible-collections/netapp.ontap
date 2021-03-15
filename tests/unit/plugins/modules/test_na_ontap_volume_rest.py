@@ -28,6 +28,7 @@ SRR = {
     'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
+    'no_record': (200, {'num_records': 0, 'records': []}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'generic_error': (400, None, "Expected error"),
     # module specific responses
@@ -232,6 +233,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],       # GET application/applications
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
@@ -263,6 +265,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],           # GET application/applications
             SRR['generic_error'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -277,6 +280,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],        # GET application/applications
             SRR['empty_good'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -290,6 +294,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],        # GET application/applications
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -308,6 +313,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],        # GET application/applications
             SRR['empty_good'],       # POST application/applications
             SRR['end_of_sequence']
         ]
@@ -330,6 +336,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
+            SRR['no_record'],        # GET application/applications
             SRR['empty_good'],       # PATCH application/applications
             SRR['end_of_sequence']
         ]

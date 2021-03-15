@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.4.0
+
+### Minor changes
+  - na_ontap_volume - warn when attempting to modify application only options.
+
 ## 21.3.1
 
 ### Bug fixes

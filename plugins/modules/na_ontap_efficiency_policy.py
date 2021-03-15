@@ -104,7 +104,7 @@ EXAMPLES = """
         qos_policy: background
         changelog_threshold_percent: 20
 
-    - name: Create efficiency Scheduled efficiency Policy
+    - name: Create Scheduled efficiency Policy
       na_ontap_efficiency_policy:
         hostname: "{{ hostname }}"
         username: "{{ username }}"

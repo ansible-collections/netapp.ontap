@@ -364,6 +364,81 @@ class NetAppModule(object):
                 return None
             raise exc
 
+    def zapi_get_value(self, na_element, key_list, required=False, default=None, convert_to=None):
+        """ read a value from na_element using key_list
+
+            If required is True, an error is reported if a key in key_list is not found.
+            If required is False and the value is not found, uses default as the value.
+            If convert_to is set to str, bool, int, the ZAPI value is converted from str to the desired type.
+                suported values: None, the python types int, str, bool, special 'bool_online'
+
+        Errors: self.module.fail_json is called for:
+            - a key is not found and required=True,
+            - a format conversion error
+        """
+
+        def error_msg(suffix):
+            return 'Error reading %s from %s: %s' % (str(saved_key_list), na_element.to_string(), str(suffix))
+
+        def convert_value(value):
+            if convert_to is None:
+                return value
+            if not isinstance(value, str):
+                self.module.fail_json(msg=error_msg('Unexpected type: %s for %s' % (type(value), str(value))))
+            if convert_to == str:
+                return value
+            if convert_to == int:
+                try:
+                    return int(value)
+                except ValueError as exc:
+                    self.module.fail_json(msg=error_msg('Unexpected value for int: %s, %s' % (str(value), str(exc))))
+            if convert_to == bool:
+                if value not in ('true', 'false'):
+                    msg = 'Unexpected value: %s received from ZAPI for boolean attribute' % value
+                    self.module.fail_json(msg=error_msg(msg))
+                return value == 'true'
+            if convert_to == 'bool_online':
+                return value == 'online'
+            self.module.fail_json(msg='Error: Unexpected value for convert_to: %s' % convert_to)
+
+        # keep a copy, as the list is mutated
+        saved_key_list = list(key_list)
+        try:
+            value = self.safe_get(na_element, key_list, allow_sparse_dict=not required)
+        except (KeyError, TypeError) as exc:
+            self.module.fail_json(msg=error_msg(exc))
+        if value is not None:
+            value = convert_value(value)
+        else:
+            # None value - not found
+            value = default
+        return value
+
+    def zapi_get_attrs(self, na_element, attr_dict, result):
+        """ Retrieve a list of attributes from na_elements
+        see na_ontap_volume for an example.
+        na_element: xml element as returned by ZAPI.
+        attr_dict:
+            A dict of dict, with format:
+                key: dict(key_list, required=False, default=None, convert_to=None, omitnone=False)
+            The keys are used to index a result dictionary, values are read from a ZAPI object indexed by key_list.
+            If required is True, an error is reported if a key in key_list is not found.
+            If required is False and the value is not found, uses default as the value.
+            If convert_to is set to str, bool, int, the ZAPI value is converted from str to the desired type.
+            I'm not sure there is much value in omitnone, but it preserves backward compatibility.
+            When the value is None, if omitnone is False, a None value is recorded, if True, the key is not set.
+        result: an existing dictionary.  keys are added or updated based on attrs.
+
+        Errors: self.module.fail_json is called for:
+            - a key is not found and required=True,
+            - a format conversion error
+        """
+        for key, kwargs in attr_dict.items():
+            omitnone = kwargs.pop('omitnone', False)
+            value = self.zapi_get_value(na_element, **kwargs)
+            if value is not None or not omitnone:
+                result[key] = value
+
     def filter_out_none_entries(self, list_or_dict):
         """take a dict or list as input and return a dict/list without keys/elements whose values are None
            skip empty dicts or lists.
@@ -417,7 +492,7 @@ class NetAppModule(object):
         # python 2.7 does not have named attributes for frames
         try:
             function_name = frames[0][2]
-        except Exception as exc:
+        except Exception as exc:                                   # pylint: disable=broad-except
             function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
         return function_name
 
