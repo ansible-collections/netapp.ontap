@@ -52,7 +52,9 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
+    'is_rest_97': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
+    'is_rest_98': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -77,9 +79,10 @@ SRR = {
                            None
                            ),
     'get_app_details': (200,
-                        dict(name='san_appli', uuid='1234', san=dict(
-                            application_components=[dict(name='lun_name', lun_count=3, total_size=1000)]
-                        )),
+                        dict(name='san_appli', uuid='1234',
+                             san=dict(application_components=[dict(name='lun_name', lun_count=3, total_size=1000)]),
+                             statistics=dict(space=dict(provisioned=1100))
+                             ),
                         None
                         ),
     'get_app_component_details': (200,
@@ -199,6 +202,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_create_appli(self, mock_request):
         ''' Test successful create '''
         mock_request.side_effect = [
+            SRR['is_rest_98'],
             SRR['get_apps_empty'],      # GET application/applications
             SRR['get_apps_empty'],      # GET volumes
             SRR['empty_good'],          # POST application/applications
@@ -223,6 +227,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_create_appli_idem(self, mock_request):
         ''' Test successful create idempotent '''
         mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
             SRR['get_apps_found'],                  # GET application/applications
             SRR['get_app_details'],                 # GET application/applications/<uuid>
             SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
@@ -242,6 +247,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_create_appli_idem_no_comp(self, mock_request):
         ''' Test successful create idempotent '''
         mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
             SRR['get_apps_found'],      # GET application/applications
             SRR['get_app_details'],     # GET application/applications/<uuid>
             SRR['get_apps_empty'],      # GET application/applications/<uuid>/components
@@ -262,6 +268,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_delete_appli(self, mock_request):
         ''' Test successful create '''
         mock_request.side_effect = [
+            SRR['is_rest_98'],
             SRR['get_apps_found'],      # GET application/applications
             SRR['empty_good'],          # POST application/applications
             SRR['end_of_sequence']
@@ -280,6 +287,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_delete_appli_idem(self, mock_request):
         ''' Test successful delete idempotent '''
         mock_request.side_effect = [
+            SRR['is_rest_98'],
             SRR['get_apps_empty'],      # GET application/applications
             SRR['end_of_sequence']
         ]
@@ -297,6 +305,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_modify_appli(self, mock_request):
         ''' Test successful modify application '''
         mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
             SRR['get_apps_found'],                  # GET application/applications
             SRR['get_app_details'],                 # GET application/applications/<uuid>
             SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
@@ -319,6 +328,7 @@ class TestMyModule(unittest.TestCase):
     def test_error_modify_appli_missing_igroup(self, mock_request):
         ''' Test successful modify application '''
         mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
             SRR['get_apps_found'],                  # GET application/applications
             SRR['get_app_details'],                 # GET application/applications/<uuid>
             # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
@@ -343,6 +353,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_no_action(self, mock_request):
         ''' Test successful modify application '''
         mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
             SRR['get_apps_found'],                  # GET application/applications
             SRR['get_app_details'],                 # GET application/applications/<uuid>
             SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
@@ -358,3 +369,156 @@ class TestMyModule(unittest.TestCase):
             self.get_lun_mock_object().apply()
         print(exc.value.args[0])
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_no_96(self, mock_request):
+        ''' Test SAN application not supported on 9.6 '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_96'],
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data['name'] = 'unknown'
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', lun_count=5)
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        print(exc.value.args[0])
+        msg = 'Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled. - ONTAP version: 9.6'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_no_modify_on97(self, mock_request):
+        ''' Test modify SAN application not supported on 9.7 '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_97'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['os_type'] = 'xyz'
+        data['san_application_template'] = dict(name='san_appli', lun_count=5, total_size=1000, igroup_name='abc')
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        print(exc.value.args[0])
+        msg = 'Error: modifying lun_count, total_size is not supported on ONTAP 9.7'
+        # in python 2.6, keys() is not sorted!
+        msg2 = 'Error: modifying total_size, lun_count is not supported on ONTAP 9.7'
+        assert msg in exc.value.args[0]['msg'] or msg2 in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_no_modify_on97_2(self, mock_request):
+        ''' Test modify SAN application not supported on 9.7 '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_97'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', total_size=1000)
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        print(exc.value.args[0])
+        msg = 'Error: modifying total_size is not supported on ONTAP 9.7'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_app_changes_reduction_not_allowed(self, mock_request):
+        ''' Test modify SAN application - can't decrease size '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', total_size=899, total_size_unit='b')
+        set_module_args(data)
+        lun_object = self.get_lun_mock_object()
+        with pytest.raises(AnsibleFailJson) as exc:
+            lun_object.app_changes('scope')
+        msg = "Error: can't reduce size: total_size=1000, provisioned=1100, requested=899"
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_app_changes_reduction_small_enough_10(self, mock_request):
+        ''' Test modify SAN application - a 10% reduction is ignored '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', total_size=900, total_size_unit='b')
+        set_module_args(data)
+        lun_object = self.get_lun_mock_object()
+        results = lun_object.app_changes('scope')
+        print(results)
+        print(lun_object.warnings)
+        print(lun_object.debug)
+        msg = "Ignoring small reduction (10.0 %) in total size: total_size=1000, provisioned=1100, requested=900"
+        assert msg in lun_object.warnings
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_app_changes_reduction_small_enough_17(self, mock_request):
+        ''' Test modify SAN application - a 1.7% reduction is ignored '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', total_size=983, total_size_unit='b')
+        set_module_args(data)
+        lun_object = self.get_lun_mock_object()
+        results = lun_object.app_changes('scope')
+        print(results)
+        print(lun_object.warnings)
+        print(lun_object.debug)
+        msg = "Ignoring small reduction (1.7 %) in total size: total_size=1000, provisioned=1100, requested=983"
+        assert msg in lun_object.warnings
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_app_changes_increase_small_enough(self, mock_request):
+        ''' Test modify SAN application - a 1.7% reduction is ignored '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
+            SRR['get_apps_found'],                  # GET application/applications
+            SRR['get_app_details'],                 # GET application/applications/<uuid>
+            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
+            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data.pop('flexvol_name')
+        data['san_application_template'] = dict(name='san_appli', total_size=1050, total_size_unit='b')
+        set_module_args(data)
+        lun_object = self.get_lun_mock_object()
+        results = lun_object.app_changes('scope')
+        print(results)
+        print(lun_object.warnings)
+        print(lun_object.debug)
+        msg = "Ignoring increase: requested size is too small: total_size=1000, provisioned=1100, requested=1050"
+        assert msg in lun_object.warnings

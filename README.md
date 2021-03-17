@@ -30,6 +30,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.4.0
 
 ### Minor changes
+  - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
+
+### Bug fixes
+  - na_ontap_lun - SAN application is not supported on 9.6 and only partially supported on 9.7 (no modify).
   - na_ontap_volume - warn when attempting to modify application only options.
 
 ## 21.3.1

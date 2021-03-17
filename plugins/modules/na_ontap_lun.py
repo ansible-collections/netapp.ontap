@@ -151,7 +151,8 @@ options:
       - the module is using ZAPI by default, and switches to REST if san_application_template is present.
       - create one or more LUNs (and the associated volume as needed).
       - operations at the LUN level are supported, they require to know the LUN short name.
-      - this requires ONTAP 9.6 or higher.
+      - this requires ONTAP 9.8 or higher.
+      - The module partially supports ONTAP 9.7 for create and delete operations, but not for modify (API limitations).
     type: dict
     version_added: 20.12.0
     suboptions:
@@ -399,6 +400,10 @@ class NetAppOntapLUN(object):
             if self.parameters.get('flexvol_name') is not None:
                 self.module.fail_json(msg="'flexvol_name' option is not supported when san_application_template is present")
             rest_api = netapp_utils.OntapRestAPI(self.module)
+            use_rest = rest_api.is_rest()
+            ontap_97_options = ['san_application_template']
+            if not rest_api.meets_rest_minimum_version(use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
+                self.module.fail_json(msg='Error: %s' % rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
             name = self.na_helper.safe_get(self.parameters, ['san_application_template', 'name'], allow_sparse_dict=False)
             rest_app = RestApplication(rest_api, self.parameters['vserver'], name)
         elif self.parameters.get('flexvol_name') is None:
@@ -579,6 +584,10 @@ class NetAppOntapLUN(object):
                 if value is not None:
                     application_component[attr] = value
         for attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group', 'total_size'):
+            if self.rest_api.get_ontap_version() < (9, 8):
+                if attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group'):
+                    # os_type and qos are not supported in 9.7 for the SAN application_component
+                    continue
             if not modify or attr in modify:
                 value = self.na_helper.safe_get(self.parameters, [attr])
                 if value is not None:
@@ -616,7 +625,7 @@ class NetAppOntapLUN(object):
                     if value:
                         san[attr] = value
         for attr in ('os_type',):
-            if not modify:      # not supported for modify operation, but required at applicaiton component level
+            if not modify:      # not supported for modify operation, but required at application component level for create
                 value = self.na_helper.safe_get(self.parameters, [attr])
                 if value is not None:
                     san[attr] = value
@@ -813,6 +822,7 @@ class NetAppOntapLUN(object):
 
     def validate_app_changes(self, modify, warning):
         errors = list()
+        saved_modify = dict(modify)
         for key in modify:
             if key not in ('lun_count', 'total_size'):
                 errors.append("Error: the following application parameter cannot be modified: %s: %s."
@@ -836,6 +846,9 @@ class NetAppOntapLUN(object):
                 # can't change total_size, let's ignore it
                 self.warnings.append(warning)
                 modify.pop('total_size')
+                saved_modify.pop('total_size')
+        if modify and not self.rest_api.meets_rest_minimum_version(True, 9, 8):
+            self.module.fail_json(msg='Error: modifying %s is not supported on ONTAP 9.7' % ', '.join(saved_modify.keys()))
 
     def app_changes(self, scope):
         # find and validate app changes
@@ -871,12 +884,17 @@ class NetAppOntapLUN(object):
 
         warning = None
         if desired_size is not None:
+            details = "total_size=%d, provisioned=%d, requested=%d" % (total_size, provisioned_size, desired_size)
             if desired_size < total_size:
-                self.module.fail_json("Error: can't reduce size: total_size=%d, provisioned=%d, requested=%d"
-                                      % (total_size, provisioned_size, desired_size))
+                # * 100 to get a percentage, and .0 to force float conversion
+                reduction = round((total_size - desired_size) * 100.0 / total_size, 1)
+                if reduction > 10:
+                    self.module.fail_json(msg="Error: can't reduce size: %s" % details)
+                else:
+                    warning = "Ignoring small reduction (%.1f %%) in total size: %s" % (reduction, details)
             elif desired_size > total_size and desired_size < provisioned_size:
                 # we can't increase, but we can't say it is a problem, as the size is already bigger!
-                warning = "requested size is too small: total_size=%d, provisioned=%d, requested=%d" % (total_size, provisioned_size, desired_size)
+                warning = "Ignoring increase: requested size is too small: %s" % details
 
         # preserve change state before calling modify in case an ignorable total_size change is the only change
         changed = self.na_helper.changed
@@ -915,6 +933,9 @@ class NetAppOntapLUN(object):
                     if scope == 'application':
                         # volume already exists, but not as part of this application
                         app_cd_action = 'convert'
+                        if self.rest_api.get_ontap_version() < (9, 8):
+                            msg = 'Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better.'
+                            self.module.fail_json(msg=msg)
                     else:
                         # default name already in use, ask user to clarify intent
                         msg = "Error: volume '%s' already exists.  Please use a different group name, or use 'application' scope.  scope=%s"
