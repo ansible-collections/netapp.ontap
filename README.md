@@ -29,6 +29,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.4.0
 
+### New Modules
+  - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
+
 ### Minor changes
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
 
