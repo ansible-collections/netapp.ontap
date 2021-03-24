@@ -385,7 +385,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_lun_mock_object().apply()
         print(exc.value.args[0])
-        msg = 'Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled. - ONTAP version: 9.6'
+        msg = 'Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled - ONTAP version: 9.6.'
         assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

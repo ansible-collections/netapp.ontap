@@ -523,7 +523,11 @@ class NetAppONTAPCluster(object):
                 self.node_remove_wait()
             if modify:
                 self.modify_cluster_identity(modify)
-        self.autosupport_log()
+        try:
+            self.autosupport_log()
+        except netapp_utils.zapi.NaApiError as error:
+            if error.message != "ZAPI is not enabled in pre-cluster mode.":
+                self.module.fail_json(msg='Error: unable to call ZAPI: %s' % str(error))
         self.module.exit_json(changed=self.na_helper.changed, warnings=self.warnings)
 
 

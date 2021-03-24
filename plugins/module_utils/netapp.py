@@ -552,11 +552,13 @@ class OntapRestAPI(object):
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
         return "%s only supports REST, and requires ONTAP %s or later.%s" % (module_name, version, suffix)
 
-    def options_require_ontap_version(self, options, version='9.6'):
+    def options_require_ontap_version(self, options, version='9.6', use_rest=None):
         current_version = self.get_ontap_version()
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
         if current_version != (-1, -1):
             suffix += " - ONTAP version: %s.%s" % current_version
+        if use_rest is not None:
+            suffix += " - using %s" % ('REST' if use_rest else 'ZAPI')
         if isinstance(options, list):
             if len(options) > 1:
                 tag = "any of %s" % options
@@ -566,7 +568,7 @@ class OntapRestAPI(object):
                 tag = str(options)
         else:
             tag = str(options)
-        return 'using %s requires ONTAP %s or later and REST must be enabled.%s' % (tag, version, suffix)
+        return 'using %s requires ONTAP %s or later and REST must be enabled%s.' % (tag, version, suffix)
 
     def meets_rest_minimum_version(self, use_rest, minimum_generation, minimum_major):
         return use_rest and self.get_ontap_version() >= (minimum_generation, minimum_major)

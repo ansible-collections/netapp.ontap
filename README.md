@@ -32,10 +32,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
   - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
 
+### New Options
+  - na_ontap_igroups - new option `initiator_objects` to support initiator comments (requires ONTAP 9.9).
+  - na_ontap_igroups - new option `initiator_names` as a replacement for `initiators` (still supported as an alias).
+
 ### Minor changes
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
 
 ### Bug fixes
+  - na_ontap_cluster - ignore ZAPI EMS log error when in pre-cluster mode.
   - na_ontap_lun - SAN application is not supported on 9.6 and only partially supported on 9.7 (no modify).
   - na_ontap_volume - warn when attempting to modify application only options.
 
