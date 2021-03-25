@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
   - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
+  - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.  
 
 ### New Options
   - na_ontap_igroups - new option `initiator_objects` to support initiator comments (requires ONTAP 9.9).
