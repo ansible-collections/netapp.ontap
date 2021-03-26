@@ -43,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug fixes
   - na_ontap_cluster - ignore ZAPI EMS log error when in pre-cluster mode.
   - na_ontap_lun - SAN application is not supported on 9.6 and only partially supported on 9.7 (no modify).
+  - na_ontap_svm - iscsi current status is not read correctly (mispelled issi).
   - na_ontap_volume - warn when attempting to modify application only options.
 
 ## 21.3.1
@@ -72,6 +73,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_flexcache - added REST support for ONTAP FlexCache creation and deletion.
+  - na_ontap_node - added REST support for Node modify and rename.
   - na_ontap_snapmirror - SVM scoped policies were not found when using a destination path with REST application.
 
 ### Bug fixes

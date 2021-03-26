@@ -285,26 +285,10 @@ class NetAppOntapSVM(object):
         vserver_details['ipspace'] = vserver_details['ipspace']['name']
         vserver_details['snapshot_policy'] = vserver_details['snapshot_policy']['name']
         vserver_details['allowed_protocols'] = []
-        if 'cifs' in vserver_details:
-            if vserver_details['cifs']['enabled']:
-                vserver_details['allowed_protocols'].append('cifs')
-            vserver_details.pop('cifs')
-        if 'fcp' in vserver_details:
-            if vserver_details['fcp']['enabled']:
-                vserver_details['allowed_protocols'].append('fcp')
-            vserver_details.pop('fcp')
-        if 'issi' in vserver_details:
-            if vserver_details['iscsi']['enabled']:
-                vserver_details['allowed_protocols'].append('iscsi')
-            vserver_details.pop('iscsi')
-        if 'nvme' in vserver_details:
-            if vserver_details['nvme']['enabled']:
-                vserver_details['allowed_protocols'].append('nvme')
-            vserver_details.pop('nvme')
-        if 'nfs' in vserver_details:
-            if vserver_details['nfs']['enabled']:
-                vserver_details['allowed_protocols'].append('nfs')
-            vserver_details.pop('nfs')
+        for protocol in ['cifs', 'fcp', 'iscsi', 'nvme', 'nfs']:
+            if protocol in vserver_details and vserver_details[protocol].get('enabled'):
+                vserver_details['allowed_protocols'].append(protocol)
+            vserver_details.pop(protocol, None)
         return vserver_details
 
     def get_vserver(self, vserver_name=None):

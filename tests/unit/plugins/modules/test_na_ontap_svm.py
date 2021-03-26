@@ -48,7 +48,22 @@ SRR = {
                                  "cifs": {"enabled": False},
                                  "iscsi": {"enabled": False},
                                  "fcp": {"enabled": False},
-                                 "nvme": {"enabled": False}}]}, None)
+                                 "nvme": {"enabled": False}}]}, None),
+    'svm_record_ap': (200,
+                      {'records': [{"name": "test_svm",
+                                    "aggregates": [{"name": "aggr_1",
+                                                    "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"},
+                                                   {"name": "aggr_2",
+                                                    "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"}],
+                                    "ipspace": {"name": "ansible_ipspace",
+                                                "uuid": "2b760d31-8dfd-11e9-b162-005056b39fe7"},
+                                    "snapshot_policy": {"uuid": "3b611707-8dfd-11e9-b162-005056b39fe7",
+                                                        "name": "old_snapshot_policy"},
+                                    "nfs": {"enabled": False},
+                                    "cifs": {"enabled": True},
+                                    "iscsi": {"enabled": True},
+                                    "fcp": {"enabled": False},
+                                    "nvme": {"enabled": False}}]}, None)
 }
 
 
@@ -429,3 +444,26 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vserver_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_get(self, mock_request):
+        '''Test successful get'''
+        data = self.mock_args(rest=True)
+        data['language'] = 'c'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['svm_record'],      # get
+            SRR['svm_record_ap'],   # get AP
+            SRR['end_of_sequence']
+        ]
+        na_ontap_svm_object = self.get_vserver_mock_object(cx_type='rest')
+        current = na_ontap_svm_object.get_vserver()
+        print(current)
+        assert 'nfs' in current['allowed_protocols']
+        assert 'iscsi' not in current['allowed_protocols']
+        current = na_ontap_svm_object.get_vserver()
+        print(current)
+        assert 'nfs' not in current['allowed_protocols']
+        assert 'cifs' in current['allowed_protocols']
+        assert 'iscsi' in current['allowed_protocols']
