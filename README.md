@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
 
 ### Bug fixes
+  - na_ontap_autosupport - warn when password is present in `proxy_url` as it makes the operation not idempotent.
   - na_ontap_cluster - ignore ZAPI EMS log error when in pre-cluster mode.
   - na_ontap_lun - SAN application is not supported on 9.6 and only partially supported on 9.7 (no modify).
   - na_ontap_svm - iscsi current status is not read correctly (mispelled issi).

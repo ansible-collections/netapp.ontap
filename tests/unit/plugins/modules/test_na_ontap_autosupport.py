@@ -8,10 +8,10 @@ __metaclass__ = type
 import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
+from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_autosupport \
@@ -29,12 +29,10 @@ def set_module_args(args):
 
 class AnsibleExitJson(Exception):
     """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
 
 
 class AnsibleFailJson(Exception):
     """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
 
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
@@ -198,7 +196,7 @@ class TestMyModule(unittest.TestCase):
     def test_get_called(self, get_asup):
         data = self.mock_args()
         set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
+        with pytest.raises(AnsibleExitJson):
             self.get_asup_mock_object('asup').apply()
         get_asup.assert_called_with()
 
@@ -207,7 +205,7 @@ class TestMyModule(unittest.TestCase):
         data = self.mock_args()
         data['transport'] = 'http'
         set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
+        with pytest.raises(AnsibleExitJson):
             self.get_asup_mock_object('asup').apply()
         modify_asup.assert_called_with({'transport': 'http', 'service_state': 'started'})
 
@@ -216,7 +214,7 @@ class TestMyModule(unittest.TestCase):
     def test_modify_not_called(self, get_asup, modify_asup):
         data = self.mock_args()
         set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
+        with pytest.raises(AnsibleExitJson):
             self.get_asup_mock_object('asup').apply()
         get_asup.assert_called_with()
         modify_asup.assert_not_called()

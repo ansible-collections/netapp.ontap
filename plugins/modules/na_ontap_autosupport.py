@@ -8,12 +8,6 @@ create Autosupport module to enable, disable or modify
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = """
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -137,6 +131,7 @@ EXAMPLES = """
 
 RETURN = """
 """
+import re
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -164,13 +159,14 @@ class NetAppONTAPasup(object):
             from_address=dict(required=False, type='str'),
             partner_addresses=dict(required=False, type='list', elements='str'),
             to_addresses=dict(required=False, type='list', elements='str'),
-            proxy_url=dict(required=False, type='str'),
+            # proxy_url may contain a password: user:password@url
+            proxy_url=dict(required=False, type='str', no_log=True),
             hostname_in_subject=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=False
+            supports_check_mode=True
         )
 
         self.na_helper = NetAppModule()
@@ -220,7 +216,8 @@ class NetAppONTAPasup(object):
         asup_attr_info = result.get_child_by_name('attributes').get_child_by_name('autosupport-config-info')
         asup_info['service_state'] = 'started' if asup_attr_info['is-enabled'] == 'true' else 'stopped'
         for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
-            asup_info[item_key] = asup_attr_info[zapi_key]
+            value = asup_attr_info[zapi_key]
+            asup_info[item_key] = value if value is not None else ""
         for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
             asup_info[item_key] = self.na_helper.get_value_for_bool(from_zapi=True,
                                                                     value=asup_attr_info[zapi_key])
@@ -260,6 +257,31 @@ class NetAppONTAPasup(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='%s' % to_native(error), exception=traceback.format_exc())
 
+    @staticmethod
+    def strip_password(url):
+        ''' if url matches user:password@address return user@address
+            otherwise return None
+        '''
+        if url:
+            needle = r'(.*):(.*)@(.*)'
+            matched = re.match(needle, url)
+            if matched:
+                return matched.group(1, 3)
+        return None, None
+
+    def idempotency_check(self, current, modify):
+        sanitized_modify = dict(modify)
+        if 'proxy_url' in modify:
+            user_url_m = self.strip_password(modify['proxy_url'])
+            user_url_c = self.strip_password(current.get('proxy_url'))
+            if user_url_m == user_url_c and user_url_m != (None, None):
+                # change in password, it can be a false positive as password is replaced with ********* by ONTAP
+                self.module.warn('na_ontap_autosupport is not idempotent because the password value in proxy_url cannot be compared.')
+            if user_url_m != (None, None):
+                # password was found in proxy_url, sanitize it, use something different than ZAPI *********
+                sanitized_modify['proxy_url'] = "%s:XXXXXXXX@%s" % user_url_m
+        return sanitized_modify
+
     def autosupport_log(self):
         results = netapp_utils.get_cserver(self.server)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
@@ -271,12 +293,11 @@ class NetAppONTAPasup(object):
         """
         current = self.get_autosupport_config()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                self.modify_autosupport_config(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        sanitized_modify = self.idempotency_check(current, modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            self.modify_autosupport_config(modify)
+        self.autosupport_log()
+        self.module.exit_json(changed=self.na_helper.changed, modify=sanitized_modify, current=current)
 
 
 def main():
