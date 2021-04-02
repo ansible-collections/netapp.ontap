@@ -49,6 +49,17 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
+LOG_MSGS = list()
+
+
+def log_msg(self, msg, log_args=None):  # pylint: disable=unused-argument
+    global LOG_MSGS
+    if log_args == 'CLEAN':
+        LOG_MSGS = list()
+        return
+    LOG_MSGS.append(msg)
+
+
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
@@ -135,7 +146,8 @@ class TestMyModule(unittest.TestCase):
     def setUp(self):
         self.mock_module_helper = patch.multiple(basic.AnsibleModule,
                                                  exit_json=exit_json,
-                                                 fail_json=fail_json)
+                                                 fail_json=fail_json,
+                                                 log=log_msg)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
         self.mock_lun_args = {
@@ -470,12 +482,12 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=900, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
+        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
-        print(lun_object.warnings)
         print(lun_object.debug)
         msg = "Ignoring small reduction (10.0 %) in total size: total_size=1000, provisioned=1100, requested=900"
-        assert msg in lun_object.warnings
+        assert msg in LOG_MSGS[-1]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_app_changes_reduction_small_enough_17(self, mock_request):
@@ -493,12 +505,13 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=983, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
+        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
-        print(lun_object.warnings)
+        print(LOG_MSGS)
         print(lun_object.debug)
         msg = "Ignoring small reduction (1.7 %) in total size: total_size=1000, provisioned=1100, requested=983"
-        assert msg in lun_object.warnings
+        assert msg in LOG_MSGS[-1]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_app_changes_increase_small_enough(self, mock_request):
@@ -516,9 +529,9 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=1050, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
+        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
-        print(lun_object.warnings)
         print(lun_object.debug)
         msg = "Ignoring increase: requested size is too small: total_size=1000, provisioned=1100, requested=1050"
-        assert msg in lun_object.warnings
+        assert msg in LOG_MSGS[-1]

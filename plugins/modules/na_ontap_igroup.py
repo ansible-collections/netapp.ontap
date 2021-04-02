@@ -263,7 +263,7 @@ class NetAppOntapIgroup(object):
         if self.parameters.get('initiator_names') is not None:
             self.parameters['initiator_objects'] = [
                 dict(name=initiator, comment=None)
-                for initiator in self.module.params['initiator_names']]
+                for initiator in self.parameters['initiator_names']]
 
         if self.parameters.get('initiator_objects') is not None:
             ontap_99_option = 'comment'
@@ -667,6 +667,7 @@ class NetAppOntapIgroup(object):
             uuid = current['uuid']
         if cd_action == 'create' and self.use_rest and 'os_type' not in self.parameters:
             self.module.fail_json(msg='Error: os_type is a required parameter when creating an igroup with REST')
+        saved_modify = str(modify)
         self.validate_modify(modify)
 
         if self.na_helper.changed and not self.module.check_mode:
@@ -693,7 +694,7 @@ class NetAppOntapIgroup(object):
                     modify.pop('initiator_objects',)
                 if modify:
                     self.modify_igroup_rest(uuid, modify)
-        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=modify)
+        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=saved_modify)
 
 
 def main():

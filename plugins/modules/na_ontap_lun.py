@@ -381,7 +381,6 @@ class NetAppOntapLUN(object):
                 unit = self.parameters['size_unit']
             self.parameters['san_application_template']['total_size'] *= netapp_utils.POW2_BYTE_MAP[unit]
 
-        self.warnings = list()
         self.debug = dict()
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
 
@@ -666,7 +665,7 @@ class NetAppOntapLUN(object):
             self.module.fail_json('Error: failed to create smart container for %s' % self.parameters['name'])
         app_modify, app_modify_warning = self.app_changes(scope)
         if app_modify_warning is not None:
-            self.warnings.append(app_modify_warning)
+            self.module.warn(app_modify_warning)
         if app_modify:
             self.modify_san_application(app_modify)
 
@@ -824,31 +823,59 @@ class NetAppOntapLUN(object):
         errors = list()
         saved_modify = dict(modify)
         for key in modify:
-            if key not in ('lun_count', 'total_size'):
-                errors.append("Error: the following application parameter cannot be modified: %s: %s."
-                              % (key, modify[key]))
+            # if lun_count is present, 'igroup_name', 'os_type' are allowed for new LUNs
+            if key not in ('igroup_name', 'os_type', 'lun_count', 'total_size'):
+                errors.append("Error: the following application parameter cannot be modified: %s.  Received: %s."
+                              % (key, str(modify)))
+        extra_attrs = tuple()
         if 'lun_count' in modify:
-            for attr in ('total_size', 'os_type', 'igroup_name'):
-                value = self.parameters.get(attr)
-                if value is None:
-                    value = self.na_helper.safe_get(self.parameters['san_application_template'], [attr])
-                if value is None:
-                    errors.append('Error: %s is a required parameter when increasing lun_count.' % attr)
-                else:
-                    modify[attr] = value
-            if warning:
-                errors.append('Error: %s' % warning)
+            extra_attrs = ('total_size', 'os_type', 'igroup_name')
+        else:
+            ignored_keys = [key for key in modify if key not in ('total_size',)]
+            for key in ignored_keys:
+                self.module.warn("Ignoring: %s.  This application parameter is only relevant when increasing the LUN count.  Received: %s."
+                                 % (key, str(saved_modify)))
+                modify.pop(key)
+        for attr in extra_attrs:
+            value = self.parameters.get(attr)
+            if value is None:
+                value = self.na_helper.safe_get(self.parameters['san_application_template'], [attr])
+            if value is None:
+                errors.append('Error: %s is a required parameter when increasing lun_count.' % attr)
+            else:
+                modify[attr] = value
         if errors:
             self.module.fail_json(msg='\n'.join(errors))
         if 'total_size' in modify:
             self.set_total_size(validate=False)
-            if warning:
+            if warning and 'lun_count' not in modify:
                 # can't change total_size, let's ignore it
-                self.warnings.append(warning)
+                self.module.warn(warning)
                 modify.pop('total_size')
                 saved_modify.pop('total_size')
         if modify and not self.rest_api.meets_rest_minimum_version(True, 9, 8):
             self.module.fail_json(msg='Error: modifying %s is not supported on ONTAP 9.7' % ', '.join(saved_modify.keys()))
+
+    def fail_on_large_size_reduction(self, app_current, desired, provisioned_size):
+        """ Error if a reduction of size > 10% is requested.
+            Warn for smaller reduction and ignore it, to protect against 'rounding' errors.
+        """
+        total_size = app_current['total_size']
+        desired_size = desired.get('total_size')
+        warning = None
+        if desired_size is not None:
+            details = "total_size=%d, provisioned=%d, requested=%d" % (total_size, provisioned_size, desired_size)
+            if desired_size < total_size:
+                # * 100 to get a percentage, and .0 to force float conversion
+                reduction = round((total_size - desired_size) * 100.0 / total_size, 1)
+                if reduction > 10:
+                    self.module.fail_json(msg="Error: can't reduce size: %s" % details)
+                else:
+                    warning = "Ignoring small reduction (%.1f %%) in total size: %s" % (reduction, details)
+            elif desired_size > total_size and desired_size < provisioned_size:
+                # we can't increase, but we can't say it is a problem, as the size is already bigger!
+                warning = "Ignoring increase: requested size is too small: %s" % details
+        return warning
 
     def app_changes(self, scope):
         # find and validate app changes
@@ -878,23 +905,8 @@ class NetAppOntapLUN(object):
         app_current['name'] = app_name
 
         # ready to compare, except for a quirk in size handling
-        total_size = app_current['total_size']
         desired = dict(self.parameters['san_application_template'])
-        desired_size = desired.get('total_size')
-
-        warning = None
-        if desired_size is not None:
-            details = "total_size=%d, provisioned=%d, requested=%d" % (total_size, provisioned_size, desired_size)
-            if desired_size < total_size:
-                # * 100 to get a percentage, and .0 to force float conversion
-                reduction = round((total_size - desired_size) * 100.0 / total_size, 1)
-                if reduction > 10:
-                    self.module.fail_json(msg="Error: can't reduce size: %s" % details)
-                else:
-                    warning = "Ignoring small reduction (%.1f %%) in total size: %s" % (reduction, details)
-            elif desired_size > total_size and desired_size < provisioned_size:
-                # we can't increase, but we can't say it is a problem, as the size is already bigger!
-                warning = "Ignoring increase: requested size is too small: %s" % details
+        warning = self.fail_on_large_size_reduction(app_current, desired, provisioned_size)
 
         # preserve change state before calling modify in case an ignorable total_size change is the only change
         changed = self.na_helper.changed
@@ -995,7 +1007,7 @@ class NetAppOntapLUN(object):
                     ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
                 if scope == 'auto':
                     # ignore LUN not found, as name can be a group name
-                    self.warnings.append(msg + ".  scope=%s, assuming 'application'" % scope)
+                    self.module.warn(msg + ".  scope=%s, assuming 'application'" % scope)
                     if not app_modify:
                         self.na_helper.changed = False
                 elif scope == 'lun':
@@ -1033,11 +1045,9 @@ class NetAppOntapLUN(object):
                     self.na_helper.changed = size_changed
 
         if app_modify_warning:
-            self.warnings.append(app_modify_warning)
+            self.module.warn(app_modify_warning)
         results['changed'] = self.na_helper.changed
         results['actions'] = actions
-        if self.warnings:
-            results['warnings'] = self.warnings
         results.update(self.debug)
         self.module.exit_json(**results)
 

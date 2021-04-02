@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_igroups - new option `initiator_names` as a replacement for `initiators` (still supported as an alias).
 
 ### Minor changes
+  - na_ontap_lun - allow new LUNs to use different igroup or os_type when using SAN application.
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
 
 ### Bug fixes
