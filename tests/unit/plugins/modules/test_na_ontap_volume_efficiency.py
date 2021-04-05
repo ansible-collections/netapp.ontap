@@ -32,6 +32,7 @@ SRR = {
         'records': [{
             'path': '/vol/volTest',
             'state': 'enabled',
+            'op_status': 'idle',
             'schedule': None,
             'policy': 'auto',
             'inline_compression': True,
@@ -47,6 +48,23 @@ SRR = {
         'records': [{
             'path': '/vol/volTest',
             'state': 'disabled',
+            'op_status': 'idle',
+            'schedule': None,
+            'policy': 'auto',
+            'inline_compression': True,
+            'compression': True,
+            'inline_dedupe': True,
+            'data_compaction': True,
+            'cross_volume_inline_dedupe': True,
+            'cross_volume_background_dedupe': True
+        }]
+    }, None),
+    'volume_efficiency_running_record': (200, {
+        'num_records': 1,
+        'records': [{
+            'path': '/vol/volTest',
+            'state': 'enabled',
+            'op_status': 'running',
             'schedule': None,
             'policy': 'auto',
             'inline_compression': True,
@@ -103,6 +121,8 @@ class MockONTAPConnection(object):
             xml = self.build_volume_efficiency_enabled_info()
         elif self.type == 'volume_efficiency_disabled':
             xml = self.build_volume_efficiency_disabled_info()
+        elif self.type == 'volume_efficiency_running':
+            xml = self.build_volume_efficiency_running_info()
         elif self.type == 'volume_efficiency_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
@@ -119,6 +139,7 @@ class MockONTAPConnection(object):
                     'path': '/vol/volTest',
                     'state': 'enabled',
                     'schedule': None,
+                    'status': 'idle',
                     'policy': 'auto',
                     'is-inline-compression-enabled': 'true',
                     'is-compression-enabled': 'true',
@@ -143,7 +164,34 @@ class MockONTAPConnection(object):
                 'sis-status-info': {
                     'path': '/vol/volTest',
                     'state': 'disabled',
+                    'status': 'idle',
                     'schedule': None,
+                    'policy': 'auto',
+                    'is-inline-compression-enabled': 'true',
+                    'is-compression-enabled': 'true',
+                    'is-inline-dedupe-enabled': 'true',
+                    'is-data-compaction-enabled': 'true',
+                    'is-cross-volume-inline-dedupe-enabled': 'true',
+                    'is-cross-volume-background-dedupe-enabled': 'true'
+                }
+            }
+        }
+
+        xml.translate_struct(data)
+        return xml
+
+    @staticmethod
+    def build_volume_efficiency_running_info():
+        ''' build xml data for sis-status-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {
+            'num-records': 1,
+            'attributes-list': {
+                'sis-status-info': {
+                    'path': '/vol/volTest',
+                    'state': 'enabled',
+                    'schedule': None,
+                    'status': 'running',
                     'policy': 'auto',
                     'is-inline-compression-enabled': 'true',
                     'is-compression-enabled': 'true',
@@ -308,6 +356,48 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.start_volume_efficiency')
+    def test_successful_start(self, start_volume_efficiency):
+        ''' start volume_efficiency and testing idempotency '''
+        data = self.set_default_args(use_rest='Never')
+        data['volume_efficiency'] = 'start'
+        set_module_args(data)
+        my_obj = volume_efficiency_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        # to reset na_helper from remembering the previous 'changed' value
+        set_module_args(data)
+        my_obj = volume_efficiency_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('volume_efficiency_running')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.stop_volume_efficiency')
+    def test_successful_stop(self, stop_volume_efficiency):
+        ''' stop volume_efficiency and testing idempotency '''
+        data = self.set_default_args(use_rest='Never')
+        data['volume_efficiency'] = 'stop'
+        set_module_args(data)
+        my_obj = volume_efficiency_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('volume_efficiency_running')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+        # to reset na_helper from remembering the previous 'changed' value
+        set_module_args(data)
+        my_obj = volume_efficiency_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert not exc.value.args[0]['changed']
+
     def test_if_all_methods_catch_exception(self):
         data = self.set_default_args(use_rest='Never')
         set_module_args(data)
@@ -413,6 +503,66 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_idempotent_modify_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_enabled_record'],  # get
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_start_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['volume_efficiency'] = 'start'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_enabled_record'],  # get
+            SRR['empty_good'],  # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_idempotent_start_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_enabled_record'],  # get
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_stop_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['volume_efficiency'] = 'stop'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_running_record'],  # get
+            SRR['empty_good'],  # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_idempotent_stop_rest(self, mock_request):
         data = self.set_default_args()
         data['state'] = 'present'
         set_module_args(data)

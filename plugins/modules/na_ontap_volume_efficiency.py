@@ -6,11 +6,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = """
 module: na_ontap_volume_efficiency
 short_description: NetApp ONTAP enables, disables or modifies volume efficiency
@@ -81,6 +76,57 @@ options:
     - Specifies if cross volume background deduplication is to be enabled, this can only be enabled when inline deduplication is enabled.
     type: bool
 
+  volume_efficiency:
+    description:
+    - Start or Stop a volume efficiency operation on a given volume path.
+    choices: ['start', 'stop']
+    version_added: '21.4.0'
+    type: str
+
+  start_ve_scan_all:
+    description:
+    - Specifies the scanner to scan the entire volume without applying share block optimization.
+    version_added: '21.4.0'
+    type: bool
+
+  start_ve_build_metadata:
+    description:
+    - Specifies the scanner to scan the entire and generate fingerprint database without attempting the sharing.
+    version_added: '21.4.0'
+    type: bool
+
+  start_ve_delete_checkpoint:
+    description:
+    - Specifies the scanner to delete existing checkpoint and start the operation from the begining.
+    version_added: '21.4.0'
+    type: bool
+
+  start_ve_queue_operation:
+    description:
+    - Specifies the operation to queue if an exisitng operation is already running on the volume and in the fingerprint verification phase.
+    version_added: '21.4.0'
+    type: bool
+
+  start_ve_scan_old_data:
+    description:
+    - Specifies the operation to scan the file system to process all the existing data.
+    version_added: '21.4.0'
+    type: bool
+
+  start_ve_qos_policy:
+    description:
+    - Specifies the QoS policy for the operation.
+    choices: ['background', 'best-effort']
+    default: best-effort
+    version_added: '21.4.0'
+    type: str
+
+  stop_ve_all_operations:
+    description:
+    - Specifies that all running and queued operations to be stopped.
+    version_added: '21.4.0'
+    type: bool
+
 """
 
 EXAMPLES = """
@@ -120,6 +166,27 @@ EXAMPLES = """
         https: true
         validate_certs: false
 
+    - name: Start volume efficiency
+      na_ontap_volume_efficiency:
+        state: present
+        vserver: "TESTSVM"
+        volume_efficiency: "start"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
+
+    - name: Stop volume efficiency
+      na_ontap_volume_efficiency:
+        state: present
+        vserver: "TESTSVM"
+        volume_efficiency: "stop"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
 
 """
 
@@ -157,12 +224,21 @@ class NetAppOntapVolumeEfficiency(object):
             enable_inline_dedupe=dict(required=False, type='bool'),
             enable_data_compaction=dict(required=False, type='bool'),
             enable_cross_volume_inline_dedupe=dict(required=False, type='bool'),
-            enable_cross_volume_background_dedupe=dict(required=False, type='bool')
+            enable_cross_volume_background_dedupe=dict(required=False, type='bool'),
+            volume_efficiency=dict(required=False, choices=['start', 'stop'], type='str'),
+            start_ve_scan_all=dict(required=False, type='bool'),
+            start_ve_build_metadata=dict(required=False, type='bool'),
+            start_ve_delete_checkpoint=dict(required=False, type='bool'),
+            start_ve_queue_operation=dict(required=False, type='bool'),
+            start_ve_scan_old_data=dict(required=False, type='bool'),
+            start_ve_qos_policy=dict(required=False, choices=['background', 'best-effort'], type='str', default='best-effort'),
+            stop_ve_all_operations=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
+            required_if=[('start_ve_scan_all', True, ['start_ve_scan_old_data'])],
             mutually_exclusive=[('policy', 'schedule')]
         )
 
@@ -173,6 +249,12 @@ class NetAppOntapVolumeEfficiency(object):
             self.parameters['enabled'] = 'enabled'
         else:
             self.parameters['enabled'] = 'disabled'
+
+        if 'volume_efficiency' in self.parameters:
+            if self.parameters['volume_efficiency'] == 'start':
+                self.parameters['status'] = 'running'
+            else:
+                self.parameters['status'] = 'idle'
 
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
@@ -194,7 +276,7 @@ class NetAppOntapVolumeEfficiency(object):
         if self.use_rest:
             api = 'private/cli/volume/efficiency'
             query = {
-                'fields': 'path,volume,state,schedule,compression,inline_compression,inline_dedupe,policy,data_compaction,'
+                'fields': 'path,volume,state,op_status,schedule,compression,inline_compression,inline_dedupe,policy,data_compaction,'
                           'cross_volume_inline_dedupe,cross_volume_background_dedupe',
                 'path': self.parameters['path'],
                 'vserver': self.parameters['vserver']
@@ -213,6 +295,7 @@ class NetAppOntapVolumeEfficiency(object):
             return_value = {
                 'path': message['records'][0]['path'],
                 'enabled': message['records'][0]['state'],
+                'status': message['records'][0]['op_status'],
                 'schedule': message['records'][0]['schedule'],
                 'enable_inline_compression': message['records'][0]['inline_compression'],
                 'enable_compression': message['records'][0]['compression'],
@@ -245,6 +328,7 @@ class NetAppOntapVolumeEfficiency(object):
                     return_value = {
                         'path': sis_status_attributes['path'],
                         'enabled': sis_status_attributes['state'],
+                        'status': sis_status_attributes['status'],
                         'schedule': sis_status_attributes['schedule'],
                         'enable_inline_compression': self.na_helper.get_value_for_bool(
                             True, sis_status_attributes.get_child_content('is-inline-compression-enabled')
@@ -402,11 +486,111 @@ class NetAppOntapVolumeEfficiency(object):
                 self.module.fail_json(msg='Error modifying storage efficiency for path %s: %s' % (self.parameters['path'], to_native(error)),
                                       exception=traceback.format_exc())
 
+    def start_volume_efficiency(self):
+        """
+        Starts volume efficiency for a given flex volume by path
+        """
+
+        if self.use_rest:
+            api = 'private/cli/volume/efficiency/start'
+            body = dict()
+            query = {
+                'path': self.parameters['path'],
+                'vserver': self.parameters['vserver']
+            }
+
+            if 'start_ve_scan_all' in self.parameters:
+                body['scan_all'] = self.parameters['start_ve_scan_all']
+            if 'start_ve_build_metadata' in self.parameters:
+                body['build_metadata'] = self.parameters['start_ve_build_metadata']
+            if 'start_ve_delete_checkpoint' in self.parameters:
+                body['delete_checkpoint'] = self.parameters['start_ve_delete_checkpoint']
+            if 'start_ve_queue_operation' in self.parameters:
+                body['queue'] = self.parameters['start_ve_queue_operation']
+            if 'start_ve_scan_old_data' in self.parameters:
+                body['scan_old_data'] = self.parameters['start_ve_scan_old_data']
+            if 'start_ve_qos_policy' in self.parameters:
+                body['qos-policy'] = self.parameters['start_ve_qos_policy']
+
+            dummy, error = self.rest_api.patch(api, body, query)
+            if error:
+                self.module.fail_json(msg=error)
+
+        else:
+
+            sis_start = netapp_utils.zapi.NaElement('sis-start')
+            sis_start.add_new_child('path', self.parameters['path'])
+
+            if 'start_ve_scan_all' in self.parameters:
+                sis_start.add_new_child('scan-all', self.na_helper.get_value_for_bool(
+                    False, self.parameters['start_ve_scan_all'])
+                )
+            if 'start_ve_build_metadata' in self.parameters:
+                sis_start.add_new_child('build-metadata', self.na_helper.get_value_for_bool(
+                    False, self.parameters['start_ve_build_metadata'])
+                )
+            if 'start_ve_delete_checkpoint' in self.parameters:
+                sis_start.add_new_child('delete-checkpoint', self.na_helper.get_value_for_bool(
+                    False, self.parameters['start_ve_delete_checkpoint'])
+                )
+            if 'start_ve_queue_operation' in self.parameters:
+                sis_start.add_new_child('queue-operation', self.na_helper.get_value_for_bool(
+                    False, self.parameters['start_ve_queue_operation'])
+                )
+            if 'start_ve_scan_old_data' in self.parameters:
+                sis_start.add_new_child('scan', self.na_helper.get_value_for_bool(
+                    False, self.parameters['start_ve_scan_old_data'])
+                )
+            if 'start_ve_qos_policy' in self.parameters:
+                sis_start.add_new_child('qos-policy', self.parameters['start_ve_qos_policy'])
+
+            try:
+                self.server.invoke_successfully(sis_start, True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error starting storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
+
+    def stop_volume_efficiency(self):
+        """
+        Stops volume efficiency for a given flex volume by path
+        """
+
+        if self.use_rest:
+            api = 'private/cli/volume/efficiency/stop'
+            body = dict()
+            query = {
+                'path': self.parameters['path'],
+                'vserver': self.parameters['vserver']
+            }
+
+            if 'stop_ve_all_operations' in self.parameters:
+                body['all'] = self.parameters['stop_ve_all_operations']  # look and check parameter
+
+            dummy, error = self.rest_api.patch(api, body, query)
+            if error:
+                self.module.fail_json(msg=error)
+
+        else:
+
+            sis_stop = netapp_utils.zapi.NaElement('sis-stop')
+            sis_stop.add_new_child('path', self.parameters['path'])
+            if 'stop_ve_all_operations' in self.parameters:
+                sis_stop.add_new_child('all-operations', self.na_helper.get_value_for_bool(
+                    False, self.parameters['stop_ve_all_operations'])
+                )
+
+            try:
+                self.server.invoke_successfully(sis_stop, True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error stopping storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
+
     def apply(self):
         if not self.use_rest:
             netapp_utils.ems_log_event("na_ontap_volume_efficiency", self.server)
 
         current = self.get_volume_efficiency()
+        ve_status = None
 
         # If the volume efficiency does not exist for a given path to create this current is set to disabled
         # this is for ONTAP systems that do not enable efficiency by default.
@@ -427,9 +611,17 @@ class NetAppOntapVolumeEfficiency(object):
 
                 if 'enabled' in modify:
                     del modify['enabled']
-                # Removed the enabled key if there is anything remaining in the modify dict we need to modify.
+                if 'status' in modify:
+                    ve_status = modify['status']
+                    del modify['status']
+                # Removed the enabled and volume efficiency status,
+                # if there is anything remaining in the modify dict we need to modify.
                 if modify:
                     self.modify_volume_efficiency()
+                if ve_status == 'running':
+                    self.start_volume_efficiency()
+                elif ve_status == 'idle':
+                    self.stop_volume_efficiency()
 
         self.module.exit_json(changed=self.na_helper.changed)
 

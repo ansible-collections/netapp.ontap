@@ -31,7 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
   - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
-  - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.  
+  - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.
 
 ### New Options
   - na_ontap_igroups - new option `initiator_objects` to support initiator comments (requires ONTAP 9.9).
@@ -40,6 +40,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor changes
   - na_ontap_lun - allow new LUNs to use different igroup or os_type when using SAN application.
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in `total_size`.
+  - na_ontap_volume_efficiency - updated to now allow for storage efficiency start and storage efficiency stop.
 
 ### Bug fixes
   - na_ontap_autosupport - warn when password is present in `proxy_url` as it makes the operation not idempotent.
