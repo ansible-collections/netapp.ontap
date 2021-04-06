@@ -259,7 +259,7 @@ class NetAppOntapSecurityCertificates(object):
             type=dict(required=False, choices=['client', 'server', 'client_ca', 'server_ca', 'root_ca']),
             svm=dict(required=False, type='str', aliases=['vserver']),
             public_certificate=dict(required=False, type='str'),
-            private_key=dict(required=False, type='str'),
+            private_key=dict(required=False, type='str', no_log=True),
             signing_request=dict(required=False, type='str'),
             expiry_time=dict(required=False, type='str'),
             key_size=dict(required=False, type='int'),

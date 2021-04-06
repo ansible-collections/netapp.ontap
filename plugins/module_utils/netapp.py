@@ -131,7 +131,7 @@ def na_ontap_host_argument_spec():
         use_rest=dict(required=False, type='str', default='auto'),
         feature_flags=dict(required=False, type='dict', default=dict()),
         cert_filepath=dict(required=False, type='str'),
-        key_filepath=dict(required=False, type='str'),
+        key_filepath=dict(required=False, type='str', no_log=False),
     )
 
 

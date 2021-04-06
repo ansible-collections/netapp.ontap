@@ -123,7 +123,7 @@ class NetAppOntapObjectStoreConfig(object):
             provider_type=dict(required=False, type='str'),
             server=dict(required=False, type='str'),
             container=dict(required=False, type='str'),
-            access_key=dict(required=False, type='str'),
+            access_key=dict(required=False, type='str', no_log=True),
             secret_password=dict(required=False, type='str', no_log=True)
         ))
 
