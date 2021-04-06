@@ -32,8 +32,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Modules
   - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
   - na_ontap_disk_options: Modify storage disk options
-  - na_ontap_fpolicy_scope: Create, delete or modify an FPolicy policy scope.
   - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.
+  - na_ontap_fpolicy_scope: Create, delete or modify an FPolicy policy scope.
+  - na_ontap_fpolicy_status: Enable or disable an existing fPolicy policy.
   - na_ontap_snaplock_clock: Initialize snaplock compliance clock
 
 ### New Options
