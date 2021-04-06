@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_disk_options: Modify storage disk options
   - na_ontap_fpolicy_scope: Create, delete or modify an FPolicy policy scope.
   - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.
+  - na_ontap_snaplock_clock: Initialize snaplock compliance clock
 
 ### New Options
   - na_ontap_igroups - new option `initiator_objects` to support initiator comments (requires ONTAP 9.9).
