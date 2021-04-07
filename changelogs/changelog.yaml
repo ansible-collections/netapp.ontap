@@ -424,6 +424,116 @@ releases:
     - DEVOPS-3194.yaml
     - DEVOPS-3251.yaml
     release_date: '2020-10-08'
+  20.11.0:
+    changes:
+      bugfixes:
+      - All REST modules, will not fail if a job fails
+      - na_ontap_cifs - fix idempotency issue when ``show-previous-versions`` is used.
+      - na_ontap_firmware_upgrade - fix ValueError issue when processing URL error.
+      - na_ontap_info - Use ``node-id`` as key rather than ``current-version``.
+      - na_ontap_ipspace - invalid call in error reporting (double error).
+      - na_ontap_software_update - module is not idempotent.
+      minor_changes:
+      - na_ontap_cifs - output ``modified`` if a modify action is taken.
+      - na_ontap_cluster_peer - optional parameter ``ipspace`` added for cluster peer.
+      - na_ontap_export_policy_rule - minor doc updates.
+      - na_ontap_info - do not require write access privileges.   This also enables
+        other modules to work in check_mode without write access permissions.
+      - na_ontap_interface - minor example update.
+      - na_ontap_lun - ``use_exact_size`` to create a lun with the exact given size
+        so that the lun is not rounded up.
+      - na_ontap_lun - support modify for space_allocation and space_reserve.
+      - na_ontap_mcc_mediator - improve error reporting when REST is not available.
+      - na_ontap_metrocluster - improve error reporting when REST is not available.
+      - na_ontap_software_update - add `force_update` option to ignore current version.
+      - na_ontap_svm - output ``modified`` if a modify action is taken.
+      - na_ontap_wwpn_alias - improve error reporting when REST is not available.
+    fragments:
+    - DEVOPS-2965.yaml
+    - DEVOPS-3149.yaml
+    - DEVOPS-3262.yaml
+    - DEVOPS-3304.yaml
+    - DEVOPS-3310.yml
+    - DEVOPS-3312.yaml
+    - DEVOPS-3354.yaml
+    - DEVOPS-3358.yaml
+    - DEVOPS-3366.yaml
+    - github-56.yaml
+    modules:
+    - description: NetApp ONTAP manage MetroCluster DR Group
+      name: na_ontap_metrocluster_dr_group
+      namespace: ''
+    release_date: '2020-11-05'
+  20.12.0:
+    changes:
+      bugfixes:
+      - na_ontap_broadcast_domain_ports - handle ``changed`` for check_mode and report
+        correctly.
+      - na_ontap_cifs - fix for AttributeError - 'NoneType' object has no attribute
+        'get' on line 300
+      - na_ontap_svm - warning for ``aggr_list`` wildcard value(``*``) in create idempotency.
+      - na_ontap_user - application expects only ``service_processor`` but module
+        supports ``service-processor``.
+      - na_ontap_volume - checking for success before failure lead to 'NoneType' object
+        has no attribute 'get_child_by_name' when modifying a Flexcache volume.
+      - na_ontap_volume - fix volume type modify issue by reporting error.
+      minor_changes:
+      - all ZAPI modules - new ``classic_basic_authorization`` feature_flag to disable
+        adding Authorization header proactively.
+      - all ZAPI modules - optimize Basic Authentication by adding Authorization header
+        proactively.
+      - na_ontap_igroup - new option ``os_type`` to replace ``ostype`` (but ostype
+        is still accepted).
+      - na_ontap_info - New options ``cifs_options_info``, ``cluster_log_forwarding_info``,
+        ``event_notification_destination_info``, ``event_notification_info``, ``security_login_role_config_info``,
+        ``security_login_role_info`` have been added.
+      - na_ontap_lun - new option ``from_name`` to rename a LUN.
+      - na_ontap_lun - new option ``os_type`` to replace ``ostype`` (but ostype is
+        still accepted), and removed default to ``image``.
+      - na_ontap_lun - new option ``qos_policy_group`` to assign a qos_policy_group
+        to a LUN.
+      - na_ontap_lun - new option ``san_application_template`` to create LUNs without
+        explicitly creating a volume and using REST APIs.
+      - na_ontap_qos_policy_group - new option ``is_shared`` for sharing QOS SLOs
+        or not.
+      - na_ontap_quota_policy - new option ``auto_assign`` to assign quota policy
+        to vserver.
+      - na_ontap_quotas - New option ``activate_quota_on_change`` to resize or reinitialize
+        quotas.
+      - na_ontap_quotas - New option ``perform_user_mapping`` to perform user mapping
+        for the user specified in quota-target.
+      - na_ontap_rest_info - Support for gather subsets - ``cifs_home_directory_info,
+        cluster_software_download, event_notification_info, event_notification_destination_info,
+        security_login_info, security_login_rest_role_info``
+      - na_ontap_volume - ``compression`` to enable compression on a FAS volume.
+      - na_ontap_volume - ``inline-compression`` to enable inline compression on a
+        volume.
+      - na_ontap_volume - ``nas_application_template`` to create a volume using nas
+        application REST API.
+      - na_ontap_volume - ``size_change_threshold`` to ignore small changes in volume
+        size.
+      - na_ontap_volume - ``sizing_method`` to resize a FlexGroup using REST.
+    fragments:
+    - DEVOPS-2668.yaml
+    - DEVOPS-2964.yaml
+    - DEVOPS-3181.yaml
+    - DEVOPS-3329.yaml
+    - DEVOPS-3346.yaml
+    - DEVOPS-3367.yaml
+    - DEVOPS-3368.yaml
+    - DEVOPS-3369.yaml
+    - DEVOPS-3371.yaml
+    - DEVOPS-3385.yaml
+    - DEVOPS-3386.yaml
+    - DEVOPS-3390.yaml
+    - DEVOPS-3392.yaml
+    - DEVOPS-3399.yaml
+    - DEVOPS-3400.yaml
+    - DEVOPS-3401.yaml
+    - DEVOPS-3442.yaml
+    - DEVOPS-3443.yaml
+    - DEVOPS-3454.yaml
+    release_date: '2020-12-02'
   20.2.0:
     changes:
       bugfixes:
@@ -877,3 +987,265 @@ releases:
       name: na_ontap_metrocluster
       namespace: ''
     release_date: '2020-09-02'
+  21.1.0:
+    changes:
+      bugfixes:
+      - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.
+      - na_ontap_quotas - Handle blank string idempotency issue for ``quota_target``
+        in quotas module.
+      - na_ontap_rest_info - ``changed`` was set to "False" rather than boolean False.
+      - na_ontap_snapmirror - fix job update failures for load_sharing mirrors.
+      - na_ontap_snapmirror - report error when attempting to change relationship_type.
+      - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing
+        a delete.
+      - na_ontap_snmp - SNMP module wrong ``access_control`` issue and error handling
+        fix.
+      - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
+      - na_ontap_volume - detect and report error when attempting to change FlexVol
+        into FlexGroup.
+      - na_ontap_volume - report error if ``aggregate_name`` option is used with a
+        FlexGroup.
+      minor_changes:
+      - general - improve error reporting when older version of netapp-lib is used.
+      - na_ontap_cluster - ``time_out`` to wait for cluster creation, adding and removing
+        a node.
+      - na_ontap_debug - connection diagnostics added for invalid ipaddress and DNS
+        hostname errors.
+      - na_ontap_firmware_upgrade - new option for firmware type ``storage`` added.
+      - na_ontap_info - deprecate ``state`` option.
+      - na_ontap_lun - new options ``total_size`` and ``total_size_unit`` when using
+        SAN application template.
+      - na_ontap_lun - support increasing lun_count and total_size when using SAN
+        application template.
+      - na_ontap_quota - allow to turn quota on/off without providing quota_target
+        or type.
+      - na_ontap_rest_info - deprecate ``state`` option.
+      - na_ontap_snapmirror - new option ``create_destination`` to automatically create
+        destination endpoint (ONTAP 9.7).
+      - na_ontap_snapmirror - new option ``destination_cluster`` to automatically
+        create destination SVM for SVM DR (ONTAP 9.7).
+      - na_ontap_snapmirror - new option ``source_cluster`` to automatically set SVM
+        peering (ONTAP 9.7).
+      - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs
+        are still used for all other actions).
+      - na_ontap_volume - use REST API for delete operation if targets supports it.
+    fragments:
+    - DEVOPS-2491.yaml
+    - DEVOPS-2928.yaml
+    - DEVOPS-3137.yaml
+    - DEVOPS-3242.yaml
+    - DEVOPS-3370.yaml
+    - DEVOPS-3439.yaml
+    - DEVOPS-3480.yaml
+    - DEVOPS-3490.yaml
+    - DEVOPS-3494.yaml
+    - DEVOPS-3497.yaml
+    - DEVOPS-3501.yaml
+    - DEVOPS-3510.yaml
+    modules:
+    - description: NetApp ONTAP Debug netapp-lib import and connection.
+      name: na_ontap_debug
+      namespace: ''
+    release_date: '2021-01-07'
+  21.2.0:
+    changes:
+      bugfixes:
+      - All REST modules - ONTAP 9.4 and 9.5 are incorrectly detected as supporting
+        REST with ``use_rest:auto``.
+      - na_ontap_igroup - report error when attempting to modify an option that cannot
+        be changed.
+      - na_ontap_lun - ``qos_policy_group`` could not be modified if a value was not
+        provided at creation.
+      - na_ontap_lun - tiering options were ignored in san_application_template.
+      - na_ontap_volume - report error from resize operation when using REST.
+      - na_ontap_volume - returns an error now if deleting a volume with REST api
+        fails.
+      minor_changes:
+      - azure_rm_netapp_account - new option ``active_directories`` to support SMB
+        volumes.
+      - azure_rm_netapp_volume - new option ``protocol_types`` to support SMB volumes.
+      - na_ontap_igroup - added REST support for ONTAP igroup creation, modification,
+        and deletion.
+      - na_ontap_lun - add ``comment`` option.
+      - na_ontap_lun - convert existing LUNs and supporting volume to a smart container
+        within a SAN application.
+      - na_ontap_lun - new option ``qos_adaptive_policy_group``.
+      - na_ontap_lun - new option ``scope`` to explicitly force operations on the
+        SAN application or a single LUN.
+      - na_ontap_node - added modify function for location and asset tag for node.
+      - na_ontap_snapmirror - add new options ``source_endpoint`` and ``destination_endpoint``
+        to group endpoint suboptions.
+      - na_ontap_snapmirror - add new suboptions ``consistency_group_volumes`` and
+        ``ipspace`` to endpoint options.
+      - na_ontap_snapmirror - deprecate older options for source and destination paths,
+        volumes, vservers, and clusters.
+      - na_ontap_snapmirror - improve error reporting or warn when REST option is
+        not supported.
+      - na_ontap_snapmirror - report warning when relationship is present but not
+        healthy.
+    fragments:
+    - DEVOPS-3175.yaml
+    - DEVOPS-3479.yaml
+    - DEVOPS-3526.yaml
+    - DEVOPS-3535.yaml
+    - DEVOPS-3540.yaml
+    - DEVOPS-3542.yaml
+    - DEVOPS-3543.yaml
+    - DEVOPS-3579.yaml
+    - DEVOPS-3580.yaml
+    - DEVOPS-3595.yaml
+    - DEVOPS-3623.yaml
+    - DEVOPS-3625.yaml
+    - DEVOPS-3633.yaml
+    modules:
+    - description: NetApp Ontap - Add or remove CIFS local group member
+      name: na_ontap_cifs_local_group_member
+      namespace: ''
+    - description: NetApp ONTAP Log Forward Configuration
+      name: na_ontap_log_forward
+      namespace: ''
+    - description: NetApp ONTAP LUN maps reporting nodes
+      name: na_ontap_lun_map_reporting_nodes
+      namespace: ''
+    - description: NetApp Ontap enables, disables or modifies volume efficiency
+      name: na_ontap_volume_efficiency
+      namespace: ''
+    release_date: '2021-02-04'
+  21.3.0:
+    changes:
+      bugfixes:
+      - na_ontap_ldap_client - ``port`` was incorrectly used instead of ``tcp_port``.
+      - na_ontap_node - KeyError fix for location ans asset-tag parameters in get_node().
+      - na_ontap_snapmirror - SVM scoped policies were not found when using a destination
+        path with REST application.
+      - na_ontap_volume - changes in ``encrypt`` settings were ignored.
+      - na_ontap_volume - unmount volume before deleting it when using REST.
+      minor_changes:
+      - na_ontap_debug - improve error reporting for import errors on netapp_lib.
+      - na_ontap_flexcache - mount/unmount the FlexCache volume when using REST.
+      - na_ontap_flexcache - support REST APIs in addition to ZAPI for create and
+        delete.
+      - na_ontap_flexcache - support for ``prepopulate`` option when using REST (requires
+        ONTAP 9.8).
+      - na_ontap_igroups - new option ``igroups`` to support nested igroups (requires
+        ONTAP 9.9).
+      - na_ontap_info - improve error reporting for import errors on netapp_lib, json,
+        xlmtodict.
+      - na_ontap_motd - deprecated module warning and to use na_ontap_login_messages.
+      - na_ontap_volume - new suboption ``dr_cache`` when creating flexcache using
+        NAS application template.
+      - na_ontap_volume_efficiency - to allow for FAS ONTAP systems to enable volume
+        efficiency when it does not exist and apply additional parameters.
+      - na_ontap_volume_efficiency - to allow for FAS ONTAP systems to enable volume
+        efficiency when it does not exist.
+    fragments:
+    - DEVOPS-2353.yaml
+    - DEVOPS-3536.yaml
+    - DEVOPS-3626.yaml
+    - DEVOPS-3654.yaml
+    - DEVOPS-3655.yaml
+    - DEVOPS-3662.yaml
+    - DEVOPS-3667.yaml
+    - DEVOPS-3668.yaml
+    - DEVOPS-3671.yaml
+    - DEVOPS-3677.yaml
+    - DEVOPS-3685.yaml
+    - DEVOPS-3716.yaml
+    - DEVOPS-3718.yaml
+    modules:
+    - description: NetApp ONTAP domain tunnel
+      name: na_ontap_domain_tunnel
+      namespace: ''
+    - description: NetApp ONTAP - Create, delete or modify an FPolicy policy.
+      name: na_ontap_fpolicy_policy
+      namespace: ''
+    - description: NetApp ONTAP modify security config for SSL.
+      name: na_ontap_security_config
+      namespace: ''
+    - description: Enables or disables NetApp ONTAP storage auto giveback for a specified
+        node
+      name: na_ontap_storage_auto_giveback
+      namespace: ''
+    - description: Enables or disables NetApp Ontap storage failover for a specified
+        node
+      name: na_ontap_storage_failover
+      namespace: ''
+    release_date: '2021-03-03'
+  21.3.1:
+    changes:
+      bugfixes:
+      - na_ontap_snapmirror - check for consistency_group_volumes always fails on
+        9.7.
+    fragments:
+    - DEVOPS-3754.yaml
+    release_date: '2021-03-09'
+  21.4.0:
+    changes:
+      bugfixes:
+      - na_ontap_autosupport - warn when password is present in ``proxy_url`` as it
+        makes the operation not idempotent.
+      - na_ontap_cluster - ignore ZAPI EMS log error when in pre-cluster mode.
+      - na_ontap_lun - SAN application is not supported on 9.6 and only partially
+        supported on 9.7 (no modify).
+      - na_ontap_svm - iscsi current status is not read correctly (mispelled issi).
+      minor_changes:
+      - na_ontap_igroups - new option ``initiator_names`` as a replacement for ``initiators``
+        (still supported as an alias).
+      - na_ontap_igroups - new option ``initiator_objects`` to support initiator comments
+        (requires ONTAP 9.9).
+      - na_ontap_lun - allow new LUNs to use different igroup or os_type when using
+        SAN application.
+      - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease
+        (< 10%) in ``total_size``.
+      - na_ontap_node - added REST support for ONTAP node modify and rename.
+      - na_ontap_volume - warn when attempting to modify application only options.
+      - na_ontap_volume_efficiency - new option 'start_ve_build_metadata' scan the
+        entire and generate fingerprint database.
+      - na_ontap_volume_efficiency - new option 'start_ve_delete_checkpoint' delete
+        checkpoint and start the operation from the begining.
+      - na_ontap_volume_efficiency - new option 'start_ve_qos_policy' defines the
+        QoS policy for the operation.
+      - na_ontap_volume_efficiency - new option 'start_ve_queue_operation' queue if
+        an exisitng operation is already running.
+      - na_ontap_volume_efficiency - new option 'start_ve_scan_all' scan the entire
+        volume without applying share block optimization.
+      - na_ontap_volume_efficiency - new option 'start_ve_scan_old_data' scan the
+        file system to process all the existing data.
+      - na_ontap_volume_efficiency - new option 'stop_ve_all_operations' all running
+        and queued operations to be stopped.
+      - na_ontap_volume_efficiency - new option to allow volume efficiency to be started
+        and stopped 'volume_efficiency'.
+    fragments:
+    - DEVOPS-3571.yaml
+    - DEVOPS-3628.yaml
+    - DEVOPS-3649.yaml
+    - DEVOPS-3757.yaml
+    - DEVOPS-3767.yaml
+    - DEVOPS-3772.yaml
+    - DEVOPS-3801.yaml
+    - DEVOPS-3811.yaml
+    - DEVOPS-3812.yml
+    modules:
+    - description: NetApp ONTAP modify local CIFS user.
+      name: na_ontap_cifs_local_user_modify
+      namespace: ''
+    - description: NetApp ONTAP modify storage disk options
+      name: na_ontap_disk_options
+      namespace: ''
+    - description: NetApp ONTAP FPolicy policy event configuration
+      name: na_ontap_fpolicy_event
+      namespace: ''
+    - description: NetApp ONTAP fPolicy external engine configuration.
+      name: na_ontap_fpolicy_ext_engine
+      namespace: ''
+    - description: NetApp ONTAP - Create, delete or modify an FPolicy policy scope
+        configuration.
+      name: na_ontap_fpolicy_scope
+      namespace: ''
+    - description: NetApp ONTAP - Enables or disables the specified fPolicy policy
+      name: na_ontap_fpolicy_status
+      namespace: ''
+    - description: NetApp ONTAP Sets the snaplock compliance clock.
+      name: na_ontap_snaplock_clock
+      namespace: ''
+    release_date: '2021-04-07'
