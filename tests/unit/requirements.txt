@@ -1,3 +1,2 @@
-netapp-lib
-solidfire-sdk-python
-unittest2 ; python_version < '2.7'
+netapp-lib ; python_version >= '2.7'
+solidfire-sdk-python ; python_version >= '2.7'
