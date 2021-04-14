@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.5.0
+
+### New Options
+  - na_ontap_info - Added "autosupport_check_info" to the attributes that will be collected when gathering info using the module.
+
 ## 21.4.0
 
 ### New Modules

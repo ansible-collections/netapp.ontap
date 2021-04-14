@@ -46,6 +46,7 @@ options:
                 to a given subset.  Possible values for this argument include
                 "aggregate_info",
                 "aggr_efficiency_info",
+                "autosupport_check_info",
                 "cifs_options_info",
                 "cifs_server_info",
                 "cifs_share_info",
@@ -331,6 +332,7 @@ ontap_info:
     sample: '{
         "ontap_info": {
             "aggregate_info": {...},
+            "autosupport_check_info": {...},
             "cluster_identity_info": {...},
             "cluster_image_info": {...},
             "cluster_node_info": {...},
@@ -867,6 +869,16 @@ class NetAppONTAPGatherInfo(object):
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
+            },
+            'autosupport_check_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'autosupport-check-iter',
+                    'attribute': 'autosupport-check-info',
+                    'key_fields': ('node-name', 'check-type', 'error-detail'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
             },
             'cifs_options_info': {
                 'method': self.get_generic_get_iter,
