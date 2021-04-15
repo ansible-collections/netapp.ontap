@@ -3,18 +3,20 @@
 create Autosupport module to enable, disable or modify
 """
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 DOCUMENTATION = """
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
-description:
-  - "Enable/Disable Autosupport"
+module: na_ontap_autosupport
+short_description: NetApp ONTAP autosupport
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
-module: na_ontap_autosupport
+version_added: 2.7.0
+description:
+  - Enable/Disable Autosupport
+author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 options:
   state:
     description:
@@ -36,8 +38,8 @@ options:
   noteto:
     description:
     - Specifies up to five recipients of short AutoSupport e-mail messages.
-    elements: str
     type: list
+    elements: str
   post_url:
     description:
     - The URL used to deliver AutoSupport messages via HTTP POST
@@ -80,14 +82,61 @@ options:
     - Specify whether the hostname of the node is included in the subject line of the AutoSupport message.
     type: bool
     version_added: 2.8.0
-short_description: NetApp ONTAP Autosupport
-version_added: 2.7.0
-
-"""
+  nht_data_enabled:
+    description:
+    - Specify whether the disk health data is collected as part of the AutoSupport data.
+    type: bool
+    version_added: '21.5.0'
+  perf_data_enabled:
+    description:
+    - Specify whether the performance data is collected as part of the AutoSupport data.
+    type: bool
+    version_added: '21.5.0'
+  retry_count:
+    description:
+    - Specify the maximum number of delivery attempts for an AutoSupport message.
+    type: int
+    version_added: '21.5.0'
+  reminder_enabled:
+    description:
+    - Specify whether AutoSupport reminders are enabled or disabled.
+    type: bool
+    version_added: '21.5.0'
+  max_http_size:
+    description:
+    - Specify delivery size limit for the HTTP transport protocol (in bytes).
+    type: int
+    version_added: '21.5.0'
+  max_smtp_size:
+    description:
+    - Specify delivery size limit for the SMTP transport protocol (in bytes).
+    type: int
+    version_added: '21.5.0'
+  private_data_removed:
+    description:
+    - Specify the removal of customer-supplied data.
+    type: bool
+    version_added: '21.5.0'
+  local_collection_enabled:
+    description:
+    - Specify whether collection of AutoSupport data when the AutoSupport daemon is disabled.
+    type: bool
+    version_added: '21.5.0'
+  ondemand_enabled:
+    description:
+    - Specify whether the AutoSupport OnDemand Download feature is enabled.
+    type: bool
+    version_added: '21.5.0'
+  validate_digital_certificate:
+    description:
+    - When set to true each node will validate the digital certificates that it receives.
+    type: bool
+    version_added: '21.5.0'
+    """
 
 EXAMPLES = """
     - name: Enable autosupport
-      na_ontap_autosupport:
+      netapp.ontap.na_ontap_autosupport:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -98,9 +147,8 @@ EXAMPLES = """
         mail_hosts: 1.2.3.4,5.6.7.8
         support: False
         post_url: url/1.0/post
-
     - name: Modify autosupport proxy_url with password
-      na_ontap_autosupport:
+      netapp.ontap.na_ontap_autosupport:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -108,9 +156,8 @@ EXAMPLES = """
         node_name: test
         transport: https
         proxy_url: username:password@host.com:8000
-
     - name: Modify autosupport proxy_url without password
-      na_ontap_autosupport:
+      netapp.ontap.na_ontap_autosupport:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -118,15 +165,13 @@ EXAMPLES = """
         node_name: test
         transport: https
         proxy_url: username@host.com:8000
-
     - name: Disable autosupport
-      na_ontap_autosupport:
+      netapp.ontap.na_ontap_autosupport:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
         state: absent
         node_name: test
-
 """
 
 RETURN = """
@@ -138,11 +183,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPasup(object):
+class NetAppONTAPasup():
     """Class with autosupport methods"""
 
     def __init__(self):
@@ -162,6 +207,16 @@ class NetAppONTAPasup(object):
             # proxy_url may contain a password: user:password@url
             proxy_url=dict(required=False, type='str', no_log=True),
             hostname_in_subject=dict(required=False, type='bool'),
+            nht_data_enabled=dict(required=False, type='bool'),
+            perf_data_enabled=dict(required=False, type='bool'),
+            retry_count=dict(required=False, type='int'),
+            reminder_enabled=dict(required=False, type='bool'),
+            max_http_size=dict(required=False, type='int'),
+            max_smtp_size=dict(required=False, type='int'),
+            private_data_removed=dict(required=False, type='bool'),
+            local_collection_enabled=dict(required=False, type='bool'),
+            ondemand_enabled=dict(required=False, type='bool'),
+            validate_digital_certificate=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -175,9 +230,12 @@ class NetAppONTAPasup(object):
         self.parameters['service_state'] = 'started' if self.parameters['state'] == 'present' else 'stopped'
         self.set_playbook_zapi_key_map()
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def set_playbook_zapi_key_map(self):
@@ -188,74 +246,158 @@ class NetAppONTAPasup(object):
             'from_address': 'from',
             'proxy_url': 'proxy-url'
         }
+        self.na_helper.zapi_int_keys = {
+            'retry_count': 'retry-count',
+            'max_http_size': 'max-http-size',
+            'max_smtp_size': 'max-smtp-size'
+        }
         self.na_helper.zapi_list_keys = {
             'noteto': ('noteto', 'mail-address'),
             'mail_hosts': ('mail-hosts', 'string'),
             'partner_addresses': ('partner-address', 'mail-address'),
-            'to_addresses': ('to', 'mail-address'),
+            'to_addresses': ('to', 'mail-address')
         }
         self.na_helper.zapi_bool_keys = {
             'support': 'is-support-enabled',
-            'hostname_in_subject': 'is-node-in-subject'
+            'hostname_in_subject': 'is-node-in-subject',
+            'nht_data_enabled': 'is-nht-data-enabled',
+            'perf_data_enabled': 'is-perf-data-enabled',
+            'reminder_enabled': 'is-reminder-enabled',
+            'private_data_removed': 'is-private-data-removed',
+            'local_collection_enabled': 'is-local-collection-enabled',
+            'ondemand_enabled': 'is-ondemand-enabled',
+            'validate_digital_certificate': 'validate-digital-certificate'
         }
 
     def get_autosupport_config(self):
         """
-        Invoke zapi - get current autosupport details
+        get current autosupport details
         :return: dict()
         """
-        asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
-        asup_details.add_new_child('node-name', self.parameters['node_name'])
-        asup_info = dict()
-        try:
-            result = self.server.invoke_successfully(asup_details, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='%s' % to_native(error),
-                                  exception=traceback.format_exc())
-        # zapi invoke successful
-        asup_attr_info = result.get_child_by_name('attributes').get_child_by_name('autosupport-config-info')
-        asup_info['service_state'] = 'started' if asup_attr_info['is-enabled'] == 'true' else 'stopped'
-        for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
-            value = asup_attr_info[zapi_key]
-            asup_info[item_key] = value if value is not None else ""
-        for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
-            asup_info[item_key] = self.na_helper.get_value_for_bool(from_zapi=True,
-                                                                    value=asup_attr_info[zapi_key])
-        for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
-            parent, dummy = zapi_key
-            asup_info[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
-                                                                    zapi_parent=asup_attr_info.get_child_by_name(parent)
-                                                                    )
-        return asup_info
+        if self.use_rest:
+            api = "/private/cli/system/node/autosupport"
+            query = {
+                'node': self.parameters['node_name'],
+                'fields': 'state,node,transport,noteto,url,support,mail-hosts,from,partner-address,to,proxy-url,hostname-subj,nht,perf,retry-count,\
+reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,support,reminder,ondemand-state,local-collection,validate-digital-certificate'
+            }
+            message, error = self.rest_api.get(api, query)
+            records, error = rrh.check_for_0_or_more_records(api, message, error)
+
+            if error:
+                self.module.fail_json(msg=error)
+
+            asup_info = {}
+            for param in ('transport', 'support', 'mail_hosts', 'proxy_url', 'retry_count',
+                          'max_http_size', 'max_smtp_size', 'noteto', 'validate_digital_certificate'):
+                if param in records[0]:
+                    asup_info[param] = records[0][param]
+
+            asup_info['node_name'] = records[0]['node'] if 'node' in records[0] else ""
+            asup_info['post_url'] = records[0]['url'] if 'url' in records[0] else ""
+            asup_info['from_address'] = records[0]['from'] if 'from' in records[0] else ""
+            asup_info['to_addresses'] = records[0]['to'] if 'to' in records[0] else ""
+            asup_info['hostname_in_subject'] = records[0]['hostname_subj'] if 'hostname_subj' in records[0] else ""
+            asup_info['nht_data_enabled'] = records[0]['nht'] if 'nht' in records[0] else ""
+            asup_info['perf_data_enabled'] = records[0]['perf'] if 'perf' in records[0] else ""
+            asup_info['reminder_enabled'] = records[0]['reminder'] if 'reminder' in records[0] else ""
+            asup_info['private_data_removed'] = records[0]['remove_private_data'] if 'remove_private_data' in records[0] else ""
+            asup_info['local_collection_enabled'] = records[0]['local_collection'] if 'local_collection' in records[0] else ""
+            asup_info['ondemand_enabled'] = records[0]['ondemand_state'] if 'ondemand_state' in records[0] else ""
+            asup_info['service_state'] = 'started' if records[0]['state'] else 'stopped'
+
+            return asup_info
+
+        else:
+            asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
+            asup_details.add_new_child('node-name', self.parameters['node_name'])
+            asup_info = dict()
+            try:
+                result = self.server.invoke_successfully(asup_details, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='%s' % to_native(error), exception=traceback.format_exc())
+            # zapi invoke successful
+            asup_attr_info = result.get_child_by_name('attributes').get_child_by_name('autosupport-config-info')
+            asup_info['service_state'] = 'started' if asup_attr_info['is-enabled'] == 'true' else 'stopped'
+            for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
+                value = asup_attr_info[zapi_key]
+                asup_info[item_key] = value if value is not None else ""
+            for item_key, zapi_key in self.na_helper.zapi_int_keys.items():
+                asup_info[item_key] = self.na_helper.get_value_for_int(from_zapi=True, value=asup_attr_info[zapi_key])
+            for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
+                asup_info[item_key] = self.na_helper.get_value_for_bool(from_zapi=True, value=asup_attr_info[zapi_key])
+            for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
+                parent, dummy = zapi_key
+                asup_info[item_key] = self.na_helper.get_value_for_list(from_zapi=True, zapi_parent=asup_attr_info.get_child_by_name(parent))
+
+            return asup_info
 
     def modify_autosupport_config(self, modify):
         """
-        Invoke zapi - modify autosupport config
-        @return: NaElement object / FAILURE with an error_message
+        modify autosupport config
+        @return: modfied attributes / FAILURE with an error_message
         """
-        asup_details = {'node-name': self.parameters['node_name']}
-        if modify.get('service_state'):
-            asup_details['is-enabled'] = 'true' if modify.get('service_state') == 'started' else 'false'
-        asup_config = netapp_utils.zapi.NaElement('autosupport-config-modify')
-        for item_key in modify:
-            if item_key in self.na_helper.zapi_string_keys:
-                zapi_key = self.na_helper.zapi_string_keys.get(item_key)
-                asup_details[zapi_key] = modify[item_key]
-            elif item_key in self.na_helper.zapi_bool_keys:
-                zapi_key = self.na_helper.zapi_bool_keys.get(item_key)
-                asup_details[zapi_key] = self.na_helper.get_value_for_bool(from_zapi=False,
-                                                                           value=modify[item_key])
-            elif item_key in self.na_helper.zapi_list_keys:
-                parent_key, child_key = self.na_helper.zapi_list_keys.get(item_key)
-                asup_config.add_child_elem(self.na_helper.get_value_for_list(from_zapi=False,
-                                                                             zapi_parent=parent_key,
-                                                                             zapi_child=child_key,
-                                                                             data=modify.get(item_key)))
-        asup_config.translate_struct(asup_details)
-        try:
-            return self.server.invoke_successfully(asup_config, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='%s' % to_native(error), exception=traceback.format_exc())
+
+        if self.use_rest:
+            api = "/private/cli/system/node/autosupport"
+            query = {
+                'node': self.parameters['node_name']
+            }
+            if 'service_state' in modify:
+                modify['state'] = True if modify['service_state'] == 'started' else False
+                del modify['service_state']
+
+            if 'post_url' in modify:
+                modify['url'] = modify.pop('post_url')
+            if 'from_address' in modify:
+                modify['from'] = modify.pop('from_address')
+            if 'to_addresses' in modify:
+                modify['to'] = modify.pop('to_addresses')
+            if 'hostname_in_subject' in modify:
+                modify['hostname_subj'] = modify.pop('hostname_in_subject')
+            if 'nht_data_enabled' in modify:
+                modify['nht'] = modify.pop('nht_data_enabled')
+            if 'perf_data_enabled' in modify:
+                modify['perf'] = modify.pop('perf_data_enabled')
+            if 'reminder_enabled' in modify:
+                modify['reminder'] = modify.pop('reminder_enabled')
+            if 'private_data_removed' in modify:
+                modify['remove_private_data'] = modify.pop('private_data_removed')
+            if 'local_collection_enabled' in modify:
+                modify['local_collection'] = modify.pop('local_collection_enabled')
+            if 'ondemand_enabled' in modify:
+                modify['ondemand_state'] = modify.pop('ondemand_enabled')
+
+            dummy, error = self.rest_api.patch(api, modify, query)
+
+            if error:
+                self.module.fail_json(msg=error)
+        else:
+            asup_details = {'node-name': self.parameters['node_name']}
+            if modify.get('service_state'):
+                asup_details['is-enabled'] = 'true' if modify.get('service_state') == 'started' else 'false'
+            asup_config = netapp_utils.zapi.NaElement('autosupport-config-modify')
+            for item_key in modify:
+                if item_key in self.na_helper.zapi_string_keys:
+                    zapi_key = self.na_helper.zapi_string_keys.get(item_key)
+                    asup_details[zapi_key] = modify[item_key]
+                elif item_key in self.na_helper.zapi_int_keys:
+                    zapi_key = self.na_helper.zapi_int_keys.get(item_key)
+                    asup_details[zapi_key] = modify[item_key]
+                elif item_key in self.na_helper.zapi_bool_keys:
+                    zapi_key = self.na_helper.zapi_bool_keys.get(item_key)
+                    asup_details[zapi_key] = self.na_helper.get_value_for_bool(from_zapi=False, value=modify[item_key])
+                elif item_key in self.na_helper.zapi_list_keys:
+                    parent_key, child_key = self.na_helper.zapi_list_keys.get(item_key)
+                    asup_config.add_child_elem(self.na_helper.get_value_for_list(
+                        from_zapi=False, zapi_parent=parent_key, zapi_child=child_key, data=modify.get(item_key))
+                    )
+
+            asup_config.translate_struct(asup_details)
+            try:
+                return self.server.invoke_successfully(asup_config, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error modifying asup: %s' % to_native(error), exception=traceback.format_exc())
 
     @staticmethod
     def strip_password(url):
@@ -282,7 +424,7 @@ class NetAppONTAPasup(object):
                 sanitized_modify['proxy_url'] = "%s:XXXXXXXX@%s" % user_url_m
         return sanitized_modify
 
-    def autosupport_log(self):
+    def ems_log_event(self):
         results = netapp_utils.get_cserver(self.server)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_autosupport", cserver)
@@ -291,12 +433,13 @@ class NetAppONTAPasup(object):
         """
         Apply action to autosupport
         """
+        if not self.use_rest:
+            self.ems_log_event()
         current = self.get_autosupport_config()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         sanitized_modify = self.idempotency_check(current, modify)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_autosupport_config(modify)
-        self.autosupport_log()
         self.module.exit_json(changed=self.na_helper.changed, modify=sanitized_modify, current=current)
 
 

@@ -30,6 +30,19 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.5.0
 
 ### New Options
+  - na_ontap_autosupport - new option 'nht_data_enabled' to specify whether the disk health data is collected as part of the AutoSupport data.
+  - na_ontap_autosupport - new option 'perf_data_enabled' to specify whether the performance data is collected as part of the AutoSupport data.
+  - na_ontap_autosupport - new option 'retry_count' to specify the maximum number of delivery attempts for an AutoSupport message.
+  - na_ontap_autosupport - new option 'reminder_enabled' to specify whether AutoSupport reminders are enabled or disabled.
+  - na_ontap_autosupport - new option 'max_http_size' to specify delivery size limit for the HTTP transport protocol (in bytes).
+  - na_ontap_autosupport - new option 'max_smtp_size' to specify delivery size limit for the SMTP transport protocol (in bytes).
+  - na_ontap_autosupport - new option 'private_data_removed' to specify the removal of customer-supplied data.
+  - na_ontap_autosupport - new option 'local_collection_enabled' to specify whether collection of AutoSupport data when the AutoSupport daemon is disabled.
+  - na_ontap_autosupport - new option 'ondemand_enabled' to specify whether the AutoSupport OnDemand Download feature is enabled.
+  - na_ontap_autosupport - new option 'validate_digital_certificate' which when set to true each node will validate the digital certificates that it receives.
+
+### Added REST support to existing modules
+  - na_ontap_autosupport - added REST support for ONTAP autosupport modification.
   - na_ontap_info - Added "autosupport_check_info" to the attributes that will be collected when gathering info using the module.
 
 ## 21.4.0
