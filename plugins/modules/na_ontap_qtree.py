@@ -11,11 +11,6 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 
 module: na_ontap_qtree
@@ -148,18 +143,18 @@ EXAMPLES = """
 RETURN = """
 
 """
-import datetime
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapQTree(object):
+class NetAppOntapQTree():
     '''Class with qtree operations'''
 
     def __init__(self):
@@ -219,17 +214,12 @@ class NetAppOntapQTree(object):
                      'svm.name': self.parameters['vserver'],
                      'volume': self.parameters['flexvol_name'],
                      'name': name}
-            message, error = self.rest_api.get(api, query)
+            response, error = self.rest_api.get(api, query)
+            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
             if error:
-                self.module.fail_json(msg=error)
-            if len(message.keys()) == 0:
-                return None
-            elif 'records' in message and len(message['records']) == 0:
-                return None
-            elif 'records' not in message:
-                error = "Unexpected response in get_qtree from %s: %s" % (api, repr(message))
-                self.module.fail_json(msg=error)
-            return message['records'][0]
+                msg = "Error in get_qtree: %s" % error
+                self.module.fail_json(msg=msg)
+            return record
         else:
             qtree_list_iter = netapp_utils.zapi.NaElement('qtree-list-iter')
             query_details = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -247,10 +237,8 @@ class NetAppOntapQTree(object):
                             'oplocks': result['attributes-list']['qtree-info']['oplocks'],
                             'security_style': result['attributes-list']['qtree-info']['security-style']}
 
-                if result['attributes-list']['qtree-info'].get_child_by_name('mode'):
-                    return_q['unix_permissions'] = result['attributes-list']['qtree-info']['mode']
-                else:
-                    return_q['unix_permissions'] = ''
+                value = self.na_helper.safe_get(result, ['attributes-list', 'qtree-info', 'mode'])
+                return_q['unix_permissions'] = value if value is not None else ''
 
             return return_q
 
@@ -268,9 +256,11 @@ class NetAppOntapQTree(object):
                 body['security_style'] = self.parameters['security_style']
             if self.parameters.get('unix_permissions'):
                 body['unix_permissions'] = self.parameters['unix_permissions']
-            __, error = self.rest_api.post(api, body)
+            query = dict(return_timeout=10)
+            response, error = self.rest_api.post(api, body, query)
+            dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error creating qtree %s: %s' % (self.parameters['name'], error))
         else:
             options = {'qtree': self.parameters['name'], 'volume': self.parameters['flexvol_name']}
             if self.parameters.get('export_policy'):
@@ -301,12 +291,10 @@ class NetAppOntapQTree(object):
             api = "storage/qtrees/%s/%s" % (uuid, qid)
             query = {'return_timeout': 3}
             response, error = self.rest_api.delete(api, params=query)
+            if self.parameters['wait_for_completion']:
+                dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
-                self.module.fail_json(msg=error)
-            if 'job' in response and self.parameters['wait_for_completion']:
-                message, error = self.rest_api.wait_on_job(response['job'], timeout=self.parameters['time_out'], increment=10)
-                if error:
-                    self.module.fail_json(msg="%s" % error)
+                self.module.fail_json(msg='Error deleting qtree %s: %s' % (self.parameters['name'], error))
 
         else:
             path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
@@ -323,18 +311,13 @@ class NetAppOntapQTree(object):
                 self.module.fail_json(msg="Error deleting qtree %s: %s" % (path, to_native(error)),
                                       exception=traceback.format_exc())
 
-    def rename_qtree(self, current):
+    def rename_qtree(self):
         """
         Rename a qtree
         """
         if self.use_rest:
-            body = {'name': self.parameters['name']}
-            uuid = current['volume']['uuid']
-            qid = str(current['id'])
-            api = "storage/qtrees/%s/%s" % (uuid, qid)
-            dummy, error = self.rest_api.patch(api, body)
-            if error:
-                self.module.fail_json(msg=error)
+            error = 'Internal error, use modify with REST'
+            self.module.fail_json(msg=error)
         else:
             path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['from_name'])
             new_path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
@@ -355,8 +338,7 @@ class NetAppOntapQTree(object):
         Modify a qtree
         """
         if self.use_rest:
-            now = datetime.datetime.now()
-            body = {}
+            body = {'name': self.parameters['name']}
             if self.parameters.get('security_style'):
                 body['security_style'] = self.parameters['security_style']
             if self.parameters.get('unix_permissions'):
@@ -366,17 +348,11 @@ class NetAppOntapQTree(object):
             uuid = current['volume']['uuid']
             qid = str(current['id'])
             api = "storage/qtrees/%s/%s" % (uuid, qid)
-            timeout = 120
-            query = {'return_timeout': timeout}
-            dummy, error = self.rest_api.patch(api, body, query)
-
-            later = datetime.datetime.now()
-            time_elapsed = later - now
-            # modify will not return any error if return_timeout is 0, so we set it to 120 seconds as default
-            if time_elapsed.seconds > (timeout - 1):
-                self.module.fail_json(msg="Too long to run")
+            query = dict(return_timeout=10)
+            response, error = self.rest_api.patch(api, body, query)
+            dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error modifying qtree %s: %s' % (self.parameters['name'], error))
         else:
             options = {'qtree': self.parameters['name'], 'volume': self.parameters['flexvol_name']}
             if self.parameters.get('export_policy'):
@@ -409,8 +385,13 @@ class NetAppOntapQTree(object):
                 self.module.fail_json(msg='Error renaming: qtree %s does not exist' % self.parameters['from_name'])
             if rename:
                 current = from_qtree
+                if self.use_rest:
+                    # modify can change the name for REST, as UUID is the key
+                    modify = True
+                    rename = False
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
+
         if cd_action is None and self.parameters['state'] == 'present':
             if self.parameters.get('security_style') and self.parameters['security_style'] != current['security_style']:
                 modify = True
@@ -431,20 +412,17 @@ class NetAppOntapQTree(object):
 
         if modify:
             self.na_helper.changed = True
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_qtree()
+            elif cd_action == 'delete':
+                self.delete_qtree(current)
             else:
-                if cd_action == 'create':
-                    self.create_qtree()
-                elif cd_action == 'delete':
-                    self.delete_qtree(current)
-                else:
-                    if rename:
-                        self.rename_qtree(current)
-                    if modify:
-                        self.modify_qtree(current)
-        self.module.exit_json(changed=self.na_helper.changed)
+                if rename:
+                    self.rename_qtree()
+                if modify:
+                    self.modify_qtree(current)
+        self.module.exit_json(changed=self.na_helper.changed, current=current)
 
 
 def main():

@@ -45,6 +45,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_autosupport - added REST support for ONTAP autosupport modification.
   - na_ontap_info - Added "autosupport_check_info" to the attributes that will be collected when gathering info using the module.
 
+### Bug fixes
+  - na_ontap_qtree - wait for completion when creating or modifying a qtree with REST.
+
 ## 21.4.0
 
 ### New Modules
