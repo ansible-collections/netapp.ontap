@@ -851,6 +851,8 @@ class NetAppOntapVolume(object):
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
+        self.volume_created = False
+        self.issues = list()
         self.sis_keys2zapi_get = dict(
             efficiency_policy='policy',
             compression='is-compression-enabled',
@@ -1035,6 +1037,13 @@ class NetAppOntapVolume(object):
             self.get_efficiency_info(result)
 
         return result
+
+    def wrap_fail_json(self, msg, exception=None):
+        for issue in self.issues:
+            self.module.warn(issue)
+        if self.volume_created:
+            msg = 'Volume created with success, with missing attributes: ' + msg
+        self.module.fail_json(msg=msg, exception=exception)
 
     def create_nas_application_component(self):
         '''Create application component for nas template'''
@@ -1619,9 +1628,9 @@ class NetAppOntapVolume(object):
             error_msg = to_native(error)
             if 'volume-comp-aggr-attributes' in error_msg:
                 error_msg += ". Added info: tiering option requires 9.4 or later."
-            self.module.fail_json(msg='Error modifying volume %s: %s'
-                                  % (self.parameters['name'], error_msg),
-                                  exception=traceback.format_exc())
+            self.wrap_fail_json(msg='Error modifying volume %s: %s'
+                                % (self.parameters['name'], error_msg),
+                                exception=traceback.format_exc())
 
         self.ems_log_event("volume-modify")
         failures = result.get_child_by_name('failure-list')
@@ -1632,9 +1641,9 @@ class NetAppOntapVolume(object):
                 if failures.get_child_by_name(return_info) is not None:
                     error_msgs.append(failures.get_child_by_name(return_info).get_child_content('error-message'))
             if error_msgs and any([x is not None for x in error_msgs]):
-                self.module.fail_json(msg="Error modifying volume %s: %s"
-                                      % (self.parameters['name'], ' --- '.join(error_msgs)),
-                                      exception=traceback.format_exc())
+                self.wrap_fail_json(msg="Error modifying volume %s: %s"
+                                    % (self.parameters['name'], ' --- '.join(error_msgs)),
+                                    exception=traceback.format_exc())
         if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
             success = result.get_child_by_name('success-list')
             success = success.get_child_by_name('volume-modify-iter-async-info')
@@ -1649,8 +1658,8 @@ class NetAppOntapVolume(object):
                 error = self.check_job_status(results['jobid'])
                 if error is None:
                     return
-                self.module.fail_json(msg='Error when modify volume: %s' % error)
-            self.module.fail_json(msg='Unexpected error when modifying volume: result is: %s' % str(result.to_string()))
+                self.wrap_fail_json(msg='Error when modifying volume: %s' % error)
+            self.wrap_fail_json(msg='Unexpected error when modifying volume: result is: %s' % str(result.to_string()))
 
     def volume_mount(self):
         """
@@ -1767,8 +1776,8 @@ class NetAppOntapVolume(object):
             if to_native(error.code) == "15661":
                 # Not found
                 return None
-            self.module.fail_json(msg='Error fetching job info: %s' % to_native(error),
-                                  exception=traceback.format_exc())
+            self.wrap_fail_json(msg='Error fetching job info: %s' % to_native(error),
+                                exception=traceback.format_exc())
         job_info = result.get_child_by_name('attributes').get_child_by_name('job-info')
         results = {
             'job-progress': job_info['job-progress'],
@@ -1808,7 +1817,7 @@ class NetAppOntapVolume(object):
             if results['job-state'] in ('success', 'failure'):
                 break
             else:
-                self.module.fail_json(msg='Unexpected job status in: %s' % repr(results))
+                self.wrap_fail_json(msg='Unexpected job status in: %s' % repr(results))
 
         if results is not None:
             if results['job-state'] == 'success':
@@ -1839,9 +1848,9 @@ class NetAppOntapVolume(object):
             if error is None:
                 return
             else:
-                self.module.fail_json(msg='Error when %s volume: %s' % (action, error))
+                self.wrap_fail_json(msg='Error when %s volume: %s' % (action, error))
         if status == 'failed':
-            self.module.fail_json(msg='Operation failed when %s volume.' % action)
+            self.wrap_fail_json(msg='Operation failed when %s volume.' % action)
 
     def set_efficiency_attributes(self, options):
         for key, attr in self.sis_keys2zapi_set.items():
@@ -1865,18 +1874,18 @@ class NetAppOntapVolume(object):
             if to_native(error.code) == "40043":
                 pass
             else:
-                self.module.fail_json(msg='Error enable efficiency on volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
-                                      exception=traceback.format_exc())
+                self.wrap_fail_json(msg='Error enable efficiency on volume %s: %s'
+                                    % (self.parameters['name'], to_native(error)),
+                                    exception=traceback.format_exc())
 
         self.set_efficiency_attributes(options)
         efficiency_start = netapp_utils.zapi.NaElement.create_node_with_children('sis-set-config', **options)
         try:
             self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.wrap_fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
+                                % (self.parameters['name'], to_native(error)),
+                                exception=traceback.format_exc())
 
     def set_efficiency_config_async(self):
         """Set efficiency policy and compression attributes in asynchronous mode"""
@@ -1885,9 +1894,9 @@ class NetAppOntapVolume(object):
         try:
             result = self.server.invoke_successfully(efficiency_enable, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error enable efficiency on volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.wrap_fail_json(msg='Error enable efficiency on volume %s: %s'
+                                % (self.parameters['name'], to_native(error)),
+                                exception=traceback.format_exc())
         self.check_invoke_result(result, 'enable efficiency on')
 
         self.set_efficiency_attributes(options)
@@ -1895,9 +1904,9 @@ class NetAppOntapVolume(object):
         try:
             result = self.server.invoke_successfully(efficiency_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.wrap_fail_json(msg='Error setting up efficiency attributes on volume %s: %s'
+                                % (self.parameters['name'], to_native(error)),
+                                exception=traceback.format_exc())
         self.check_invoke_result(result, 'set efficiency policy on')
 
     def get_efficiency_info(self, return_value):
@@ -1915,9 +1924,13 @@ class NetAppOntapVolume(object):
         try:
             result = self.server.invoke_successfully(sis_info, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching efficiency policy for volume %s : %s'
-                                  % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            # Don't error out if efficiency settings cannot be read.  We'll fail if they need to be set.
+            if error.message.startswith('Insufficient privileges: user ') and error.message.endswith(' does not have read access to this resource'):
+                self.issues.append('cannot read volume efficiency options (as expected when running as vserver): %s' % to_native(error))
+                return
+            self.wrap_fail_json(msg='Error fetching efficiency policy for volume %s : %s'
+                                % (self.parameters['name'], to_native(error)),
+                                exception=traceback.format_exc())
         for key in self.sis_keys2zapi_get:
             return_value[key] = None
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
@@ -1944,9 +1957,9 @@ class NetAppOntapVolume(object):
             try:
                 self.server.invoke_successfully(snapshot_auto_delete, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error setting snapshot auto delete options for volume %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
-                                      exception=traceback.format_exc())
+                self.wrap_fail_json(msg='Error setting snapshot auto delete options for volume %s: %s'
+                                    % (self.parameters['name'], to_native(error)),
+                                    exception=traceback.format_exc())
 
     def rehost_volume(self):
         volume_rehost = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -2087,6 +2100,7 @@ class NetAppOntapVolume(object):
                     # If we create using REST application, some options are not available, we may need to run a modify.
                     current = self.get_volume()
                     if current:
+                        self.volume_created = True
                         modify_after_create = self.set_modify_dict(current, after_create=True)
                         if modify_after_create:
                             self.take_modify_actions(modify_after_create)

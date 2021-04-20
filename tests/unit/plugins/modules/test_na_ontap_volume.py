@@ -936,7 +936,7 @@ class TestMyModule(unittest.TestCase):
         obj = self.get_volume_mock_object('success_modify_async')
         with pytest.raises(AnsibleFailJson) as exc:
             obj.apply()
-        assert exc.value.args[0]['msg'] == 'Error when modify volume: error'
+        assert exc.value.args[0]['msg'] == 'Error when modifying volume: error'
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
     def test_failure_modify_unix_permissions_flex_group(self, get_volume):
