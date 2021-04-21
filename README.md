@@ -79,7 +79,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.3.1
 
 ### Bug fixes
-  - na_ontap_snapmirror: check for consistency_group_volumes always fails on 9.7.
+  - na_ontap_snapmirror: check for consistency_group_volumes always fails on 9.7, and cluster or ipspace when using endpoints with ZAPI.
 
 ## 21.3.0
 
