@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.5.0"
+COLLECTION_VERSION = "21.6.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 

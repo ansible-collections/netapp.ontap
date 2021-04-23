@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.6.0
+
+### Minor changes
+  - na_ontap_rest_info - Added "autosupport_check_info"/"support/autosupport/check" to the attributes that will be collected when gathering info using the module.
+
 ## 21.5.0
 
 ### New Options
@@ -43,11 +48,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_autosupport - added REST support for ONTAP autosupport modification.
-  - na_ontap_info - Added "autosupport_check_info" to the attributes that will be collected when gathering info using the module.
 
 ### Bug Fixes
   - na_ontap_qtree - wait for completion when creating or modifying a qtree with REST.
   - na_ontap_volume - ignore read error because of insufficient privileges for efficiency options so that the module can be run as vsadmin.
+
+### Minor changes
+  - na_ontap_info - Added "autosupport_check_info" to the attributes that will be collected when gathering info using the module.
 
 ## 21.4.0
 

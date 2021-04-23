@@ -75,7 +75,15 @@ SRR = {
                         "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
                     }
                 }
-            }, None)
+            }, None),
+    'get_private_cli_subset_info': (200,
+                                    {
+                                        'records': [
+                                            {'node': 'node1', 'check_type': 'type'},
+                                            {'node': 'node1', 'check_type': 'type'},
+                                            {'node': 'node1', 'check_type': 'type'}],
+                                        "num_records": 3}, None)
+
 }
 
 
@@ -332,7 +340,7 @@ class TestMyModule(unittest.TestCase):
                          'storage/ports', 'storage/qos/policies', 'storage/qtrees', 'storage/quota/reports', 'storage/quota/rules',
                          'storage/shelves', 'storage/snapshot-policies', 'storage/volumes', 'support/autosupport', 'support/autosupport/messages',
                          'support/ems', 'support/ems/destinations', 'support/ems/events', 'support/ems/filters', 'svm/peers', 'svm/peer-permissions',
-                         'svm/svms']
+                         'svm/svms', 'support/autosupport/check']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -396,6 +404,7 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['get_private_cli_subset_info'],
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:
@@ -422,7 +431,7 @@ class TestMyModule(unittest.TestCase):
                          'storage/ports', 'storage/qos/policies', 'storage/qtrees', 'storage/quota/reports', 'storage/quota/rules',
                          'storage/shelves', 'storage/snapshot-policies', 'storage/volumes', 'support/autosupport', 'support/autosupport/messages',
                          'support/ems', 'support/ems/destinations', 'support/ems/events', 'support/ems/filters', 'svm/peers', 'svm/peer-permissions',
-                         'svm/svms']
+                         'svm/svms', 'support/autosupport/check']
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
             SRR['get_subset_info'],
@@ -486,6 +495,7 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['get_private_cli_subset_info'],
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:

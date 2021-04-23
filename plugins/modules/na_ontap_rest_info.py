@@ -40,6 +40,7 @@ options:
                 "aggregate_info" or "storage/aggregates",
                 "application_info" or "application/applications",
                 "application_template_info" or "application/templates",
+                "autosupport_check_info" or "support/autosupport/check",
                 "autosupport_config_info" or "support/autosupport",
                 "autosupport_messages_history" or "support/autosupport/messages",
                 "broadcast_domains_info" or "network/ethernet/broadcast-domains",
@@ -122,7 +123,7 @@ options:
 
 EXAMPLES = '''
 - name: run ONTAP gather facts for vserver info
-  na_ontap_info_rest:
+  netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
       username: "testuser"
       password: "test-password"
@@ -132,7 +133,7 @@ EXAMPLES = '''
       gather_subset:
       - vserver_info
 - name: run ONTAP gather facts for aggregate info and volume info
-  na_ontap_info_rest:
+  netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
       username: "testuser"
       password: "test-password"
@@ -143,7 +144,7 @@ EXAMPLES = '''
       - aggregate_info
       - volume_info
 - name: run ONTAP gather facts for all subsets
-  na_ontap_info_rest:
+  netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
       username: "testuser"
       password: "test-password"
@@ -153,7 +154,7 @@ EXAMPLES = '''
       gather_subset:
       - all
 - name: run ONTAP gather facts for aggregate info and volume info with fields section
-  na_ontap_info_rest:
+  netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
       username: "testuser"
       password: "test-password"
@@ -166,7 +167,7 @@ EXAMPLES = '''
       - aggregate_info
       - volume_info
 - name: run ONTAP gather facts for aggregate info with specified fields
-  na_ontap_info_rest:
+  netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
       username: "testuser"
       password: "test-password"
@@ -193,7 +194,7 @@ class NetAppONTAPGatherInfo(object):
     def __init__(self):
         """
         Parse arguments, setup state variables,
-        check paramenters and ensure request module is installed
+        check parameters and ensure request module is installed
         """
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -242,6 +243,12 @@ class NetAppONTAPGatherInfo(object):
         if gather_subset_info.pop('post', False):
             self.run_post(gather_subset_info)
         data = {'max_records': self.parameters['max_records'], 'fields': self.fields}
+
+        #  Delete the fields record from data if it is a private/cli API call.
+        #  The private_cli_fields method handles the fields for API calls using the private/cli endpoint.
+        if '/private/cli' in api:
+            del data['fields']
+
         # allow for passing in any additional rest api fields
         if self.parameters.get('parameters'):
             for each in self.parameters['parameters']:
@@ -291,6 +298,21 @@ class NetAppONTAPGatherInfo(object):
 
         return gather_subset_info
 
+    def private_cli_fields(self, api):
+        '''
+        The private cli endpoint does not allow '*' to be an entered.
+        If fields='*' or fields are not included within the playbook, the API call will be populated to return all possible fields.
+        If fields is entered into the playbook the fields entered will be parsed into the API.
+        '''
+        if api == 'support/autosupport/check':
+            url = '/private/cli/system/node/autosupport/check/details'
+            if 'fields' not in self.parameters or '*' in self.parameters['fields']:
+                fields = '?fields=node,corrective-action,status,error-detail,check-type,check-category'
+            else:
+                fields = '?fields=' + ','.join(self.parameters.get('fields'))
+
+            return str(fields)
+
     def convert_subsets(self):
         """
         Convert an info to the REST API
@@ -299,6 +321,7 @@ class NetAppONTAPGatherInfo(object):
             "aggregate_info": "storage/aggregates",
             "application_info": "application/applications",
             "application_template_info": "application/templates",
+            "autosupport_check_info": "support/autosupport/check",
             "autosupport_config_info": "support/autosupport",
             "autosupport_messages_history": "support/autosupport/messages",
             "broadcast_domains_info": "network/ethernet/broadcast-domains",
@@ -534,6 +557,9 @@ class NetAppONTAPGatherInfo(object):
             'support/autosupport': {
                 'api_call': 'support/autosupport',
             },
+            'support/autosupport/check': {
+                'api_call': '/private/cli/system/node/autosupport/check/details' + self.private_cli_fields('support/autosupport/check'),
+            },
             'support/autosupport/messages': {
                 'api_call': 'support/autosupport/messages',
             },
@@ -586,7 +612,7 @@ class NetAppONTAPGatherInfo(object):
             result_message[subset] = self.get_subset_info(specified_subset)
 
             if result_message[subset] is not None:
-                if isinstance(result_message[subset], dict):
+                if isinstance(result_message[subset], dict) and '_links' in result_message[subset]:
                     while result_message[subset]['_links'].get('next'):
                         # Get all the set of records if next link found in subset_info for the specified subset
                         next_api = result_message[subset]['_links']['next']['href']
