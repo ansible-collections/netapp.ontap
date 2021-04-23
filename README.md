@@ -29,6 +29,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.6.0
 
+### New Options
+  - na_ontap_vserver_peer - new options `local_name_for_source` and `local_name_for_peer` added.
+
 ### Minor changes
   - na_ontap_rest_info - Added "autosupport_check_info"/"support/autosupport/check" to the attributes that will be collected when gathering info using the module.
 

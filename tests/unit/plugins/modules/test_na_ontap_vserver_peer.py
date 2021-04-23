@@ -79,8 +79,9 @@ class MockONTAPConnection(object):
             'num-records': 1,
             'attributes-list': {
                 'vserver-peer-info': {
-                    'peer-vserver': vserver['peer_vserver'],
+                    'remote-vserver-name': vserver['peer_vserver'],
                     'vserver': vserver['vserver'],
+                    'peer-vserver': vserver['peer_vserver'],
                     'peer-state': 'peered'
                 }
             }
@@ -118,6 +119,8 @@ class TestMyModule(unittest.TestCase):
             'vserver': 'test',
             'peer_vserver': 'test_peer',
             'peer_cluster': 'test_cluster_peer',
+            'local_name_for_peer': 'peer_name',
+            'local_name_for_source': 'source_name',
             'applications': ['snapmirror'],
             'hostname': 'hostname',
             'dest_hostname': 'hostname',
@@ -156,9 +159,16 @@ class TestMyModule(unittest.TestCase):
         data['dest_hostname'] = 'test_destination'
         set_module_args(self.mock_vserver_peer)
         vserver_peer_get.return_value = None
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_peer_mock_object().apply()
-        assert exc.value.args[0]['changed']
+
+        self.get_vserver_peer_mock_object().vserver_peer_create()
+        current = {
+            'vserver': 'test',
+            'peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'local_peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'peer_cluster': self.mock_vserver_peer['peer_cluster']
+        }
+        vserver_peer_get.return_value = current
+        self.get_vserver_peer_mock_object().vserver_peer_accept()
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
     def test_create_idempotency(self, vserver_peer_get):
@@ -182,10 +192,14 @@ class TestMyModule(unittest.TestCase):
         data = self.mock_vserver_peer
         data['state'] = 'absent'
         set_module_args(data)
-        vserver_peer_get.return_value = Mock()
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_peer_mock_object('vserver_peer').apply()
-        assert exc.value.args[0]['changed']
+        current = {
+            'vserver': 'test',
+            'peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'peer_cluster': self.mock_vserver_peer['peer_cluster'],
+            'local_peer_vserver': self.mock_vserver_peer['local_name_for_peer']
+        }
+        vserver_peer_get.return_value = current
+        self.get_vserver_peer_mock_object('vserver_peer').vserver_peer_delete(current)
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
     def test_delete_idempotency(self, vserver_peer_get):
@@ -202,13 +216,13 @@ class TestMyModule(unittest.TestCase):
         ''' Test vserver_peer_get_iter method '''
         set_module_args(self.mock_vserver_peer)
         obj = self.get_vserver_peer_mock_object('vserver_peer')
-        result = obj.vserver_peer_get_iter()
+        result = obj.vserver_peer_get_iter('source')
         print(result.to_string(pretty=True))
         assert result['query'] is not None
         assert result['query']['vserver-peer-info'] is not None
         info = result['query']['vserver-peer-info']
         assert info['vserver'] == self.mock_vserver_peer['vserver']
-        assert info['peer-vserver'] == self.mock_vserver_peer['peer_vserver']
+        assert info['remote-vserver-name'] == self.mock_vserver_peer['peer_vserver']
 
     def test_get_packet(self):
         ''' Test vserver_peer_get method '''
