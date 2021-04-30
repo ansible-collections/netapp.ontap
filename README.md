@@ -35,6 +35,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor changes
   - na_ontap_rest_info - Added "autosupport_check_info"/"support/autosupport/check" to the attributes that will be collected when gathering info using the module.
 
+### Bug Fixes
+  - na_ontap_autosupport - TypeError - '>' not supported between instances of 'str' and 'list'.
+
 ## 21.5.0
 
 ### New Options

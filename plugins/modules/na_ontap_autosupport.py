@@ -296,14 +296,14 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             asup_info['node_name'] = records[0]['node'] if 'node' in records[0] else ""
             asup_info['post_url'] = records[0]['url'] if 'url' in records[0] else ""
             asup_info['from_address'] = records[0]['from'] if 'from' in records[0] else ""
-            asup_info['to_addresses'] = records[0]['to'] if 'to' in records[0] else ""
-            asup_info['hostname_in_subject'] = records[0]['hostname_subj'] if 'hostname_subj' in records[0] else ""
-            asup_info['nht_data_enabled'] = records[0]['nht'] if 'nht' in records[0] else ""
-            asup_info['perf_data_enabled'] = records[0]['perf'] if 'perf' in records[0] else ""
-            asup_info['reminder_enabled'] = records[0]['reminder'] if 'reminder' in records[0] else ""
-            asup_info['private_data_removed'] = records[0]['remove_private_data'] if 'remove_private_data' in records[0] else ""
-            asup_info['local_collection_enabled'] = records[0]['local_collection'] if 'local_collection' in records[0] else ""
-            asup_info['ondemand_enabled'] = records[0]['ondemand_state'] if 'ondemand_state' in records[0] else ""
+            asup_info['to_addresses'] = records[0]['to'] if 'to' in records[0] else list()
+            asup_info['hostname_in_subject'] = records[0]['hostname_subj'] if 'hostname_subj' in records[0] else False
+            asup_info['nht_data_enabled'] = records[0]['nht'] if 'nht' in records[0] else False
+            asup_info['perf_data_enabled'] = records[0]['perf'] if 'perf' in records[0] else False
+            asup_info['reminder_enabled'] = records[0]['reminder'] if 'reminder' in records[0] else False
+            asup_info['private_data_removed'] = records[0]['remove_private_data'] if 'remove_private_data' in records[0] else False
+            asup_info['local_collection_enabled'] = records[0]['local_collection'] if 'local_collection' in records[0] else False
+            asup_info['ondemand_enabled'] = records[0]['ondemand_state'] if 'ondemand_state' in records[0] else False
             asup_info['service_state'] = 'started' if records[0]['state'] else 'stopped'
 
             return asup_info
@@ -390,8 +390,7 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 elif item_key in self.na_helper.zapi_list_keys:
                     parent_key, child_key = self.na_helper.zapi_list_keys.get(item_key)
                     asup_config.add_child_elem(self.na_helper.get_value_for_list(
-                        from_zapi=False, zapi_parent=parent_key, zapi_child=child_key, data=modify.get(item_key))
-                    )
+                        from_zapi=False, zapi_parent=parent_key, zapi_child=child_key, data=modify.get(item_key)))
 
             asup_config.translate_struct(asup_details)
             try:
