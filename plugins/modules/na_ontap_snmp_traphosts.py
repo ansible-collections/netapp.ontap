@@ -39,14 +39,14 @@ options:
 
 EXAMPLES = """
     - name: Create SNMP traphost
-      na_ontap_snmp:
+      na_ontap_snmp_traphosts:
         state: present
         ip_address: '10.10.10.10'
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
     - name: Delete SNMP traphost
-      na_ontap_snmp:
+      na_ontap_snmp_traphosts:
         state: absent
         ip_address: '10.10.10.10'
         hostname: "{{ hostname }}"
@@ -111,14 +111,11 @@ class NetAppONTAPSnmpTraphosts(object):
         """
         current = self.get_snmp_traphosts()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_snmp_traphost()
-                elif cd_action == 'delete':
-                    self.delete_snmp_traphost()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_snmp_traphost()
+            elif cd_action == 'delete':
+                self.delete_snmp_traphost()
 
         self.module.exit_json(changed=self.na_helper.changed)
 

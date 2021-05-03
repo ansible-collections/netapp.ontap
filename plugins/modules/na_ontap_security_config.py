@@ -238,7 +238,7 @@ class NetAppOntapSecurityConfig(object):
         if not self.use_rest:
             self.ems_log_event()
         current = self.get_security_config()
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
             if not self.module.check_mode:

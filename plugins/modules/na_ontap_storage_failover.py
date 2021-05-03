@@ -182,7 +182,7 @@ class NetAppOntapStorageFailover(object):
             storage_failover_modify.add_new_child('node', self.parameters['node_name'])
 
             try:
-                result = self.server.invoke_successfully(storage_failover_modify, True)
+                self.server.invoke_successfully(storage_failover_modify, True)
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error modifying storage failover for node %s: %s' % (
                     self.parameters['node_name'], to_native(error)), exception=traceback.format_exc())
@@ -197,7 +197,7 @@ class NetAppOntapStorageFailover(object):
             self.ems_log_event()
 
         current = self.get_storage_failover()
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
             if not self.module.check_mode:
