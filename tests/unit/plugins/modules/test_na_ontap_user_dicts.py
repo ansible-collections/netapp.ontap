@@ -29,6 +29,7 @@ SRR = {
     'zero_records': (200, {'num_records': 0}, None),
     'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (400, None, "Expected error"),
+    'invalid_value_error': (400, None, {'message': "invalid value service_processor"}),
     'get_uuid': (200, {'owner': {'uuid': 'ansible'}}, None),
     'get_user_rest': (200,
                       {'num_records': 1,
@@ -36,7 +37,7 @@ SRR = {
                                     'name': 'abcd'}]}, None),
     'get_user_details_rest': (200,
                               {'role': {'name': 'vsadmin'},
-                               'applications': [{'application': 'http'}],
+                               'applications': [{'application': 'http', 'second_authentication_method': 'none'}, ],
                                'locked': False}, None)
 }
 
@@ -75,8 +76,9 @@ def set_default_args_rest():
         'password': 'password',
         'name': 'user_name',
         'vserver': 'vserver',
-        'applications': 'http',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='http', authentication_methods=['password']),
+             dict(application='ontapi', authentication_methods=['password'])],
         'role_name': 'vsadmin',
         'lock_user': 'True',
     })
@@ -181,7 +183,6 @@ class TestMyModule(unittest.TestCase):
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.server = self.server
-        # app = dict(application='testapp', authentication_methods=['testam'])
         user_info = my_obj.get_user()
         print('Info: test_user_get: %s' % repr(user_info))
         assert user_info is None
@@ -487,10 +488,11 @@ def test_ensure_modify_user_rest_called(mock_request, mock_fail, mock_exit):
         SRR['empty_good'],
         SRR['end_of_sequence']
     ]
-    data = {
-        'application': 'ssh',
-    }
-    data.update(set_default_args_rest())
+    app = dict(application='service_processor', authentication_methods=['usm'])
+    data = set_default_args_rest()
+    data.update({
+        'application_dicts': [app],
+    })
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
@@ -545,4 +547,52 @@ def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_e
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_sp_retry(mock_request, mock_fail, mock_exit):
+    """simulate error in create_user_rest and retry"""
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['zero_records'],            # get
+        SRR['invalid_value_error'],    # create
+        SRR['generic_error'],           # create
+        SRR['end_of_sequence']
+    ]
+    app = dict(application='service_processor', authentication_methods=['usm'])
+    data = dict(set_default_args_rest())
+    data.update({
+        'application_dicts': [app],
+    })
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert 'invalid value' in exc.value.args[0]['msg']
+    assert 'service-processor' in repr(mock_request.mock_calls[-1])
+
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['zero_records'],            # get
+        SRR['invalid_value_error'],     # create
+        SRR['empty_good'],              # create
+        SRR['end_of_sequence']
+    ]
+    app = dict(application='service-processor', authentication_methods=['usm'])
+    data.update({
+        'application_dicts': [app],
+    })
+    print(data)
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert 'service_processor' in repr(mock_request.mock_calls[-1])
     assert exc.value.args[0]['changed']

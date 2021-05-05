@@ -11,11 +11,6 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 
 module: na_ontap_user
@@ -41,22 +36,53 @@ options:
     - The name of the user to manage.
     required: true
     type: str
-  applications:
+  application_strs:
+    version_added: 21.6.0
     description:
-    - List of application to grant access to.
-    - Creating a login with application console, telnet, rsh, and service-processor for a data Vserver is not supported.
+    - List of applications to grant access to.
+    - This option maintains backward compatibility with the existing C(applications) option, but is limited.
+    - It is recommended to use the new C(application_dicts) option which provides more flexibility.
+    - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
     - Module supports both service-processor and service_processor choices.
     - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
     - snmp is not supported in REST.
-    required: true
+    - Either C(application_dicts) or C(application_strs) is required.
     type: list
     elements: str
     choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
     aliases:
       - application
+      - applications
+  application_dicts:
+    version_added: 21.6.0
+    description:
+    - List of applications to grant access to.  Provides better control on applications and authentication methods.
+    - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
+    - Module supports both service-processor and service_processor choices.
+    - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
+    - snmp is not supported in REST.
+    - Either C(application_dicts) or C(application_strs) is required.
+    type: list
+    elements: dict
+    suboptions:
+      application:
+        description: name of the application.
+        type: str
+        choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
+        required: true
+      authentication_methods:
+        description: list of authentication methods for the application.
+        type: list
+        elements: str
+        choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']
+        required: true
+      second_authentication_method:
+        description: when using ssh, optional additional authentication method for MFA.
+        type: str
+        choices: ['none', 'password', 'publickey', 'nsswitch']
   authentication_method:
     description:
-    - Authentication method for the application.
+    - Authentication method for the application.  If you need more than one method, use C(application_dicts).
     - Not all authentication methods are valid for an application.
     - Valid authentication methods for each application are as denoted in I(authentication_choices_description).
     - Password for console application
@@ -68,7 +94,7 @@ options:
     - Password for rsh application.
     - Password for telnet application.
     - Password, publickey, domain, nsswitch for ssh application.
-    required: true
+    - Required when C(application_strs) is present.
     type: str
     choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']
   set_password:
@@ -144,12 +170,26 @@ options:
       application is snmp and authentication method is usm.
     type: str
     version_added: '20.6.0'
+  replace_existing_apps_and_methods:
+    description:
+    - If the user already exists, the current applications and authentications methods are replaced when state=present.
+    - If the user already exists, the current applications and authentications methods are removed when state=absent.
+    - When using application_dicts or REST, this the only supported behavior.
+    - When using application_strs and ZAPI, this is the behavior when this option is set to always.
+    - When using application_strs and ZAPI, if the option is set to auto, applications that are not listed are not removed.
+    - When using application_strs and ZAPI, if the option is set to auto, authentication mehods that are not listed are not removed.
+    - C(auto) preserve the existing behavior for backward compatibility, but note that REST and ZAPI have inconsistent behavior.
+    - This is another reason to recommend to use C(application_dicts).
+    type: str
+    choices: ['always', 'auto']
+    default: 'auto'
+    version_added: '20.6.0'
 '''
 
 EXAMPLES = """
 
     - name: Create User
-      na_ontap_user:
+      netapp.ontap.na_ontap_user:
         state: present
         name: SampleUser
         applications: ssh,console
@@ -163,7 +203,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete User
-      na_ontap_user:
+      netapp.ontap.na_ontap_user:
         state: absent
         name: SampleUser
         applications: ssh
@@ -174,7 +214,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Create user with snmp application (ZAPI)
-      na_ontap_user:
+      netapp.ontap.na_ontap_user:
         state: present
         name: test_cert_snmp
         applications: snmp
@@ -191,6 +231,21 @@ EXAMPLES = """
         username: "{{ username }}"
         password: "{{ password }}"
 
+    - name: Create user
+      netapp.ontap.na_ontap_user:
+        state: present
+        name: test123
+        application_dicts:
+          - application: http
+            authentication_methods: password
+          - application: ssh
+            authentication_methods: password,publickey
+        role_name: vsadmin
+        set_password: bobdole1234566
+        vserver: "{{ vserver }}"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
 """
 
 RETURN = """
@@ -207,7 +262,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapUser(object):
+class NetAppOntapUser():
     """
     Common operations to manage users and roles.
     """
@@ -216,36 +271,53 @@ class NetAppOntapUser(object):
         self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
+            state=dict(type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
 
-            applications=dict(required=True, type='list', elements='str', aliases=['application'],
-                              choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
-                                       'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
-            authentication_method=dict(required=True, type='str',
+            application_strs=dict(type='list', elements='str', aliases=['application', 'applications'],
+                                  choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
+                                           'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
+            application_dicts=dict(type='list', elements='dict',
+                                   options=dict(
+                                       application=dict(required=True, type='str',
+                                                        choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
+                                                                 'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
+                                       authentication_methods=dict(required=True, type='list', elements='str',
+                                                                   choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']),
+                                       second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch']))),
+            authentication_method=dict(type='str',
                                        choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']),
-            set_password=dict(required=False, type='str', no_log=True),
-            role_name=dict(required=False, type='str'),
-            lock_user=dict(required=False, type='bool'),
+            set_password=dict(type='str', no_log=True),
+            role_name=dict(type='str'),
+            lock_user=dict(type='bool'),
             vserver=dict(required=True, type='str', aliases=['svm']),
-            authentication_protocol=dict(required=False, type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
-            authentication_password=dict(required=False, type='str', no_log=True),
-            engine_id=dict(required=False, type='str'),
-            privacy_protocol=dict(required=False, type='str', choices=['none', 'des', 'aes128']),
-            privacy_password=dict(required=False, type='str', no_log=True),
-            remote_switch_ipaddress=dict(required=False, type='str')
+            authentication_protocol=dict(type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
+            authentication_password=dict(type='str', no_log=True),
+            engine_id=dict(type='str'),
+            privacy_protocol=dict(type='str', choices=['none', 'des', 'aes128']),
+            privacy_password=dict(type='str', no_log=True),
+            remote_switch_ipaddress=dict(type='str'),
+            replace_existing_apps_and_methods=dict(type='str', choices=['always', 'auto'], default='auto')
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_if=[
-                ('state', 'present', ['role_name'])
+                ('state', 'present', ['role_name']),
+                ('state', 'present', ['application_strs', 'application_dicts'], True)
+            ],
+            mutually_exclusive=[
+                ('application_strs', 'application_dicts')
+            ],
+            required_together=[
+                ('application_strs', 'authentication_method')
             ],
             supports_check_mode=True
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.strs_to_dicts()
 
         # REST API should be used for ONTAP 9.6 or higher
         self.rest_api = OntapRestAPI(self.module)
@@ -260,10 +332,33 @@ class NetAppOntapUser(object):
             if not HAS_NETAPP_LIB:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
+                if self.parameters['applications'] is None:
+                    self.module.fail_json(msg="application_dicts or application_strs is a required parameter with ZAPI")
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         else:
-            if 'snmp' in self.parameters['applications']:
-                self.module.fail_json(msg="Snmp as application is not supported in REST.")
+            if any(application['application'] == 'snmp' for application in self.parameters['applications']):
+                self.module.fail_json(msg="snmp as application is not supported in REST.")
+            for application in self.parameters['applications']:
+                # REST prefers certificate to cert
+                application['authentication_methods'] = ['certificate' if x == 'cert' else x for x in application['authentication_methods']]
+                # REST get always returns 'second_authentication_method'
+                if 'second_authentication_method' not in application:
+                    application['second_authentication_method'] = None
+
+    def strs_to_dicts(self):
+        """transform applications list of strs to a list of dicts if application_strs in use"""
+        if 'application_dicts' in self.parameters:
+            self.parameters['applications'] = self.parameters['application_dicts']
+            self.parameters['replace_existing_apps_and_methods'] = 'always'
+        elif 'application_strs' in self.parameters:
+            # actual conversion
+            self.parameters['applications'] = [
+                dict(application=application,
+                     authentication_methods=[self.parameters['authentication_method']],
+                     second_authentication_method=None
+                     ) for application in self.parameters['application_strs']]
+        else:
+            self.parameters['applications'] = None
 
     def get_user_rest(self):
         api = 'security/accounts'
@@ -295,29 +390,33 @@ class NetAppOntapUser(object):
         if error:
             self.module.fail_json(msg='Error while fetching user details: %s' % error)
         if message:
+            # replace "none" values with None for comparison
+            for application in message['applications']:
+                if application.get('second_authentication_method') == 'none':
+                    application['second_authentication_method'] = None
             return_value = {
                 'role_name': message['role']['name'],
-                'applications': [app['application'] for app in message['applications']]
+                'applications': message['applications']
             }
             if "locked" in message:
                 return_value['lock_user'] = message['locked']
         return return_value
 
-    def get_user(self, application=None):
+    def get_user(self):
         """
         Checks if the user exists.
-        :param: application: application to grant access to
+        :param: application: application to grant access to, a dict
         :return:
             Dictionary if user found
             None if user is not found
         """
+        desired_applications = [application['application'] for application in self.parameters['applications']]
+        desired_method = self.parameters.get('authentication_method')
         security_login_get_iter = netapp_utils.zapi.NaElement('security-login-get-iter')
         query_details = netapp_utils.zapi.NaElement.create_node_with_children(
             'security-login-account-info', **{'vserver': self.parameters['vserver'],
-                                              'user-name': self.parameters['name'],
-                                              'authentication-method': self.parameters['authentication_method']})
-        if application is not None:
-            query_details.add_new_child('application', application)
+                                              'user-name': self.parameters['name']})
+
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(query_details)
         security_login_get_iter.add_child_elem(query)
@@ -326,13 +425,32 @@ class NetAppOntapUser(object):
                                                      enable_tunneling=False)
             if result.get_child_by_name('num-records') and \
                     int(result.get_child_content('num-records')) >= 1:
-                interface_attributes = result.get_child_by_name('attributes-list').\
-                    get_child_by_name('security-login-account-info')
-                return_value = {
-                    'lock_user': interface_attributes.get_child_content('is-locked'),
-                    'role_name': interface_attributes.get_child_content('role-name')
-                }
-                return return_value
+                applications = dict()
+                attr = result.get_child_by_name('attributes-list')
+                for info in attr.get_children():
+                    lock_user = self.na_helper.get_value_for_bool(True, info.get_child_content('is-locked'))
+                    role_name = info.get_child_content('role-name')
+                    application = info.get_child_content('application')
+                    auth_method = info.get_child_content('authentication-method')
+                    sec_method = info.get_child_content('second-authentication-method')
+                    if self.parameters['replace_existing_apps_and_methods'] == 'always' and application in applications:
+                        # with auto, only a single method is supported
+                        applications[application][0].append(auth_method)
+                        if sec_method != 'none':
+                            applications[application][1] = sec_method
+                    else:
+                        if self.parameters['replace_existing_apps_and_methods'] == 'always' or\
+                           (application in desired_applications and auth_method == desired_method):
+                            # with 'auto' we ignore existing apps that were not asked for
+                            applications[application] = ([auth_method], None)
+
+                apps = [dict(application=application, authentication_methods=methods, second_authentication_method=sec_method)
+                        for application, (methods, sec_method) in applications.items()]
+                return dict(
+                    lock_user=lock_user,
+                    role_name=role_name,
+                    applications=apps
+                )
             return None
         except netapp_utils.zapi.NaApiError as error:
             # Error 16034 denotes a user not being found.
@@ -346,19 +464,12 @@ class NetAppOntapUser(object):
                                       exception=traceback.format_exc())
 
     def create_user_rest(self, apps=None):
-        app_list = list()
         if apps is not None:
-            for app in apps:
-                mydict = {
-                    "application": app,
-                    "authentication_methods": self.parameters['authentication_method'].split(),
-                }
-                app_list.append(mydict)
             api = 'security/accounts'
             params = {
                 'name': self.parameters['name'],
                 'role.name': self.parameters['role_name'],
-                'applications': app_list
+                'applications': self.na_helper.filter_out_none_entries(apps)
             }
             if self.parameters.get('vserver') is not None:
                 # vserser is empty for cluster
@@ -376,9 +487,9 @@ class NetAppOntapUser(object):
                         # update value as per ONTAP version support
                         app_list_sp = params['applications']
                         for app_item in app_list_sp:
-                            if 'service-processor' == app_item['application']:
+                            if app_item['application'] == 'service-processor':
                                 app_item['application'] = 'service_processor'
-                            elif 'service_processor' == app_item['application']:
+                            elif app_item['application'] == 'service_processor':
                                 app_item['application'] = 'service-processor'
                         params['applications'] = app_list_sp
                         # post again and throw first error in case of an error
@@ -392,19 +503,26 @@ class NetAppOntapUser(object):
                 self.module.fail_json(msg='Error while creating user: %s' % error)
 
     def create_user(self, application):
+        for index in range(len(application['authentication_methods'])):
+            self.create_user_with_auth(application, index)
+
+    def create_user_with_auth(self, application, index):
         """
         creates the user for the given application and authentication_method
+        application is now a directory
         :param: application: application to grant access to
         """
         user_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'security-login-create', **{'vserver': self.parameters['vserver'],
                                         'user-name': self.parameters['name'],
-                                        'application': application,
-                                        'authentication-method': self.parameters['authentication_method'],
+                                        'application': application['application'],
+                                        'authentication-method': application['authentication_methods'][index],
                                         'role-name': self.parameters.get('role_name')})
+        if application.get('second_authentication_method') is not None:
+            user_create.add_new_child('second-authentication-method', application['second_authentication_method'])
         if self.parameters.get('set_password') is not None:
             user_create.add_new_child('password', self.parameters.get('set_password'))
-        if self.parameters.get('authentication_method') == 'usm':
+        if application['authentication_methods'][0] == 'usm':
             if self.parameters.get('remote_switch_ipaddress') is not None:
                 user_create.add_new_child('remote-switch-ipaddress', self.parameters.get('remote_switch_ipaddress'))
             snmpv3_login_info = netapp_utils.zapi.NaElement('snmpv3-login-info')
@@ -491,22 +609,29 @@ class NetAppOntapUser(object):
         if error:
             self.module.fail_json(msg='Error while deleting user : %s' % error)
 
-    def delete_user(self, application):
+    def delete_user(self, application, methods_to_keep=None):
+        for index, method in enumerate(application['authentication_methods']):
+            if methods_to_keep is None or method not in methods_to_keep:
+                self.delete_user_with_auth(application, index)
+
+    def delete_user_with_auth(self, application, index):
         """
         deletes the user for the given application and authentication_method
+        application is now a dict
         :param: application: application to grant access to
         """
         user_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'security-login-delete', **{'vserver': self.parameters['vserver'],
                                         'user-name': self.parameters['name'],
-                                        'application': application,
-                                        'authentication-method': self.parameters['authentication_method']})
+                                        'application': application['application'],
+                                        'authentication-method': application['authentication_methods'][index]})
 
         try:
             self.server.invoke_successfully(user_delete,
                                             enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error removing user %s: %s' % (self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error removing user %s: %s - application: %s'
+                                  % (self.parameters['name'], to_native(error), application),
                                   exception=traceback.format_exc())
 
     @staticmethod
@@ -564,17 +689,9 @@ class NetAppOntapUser(object):
         return True
 
     def modify_apps_rest(self, useruuid, username, apps=None):
-        app_list = list()
-        if apps is not None:
-            for app in apps:
-                mydict = {
-                    "application": app,
-                    "authentication_methods": self.parameters['authentication_method'].split(),
-                }
-                app_list.append(mydict)
         data = {
             'role.name': self.parameters['role_name'],
-            'applications': app_list
+            'applications': self.na_helper.filter_out_none_entries(apps)
         }
         params = {
             'name': self.parameters['name'],
@@ -585,15 +702,23 @@ class NetAppOntapUser(object):
         if error:
             self.module.fail_json(msg='Error while modifying user details: %s' % error)
 
-    def modify_user(self, application):
+    def modify_user(self, application, current_methods):
+        for index, method in enumerate(application['authentication_methods']):
+            if method in current_methods:
+                self.modify_user_with_auth(application, index)
+            else:
+                self.create_user_with_auth(application, index)
+
+    def modify_user_with_auth(self, application, index):
         """
         Modify user
+        application is now a dict
         """
         user_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'security-login-modify', **{'vserver': self.parameters['vserver'],
                                         'user-name': self.parameters['name'],
-                                        'application': application,
-                                        'authentication-method': self.parameters['authentication_method'],
+                                        'application': application['application'],
+                                        'authentication-method': application['authentication_methods'][index],
                                         'role-name': self.parameters.get('role_name')})
 
         try:
@@ -603,28 +728,30 @@ class NetAppOntapUser(object):
             self.module.fail_json(msg='Error modifying user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def change_sp_application(self, current_app):
-        if 'service-processor' or 'service_processor' in self.parameters['applications']:
-            if 'service-processor' in current_app:
-                if 'service_processor' in self.parameters['applications']:
-                    index = self.parameters['applications'].index('service_processor')
-                    self.parameters['applications'][index] = 'service-processor'
-            if 'service_processor' in current_app:
-                if 'service-processor' in self.parameters['applications']:
-                    index = self.parameters['applications'].index('service-processor')
-                    self.parameters['applications'][index] = 'service_processor'
+    def change_sp_application(self, current_apps):
+        """Adjust requested app name to match ONTAP convention"""
+        app_list = [app['application'] for app in current_apps]
+        for application in self.parameters['applications']:
+            if application['application'] == 'service_processor' and 'service-processor' in app_list:
+                application['application'] = 'service-processor'
+            elif application['application'] == 'service-processor' and 'service_processor' in app_list:
+                application['application'] = 'service_processor'
 
-    def apply_for_rest(self):
-        current = self.get_user_rest()
-        if current is not None:
-            uuid, name = current
-            current = self.get_user_details_rest(name, uuid)
-            self.change_sp_application(current['applications'])
+    def apply(self):
+        if self.use_rest:
+            current = self.get_user_rest()
+            if current is not None:
+                uuid, name = current
+                current = self.get_user_details_rest(name, uuid)
+                self.change_sp_application(current['applications'])
+        else:
+            netapp_utils.ems_log_event("na_ontap_user", self.server)
+            current = self.get_user()
 
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify_decision = self.na_helper.get_modified_attributes(current, self.parameters)
 
-        if current and 'lock_user' not in current:
+        if self.use_rest and current and 'lock_user' not in current:
             # REST does not return locked if password is not set
             if cd_action is None and self.parameters.get('lock_user') is not None:
                 if self.parameters.get('set_password') is None:
@@ -634,73 +761,59 @@ class NetAppOntapUser(object):
 
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.create_user_rest(self.parameters['applications'])
+                if self.use_rest:
+                    self.create_user_rest(self.parameters['applications'])
+                else:
+                    for application in self.parameters['applications']:
+                        self.create_user(application)
             elif cd_action == 'delete':
-                self.delete_user_rest()
+                if self.use_rest:
+                    self.delete_user_rest()
+                else:
+                    for application in current['applications']:
+                        self.delete_user(application)
             elif modify_decision:
-                if 'role_name' in modify_decision or 'applications' in modify_decision:
-                    self.modify_apps_rest(uuid, name, self.parameters['applications'])
+                if self.use_rest:
+                    if 'role_name' in modify_decision or 'applications' in modify_decision:
+                        self.modify_apps_rest(uuid, name, self.parameters['applications'])
+                else:
+                    if 'role_name' in modify_decision or 'applications' in modify_decision:
+                        if 'applications' not in modify_decision:
+                            # to change roles, we need at least one app
+                            modify_decision['applications'] = self.parameters['applications']
+                        current_apps = dict((application['application'], application['authentication_methods']) for application in current['applications'])
+                        for application in modify_decision['applications']:
+                            if application['application'] in current_apps:
+                                self.modify_user(application, current_apps[application['application']])
+                            else:
+                                self.create_user(application)
+                        desired_apps = dict((application['application'], application['authentication_methods'])
+                                            for application in self.parameters['applications'])
+                        for application in current['applications']:
+                            if application['application'] not in desired_apps:
+                                self.delete_user(application)
+                            else:
+                                self.delete_user(application, desired_apps[application['application']])
+
         if cd_action is None and self.parameters.get('set_password') is not None:
             # if check_mode, don't attempt to change the password, but assume it would be changed
-            if self.module.check_mode or self.change_password_rest(uuid, name):
-                self.na_helper.changed = True
+            if self.use_rest:
+                self.na_helper.changed = self.module.check_mode or self.change_password_rest(uuid, name)
+            else:
+                self.na_helper.changed = self.module.check_mode or self.change_password()
+
         if cd_action is None and self.na_helper.changed and not self.module.check_mode:
             # lock/unlock actions require password to be set
             if modify_decision and 'lock_user' in modify_decision:
-                self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
-
-        self.module.exit_json(changed=self.na_helper.changed)
-
-    def apply(self):
-        if self.use_rest:
-            self.apply_for_rest()
-        else:
-            create_delete_decision = {}
-            modify_decision = {}
-            netapp_utils.ems_log_event("na_ontap_user", self.server)
-            for application in self.parameters['applications']:
-                current = self.get_user(application)
-
-                if current is not None:
-                    current['lock_user'] = self.na_helper.get_value_for_bool(True, current['lock_user'])
-
-                cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
-                if cd_action is not None:
-                    create_delete_decision[application] = cd_action
+                if self.use_rest:
+                    self.lock_unlock_user_rest(uuid, name, self.parameters['lock_user'])
                 else:
-                    modify_decision[application] = self.na_helper.get_modified_attributes(current, self.parameters)
+                    if self.parameters.get('lock_user'):
+                        self.lock_given_user()
+                    else:
+                        self.unlock_given_user()
 
-            if not create_delete_decision and self.parameters.get('state') == 'present':
-                if self.parameters.get('set_password') is not None:
-                    self.na_helper.changed = True
-
-            if self.na_helper.changed:
-
-                if self.module.check_mode:
-                    pass
-                else:
-                    for application in create_delete_decision:
-                        if create_delete_decision[application] == 'create':
-                            self.create_user(application)
-                        elif create_delete_decision[application] == 'delete':
-                            self.delete_user(application)
-                    lock_user = False
-                    for application in modify_decision:
-                        if 'role_name' in modify_decision[application]:
-                            self.modify_user(application)
-                        if 'lock_user' in modify_decision[application]:
-                            lock_user = True
-                    if not create_delete_decision and self.parameters.get('set_password') is not None:
-                        # if change password return false nothing has changed so we need to set changed to False
-                        self.na_helper.changed = self.change_password()
-                    # NOTE: unlock has to be performed after setting a password
-                    if lock_user:
-                        if self.parameters.get('lock_user'):
-                            self.lock_given_user()
-                        else:
-                            self.unlock_given_user()
-        self.module.exit_json(changed=self.na_helper.changed)
+        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=modify_decision)
 
 
 def main():

@@ -30,6 +30,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.6.0
 
 ### New Options
+  - na_ontap_users - new option `application_dicts` to associate multiple authentication methods to an application.
+  - na_ontap_users - new option `application_strs` to disambiguate `applications`.
+  - na_ontap_users - new option `replace_existing_apps_and_methods`.
+  - na_ontap_users - new suboption `second_authentication_method` with `application_dicts` option.
   - na_ontap_vserver_peer - new options `local_name_for_source` and `local_name_for_peer` added.
 
 ### Minor changes
