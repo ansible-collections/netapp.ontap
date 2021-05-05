@@ -389,7 +389,7 @@ class NetAppONTAPQuotas(object):
                                   % (self.parameters['volume'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def on_or_off_quota(self, status):
+    def on_or_off_quota(self, status, cd_action=None):
         """
         on or off quota
         """
@@ -399,11 +399,15 @@ class NetAppONTAPQuotas(object):
             self.server.invoke_successfully(quota,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
+            if cd_action == 'delete' and status == 'quota-on' and '14958:No valid quota rules found' in to_native(error):
+                # ignore error on quota-on, as all rules have been deleted
+                self.module.warn('Last rule deleted, quota is off.')
+                return
             self.module.fail_json(msg='Error setting %s for %s: %s'
                                   % (status, self.parameters['volume'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def resize_quota(self):
+    def resize_quota(self, cd_action=None):
         """
         resize quota
         """
@@ -413,6 +417,10 @@ class NetAppONTAPQuotas(object):
             self.server.invoke_successfully(quota,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
+            if cd_action == 'delete' and '14958:No valid quota rules found' in to_native(error):
+                # ignore error on quota-on, as all rules have been deleted
+                self.module.warn('Last rule deleted, but quota is on as resize is not allowed.')
+                return
             self.module.fail_json(msg='Error setting %s for %s: %s'
                                   % ('quota-resize', self.parameters['volume'], to_native(error)),
                                   exception=traceback.format_exc())
@@ -425,20 +433,18 @@ class NetAppONTAPQuotas(object):
         cd_action = None
         modify_quota_status = None
         modify_quota = None
-        quota_status = None
         current = self.get_quotas()
         if self.parameters.get('type') is not None:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
             if cd_action is None:
                 modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
-        if 'set_quota_status' in self.parameters or modify_quota:
-            quota_status = self.get_quota_status()
+        quota_status = self.get_quota_status()
         if 'set_quota_status' in self.parameters and quota_status is not None:
             quota_status_action = self.na_helper.get_modified_attributes(
                 {'set_quota_status': True if quota_status == 'on' else False}, self.parameters)
             if quota_status_action:
                 modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
-        if modify_quota is not None and modify_quota_status is None and quota_status == 'on':
+        if (cd_action is not None or modify_quota is not None) and modify_quota_status is None and quota_status in ('on', None):
             # do we need to resize or reinitialize:
             if self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']:
                 modify_quota_status = self.parameters['activate_quota_on_change']
@@ -457,11 +463,11 @@ class NetAppONTAPQuotas(object):
                 if modify_quota_status in ['quota-off', 'quota-on']:
                     self.on_or_off_quota(modify_quota_status)
                 elif modify_quota_status == 'resize':
-                    self.resize_quota()
+                    self.resize_quota(cd_action)
                 elif modify_quota_status == 'reinitialize':
                     self.on_or_off_quota('quota-off')
                     time.sleep(10)  # status switch interval
-                    self.on_or_off_quota('quota-on')
+                    self.on_or_off_quota('quota-on', cd_action)
 
         self.module.exit_json(changed=self.na_helper.changed)
 

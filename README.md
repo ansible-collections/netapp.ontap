@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_autosupport - TypeError - '>' not supported between instances of 'str' and 'list'.
+  - na_ontap_quotas - fail to reinitialize on create if quota is already on.
 
 ## 21.5.0
 

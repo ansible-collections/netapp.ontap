@@ -50,15 +50,20 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
-    def __init__(self, kind=None):
+    def __init__(self, kind=None, status=None):
         ''' save arguments '''
         self.type = kind
+        self.status = status
         self.xml_in = None
         self.xml_out = None
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        print('IN:', xml.to_string())
+        zapi = xml.get_name()
+        if zapi == 'quota-status' and self.type != 'quota_fail':
+            return self.build_quota_status(self.status)
         if self.type == 'quotas':
             xml = self.build_quota_info()
         elif self.type == 'quota_fail':
@@ -75,6 +80,15 @@ class MockONTAPConnection(object):
                                                     'file-limit': '-', 'disk-limit': '-', 'quota-target': '/vol/ansible',
                                                     'soft-file-limit': '-', 'soft-disk-limit': '-', 'threshold': '-'}},
                 'status': 'true'}
+        xml.translate_struct(data)
+        return xml
+
+    @staticmethod
+    def build_quota_status(status):
+        ''' build xml data for quota-status '''
+        status = 'off' if status is None else status
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'status': status}
         xml.translate_struct(data)
         return xml
 
@@ -211,7 +225,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         my_obj = my_module()
         if not self.onbox:
-            my_obj.server = MockONTAPConnection('quotas')
+            my_obj.server = MockONTAPConnection('quotas', 'off')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
