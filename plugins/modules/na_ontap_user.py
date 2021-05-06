@@ -114,6 +114,7 @@ options:
   vserver:
     description:
     - The name of the vserver to use.
+    - With REST, for cluster scope, use a vserver entry with no value.
     aliases:
       - svm
     required: true
@@ -335,7 +336,7 @@ class NetAppOntapUser():
                 if self.parameters['applications'] is None:
                     self.module.fail_json(msg="application_dicts or application_strs is a required parameter with ZAPI")
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-        else:
+        elif self.parameters['applications']:
             if any(application['application'] == 'snmp' for application in self.parameters['applications']):
                 self.module.fail_json(msg="snmp as application is not supported in REST.")
             for application in self.parameters['applications']:
@@ -730,6 +731,8 @@ class NetAppOntapUser():
 
     def change_sp_application(self, current_apps):
         """Adjust requested app name to match ONTAP convention"""
+        if not self.parameters['applications']:
+            return
         app_list = [app['application'] for app in current_apps]
         for application in self.parameters['applications']:
             if application['application'] == 'service_processor' and 'service-processor' in app_list:
