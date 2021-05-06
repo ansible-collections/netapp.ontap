@@ -5,6 +5,25 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.6.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_rest_info - Added "autosupport_check_info"/"support/autosupport/check" to the attributes that will be collected when gathering info using the module.
+- na_ontap_users - new option ``application_dicts`` to associate multiple authentication methods to an application.
+- na_ontap_users - new option ``application_strs`` to disambiguate ``applications``.
+- na_ontap_users - new option ``replace_existing_apps_and_methods``.
+- na_ontap_users - new suboption ``second_authentication_method`` with ``application_dicts`` option.
+- na_ontap_vserver_peer - new options ``local_name_for_source`` and ``local_name_for_peer`` added.
+
+Bugfixes
+--------
+
+- na_ontap_autosupport - TypeError - '>' not supported between instances of 'str' and 'list'.
+- na_ontap_quotas - fail to reinitialize on create if quota is already on.
+
 v21.5.0
 =======
 
