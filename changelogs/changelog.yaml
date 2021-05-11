@@ -1311,3 +1311,10 @@ releases:
     - DEVOPS-3926.yaml
     - DEVOPS-3950.yaml
     release_date: '2021-05-06'
+  21.6.1:
+    changes:
+      bugfixes:
+      - na_ontap_autosupport - KeyError - No element by given name validate-digital-certificate.
+    fragments:
+    - DEVOPS-3971.yaml
+    release_date: '2021-05-11'

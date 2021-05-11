@@ -320,12 +320,16 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             asup_attr_info = result.get_child_by_name('attributes').get_child_by_name('autosupport-config-info')
             asup_info['service_state'] = 'started' if asup_attr_info['is-enabled'] == 'true' else 'stopped'
             for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
-                value = asup_attr_info[zapi_key]
+                value = asup_attr_info.get_child_content(zapi_key)
                 asup_info[item_key] = value if value is not None else ""
             for item_key, zapi_key in self.na_helper.zapi_int_keys.items():
-                asup_info[item_key] = self.na_helper.get_value_for_int(from_zapi=True, value=asup_attr_info[zapi_key])
+                value = asup_attr_info.get_child_content(zapi_key)
+                if value is not None:
+                    asup_info[item_key] = self.na_helper.get_value_for_int(from_zapi=True, value=value)
             for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
-                asup_info[item_key] = self.na_helper.get_value_for_bool(from_zapi=True, value=asup_attr_info[zapi_key])
+                value = asup_attr_info.get_child_content(zapi_key)
+                if value is not None:
+                    asup_info[item_key] = self.na_helper.get_value_for_bool(from_zapi=True, value=value)
             for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
                 parent, dummy = zapi_key
                 asup_info[item_key] = self.na_helper.get_value_for_list(from_zapi=True, zapi_parent=asup_attr_info.get_child_by_name(parent))

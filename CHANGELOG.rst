@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.6.1
+=======
+
+Bugfixes
+--------
+
+- na_ontap_autosupport - KeyError - No element by given name validate-digital-certificate.
+
 v21.6.0
 =======
 

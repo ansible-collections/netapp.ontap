@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.6.1
+
+### Bug Fixes
+  - na_ontap_autosupport - KeyError: No element by given name validate-digital-certificate.
+
 ## 21.6.0
 
 ### New Options
