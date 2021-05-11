@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # import untangle
 
@@ -11,53 +11,52 @@ na_ontap_cifs
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - "Create or destroy or modify(path) cifs-share on ONTAP"
+  - Create or destroy or modify(path) cifs-share on ONTAP.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_cifs
 
 options:
 
+  comment:
+    description:
+      - The CIFS share description.
+    type: str
+    version_added: 21.7.0
+
   path:
     description:
-      The file system path that is shared through this CIFS share. The path is the full, user visible path relative
-      to the vserver root, and it might be crossing junction mount points. The path is in UTF8 and uses forward
-      slash as directory separator
-    required: false
+      - The file system path that is shared through this CIFS share. The path is the full, user visible path relative
+        to the vserver root, and it might be crossing junction mount points. The path is in UTF8 and uses forward
+        slash as directory separator.
     type: str
 
   vserver:
     description:
-      - "Vserver containing the CIFS share."
+      - Vserver containing the CIFS share.
     required: true
     type: str
 
   share_name:
     description:
-      The name of the CIFS share. The CIFS share name is a UTF-8 string with the following characters being
-      illegal; control characters from 0x00 to 0x1F, both inclusive, 0x22 (double quotes)
+      - The name of the CIFS share. The CIFS share name is a UTF-8 string with the following characters being
+        illegal; control characters from 0x00 to 0x1F, both inclusive, 0x22 (double quotes)
     required: true
     type: str
 
   share_properties:
     description:
-      - The list of properties for the CIFS share
-    required: false
+      - The list of properties for the CIFS share.
     type: list
     elements: str
     version_added: 2.8.0
 
   symlink_properties:
     description:
-      - The list of symlink properties for this CIFS share
-    required: false
+      - The list of symlink properties for this CIFS share.
     type: list
     elements: str
     version_added: 2.8.0
@@ -65,8 +64,7 @@ options:
   state:
     choices: ['present', 'absent']
     description:
-      - "Whether the specified CIFS share should exist or not."
-    required: false
+      - Whether the specified CIFS share should exist or not.
     type: str
     default: present
 
@@ -74,7 +72,6 @@ options:
     choices: ['no_scan', 'standard', 'strict', 'writes_only']
     description:
       - Profile_set of file_ops to which vscan on access scanning is applicable.
-    required: false
     type: str
     version_added: 2.9.0
 
@@ -85,18 +82,19 @@ version_added: 2.6.0
 
 EXAMPLES = """
     - name: Create CIFS share
-      na_ontap_cifs:
+      netapp.ontap.na_ontap_cifs:
         state: present
         share_name: cifsShareName
         path: /
         vserver: vserverName
         share_properties: browsable,oplocks
         symlink_properties: read_only,enable
+        comment: CIFS share description
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Delete CIFS share
-      na_ontap_cifs:
+      netapp.ontap.na_ontap_cifs:
         state: absent
         share_name: cifsShareName
         vserver: vserverName
@@ -104,7 +102,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Modify path CIFS share
-      na_ontap_cifs:
+      netapp.ontap.na_ontap_cifs:
         state: present
         share_name: pb_test
         vserver: vserverName
@@ -142,6 +140,7 @@ class NetAppONTAPCifsShare(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             share_name=dict(required=True, type='str'),
             path=dict(required=False, type='str'),
+            comment=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
             share_properties=dict(required=False, type='list', elements='str'),
             symlink_properties=dict(required=False, type='list', elements='str'),
@@ -205,6 +204,8 @@ class NetAppONTAPCifsShare(object):
                 'share_properties': properties_list,
                 'symlink_properties': symlink_list
             }
+            value = cifs_attrs.get_child_content('comment')
+            return_value['comment'] = value if value is not None else ''
             if cifs_attrs.get_child_by_name('vscan-fileop-profile'):
                 return_value['vscan_fileop_profile'] = cifs_attrs['vscan-fileop-profile']
 
@@ -232,6 +233,8 @@ class NetAppONTAPCifsShare(object):
             fileop_attrs = netapp_utils.zapi.NaElement('vscan-fileop-profile')
             fileop_attrs.set_content(self.parameters['vscan_fileop_profile'])
             cifs_create.add_child_elem(fileop_attrs)
+        if self.parameters.get('comment'):
+            cifs_create.add_new_child('comment', self.parameters['comment'])
 
         try:
             self.server.invoke_successfully(cifs_create,
@@ -280,6 +283,8 @@ class NetAppONTAPCifsShare(object):
             fileop_attrs = netapp_utils.zapi.NaElement('vscan-fileop-profile')
             fileop_attrs.set_content(self.parameters['vscan_fileop_profile'])
             cifs_modify.add_child_elem(fileop_attrs)
+        if self.parameters.get('comment'):
+            cifs_modify.add_new_child('comment', self.parameters['comment'])
         try:
             self.server.invoke_successfully(cifs_modify,
                                             enable_tunneling=True)
@@ -310,6 +315,7 @@ class NetAppONTAPCifsShare(object):
                 self.modify_cifs_share()
         results = dict(changed=self.na_helper.changed)
         if modify and netapp_utils.has_feature(self.module, 'show_modified'):
+            results['current'] = str(current)
             results['modify'] = str(modify)
         self.module.exit_json(**results)
 
