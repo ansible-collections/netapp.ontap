@@ -661,7 +661,7 @@ class NetAppONTAPFlexCache(object):
                 if self.use_rest:
                     mount_unmount = modify.pop('junction_path', None)
                 if modify:
-                    self.module.fail_json('FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
+                    self.module.fail_json(msg='FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
             if current and prepopulate_if_already_created:
                 # force a prepopulate action
                 modify = dict(prepopulate=self.parameters['prepopulate'])

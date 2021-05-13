@@ -597,7 +597,7 @@ class NetAppOntapIgroup(object):
         Rename the igroup.
         """
         if self.use_rest:
-            self.module.fail_json('Internal error, should not call rename, but use modify')
+            self.module.fail_json(msg='Internal error, should not call rename, but use modify')
 
         igroup_rename = netapp_utils.zapi.NaElement.create_node_with_children(
             'igroup-rename', **{'initiator-group-name': self.parameters['from_name'],

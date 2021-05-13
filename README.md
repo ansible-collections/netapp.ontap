@@ -36,6 +36,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_autosupport - KeyError: No element by given name validate-digital-certificate.
+bugfixes:
+  - na_ontap_flexcache - one occurrence of msg missing in call to fail_json.
+  - na_ontap_igroup - one occurrence of msg missing in call to fail_json.
+  - na_ontap_lun - three occurrencse of msg missing in call to fail_json.
+  - na_ontap_lun_map_reporting_nodes - one occurrence of msg missing in call to fail_json.
+  - na_ontap_snapmirror - one occurrence of msg missing in call to fail_json.
 
 ## 21.6.0
 

@@ -156,7 +156,7 @@ class NetAppOntapLUNMapReportingNodes(object):
         try:
             num_records = int(result.get_child_content('num-records'))
         except TypeError:
-            self.module.fail_json("Error: unexpected ZAPI response for lun-map-get-iter: %s" % result.to_string())
+            self.module.fail_json(msg="Error: unexpected ZAPI response for lun-map-get-iter: %s" % result.to_string())
         if num_records == 0:
             return None
 

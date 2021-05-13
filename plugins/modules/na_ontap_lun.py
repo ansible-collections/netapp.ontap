@@ -662,7 +662,7 @@ class NetAppOntapLUN(object):
         app_current, error = self.rest_app.get_application_uuid()
         self.fail_on_error(error)
         if app_current is None:
-            self.module.fail_json('Error: failed to create smart container for %s' % self.parameters['name'])
+            self.module.fail_json(msg='Error: failed to create smart container for %s' % self.parameters['name'])
         app_modify, app_modify_warning = self.app_changes(scope)
         if app_modify_warning is not None:
             self.module.warn(app_modify_warning)
@@ -813,7 +813,7 @@ class NetAppOntapLUN(object):
         if value is not None and (lun_count is None or lun_count == 1):
             self.parameters[attr] = value
             return
-        self.module.fail_json("Error: 'total_size' is a required SAN application template attribute when creating a LUN application")
+        self.module.fail_json(msg="Error: 'total_size' is a required SAN application template attribute when creating a LUN application")
 
     def validate_app_create(self):
         # fix total_size attribute
@@ -928,7 +928,7 @@ class NetAppOntapLUN(object):
             app_current, error = self.rest_app.get_application_uuid()
             self.fail_on_error(error)
             if scope == 'lun' and app_current is None:
-                self.module.fail_json('Application not found: %s.  scope=%s.' %
+                self.module.fail_json(msg='Application not found: %s.  scope=%s.' %
                                       (self.na_helper.safe_get(self.parameters, ['san_application_template', 'name']), scope))
         else:
             # no application template, fall back to LUN only

@@ -1011,7 +1011,7 @@ class NetAppONTAPSnapmirror(object):
         if modify.pop('max_transfer_rate', None) is not None:
             snapmirror_modify.add_new_child('max-transfer-rate', str(modify.get('max_transfer_rate')))
         if modify:
-            self.module.fail_json('Error: unexpected value in modify: %s' % repr(modify))
+            self.module.fail_json(msg='Error: unexpected value in modify: %s' % repr(modify))
         try:
             self.server.invoke_successfully(snapmirror_modify,
                                             enable_tunneling=True)
