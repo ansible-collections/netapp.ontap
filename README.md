@@ -29,6 +29,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.7.0
 
+### New Modules
+  - na_ontap_publickey - add/remove/modify public keys for SSH authentication.
+
 ### New Options
   - na_ontap_cifs - new option `comment` to associate a description to a CIFS share.
 

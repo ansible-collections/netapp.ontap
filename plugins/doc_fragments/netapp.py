@@ -99,6 +99,6 @@ requirements:
   - To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
 
 notes:
-  - The modules prefixed with na\\_ontap are built to support the ONTAP storage platform.
+  - The modules prefixed with na_ontap are built to support the ONTAP storage platform.
 
 '''

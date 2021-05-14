@@ -573,6 +573,23 @@ class OntapRestAPI(object):
     def meets_rest_minimum_version(self, use_rest, minimum_generation, minimum_major):
         return use_rest and self.get_ontap_version() >= (minimum_generation, minimum_major)
 
+    def fail_if_not_rest_minimum_version(self, module_name, minimum_generation, minimum_major):
+        status_code = self.get_ontap_version_using_rest()
+        msgs = list()
+        if self.use_rest == 'never':
+            msgs.append('Error: REST is required for this module, found: "use_rest: %s"' % self.module.params.get('use_rest'))
+        if self.is_rest_error:
+            msgs.append('Error using REST for version, error: %s.' % self.is_rest_error)
+        if status_code != 200:
+            msgs.append('Error using REST for version, status_code: %s.' % status_code)
+        if msgs:
+            self.module.fail_json(msg='  '.join(msgs))
+        version = self.get_ontap_version()
+        if version < (minimum_generation, minimum_major):
+            msg = 'Error: ' + self.requires_ontap_version(module_name, '%d.%d' % (minimum_generation, minimum_major))
+            msg += '  Found: %d.%d.' % version
+            self.module.fail_json(msg=msg)
+
     def check_required_library(self):
         if not HAS_REQUESTS:
             self.module.fail_json(msg=missing_required_lib('requests'))
