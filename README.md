@@ -34,6 +34,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_cifs - new option `comment` to associate a description to a CIFS share.
+  - na_ontap_lun - new suboption `exclude_aggregates` for SAN application.
+  - na_ontap_volume - new suboption `exclude_aggregates` for NAS application.
 
 ## 21.6.1
 

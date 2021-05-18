@@ -155,6 +155,13 @@ options:
             description: list of object store names for tiering.
             type: list
             elements: str
+      exclude_aggregates:
+        description:
+          - The list of aggregate names to exclude when creating a volume.
+          - Requires ONTAP 9.9.1 GA or later.
+        type: list
+        elements: str
+        version_added: 21.7.0
       use_nas_application:
         description:
           - Whether to use the application/applications REST/API to create a volume.
@@ -726,6 +733,7 @@ EXAMPLES = """
             - access: ro
             - access: rw
               host: 10.0.0.0/8
+          exclude_aggregates: aggr0
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -818,6 +826,7 @@ class NetAppOntapVolume(object):
             snapshot_restore=dict(required=False, type='str'),
             nas_application_template=dict(type='dict', options=dict(
                 use_nas_application=dict(type='bool', default=True),
+                exclude_aggregates=dict(type='list', elements='str'),
                 flexcache=dict(type='dict', options=dict(
                     dr_cache=dict(type='bool'),
                     origin_svm_name=dict(required=True, type='str'),
@@ -1115,6 +1124,10 @@ class NetAppOntapVolume(object):
                 value = self.na_helper.filter_out_none_entries(value)
                 if value:
                     nas[attr] = value
+        for attr in ('exclude_aggregates',):
+            values = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+            if values:
+                nas[attr] = [dict(name=name) for name in values]
         return self.rest_app.create_application_body("nas", nas)
 
     def create_nas_application(self):

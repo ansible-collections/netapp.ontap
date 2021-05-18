@@ -230,6 +230,13 @@ options:
         choices: ['application', 'auto', 'lun']
         default: auto
         version_added: 21.2.0
+      exclude_aggregates:
+        description:
+          - The list of aggregate names to exclude when creating a volume.
+          - Requires ONTAP 9.9.1 GA or better.
+        type: list
+        elements: str
+        version_added: 21.7.0
 '''
 
 EXAMPLES = """
@@ -275,6 +282,7 @@ EXAMPLES = """
       lun_count: 3
       protection_type:
       local_policy: default
+      exclude_aggregates: aggr0
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -344,6 +352,7 @@ class NetAppOntapLUN(object):
             use_exact_size=dict(required=False, type='bool', default=True),
             san_application_template=dict(type='dict', options=dict(
                 use_san_application=dict(type='bool', default=True),
+                exclude_aggregates=dict(type='list', elements='str'),
                 name=dict(required=True, type='str'),
                 igroup_name=dict(type='str'),
                 lun_count=dict(type='int'),
@@ -623,6 +632,11 @@ class NetAppOntapLUN(object):
                     value = self.na_helper.filter_out_none_entries(value)
                     if value:
                         san[attr] = value
+        for attr in ('exclude_aggregates',):
+            if modify is None:      # only used for create
+                values = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
+                if values:
+                    san[attr] = [dict(name=name) for name in values]
         for attr in ('os_type',):
             if not modify:      # not supported for modify operation, but required at application component level for create
                 value = self.na_helper.safe_get(self.parameters, [attr])

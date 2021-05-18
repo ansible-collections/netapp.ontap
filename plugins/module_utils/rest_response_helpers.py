@@ -38,23 +38,23 @@ __metaclass__ = type
 def api_error(api, error):
     """format error message for api error, if error is present"""
     if error is not None:
-        return "calling: %s: got %s" % (api, error)
+        return "calling: %s: got %s." % (api, error)
     return None
 
 
 def no_response_error(api, response):
     """format error message for empty response"""
-    return "calling: %s: no response %s" % (api, repr(response))
+    return "calling: %s: no response %s." % (api, repr(response))
 
 
 def job_error(response, error):
     """format error message for job error"""
-    return "job reported error: %s, received %s" % (error, repr(response))
+    return "job reported error: %s, received %s." % (error, repr(response))
 
 
 def unexpected_response_error(api, response, query=None):
     """format error message for reponse not matching expectations"""
-    msg = "calling: %s: unexpected response %s" % (api, repr(response))
+    msg = "calling: %s: unexpected response %s." % (api, repr(response))
     if query:
         msg += " for query: %s" % repr(query)
     return response, msg

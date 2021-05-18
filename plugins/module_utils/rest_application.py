@@ -85,7 +85,10 @@ class RestApplication():
         api = 'application/applications'
         query = {'return_timeout': 30, 'return_records': 'true'}
         response, error = self.rest_api.post(api, body, params=query)
-        return rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+        response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+        if error and 'Unexpected argument' in error and 'exclude_aggregates' in error:
+            error += '  "exclude_aggregates" requires ONTAP 9.9.1 GA or later.'
+        return response, error
 
     def patch_application(self, body):
         """Use REST application/applications san template to add one or more LUNs"""

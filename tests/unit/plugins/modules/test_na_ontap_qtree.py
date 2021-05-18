@@ -330,7 +330,7 @@ def test_rest_error(mock_request, patch_ansible_mod):   # pylint: disable=unused
     ]
     with pytest.raises(AnsibleFailJson) as exc:
         get_qtree_mock_object(cx_type='rest').apply()
-    assert exc.value.args[0]['msg'] == 'Error in get_qtree: calling: storage/qtrees: got %s' % SRR['generic_error'][2]
+    assert exc.value.args[0]['msg'] == 'Error in get_qtree: calling: storage/qtrees: got %s.' % SRR['generic_error'][2]
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
