@@ -22,7 +22,7 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
   - Add, modify, or remove publickeys.
-  - Requires ONTAP 9.7 or later.
+  - Requires ONTAP 9.7 or later, and only supports REST.
 
 options:
   state:
