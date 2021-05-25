@@ -555,8 +555,8 @@ class OntapRestAPI(object):
     def options_require_ontap_version(self, options, version='9.6', use_rest=None):
         current_version = self.get_ontap_version()
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""
-        if current_version != (-1, -1):
-            suffix += " - ONTAP version: %s.%s" % current_version
+        if current_version != (-1, -1, -1):
+            suffix += " - ONTAP version: %s.%s.%s" % current_version
         if use_rest is not None:
             suffix += " - using %s" % ('REST' if use_rest else 'ZAPI')
         if isinstance(options, list):
@@ -570,10 +570,10 @@ class OntapRestAPI(object):
             tag = str(options)
         return 'using %s requires ONTAP %s or later and REST must be enabled%s.' % (tag, version, suffix)
 
-    def meets_rest_minimum_version(self, use_rest, minimum_generation, minimum_major):
-        return use_rest and self.get_ontap_version() >= (minimum_generation, minimum_major)
+    def meets_rest_minimum_version(self, use_rest, minimum_generation, minimum_major, minimum_minor=0):
+        return use_rest and self.get_ontap_version() >= (minimum_generation, minimum_major, minimum_minor)
 
-    def fail_if_not_rest_minimum_version(self, module_name, minimum_generation, minimum_major):
+    def fail_if_not_rest_minimum_version(self, module_name, minimum_generation, minimum_major, minimum_minor=0):
         status_code = self.get_ontap_version_using_rest()
         msgs = list()
         if self.use_rest == 'never':
@@ -585,9 +585,9 @@ class OntapRestAPI(object):
         if msgs:
             self.module.fail_json(msg='  '.join(msgs))
         version = self.get_ontap_version()
-        if version < (minimum_generation, minimum_major):
+        if version < (minimum_generation, minimum_major, minimum_minor):
             msg = 'Error: ' + self.requires_ontap_version(module_name, '%d.%d' % (minimum_generation, minimum_major))
-            msg += '  Found: %d.%d.' % version
+            msg += '  Found: %s.%s.%s.' % version
             self.module.fail_json(msg=msg)
 
     def check_required_library(self):
@@ -777,8 +777,8 @@ class OntapRestAPI(object):
 
     def get_ontap_version(self):
         if self.ontap_version['valid']:
-            return self.ontap_version['generation'], self.ontap_version['major']
-        return -1, -1
+            return self.ontap_version['generation'], self.ontap_version['major'], self.ontap_version['minor']
+        return -1, -1, -1
 
     def get_ontap_version_using_rest(self):
         # using GET rather than HEAD because the error messages are different,
@@ -811,10 +811,10 @@ class OntapRestAPI(object):
         # we're now using 'auto'
         if used_unsupported_rest_properties:
             # force ZAPI if some parameter requires it
-            if self.get_ontap_version() > (9, 5):
+            if self.get_ontap_version()[0:1] > (9, 5):
                 self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
             return False, None
-        if self.get_ontap_version() in ((9, 4), (9, 5)):
+        if self.get_ontap_version()[0:1] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None
         if status_code == 200:

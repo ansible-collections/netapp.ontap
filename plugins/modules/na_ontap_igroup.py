@@ -279,7 +279,7 @@ class NetAppOntapIgroup(object):
             self.parameters['initiator_names'] = [initiator['name'] for initiator in self.parameters['initiator_objects']]
 
         def too_old_for_rest(minimum_generation, minimum_major):
-            return self.use_rest and self.rest_api.get_ontap_version() < (minimum_generation, minimum_major)
+            return self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, minimum_generation, minimum_major, 0)
 
         ontap_99_options = ['bind_portset']
         if too_old_for_rest(9, 9) and any(x in self.parameters for x in ontap_99_options):
@@ -287,10 +287,10 @@ class NetAppOntapIgroup(object):
             self.use_rest = False
 
         ontap_99_options = ['igroups']
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and any(x in self.parameters for x in ontap_99_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_99_options, version='9.9'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1) and any(x in self.parameters for x in ontap_99_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_99_options, version='9.9.1'))
 
-        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9):
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             if 'igroups' in self.parameters:
                 # we may need to remove existing initiators
                 self.parameters['initiator_names'] = list()
@@ -316,7 +316,7 @@ class NetAppOntapIgroup(object):
     def get_igroup_rest(self, name):
         api = "protocols/san/igroups"
         fields = 'name,uuid,svm,initiators,os_type,protocol'
-        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9):
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             fields += ',igroups'
         query = dict(name=name, fields=fields)
         query['svm.name'] = self.parameters['vserver']
@@ -418,7 +418,7 @@ class NetAppOntapIgroup(object):
     def add_initiators_or_igroups_rest(self, uuid, option, names):
         self.check_option_is_valid(option)
         api = "protocols/san/igroups/%s/%s" % (uuid, self.get_rest_name_for_option(option))
-        if option == 'initiator_names' and self.rest_api.get_ontap_version() > (9, 8):
+        if option == 'initiator_names' and self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             in_objects = self.parameters['initiator_objects']
             records = [self.na_helper.filter_out_none_entries(item) for item in in_objects if item['name'] in names]
         else:

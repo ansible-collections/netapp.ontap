@@ -38,6 +38,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - new suboption `exclude_aggregates` for SAN application.
   - na_ontap_volume - new suboption `exclude_aggregates` for NAS application.
 
+### Bug Fixes
+  - na_ontap_igroups - nested igroups are not supported on ONTAP 9.9.0 but are on 9.9.1.
+
 ## 21.6.1
 
 ### Bug Fixes

@@ -592,7 +592,7 @@ class NetAppOntapLUN(object):
                 if value is not None:
                     application_component[attr] = value
         for attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group', 'total_size'):
-            if self.rest_api.get_ontap_version() < (9, 8):
+            if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0):
                 if attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group'):
                     # os_type and qos are not supported in 9.7 for the SAN application_component
                     continue
@@ -959,7 +959,7 @@ class NetAppOntapLUN(object):
                     if scope == 'application':
                         # volume already exists, but not as part of this application
                         app_cd_action = 'convert'
-                        if self.rest_api.get_ontap_version() < (9, 8):
+                        if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0):
                             msg = 'Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better.'
                             self.module.fail_json(msg=msg)
                     else:

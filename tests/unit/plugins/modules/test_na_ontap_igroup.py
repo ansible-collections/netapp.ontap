@@ -25,6 +25,8 @@ SRR = {
     # common responses
     'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
     'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_rest_9_9_0': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_9_1': (200, dict(version=dict(generation=9, major=9, minor=1, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'zero_record': (200, dict(records=[], num_records=0), None),
@@ -136,12 +138,15 @@ class TestMyModule(unittest.TestCase):
     def setUp(self):
         self.warnings = list()
 
-        def warn(other_self, msg):  # pylint: disable=unused-argument
+        def log(other_self, msg, log_args=None):  # pylint: disable=unused-argument
+            if msg.startswith('Invoked with'):
+                return
             self.warnings.append(msg)
+
         self.mock_module_helper = patch.multiple(basic.AnsibleModule,
                                                  exit_json=exit_json,
                                                  fail_json=fail_json,
-                                                 warn=warn)
+                                                 log=log)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
         self.server = MockONTAPConnection()
@@ -350,7 +355,7 @@ class TestMyModule(unittest.TestCase):
         data['use_rest'] = 'auto'
         set_module_args(data)
         mock_request.side_effect = [
-            SRR['is_rest'],
+            SRR['is_rest_9_9_1'],
             SRR['one_igroup_record'],   # get
             SRR['empty_good'],          # post (add initiators)
             SRR['empty_good'],          # patch (modify os_type)
@@ -359,11 +364,26 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             igroup().apply()
         assert exc.value.args[0]['changed']
-        print(mock_request.mock_calls)
-        expected_call = call('POST', 'protocols/san/igroups/a1b2c3/igroups', None, json={'records': [{'name': 'test_igroup'}]})
-        assert expected_call in mock_request.mock_calls
-        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'})
-        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_9_9_0_no_igroups_rest(self, mock_request):
+        ''' Test failed to use igroups '''
+        data = dict(self.mock_args())
+        data.pop('initiator_names')
+        data['igroups'] = ['test_igroup']
+        data['use_rest'] = 'auto'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_9_0'],
+            SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post (add initiators)
+            SRR['empty_good'],          # patch (modify os_type)
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            igroup().apply()
+        msg = 'Error: using igroups requires ONTAP 9.9.1 or later and REST must be enabled - ONTAP version: 9.9.0.'
+        assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup.NetAppOntapIgroup.get_igroup')
     def test_successful_rename(self, get_vserver):
@@ -420,8 +440,8 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8."
-        assert msg in self.warnings
+        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0."
+        assert msg in self.warnings[-1]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_positive_zapi_or_rest99_option(self, mock_request):
@@ -437,8 +457,9 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8."
-        assert msg in self.warnings
+        msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0."
+        print(self.warnings)
+        assert msg in self.warnings[-1]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_create_rest_99(self, mock_request):
@@ -456,6 +477,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
+        print(self.warnings)
         assert not self.warnings
         expected_json = {'name': 'test', 'os_type': 'linux', 'svm': {'name': 'vserver'}, 'protocol': 'fcp', 'portset': 'my_portset',
                          'initiators': [{'name': 'init1'}]}
@@ -515,7 +537,7 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_igroup_mock_object('igroup')
-        msg = "requires ONTAP 9.9 or later and REST must be enabled"
+        msg = "requires ONTAP 9.9.1 or later and REST must be enabled"
         assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -532,5 +554,5 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_igroup_mock_object('igroup')
-        msg = "requires ONTAP 9.9 or later and REST must be enabled"
+        msg = "requires ONTAP 9.9.1 or later and REST must be enabled"
         assert msg in exc.value.args[0]['msg']

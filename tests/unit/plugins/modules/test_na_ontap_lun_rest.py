@@ -101,6 +101,12 @@ SRR = {
                                    },
                                   None
                                   ),
+    'get_volumes_found': (200,
+                          {'records': [dict(name='san_appli', uuid='1234')],
+                           'num_records': 1
+                           },
+                          None
+                          ),
 }
 
 
@@ -535,3 +541,56 @@ class TestMyModule(unittest.TestCase):
         print(lun_object.debug)
         msg = "Ignoring increase: requested size is too small: total_size=1000, provisioned=1100, requested=1050"
         assert msg in LOG_MSGS[-1]
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_convert_to_appli(self, mock_request):
+        ''' Test successful convert to application
+            Appli does not exist, but the volume does.
+        '''
+        mock_request.side_effect = copy.deepcopy([
+            SRR['is_rest_98'],
+            SRR['get_apps_empty'],      # GET application/applications
+            SRR['get_volumes_found'],   # GET volumes
+            SRR['empty_good'],          # POST application/applications
+            SRR['get_apps_found'],      # GET application/applications
+            SRR['get_app_details'],     # GET application/applications/<uuid>
+            SRR['end_of_sequence']
+        ])
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        tiering = dict(control='required')
+        data['san_application_template'] = dict(name='san_appli', tiering=tiering, scope='application')
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_lun_mock_object().apply()
+        # assert exc.value.args[0]['changed']
+        print(mock_request.mock_calls)
+        print(exc.value.args[0])
+        expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
+                         'san': {'application_components':
+                                 [{'name': 'lun_name'}]}}
+        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
+        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_convert_to_appli(self, mock_request):
+        ''' Test successful convert to application
+            Appli does not exist, but the volume does.
+        '''
+        mock_request.side_effect = [
+            SRR['is_rest_97'],
+            SRR['get_apps_empty'],      # GET application/applications
+            SRR['get_volumes_found'],   # GET volumes
+            SRR['end_of_sequence']
+        ]
+        data = dict(self.mock_args())
+        data['size'] = 5
+        data.pop('flexvol_name')
+        tiering = dict(control='required')
+        data['san_application_template'] = dict(name='san_appli', tiering=tiering, scope='application')
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_lun_mock_object().apply()
+        msg = "Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better."
+        assert msg in exc.value.args[0]['msg']

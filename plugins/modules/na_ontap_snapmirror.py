@@ -1053,7 +1053,7 @@ class NetAppONTAPSnapmirror(object):
             return '%sendpoint:%s' % (prefix, new_option_name)
 
         def too_old(minimum_generation, minimum_major):
-            return not self.use_rest or self.rest_api.get_ontap_version() < (minimum_generation, minimum_major)
+            return not self.rest_api.meets_rest_minimum_version(self.use_rest, minimum_generation, minimum_major, 0)
 
         for option in ['source_cluster', 'source_path', 'source_volume', 'source_vserver']:
             if option in self.parameters:
