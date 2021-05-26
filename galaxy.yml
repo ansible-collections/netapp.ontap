@@ -5,6 +5,7 @@ authors:
     - "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
 license: "GPL-2.0-or-later"
 readme: README.md
+license_file: COPYING
 description: NetApp ONTAP Collection
 repository: https://github.com/ansible-collections/netapp.ontap
 homepage: https://netapp.io/configuration-management-and-automation/
