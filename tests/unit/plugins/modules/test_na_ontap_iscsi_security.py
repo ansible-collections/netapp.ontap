@@ -14,7 +14,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_iscsi_security \
-    import NetAppONTAPIscsiSecurity as iscsi_module  # module under test
+    import NetAppONTAPIscsiSecurity as iscsi_object, main as iscsi_module_main      # module under test
 
 # REST API canned responses when mocking send_request
 SRR = {
@@ -68,6 +68,42 @@ SRR = {
                             }
                         ]
                     }
+                }
+            ],
+            "num_records": 1
+        }, None),
+    'get_initiator_no_user': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "e2e89ccc-db35-11e9-0000-000000000000",
+                        "name": "test_ansible"
+                    },
+                    "initiator": "eui.0123456789abcdef",
+                    "authentication_type": "chap",
+                    "chap": {
+                    },
+                    "initiator_address": {
+                        "ranges": [
+                        ]
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None),
+    'get_initiator_none': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "e2e89ccc-db35-11e9-0000-000000000000",
+                        "name": "test_ansible"
+                    },
+                    "initiator": "eui.0123456789abcdef",
+                    "authentication_type": "none",
                 }
             ],
             "num_records": 1
@@ -146,7 +182,7 @@ class TestMyModule(unittest.TestCase):
         Helper method to return an na_ontap_iscsi_security object
         :return: na_ontap_iscsi_security object
         """
-        iscsi_obj = iscsi_module()
+        iscsi_obj = iscsi_object()
         return iscsi_obj
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -196,7 +232,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_modify_user(self, mock_request):
+    def test_rest_successful_modify_inbound_user(self, mock_request):
         '''Test successful rest modify'''
         data = self.mock_args()
         data['inbound_username'] = 'test_user_3'
@@ -204,6 +240,52 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['get_uuid'],
             SRR['get_initiator'],
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_iscsi_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_modify_outbound_user(self, mock_request):
+        '''Test successful rest modify'''
+        data = self.mock_args()
+        data['outbound_username'] = 'test_user_3'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['get_uuid'],
+            SRR['get_initiator'],
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_iscsi_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_modify_chap_no_user(self, mock_request):
+        '''Test successful rest modify'''
+        data = self.mock_args()
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['get_uuid'],
+            SRR['get_initiator_no_user'],
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_iscsi_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_modify_chap(self, mock_request):
+        '''Test successful rest modify'''
+        data = self.mock_args()
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['get_uuid'],
+            SRR['get_initiator_none'],
             SRR['empty_good'],
             SRR['end_of_sequence']
         ]
@@ -254,3 +336,43 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_iscsi_mock_object().apply()
         assert 'Error on deleting initiator: Expected error' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_get_svm_error(self, mock_request):
+        '''Test rest error'''
+        data = self.mock_args()
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['generic_error'],    # get SVM uuid
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_iscsi_mock_object().apply()
+        assert 'Error on fetching svm uuid: calling: svm/svms: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_get_svm_not_found_error(self, mock_request):
+        '''Test rest error'''
+        data = self.mock_args()
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['no_record'],       # get SVM uuid
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_iscsi_mock_object().apply()
+        assert 'Error on fetching svm uuid, SVM not found: test_vserver' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_get_initiator_error(self, mock_request):
+        '''Test rest error'''
+        data = self.mock_args()
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['get_uuid'],        # get SVM uuid
+            SRR['generic_error'],   # get initiator
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            iscsi_module_main()
+        assert 'Error on fetching initiator: Expected error' in exc.value.args[0]['msg']

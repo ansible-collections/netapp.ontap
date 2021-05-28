@@ -42,6 +42,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - License displayed correctly in Github
   - na_ontap_igroups - nested igroups are not supported on ONTAP 9.9.0 but are on 9.9.1.
 
+### Bug Fixes
+  - na_ontap_iscsi_security - cannot change authentication_type
+  - na_ontap_iscsi_security - IndexError list index out of range if vserver does not exist
+
 ## 21.6.1
 
 ### Bug Fixes

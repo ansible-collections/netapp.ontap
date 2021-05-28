@@ -10,11 +10,6 @@ na_ontap_iscsi_security
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -76,7 +71,7 @@ version_added: "19.10.1"
 
 EXAMPLES = """
     - name: create
-      na_ontap_iscsi_security:
+      netapp.ontap.na_ontap_iscsi_security:
         hostname: 0.0.0.0
         username: user
         password: pass
@@ -91,7 +86,7 @@ EXAMPLES = """
         address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
 
     - name: modify outbound username
-      na_ontap_iscsi_security:
+      netapp.ontap.na_ontap_iscsi_security:
         hostname: 0.0.0.0
         username: user
         password: pass
@@ -106,7 +101,7 @@ EXAMPLES = """
         address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
 
     - name: modify address
-      na_ontap_iscsi_security:
+      netapp.ontap.na_ontap_iscsi_security:
         hostname: 0.0.0.0
         username: user
         password: pass
@@ -123,9 +118,10 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
-class NetAppONTAPIscsiSecurity(object):
+class NetAppONTAPIscsiSecurity():
     """
     Class with iscsi security methods
     """
@@ -194,7 +190,9 @@ class NetAppONTAPIscsiSecurity(object):
                             ranges.append(address_range['start'] + '-' + address_range['end'])
                     initiator_details['address_ranges'] = ranges
                 else:
-                    initiator_details['address_ranges'] = None
+                    initiator_details['address_ranges'] = list()
+            else:
+                initiator_details['address_ranges'] = list()
             return initiator_details
 
     def create_initiator(self):
@@ -242,10 +240,12 @@ class NetAppONTAPIscsiSecurity(object):
         chap_update_inbound = False
         chap_update_outbound = False
 
-        if modify.get('auth_type') and modify['auth_type'] == 'chap':
-            # change in auth_type
-            chap_update = True
-            use_chap = True
+        if modify.get('auth_type'):
+            params['authentication_type'] = modify.get('auth_type')
+            if modify['auth_type'] == 'chap':
+                # change in auth_type
+                chap_update = True
+                use_chap = True
         elif current.get('auth_type') == 'chap':
             # we're already using chap
             use_chap = True
@@ -260,6 +260,14 @@ class NetAppONTAPIscsiSecurity(object):
             chap_update = True
             chap_update_outbound = True
 
+        if chap_update and not chap_update_inbound and 'inbound_username' not in current and 'inbound_password' not in current:
+            # use credentials from input
+            chap_update_inbound = True
+
+        if chap_update and not chap_update_outbound and 'outbound_username' not in current and 'outbound_password' not in current:
+            # use credentials from input
+            chap_update_outbound = True
+
         if chap_update:
             chap_info = dict()
             # set values from self.parameters as they may not show as modified
@@ -270,15 +278,17 @@ class NetAppONTAPIscsiSecurity(object):
                 chap_info['inbound'] = {'user': current.get('inbound_username'), 'password': current.get('inbound_password')}
             if chap_update_outbound:
                 chap_info['outbound'] = {'user': self.parameters['outbound_username'], 'password': self.parameters['outbound_password']}
-
             params['chap'] = chap_info
+            # PATCH fails if this is not present, even though there is no change
+            params['authentication_type'] = 'chap'
+
         address_info = self.get_address_info(modify.get('address_ranges'))
         if address_info is not None:
             params['initiator_address'] = {'ranges': address_info}
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
         dummy, error = self.rest_api.patch(api, params)
         if error is not None:
-            self.module.fail_json(msg="Error on modifying initiator: %s" % error)
+            self.module.fail_json(msg="Error on modifying initiator: %s - params: %s" % (error, params))
 
     def get_address_info(self, address_ranges):
         if address_ranges is None:
@@ -304,17 +314,14 @@ class NetAppONTAPIscsiSecurity(object):
         current = self.get_initiator()
         action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if action == 'create':
-                    self.create_initiator()
-                elif action == 'delete':
-                    self.delete_initiator()
-                elif modify:
-                    self.modify_initiator(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        if self.na_helper.changed and not self.module.check_mode:
+            if action == 'create':
+                self.create_initiator()
+            elif action == 'delete':
+                self.delete_initiator()
+            elif modify:
+                self.modify_initiator(modify, current)
+        self.module.exit_json(changed=self.na_helper.changed, modify=modify, current=current)
 
     def get_svm_uuid(self):
         """
@@ -324,8 +331,11 @@ class NetAppONTAPIscsiSecurity(object):
         params = {'fields': 'uuid', 'name': self.parameters['vserver']}
         api = "svm/svms"
         message, error = self.rest_api.get(api, params)
+        record, error = rrh.check_for_0_or_1_records(api, message, error)
         if error is not None:
             self.module.fail_json(msg="Error on fetching svm uuid: %s" % error)
+        if record is None:
+            self.module.fail_json(msg="Error on fetching svm uuid, SVM not found: %s" % self.parameters['vserver'])
         return message['records'][0]['uuid']
 
 
