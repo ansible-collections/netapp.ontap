@@ -29,6 +29,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.7.0
 
+### New Options
+  - na_ontap_disks - new option min_spares.
+
+### Minor Changes
+  - na_ontap_disks - added REST support for the module.
+  - na_ontap_disks - added functionality to reassign spare disks from a partner node to the desired node.
+
 ### New Modules
   - na_ontap_publickey - add/remove/modify public keys for SSH authentication - REST only.
   - na_ontap_service_policy - add/remove/modify service policies for IP interfaces - REST only.
@@ -50,7 +57,6 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_autosupport - KeyError: No element by given name validate-digital-certificate.
-bugfixes:
   - na_ontap_flexcache - one occurrence of msg missing in call to fail_json.
   - na_ontap_igroup - one occurrence of msg missing in call to fail_json.
   - na_ontap_lun - three occurrencse of msg missing in call to fail_json.
