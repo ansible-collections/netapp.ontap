@@ -27,12 +27,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
-## 21.8.0
-
-### Bug Fixes
-  - na_ontap_cluster_peer - KeyError on dest_cluster_name if destination is unreachable.
-
 ## 21.7.0
+
+### New Options
+  - na_ontap_disks - new option min_spares.
+
+### Minor Changes
+  - na_ontap_disks - added REST support for the module.
+  - na_ontap_disks - added functionality to reassign spare disks from a partner node to the desired node.
 
 ### New Modules
   - na_ontap_publickey - add/remove/modify public keys for SSH authentication - REST only.
@@ -40,15 +42,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_cifs - new option `comment` to associate a description to a CIFS share.
-  - na_ontap_disks - new option `min_spares`.
   - na_ontap_lun - new suboption `exclude_aggregates` for SAN application.
   - na_ontap_volume - new suboption `exclude_aggregates` for NAS application.
 
-### Minor Changes
-  - na_ontap_disks - added REST support for the module.
-  - na_ontap_disks - added functionality to reassign spare disks from a partner node to the desired node.
-  - na_ontap_igroups - nested igroups are not supported on ONTAP 9.9.0 but are on 9.9.1.
+### Minor changes
   - License displayed correctly in Github
+  - na_ontap_igroups - nested igroups are not supported on ONTAP 9.9.0 but are on 9.9.1.
 
 ### Bug Fixes
   - na_ontap_iscsi_security - cannot change authentication_type
