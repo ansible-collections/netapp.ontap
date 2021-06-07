@@ -5,6 +5,38 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.7.0
+=======
+
+Minor Changes
+-------------
+
+- License displayed correctly in Github
+- na_ontap_cifs - new option ``comment`` to associate a description to a CIFS share.
+- na_ontap_disks - added REST support for the module.
+- na_ontap_disks - added functionality to reassign spare disks from a partner node to the desired node.
+- na_ontap_disks - new option min_spares.
+- na_ontap_lun - new suboption ``exclude_aggregates`` for SAN application.
+- na_ontap_volume - new suboption ``exclude_aggregates`` for NAS application.
+
+Bugfixes
+--------
+
+- na_ontap_flexcache - one occurrence of msg missing in call to fail_json.
+- na_ontap_igroup - one occurrence of msg missing in call to fail_json.
+- na_ontap_igroups - nested igroups are not supported on ONTAP 9.9.0 but are on 9.9.1.
+- na_ontap_iscsi_security - IndexError list index out of range if vserver does not exist
+- na_ontap_iscsi_security - cannot change authentication_type
+- na_ontap_lun - three occurrencse of msg missing in call to fail_json.
+- na_ontap_lun_map_reporting_nodes - one occurrence of msg missing in call to fail_json.
+- na_ontap_snapmirror - one occurrence of msg missing in call to fail_json.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_publickey - NetApp ONTAP publickey configuration
+- netapp.ontap.na_ontap_service_policy - NetApp ONTAP service policy configuration
+
 v21.6.1
 =======
 
