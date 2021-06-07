@@ -3,7 +3,6 @@ name: "ontap"
 version: "21.7.0"
 authors:
     - "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
-license: "GPL-2.0-or-later"
 readme: README.md
 license_file: COPYING
 description: NetApp ONTAP Collection
