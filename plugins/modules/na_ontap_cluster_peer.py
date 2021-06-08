@@ -5,11 +5,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -127,7 +122,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPClusterPeer(object):
+class NetAppONTAPClusterPeer():
     """
     Class with cluster peer methods
     """
@@ -215,7 +210,7 @@ class NetAppONTAPClusterPeer(object):
             result = server.invoke_successfully(cluster_peer_get_iter, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching cluster peer %s: %s'
-                                      % (self.parameters['dest_cluster_name'], to_native(error)),
+                                  % (cluster, to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster peer details
         if result.get_child_by_name('num-records') and \
