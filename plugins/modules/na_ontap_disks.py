@@ -305,7 +305,7 @@ class NetAppOntapDisks():
             unassign_partitions.add_child_elem(disk_list)
 
             try:
-                result = self.server.invoke_successfully(unassign_partitions, enable_tunneling=True)
+                self.server.invoke_successfully(unassign_partitions, enable_tunneling=True)
 
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg='Error unassigning disks %s' % to_native(error))

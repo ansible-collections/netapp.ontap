@@ -108,7 +108,7 @@
     state: present
     node: "{{ item.node }}"
     port: "{{ item.port }}"
-#    mtu: "{{ item.mtu }}"
+    # mtu: "{{ item.mtu }}"
     autonegotiate_admin: "{{ item.autonegotiate | default(autonegotiate) }}"
     flowcontrol_admin: "{{ item.flowcontrol | default(flowcontrol) }}"
     hostname: "{{ netapp_hostname }}"

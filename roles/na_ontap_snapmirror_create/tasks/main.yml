@@ -29,12 +29,12 @@
   na_ontap_volume:
     state: present
     name: "{{ dst_volume }}"
-    is_infinite: False
+    is_infinite: false
     aggregate_name: "{{ dst_aggr }}"
     size: 20
     size_unit: mb
     type: DP
-    #junction_path: "/{{ dst_volume }}"
+    # junction_path: "/{{ dst_volume }}"
     vserver: "{{ dst_vserver }}"
     hostname: "{{ dst_ontap }}"
     username: "{{ username }}"

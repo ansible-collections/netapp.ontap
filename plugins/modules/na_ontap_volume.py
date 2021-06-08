@@ -1281,7 +1281,7 @@ class NetAppOntapVolume(object):
         uuid = self.parameters['uuid']
         if uuid is None:
             self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
-        dummy = self.rest_unmount_volume(uuid, current)
+        self.rest_unmount_volume(uuid, current)
         response, error = rest_volume.delete_volume(self.rest_api, uuid)
         self.na_helper.fail_on_error(error)
         return response

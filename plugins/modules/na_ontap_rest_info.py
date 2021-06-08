@@ -305,7 +305,6 @@ class NetAppONTAPGatherInfo(object):
         If fields is entered into the playbook the fields entered will be parsed into the API.
         '''
         if api == 'support/autosupport/check':
-            url = '/private/cli/system/node/autosupport/check/details'
             if 'fields' not in self.parameters or '*' in self.parameters['fields']:
                 fields = '?fields=node,corrective-action,status,error-detail,check-type,check-category'
             else:
