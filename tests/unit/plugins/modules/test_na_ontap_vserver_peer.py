@@ -16,7 +16,7 @@ from ansible.module_utils._text import to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer \
-    import NetAppONTAPVserverPeer as vserver_peer  # module under test
+    import NetAppONTAPVserverPeer as vserver_peer, main as uut_main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -171,6 +171,25 @@ class TestMyModule(unittest.TestCase):
         self.get_vserver_peer_mock_object().vserver_peer_accept()
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
+    def test_successful_create_new_style(self, vserver_peer_get):
+        ''' Test successful create '''
+        data = dict(self.mock_vserver_peer)
+        data.pop('dest_hostname')
+        data['peer_options'] = dict(hostname='test_destination')
+        set_module_args(data)
+
+        current = {
+            'vserver': 'test',
+            'peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'local_peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'peer_cluster': self.mock_vserver_peer['peer_cluster']
+        }
+        vserver_peer_get.side_effect = [None, current]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_vserver_peer_mock_object('vserver_peer').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
     def test_create_idempotency(self, vserver_peer_get):
         ''' Test create idempotency '''
         data = self.mock_vserver_peer
@@ -199,7 +218,9 @@ class TestMyModule(unittest.TestCase):
             'local_peer_vserver': self.mock_vserver_peer['local_name_for_peer']
         }
         vserver_peer_get.return_value = current
-        self.get_vserver_peer_mock_object('vserver_peer').vserver_peer_delete(current)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_vserver_peer_mock_object('vserver_peer').apply()
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
     def test_delete_idempotency(self, vserver_peer_get):
@@ -262,3 +283,49 @@ class TestMyModule(unittest.TestCase):
         obj = self.get_vserver_peer_mock_object('cluster')
         result = obj.get_peer_cluster_name()
         assert result == data['peer_cluster']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
+    def test_error_on_missing_params_create(self, vserver_peer_get):
+        ''' Test error thrown from vserver_peer_create '''
+        data = dict(self.mock_vserver_peer)
+        data.pop('dest_hostname')
+        set_module_args(data)
+        current = {
+            'vserver': 'test',
+            'peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'local_peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'peer_cluster': self.mock_vserver_peer['peer_cluster']
+        }
+        vserver_peer_get.side_effect = [None, current]
+
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_vserver_peer_mock_object().apply()
+        msg = "dest_hostname is required for peering a vserver in remote cluster"
+        assert exc.value.args[0]['msg'] == msg
+
+    def test_error_on_first_ZAPI_call(self):
+        ''' Test error thrown from vserver_peer_get '''
+        data = dict(self.mock_vserver_peer)
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            uut_main()
+        msg = "Error fetching vserver peer"
+        assert msg in exc.value.args[0]['msg']
+
+    def test_error_create_new_style(self):
+        ''' Test error in create - peer not visible '''
+        data = dict(self.mock_vserver_peer)
+        data.pop('dest_hostname')
+        data['peer_options'] = dict(hostname='test_destination')
+        set_module_args(data)
+
+        current = {
+            'vserver': 'test',
+            'peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'local_peer_vserver': self.mock_vserver_peer['peer_vserver'],
+            'peer_cluster': self.mock_vserver_peer['peer_cluster']
+        }
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_vserver_peer_mock_object().apply()
+        msg = 'Error retrieving vserver peer information while accepting'
+        assert msg in exc.value.args[0]['msg']

@@ -29,8 +29,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.8.0
 
+### New Options
+  - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
+  - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
+
 ### Bug Fixes
   - na_ontap_cluster_peer - KeyError on dest_cluster_name if destination is unreachable.
+  - na_ontap_cluster_peer - KeyError on username when using certicate.
+  - na_ontap_vserver_peer - KeyError on username when using certicate.
 
 ## 21.7.0
 

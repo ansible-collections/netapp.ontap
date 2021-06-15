@@ -5,10 +5,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -16,6 +12,7 @@ description:
   - Create/Delete vserver peer
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_peer
 module: na_ontap_vserver_peer
 options:
   state:
@@ -57,16 +54,19 @@ options:
     type: str
   dest_hostname:
     description:
+    - DEPRECATED - please use C(peer_options).
     - Destination hostname or IP address.
-    - Required for creating the vserver peer relationship with a remote cluster
+    - Required for creating the vserver peer relationship with a remote cluster.
     type: str
   dest_username:
     description:
+    - DEPRECATED - please use C(peer_options).
     - Destination username.
     - Optional if this is same as source username.
     type: str
   dest_password:
     description:
+    - DEPRECATED - please use C(peer_options).
     - Destination password.
     - Optional if this is same as source password.
     type: str
@@ -77,7 +77,7 @@ version_added: 2.7.0
 EXAMPLES = """
 
     - name: Source vserver peer create
-      na_ontap_vserver_peer:
+      netapp.ontap.na_ontap_vserver_peer:
         state: present
         peer_vserver: ansible2
         peer_cluster: ansibleCluster
@@ -88,16 +88,34 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-        dest_hostname: "{{ netapp_dest_hostname }}"
+        peer_options:
+          hostname: "{{ netapp_dest_hostname }}"
 
     - name: vserver peer delete
-      na_ontap_vserver_peer:
+      netapp.ontap.na_ontap_vserver_peer:
         state: absent
         peer_vserver: ansible2
         vserver: ansible
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    - name: Source vserver peer create - different credentials
+      netapp.ontap.na_ontap_vserver_peer:
+        state: present
+        peer_vserver: ansible2
+        peer_cluster: ansibleCluster
+        local_name_for_peer: peername
+        local_name_for_source: sourcename
+        vserver: ansible
+        applications: ['snapmirror']
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        peer_options:
+          hostname: "{{ netapp_dest_hostname }}"
+          cert_filepath: "{{ cert_filepath }}"
+          key_filepath: "{{ key_filepath }}"
 """
 
 RETURN = """
@@ -112,7 +130,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPVserverPeer(object):
+class NetAppONTAPVserverPeer():
     """
     Class with vserver peer methods
     """
@@ -128,6 +146,7 @@ class NetAppONTAPVserverPeer(object):
             local_name_for_peer=dict(required=False, type='str'),
             local_name_for_source=dict(required=False, type='str'),
             applications=dict(required=False, type='list', elements='str'),
+            peer_options=dict(type='dict', options=netapp_utils.na_ontap_host_argument_spec_peer()),
             dest_hostname=dict(required=False, type='str'),
             dest_username=dict(required=False, type='str'),
             dest_password=dict(required=False, type='str', no_log=True)
@@ -135,6 +154,11 @@ class NetAppONTAPVserverPeer(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ['peer_options', 'dest_hostname'],
+                ['peer_options', 'dest_username'],
+                ['peer_options', 'dest_password']
+            ],
             supports_check_mode=True
         )
 
@@ -145,17 +169,21 @@ class NetAppONTAPVserverPeer(object):
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            if self.parameters.get('dest_hostname'):
-                self.module.params['hostname'] = self.parameters['dest_hostname']
-                if self.parameters.get('dest_username'):
-                    self.module.params['username'] = self.parameters['dest_username']
-                if self.parameters.get('dest_password'):
-                    self.module.params['password'] = self.parameters['dest_password']
-                self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-                # reset to source host connection for asup logs
-                self.module.params['hostname'] = self.parameters['hostname']
-                self.module.params['username'] = self.parameters['username']
-                self.module.params['password'] = self.parameters['password']
+            if self.parameters.get('dest_hostname') is None and self.parameters.get('peer_options') is None:
+                return
+            if self.parameters.get('dest_hostname') is not None:
+                # if dest_hostname is present, peer_options is absent
+                self.parameters['peer_options'] = dict(
+                    hostname=self.parameters.get('dest_hostname'),
+                    username=self.parameters.get('dest_username'),
+                    password=self.parameters.get('dest_password'),
+                )
+            else:
+                self.parameters['dest_hostname'] = self.parameters['peer_options']['hostname']
+            netapp_utils.setup_host_options_from_module_params(
+                self.parameters['peer_options'], self.module,
+                netapp_utils.na_ontap_host_argument_spec_peer().keys())
+            self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=self.parameters['peer_options'])
 
     def vserver_peer_get_iter(self, target):
         """

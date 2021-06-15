@@ -36,14 +36,11 @@ class AnsibleFailJson(Exception):
 
 def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
     raise AnsibleExitJson(kwargs)
 
 
 def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
 
 

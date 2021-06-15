@@ -104,7 +104,9 @@ def mock_args(feature_flags=None):
     args = {
         'hostname': 'test',
         'username': 'test_user',
-        'password': 'test_pass!'
+        'password': 'test_pass!',
+        'cert_filepath': None,
+        'key_filepath': None,
     }
     if feature_flags is not None:
         args.update({'feature_flags': feature_flags})
@@ -466,3 +468,104 @@ def test_zapi_cx_no_auth_header():
     assert not isinstance(zapi_cx, netapp_utils.OntapZAPICx)
     request, dummy = zapi_cx._create_request(netapp_utils.zapi.NaElement('dummy_tag'))
     assert "Authorization" not in [x[0] for x in request.header_items()]
+
+
+def test_get_na_ontap_host_argument_spec_peer():
+    ''' validate spec does not have default key and feature_flags option '''
+    spec = netapp_utils.na_ontap_host_argument_spec_peer()
+    for key in ('username', 'https'):
+        assert key in spec
+    assert 'feature_flags' not in spec
+    for entry in spec.values():
+        assert 'type' in entry
+        assert 'default' not in entry
+
+
+def test_setup_host_options_from_module_params_from_empty():
+    ''' make sure module.params options are reflected in host_options '''
+    args = mock_args()
+    module = create_module(args)
+    host_options = dict()
+    keys = ('hostname', 'username')
+    netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
+    # we gave 2 keys
+    assert len(host_options) == 2
+    for key in keys:
+        assert host_options[key] == args[key]
+
+
+def test_setup_host_options_from_module_params_username_not_set_when_cert_present():
+    ''' make sure module.params options are reflected in host_options '''
+    args = mock_args()
+    module = create_module(args)
+    host_options = dict(cert_filepath='some_path')
+    unchanged_keys = tuple(host_options.keys())
+    copied_over_keys = ('hostname',)
+    ignored_keys = ('username',)
+    keys = unchanged_keys + copied_over_keys + ignored_keys
+    netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
+    # we gave 2 keys
+    assert len(host_options) == 2
+    for key in ignored_keys:
+        assert key not in host_options
+    for key in copied_over_keys:
+        assert host_options[key] == args[key]
+    print(host_options)
+    for key in unchanged_keys:
+        assert host_options[key] != args[key]
+
+
+def test_setup_host_options_from_module_params_not_none_fileds_are_preserved():
+    ''' make sure module.params options are reflected in host_options '''
+    args = mock_args()
+    args['cert_filepath'] = 'some_path'
+    module = create_module(args)
+    host_options = dict(cert_filepath='some_other_path')
+    unchanged_keys = tuple(host_options.keys())
+    copied_over_keys = ('hostname',)
+    ignored_keys = ('username',)
+    keys = unchanged_keys + copied_over_keys + ignored_keys
+    netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
+    # we gave 2 keys
+    assert len(host_options) == 2
+    for key in ignored_keys:
+        assert key not in host_options
+    for key in copied_over_keys:
+        assert host_options[key] == args[key]
+    print(host_options)
+    for key in unchanged_keys:
+        assert host_options[key] != args[key]
+
+
+def test_setup_host_options_from_module_params_cert_not_set_when_username_present():
+    ''' make sure module.params options are reflected in host_options '''
+    args = mock_args()
+    args['cert_filepath'] = 'some_path'
+    module = create_module(args)
+    host_options = dict(username='some_name')
+    unchanged_keys = tuple(host_options.keys())
+    copied_over_keys = ('hostname',)
+    ignored_keys = ('cert_filepath',)
+    keys = unchanged_keys + copied_over_keys + ignored_keys
+    netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
+    # we gave 2 keys
+    assert len(host_options) == 2
+    for key in ignored_keys:
+        assert key not in host_options
+    for key in copied_over_keys:
+        assert host_options[key] == args[key]
+    print(host_options)
+    for key in unchanged_keys:
+        assert host_options[key] != args[key]
+
+
+def test_setup_host_options_from_module_params_conflict():
+    ''' make sure module.params options are reflected in host_options '''
+    args = mock_args()
+    module = create_module(args)
+    host_options = dict(username='some_name', key_filepath='not allowed')
+    module.fail_json = fail_json
+    with pytest.raises(AnsibleFailJson) as exc:
+        netapp_utils.setup_host_options_from_module_params(host_options, module, host_options.keys())
+    msg = 'Error: host cannot have both basic authentication (username/password) and certificate authentication (cert/key files).'
+    assert exc.value.args[0]['msg'] == msg

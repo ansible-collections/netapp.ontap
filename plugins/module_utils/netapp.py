@@ -135,6 +135,16 @@ def na_ontap_host_argument_spec():
     )
 
 
+def na_ontap_host_argument_spec_peer():
+    spec = na_ontap_host_argument_spec()
+    spec.pop('feature_flags')
+    # get rid of default values, as we'll use source values
+    for value in spec.values():
+        if 'default' in value:
+            value.pop('default')
+    return spec
+
+
 def has_feature(module, feature_name):
     feature = get_feature(module, feature_name)
     if isinstance(feature, bool):
@@ -207,17 +217,45 @@ def set_auth_method(module, username, password, cert_filepath, key_filepath):
     return auth_method
 
 
-def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
-    hostname = module.params['hostname']
-    username = module.params['username']
-    password = module.params['password']
-    https = module.params['https']
-    validate_certs = module.params['validate_certs']
-    port = module.params['http_port']
-    version = module.params['ontapi']
-    cert_filepath = module.params['cert_filepath']
-    key_filepath = module.params['key_filepath']
-    auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
+def setup_host_options_from_module_params(host_options, module, keys):
+    '''if an option is not set, use primary value.
+       but don't mix up basic and certificate authentication methods
+
+       host_options is updated in place
+       option values are read from module.params
+       keys is a list of keys that need to be added/updated/left alone in host_options
+    '''
+    password_keys = ['username', 'password']
+    certificate_keys = ['cert_filepath', 'key_filepath']
+    use_password = any(host_options.get(x) is not None for x in password_keys)
+    use_certificate = any(host_options.get(x) is not None for x in certificate_keys)
+    if use_password and use_certificate:
+        module.fail_json(
+            msg='Error: host cannot have both basic authentication (username/password) and certificate authentication (cert/key files).')
+    if use_password:
+        exclude_keys = certificate_keys
+    elif use_certificate:
+        exclude_keys = password_keys
+    else:
+        exclude_keys = list()
+    for key in keys:
+        if host_options.get(key) is None and key not in exclude_keys:
+            # use same value as source if no value is given for dest
+            host_options[key] = module.params[key]
+
+
+def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None):
+    if host_options is None:
+        host_options = module.params
+    hostname = host_options.get('hostname')
+    username = host_options.get('username')
+    password = host_options.get('password')
+    cert_filepath = host_options.get('cert_filepath')
+    key_filepath = host_options.get('key_filepath')
+    https = host_options.get('https')
+    validate_certs = host_options.get('validate_certs')
+    port = host_options.get('http_port')
+    version = host_options.get('ontapi')
     if has_feature(module, 'trace_apis'):
         logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG)
         trace = True
@@ -225,6 +263,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False):
         trace = False
     if has_feature(module, 'always_wrap_zapi'):
         wrap_zapi = True
+    auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
 
     if HAS_NETAPP_LIB:
         # set up zapi

@@ -11,6 +11,7 @@ description:
   - Create/Delete cluster peer relations on ONTAP
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_peer
 module: na_ontap_cluster_peer
 options:
   state:
@@ -54,19 +55,21 @@ options:
     type: str
   dest_hostname:
     description:
-      - Destination cluster IP or hostname which needs to be peered
+      - DEPRECATED - please use C(peer_options).
+      - Destination cluster IP or hostname which needs to be peered.
       - Required to complete the peering process at destination cluster.
-    required: True
     type: str
   dest_username:
     description:
-     - Destination username.
-     - Optional if this is same as source username.
+      - DEPRECATED - please use C(peer_options).
+      - Destination username.
+      - Optional if this is same as source username or if a certificate is used.
     type: str
   dest_password:
     description:
-     - Destination password.
-     - Optional if this is same as source password.
+      - DEPRECATED - please use C(peer_options).
+      - Destination password.
+      - Optional if this is same as source password or if a certificate is used..
     type: str
   ipspace:
     description:
@@ -88,7 +91,7 @@ version_added: 2.7.0
 EXAMPLES = """
 
     - name: Create cluster peer
-      na_ontap_cluster_peer:
+      netapp.ontap.na_ontap_cluster_peer:
         state: present
         source_intercluster_lifs: 1.2.3.4,1.2.3.5
         dest_intercluster_lifs: 1.2.3.6,1.2.3.7
@@ -96,18 +99,36 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-        dest_hostname: "{{ dest_netapp_hostname }}"
+        peer_options:
+          hostname: "{{ dest_netapp_hostname }}"
         encryption_protocol_proposed: tls_psk
 
     - name: Delete cluster peer
-      na_ontap_cluster_peer:
+      netapp.ontap.na_ontap_cluster_peer:
         state: absent
         source_cluster_name: test-source-cluster
         dest_cluster_name: test-dest-cluster
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-        dest_hostname: "{{ dest_netapp_hostname }}"
+        peer_options:
+          hostname: "{{ dest_netapp_hostname }}"
+
+    - name: Create cluster peer - different credentials
+      netapp.ontap.na_ontap_cluster_peer:
+        state: present
+        source_intercluster_lifs: 1.2.3.4,1.2.3.5
+        dest_intercluster_lifs: 1.2.3.6,1.2.3.7
+        passphrase: XXXX
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        peer_options:
+          hostname: "{{ dest_netapp_hostname }}"
+          cert_filepath: "{{ cert_filepath }}"
+          key_filepath: "{{ key_filepath }}"
+        encryption_protocol_proposed: tls_psk
+
 """
 
 RETURN = """
@@ -135,7 +156,8 @@ class NetAppONTAPClusterPeer():
             source_intercluster_lifs=dict(required=False, type='list', elements='str', aliases=['source_intercluster_lif']),
             dest_intercluster_lifs=dict(required=False, type='list', elements='str', aliases=['dest_intercluster_lif']),
             passphrase=dict(required=False, type='str', no_log=True),
-            dest_hostname=dict(required=True, type='str'),
+            peer_options=dict(type='dict', options=netapp_utils.na_ontap_host_argument_spec_peer()),
+            dest_hostname=dict(required=False, type='str'),
             dest_username=dict(required=False, type='str'),
             dest_password=dict(required=False, type='str', no_log=True),
             source_cluster_name=dict(required=False, type='str'),
@@ -146,6 +168,12 @@ class NetAppONTAPClusterPeer():
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            mutually_exclusive=[
+                ['peer_options', 'dest_hostname'],
+                ['peer_options', 'dest_username'],
+                ['peer_options', 'dest_password']
+            ],
+            required_one_of=[['peer_options', 'dest_hostname']],
             required_together=[['source_intercluster_lifs', 'dest_intercluster_lifs']],
             required_if=[('state', 'absent', ['source_cluster_name', 'dest_cluster_name'])],
             supports_check_mode=True
@@ -158,17 +186,18 @@ class NetAppONTAPClusterPeer():
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            # set destination server connection
-            self.module.params['hostname'] = self.parameters['dest_hostname']
-            if self.parameters.get('dest_username'):
-                self.module.params['username'] = self.parameters['dest_username']
-            if self.parameters.get('dest_password'):
-                self.module.params['password'] = self.parameters['dest_password']
-            self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            # reset to source host connection for asup logs
-            self.module.params['hostname'] = self.parameters['hostname']
-            self.module.params['username'] = self.parameters['username']
-            self.module.params['password'] = self.parameters['password']
+            # set peer server connection
+            if self.parameters.get('dest_hostname') is not None:
+                # if dest_hostname is present, peer_options is absent
+                self.parameters['peer_options'] = dict(
+                    hostname=self.parameters.get('dest_hostname'),
+                    username=self.parameters.get('dest_username'),
+                    password=self.parameters.get('dest_password'),
+                )
+            netapp_utils.setup_host_options_from_module_params(
+                self.parameters['peer_options'], self.module,
+                netapp_utils.na_ontap_host_argument_spec_peer().keys())
+            self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=self.parameters['peer_options'])
 
     def cluster_peer_get_iter(self, cluster):
         """
