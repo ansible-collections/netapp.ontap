@@ -30,8 +30,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.8.0
 
 ### New Options
+<<<<<<< HEAD
   - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
+  - na_ontap_snapshot - new option `expiry_time`.
   - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
+
+### Added REST support to existing modules
+  - na_ontap_snapshot - added REST support for snapshot creation, modification & deletion.
 
 ### Bug Fixes
   - na_ontap_cluster_peer - KeyError on dest_cluster_name if destination is unreachable.
