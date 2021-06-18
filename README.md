@@ -29,8 +29,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.8.0
 
+### New Modules
+  - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only
+
 ### New Options
-<<<<<<< HEAD
   - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
   - na_ontap_snapshot - new option `expiry_time`.
   - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
