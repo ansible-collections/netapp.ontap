@@ -180,6 +180,21 @@ EXAMPLES = '''
       use_rest: Always
       gather_subset:
       - aggregate_info
+      parameters:
+        recommend:
+          true
+- name: run ONTAP gather facts for volume info with query on name and state
+  netapp.ontap.na_ontap_rest_info:
+      hostname: "1.2.3.4"
+      username: "testuser"
+      password: "test-password"
+      https: true
+      validate_certs: false
+      gather_subset:
+        - volume_info
+      parameters:
+        name: ansible*
+        state: online
 '''
 
 from ansible.module_utils.basic import AnsibleModule

@@ -2015,10 +2015,13 @@ class NetAppOntapVolume(object):
             # ignore change in size immediately after a create:
             self.parameters['size'] = current['size']
         elif self.parameters['size_change_threshold'] > 0:
-            if 'size' in current and self.parameters.get('size') is not None:
+            if 'size' in current and current['size'] != 0 and self.parameters.get('size') is not None:
                 # ignore a less than XX% difference
-                if abs(current['size'] - self.parameters['size']) * 100 / current['size'] < self.parameters['size_change_threshold']:
+                resize = abs(current['size'] - self.parameters['size']) * 100.0 / current['size']
+                if resize < self.parameters['size_change_threshold']:
                     self.parameters['size'] = current['size']
+                    if resize > 0.1:
+                        self.module.warn('resize request ignored: %.1f%% is below the threshold: %d%%' % (resize, self.parameters['size_change_threshold']))
 
     def set_modify_dict(self, current, after_create=False):
         '''Fill modify dict with changes'''

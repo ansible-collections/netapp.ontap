@@ -43,6 +43,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_cluster_peer - KeyError on username when using certicate.
   - na_ontap_vserver_peer - KeyError on username when using certicate.
 
+### Minor Changes
+  - na_ontap_rest_info - add examples for ``parameters`` option.
+  - na_ontap_volume - show warning when resize is ignored because threshold is not reached.
+    [WARNING]: resize request ignored: 2.5% is below the threshold: 10%
+
 ## 21.7.0
 
 ### New Modules
