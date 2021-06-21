@@ -37,6 +37,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapshot - new option `expiry_time`.
   - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
 
+### Minor Changes
+  - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
+
 ### Added REST support to existing modules
   - na_ontap_snapshot - added REST support for snapshot creation, modification & deletion.
 

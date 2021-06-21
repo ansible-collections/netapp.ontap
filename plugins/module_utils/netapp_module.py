@@ -350,6 +350,7 @@ class NetAppModule(object):
         if not key_list:
             # we've exhausted the keys, good!
             return an_object
+        key_list = list(key_list)   # preserve original values
         key = key_list.pop(0)
         try:
             return self.safe_get(an_object[key], key_list, allow_sparse_dict=allow_sparse_dict)
