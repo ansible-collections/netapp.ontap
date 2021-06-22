@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Modules
   - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only
+  - na_ontap_partitions - assign/unassign disk partitions - REST only
 
 ### New Options
   - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
