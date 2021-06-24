@@ -56,6 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_rest_info - add examples for ``parameters`` option.
   - na_ontap_volume - show warning when resize is ignored because threshold is not reached.
     [WARNING]: resize request ignored: 2.5% is below the threshold: 10%
+  - na_ontap_vserver_create role - add `nfsv3`, `nfsv4`, `nfsv41` options.
 
 ## 21.7.0
 

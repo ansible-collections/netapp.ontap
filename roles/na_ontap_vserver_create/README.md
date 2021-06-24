@@ -25,7 +25,11 @@ ontap_version: <version minor code> # OPTIONAL This defaults to ontap version mi
 #that you don't want to run.  The following would run all sections
 
 vservers: # Vservers to create
-  - { name: nfs_vserver, aggr: aggr1, protocol: nfs, aggr_list: "aggr1,aggr2" } # aggr_list is optional.  If not specified all aggregates will be added to the allowed list.
+  - { name: nfs_vserver, aggr: aggr1, protocol: nfs }
+  # aggr_list is optional.  If not specified all aggregates will be added to the allowed list.
+  - { name: nfs_vserver2, aggr: aggr1, protocol: nfs, aggr_list: "aggr1,aggr2" }
+  # with protocol: nfs, the keys nfsv3, nfsv4, nfsv41 are optional, the default values are as shown below.
+  - { name: nfs_vserver3, aggr: aggr1, protocol: nfs, nfsv3: enabled, nfsv4: disabled, nfsv41: disabled }
   - { name: cifs_vserver, aggr: aggr1, protocol: cifs }
 
 vserver_dns: # DNS at the Vserver level.

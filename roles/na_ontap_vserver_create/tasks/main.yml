@@ -132,9 +132,9 @@
     state: present
     service_state: started
     vserver: "{{ item.name }}"
-    nfsv3: enabled
-    nfsv4: disabled
-    nfsv41: disabled
+    nfsv3: "{{ item.nfsv3 | default('enabled') }}"
+    nfsv4: "{{ item.nfsv4 | default('disabled') }}"
+    nfsv41: "{{ item.nfsv41 | default('disabled') }}"
     tcp: enabled
     udp: enabled
     vstorage_state: disabled
@@ -153,9 +153,9 @@
     state: present
     service_state: started
     vserver: "{{ item.name }}"
-    nfsv3: enabled
-    nfsv4: disabled
-    nfsv41: disabled
+    nfsv3: "{{ item.nfsv3 | default('enabled') }}"
+    nfsv4: "{{ item.nfsv4 | default('disabled') }}"
+    nfsv41: "{{ item.nfsv41 | default('disabled') }}"
     vstorage_state: disabled
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
