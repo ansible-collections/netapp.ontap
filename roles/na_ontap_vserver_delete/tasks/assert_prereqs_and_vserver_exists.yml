@@ -1,0 +1,42 @@
+---
+# tasks file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
+- name: warn about data being permanently deleted
+  set_fact: 
+    agreement: "{{ removing_volumes_permanently_destroy_user_data | default('not set') }}"
+
+- name: warn about data being permanently deleted
+  fail:
+    msg: | 
+      This role will permanently delete all user data associated with volumes owned by vserver '{{ vserver_name }}'.
+      Make sure sure to set 'removing_volumes_permanently_destroy_user_data' to 'I agree' in your playbook.
+      Current value: {{ agreement }}.
+  when: agreement != 'I agree'
+
+- name: check REST is enabled and SVM exists
+  na_ontap_rest_info:
+    gather_subset:
+      - vserver_info
+    parameters:
+      name: "{{ vserver_name }}"
+      fields: ip_interfaces
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
+  register: results
+
+- name: check outcomes
+  assert:
+    that: '"num_records" in results.ontap_info["svm/svms"]'
+    quiet: true
+
+- name: check outcomes
+  fail:
+    msg: "SVM {{ vserver_name }} not found"
+  when: results.ontap_info["svm/svms"]["num_records"] == 0
+
+- name: check outcomes
+  fail:
+    msg: "Unexpected results when getting SVM {{ vserver_name }}: {{ results }}"
+  when: results.ontap_info["svm/svms"]["num_records"] > 1

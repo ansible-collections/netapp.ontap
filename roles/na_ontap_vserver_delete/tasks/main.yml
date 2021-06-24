@@ -1,0 +1,80 @@
+---
+# tasks file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
+# This deletes a vserver and dependents:
+#   all volumes are deleted, including any user data !!!
+#   network interfaces are deleted
+# At present, clones or snapshots are not deleted, this may block the volume and vserver deletion.
+#
+# These tasks expect the following variables to be set:
+# hostname: IP address of ONTAP admin interface (can be vsadmin too).
+# username: user account with admin or vsadmin role.
+# password: for the user account with admin or vsadmin role.
+# vserver_name: name of vserver to delete.
+#
+# The following variables are preset but can be changed
+# https: true 
+# validate_certs: true   (true is strongly recommended, but use false if the certificate is not set)
+# debug_level: 0
+# check_mode: false
+# confirm_before_removing_interfaces: true
+# confirm_before_removing_volumes: true
+#
+
+- name: check REST is enabled and SVM exists
+  import_tasks: assert_prereqs_and_vserver_exists.yml
+
+- name: collect and delete volume clones for vserver
+  import_tasks: find_and_delete_volumes.yml
+  vars:
+    ignore_errors: true     # delete may fail if a clone is attached to a clone
+    is_flexclone: true
+    retry_count: 3          # 3 levels of clones, looks like a lot
+
+- name: collect and delete all volumes for vserver
+  import_tasks: find_and_delete_volumes.yml
+  vars:
+    ignore_errors: true     # so we can delete as many as possible
+    retry_count: 2          # retry any error
+
+- name: pause and check if any volume was not deleted
+  pause:
+    seconds: "30"
+    prompt: waiting for 30 seconds as volumes are deleted
+  when: volumes | length > 0  
+    
+- name: collect and delete all volumes for vserver
+  include_tasks: find_and_delete_volumes.yml
+  vars:
+    ignore_errors: false     # so we can report errors
+
+- name: collect interfaces for vserver
+  include_tasks: get_interfaces.yml
+- name: ask for confirmations
+  pause:
+    prompt: "the following interfaces will be deleted {{ interfaces }}\nPress enter to continue, Ctrl+C to interrupt:"
+  when: 
+    - interfaces | length > 0
+    - confirm_before_removing_interfaces
+- name: Delete Interfaces
+  na_ontap_interface:
+    state: absent
+    interface_name: "{{ item }}"
+    vserver: "{{ vserver_name }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
+  loop: "{{interfaces}}"
+
+- name: Delete vserver
+  # also deletes any export policy and rules, NFS, CIFS, and iSCSI servers
+  # as well as DNS, routes
+  na_ontap_svm:
+    state: absent
+    name: "{{ vserver_name }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"

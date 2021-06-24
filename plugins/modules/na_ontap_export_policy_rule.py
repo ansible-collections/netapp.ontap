@@ -10,12 +10,6 @@ na_ontap_export_policy_rule
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 
 module: na_ontap_export_policy_rule
@@ -58,7 +52,7 @@ options:
   anonymous_user_id:
     description:
     - User name or ID to which anonymous users are mapped. Default value is '65534'.
-    type: int
+    type: str
 
   ro_rule:
     description:
@@ -109,7 +103,7 @@ options:
 
 EXAMPLES = """
     - name: Create ExportPolicyRule
-      na_ontap_export_policy_rule:
+      netapp.ontap.na_ontap_export_policy_rule:
         state: present
         name: default123
         vserver: ci_dev
@@ -125,7 +119,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Modify ExportPolicyRule
-      na_ontap_export_policy_rule:
+      netapp.ontap.na_ontap_export_policy_rule:
         state: present
         name: default123
         rule_index: 100
@@ -140,7 +134,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete ExportPolicyRule
-      na_ontap_export_policy_rule:
+      netapp.ontap.na_ontap_export_policy_rule:
         state: absent
         name: default123
         rule_index: 100
@@ -190,7 +184,7 @@ class NetAppontapExportRule(object):
                                      choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             allow_suid=dict(required=False, type='bool'),
             rule_index=dict(required=False, type='int'),
-            anonymous_user_id=dict(required=False, type='int'),
+            anonymous_user_id=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
         ))
 
@@ -212,6 +206,7 @@ class NetAppontapExportRule(object):
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
+            'anonymous_user_id': 'anonymous-user-id',
             'client_match': 'client-match',
             'name': 'policy-name'
         }
@@ -225,9 +220,7 @@ class NetAppontapExportRule(object):
             'allow_suid': 'is-allow-set-uid-enabled'
         }
         self.na_helper.zapi_int_keys = {
-            'rule_index': 'rule-index',
-            'anonymous_user_id': 'anonymous-user-id'
-
+            'rule_index': 'rule-index'
         }
 
     def set_query_parameters(self):

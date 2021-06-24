@@ -1,0 +1,8 @@
+---
+# defaults file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
+debug_level: 0
+check_mode: false
+confirm_before_removing_interfaces: true
+confirm_before_removing_volumes: true
+https: true
+validate_certs: true

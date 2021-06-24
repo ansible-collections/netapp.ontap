@@ -1,0 +1,21 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    login: &login
+      hostname: XXX.XXX.XXX.XXX
+      username: admin
+      password: XXXXXXXXXXXXXXX
+      https: true
+      validate_certs: false
+  roles:
+    - role: netapp.ontap.na_ontap_vserver_delete
+      vars:
+        <<: *login
+        vserver_name: ansibleSVM
+        # uncomment the following line to accept volumes will be permanently deleted
+        # removing_volumes_permanently_destroy_user_data: I agree
+        # turn confirmation prompts on or off
+        confirm_before_removing_interfaces: false
+        # optional - change this to true to remove any confirmation prompt before deleting volumes !!!
+        # confirm_before_removing_volumes: true

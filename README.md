@@ -30,16 +30,16 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.8.0
 
 ### New Modules
-  - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only
+  - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only.
   - na_ontap_partitions - assign/unassign disk partitions - REST only
+
+### New role
+  - na_ontap_vserver_delete - delete vserver and all associated data and resources - REST only.
 
 ### New Options
   - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
   - na_ontap_snapshot - new option `expiry_time`.
   - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
-
-### Minor Changes
-  - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
 
 ### Added REST support to existing modules
   - na_ontap_snapshot - added REST support for snapshot creation, modification & deletion.
@@ -47,9 +47,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_cluster_peer - KeyError on dest_cluster_name if destination is unreachable.
   - na_ontap_cluster_peer - KeyError on username when using certicate.
+  - na_ontap_export_policy_rule - change `anonymous_user_id` type to str to accept user name and user id.  (A warning is now triggered when a number is not quoted.)
   - na_ontap_vserver_peer - KeyError on username when using certicate.
 
 ### Minor Changes
+  - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
   - na_ontap_rest_info - add examples for ``parameters`` option.
   - na_ontap_volume - show warning when resize is ignored because threshold is not reached.
     [WARNING]: resize request ignored: 2.5% is below the threshold: 10%
