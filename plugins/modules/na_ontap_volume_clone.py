@@ -148,6 +148,11 @@ class NetAppONTAPVolumeClone(object):
             supports_check_mode=True,
             required_together=[
                 ['uid', 'gid']
+            ],
+            mutually_exclusive=[
+                ('junction_path', 'parent_vserver'),
+                ('uid', 'parent_vserver'),
+                ('gid', 'parent_vserver')
             ]
         )
 

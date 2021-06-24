@@ -49,6 +49,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_cluster_peer - KeyError on username when using certicate.
   - na_ontap_export_policy_rule - change `anonymous_user_id` type to str to accept user name and user id.  (A warning is now triggered when a number is not quoted.)
   - na_ontap_vserver_peer - KeyError on username when using certicate.
+  - na_ontap_volume_clone - `parent_vserver` can not be given with `junction_path`, `uid`, or `gid`
 
 ### Minor Changes
   - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.

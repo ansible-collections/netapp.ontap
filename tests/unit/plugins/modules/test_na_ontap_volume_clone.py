@@ -163,7 +163,6 @@ class TestMyModule(unittest.TestCase):
     def test_successful_create(self, create_volume_clone):
         ''' test creating volume_clone without split and testing idempotency '''
         module_args = {
-            'parent_vserver': 'abc',
             'parent_snapshot': 'abc',
             'volume_type': 'dp',
             'qos_policy_group_name': 'abc',
@@ -193,7 +192,6 @@ class TestMyModule(unittest.TestCase):
         ''' test creating volume_clone with split and testing idempotency '''
         module_args = {
             'parent_snapshot': 'abc',
-            'parent_vserver': 'abc',
             'volume_type': 'dp',
             'qos_policy_group_name': 'abc',
             'junction_path': 'abc',
@@ -223,7 +221,6 @@ class TestMyModule(unittest.TestCase):
         ''' test creating volume_clone with split and split already in progress '''
         module_args = {
             'parent_snapshot': 'abc',
-            'parent_vserver': 'abc',
             'volume_type': 'dp',
             'qos_policy_group_name': 'abc',
             'junction_path': 'abc',
@@ -239,6 +236,23 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
+    def test_vserver_cluster_options_give_error(self, create_volume_clone):
+        module_args = {
+            'parent_snapshot': 'abc',
+            'parent_vserver': 'abc',
+            'volume_type': 'dp',
+            'qos_policy_group_name': 'abc',
+            'junction_path': 'abc',
+            'uid': '1',
+            'gid': '1'
+        }
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj = my_module()
+        assert "parameters are mutually exclusive: " in exc.value.args[0]['msg']
 
     def test_if_all_methods_catch_exception(self):
         ''' test if all methods catch exception '''
