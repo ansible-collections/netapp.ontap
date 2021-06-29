@@ -28,7 +28,7 @@ The following variables are preset but can be changed
 - https: true 
 - validate_certs: true     (true is strongly recommended)
 - debug_level: 0
-- check_mode: false
+- enable_check_mode: false
 - confirm_before_removing_volumes: true
 - confirm_before_removing_interfaces: true
 
@@ -58,8 +58,11 @@ Example Playbook
         # removing_volumes_permanently_destroy_user_data: I agree
         # turn confirmation prompts on or off
         confirm_before_removing_interfaces: false
-        # optional - change this to true to remove any confirmation prompt before deleting volumes !!!
-        # confirm_before_removing_volumes: true
+        # optional - change the following to false to remove any confirmation prompt before deleting volumes !!!
+        # when confirmations are on, you may receive two prompts:
+        # 1. delete all clones if they exist.  The prompt is not shown if no clone exists.
+        # 2. delete all volumes if any.  The prompt is not shown if no volume exists.
+        confirm_before_removing_volumes: true
 
 ```
 

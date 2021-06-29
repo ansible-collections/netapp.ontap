@@ -65,6 +65,7 @@
     password: "{{ password }}"
     https: "{{ https }}"
     validate_certs: "{{ validate_certs }}"
+  check_mode: "{{ enable_check_mode }}"
   loop: "{{interfaces}}"
 
 - name: Delete vserver

@@ -10,7 +10,7 @@
     state: absent
     name: "{{ item }}"
     vserver: "{{ vserver_name }}"
-  check_mode: "{{ check_mode }}"
+  check_mode: "{{ enable_check_mode }}"
   ignore_errors: "{{ ignore_errors | default(omit) }}"
   loop:
     "{{ volumes }}"
