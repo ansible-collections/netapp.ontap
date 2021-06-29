@@ -30,6 +30,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.8.0
 
 ### New Modules
+  - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only
+  - na_ontap_partitions - assign/unassign disk partitions - REST only
+  - na_ontap_fdss - apply security policy settings to files and directories in a vserver
   - na_ontap_fdsd - add or remove File Directory Security Descriptor - REST only.
   - na_ontap_fdsp - create or delete a File Directory Security Policy - REST only.
   - na_ontap_partitions - assign/unassign disk partitions - REST only.
