@@ -3,3 +3,4 @@ requests
 netapp-lib
 xmltodict
 six
+jmespath
