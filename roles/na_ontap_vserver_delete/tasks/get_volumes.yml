@@ -17,7 +17,7 @@
     validate_certs: "{{ validate_certs }}"
   register: ontap
 - name: debug
-  debug: 
+  debug:
     var: ontap
   when: debug_level > 1
 - name: extract volume names

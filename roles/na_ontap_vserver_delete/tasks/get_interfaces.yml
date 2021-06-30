@@ -15,7 +15,7 @@
     validate_certs: "{{ validate_certs }}"
   register: ontap
 - name: debug
-  debug: 
+  debug:
     var: ontap
   when: debug_level > 1
 - name: extract interface names
@@ -25,6 +25,6 @@
     # double quotes around storage/volumes to escape the /
     get_attrs: '"svm/svms".records[].ip_interfaces[].name'
 - name: debug
-  debug: 
+  debug:
     var: interfaces
   when: debug_level > 0

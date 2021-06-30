@@ -1,7 +1,7 @@
 -
   name: Ontap Upgrade Firmware
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   collections:
     - netapp.ontap
   vars:
@@ -12,7 +12,7 @@
     ontap_admin_password: TBD
     # we recommend to use https, but it requires a valid SSL certificate
     ontap_use_https: true
-    ontap_validate_certs: false 
+    ontap_validate_certs: false
   # DONE - do not change anything else
 
     login: &login
@@ -20,8 +20,8 @@
       username: "{{ ontap_admin_username }}"
       password: "{{ ontap_admin_password }}"
       https: "{{ ontap_use_https }}"
-      validate_certs: "{{ ontap_validate_certs }}"      
-  
+      validate_certs: "{{ ontap_validate_certs }}"
+
   tasks:
     - name: run ontap info module to check connectivity
       na_ontap_info:

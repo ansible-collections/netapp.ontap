@@ -19,7 +19,7 @@
 -
   name: Ontap Install SSL certificate and enable SSL certificate authentication
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   collections:
     - netapp.ontap
   vars:
@@ -114,7 +114,7 @@
         svm: "{{ svm }}"
       register: result
     - debug: var=result
-    - assert: { that: result.changed, quiet: True }
+    - assert: {that: result.changed, quiet: true}
 
     - name: install certificate (idempotency test)
       # use -t all,testpb when testing the playbook
@@ -129,7 +129,7 @@
       register: result
     - debug: var=result
       tags: never,testpb
-    - assert: { that: not result.changed, quiet: True }
+    - assert: {that: not result.changed, quiet: true}
       tags: never,testpb
 
     - name: set up cert authentication for ontapi (ZAPI) and http (REST)
@@ -144,7 +144,7 @@
       register: result
     - debug: var=result
       tags: never,testpb
-    - assert: { that: result.changed, quiet: True }
+    - assert: {that: result.changed, quiet: true}
       tags: never,testpb
 
     - name: validate cert authentication is working for REST
@@ -168,7 +168,7 @@
       register: result
     - debug: var=result
       tags: never,testpb
-    - assert: { that: result.changed, quiet: True }
+    - assert: {that: result.changed, quiet: true}
       tags: never,testpb
 
     - name: delete certificate when testing
@@ -183,7 +183,7 @@
       register: result
     - debug: var=result
       tags: never,testpb,delete
-    - assert: { that: result.changed, quiet: True }
+    - assert: {that: result.changed, quiet: true}
       tags: never,testpb,delete
 
     - name: delete certificate when testing (idempotemcy)
@@ -198,5 +198,5 @@
       register: result
     - debug: var=result
       tags: never,testpb,delete
-    - assert: { that: not result.changed, quiet: True }
+    - assert: {that: not result.changed, quiet: true}
       tags: never,testpb,delete

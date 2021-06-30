@@ -1,7 +1,7 @@
 -
   name: Get list of online ONTAP volumes
   hosts: localhost
-  gather_facts: no
+  gather_facts: false
   collections:
     - netapp.ontap
   vars_files:

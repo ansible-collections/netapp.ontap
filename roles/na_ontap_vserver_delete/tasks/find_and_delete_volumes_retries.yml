@@ -4,5 +4,5 @@
   include_tasks: get_volumes.yml
 - name: Delete all volumes for vserver
   include_tasks: delete_volumes.yml
-  when: 
+  when:
     - volumes | length > 0

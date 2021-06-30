@@ -1,6 +1,6 @@
 ---
 - hosts: localhost
-  gather_facts: no
+  gather_facts: false
   vars:
     login: &login
       hostname: XXX.XXX.XXX.XXX
