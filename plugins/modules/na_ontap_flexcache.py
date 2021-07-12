@@ -154,7 +154,7 @@ options:
 EXAMPLES = """
 
     - name: Create FlexCache
-      na_ontap_FlexCache:
+      netapp.ontap.na_ontap_flexcache:
         state: present
         origin_volume: test_src
         name: test_dest
@@ -165,7 +165,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete FlexCache
-      na_ontap_FlexCache:
+      netapp.ontap.na_ontap_flexcache:
         state: absent
         name: test_dest
         vserver: ansible_dest
