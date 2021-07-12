@@ -62,6 +62,8 @@ class MockONTAPConnection(object):
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
+        if self.type == 'raise':
+            raise netapp_utils.zapi.NaApiError(code='1111', message='forcing an error')
         self.xml_in = xml
         if self.type == 'port':
             xml = self.build_port_info(self.data)
@@ -77,8 +79,9 @@ class MockONTAPConnection(object):
             'attributes-list': {
                 'net-port-info': {
                     # 'port': port_details['port'],
-                    'mtu': port_details['mtu'],
+                    'mtu': str(port_details['mtu']),
                     'is-administrative-auto-negotiate': 'true',
+                    'is-administrative-up': str(port_details['up_admin']).lower(),      # ZAPI uses 'true', 'false'
                     'ipspace': 'default',
                     'administrative-flowcontrol': port_details['flowcontrol_admin'],
                     'node': port_details['node']
@@ -102,8 +105,9 @@ class TestMyModule(unittest.TestCase):
         self.mock_port = {
             'node': 'test',
             'ports': 'a1',
+            'up_admin': True,
             'flowcontrol_admin': 'something',
-            'mtu': '1000'
+            'mtu': 1000
         }
 
     def mock_args(self):
@@ -149,6 +153,7 @@ class TestMyModule(unittest.TestCase):
         result = self.get_port_mock_object('port').get_net_port('test')
         assert result['mtu'] == self.mock_port['mtu']
         assert result['flowcontrol_admin'] == self.mock_port['flowcontrol_admin']
+        assert result['up_admin'] == self.mock_port['up_admin']
 
     def test_successful_modify(self):
         ''' Test modify_net_port '''
@@ -158,6 +163,36 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_port_mock_object('port').apply()
         assert exc.value.args[0]['changed']
+
+    def test_successful_modify_int(self):
+        ''' Test modify_net_port '''
+        data = self.mock_args()
+        data['mtu'] = 2000
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_port_mock_object('port').apply()
+        assert exc.value.args[0]['changed']
+        print(exc.value.args[0]['modify'])
+
+    def test_successful_modify_bool(self):
+        ''' Test modify_net_port '''
+        data = self.mock_args()
+        data['up_admin'] = False
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_port_mock_object('port').apply()
+        assert exc.value.args[0]['changed']
+        print(exc.value.args[0]['modify'])
+
+    def test_successful_modify_str(self):
+        ''' Test modify_net_port '''
+        data = self.mock_args()
+        data['flowcontrol_admin'] = 'anything'
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_port_mock_object('port').apply()
+        assert exc.value.args[0]['changed']
+        print(exc.value.args[0]['modify'])
 
     def test_successful_modify_multiple_ports(self):
         ''' Test modify_net_port '''
@@ -178,3 +213,58 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_port_mock_object('port').apply()
         assert get_port.call_count == 2
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_net_port.NetAppOntapNetPort.get_net_port')
+    def test_negative_not_found_1(self, get_port):
+        ''' Test get_net_port '''
+        data = self.mock_args()
+        data['ports'] = ['a1']
+        set_module_args(data)
+        get_port.return_value = None
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_port_mock_object('port').apply()
+        msg = 'Error: port: a1 not found on node: test - check node name.'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_net_port.NetAppOntapNetPort.get_net_port')
+    def test_negative_not_found_2(self, get_port):
+        ''' Test get_net_port '''
+        data = self.mock_args()
+        data['ports'] = ['a1', 'a2']
+        set_module_args(data)
+        get_port.return_value = None
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_port_mock_object('port').apply()
+        msg = 'Error: ports: a1, a2 not found on node: test - check node name.'
+        assert msg in exc.value.args[0]['msg']
+
+    def test_negative_zapi_exception_in_get(self):
+        ''' Test get_net_port '''
+        data = self.mock_args()
+        data['ports'] = ['a1', 'a2']
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_port_mock_object('raise').apply()
+        msg = 'Error getting net ports for test: NetApp API failed. Reason - 1111:forcing an error'
+        assert msg in exc.value.args[0]['msg']
+
+    def test_negative_zapi_exception_in_modify(self):
+        ''' Test get_net_port '''
+        data = self.mock_args()
+        data['ports'] = ['a1', 'a2']
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_port_mock_object('raise').modify_net_port('a1', dict())
+        msg = 'Error modifying net ports for test: NetApp API failed. Reason - 1111:forcing an error'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+    def test_negative_no_netapp_lib(self, get_port):
+        ''' Test get_net_port '''
+        data = self.mock_args()
+        set_module_args(data)
+        get_port.return_value = False
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_port_mock_object('port').apply()
+        msg = 'the python NetApp-Lib module is required'
+        assert msg in exc.value.args[0]['msg']

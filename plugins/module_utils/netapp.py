@@ -98,6 +98,7 @@ ERROR_MSG = dict(
 )
 
 LOG = logging.getLogger(__name__)
+LOG_FILE = '/tmp/ontap_apis.log'
 
 try:
     from solidfire.factory import ElementFactory
@@ -157,6 +158,8 @@ def get_feature(module, feature_name):
         otherwise, use our default
     '''
     default_flags = dict(
+        strict_json_check=True,                 # if true, fail if response.content in not empty and is not valid json
+        trace_apis=False,                       # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
         check_required_params_for_none=True,
         classic_basic_authorization=False,      # use ZAPI wrapper to send Authorization header
         deprecation_warning=True,
@@ -164,7 +167,6 @@ def get_feature(module, feature_name):
         sanitize_code_points=[8],               # unicode values, 8 is backspace
         show_modified=True,
         always_wrap_zapi=True,                  # for better error reporting
-        trace_apis=False,                       # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
         flexcache_delete_return_timeout=5       # ONTAP bug if too big?
     )
 
@@ -257,7 +259,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
     port = host_options.get('http_port')
     version = host_options.get('ontapi')
     if has_feature(module, 'trace_apis'):
-        logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG)
+        logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG)
         trace = True
     else:
         trace = False
@@ -582,7 +584,7 @@ class OntapRestAPI(object):
         self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
         if has_feature(module, 'trace_apis'):
-            logging.basicConfig(filename='/tmp/ontap_apis.log', level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
+            logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
 
     def requires_ontap_9_6(self, module_name):
         self.requires_ontap_version(module_name)
@@ -657,11 +659,22 @@ class OntapRestAPI(object):
         error_details = None
         headers = self.build_headers(accept, vserver_name, vserver_uuid)
 
+        def check_contents(response):
+            '''json() may fail on an empty value, but it's OK if no response is expected.
+               To avoid false positives, only report an issue when we expect to read a value.
+               The first get will see it.
+            '''
+            if method == 'GET' and has_feature(self.module, 'strict_json_check'):
+                contents = response.content
+                if len(contents) > 0:
+                    raise ValueError("Expecting json, got: %s" % contents)
+
         def get_json(response):
             ''' extract json, and error message if present '''
             try:
                 json = response.json()
             except ValueError:
+                check_contents(response)
                 return None, None
             error = json.get('error')
             return json, error

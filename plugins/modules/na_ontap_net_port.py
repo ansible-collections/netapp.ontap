@@ -6,10 +6,9 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
+'''
+na_ontap_net_port
+'''
 
 DOCUMENTATION = """
 module: na_ontap_net_port
@@ -43,12 +42,12 @@ options:
   mtu:
     description:
     - Specifies the maximum transmission unit (MTU) reported by the port.
-    type: str
+    type: int
   autonegotiate_admin:
     description:
     - Enables or disables Ethernet auto-negotiation of speed,
       duplex and flow control.
-    type: str
+    type: bool
   duplex_admin:
     description:
     - Specifies the user preferred duplex setting of the port.
@@ -67,11 +66,16 @@ options:
     - Specifies the port's associated IPspace name.
     - The 'Cluster' ipspace is reserved for cluster ports.
     type: str
+  up_admin:
+    description:
+    - Enables or disables the port.
+    type: bool
+    version_added: 21.8.0
 """
 
 EXAMPLES = """
     - name: Modify Net Port
-      na_ontap_net_port:
+      netapp.ontap.na_ontap_net_port:
         state: present
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -79,6 +83,8 @@ EXAMPLES = """
         node: "{{ node_name }}"
         ports: e0d,e0c
         autonegotiate_admin: true
+        up_admin: true
+        mtu: 1500
 """
 
 RETURN = """
@@ -91,10 +97,8 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapNetPort(object):
+class NetAppOntapNetPort():
     """
         Modify a Net port
     """
@@ -108,8 +112,9 @@ class NetAppOntapNetPort(object):
             state=dict(required=False, type='str', choices=['present'], default='present'),
             node=dict(required=True, type="str"),
             ports=dict(required=True, type='list', elements='str', aliases=['port']),
-            mtu=dict(required=False, type="str", default=None),
-            autonegotiate_admin=dict(required=False, type="str", default=None),
+            mtu=dict(required=False, type="int", default=None),
+            autonegotiate_admin=dict(required=False, type="bool", default=None),
+            up_admin=dict(required=False, type="bool", default=None),
             duplex_admin=dict(required=False, type="str", default=None),
             speed_admin=dict(required=False, type="str", default=None),
             flowcontrol_admin=dict(required=False, type="str", default=None),
@@ -125,7 +130,7 @@ class NetAppOntapNetPort(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.set_playbook_zapi_key_map()
 
-        if HAS_NETAPP_LIB is False:
+        if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -133,12 +138,17 @@ class NetAppOntapNetPort(object):
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
-            'mtu': 'mtu',
-            'autonegotiate_admin': 'is-administrative-auto-negotiate',
             'duplex_admin': 'administrative-duplex',
             'speed_admin': 'administrative-speed',
             'flowcontrol_admin': 'administrative-flowcontrol',
             'ipspace': 'ipspace'
+        }
+        self.na_helper.zapi_bool_keys = {
+            'up_admin': 'is-administrative-up',
+            'autonegotiate_admin': 'is-administrative-auto-negotiate',
+        }
+        self.na_helper.zapi_int_keys = {
+            'mtu': 'mtu',
         }
 
     def get_net_port(self, port):
@@ -170,6 +180,10 @@ class NetAppOntapNetPort(object):
             self.module.fail_json(msg='Error getting net ports for %s: %s' % (self.parameters['node'], to_native(error)),
                                   exception=traceback.format_exc())
 
+        for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
+            port_details[item_key] = self.na_helper.get_value_for_bool(from_zapi=True, value=port_info.get_child_content(zapi_key))
+        for item_key, zapi_key in self.na_helper.zapi_int_keys.items():
+            port_details[item_key] = self.na_helper.get_value_for_int(from_zapi=True, value=port_info.get_child_content(zapi_key))
         for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
             port_details[item_key] = port_info.get_child_content(zapi_key)
         return port_details
@@ -182,13 +196,25 @@ class NetAppOntapNetPort(object):
         :param modify: dict with attributes to be modified
         :return: None
         """
+
+        def get_zapi_key_and_value(key, value):
+            zapi_key = self.na_helper.zapi_string_keys.get(key)
+            if zapi_key is not None:
+                return zapi_key, value
+            zapi_key = self.na_helper.zapi_bool_keys.get(key)
+            if zapi_key is not None:
+                return zapi_key, self.na_helper.get_value_for_bool(from_zapi=False, value=value)
+            zapi_key = self.na_helper.zapi_int_keys.get(key)
+            if zapi_key is not None:
+                return zapi_key, self.na_helper.get_value_for_int(from_zapi=False, value=value)
+            raise KeyError(key)
+
         port_modify = netapp_utils.zapi.NaElement('net-port-modify')
         port_attributes = {'node': self.parameters['node'],
                            'port': port}
-        for key in modify:
-            if key in self.na_helper.zapi_string_keys:
-                zapi_key = self.na_helper.zapi_string_keys.get(key)
-                port_attributes[zapi_key] = modify[key]
+        for key, value in modify.items():
+            zapi_key, value = get_zapi_key_and_value(key, value)
+            port_attributes[zapi_key] = value
         port_modify.translate_struct(port_attributes)
         try:
             self.server.invoke_successfully(port_modify, enable_tunneling=True)
@@ -212,16 +238,26 @@ class NetAppOntapNetPort(object):
 
         self.autosupport_log()
         # Run the task for all ports in the list of 'ports'
+        missing_ports = list()
+        modified = dict()
         for port in self.parameters['ports']:
             current = self.get_net_port(port)
+            if current is None:
+                missing_ports.append(port)
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            if self.na_helper.changed:
-                if self.module.check_mode:
-                    pass
-                else:
-                    if modify:
-                        self.modify_net_port(port, modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+            modified[port] = modify
+            if modify and not self.module.check_mode:
+                self.modify_net_port(port, modify)
+        if missing_ports:
+            plural, suffix = '', '.'
+            if len(missing_ports) == len(self.parameters['ports']):
+                suffix = ' - check node name.'
+            if len(missing_ports) > 1:
+                plural = 's'
+            self.module.fail_json(changed=self.na_helper.changed, modify=modified,
+                                  msg='Error: port%s: %s not found on node: %s%s'
+                                  % (plural, ', '.join(missing_ports), self.parameters['node'], suffix))
+        self.module.exit_json(changed=self.na_helper.changed, modify=modified)
 
 
 def main():

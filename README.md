@@ -43,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_cluster_peer - new option `peer_options` to use different credentials on peer.
+  - na_ontap_net_port - new option `up_admin` to set administrative state.
   - na_ontap_snapshot - new option `expiry_time`.
   - na_ontap_vserver_peer - new option `peer_options` to use different credentials on peer.
 
@@ -55,9 +56,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_export_policy_rule - change `anonymous_user_id` type to str to accept user name and user id.  (A warning is now triggered when a number is not quoted.)
   - na_ontap_vserver_peer - KeyError on username when using certicate.
   - na_ontap_volume_clone - `parent_vserver` can not be given with `junction_path`, `uid`, or `gid`
+  - all modules - fix traceback TypeError 'NoneType' object is not subscriptable when hostname points to a web server.
 
 ### Minor Changes
   - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
+  - na_ontap_net_port - change option types to bool and int respectively for `autonegotiate_admin` and `mtu`.
   - na_ontap_rest_info - add examples for ``parameters`` option.
   - na_ontap_volume - show warning when resize is ignored because threshold is not reached.
     [WARNING]: resize request ignored: 2.5% is below the threshold: 10%

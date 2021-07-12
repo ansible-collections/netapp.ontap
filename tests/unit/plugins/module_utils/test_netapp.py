@@ -569,3 +569,40 @@ def test_setup_host_options_from_module_params_conflict():
         netapp_utils.setup_host_options_from_module_params(host_options, module, host_options.keys())
     msg = 'Error: host cannot have both basic authentication (username/password) and certificate authentication (cert/key files).'
     assert exc.value.args[0]['msg'] == msg
+
+
+class mockResponse:
+    def __init__(self, json_data, status_code, raise_action=None):
+        self.json_data = json_data
+        self.status_code = status_code
+        self.content = json_data
+        self.raise_action = raise_action
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        if self.raise_action == 'bad_json':
+            raise ValueError(self.raise_action)
+        return self.json_data
+
+
+@patch('requests.request')
+def test_empty_get_sent_bad_json(mock_request):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data='anything', status_code=200, raise_action='bad_json')
+    rest_api = create_restapi_object(mock_args())
+    message, error = rest_api.get('api', None)
+    assert error
+    assert 'Expecting json, got: anything' in error
+    print('errors:', rest_api.errors)
+    print('debug:', rest_api.debug_logs)
+
+
+@patch('requests.request')
+def test_empty_get_sent_bad_but_empty_json(mock_request):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data='', status_code=200, raise_action='bad_json')
+    rest_api = create_restapi_object(mock_args())
+    message, error = rest_api.get('api', None)
+    assert not error
