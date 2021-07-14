@@ -5,6 +5,44 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.8.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_cluster_peer - new option ``peer_options`` to use different credentials on peer.
+- na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
+- na_ontap_flexcache - corrected module name in documentation Examples
+- na_ontap_net_port - change option types to bool and int respectively for ``autonegotiate_admin`` and ``mtu``.
+- na_ontap_net_port - new option ``up_admin`` to set administrative state.
+- na_ontap_rest_info - add examples for ``parameters`` option.
+- na_ontap_snapshot - add REST support to create, modify, rename, and delete snapshot.
+- na_ontap_snapshot - new option ``expiry_time``.
+- na_ontap_volume - show warning when resize is ignored because threshold is not reached.
+- na_ontap_vserver_create role - add ``nfsv3``, ``nfsv4``, ``nfsv41`` options.
+- na_ontap_vserver_peer - new option ``peer_options`` to use different credentials on peer.
+
+Bugfixes
+--------
+
+- all modules - fix traceback TypeError 'NoneType' object is not subscriptable when hostname points to a web server.
+- na_ontap_cluster_peer - KeyError on dest_cluster_name if destination is unreachable.
+- na_ontap_cluster_peer - KeyError on username when using certicate.
+- na_ontap_export_policy_rule - change ``anonymous_user_id`` type to str to accept user name and user id.   (A warning is now triggered when a number is not quoted.)
+- na_ontap_volume_clone - ``parent_vserver`` can not be given with ``junction_path``, ``uid``, or ``gid``
+- na_ontap_vserver_peer - KeyError on username when using certicate.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_cifs_local_user_set_password - NetApp ONTAP set local CIFS user password
+- netapp.ontap.na_ontap_fdsd - NetApp ONTAP create or remove a File Directory security descriptor.
+- netapp.ontap.na_ontap_fdsp - NetApp ONTAP create or delete a file directory security policy
+- netapp.ontap.na_ontap_fdspt - NetApp ONTAP create, delete or modify File Directory security policy tasks
+- netapp.ontap.na_ontap_fdss - NetApp ONTAP File Directory Security Set.
+- netapp.ontap.na_ontap_partitions - NetApp ONTAP Assign partitions and disks to nodes.
+
 v21.7.0
 =======
 
