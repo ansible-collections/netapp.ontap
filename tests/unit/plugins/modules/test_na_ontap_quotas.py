@@ -66,6 +66,16 @@ class MockONTAPConnection(object):
             return self.build_quota_status(self.status)
         if self.type == 'quotas':
             xml = self.build_quota_info()
+        elif self.type == 'quota_policy':
+            xml = self.build_quota_policy_info_one()
+            # expect a second request to get details
+            self.type = 'quotas'
+        elif self.type == 'quota_policies':
+            xml = self.build_quota_policy_info_two()
+        elif self.type == 'quota_fail_13001':
+            # expect a retry
+            self.type = 'quota_policy'
+            raise netapp_utils.zapi.NaApiError(code='13001', message="success")
         elif self.type == 'quota_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
@@ -79,6 +89,28 @@ class MockONTAPConnection(object):
                 'attributes-list': {'quota-entry': {'volume': 'ansible',
                                                     'file-limit': '-', 'disk-limit': '-', 'quota-target': '/vol/ansible',
                                                     'soft-file-limit': '-', 'soft-disk-limit': '-', 'threshold': '-'}},
+                'status': 'true'}
+        xml.translate_struct(data)
+        return xml
+
+    @staticmethod
+    def build_quota_policy_info_one():
+        ''' build xml data for quota-entry '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'num-records': 1,
+                'attributes-list': [
+                    {'quota-policy-info': {'policy-name': 'p1'}}],
+                'status': 'true'}
+        xml.translate_struct(data)
+        return xml
+
+    @staticmethod
+    def build_quota_policy_info_two():
+        ''' build xml data for quota-entry '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'num-records': 2,
+                'attributes-list': [{'quota-policy-info': {'policy-name': 'p1'}},
+                                    {'quota-policy-info': {'policy-name': 'p2'}}],
                 'status': 'true'}
         xml.translate_struct(data)
         return xml
@@ -255,3 +287,65 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.on_or_off_quota('quota-on')
         assert 'Error setting quota-on for ansible' in exc.value.args[0]['msg']
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.get_quota_policies()
+        assert 'Error fetching quota policies: NetApp API failed. Reason - TEST:This exception is from the unit test' in exc.value.args[0]['msg']
+
+    def test_get_quota_policies(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('quota_policies')
+        policies = my_obj.get_quota_policies()
+        assert len(policies) == 2
+
+    def test_debug_quota_get_error_fail(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('quota_policies')
+        error = 'dummy error'
+        with pytest.raises(AnsibleFailJson) as exc:
+            policies = my_obj.debug_quota_get_error(error)
+        msg = 'Error fetching quotas info: dummy error - current vserver policies: '
+        assert msg in exc.value.args[0]['msg']
+
+    def test_debug_quota_get_error_success(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('quota_policy')
+        error = 'dummy error'
+        quotas = my_obj.debug_quota_get_error(error)
+        print('QUOTAS', quotas)
+        assert quotas
+
+    def test_get_quota_no_retry_on_13001(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('quota_fail_13001')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.get_quotas()
+        msg = 'Error fetching quotas info for policy ansible: NetApp API failed. Reason - 13001:success'
+        assert msg in exc.value.args[0]['msg']
+
+    def test_get_quota_retry_on_13001(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.pop('policy')
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('quota_fail_13001')
+        quotas = my_obj.get_quotas()
+        print('QUOTAS', quotas)
+        assert quotas

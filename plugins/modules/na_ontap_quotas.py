@@ -262,13 +262,34 @@ class NetAppONTAPQuotas(object):
             return result['status']
         return None
 
-    def get_quotas(self):
+    def get_quotas_with_retry(self, get_request, policy):
+        return_values = None
+        if policy is not None:
+            get_request['query']['quota-entry'].add_new_child('policy', policy)
+        try:
+            result = self.server.invoke_successfully(get_request, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            # Bypass a potential issue in ZAPI when policy is not set in the query
+            # https://github.com/ansible-collections/netapp.ontap/issues/4
+            # BURT1076601 Loop detected in next() for table quota_rules_zapi
+            if policy is None and 'Reason - 13001:success' in to_native(error):
+                result = None
+                return_values = self.debug_quota_get_error(error)
+            else:
+                self.module.fail_json(msg='Error fetching quotas info for policy %s: %s'
+                                      % (policy, to_native(error)),
+                                      exception=traceback.format_exc())
+        return result, return_values
+
+    def get_quotas(self, policy=None):
         """
         Get quota details
         :return: name of volume if quota exists, None otherwise
         """
         if self.parameters.get('type') is None:
             return None
+        if policy is None:
+            policy = self.parameters.get('policy')
         quota_get = netapp_utils.zapi.NaElement('quota-list-entries-iter')
         query = {
             'query': {
@@ -281,13 +302,9 @@ class NetAppONTAPQuotas(object):
             }
         }
         quota_get.translate_struct(query)
-        if self.parameters.get('policy'):
-            quota_get['query']['quota-entry'].add_new_child('policy', self.parameters['policy'])
-        try:
-            result = self.server.invoke_successfully(quota_get, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching quotas info: %s' % to_native(error),
-                                  exception=traceback.format_exc())
+        result, return_values = self.get_quotas_with_retry(quota_get, policy)
+        if result is None:
+            return return_values
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             # if quota-target is '*', the query treats it as a wildcard. But a blank entry is represented as '*'.
             # Hence the need to loop through all records to find a match.
@@ -305,6 +322,42 @@ class NetAppONTAPQuotas(object):
                         return_values['perform_user_mapping'] = self.na_helper.get_value_for_bool(True, value)
                     return return_values
         return None
+
+    def get_quota_policies(self):
+        """
+        Get list of quota policies
+        :return: list of quota policies (empty list if None found)
+        """
+        quota_policy_get = netapp_utils.zapi.NaElement('quota-policy-get-iter')
+        query = {
+            'query': {
+                'quota-policy-info': {
+                    'vserver': self.parameters['vserver']
+                }
+            }
+        }
+        quota_policy_get.translate_struct(query)
+        try:
+            result = self.server.invoke_successfully(quota_policy_get, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching quota policies: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+        policies = []
+        if result and result.get_child_by_name('attributes-list'):
+            for policy in result['attributes-list'].get_children():
+                policies.append(policy['policy-name'])
+        return policies
+
+    def debug_quota_get_error(self, error):
+        policies = self.get_quota_policies()
+        entries = dict()
+        for policy in policies:
+            entries[policy] = self.get_quotas(policy)
+        if len(policies) == 1:
+            self.module.warn('retried with success using policy="%s" on "13001:success" ZAPI error.' % policy)
+            return entries[policies[0]]
+        self.module.fail_json(msg='Error fetching quotas info: %s - current vserver policies: %s, details: %s'
+                              % (to_native(error), policies, entries))
 
     def quota_entry_set(self):
         """

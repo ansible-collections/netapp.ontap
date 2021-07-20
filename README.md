@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.9.0
+
+### Bug Fixes
+  - na_ontap_quotas - attempt a retry on `13001:success` ZAPI error.  Add debug data.
+
 ## 21.8.1
 
 ### Bug Fixes
