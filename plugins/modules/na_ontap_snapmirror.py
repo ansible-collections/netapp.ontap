@@ -567,7 +567,7 @@ class NetAppONTAPSnapmirror(object):
 
         ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
         if not self.use_rest and any(x in self.parameters for x in ontap_97_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -1064,7 +1064,7 @@ class NetAppONTAPSnapmirror(object):
 
         ontap_97_options = ['create_destination']
         if too_old(9, 7) and any(x in self.parameters for x in ontap_97_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
         if self.parameters.get('source_endpoint') or self.parameters.get('destination_endpoint'):
             if not self.parameters.get('destination_endpoint') or not self.parameters.get('source_endpoint'):
                 self.module.fail_json(msg='Missing parameters: Source endpoint or Destination endpoint')
@@ -1074,15 +1074,15 @@ class NetAppONTAPSnapmirror(object):
             # options requiring 9.7 or better, and REST
             ontap_97_options = ['cluster', 'ipspace']
             if too_old(9, 7) and any(x in self.parameters['source_endpoint'] for x in ontap_97_options):
-                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
             if too_old(9, 7) and any(x in self.parameters['destination_endpoint'] for x in ontap_97_options):
-                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
             # options requiring 9.8 or better, and REST
             ontap_98_options = ['consistency_group_volumes']
             if too_old(9, 8) and any(x in self.parameters['source_endpoint'] for x in ontap_98_options):
-                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8', use_rest=self.use_rest))
             if too_old(9, 8) and any(x in self.parameters['destination_endpoint'] for x in ontap_98_options):
-                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8', use_rest=self.use_rest))
             # fill in old style parameters
             self.parameters['source_cluster'] = self.na_helper.safe_get(self.parameters, ['source_endpoint', 'cluster'])
             self.parameters['source_path'] = self.na_helper.safe_get(self.parameters, ['source_endpoint', 'path'])

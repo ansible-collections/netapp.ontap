@@ -27,6 +27,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.8.1
+
+### Bug Fixes
+  - all REST modules: 9.4 and 9.5 were incorrectly detected as supporting REST.
+  - na_ontap_snapmirror: improve error message when option is not supported with ZAPI.
+
 ## 21.8.0
 
 ### New Modules

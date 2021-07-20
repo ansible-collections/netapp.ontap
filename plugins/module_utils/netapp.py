@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.8.0"
+COLLECTION_VERSION = "21.8.1"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -863,10 +863,10 @@ class OntapRestAPI(object):
         # we're now using 'auto'
         if used_unsupported_rest_properties:
             # force ZAPI if some parameter requires it
-            if self.get_ontap_version()[0:1] > (9, 5):
+            if self.get_ontap_version()[0:2] > (9, 5):
                 self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
             return False, None
-        if self.get_ontap_version()[0:1] in ((9, 4), (9, 5)):
+        if self.get_ontap_version()[0:2] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None
         if status_code == 200:

@@ -42,6 +42,8 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 SRR = {
     # common responses
     'is_rest': (200, {}, None),
+    'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None),
     'end_of_sequence': (None, "Unexpected call to send_request"),
@@ -243,6 +245,36 @@ def test_is_rest_false(mock_request):
     assert rest_api.errors[0] == SRR['is_zapi'][2]
     assert rest_api.debug_logs[0][0] == SRR['is_zapi'][0]    # status_code
     assert rest_api.debug_logs[0][1] == SRR['is_zapi'][2]    # error
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_is_rest_false_9_5(mock_request):
+    ''' is_rest is expected to return False '''
+    mock_request.side_effect = [
+        SRR['is_rest_95'],
+    ]
+    rest_api = create_restapi_object(mock_args())
+    is_rest = rest_api.is_rest()
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
+    assert not is_rest
+    assert not rest_api.errors
+    assert not rest_api.debug_logs
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_is_rest_true_9_6(mock_request):
+    ''' is_rest is expected to return False '''
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+    ]
+    rest_api = create_restapi_object(mock_args())
+    is_rest = rest_api.is_rest()
+    print(rest_api.errors)
+    print(rest_api.debug_logs)
+    assert is_rest
+    assert not rest_api.errors
+    assert not rest_api.debug_logs
 
 
 def test_has_feature_success_default():

@@ -5,6 +5,15 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.8.1
+=======
+
+Bugfixes
+--------
+
+- all REST modules - 9.4 and 9.5 were incorrectly detected as supporting REST.
+- na_ontap_snapmirror - improve error message when option is not supported with ZAPI.
+
 v21.8.0
 =======
 

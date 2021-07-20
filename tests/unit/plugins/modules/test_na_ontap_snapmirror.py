@@ -862,5 +862,5 @@ class TestMyModule(unittest.TestCase):
             my_obj.server = self.server
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.apply()
-        msg = 'Error: using consistency_group_volumes requires ONTAP 9.8 or later and REST must be enabled - ONTAP version: 9.7.0.'
+        msg = 'Error: using consistency_group_volumes requires ONTAP 9.8 or later and REST must be enabled - ONTAP version: 9.7.0 - using REST.'
         assert msg in exc.value.args[0]['msg']

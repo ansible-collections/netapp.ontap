@@ -1422,3 +1422,12 @@ releases:
       name: na_ontap_partitions
       namespace: ''
     release_date: '2021-07-14'
+  21.8.1:
+    changes:
+      bugfixes:
+      - all REST modules - 9.4 and 9.5 were incorrectly detected as supporting REST.
+      - na_ontap_snapmirror - improve error message when option is not supported with
+        ZAPI.
+    fragments:
+    - DEVOPS-4150.yaml
+    release_date: '2021-07-20'
