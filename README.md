@@ -29,7 +29,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.9.0
 
+### New Options
+  - na_ontap_job_schedule - new option `month_offset` to explictly select 0 or 1 for January.
+
 ### Bug Fixes
+  - na_ontap_job_schedule - fix documentation for REST ranges for months.
   - na_ontap_quotas - attempt a retry on `13001:success` ZAPI error.  Add debug data.
 
 ## 21.8.1

@@ -42,51 +42,56 @@ options:
     description:
     - The minute(s) of each hour when the job should be run.
       Job Manager cron scheduling minute.
-      -1 represents all minutes and is
-      only supported for cron schedule create and modify.
+      -1 represents all minutes.
       Range is [-1..59]
+    - Required for create.
     type: list
-    elements: str
+    elements: int
   job_hours:
     version_added: 2.8.0
     description:
     - The hour(s) of the day when the job should be run.
       Job Manager cron scheduling hour.
-      -1 represents all hours and is
-      only supported for cron schedule create and modify.
+      -1 represents all hours.
       Range is [-1..23]
     type: list
-    elements: str
+    elements: int
   job_months:
     version_added: 2.8.0
     description:
     - The month(s) when the job should be run.
       Job Manager cron scheduling month.
-      -1 represents all months and is
-      only supported for cron schedule create and modify.
-      Range is [-1..11]
+      -1 represents all months.
+      Range is [-1..12], 0 and 12 may or may not be supported, see C(month_offset)
     type: list
-    elements: str
+    elements: int
   job_days_of_month:
     version_added: 2.8.0
     description:
     - The day(s) of the month when the job should be run.
       Job Manager cron scheduling day of month.
-      -1 represents all days of a month from 1 to 31, and is
-      only supported for cron schedule create and modify.
+      -1 represents all days of a month from 1 to 31.
       Range is [-1..31]
     type: list
-    elements: str
+    elements: int
   job_days_of_week:
     version_added: 2.8.0
     description:
     - The day(s) in the week when the job should be run.
       Job Manager cron scheduling day of week.
-      Zero represents Sunday. -1 represents all days of a week and is
-      only supported for cron schedule create and modify.
+      Zero represents Sunday. -1 represents all days of a week.
       Range is [-1..6]
     type: list
-    elements: str
+    elements: int
+  month_offset:
+    description:
+      - whether January starts at 0 or 1.  By default, ZAPI is using a 0..11 range, while REST is using 1..12.
+      - default to 0 when using ZAPI, and to 1 when using REST.
+      - when set to 0, a value of 12 or higher is rejected.
+      - when set to 1, a value of 0 or of 13 or higher is rejected.
+    type: int
+    choices: [0, 1]
+    version_added: 21.9.0
 '''
 
 EXAMPLES = """
@@ -98,6 +103,41 @@ EXAMPLES = """
         job_hours: 23
         job_days_of_month: 10
         job_months: -1
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
+      na_ontap_job_schedule:
+        state: present
+        name: jobName
+        job_minutes: 30
+        job_hours: 23
+        job_days_of_month: 10
+        job_months: 1,4,7,10
+        month_offset: 1
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
+      na_ontap_job_schedule:
+        state: present
+        name: jobName
+        job_minutes: 30
+        job_hours: 23
+        job_days_of_month: 10
+        job_months: 0,3,6,9
+        month_offset: 0
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Create Job for 11.30PM at 10th of January when using REST and February when using ZAPI !!!
+      na_ontap_job_schedule:
+        state: present
+        name: jobName
+        job_minutes: 30
+        job_hours: 23
+        job_days_of_month: 10
+        job_months: 1
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -122,8 +162,6 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
 
 class NetAppONTAPJob(object):
     '''Class with job schedule cron methods'''
@@ -135,11 +173,12 @@ class NetAppONTAPJob(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
-            job_minutes=dict(required=False, type='list', elements='str'),
-            job_months=dict(required=False, type='list', elements='str'),
-            job_hours=dict(required=False, type='list', elements='str'),
-            job_days_of_month=dict(required=False, type='list', elements='str'),
-            job_days_of_week=dict(required=False, type='list', elements='str')
+            job_minutes=dict(required=False, type='list', elements='int'),
+            job_months=dict(required=False, type='list', elements='int'),
+            job_hours=dict(required=False, type='list', elements='int'),
+            job_days_of_month=dict(required=False, type='list', elements='int'),
+            job_days_of_week=dict(required=False, type='list', elements='int'),
+            month_offset=dict(required=False, type='int', choices=[0, 1])
         ))
 
         self.uuid = None
@@ -157,11 +196,20 @@ class NetAppONTAPJob(object):
         if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            if HAS_NETAPP_LIB is False:
+            if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(
                     msg="the python NetApp-Lib module is required")
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+
+        self.month_offset = self.parameters.get('month_offset')
+        if self.month_offset is None:
+            # maintain backward compatibility
+            self.month_offset = 1 if self.use_rest else 0
+        if self.month_offset == 1 and self.parameters.get('job_months') and 0 in self.parameters['job_months']:
+            # we explictly test for 0 as it would be converted to -1, which has a special meaning (all).
+            # other value errors will be reported by the API.
+            self.module.fail_json(msg='Error: 0 is not a valid value in months if month_offset is set to 1: %s' % self.parameters['job_months'])
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
@@ -205,10 +253,9 @@ class NetAppONTAPJob(object):
                 for key, value in self.na_helper.api_list_keys.items():
                     if value in message['records'][0]['cron']:
                         job_details[key] = message['records'][0]['cron'][value]
-                # convert list of int to list of string
-                for key, value in job_details.items():
-                    if isinstance(value, list):
-                        job_details[key] = [str(x) for x in value]
+                # adjust offsets if necessary
+                if 'job_months' in job_details and self.month_offset == 0:
+                    job_details['job_months'] = [x - 1 for x in job_details['job_months']]
                 return job_details
 
         else:
@@ -233,10 +280,14 @@ class NetAppONTAPJob(object):
                     job_details[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
                                                                               zapi_parent=job_info.get_child_by_name(parent)
                                                                               )
+                    if item_key == 'job_months' and self.month_offset == 1:
+                        job_details[item_key] = [int(x) + 1 for x in job_details[item_key]]
+                    else:
+                        job_details[item_key] = [int(x) for x in job_details[item_key]]
                     # if any of the job_hours, job_minutes, job_months, job_days are empty:
                     # it means the value is -1 for ZAPI
                     if not job_details[item_key]:
-                        job_details[item_key] = ['-1']
+                        job_details[item_key] = [-1]
             return job_details
 
     def add_job_details(self, na_element_object, values):
@@ -246,16 +297,23 @@ class NetAppONTAPJob(object):
         :param values: dictionary of cron values to be added
         :return: None
         """
-        for item_key in values:
+        for item_key, item_value in values.items():
             if item_key in self.na_helper.zapi_string_keys:
                 zapi_key = self.na_helper.zapi_string_keys.get(item_key)
-                na_element_object[zapi_key] = values[item_key]
+                na_element_object[zapi_key] = item_value
             elif item_key in self.na_helper.zapi_list_keys:
                 parent_key, child_key = self.na_helper.zapi_list_keys.get(item_key)
+                data = item_value
+                if data:
+                    if item_key == 'job_months' and self.month_offset == 1:
+                        # -1 is a special value
+                        data = [str(x - 1) if x > 0 else str(x) for x in data]
+                    else:
+                        data = [str(x) for x in data]
                 na_element_object.add_child_elem(self.na_helper.get_value_for_list(from_zapi=False,
                                                                                    zapi_parent=parent_key,
                                                                                    zapi_child=child_key,
-                                                                                   data=values.get(item_key)))
+                                                                                   data=data))
 
     def create_job_schedule(self):
         """
@@ -270,12 +328,15 @@ class NetAppONTAPJob(object):
             for key, value in self.na_helper.api_list_keys.items():
                 # -1 means all in zapi, while empty means all in api.
                 if self.parameters.get(key):
-                    if len(self.parameters[key]) == 1 and int(self.parameters[key][0]) == -1:
+                    if len(self.parameters[key]) == 1 and self.parameters[key][0] == -1:
                         # need to set empty value for minutes as this is required parameter
                         if value == 'minutes':
                             cron[value] = []
                     else:
-                        cron[value] = self.parameters[key]
+                        if key == 'job_months' and self.month_offset == 0:
+                            cron[value] = [x + 1 for x in self.parameters[key]]
+                        else:
+                            cron[value] = self.parameters[key]
 
             params = {
                 'name': self.parameters['name'],
@@ -326,10 +387,13 @@ class NetAppONTAPJob(object):
             for key, value in self.na_helper.api_list_keys.items():
                 # -1 means all in zapi, while empty means all in api.
                 if params.get(key):
-                    if len(self.parameters[key]) == 1 and int(self.parameters[key][0]) == -1:
+                    if len(self.parameters[key]) == 1 and self.parameters[key][0] == -1:
                         pass
                     else:
-                        cron[value] = self.parameters[key]
+                        if key == 'job_months' and self.month_offset == 0:
+                            cron[value] = [x + 1 for x in self.parameters[key]]
+                        else:
+                            cron[value] = self.parameters[key]
                 # Usually only include modify attributes, but omitting an attribute means all in api.
                 # Need to add the current attributes in params.
                 elif current.get(key):
@@ -371,16 +435,13 @@ class NetAppONTAPJob(object):
         action = self.na_helper.get_cd_action(current, self.parameters)
         if action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if action == 'create':
-                    self.create_job_schedule()
-                elif action == 'delete':
-                    self.delete_job_schedule()
-                elif modify:
-                    self.modify_job_schedule(modify, current)
+        if self.na_helper.changed and not self.module.check_mode:
+            if action == 'create':
+                self.create_job_schedule()
+            elif action == 'delete':
+                self.delete_job_schedule()
+            elif modify:
+                self.modify_job_schedule(modify, current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

@@ -45,7 +45,8 @@ SRR = {
                         ],
                         "weekdays": [
                             0
-                        ]
+                        ],
+                        "months": [5, 6]
                     }
                 }
             ],
@@ -94,10 +95,12 @@ class MockONTAPConnection(object):
         self.params = data
         self.xml_in = None
         self.xml_out = None
+        self.call_log = list()
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        self.call_log.append(xml.to_string())
         if self.kind == 'job':
             xml = self.build_job_schedule_cron_info(self.params)
         elif self.kind == 'job_multiple':
@@ -163,9 +166,9 @@ class TestMyModule(unittest.TestCase):
         self.addCleanup(self.mock_module_helper.stop)
         self.mock_job = {
             'name': 'test_job',
-            'minutes': '25',
-            'job_hours': ['0'],
-            'weekdays': ['0']
+            'minutes': 25,
+            'job_hours': [0],
+            'weekdays': [0]
         }
 
     def mock_args(self, rest=False):
@@ -232,8 +235,30 @@ class TestMyModule(unittest.TestCase):
         result = self.get_job_mock_object('job_multiple').get_job_schedule()
         print(str(result))
         assert result['name'] == self.mock_job['name']
-        assert result['job_minutes'] == ['25', '35']
-        assert result['job_months'] == ['5', '10']
+        assert result['job_minutes'] == [25, 35]
+        assert result['job_months'] == [5, 10]
+
+    def test_get_existing_job_multiple_minutes_0_offset(self):
+        ''' Test if get_job_schedule retuns job details for existing job '''
+        data = self.mock_args()
+        data['month_offset'] = 0
+        set_module_args(data)
+        result = self.get_job_mock_object('job_multiple').get_job_schedule()
+        print(str(result))
+        assert result['name'] == self.mock_job['name']
+        assert result['job_minutes'] == [25, 35]
+        assert result['job_months'] == [5, 10]
+
+    def test_get_existing_job_multiple_minutes_1_offset(self):
+        ''' Test if get_job_schedule retuns job details for existing job '''
+        data = self.mock_args()
+        data['month_offset'] = 1
+        set_module_args(data)
+        result = self.get_job_mock_object('job_multiple').get_job_schedule()
+        print(str(result))
+        assert result['name'] == self.mock_job['name']
+        assert result['job_minutes'] == [25, 35]
+        assert result['job_months'] == [5 + 1, 10 + 1]
 
     def test_create_error_missing_param(self):
         ''' Test if create throws an error if job_minutes is not specified'''
@@ -248,9 +273,38 @@ class TestMyModule(unittest.TestCase):
     def test_successful_create(self):
         ''' Test successful create '''
         set_module_args(self.mock_args())
+        uut = self.get_job_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object().apply()
+            uut.apply()
         assert exc.value.args[0]['changed']
+
+    def test_successful_create_0_offset(self):
+        ''' Test successful create '''
+        data = self.mock_args()
+        data['month_offset'] = 0
+        data['job_months'] = [0, 8]
+        set_module_args(data)
+        uut = self.get_job_mock_object()
+        with pytest.raises(AnsibleExitJson) as exc:
+            uut.apply()
+        assert exc.value.args[0]['changed']
+        print(uut.server.call_log)
+        assert b"<cron-month>0</cron-month>" in uut.server.call_log[1]
+        assert b"<cron-month>8</cron-month>" in uut.server.call_log[1]
+
+    def test_successful_create_1_offset(self):
+        ''' Test successful create '''
+        data = self.mock_args()
+        data['month_offset'] = 1
+        data['job_months'] = [1, 9]
+        set_module_args(data)
+        uut = self.get_job_mock_object()
+        with pytest.raises(AnsibleExitJson) as exc:
+            uut.apply()
+        assert exc.value.args[0]['changed']
+        print(uut.server.call_log)
+        assert b"<cron-month>0</cron-month>" in uut.server.call_log[1]
+        assert b"<cron-month>8</cron-month>" in uut.server.call_log[1]
 
     def test_create_idempotency(self):
         ''' Test create idempotency '''
@@ -308,6 +362,8 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_job_mock_object(call_type='rest').apply()
         assert exc.value.args[0]['changed']
+        print(mock_request.mock_calls)
+        print(mock_request.call_args[1]['json']['cron'])
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_create_idempotency(self, mock_request):
@@ -367,3 +423,125 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_job_mock_object(call_type='rest').apply()
         assert 'Error on deleting job schedule: Expected error' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_get_0_offset(self, mock_request):
+        '''Test rest get using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 0
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_schedule'],
+            SRR['end_of_sequence']
+        ]
+        record = self.get_job_mock_object(call_type='rest').get_job_schedule()
+        print('RECORD', record)
+        assert record
+        assert record['job_months'] == [x - 1 for x in SRR['get_schedule'][1]['records'][0]['cron']['months']]
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_get_1_offset(self, mock_request):
+        '''Test rest get using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 1
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_schedule'],
+            SRR['end_of_sequence']
+        ]
+        record = self.get_job_mock_object(call_type='rest').get_job_schedule()
+        print('RECORD', record)
+        assert record
+        assert record['job_months'] == SRR['get_schedule'][1]['records'][0]['cron']['months']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_create_0_offset(self, mock_request):
+        '''Test rest create using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 0
+        data['job_months'] = [0, 8]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['end_of_sequence']
+        ]
+        self.get_job_mock_object(call_type='rest').create_job_schedule()
+        assert mock_request.call_args
+        assert mock_request.call_args[1]['json']['cron']['months'] == [x + 1 for x in data['job_months']]
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_create_1_offset(self, mock_request):
+        '''Test rest create using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 1
+        data['job_months'] = [1, 9]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['end_of_sequence']
+        ]
+        self.get_job_mock_object(call_type='rest').create_job_schedule()
+        assert mock_request.call_args
+        assert mock_request.call_args[1]['json']['cron']['months'] == data['job_months']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_modify_0_offset(self, mock_request):
+        '''Test rest modify using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 0
+        data['job_months'] = [0, 8]
+        current, modify = dict(), dict()
+        modify['job_months'] = [0, 8]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_schedule'],
+            SRR['end_of_sequence']
+        ]
+        uut = self.get_job_mock_object(call_type='rest')
+        uut.uuid = 'testuuid'
+        uut.modify_job_schedule(modify, current)
+        assert mock_request.call_args
+        assert mock_request.call_args[1]['json']['cron']['months'] == [x + 1 for x in data['job_months']]
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_modify_1_offset(self, mock_request):
+        '''Test rest modify using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 1
+        data['job_months'] = [1, 9]
+        current, modify = dict(), dict()
+        modify['job_months'] = [1, 9]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['end_of_sequence']
+        ]
+        uut = self.get_job_mock_object(call_type='rest')
+        uut.uuid = 'testuuid'
+        uut.modify_job_schedule(modify, current)
+        assert mock_request.call_args
+        assert mock_request.call_args[1]['json']['cron']['months'] == data['job_months']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_month_of_0(self, mock_request):
+        '''Test rest modify using month offset'''
+        data = self.mock_args(rest=True)
+        data['month_offset'] = 1
+        data['job_months'] = [0, 9]
+        current, modify = dict(), dict()
+        modify['job_months'] = [1, 9]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_job_mock_object(call_type='rest')
+        msg = 'Error: 0 is not a valid value in months if month_offset is set to 1'
+        assert msg in exc.value.args[0]['msg']
