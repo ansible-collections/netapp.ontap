@@ -331,6 +331,12 @@ def is_zapi_write_access_error(message):
     return False
 
 
+def ems_log_event_cserver(source, server, module):
+    results = get_cserver(server)
+    cserver = setup_na_ontap_zapi(module=module, vserver=results)
+    ems_log_event(source, cserver)
+
+
 def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
                   category="Information", event="setup", autosupport="false"):
     ems_log = zapi.NaElement('ems-autosupport-log')
