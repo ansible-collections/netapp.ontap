@@ -15,7 +15,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli \
-    import NetAppONTAPCommandREST as rest_cli_module  # module under test
+    import NetAppONTAPCommandREST as rest_cli_module, main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -58,22 +58,6 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     """function to patch over fail_json; package return data into an exception"""
     kwargs['failed'] = True
     raise AnsibleFailJson(kwargs)
-
-
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, data=None):
-        ''' save arguments '''
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        self.xml_out = xml
-        return xml
 
 
 class TestMyModule(unittest.TestCase):
@@ -135,3 +119,68 @@ class TestMyModule(unittest.TestCase):
             self.get_cli_mock_object().apply()
         assert exc.value.args[0]['changed']
         assert 'Allow' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_connection_error(self, mock_request):
+        data = dict(self.mock_args())
+        data['verb'] = 'OPTIONS'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['generic_error'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_cli_mock_object().apply()
+        msg = "failed to connect to REST over test: ['Expected error'].  Use na_ontap_command for non-rest CLI."
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def check_verb(self, verb, mock_request):
+        data = dict(self.mock_args())
+        data['verb'] = verb
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['allow'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_cli_mock_object().apply()
+        assert exc.value.args[0]['changed']
+        assert 'Allow' in exc.value.args[0]['msg']
+        assert mock_request.call_args[0][0] == verb
+
+    def test_verbs(self):
+        for verb in ['POST', 'DELETE', 'PATCH', 'OPTIONS', 'PATCH']:
+            self.check_verb(verb)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_verb(self, mock_request):
+        data = dict(self.mock_args())
+        data['verb'] = 'GET'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        uut = self.get_cli_mock_object()
+        with pytest.raises(AnsibleFailJson) as exc:
+            uut.verb = 'INVALID'
+            uut.run_command()
+        msg = 'Error: unexpected verb INVALID'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_error(self, mock_request):
+        data = dict(self.mock_args())
+        data['verb'] = 'GET'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            main()
+        msg = 'Error: Expected error'
+        assert msg in exc.value.args[0]['msg']

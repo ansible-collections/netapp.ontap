@@ -32,9 +32,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_job_schedule - new option `month_offset` to explictly select 0 or 1 for January.
 
+### Added REST support to existing modules
+  - na_ontap_snmp - Added REST support to the SNMP module
+
 ### Bug Fixes
   - na_ontap_job_schedule - fix documentation for REST ranges for months.
   - na_ontap_quotas - attempt a retry on `13001:success` ZAPI error.  Add debug data.
+  - na_ontap_rest_cli - removed incorrect statement indicating that console access is required.
 
 ## 21.8.1
 

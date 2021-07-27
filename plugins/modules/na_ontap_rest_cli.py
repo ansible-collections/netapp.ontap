@@ -10,18 +10,16 @@ na_ontap_rest_cli
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - "Run system-cli commands on ONTAP"
+  - Run CLI commands on ONTAP through REST api/private/cli/.
+  - This module can run as admin or vsdamin and requires HTTP application to be enabled.
+  - Access permissions can be customized using ONTAP rest-role.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_rest_cli
-short_description: NetApp ONTAP Run any cli command, the username provided needs to have console login permission.
+short_description: NetApp ONTAP run any CLI command using REST api/private/cli/
 version_added: 2.9.0
 options:
     command:
@@ -48,7 +46,7 @@ options:
 
 EXAMPLES = """
     - name: run ontap rest cli command
-      na_ontap_rest_cli:
+      netapp.ontap.na_ontap_rest_cli:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
@@ -56,7 +54,7 @@ EXAMPLES = """
         verb: 'GET'
 
     - name: run ontap rest cli command
-      na_ontap_rest_cli:
+      netapp.ontap.na_ontap_rest_cli:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
@@ -75,7 +73,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
 
-class NetAppONTAPCommandREST(object):
+class NetAppONTAPCommandREST():
     ''' calls a CLI command '''
 
     def __init__(self):
@@ -102,7 +100,9 @@ class NetAppONTAPCommandREST(object):
         if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            self.module.fail_json(msg="use na_ontap_command for non-rest cli")
+            msg = 'failed to connect to REST over %s: %s' % (parameters['hostname'], self.rest_api.errors)
+            msg += '.  Use na_ontap_command for non-rest CLI.'
+            self.module.fail_json(msg=msg)
 
     def run_command(self):
         api = "private/cli/" + self.command
@@ -118,11 +118,11 @@ class NetAppONTAPCommandREST(object):
         elif self.verb == 'OPTIONS':
             message, error = self.rest_api.options(api, self.params)
         else:
-            self.module.fail_json(msg='Error running command %s:' % self.command,
+            self.module.fail_json(msg='Error: unexpected verb %s' % self.verb,
                                   exception=traceback.format_exc())
 
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error: %s' % error)
         return message
 
     def apply(self):
