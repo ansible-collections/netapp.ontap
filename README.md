@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_job_schedule - new option `month_offset` to explictly select 0 or 1 for January.
+  - na_ontap_rest_info - new option `use_python_keys` to replace `svm/svms` with `svm_svms` to simplify post processing.
 
 ### Added REST support to existing modules
   - na_ontap_snmp - Added REST support to the SNMP module

@@ -14,7 +14,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info \
-    import NetAppONTAPGatherInfo as ontap_rest_info_module
+    import NetAppONTAPGatherInfo as ontap_rest_info_module, main
 
 # REST API canned responses when mocking send_request
 SRR = {
@@ -551,3 +551,21 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(exc.value.args))
         assert exc.value.args[0]['ontap_info']['storage/volumes']['num_records'] == total_records
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass_python_keys(self, mock_request):
+        args = self.set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+        args['use_python_keys'] = True
+        args['state'] = 'info'
+        set_module_args(args)
+        total_records = 5
+        mock_request.side_effect = [
+            SRR['validate_ontap_version_pass'],
+            SRR['get_subset_info_with_next'],
+            SRR['get_next_record'],
+        ]
+
+        with pytest.raises(AnsibleExitJson) as exc:
+            main()
+        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(exc.value.args))
+        assert exc.value.args[0]['ontap_info']['storage_volumes']['num_records'] == total_records

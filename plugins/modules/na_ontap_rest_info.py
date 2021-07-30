@@ -119,6 +119,14 @@ options:
         - Allows for any rest option to be passed in
         type: dict
         version_added: '20.7.0'
+    use_python_keys:
+        description:
+        - If true, I(/) in the returned dictionary keys are translated to I(_).
+        - It makes it possible to use a . notation when processing the output.
+        - For instance I(ontap_info["svm/svms"]) can be accessed as I(ontap_info.svm_svms).
+        type: bool
+        default: false
+        version_added: '21.9.0'
 '''
 
 EXAMPLES = '''
@@ -160,12 +168,12 @@ EXAMPLES = '''
       password: "test-password"
       https: true
       fields:
-      - '*'
+        - '*'
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - aggregate_info
-      - volume_info
+        - aggregate_info
+        - volume_info
 - name: run ONTAP gather facts for aggregate info with specified fields
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -173,13 +181,13 @@ EXAMPLES = '''
       password: "test-password"
       https: true
       fields:
-      - 'uuid'
-      - 'name'
-      - 'node'
+        - 'uuid'
+        - 'name'
+        - 'node'
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - aggregate_info
+        - aggregate_info
       parameters:
         recommend:
           true
@@ -195,6 +203,7 @@ EXAMPLES = '''
       parameters:
         name: ansible*
         state: online
+      use_python_keys: true
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -217,7 +226,8 @@ class NetAppONTAPGatherInfo(object):
             gather_subset=dict(default=['all'], type='list', elements='str', required=False),
             max_records=dict(type='int', default=1024, required=False),
             fields=dict(type='list', elements='str', required=False),
-            parameters=dict(type='dict', required=False)
+            parameters=dict(type='dict', required=False),
+            use_python_keys=dict(type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
@@ -645,6 +655,9 @@ class NetAppONTAPGatherInfo(object):
         if self.parameters.get('state') is not None:
             results['state'] = self.parameters['state']
             results['warnings'] = "option 'state' is deprecated."
+        if self.parameters['use_python_keys']:
+            new_dict = dict((key.replace('/', '_'), value) for (key, value) in result_message.items())
+            result_message = new_dict
         self.module.exit_json(ontap_info=result_message, **results)
 
 
