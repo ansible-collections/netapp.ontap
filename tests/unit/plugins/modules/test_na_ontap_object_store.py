@@ -227,7 +227,7 @@ class TestMyModule(unittest.TestCase):
         my_obj = my_module()
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+        assert exc.value.args[0]['msg'] == 'Error calling: cloud/targets: got %s.' % SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_create(self, mock_request):

@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_job_schedule - new option `month_offset` to explictly select 0 or 1 for January.
+  - na_ontap_object_store - new options `port`, `certificate_validation_enabled`, `ssl_enabled` for target server.
   - na_ontap_rest_info - new option `use_python_keys` to replace `svm/svms` with `svm_svms` to simplify post processing.
 
 ### Added REST support to existing modules
@@ -42,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_job_schedule - fix documentation for REST ranges for months.
   - na_ontap_quotas - attempt a retry on `13001:success` ZAPI error.  Add debug data.
+  - na_ontap_object_store - when using REST, wait for job status to correctly report errors.
   - na_ontap_rest_cli - removed incorrect statement indicating that console access is required.
 
 ## 21.8.1

@@ -11,11 +11,6 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 
 module: na_ontap_object_store
@@ -44,39 +39,54 @@ options:
     type: str
 
   provider_type:
-    required: false
     description:
     - The name of the object store config provider.
     type: str
 
   server:
-    required: false
     description:
     - Fully qualified domain name of the object store config.
     type: str
 
+  port:
+    description:
+    - Port number of the object store that ONTAP uses when establishing a connection.
+    type: int
+    version_added: 21.9.0
+
   container:
-    required: false
     description:
     - Data bucket/container name used in S3 requests.
     type: str
 
   access_key:
-    required: false
     description:
     - Access key ID for AWS_S3 and SGWS provider types.
     type: str
 
   secret_password:
-    required: false
     description:
     - Secret access key for AWS_S3 and SGWS provider types.
     type: str
+
+  certificate_validation_enabled:
+    description:
+    - Is SSL/TLS certificate validation enabled?
+    - If not specified, ONTAP will default to true.
+    type: bool
+    version_added: 21.9.0
+
+  ssl_enabled:
+    description:
+    - Is SSL enabled?
+    - If not specified, ONTAP will default to true.
+    type: bool
+    version_added: 21.9.0
 '''
 
 EXAMPLES = """
 - name: object store Create
-  na_ontap_object_store:
+  netapp.ontap.na_ontap_object_store:
     state: present
     name: ansible
     provider_type: SGWS
@@ -89,7 +99,7 @@ EXAMPLES = """
     password: "{{ password }}"
 
 - name: object store Create
-  na_ontap_object_store:
+  netapp.ontap.na_ontap_object_store:
     state: absent
     name: ansible
     hostname: "{{ hostname }}"
@@ -107,11 +117,10 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapObjectStoreConfig(object):
+class NetAppOntapObjectStoreConfig():
     ''' object initialize and class methods '''
 
     def __init__(self):
@@ -124,7 +133,10 @@ class NetAppOntapObjectStoreConfig(object):
             server=dict(required=False, type='str'),
             container=dict(required=False, type='str'),
             access_key=dict(required=False, type='str', no_log=True),
-            secret_password=dict(required=False, type='str', no_log=True)
+            secret_password=dict(required=False, type='str', no_log=True),
+            port=dict(required=False, type='int'),
+            certificate_validation_enabled=dict(required=False, type='bool'),
+            ssl_enabled=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -140,7 +152,7 @@ class NetAppOntapObjectStoreConfig(object):
         if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            if HAS_NETAPP_LIB is False:
+            if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -153,15 +165,14 @@ class NetAppOntapObjectStoreConfig(object):
             None if object store config is not found
         """
         if self.use_rest:
-            data = {'fields': 'uuid,name',
-                    'name': self.parameters['name']}
+            query = {'fields': 'uuid,name',
+                     'name': self.parameters['name']}
             api = "cloud/targets"
-            message, error = self.rest_api.get(api, data)
+            response, error = self.rest_api.get(api, query)
+            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
             if error:
-                self.module.fail_json(msg=error)
-            if len(message['records']) != 0:
-                return message['records'][0]
-            return None
+                self.module.fail_json(msg='Error %s' % error)
+            return record
         else:
             aggr_object_store_get_iter = netapp_utils.zapi.NaElement.create_node_with_children(
                 'aggr-object-store-config-get', **{'object-store-name': self.parameters['name']})
@@ -194,10 +205,17 @@ class NetAppOntapObjectStoreConfig(object):
                     'owner': 'fabricpool'}
             if self.parameters.get('secret_password'):
                 data['secret_password'] = self.parameters['secret_password']
+            if self.parameters.get('port') is not None:
+                data['port'] = self.parameters['port']
+            if self.parameters.get('certificate_validation_enabled') is not None:
+                data['certificate_validation_enabled'] = self.parameters['certificate_validation_enabled']
+            if self.parameters.get('ssl_enabled') is not None:
+                data['ssl_enabled'] = self.parameters['ssl_enabled']
             api = "cloud/targets"
-            dummy, error = self.rest_api.post(api, data)
+            response, error = self.rest_api.post(api, data)
+            dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error %s' % error)
         else:
             options = {'object-store-name': self.parameters['name'],
                        'provider-type': self.parameters['provider_type'],
@@ -206,6 +224,12 @@ class NetAppOntapObjectStoreConfig(object):
                        'access-key': self.parameters['access_key']}
             if self.parameters.get('secret_password'):
                 options['secret-password'] = self.parameters['secret_password']
+            if self.parameters.get('port') is not None:
+                options['port'] = str(self.parameters['port'])
+            if self.parameters.get('certificate_validation_enabled') is not None:
+                options['is-certificate-validation-enabled'] = str(self.parameters['certificate_validation_enabled']).lower()
+            if self.parameters.get('ssl_enabled') is not None:
+                options['ssl-enabled'] = str(self.parameters['ssl_enabled']).lower()
             object_store_create = netapp_utils.zapi.NaElement.create_node_with_children('aggr-object-store-config-create', **options)
 
             try:
@@ -222,9 +246,10 @@ class NetAppOntapObjectStoreConfig(object):
         """
         if self.use_rest:
             api = "cloud/targets/%s" % uuid
-            dummy, error = self.rest_api.delete(api)
+            response, error = self.rest_api.delete(api)
+            dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error %s' % error)
         else:
             object_store_destroy = netapp_utils.zapi.NaElement.create_node_with_children(
                 'aggr-object-store-config-delete', **{'object-store-name': self.parameters['name']})
@@ -258,16 +283,13 @@ class NetAppOntapObjectStoreConfig(object):
         current = self.get_aggr_object_store()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_aggr_object_store()
-                elif cd_action == 'delete':
-                    if self.use_rest:
-                        uuid = current['uuid']
-                    self.delete_aggr_object_store(uuid)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_aggr_object_store()
+            elif cd_action == 'delete':
+                if self.use_rest:
+                    uuid = current['uuid']
+                self.delete_aggr_object_store(uuid)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

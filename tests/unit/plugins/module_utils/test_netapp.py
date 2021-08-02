@@ -638,3 +638,79 @@ def test_empty_get_sent_bad_but_empty_json(mock_request):
     rest_api = create_restapi_object(mock_args())
     message, error = rest_api.get('api', None)
     assert not error
+
+
+def test_wait_on_job_bad_url():
+    ''' URL format error '''
+    rest_api = create_restapi_object(mock_args())
+    api = 'testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = "URL Incorrect format: list index out of range - Job: {'_links': {'self': {'href': 'testme'}}}"
+    assert msg in error
+
+
+@patch('time.sleep')
+@patch('requests.request')
+def test_wait_on_job_timeout(mock_request, sleep_mock):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data='', status_code=200, raise_action='bad_json')
+    rest_api = create_restapi_object(mock_args())
+    api = 'api/testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = 'Timeout error: Process still running'
+    assert msg in error
+
+
+@patch('time.sleep')
+@patch('requests.request')
+def test_wait_on_job_job_error(mock_request, sleep_mock):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data=dict(error='Job error message'), status_code=200)
+    rest_api = create_restapi_object(mock_args())
+    api = 'api/testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = 'Job error message'
+    assert msg in error
+
+
+@patch('requests.request')
+def test_wait_on_job_job_failure(mock_request):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='failure', message='failure message'), status_code=200)
+    rest_api = create_restapi_object(mock_args())
+    api = 'api/testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = 'failure message'
+    assert msg in error
+    assert not message
+
+
+@patch('time.sleep')
+@patch('requests.request')
+def test_wait_on_job_timeout_running(mock_request, sleep_mock):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='running', message='any message'), status_code=200)
+    rest_api = create_restapi_object(mock_args())
+    api = 'api/testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = 'Timeout error: Process still running'
+    assert msg in error
+    assert message == 'any message'
+
+
+@patch('requests.request')
+def test_wait_on_job(mock_request):
+    ''' get with no data '''
+    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='other', message='any message'), status_code=200)
+    rest_api = create_restapi_object(mock_args())
+    api = 'api/testme'
+    job = dict(_links=dict(self=dict(href=api)))
+    message, error = rest_api.wait_on_job(job)
+    msg = 'Job error message'
+    assert msg in error
+    assert message == 'any message'

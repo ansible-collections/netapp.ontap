@@ -730,7 +730,8 @@ class OntapRestAPI(object):
         try:
             url = job['_links']['self']['href'].split('api/')[1]
         except Exception as err:
-            self.log_error(0, 'URL Incorrect format: %s\n Job: %s' % (err, job))
+            self.log_error(0, 'URL Incorrect format: %s - Job: %s' % (err, job))
+            return None, 'URL Incorrect format: %s - Job: %s' % (err, job)
         # Expecting job to be in the following format
         # {'job':
         #     {'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
@@ -749,7 +750,9 @@ class OntapRestAPI(object):
         while keep_running:
             # Will run every every <increment> seconds for <timeout> seconds
             job_json, job_error = self.get(url, None)
-            if job_error:
+            job_state = job_json.get('state', None) if job_json else None
+            # ignore error if status is provided in the job
+            if job_error and job_state is None:
                 error = job_error
                 retries += 1
                 if retries > max_retries:
@@ -773,18 +776,24 @@ class OntapRestAPI(object):
                 #   }
                 # }
 
-                message = job_json.get('message', '')
-                if job_json['state'] == 'failure':
+                message = job_json.get('message', '') if job_json else None
+                if job_state == 'failure':
                     # if the job has failed, return message as error
                     return None, message
-                if job_json['state'] not in ('queued', 'running'):
+                if job_state not in ('queued', 'running', None):
                     keep_running = False
+                    if error is None:
+                        error = job_error
                 else:
                     # Would like to post a message to user (not sure how)
                     if runtime >= timeout:
                         keep_running = False
-                        if job_json['state'] != 'success':
+                        if job_state != 'success':
                             self.log_error(0, 'Timeout error: Process still running')
+                            if error is None:
+                                error = 'Timeout error: Process still running'
+                                if job_error is not None:
+                                    error += ' - %s' % job_error
             if keep_running:
                 time.sleep(increment)
                 runtime += increment
