@@ -60,6 +60,7 @@ options:
                 "disk_info" or "storage/disks",
                 "event_notification_info" or "support/ems/destinations",
                 "event_notification_destination_info" or "support/ems/destinations",
+                "file_directory_security" or "private/cli/vserver/security/file-directory",
                 "initiator_groups_info" or "protocols/san/igroups",
                 "ip_interfaces_info" or "network/ip/interfaces",
                 "ip_routes_info" or "network/ip/routes",
@@ -140,6 +141,7 @@ EXAMPLES = '''
       use_rest: Always
       gather_subset:
       - vserver_info
+
 - name: run ONTAP gather facts for aggregate info and volume info
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -151,6 +153,7 @@ EXAMPLES = '''
       gather_subset:
       - aggregate_info
       - volume_info
+
 - name: run ONTAP gather facts for all subsets
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -161,6 +164,7 @@ EXAMPLES = '''
       use_rest: Always
       gather_subset:
       - all
+
 - name: run ONTAP gather facts for aggregate info and volume info with fields section
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -174,6 +178,7 @@ EXAMPLES = '''
       gather_subset:
         - aggregate_info
         - volume_info
+
 - name: run ONTAP gather facts for aggregate info with specified fields
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -191,6 +196,7 @@ EXAMPLES = '''
       parameters:
         recommend:
           true
+
 - name: run ONTAP gather facts for volume info with query on name and state
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -203,6 +209,18 @@ EXAMPLES = '''
       parameters:
         name: ansible*
         state: online
+- name: run ONTAP gather fact to get DACLs
+  netapp.ontap.na_ontap_rest_info:
+    hostname: "1.2.3.4"
+    username: "testuser"
+    password: "test-password"
+    https: true
+    validate_certs: false
+    gather_subset:
+        - file_directory_security
+    parameters:
+      vserver: svm1
+      path: /vol1/qtree1
       use_python_keys: true
 '''
 
@@ -299,6 +317,30 @@ class NetAppONTAPGatherInfo(object):
 
         return None
 
+    def strip_dacls(self, response):
+        # Use 'DACL - ACE' as a marker for the start of the list of DACLS in the descriptor.
+        if 'acls' in response['records'][0]:
+            if 'DACL - ACEs' in response['records'][0]['acls']:
+                index = response['records'][0]['acls'].index('DACL - ACEs')
+                dacls = response['records'][0]['acls'][(index + 1):]
+
+                dacl_list = []
+                if dacls:
+                    for dacl in dacls:
+                        dacl_dict = {}
+                        # The '-' marker is the start of the DACL, the '-0x' marker is the end of the DACL.
+                        start_hyphen = dacl.index('-') + 1
+                        first_hyphen_removed = dacl[start_hyphen:]
+                        end_hyphen = first_hyphen_removed.index('-0x')
+                        dacl_dict['access_type'] = dacl[:start_hyphen - 1].strip()
+                        dacl_dict['user_or_group'] = first_hyphen_removed[:end_hyphen]
+                        dacl_list.append(dacl_dict)
+                return dacl_list
+            else:
+                return None
+        else:
+            return None
+
     def run_post(self, gather_subset_info):
         api = gather_subset_info['api_call']
         post_return, error = self.rest_api.post(api, None)
@@ -335,7 +377,10 @@ class NetAppONTAPGatherInfo(object):
             else:
                 fields = '?fields=' + ','.join(self.parameters.get('fields'))
 
-            return str(fields)
+        if api == 'private/cli/vserver/security/file-directory':
+            fields = '?fields=acls'
+
+        return str(fields)
 
     def convert_subsets(self):
         """
@@ -366,6 +411,7 @@ class NetAppONTAPGatherInfo(object):
             "disk_info": "storage/disks",
             "event_notification_info": "support/ems/destinations",
             "event_notification_destination_info": "support/ems/destinations",
+            "file_directory_security": "private/cli/vserver/security/file-directory",
             "initiator_groups_info": "protocols/san/igroups",
             "ip_interfaces_info": "network/ip/interfaces",
             "ip_routes_info": "network/ip/routes",
@@ -609,6 +655,11 @@ class NetAppONTAPGatherInfo(object):
                 'api_call': 'svm/svms',
             }
         }
+        if 'gather_subset' in self.parameters:
+            if ('private/cli/vserver/security/file-directory' in self.parameters['gather_subset'] or
+                    'file_directory_security' in self.parameters['gather_subset']):
+                get_ontap_subset_info['private/cli/vserver/security/file-directory'] = {
+                    'api_call': 'private/cli/vserver/security/file-directory' + self.private_cli_fields('private/cli/vserver/security/file-directory')}
 
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
@@ -650,6 +701,8 @@ class NetAppONTAPGatherInfo(object):
                     if result_message[subset].get('records') is not None:
                         # Getting total number of records
                         result_message[subset]['num_records'] = len(result_message[subset]['records'])
+                if subset == 'private/cli/vserver/security/file-directory':
+                    result_message[subset] = self.strip_dacls(result_message[subset])
 
         results = {'changed': False}
         if self.parameters.get('state') is not None:

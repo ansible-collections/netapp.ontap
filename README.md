@@ -29,6 +29,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.9.0
 
+### Minor Changes
+  - na_ontap_rest_info -  added file_directory_security to return the effective permissions of the directory. When using file_directory_security it must be called with gather_subsets and path and vserver must be specified in parameters.
+
 ### New Options
   - na_ontap_job_schedule - new option `month_offset` to explictly select 0 or 1 for January.
   - na_ontap_rest_info - new option `use_python_keys` to replace `svm/svms` with `svm_svms` to simplify post processing.
