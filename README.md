@@ -30,6 +30,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.9.0
 
 ### Minor Changes
+  - na_ontap_rest_info - The Default for `gather_subset` has been changed to demo which returns `cluster/software`, `svm/svms`, `cluster/nodes`. To return all Info must specificly list `all` in your playbook. Do note `all` is a very resource-intensive action and it is highly recommended to call just the info/APIs you need.
   - na_ontap_rest_info -  added file_directory_security to return the effective permissions of the directory. When using file_directory_security it must be called with gather_subsets and path and vserver must be specified in parameters.
 
 ### New Options
@@ -39,6 +40,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_snmp - Added REST support to the SNMP module
+  - na_ontap_rest_info - All Info that exist in `na_ontap_info` that has REST equivalents have been implemented. Note that the returned structure for REST and the variable names in the structure is different from the ZAPI based `na_ontap_info`. Some default variables in ZAPI are no longer returned by default in REST and will need to be specified using the `field` option
+  - na_ontap_rest_info - The following info's have been added `system_node_info`, `net_interface_info`, `net_port_info`, `security_login_account_info`, `vserver_peer_info`, `cluster_image_info`, `cluster_log_forwarding_info`, `metrocluster_info`, `metrocluster_node_info`, `net_dns_info`, `net_interface_service_policy_info`, `vserver_nfs_info`, `clock_info`, `igroup_info`, `vscan_status_info`, `vscan_connection_status_all_info`, `storage_bridge_info`, `nvme_info`, `nvme_interface_info`, `nvme_subsystem_info`, `cluster_switch_info`, `export_policy_info`, `kerberos_realm_info`,`sis_info`, `sis_policy_info`, `snapmirror_info`, `snapmirror_destination_info`, `snapmirror_policy_info`, `sys_cluster_alerts`, `cifs_vserver_security_info`
 
 ### Bug Fixes
   - na_ontap_job_schedule - fix documentation for REST ranges for months.

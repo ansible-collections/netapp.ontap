@@ -21,6 +21,7 @@ SRR = {
     # common responses
     'validate_ontap_version_pass': (200, {'version': 'ontap_version'}, None),
     'validate_ontap_version_fail': (200, None, 'API not found error'),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'get_subset_info': (200,
                         {'_links': {'self': {'href': 'dummy_href'}},
                          'num_records': 3,
@@ -85,6 +86,86 @@ SRR = {
                                         "num_records": 3}, None)
 
 }
+ALL_SUBSETS = ['application/applications',
+               'application/templates',
+               'cloud/targets',
+               'cluster',
+               'cluster/chassis',
+               'cluster/jobs',
+               'cluster/licensing/licenses',
+               'cluster/metrocluster',
+               'cluster/metrocluster/diagnostics',
+               'cluster/metrocluster/nodes',
+               'cluster/metrics',
+               'cluster/nodes',
+               'cluster/ntp/servers',
+               'cluster/peers',
+               'cluster/schedules',
+               'cluster/software',
+               'cluster/software/download',
+               'cluster/software/history',
+               'cluster/software/packages',
+               'name-services/dns',
+               'name-services/ldap',
+               'name-services/name-mappings',
+               'name-services/nis',
+               'network/ethernet/broadcast-domains',
+               'network/ethernet/ports',
+               'network/fc/logins',
+               'network/fc/wwpn-aliases',
+               'network/ip/interfaces',
+               'network/ip/routes',
+               'network/ip/service-policies',
+               'network/ipspaces',
+               'network/ethernet/switches',
+               'private/support/alerts',
+               'protocols/cifs/home-directory/search-paths',
+               'protocols/cifs/services',
+               'protocols/cifs/shares',
+               'protocols/nfs/export-policies',
+               'protocols/nfs/kerberos/realms',
+               'protocols/nfs/services',
+               'protocols/nvme/interfaces',
+               'protocols/nvme/services',
+               'protocols/nvme/subsystems',
+               'protocols/san/fcp/services',
+               'protocols/san/igroups',
+               'protocols/san/iscsi/credentials',
+               'protocols/san/iscsi/services',
+               'protocols/san/lun-maps',
+               'protocols/vscan/server-status',
+               'protocols/vscan',
+               'security/accounts',
+               'security/audit/destinations',
+               'security/roles',
+               'snapmirror/policies',
+               'snapmirror/relationships',
+               'storage/aggregates',
+               'storage/bridges',
+               'storage/disks',
+               'storage/flexcache/flexcaches',
+               'storage/flexcache/origins',
+               'storage/luns',
+               'storage/namespaces',
+               'storage/ports',
+               'storage/qos/policies',
+               'storage/qtrees',
+               'storage/quota/reports',
+               'storage/quota/rules',
+               'storage/shelves',
+               'storage/snapshot-policies',
+               'storage/volumes',
+               'storage/volume-efficiency-policies',
+               'support/autosupport',
+               'support/autosupport/check',
+               'support/autosupport/messages',
+               'support/ems',
+               'support/ems/destinations',
+               'support/ems/events',
+               'support/ems/filters',
+               'svm/peers',
+               'svm/peer-permissions',
+               'svm/svms']
 
 
 def set_module_args(args):
@@ -327,22 +408,13 @@ class TestMyModule(unittest.TestCase):
     def test_run_ontap_gather_facts_for_all_subsets_pass(self, mock_request):
         set_module_args(self.set_args_run_ontap_gather_facts_for_all_subsets())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['application/applications', 'application/templates', 'cloud/targets', 'cluster/chassis', 'cluster/jobs',
-                         'cluster/metrocluster/diagnostics', 'cluster/metrics', 'cluster/nodes', 'cluster/peers', 'cluster/schedules',
-                         'cluster/software', 'cluster/software/download', 'cluster/software/history', 'cluster/software/packages',
-                         'name-services/dns', 'name-services/ldap', 'name-services/name-mappings', 'name-services/nis',
-                         'network/ethernet/broadcast-domains', 'network/ethernet/ports', 'network/fc/logins', 'network/fc/wwpn-aliases',
-                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'protocols/cifs/home-directory/search-paths', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'protocols/san/fcp/services', 'protocols/san/igroups', 'protocols/san/iscsi/credentials',
-                         'protocols/san/iscsi/services', 'protocols/san/lun-maps', 'security/accounts', 'security/roles', 'storage/aggregates',
-                         'storage/disks', 'storage/flexcache/flexcaches', 'storage/flexcache/origins', 'storage/luns', 'storage/namespaces',
-                         'storage/ports', 'storage/qos/policies', 'storage/qtrees', 'storage/quota/reports', 'storage/quota/rules',
-                         'storage/shelves', 'storage/snapshot-policies', 'storage/volumes', 'support/autosupport', 'support/autosupport/messages',
-                         'support/ems', 'support/ems/destinations', 'support/ems/events', 'support/ems/filters', 'svm/peers', 'svm/peer-permissions',
-                         'svm/svms', 'support/autosupport/check']
+        # removed cluster/metrocluster/diagnostics
+        gather_subset = ALL_SUBSETS
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -404,7 +476,25 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_private_cli_subset_info'],
+            SRR['end_of_sequence'],
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:
@@ -418,22 +508,13 @@ class TestMyModule(unittest.TestCase):
     def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, mock_request):
         set_module_args(self.set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass())
         my_obj = ontap_rest_info_module()
-        gather_subset = ['application/applications', 'application/templates', 'cloud/targets', 'cluster/chassis', 'cluster/jobs',
-                         'cluster/metrocluster/diagnostics', 'cluster/metrics', 'cluster/nodes', 'cluster/peers', 'cluster/schedules',
-                         'cluster/software', 'cluster/software/download', 'cluster/software/history', 'cluster/software/packages',
-                         'name-services/dns', 'name-services/ldap', 'name-services/name-mappings', 'name-services/nis',
-                         'network/ethernet/broadcast-domains', 'network/ethernet/ports', 'network/fc/logins', 'network/fc/wwpn-aliases',
-                         'network/ip/interfaces', 'network/ip/routes', 'network/ip/service-policies', 'network/ipspaces',
-                         'protocols/cifs/home-directory/search-paths', 'protocols/cifs/services', 'protocols/cifs/shares',
-                         'protocols/san/fcp/services', 'protocols/san/igroups', 'protocols/san/iscsi/credentials',
-                         'protocols/san/iscsi/services', 'protocols/san/lun-maps', 'security/accounts', 'security/roles', 'storage/aggregates',
-                         'storage/disks', 'storage/flexcache/flexcaches', 'storage/flexcache/origins', 'storage/luns', 'storage/namespaces',
-                         'storage/ports', 'storage/qos/policies', 'storage/qtrees', 'storage/quota/reports', 'storage/quota/rules',
-                         'storage/shelves', 'storage/snapshot-policies', 'storage/volumes', 'support/autosupport', 'support/autosupport/messages',
-                         'support/ems', 'support/ems/destinations', 'support/ems/events', 'support/ems/filters', 'svm/peers', 'svm/peer-permissions',
-                         'svm/svms', 'support/autosupport/check']
+        # removed 'cluster/metrocluster/diagnostics',
+        gather_subset = ALL_SUBSETS
         mock_request.side_effect = [
             SRR['validate_ontap_version_pass'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
@@ -495,7 +576,25 @@ class TestMyModule(unittest.TestCase):
             SRR['get_subset_info'],
             SRR['get_subset_info'],
             SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
+            SRR['get_subset_info'],
             SRR['get_private_cli_subset_info'],
+            SRR['end_of_sequence'],
         ]
 
         with pytest.raises(AnsibleExitJson) as exc:
@@ -549,7 +648,8 @@ class TestMyModule(unittest.TestCase):
 
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
-        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(exc.value.args))
+        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(
+            exc.value.args))
         assert exc.value.args[0]['ontap_info']['storage/volumes']['num_records'] == total_records
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -567,5 +667,6 @@ class TestMyModule(unittest.TestCase):
 
         with pytest.raises(AnsibleExitJson) as exc:
             main()
-        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(exc.value.args))
+        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(
+            exc.value.args))
         assert exc.value.args[0]['ontap_info']['storage_volumes']['num_records'] == total_records
