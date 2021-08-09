@@ -155,6 +155,9 @@ class TestMyModule(unittest.TestCase):
         module_args = {}
         module_args.update(self.set_default_args())
         module_args.update({'cifs_server_name': 'delete'})
+        module_args.update({'admin_user_name': 'user1'})
+        module_args.update({'admin_password': 'pw1'})
+        module_args.update({'force': 'false'})
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:

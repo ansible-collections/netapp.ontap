@@ -24,13 +24,20 @@ This role expects the following variables to be set:
 - password: for the user account with admin or vsadmin role.
 - vserver_name: name of vserver to delete.
 
+In order to delete a CIFS server, the following variables are required
+- ad_admin_user_name: AD admin user name
+- ad_admin_password: AD admin password
+
 The following variables are preset but can be changed
 - https: true 
-- validate_certs: true     (true is strongly recommended)
+- validate_certs: true      (true is strongly recommended)
 - debug_level: 0
 - enable_check_mode: false
-- confirm_before_removing_volumes: true
+- confirm_before_removing_cifs_server: true
+- confirm_before_removing_igroups: true
 - confirm_before_removing_interfaces: true
+- confirm_before_removing_volumes: true
+- cifs_force_delete: true   (delete the CIFS server regardless of communication errors)
 
 
 Example Playbook
@@ -57,6 +64,8 @@ Example Playbook
         # uncomment the following line to accept volumes will be permanently deleted
         # removing_volumes_permanently_destroy_user_data: I agree
         # turn confirmation prompts on or off
+        confirm_before_removing_cifs_server: false
+        confirm_before_removing_igroups: false
         confirm_before_removing_interfaces: false
         # optional - change the following to false to remove any confirmation prompt before deleting volumes !!!
         # when confirmations are on, you may receive two prompts:

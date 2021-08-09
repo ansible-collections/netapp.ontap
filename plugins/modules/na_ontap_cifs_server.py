@@ -1,18 +1,12 @@
 #!/usr/bin/python
 """ this is cifs_server module
 
- (c) 2018-2019, NetApp, Inc
+ (c) 2018-2021, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'certified'
-}
 
 DOCUMENTATION = '''
 ---
@@ -80,9 +74,10 @@ options:
   force:
     type: bool
     description:
-    - If this is set and a machine account with the same name as
+    - When state is present, if this is set and a machine account with the same name as
       specified in 'name' exists in the Active Directory, it
       will be overwritten and reused.
+    - When state is absent, if this is set, the local CIFS configuration is deleted regardless of communication errors.
     version_added: 2.7.0
 
   vserver:
@@ -95,7 +90,7 @@ options:
 
 EXAMPLES = '''
     - name: Create cifs_server
-      na_ontap_cifs_server:
+      netapp.ontap.na_ontap_cifs_server:
         state: present
         name: data2
         vserver: svm1
@@ -108,7 +103,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Delete cifs_server
-      na_ontap_cifs_server:
+      netapp.ontap.na_ontap_cifs_server:
         state: absent
         name: data2
         vserver: svm1
@@ -119,7 +114,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Start cifs_server
-      na_ontap_cifs_server:
+      netapp.ontap.na_ontap_cifs_server:
         state: present
         name: data2
         vserver: svm1
@@ -129,7 +124,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Stop cifs_server
-      na_ontap_cifs_server:
+      netapp.ontap.na_ontap_cifs_server:
         state: present
         name: data2
         vserver: svm1
@@ -139,7 +134,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Modify cifs_server
-      na_ontap_cifs_server:
+      netapp.ontap.na_ontap_cifs_server:
         state: present
         name: data2_new
         vserver: svm1
@@ -162,7 +157,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapcifsServer(object):
+class NetAppOntapcifsServer():
     """
     object to describe  cifs_server info
     """
@@ -271,14 +266,13 @@ class NetAppOntapcifsServer(object):
         """
         calling zapi to create cifs_server
         """
-        if self.cifs_server_name == 'up':
-            self.modify_cifs_server(admin_status='down')
-
-        options = dict()
+        options = {}
         if self.admin_user_name is not None:
             options['admin-username'] = self.admin_user_name
         if self.admin_password is not None:
             options['admin-password'] = self.admin_password
+        if self.force is not None:
+            options['force-account-delete'] = str(self.force).lower()
 
         if options:
             cifs_server_delete = netapp_utils.zapi.NaElement.create_node_with_children('cifs-server-delete', **options)
@@ -354,26 +348,22 @@ class NetAppOntapcifsServer(object):
             else:
                 # we will delete the CIFs server
                 changed = True
-        else:
+        elif self.state == 'present':
+            changed = True
+
+        if changed and not self.module.check_mode:
             if self.state == 'present':
-                changed = True
+                if not cifs_server_exists:
+                    self.create_cifs_server()
 
-        if changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if self.state == 'present':
-                    if not cifs_server_exists:
-                        self.create_cifs_server()
+                elif self.service_state == 'stopped':
+                    self.stop_cifs_server()
 
-                    elif self.service_state == 'stopped':
-                        self.stop_cifs_server()
+                elif self.service_state == 'started':
+                    self.start_cifs_server()
 
-                    elif self.service_state == 'started':
-                        self.start_cifs_server()
-
-                elif self.state == 'absent':
-                    self.delete_cifs_server()
+            elif self.state == 'absent':
+                self.delete_cifs_server()
 
         self.module.exit_json(changed=changed)
 

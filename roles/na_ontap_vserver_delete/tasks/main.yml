@@ -38,7 +38,7 @@
 
 - name: pause and check if any volume was not deleted
   pause:
-    seconds: "30"
+    seconds: 30
     prompt: waiting for 30 seconds as volumes are deleted
   when: volumes | length > 0
 
@@ -46,6 +46,55 @@
   include_tasks: find_and_delete_volumes.yml
   vars:
     ignore_errors: false     # so we can report errors
+
+- name: collect CIFS server
+  include_tasks: get_cifs_server.yml
+- name: ask for confirmations
+  pause:
+    prompt: "the following CIFS server will be deleted {{ cifs_server }}\nPress enter to continue, Ctrl+C to interrupt:"
+  when:
+    - cifs_server | length > 0
+    - confirm_before_removing_cifs_server
+- name: Delete CIFS server
+  na_ontap_cifs_server:
+    state: absent
+    cifs_server_name: "{{ item }}"
+    vserver: "{{ vserver_name }}"
+    admin_user_name: "{{ cifs_ad_admin_user_name }}"
+    admin_password: "{{ cifs_ad_admin_password }}"
+    force: "{{ cifs_force_delete }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
+    feature_flags:
+      trace_apis: true
+  check_mode: "{{ enable_check_mode }}"
+  loop: "{{ cifs_server }}"
+
+- name: collect igroups
+  include_tasks: get_igroups.yml
+- name: ask for confirmations
+  pause:
+    prompt: "the following igroups will be deleted {{ igroups }}\nPress enter to continue, Ctrl+C to interrupt:"
+  when:
+    - igroups | length > 0
+    - confirm_before_removing_igroups
+- name: Delete igroups
+  na_ontap_igroup:
+    state: absent
+    name: "{{ item }}"
+    vserver: "{{ vserver_name }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
+    feature_flags:
+      trace_apis: true
+  check_mode: "{{ enable_check_mode }}"
+  loop: "{{ igroups }}"
 
 - name: collect interfaces for vserver
   include_tasks: get_interfaces.yml

@@ -27,10 +27,18 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.10.0
+
+### Minor Changes
+  - na_ontap_cifs_server - ``force`` option is supported when state is absent to ignore communication errors.
+
+### Bug Fixes
+  - na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before deleting vserver.
+
 ## 21.9.0
 
 ### Minor Changes
-  - na_ontap_rest_info - The Default for `gather_subset` has been changed to demo which returns `cluster/software`, `svm/svms`, `cluster/nodes`. To return all Info must specificly list `all` in your playbook. Do note `all` is a very resource-intensive action and it is highly recommended to call just the info/APIs you need.
+  - na_ontap_rest_info - The Default for `gather_subset` has been changed to demo which returns `cluster/software`, `svm/svms`, `cluster/nodes`. To return all Info must specifically list `all` in your playbook. Do note `all` is a very resource-intensive action and it is highly recommended to call just the info/APIs you need.
   - na_ontap_rest_info -  added file_directory_security to return the effective permissions of the directory. When using file_directory_security it must be called with gather_subsets and path and vserver must be specified in parameters.
 
 ### New Options

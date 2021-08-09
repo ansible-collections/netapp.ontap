@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.9.0"
+COLLECTION_VERSION = "21.10.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -184,8 +184,7 @@ def create_sf_connection(module, port=None):
 
     if HAS_SF_SDK and hostname and username and password:
         try:
-            return_val = ElementFactory.create(hostname, username, password, port=port)
-            return return_val
+            return ElementFactory.create(hostname, username, password, port=port)
         except Exception:
             raise Exception("Unable to create SF connection")
     module.fail_json(msg="the python SolidFire SDK module is required")
@@ -239,7 +238,7 @@ def setup_host_options_from_module_params(host_options, module, keys):
     elif use_certificate:
         exclude_keys = password_keys
     else:
-        exclude_keys = list()
+        exclude_keys = []
     for key in keys:
         if host_options.get(key) is None and key not in exclude_keys:
             # use same value as source if no value is given for dest
@@ -258,13 +257,10 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
     validate_certs = host_options.get('validate_certs')
     port = host_options.get('http_port')
     version = host_options.get('ontapi')
-    if has_feature(module, 'trace_apis'):
+    trace = has_feature(module, 'trace_apis')
+    if trace:
         logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG)
-        trace = True
-    else:
-        trace = False
-    if has_feature(module, 'always_wrap_zapi'):
-        wrap_zapi = True
+    wrap_zapi |= has_feature(module, 'always_wrap_zapi')
     auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
 
     if HAS_NETAPP_LIB:
@@ -287,10 +283,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
             server = zapi.NaServer(hostname, username=username, password=password, trace=trace)
         if vserver:
             server.set_vserver(vserver)
-        if version:
-            minor = version
-        else:
-            minor = 110
+        minor = version or 110
         server.set_api_version(major=1, minor=minor)
         # default is HTTP
         if https:
@@ -298,9 +291,8 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
                 port = 443
             transport_type = 'HTTPS'
             # HACK to bypass certificate verification
-            if validate_certs is False:
-                if not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None):
-                    ssl._create_default_https_context = ssl._create_unverified_context
+            if validate_certs is False and not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None):
+                ssl._create_default_https_context = ssl._create_unverified_context
         else:
             if port is None:
                 port = 80
@@ -461,19 +453,22 @@ if HAS_NETAPP_LIB:
             try:
                 context = ssl.create_default_context()
             except AttributeError as exc:
-                msg = 'SSL certificate authentication requires python 2.7 or later.'
-                msg += '  More info: %s' % repr(exc)
-                self.module.fail_json(msg=msg)
+                self._fail_with_exc_info('SSL certificate authentication requires python 2.7 or later.', exc)
+
             if not self.validate_certs:
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
             try:
                 context.load_cert_chain(self.cert_filepath, keyfile=self.key_filepath)
-            except IOError as exc:      # python 2.7 does not have FileNotFoundError
-                msg = 'Cannot load SSL certificate, check files exist.'
-                msg += '  More info: %s' % repr(exc)
-                self.module.fail_json(msg=msg)
+            except IOError as exc:
+                self._fail_with_exc_info('Cannot load SSL certificate, check files exist.', exc)
+
             return zapi.urllib.request.HTTPSHandler(context=context)
+
+        def _fail_with_exc_info(self, arg0, exc):
+            msg = arg0
+            msg += '  More info: %s' % repr(exc)
+            self.module.fail_json(msg=msg)
 
         def _parse_response(self, response):
             ''' handling XML parsing exception '''
@@ -585,8 +580,8 @@ class OntapRestAPI(object):
             minor=-1,
             valid=False
         )
-        self.errors = list()
-        self.debug_logs = list()
+        self.errors = []
+        self.debug_logs = []
         self.auth_method = set_auth_method(self.module, self.username, self.password, self.cert_filepath, self.key_filepath)
         self.check_required_library()
         if has_feature(module, 'trace_apis'):
@@ -606,13 +601,10 @@ class OntapRestAPI(object):
             suffix += " - ONTAP version: %s.%s.%s" % current_version
         if use_rest is not None:
             suffix += " - using %s" % ('REST' if use_rest else 'ZAPI')
-        if isinstance(options, list):
-            if len(options) > 1:
-                tag = "any of %s" % options
-            elif len(options) == 1:
-                tag = str(options[0])
-            else:
-                tag = str(options)
+        if isinstance(options, list) and len(options) > 1:
+            tag = "any of %s" % options
+        elif isinstance(options, list) and len(options) == 1:
+            tag = str(options[0])
         else:
             tag = str(options)
         return 'using %s requires ONTAP %s or later and REST must be enabled%s.' % (tag, version, suffix)
@@ -622,7 +614,7 @@ class OntapRestAPI(object):
 
     def fail_if_not_rest_minimum_version(self, module_name, minimum_generation, minimum_major, minimum_minor=0):
         status_code = self.get_ontap_version_using_rest()
-        msgs = list()
+        msgs = []
         if self.use_rest == 'never':
             msgs.append('Error: REST is required for this module, found: "use_rest: %s"' % self.module.params.get('use_rest'))
         if self.is_rest_error:
@@ -642,8 +634,7 @@ class OntapRestAPI(object):
             self.module.fail_json(msg=missing_required_lib('requests'))
 
     def build_headers(self, accept=None, vserver_name=None, vserver_uuid=None):
-        headers = dict()
-        headers['X-Dot-Client-App'] = CLIENT_APP_VERSION % self.module._name
+        headers = {'X-Dot-Client-App': CLIENT_APP_VERSION % self.module._name}
         # accept is used to turn on/off HAL linking
         if accept is not None:
             headers['accept'] = accept
@@ -747,7 +738,7 @@ class OntapRestAPI(object):
         runtime = 0
         retries = 0
         max_retries = 3
-        while keep_running:
+        while True:
             # Will run every every <increment> seconds for <timeout> seconds
             job_json, job_error = self.get(url, None)
             job_state = job_json.get('state', None) if job_json else None
@@ -781,22 +772,20 @@ class OntapRestAPI(object):
                     # if the job has failed, return message as error
                     return None, message
                 if job_state not in ('queued', 'running', None):
-                    keep_running = False
                     if error is None:
                         error = job_error
-                else:
+                    break
+                elif runtime >= timeout:
                     # Would like to post a message to user (not sure how)
-                    if runtime >= timeout:
-                        keep_running = False
-                        if job_state != 'success':
-                            self.log_error(0, 'Timeout error: Process still running')
-                            if error is None:
-                                error = 'Timeout error: Process still running'
-                                if job_error is not None:
-                                    error += ' - %s' % job_error
-            if keep_running:
-                time.sleep(increment)
-                runtime += increment
+                    if job_state != 'success':
+                        self.log_error(0, 'Timeout error: Process still running')
+                        if error is None:
+                            error = 'Timeout error: Process still running'
+                            if job_error is not None:
+                                error += ' - %s' % job_error
+                    break
+            time.sleep(increment)
+            runtime += increment
         return message, error
 
     def get(self, api, params=None):
@@ -913,10 +902,7 @@ class OntapRestAPI(object):
         '''
         if filepath is None:
             filepath = '/tmp/ontap_log'
-        if append:
-            mode = 'a'
-        else:
-            mode = 'w'
+        mode = 'a' if append else 'w'
         with open(filepath, mode) as afile:
             if data is not None:
                 afile.write("%s: %s\n" % (str(tag), str(data)))
