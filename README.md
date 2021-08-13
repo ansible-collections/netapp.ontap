@@ -34,6 +34,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before deleting vserver.
+  - all modules - traceback on ONTAP 9.3 (and earlier) when trying to detect REST support.
 
 ## 21.9.0
 

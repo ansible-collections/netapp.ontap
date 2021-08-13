@@ -697,10 +697,14 @@ class OntapRestAPI(object):
             response.raise_for_status()
             json_dict, json_error = get_json(response)
         except requests.exceptions.HTTPError as err:
-            __, json_error = get_json(response)
+            try:
+                __, json_error = get_json(response)
+            except ValueError:
+                json_error = None
             if json_error is None:
                 self.log_error(status_code, 'HTTP error: %s' % err)
                 error_details = str(err)
+
             # If an error was reported in the json payload, it is handled below
         except requests.exceptions.ConnectionError as err:
             self.log_error(status_code, 'Connection error: %s' % err)

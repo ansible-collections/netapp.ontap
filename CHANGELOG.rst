@@ -5,6 +5,20 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.10.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_cifs_server - ``force`` option is supported when state is absent to ignore communication errors.
+
+Bugfixes
+--------
+
+- all modules - traceback on ONTAP 9.3 (and earlier) when trying to detect REST support.
+- na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before deleting vserver.
+
 v21.9.0
 =======
 

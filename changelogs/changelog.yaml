@@ -1047,6 +1047,20 @@ releases:
       name: na_ontap_debug
       namespace: ''
     release_date: '2021-01-07'
+  21.10.0:
+    changes:
+      bugfixes:
+      - all modules - traceback on ONTAP 9.3 (and earlier) when trying to detect REST
+        support.
+      - na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before
+        deleting vserver.
+      minor_changes:
+      - na_ontap_cifs_server - ``force`` option is supported when state is absent
+        to ignore communication errors.
+    fragments:
+    - DEVOPS-4190.yaml
+    - DEVOPS-4231.yaml
+    release_date: '2021-08-12'
   21.2.0:
     changes:
       bugfixes:
