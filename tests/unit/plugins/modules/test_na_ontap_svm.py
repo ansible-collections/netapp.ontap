@@ -12,7 +12,7 @@ import pytest
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm \
@@ -26,7 +26,7 @@ SRR = {
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
+    'empty_good': (200, {'num_records': 0}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'generic_error': (400, None, "Expected error"),
     # module specific responses
@@ -44,7 +44,7 @@ SRR = {
                                              "uuid": "2b760d31-8dfd-11e9-b162-005056b39fe7"},
                                  "snapshot_policy": {"uuid": "3b611707-8dfd-11e9-b162-005056b39fe7",
                                                      "name": "old_snapshot_policy"},
-                                 "nfs": {"enabled": True},
+                                 "nfs": {"enabled": True, "allowed": True},
                                  "cifs": {"enabled": False},
                                  "iscsi": {"enabled": False},
                                  "fcp": {"enabled": False},
@@ -60,8 +60,8 @@ SRR = {
                                     "snapshot_policy": {"uuid": "3b611707-8dfd-11e9-b162-005056b39fe7",
                                                         "name": "old_snapshot_policy"},
                                     "nfs": {"enabled": False},
-                                    "cifs": {"enabled": True},
-                                    "iscsi": {"enabled": True},
+                                    "cifs": {"enabled": True, "allowed": True},
+                                    "iscsi": {"enabled": True, "allowed": True},
                                     "fcp": {"enabled": False},
                                     "nvme": {"enabled": False}}]}, None)
 }
@@ -193,11 +193,10 @@ class TestMyModule(unittest.TestCase):
             vserver_obj.cluster.invoke_successfully = Mock()
             if kind is None:
                 vserver_obj.server = MockONTAPConnection()
+            elif data is None:
+                vserver_obj.server = MockONTAPConnection(kind='vserver', data=self.mock_vserver)
             else:
-                if data is None:
-                    vserver_obj.server = MockONTAPConnection(kind='vserver', data=self.mock_vserver)
-                else:
-                    vserver_obj.server = MockONTAPConnection(kind='vserver', data=data)
+                vserver_obj.server = MockONTAPConnection(kind='vserver', data=data)
         return vserver_obj
 
     def test_module_fail_when_required_args_missing(self):
@@ -234,6 +233,14 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         create_vserver.assert_called_with()
 
+    def test_successful_create_zapi(self):
+        '''Test successful create'''
+        data = self.mock_args()
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_vserver_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.create_vserver')
     def test_create_idempotency(self, create_vserver):
         '''Test successful create'''
@@ -246,12 +253,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_successful_delete(self):
         '''Test successful delete'''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert exc.value.args[0]['changed']
+        self._modify_options_with_expected_change('state', 'absent')
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.delete_vserver')
     def test_delete_idempotency(self, delete_vserver):
@@ -289,35 +291,29 @@ class TestMyModule(unittest.TestCase):
 
     def test_successful_modify_language(self):
         '''Test successful modify language'''
-        data = self.mock_args()
-        data['language'] = 'c'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert exc.value.args[0]['changed']
+        self._modify_options_with_expected_change('language', 'c')
 
     def test_successful_modify_snapshot_policy(self):
         '''Test successful modify language'''
-        data = self.mock_args()
-        data['snapshot_policy'] = 'new_snapshot_policy'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert exc.value.args[0]['changed']
+        self._modify_options_with_expected_change(
+            'snapshot_policy', 'new_snapshot_policy'
+        )
 
     def test_successful_modify_allowed_protocols(self):
         '''Test successful modify allowed protocols'''
-        data = self.mock_args()
-        data['allowed_protocols'] = 'protocol_1,protocol_2'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert exc.value.args[0]['changed']
+        self._modify_options_with_expected_change(
+            'allowed_protocols', 'nvme,fcp'
+        )
 
     def test_successful_modify_aggr_list(self):
         '''Test successful modify aggr-list'''
+        self._modify_options_with_expected_change(
+            'aggr_list', 'aggr_3,aggr_4'
+        )
+
+    def _modify_options_with_expected_change(self, arg0, arg1):
         data = self.mock_args()
-        data['aggr_list'] = 'aggr_3,aggr_4'
+        data[arg0] = arg1
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_vserver_mock_object('vserver').apply()
@@ -334,7 +330,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+        assert exc.value.args[0]['msg'] == 'calling: svm/svms: got %s.' % SRR['generic_error'][2]
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_unsupported_parm(self, mock_request):
@@ -460,10 +456,235 @@ class TestMyModule(unittest.TestCase):
         na_ontap_svm_object = self.get_vserver_mock_object(cx_type='rest')
         current = na_ontap_svm_object.get_vserver()
         print(current)
-        assert 'nfs' in current['allowed_protocols']
-        assert 'iscsi' not in current['allowed_protocols']
+        assert current['services']['nfs']['allowed']
+        assert not current['services']['cifs']['enabled']
         current = na_ontap_svm_object.get_vserver()
         print(current)
-        assert 'nfs' not in current['allowed_protocols']
-        assert 'cifs' in current['allowed_protocols']
-        assert 'iscsi' in current['allowed_protocols']
+        assert not current['services']['nfs']['enabled']
+        assert current['services']['cifs']['allowed']
+        assert current['services']['iscsi']['allowed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_ignore_zapi_option(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['root_volume'] = 'whatever'
+        data['aggr_list'] = '*'
+        data['ignore_rest_unsupported_options'] = 'true'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # get
+            SRR['empty_good'],  # post
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        assert exc.value.args[0]['changed']
+        assert module.use_rest
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_with_service(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # get
+            SRR['empty_good'],  # post
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        assert exc.value.args[0]['changed']
+        assert module.use_rest
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_with_service(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['svm_record'],  # get
+            SRR['empty_good'],  # patch svm for allowed
+            SRR['empty_good'],  # post to enable fcp service
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        assert exc.value.args[0]['changed']
+        assert module.use_rest
+        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'})
+        print(mock_request.mock_calls)
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_enable_service(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # post to enable FCP
+            SRR['end_of_sequence']
+        ]
+        # modify = {'enabled_protocols': ['nfs', 'fcp']}
+        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
+        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        module.modify_services(modify, current)
+        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'})
+        print(mock_request.mock_calls)
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_reenable_service(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # patch to reenable FCP
+            SRR['end_of_sequence']
+        ]
+        # modify = {'enabled_protocols': ['nfs', 'fcp']}
+        fcp_dict = {'_links': {'self': {'href': 'fcp_link'}}}
+        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid', 'fcp': fcp_dict}
+        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
+        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid', 'fcp': fcp_dict}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        module.modify_services(modify, current)
+        expected = call('PATCH', 'protocols/san/fcp/services/uuid', {'return_timeout': 30}, json={'enabled': True})
+        print(mock_request.mock_calls)
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_enable_service(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # patch to reenable FCP
+            SRR['end_of_sequence']
+        ]
+        # modify = {'enabled_protocols': ['nfs', 'bad_value']}
+        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme']}
+        modify = {'services': {'nfs': {'allowed': True}, 'bad_value': {'enabled': True}}, 'name': 'new_name'}
+        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        module.enablable_protocols = ['nfs', 'bad_value']
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_services(modify, current)
+        msg = 'Internal error, unexpecting service: bad_value.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_services(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],   # patch to reenable FCP
+            SRR['end_of_sequence']
+        ]
+        # modify = {'enabled_protocols': ['nfs', 'fcp']}
+        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}, 'name': 'new_name'}
+        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_services(modify, current)
+        msg = 'Error in modify service for fcp: calling: protocols/san/fcp/services: got Expected error.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_current_none(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        modify = {'enabled_protocols': ['nfs', 'fcp']}
+        current = None
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_vserver(modify, current)
+        msg = 'Internal error, expecting SVM object in modify.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_modify_none(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        modify = {}
+        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_vserver(modify, current)
+        msg = 'Internal error, expecting something to modify in modify.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_error_1(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],   # patch to rename
+            SRR['end_of_sequence']
+        ]
+        # modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name'}
+        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'allowed': True}}, 'name': 'new_name'}
+        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_vserver(modify, current)
+        msg = 'Error in rename: calling: svm/svms/uuid: got Expected error.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_error_2(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        data['language'] = 'klingon'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],      # patch to rename
+            SRR['generic_error'],   # patch for other options
+            SRR['end_of_sequence']
+        ]
+        modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name', 'language': 'klingon'}
+        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.modify_vserver(modify, current)
+        msg = 'Error in modify: calling: svm/svms/uuid: got Expected error.'
+        assert exc.value.args[0]['msg'] == msg
+        # print(mock_request.mock_calls)

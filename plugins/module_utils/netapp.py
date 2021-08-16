@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.10.0"
+COLLECTION_VERSION = "21.11.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -167,7 +167,10 @@ def get_feature(module, feature_name):
         sanitize_code_points=[8],               # unicode values, 8 is backspace
         show_modified=True,
         always_wrap_zapi=True,                  # for better error reporting
-        flexcache_delete_return_timeout=5       # ONTAP bug if too big?
+        flexcache_delete_return_timeout=5,      # ONTAP bug if too big?
+        # for SVM, whch protocols can be allowed
+        svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs'],
+        svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
     )
 
     if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:

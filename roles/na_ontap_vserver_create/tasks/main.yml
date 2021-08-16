@@ -6,6 +6,8 @@
     root_volume: "{{ item.name }}_root"
     root_volume_aggregate: "{{ item.aggr }}"
     root_volume_security_style: "{{ 'ntfs' if item.protocol.lower() is search('cifs') else 'unix' }}"
+    # with REST, the 3 root_volume options above are not needed, and not supported
+    ignore_rest_unsupported_options: true
     aggr_list: "{{ '*' if item.aggr_list is not defined else item.aggr_list }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"

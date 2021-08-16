@@ -27,6 +27,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.11.0
+
+### New Options
+  - na_ontap_svm - new option ``services`` to allow and/or enable protocol services when using REST.
+  - na_ontap_svm - new option ``ignore_rest_unsupported_options`` to ignore older ZAPI options not available in REST.
+### Minor Changes
+  - na_ontap_svm - ignore `aggr_list: '*'` when using REST.
+
 ## 21.10.0
 
 ### Minor Changes

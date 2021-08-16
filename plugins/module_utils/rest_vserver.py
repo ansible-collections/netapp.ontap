@@ -38,7 +38,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpe
 
 
 def get_vserver(rest_api, name, fields=None):
-    api = 'svm/svms/'
+    api = 'svm/svms'
     query = dict(name=name)
     if fields is not None:
         query['fields'] = fields

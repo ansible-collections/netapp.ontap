@@ -180,7 +180,7 @@ def test_get_volume_too_many(mock_request):
         SRR['three_volume_records'],
         SRR['end_of_sequence']]
     dummy, error = rest_volume.get_volume(rest_api, 'name', 'vserver')
-    expected = "calling: storage/volumes/: unexpected response"
+    expected = "calling: storage/volumes: unexpected response"
     assert expected in error
 
 
