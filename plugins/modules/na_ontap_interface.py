@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -10,10 +10,6 @@ na_ontap_export_policy_rule
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 module: na_ontap_interface
@@ -176,11 +172,16 @@ options:
     - Creating LIFs by specifying the role and data protocols is also supported.
     version_added: '20.4.0'
     type: str
+
+  from_name:
+    description: name of the interface to be renamed
+    type: str
+    version_added: 21.11.0
 '''
 
 EXAMPLES = '''
     - name: Create interface
-      na_ontap_interface:
+      netapp.ontap.na_ontap_interface:
         state: present
         interface_name: data2
         home_port: e0d
@@ -205,7 +206,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Create cluster interface
-      na_ontap_interface:
+      netapp.ontap.na_ontap_interface:
         state: present
         interface_name: cluster_lif
         home_port: e0a
@@ -215,6 +216,16 @@ EXAMPLES = '''
         is_auto_revert: true
         is_ipv4_link_local: true
         vserver: Cluster
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Rename interface
+      netapp.ontap.na_ontap_interface:
+        state: present
+        from_name: ansibleSVM_lif
+        interface_name: ansibleSVM_lif01
+        vserver: ansibleSVM
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -265,7 +276,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapInterface(object):
+class NetAppOntapInterface():
     ''' object to describe  interface info '''
 
     def __init__(self):
@@ -297,7 +308,8 @@ class NetAppOntapInterface(object):
             dns_domain_name=dict(required=False, type='str'),
             listen_for_dns_query=dict(required=False, type='bool'),
             is_dns_update_enabled=dict(required=False, type='bool'),
-            service_policy=dict(required=False, type='str', default=None)
+            service_policy=dict(required=False, type='str', default=None),
+            from_name=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -319,7 +331,7 @@ class NetAppOntapInterface(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def get_interface(self):
+    def get_interface(self, name=None):
         """
         Return details about the interface
         :param:
@@ -328,9 +340,11 @@ class NetAppOntapInterface(object):
         :return: Details about the interface. None if not found.
         :rtype: dict
         """
+        if name is None:
+            name = self.parameters['interface_name']
         interface_info = netapp_utils.zapi.NaElement('net-interface-get-iter')
         interface_attributes = netapp_utils.zapi.NaElement('net-interface-info')
-        interface_attributes.add_new_child('interface-name', self.parameters['interface_name'])
+        interface_attributes.add_new_child('interface-name', name)
         interface_attributes.add_new_child('vserver', self.parameters['vserver'])
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(interface_attributes)
@@ -339,7 +353,7 @@ class NetAppOntapInterface(object):
             result = self.server.invoke_successfully(interface_info, True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error fetching interface details for %s: %s' %
-                                  (self.parameters['interface_name'], to_native(exc)),
+                                  (name, to_native(exc)),
                                   exception=traceback.format_exc())
         return_value = None
         if result.get_child_by_name('num-records') and \
@@ -348,14 +362,14 @@ class NetAppOntapInterface(object):
             interface_attributes = result.get_child_by_name('attributes-list'). \
                 get_child_by_name('net-interface-info')
             return_value = {
-                'interface_name': self.parameters['interface_name'],
+                'interface_name': name,
                 'admin_status': interface_attributes['administrative-status'],
                 'home_port': interface_attributes['home-port'],
                 'home_node': interface_attributes['home-node'],
                 'failover_policy': interface_attributes['failover-policy'].replace('_', '-'),
             }
             if interface_attributes.get_child_by_name('is-auto-revert'):
-                return_value['is_auto_revert'] = True if interface_attributes['is-auto-revert'] == 'true' else False
+                return_value['is_auto_revert'] = (interface_attributes['is-auto-revert'] == 'true')
             if interface_attributes.get_child_by_name('failover-group'):
                 return_value['failover_group'] = interface_attributes['failover-group']
             if interface_attributes.get_child_by_name('address'):
@@ -422,23 +436,23 @@ class NetAppOntapInterface(object):
 
     def set_protocol_option(self, required_keys):
         """ set protocols for create """
-        if self.parameters.get('protocols') is not None:
-            data_protocols_obj = netapp_utils.zapi.NaElement('data-protocols')
-            for protocol in self.parameters.get('protocols'):
-                if protocol.lower() in ['fc-nvme', 'fcp']:
-                    if 'address' in required_keys:
-                        required_keys.remove('address')
-                    if 'home_port' in required_keys:
-                        required_keys.remove('home_port')
-                    if 'netmask' in required_keys:
-                        required_keys.remove('netmask')
-                    not_required_params = set(['address', 'netmask', 'firewall_policy'])
-                    if not not_required_params.isdisjoint(set(self.parameters.keys())):
-                        self.module.fail_json(msg='Error: Following parameters for creating interface are not supported'
-                                                  ' for data-protocol fc-nvme: %s' % ', '.join(not_required_params))
-                data_protocols_obj.add_new_child('data-protocol', protocol)
-            return data_protocols_obj
-        return None
+        if self.parameters.get('protocols') is None:
+            return None
+        data_protocols_obj = netapp_utils.zapi.NaElement('data-protocols')
+        for protocol in self.parameters.get('protocols'):
+            if protocol.lower() in ['fc-nvme', 'fcp']:
+                if 'address' in required_keys:
+                    required_keys.remove('address')
+                if 'home_port' in required_keys:
+                    required_keys.remove('home_port')
+                if 'netmask' in required_keys:
+                    required_keys.remove('netmask')
+                not_required_params = set(['address', 'netmask', 'firewall_policy'])
+                if not not_required_params.isdisjoint(set(self.parameters.keys())):
+                    self.module.fail_json(msg='Error: Following parameters for creating interface are not supported'
+                                              ' for data-protocol fc-nvme: %s' % ', '.join(not_required_params))
+            data_protocols_obj.add_new_child('data-protocol', protocol)
+        return data_protocols_obj
 
     def get_home_node_for_cluster(self):
         ''' get the first node name from this cluster '''
@@ -485,11 +499,13 @@ class NetAppOntapInterface(object):
         ''' calling zapi to create interface '''
         required_keys = set(['role', 'home_port'])
         data_protocols_obj = None
-        if self.parameters.get('subnet_name') is None:
-            if self.parameters.get('is_ipv4_link_local') is not None:
-                if not self.parameters.get('is_ipv4_link_local'):
-                    required_keys.add('address')
-                    required_keys.add('netmask')
+        if (
+            self.parameters.get('subnet_name') is None
+            and self.parameters.get('is_ipv4_link_local') is not None
+            and not self.parameters.get('is_ipv4_link_local')
+        ):
+            required_keys.add('address')
+            required_keys.add('netmask')
         if self.parameters.get('service_policy') is not None:
             required_keys.remove('role')
         data_protocols_obj = self.set_protocol_option(required_keys)
@@ -538,7 +554,7 @@ class NetAppOntapInterface(object):
             migrate['current_node'] = modify.pop('current_node')
         if modify.get('current_port') is not None:
             migrate['current_port'] = modify.pop('current_port')
-        if len(modify) > 0:
+        if modify:
             options = {'interface-name': self.parameters['interface_name'],
                        'vserver': self.parameters['vserver']
                        }
@@ -551,7 +567,7 @@ class NetAppOntapInterface(object):
                                       (self.parameters['interface_name'], to_native(err)),
                                       exception=traceback.format_exc())
         # if home node has been changed we need to migrate the interface
-        if len(migrate) > 0:
+        if migrate:
             self.migrate_interface()
 
     def migrate_interface(self):
@@ -566,41 +582,64 @@ class NetAppOntapInterface(object):
         try:
             self.server.invoke_successfully(interface_migrate, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching migrating %s: %s'
+            self.module.fail_json(msg='Error migrating %s: %s'
                                   % (self.parameters['current_node'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def rename_interface(self):
+        options = {
+            'interface-name': self.parameters['from_name'],
+            'new-name': self.parameters['interface_name'],
+            'vserver': self.parameters['vserver']
+        }
+        interface_rename = netapp_utils.zapi.NaElement.create_node_with_children('net-interface-rename', **options)
+        try:
+            self.server.invoke_successfully(interface_rename, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error renaming %s to %s: %s'
+                                  % (self.parameters['from_name'], self.parameters['interface_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def autosupport_log(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_interface", cserver)
+        try:
+            # Checking to see if autosupport_log() can be ran as this is a post cluster setup request.
+            results = netapp_utils.get_cserver(self.server)
+            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+            netapp_utils.ems_log_event("na_ontap_interface", cserver)
+        except netapp_utils.zapi.NaApiError as error:
+            # Error 13003 denotes cluster does not exist. It happens when running operations on a node not in cluster.
+            if to_native(error.code) != '13003':
+                self.module.fail_json(
+                    msg='Error calling autosupport_log(): %s' % to_native(error),
+                    exception=traceback.format_exc())
 
     def apply(self):
         ''' calling all interface features '''
-
-        # Checking to see if autosupport_log() can be ran as this is a post cluster setup request.
-        try:
-            self.autosupport_log()
-        except netapp_utils.zapi.NaApiError as error:
-            # Error 13003 denotes cluster does not exist. It happens when running operations on a node not in cluster.
-            if to_native(error.code) == "13003":
-                pass
-            else:
-                self.module.fail_json(msg='Error calling autosupport_log(): %s' % (to_native(error)),
-                                      exception=traceback.format_exc())
+        self.autosupport_log()
+        rename = None
         current = self.get_interface()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            # create by renaming existing interface
+            old_interface = self.get_interface(self.parameters['from_name'])
+            rename = self.na_helper.is_rename_action(old_interface, current)
+            if rename is None:
+                self.module.fail_json(msg='Error renaming interface %s: no interface with from_name %s.'
+                                      % (self.parameters['interface_name'], self.parameters['from_name']))
+            if rename:
+                current = old_interface
+                cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_interface()
-                elif cd_action == 'delete':
-                    self.delete_interface(current['admin_status'])
-                elif modify:
-                    self.modify_interface(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_interface()
+                modify.pop('interface_name')
+            if cd_action == 'create':
+                self.create_interface()
+            elif cd_action == 'delete':
+                self.delete_interface(current['admin_status'])
+            elif modify:
+                self.modify_interface(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

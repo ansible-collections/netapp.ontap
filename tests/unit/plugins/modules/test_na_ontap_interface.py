@@ -63,8 +63,11 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        print(xml.to_string())
         if self.type == 'interface':
             xml = self.build_interface_info(self.params)
+        elif self.type == 'interface_rename':
+            self.type = 'interface'
         elif self.type == 'zapi_error':
             error = netapp_utils.zapi.NaApiError('test', 'error')
             raise error
@@ -310,3 +313,32 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_interface_mock_object('zapi_error').apply()
         assert exc.value.args[0]['msg'] == 'Error deleting interface test_lif: NetApp API failed. Reason - test:error'
+
+    def test_successful_rename(self):
+        ''' Test successful modify interface_minutes '''
+        data = self.mock_args()
+        data['home_port'] = 'new_port'
+        data['dns_domain_name'] = 'test2.com'
+        data['listen_for_dns_query'] = False
+        data['is_dns_update_enabled'] = False
+        data['from_name'] = 'from_interface_name'
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            interface_obj = self.get_interface_mock_object('interface_rename')
+            interface_obj.apply()
+        assert exc.value.args[0]['changed']
+
+    def test_negative_rename_not_found(self):
+        ''' Test successful modify interface_minutes '''
+        data = self.mock_args()
+        data['home_port'] = 'new_port'
+        data['dns_domain_name'] = 'test2.com'
+        data['listen_for_dns_query'] = False
+        data['is_dns_update_enabled'] = False
+        data['from_name'] = 'from_interface_name'
+        set_module_args(data)
+        with pytest.raises(AnsibleFailJson) as exc:
+            interface_obj = self.get_interface_mock_object()
+            interface_obj.apply()
+        msg = 'Error renaming interface test_lif: no interface with from_name from_interface_name.'
+        assert msg in exc.value.args[0]['msg']

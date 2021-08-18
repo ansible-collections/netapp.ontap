@@ -297,14 +297,12 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-import ansible_collections.netapp.ontap.plugins.module_utils.zapis_svm as zapis
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_vserver as rest_vserver
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_generic as rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_vserver, zapis_svm
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapSVM(object):
+class NetAppOntapSVM():
     ''' create, delete, modify, rename SVM (aka vserver) '''
 
     def __init__(self):
@@ -452,7 +450,7 @@ class NetAppOntapSVM(object):
                 return self.clean_up_output(copy.deepcopy(record))
             return None
 
-        return zapis.get_vserver(self.server, vserver_name)
+        return zapis_svm.get_vserver(self.server, vserver_name)
 
     def create_vserver(self):
         if self.use_rest:
@@ -577,7 +575,7 @@ class NetAppOntapSVM(object):
             if 'services' in modify:
                 self.modify_services(modify, current)
         else:
-            zapis.modify_vserver(self.server, self.module, self.parameters['name'], modify, self.parameters)
+            zapis_svm.modify_vserver(self.server, self.module, self.parameters['name'], modify, self.parameters)
 
     def modify_services(self, modify, current):
         apis = {
@@ -656,6 +654,7 @@ class NetAppOntapSVM(object):
                     modify['name'] = self.parameters['name']
                 else:
                     self.rename_vserver()
+                    modify.pop('name', None)
             # If rename is True, cd_action is None, but modify could be true or false.
             if cd_action == 'create':
                 self.create_vserver()
