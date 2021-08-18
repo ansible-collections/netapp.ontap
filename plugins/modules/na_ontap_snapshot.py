@@ -127,7 +127,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 
 
 class NetAppOntapSnapshot(object):

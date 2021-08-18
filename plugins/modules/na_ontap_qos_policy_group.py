@@ -262,7 +262,10 @@ class NetAppOntapQosPolicyGroup(object):
         """
         if 'is_shared' in modify:
             self.module.fail_json(msg='Error cannot modify is_shared attribute.')
-        if any([attribute in modify for attribute in ['max_throughput', 'min_throughput']]):
+        if any(
+            attribute in modify
+            for attribute in ['max_throughput', 'min_throughput']
+        ):
             self.modify_policy_group()
 
     def apply(self):

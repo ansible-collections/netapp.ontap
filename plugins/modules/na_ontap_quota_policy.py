@@ -99,7 +99,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-import ansible_collections.netapp.ontap.plugins.module_utils.zapis_svm as zapis_svm
+from ansible_collections.netapp.ontap.plugins.module_utils import zapis_svm
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 

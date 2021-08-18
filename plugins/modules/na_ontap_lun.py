@@ -320,7 +320,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 

@@ -1653,7 +1653,7 @@ class NetAppOntapVolume(object):
             for return_info in ('volume-modify-iter-info', 'volume-modify-iter-async-info'):
                 if failures.get_child_by_name(return_info) is not None:
                     error_msgs.append(failures.get_child_by_name(return_info).get_child_content('error-message'))
-            if error_msgs and any([x is not None for x in error_msgs]):
+            if error_msgs and any(x is not None for x in error_msgs):
                 self.wrap_fail_json(msg="Error modifying volume %s: %s"
                                     % (self.parameters['name'], ' --- '.join(error_msgs)),
                                     exception=traceback.format_exc())
@@ -2054,7 +2054,7 @@ class NetAppOntapVolume(object):
                     modify[field] = self.parameters[field]
         self.modify_volume(modify)
 
-        if any([modify.get(key) is not None for key in self.sis_keys2zapi_get]):
+        if any(modify.get(key) is not None for key in self.sis_keys2zapi_get):
             if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
                 efficiency_config_modify = 'async'
             else:

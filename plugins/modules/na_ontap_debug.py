@@ -106,7 +106,7 @@ class NetAppONTAPDebug(object):
                               'Resource temporarily unavailable',
                               'ConnectTimeoutError',
                               'Network is unreachable']
-            if any([x in error_string for x in error_patterns]):
+            if any(x in error_string for x in error_patterns):
                 summary_msg = 'Error: invalid or unreachable hostname: %s' % self.parameters['hostname']
                 if 'vserver' in self.parameters:
                     summary_msg += ' for SVM: %s ' % self.parameters['vserver']
@@ -114,7 +114,7 @@ class NetAppONTAPDebug(object):
                 self.error_list.append(summary_msg + ' using %s.' % connection_type)
                 return
             error_patterns = ['Name or service not known', 'Name does not resolve']
-            if any([x in error_string for x in error_patterns]):
+            if any(x in error_string for x in error_patterns):
                 summary_msg = 'Error: unknown or not resolvable hostname: %s' % self.parameters['hostname']
                 if 'vserver' in self.parameters:
                     summary_msg += ' for SVM: %s ' % self.parameters['vserver']

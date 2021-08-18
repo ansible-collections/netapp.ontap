@@ -38,7 +38,7 @@ import copy
 
 # from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_volume as rest_volume
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 # REST API canned responses when mocking send_request
