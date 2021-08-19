@@ -33,7 +33,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_interface - new option `from_name` to rename an interface.
   - na_ontap_svm - new option `services` to allow and/or enable protocol services when using REST.
   - na_ontap_svm - new option `ignore_rest_unsupported_options` to ignore older ZAPI options not available in REST.
+
 ### Minor Changes
+  - na_ontap_software_update - remove `absent` as a choice for `state` as it has no use.
   - na_ontap_svm - ignore `aggr_list: '*'` when using REST.
 
 ## 21.10.0

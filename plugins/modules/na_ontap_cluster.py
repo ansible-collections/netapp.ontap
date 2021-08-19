@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2019, NetApp, Inc
+# (c) 2017-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -9,10 +9,6 @@ na_ontap_cluster
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -81,7 +77,7 @@ options:
 
 EXAMPLES = """
     - name: Create cluster
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: present
         cluster_name: new_cluster
         time_out: 0
@@ -89,14 +85,14 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Add node to cluster (Join cluster)
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: present
         cluster_ip_address: 10.10.10.10
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Add node to cluster (Join cluster)
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: present
         cluster_ip_address: 10.10.10.10
         node_name: my_preferred_node_name
@@ -104,7 +100,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Create a 2 node cluster in one call
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: present
         cluster_name: new_cluster
         cluster_ip_address: 10.10.10.10
@@ -112,21 +108,21 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Remove node from cluster
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: absent
         cluster_ip_address: 10.10.10.10
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Remove node from cluster
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: absent
         node_name: node002
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: modify cluster
-      na_ontap_cluster:
+      netapp.ontap.na_ontap_cluster:
         state: present
         cluster_contact: testing
         cluster_location: testing
@@ -150,7 +146,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPCluster(object):
+class NetAppONTAPCluster():
     """
     object initialize and class methods
     """
@@ -174,7 +170,7 @@ class NetAppONTAPCluster(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.warnings = list()
+        self.warnings = []
 
         if self.parameters['state'] == 'absent' and self.parameters.get('node_name') is not None and self.parameters.get('cluster_ip_address') is not None:
             msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
@@ -202,7 +198,7 @@ class NetAppONTAPCluster(object):
                 return None
             self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
                                   exception=traceback.format_exc())
-        cluster_identity = dict()
+        cluster_identity = {}
         if result.get_child_by_name('attributes'):
             identity_info = result.get_child_by_name('attributes').get_child_by_name('cluster-identity-info')
             if identity_info:
@@ -226,8 +222,8 @@ class NetAppONTAPCluster(object):
                 return None
             self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
                                   exception=traceback.format_exc())
-        cluster_nodes = list()
         if result.get_child_by_name('attributes-list'):
+            cluster_nodes = []
             for node_info in result.get_child_by_name('attributes-list').get_children():
                 node_name = node_info.get_child_content('node-name')
                 if node_name is not None:
@@ -240,7 +236,7 @@ class NetAppONTAPCluster(object):
             return:
                 a list of dictionaries
         '''
-        if_infos = list()
+        if_infos = []
         zapi = netapp_utils.zapi.NaElement('net-interface-get-iter')
         if cluster_ip_address is not None:
             query = netapp_utils.zapi.NaElement('query')
@@ -260,8 +256,7 @@ class NetAppONTAPCluster(object):
         if result.get_child_by_name('attributes-list'):
             for net_info in result.get_child_by_name('attributes-list').get_children():
                 if net_info:
-                    if_info = dict()
-                    if_info['address'] = net_info.get_child_content('address')
+                    if_info = {'address': net_info.get_child_content('address')}
                     if_info['home_node'] = net_info.get_child_content('home-node')
                 if_infos.append(if_info)
         return if_infos
@@ -307,21 +302,18 @@ class NetAppONTAPCluster(object):
         Add a node to an existing cluster
         9.2 and 9.3 do not support cluster-ips so fallback to node-ip
         """
-        if self.parameters.get('cluster_ip_address') is not None:
-            cluster_add_node = netapp_utils.zapi.NaElement('cluster-add-node')
-            if older_api:
-                cluster_add_node.add_new_child('node-ip', self.parameters.get('cluster_ip_address'))
-            else:
-                cluster_ips = netapp_utils.zapi.NaElement('cluster-ips')
-                cluster_ips.add_new_child('ip-address', self.parameters.get('cluster_ip_address'))
-                cluster_add_node.add_child_elem(cluster_ips)
-                if self.parameters.get('node_name') is not None:
-                    node_names = netapp_utils.zapi.NaElement('node-names')
-                    node_names.add_new_child('string', self.parameters.get('node_name'))
-                    cluster_add_node.add_child_elem(node_names)
-
-        else:
+        if self.parameters.get('cluster_ip_address') is None:
             return False
+        cluster_add_node = netapp_utils.zapi.NaElement('cluster-add-node')
+        if older_api:
+            cluster_add_node.add_new_child('node-ip', self.parameters.get('cluster_ip_address'))
+        else:
+            cluster_ips = netapp_utils.zapi.NaElement.create_node_with_children('cluster-ips', **{'ip-address': self.parameters.get('cluster_ip_address')})
+            cluster_add_node.add_child_elem(cluster_ips)
+            if self.parameters.get('node_name') is not None:
+                node_names = netapp_utils.zapi.NaElement.create_node_with_children('node-names', **{'string': self.parameters.get('node_name')})
+                cluster_add_node.add_child_elem(node_names)
+
         try:
             self.server.invoke_successfully(cluster_add_node, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -389,7 +381,7 @@ class NetAppONTAPCluster(object):
         is_complete = False
         status = ''
         retries = self.parameters['time_out']
-        errors = list()
+        errors = []
         while not is_complete and status not in ('failed', 'success') and retries > 0:
             retries = retries - 10
             time.sleep(10)
@@ -433,7 +425,7 @@ class NetAppONTAPCluster(object):
         is_complete = None
         failure_msg = None
         retries = self.parameters['time_out']
-        errors = list()
+        errors = []
         while is_complete != 'success' and is_complete != 'failure' and retries > 0:
             retries = retries - 10
             time.sleep(10)
@@ -512,9 +504,8 @@ class NetAppONTAPCluster(object):
             self.na_helper.changed = True
 
         if not self.module.check_mode:
-            if cluster_action == 'create':
-                if self.create_cluster():
-                    self.cluster_create_wait()
+            if cluster_action == 'create' and self.create_cluster():
+                self.cluster_create_wait()
             if node_action == 'add_node':
                 if self.add_node():
                     self.node_add_wait()

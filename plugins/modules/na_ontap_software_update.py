@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -9,10 +9,6 @@ na_ontap_software_update
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 
 DOCUMENTATION = '''
@@ -25,9 +21,9 @@ extends_documentation_fragment:
 module: na_ontap_software_update
 options:
   state:
-    choices: ['present', 'absent']
+    choices: ['present']
     description:
-      - Whether the specified ONTAP package should update or not.
+      - This module can only download and optionally install the software.
     default: present
     type: str
   nodes:
@@ -76,12 +72,15 @@ options:
     version_added: 20.11.0
 short_description: NetApp ONTAP Update Software
 version_added: 2.7.0
+notes:
+  - ONTAP expects the nodes to be in HA pairs to perform non disruptive updates.
+  - In a single node setup, the node is updated, and rebooted.
 '''
 
 EXAMPLES = """
 
     - name: ONTAP software update
-      na_ontap_software_update:
+      netapp.ontap.na_ontap_software_update:
         state: present
         nodes: vsim1
         package_url: "{{ url }}"
@@ -106,7 +105,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPSoftwareUpdate(object):
+class NetAppONTAPSoftwareUpdate():
     """
     Class with ONTAP software update methods
     """
@@ -114,7 +113,7 @@ class NetAppONTAPSoftwareUpdate(object):
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
+            state=dict(required=False, type='str', choices=['present'], default='present'),
             nodes=dict(required=False, type='list', elements='str', aliases=["node"]),
             package_version=dict(required=True, type='str'),
             package_url=dict(required=True, type='str'),
@@ -164,7 +163,7 @@ class NetAppONTAPSoftwareUpdate(object):
                                   % (self.parameters['package_version'], to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster image details
-        node_versions = list()
+        node_versions = []
         if result.get_child_by_name('num-records') and \
                 int(result.get_child_content('num-records')) > 0:
             for image_info in result.get_child_by_name('attributes-list').get_children():
@@ -200,7 +199,7 @@ class NetAppONTAPSoftwareUpdate(object):
         :return: Dictionary of cluster image update progress if query successful, else return None
         """
         cluster_update_progress_get = netapp_utils.zapi.NaElement('cluster-image-update-progress-info')
-        cluster_update_progress_info = dict()
+        cluster_update_progress_info = {}
         try:
             result = self.server.invoke_successfully(cluster_update_progress_get, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -217,9 +216,9 @@ class NetAppONTAPSoftwareUpdate(object):
                 get_child_content('completed-node-count')
             reports = update_progress_info.get_child_by_name('validation-reports')
             if reports:
-                cluster_update_progress_info['validation_reports'] = list()
+                cluster_update_progress_info['validation_reports'] = []
                 for report in reports.get_children():
-                    checks = dict()
+                    checks = {}
                     for check in report.get_children():
                         checks[self.get_localname(check.get_name())] = check.get_content()
                     cluster_update_progress_info['validation_reports'].append(checks)
@@ -299,7 +298,7 @@ class NetAppONTAPSoftwareUpdate(object):
                                   % (self.parameters['package_url'], to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster image download progress details
-        cluster_download_progress_info = dict()
+        cluster_download_progress_info = {}
         if result.get_child_by_name('progress-status'):
             cluster_download_progress_info['progress_status'] = result.get_child_content('progress-status')
             cluster_download_progress_info['progress_details'] = result.get_child_content('progress-details')
@@ -318,10 +317,9 @@ class NetAppONTAPSoftwareUpdate(object):
             result = self.server.invoke_successfully(
                 cluster_image_validation_info, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            msg = 'Error running cluster image validate: %s' % to_native(error)
-            return msg
+            return 'Error running cluster image validate: %s' % to_native(error)
         # return cluster validation report
-        cluster_report_info = list()
+        cluster_report_info = []
         if result.get_child_by_name('cluster-image-validation-report-list'):
             for report in result.get_child_by_name('cluster-image-validation-report-list').get_children():
                 cluster_report_info.append(dict(
@@ -346,12 +344,53 @@ class NetAppONTAPSoftwareUpdate(object):
             versions = [self.cluster_image_get_for_node(node) for node in self.parameters['nodes']]
         else:
             versions = self.cluster_image_get()
+        # set comnprehension not supported on 2.6
         current_versions = set([x[1] for x in versions])
         if len(current_versions) != 1:
             # mixed set, need to update
             return True
         # only update if versions differ
         return current_versions.pop() != self.parameters['package_version']
+
+    def download_software(self):
+        package_exists = self.cluster_image_package_download()
+        if package_exists is False:
+            cluster_download_progress = self.cluster_image_package_download_progress()
+            while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
+                time.sleep(5)
+                cluster_download_progress = self.cluster_image_package_download_progress()
+            if cluster_download_progress.get('progress_status') != 'async_pkg_get_phase_complete':
+                self.module.fail_json(msg='Error downloading package: %s'
+                                      % (cluster_download_progress['failure_reason']))
+
+    def update_software(self):
+        self.cluster_image_update()
+        # delete package once update is completed
+        cluster_update_progress = {}
+        time_left = self.parameters['timeout']
+        polling_interval = 25
+        # assume in_progress if dict is empty
+        while time_left > 0 and cluster_update_progress.get('overall_status', 'in_progress') == 'in_progress':
+            time.sleep(polling_interval)
+            time_left -= polling_interval
+            cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=True)
+        if cluster_update_progress.get('overall_status') == 'completed':
+            validation_reports = str(cluster_update_progress.get('validation_reports'))
+            self.cluster_image_package_delete()
+        else:
+            cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=False)
+            if cluster_update_progress.get('overall_status') != 'completed':
+                if cluster_update_progress.get('overall_status') == 'in_progress':
+                    msg = 'Timeout error'
+                    action = '  Should the timeout value be increased?  Current value is %d seconds.' % self.parameters['timeout']
+                    action += '  The software update continues in background.'
+                else:
+                    msg = 'Error'
+                    action = ''
+                msg += ' updating image: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
+                msg += action
+                validation_reports = str(cluster_update_progress.get('validation_reports'))
+                self.module.fail_json(msg=msg, validation_reports=validation_reports)
 
     def apply(self):
         """
@@ -365,44 +404,9 @@ class NetAppONTAPSoftwareUpdate(object):
         changed = self.parameters['force_update'] or self.is_update_required()
         validation_reports = 'only available after update'
         if not self.module.check_mode and changed:
-            if self.parameters.get('state') == 'present':
-                package_exists = self.cluster_image_package_download()
-                if package_exists is False:
-                    cluster_download_progress = self.cluster_image_package_download_progress()
-                    while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
-                        time.sleep(5)
-                        cluster_download_progress = self.cluster_image_package_download_progress()
-                    if not cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_complete':
-                        self.module.fail_json(msg='Error downloading package: %s'
-                                              % (cluster_download_progress['failure_reason']))
-                if self.parameters['download_only'] is False:
-                    self.cluster_image_update()
-                    # delete package once update is completed
-                    cluster_update_progress = dict()
-                    time_left = self.parameters['timeout']
-                    polling_interval = 25
-                    # assume in_progress if dict is empty
-                    while time_left > 0 and cluster_update_progress.get('overall_status', 'in_progress') == 'in_progress':
-                        time.sleep(polling_interval)
-                        time_left -= polling_interval
-                        cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=True)
-                    if cluster_update_progress.get('overall_status') == 'completed':
-                        validation_reports = str(cluster_update_progress.get('validation_reports'))
-                        self.cluster_image_package_delete()
-                    else:
-                        cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=False)
-                        if cluster_update_progress.get('overall_status') != 'completed':
-                            if cluster_update_progress.get('overall_status') == 'in_progress':
-                                msg = 'Timeout error'
-                                action = '  Should the timeout value be increased?  Current value is %d seconds.' % self.parameters['timeout']
-                                action += '  The software update continues in background.'
-                            else:
-                                msg = 'Error'
-                                action = ''
-                            msg += ' updating image: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
-                            msg += action
-                            validation_reports = str(cluster_update_progress.get('validation_reports'))
-                            self.module.fail_json(msg=msg, validation_reports=validation_reports)
+            self.download_software()
+            if self.parameters['download_only'] is False:
+                self.update_software()
 
         self.module.exit_json(changed=changed, validation_reports=validation_reports)
 

@@ -120,17 +120,14 @@ class TestMyModule(unittest.TestCase):
             username = 'admin'
             password = 'admin'
             node = 'vsim1'
-            package_version = 'Fattire__9.3.0'
-            package_url = 'abc.com'
-            stabilize_minutes = 10
         else:
             hostname = 'hostname'
             username = 'username'
             password = 'password'
             node = 'abc'
-            package_version = 'Fattire__9.3.0'
-            package_url = 'abc.com'
-            stabilize_minutes = 10
+        package_version = 'Fattire__9.3.0'
+        stabilize_minutes = 10
+        package_url = 'abc.com'
         return dict({
             'hostname': hostname,
             'username': username,
