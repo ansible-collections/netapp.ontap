@@ -46,100 +46,99 @@ options:
         type: list
         elements: str
         description:
-            - When supplied, this argument will restrict the information collected
-                to a given subset.  Either the info name or the REST API can be given.
-                Possible values for this argument include
-                "aggregate_info" or "storage/aggregates",
-                "aggr_efficiency_info"
-                "application_info" or "application/applications",
-                "application_template_info" or "application/templates",
-                "autosupport_check_info" or "support/autosupport/check",
-                "autosupport_config_info" or "support/autosupport",
-                "autosupport_messages_history" or "support/autosupport/messages",
-                "broadcast_domains_info" or "net_port_broadcast_domain_info" or "network/ethernet/broadcast-domains",
-                "cifs_home_directory_info" or "protocols/cifs/home-directory/search-paths",
-                "cifs_services_info" or "cifs_options_info" or "protocols/cifs/services",
-                "cifs_vserver_security_info",
-                "cifs_share_info" or "protocols/cifs/shares",
-                "clock_info"
-                "cloud_targets_info" or "cloud/targets",
-                "cluster_chassis_info" or "cluster/chassis",
-                "cluster_log_forwarding_info" or "security/audit/destinations"
-                "cluster_identity_info",
-                "cluster_jobs_info" or "cluster/jobs",
-                "cluster_metrics_info" or "cluster/metrics",
-                "cluster_metrocluster_diagnostics" or "metrocluster_check_info" or "cluster/metrocluster/diagnostics"
-                "cluster_node_info" or "sysconfig_info" or "cluster/nodes",
-                "cluster_peer_info" or "cluster/peers",
-                "cluster_schedules" or "job_schedule_cron_info" or "cluster/schedules",
-                "cluster_software_download" or "cluster/software/download",
-                "cluster_software_history" or "cluster/software/history",
-                "cluster_software_packages" or "cluster/software/packages",
-                "cluster_switch_info" or "network/ethernet/switches"
-                "disk_info" or "storage/disks",
-                "event_notification_info" or "support/ems/destinations",
-                "event_notification_destination_info" or "support/ems/destinations",
-                "export_policy_info" or "protocols/nfs/export-policies"
-                "file_directory_security" or "private/cli/vserver/security/file-directory",
-                "initiator_groups_info" or "igroup_info" or "protocols/san/igroups",
-                "ip_interfaces_info" or "net_interface_info" or "network/ip/interfaces",
-                "ip_routes_info" or "net_routes_info" or "network/ip/routes",
-                "ip_service_policies" or "net_interface_service_policy_info" or "network/ip/service-policies",
-                "kerberos_realm_info" or "protocols/nfs/kerberos/realms"
-                "license_info" or "cluster/licensing/licenses"
-                "network_ipspaces_info" or "net_ipspaces_info" or "network/ipspaces",
-                "network_ports_info" or " net_port_info" or "network/ethernet/ports",
-                "net_vlan_info",
-                "ntp_server_info" or "cluster/ntp/servers"
-                "nvme_info" or "protocols/nvme/services",
-                "nvme_interface_info" or "protocols/nvme/interfaces"
-                "nvme_subsystem_info" or "protocols/nvme/subsystems"
-                "metrocluster_info" or "cluster/metrocluster"
-                "metrocluster-node-get-iter" or "cluster/metrocluster/nodes
-                "ontap_system_version" or " cluster_image_info" or "cluster/software",
-                "san_fc_logins_info" or "network/fc/logins",
-                "san_fc_wppn-aliases" or "fcp_alias_info" or "network/fc/wwpn-aliases",
-                "san_fcp_services" or "fcp_service_info" or "protocols/san/fcp/services",
-                "san_iscsi_credentials" or "protocols/san/iscsi/credentials",
-                "san_iscsi_services" or "iscsi_service_info" or "protocols/san/iscsi/services",
-                "san_lun_maps" or "lun_map_info" or "protocols/san/lun-maps",
-                "security_login_info" or "security_login_account_info" or "security/accounts",
-                "security_login_rest_role_info" or "security/roles",
-                "sis_info",
-                "sis_policy_info" or "storage/volume-efficiency-policies",
-                "snapmirror_destination_info"
-                "snapmirror_info" or "snapmirror/relationships",
-                "snapmirror_policy_info" or "snapmirror/policies"
-                "storage_bridge_info" or "storage/bridges",
-                "storage_flexcaches_info" or "storage/flexcache/flexcaches",
-                "storage_flexcaches_origin_info" or "storage/flexcache/origins",
-                "storage_luns_info" or "lun_info" or "storage/luns",
-                "storage_NVMe_namespaces" or "nvme_namespace_info" or "storage/namespaces",
-                "storage_ports_info" or "storage/ports",
-                "storage_qos_policies" or "qos_policy_info" or "qos_adaptive_policy_info" or "storage/qos/policies",
-                "storage_qtrees_config" or "qtree_info" or "storage/qtrees",
-                "storage_quota_reports" or "quota_report_info" or "storage/quota/reports",
-                "storage_quota_policy_rules" or "storage/quota/rules",
-                "storage_shelves_config" or "shelf_info" or "storage/shelves",
-                "storage_snapshot_policies" or "snapshot_policy_info" or "storage/snapshot-policies",
-                "support_ems_config" or "support/ems",
-                "support_ems_events" or "support/ems/events",
-                "support_ems_filters" or "support/ems/filters",
-                "svm_dns_config_info" or "net_dns_info" or "name-services/dns",
-                "svm_ldap_config_info" or "ldap_client" or "ldap_config" or "name-services/ldap",
-                "svm_name_mapping_config_info" or "name-services/name-mappings",
-                "svm_nis_config_info" or "name-services/nis",
-                "svm_peers_info" or "vserver_peer_info" or "svm/peers",
-                "svm_peer-permissions_info" or "svm/peer-permissions",
-                "sys_cluster_alerts" or "private/support/alerts"
-                "system_node_info"
-                "vserver_info" or "svm/svms",
-                "vserver_nfs_info" or "nfs_info" or "protocols/nfs/services"
-                "volume_info" or "storage/volumes",
-                "volume_space_info",
-                "vscan_connection_status_all_info" or "protocols/vscan/server-status"
-                "vscan_status_info" or "vscan_info" or "protocols/vscan",
-                Can specify a list of values to include a larger subset.
+            - When supplied, this argument will restrict the information collected to a given subset.
+            - Either the info name or the REST API can be given. Possible values for this argument include
+            - aggregate_info or storage/aggregates
+            - aggr_efficiency_info
+            - application_info or application/applications
+            - application_template_info or application/templates
+            - autosupport_check_info or support/autosupport/check
+            - autosupport_config_info or support/autosupport
+            - autosupport_messages_history or support/autosupport/messages
+            - broadcast_domains_info or net_port_broadcast_domain_info or network/ethernet/broadcast-domains
+            - cifs_home_directory_info or protocols/cifs/home-directory/search-paths
+            - cifs_services_info or cifs_options_info or protocols/cifs/services
+            - cifs_vserver_security_info
+            - cifs_share_info or protocols/cifs/shares
+            - clock_info
+            - cloud_targets_info or cloud/targets
+            - cluster_chassis_info or cluster/chassis
+            - cluster_log_forwarding_info or security/audit/destinations
+            - cluster_identity_info
+            - cluster_jobs_info or cluster/jobs
+            - cluster_metrics_info or cluster/metrics
+            - cluster_metrocluster_diagnostics or metrocluster_check_info or cluster/metrocluster/diagnostics
+            - cluster_node_info or sysconfig_info or cluster/nodes
+            - cluster_peer_info or cluster/peers
+            - cluster_schedules or job_schedule_cron_info or cluster/schedules
+            - cluster_software_download or cluster/software/download
+            - cluster_software_history or cluster/software/history
+            - cluster_software_packages or cluster/software/packages
+            - cluster_switch_info or network/ethernet/switches
+            - disk_info or storage/disks
+            - event_notification_info or support/ems/destinations
+            - event_notification_destination_info or support/ems/destinations
+            - export_policy_info or protocols/nfs/export-policies
+            - file_directory_security or private/cli/vserver/security/file-directory
+            - initiator_groups_info or igroup_info or protocols/san/igroups
+            - ip_interfaces_info or net_interface_info or network/ip/interfaces
+            - ip_routes_info or net_routes_info or network/ip/routes
+            - ip_service_policies or net_interface_service_policy_info or network/ip/service-policies
+            - kerberos_realm_info or protocols/nfs/kerberos/realms
+            - license_info or cluster/licensing/licenses
+            - network_ipspaces_info or net_ipspaces_info or network/ipspaces
+            - network_ports_info or  net_port_info or network/ethernet/ports
+            - net_vlan_info
+            - ntp_server_info or cluster/ntp/servers
+            - nvme_info or protocols/nvme/services
+            - nvme_interface_info or protocols/nvme/interfaces
+            - nvme_subsystem_info or protocols/nvme/subsystems
+            - metrocluster_info or cluster/metrocluster
+            - metrocluster-node-get-iter or cluster/metrocluster/nodes
+            - ontap_system_version or  cluster_image_info or cluster/software
+            - san_fc_logins_info or network/fc/logins
+            - san_fc_wppn-aliases or fcp_alias_info or network/fc/wwpn-aliases
+            - san_fcp_services or fcp_service_info or protocols/san/fcp/services
+            - san_iscsi_credentials or protocols/san/iscsi/credentials
+            - san_iscsi_services or iscsi_service_info or protocols/san/iscsi/services
+            - san_lun_maps or lun_map_info or protocols/san/lun-maps
+            - security_login_info or security_login_account_info or security/accounts
+            - security_login_rest_role_info or security/roles
+            - sis_info
+            - sis_policy_info or storage/volume-efficiency-policies
+            - snapmirror_destination_info
+            - snapmirror_info or snapmirror/relationships
+            - snapmirror_policy_info or snapmirror/policies
+            - storage_bridge_info or storage/bridges
+            - storage_flexcaches_info or storage/flexcache/flexcaches
+            - storage_flexcaches_origin_info or storage/flexcache/origins
+            - storage_luns_info or lun_info or storage/luns
+            - storage_NVMe_namespaces or nvme_namespace_info or storage/namespaces
+            - storage_ports_info or storage/ports
+            - storage_qos_policies or qos_policy_info or qos_adaptive_policy_info or storage/qos/policies
+            - storage_qtrees_config or qtree_info or storage/qtrees
+            - storage_quota_reports or quota_report_info or storage/quota/reports
+            - storage_quota_policy_rules or storage/quota/rules
+            - storage_shelves_config or shelf_info or storage/shelves
+            - storage_snapshot_policies or snapshot_policy_info or storage/snapshot-policies
+            - support_ems_config or support/ems
+            - support_ems_events or support/ems/events
+            - support_ems_filters or support/ems/filters
+            - svm_dns_config_info or net_dns_info or name-services/dns
+            - svm_ldap_config_info or ldap_client or ldap_config or name-services/ldap
+            - svm_name_mapping_config_info or name-services/name-mappings
+            - svm_nis_config_info or name-services/nis
+            - svm_peers_info or vserver_peer_info or svm/peers
+            - svm_peer-permissions_info or svm/peer-permissions
+            - sys_cluster_alerts or private/support/alerts
+            - system_node_info
+            - vserver_info or svm/svms
+            - vserver_nfs_info or nfs_info or protocols/nfs/services
+            - volume_info or storage/volumes
+            - volume_space_info
+            - vscan_connection_status_all_info or protocols/vscan/server-status
+            - vscan_status_info or vscan_info or protocols/vscan
+            - Can specify a list of values to include a larger subset.
             - REST APIs are supported with ONTAP 9.6 onwards.
         default: "demo"
     max_records:

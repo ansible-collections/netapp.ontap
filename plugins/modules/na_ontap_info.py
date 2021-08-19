@@ -42,105 +42,103 @@ options:
         type: list
         elements: str
         description:
-            - When supplied, this argument will restrict the information collected
-                to a given subset.  Possible values for this argument include
-                "aggregate_info",
-                "aggr_efficiency_info",
-                "autosupport_check_info",
-                "cifs_options_info",
-                "cifs_server_info",
-                "cifs_share_info",
-                "cifs_vserver_security_info",
-                "cluster_identity_info",
-                "cluster_image_info",
-                "cluster_log_forwarding_info",
-                "cluster_node_info",
-                "cluster_peer_info",
-                "cluster_switch_info",
-                "clock_info",
-                "disk_info",
-                "env_sensors_info",
-                "event_notification_destination_info",
-                "event_notification_info",
-                "export_policy_info",
-                "export_rule_info",
-                "fcp_adapter_info",
-                "fcp_alias_info",
-                "fcp_service_info",
-                "igroup_info",
-                "iscsi_service_info",
-                "job_schedule_cron_info",
-                "kerberos_realm_info",
-                "ldap_client",
-                "ldap_config",
-                "license_info",
-                "lun_info",
-                "lun_map_info",
-                "metrocluster_check_info",
-                "metrocluster_info",
-                "metrocluster_node_info",
-                "net_dev_discovery_info",
-                "net_dns_info",
-                "net_failover_group_info",
-                "net_firewall_info",
-                "net_ifgrp_info",
-                "net_interface_info",
-                "net_interface_service_policy_info",
-                "net_ipspaces_info",
-                "net_port_info",
-                "net_port_broadcast_domain_info",
-                "net_routes_info",
-                "net_vlan_info",
-                "nfs_info",
-                "ntfs_dacl_info",
-                "ntfs_sd_info",
-                "ntp_server_info",
-                "nvme_info",
-                "nvme_interface_info",
-                "nvme_namespace_info",
-                "nvme_subsystem_info",
-                "ontap_system_version",
-                "ontap_version",
-                "ontapi_version",
-                "qos_adaptive_policy_info",
-                "qos_policy_info",
-                "qtree_info",
-                "quota_report_info",
-                "role_info",
-                "security_key_manager_key_info",
-                "security_login_account_info",
-                "security_login_role_config_info",
-                "security_login_role_info",
-                "service_processor_info",
-                "service_processor_network_info",
-                "shelf_info"
-                "sis_info",
-                "sis_policy_info",
-                "snapmirror_info",
-                "snapmirror_destination_info",
-                "snapmirror_policy_info",
-                "snapshot_info",
-                "snapshot_policy_info",
-                "storage_failover_info",
-                "storage_bridge_info",
-                "subsys_health_info",
-                "sysconfig_info",
-                "sys_cluster_alerts",
-                "volume_info",
-                "volume_space_info",
-                "vscan_info",
-                "vscan_status_info",
-                "vscan_scanner_pool_info",
-                "vscan_connection_status_all_info",
-                "vscan_connection_extended_stats_info",
-                "vserver_info",
-                "vserver_login_banner_info",
-                "vserver_motd_info",
-                "vserver_nfs_info",
-                "vserver_peer_info",
-                Can specify a list of values to include a larger subset.  Values can also be used
-                with an initial C(M(!)) to specify that a specific subset should
-                not be collected.
+            - When supplied, this argument will restrict the information collected to a given subset.  Possible values for this argument include
+            - "aggregate_info"
+            - "aggr_efficiency_info"
+            - "autosupport_check_info"
+            - "cifs_options_info"
+            - "cifs_server_info"
+            - "cifs_share_info"
+            - "cifs_vserver_security_info"
+            - "cluster_identity_info"
+            - "cluster_image_info"
+            - "cluster_log_forwarding_info"
+            - "cluster_node_info"
+            - "cluster_peer_info"
+            - "cluster_switch_info"
+            - "clock_info"
+            - "disk_info"
+            - "env_sensors_info"
+            - "event_notification_destination_info"
+            - "event_notification_info"
+            - "export_policy_info"
+            - "export_rule_info"
+            - "fcp_adapter_info"
+            - "fcp_alias_info"
+            - "fcp_service_info"
+            - "igroup_info"
+            - "iscsi_service_info"
+            - "job_schedule_cron_info"
+            - "kerberos_realm_info"
+            - "ldap_client"
+            - "ldap_config"
+            - "license_info"
+            - "lun_info"
+            - "lun_map_info"
+            - "metrocluster_check_info"
+            - "metrocluster_info"
+            - "metrocluster_node_info"
+            - "net_dev_discovery_info"
+            - "net_dns_info"
+            - "net_failover_group_info"
+            - "net_firewall_info"
+            - "net_ifgrp_info"
+            - "net_interface_info"
+            - "net_interface_service_policy_info"
+            - "net_ipspaces_info"
+            - "net_port_info"
+            - "net_port_broadcast_domain_info"
+            - "net_routes_info"
+            - "net_vlan_info"
+            - "nfs_info"
+            - "ntfs_dacl_info"
+            - "ntfs_sd_info"
+            - "ntp_server_info"
+            - "nvme_info"
+            - "nvme_interface_info"
+            - "nvme_namespace_info"
+            - "nvme_subsystem_info"
+            - "ontap_system_version"
+            - "ontap_version"
+            - "ontapi_version"
+            - "qos_adaptive_policy_info"
+            - "qos_policy_info"
+            - "qtree_info"
+            - "quota_report_info"
+            - "role_info"
+            - "security_key_manager_key_info"
+            - "security_login_account_info"
+            - "security_login_role_config_info"
+            - "security_login_role_info"
+            - "service_processor_info"
+            - "service_processor_network_info"
+            - "shelf_info"
+            - "sis_info"
+            - "sis_policy_info"
+            - "snapmirror_info"
+            - "snapmirror_destination_info"
+            - "snapmirror_policy_info"
+            - "snapshot_info"
+            - "snapshot_policy_info"
+            - "storage_failover_info"
+            - "storage_bridge_info"
+            - "subsys_health_info"
+            - "sysconfig_info"
+            - "sys_cluster_alerts"
+            - "volume_info"
+            - "volume_space_info"
+            - "vscan_info"
+            - "vscan_status_info"
+            - "vscan_scanner_pool_info"
+            - "vscan_connection_status_all_info"
+            - "vscan_connection_extended_stats_info"
+            - "vserver_info"
+            - "vserver_login_banner_info"
+            - "vserver_motd_info"
+            - "vserver_nfs_info"
+            - "vserver_peer_info"
+            - Can specify a list of values to include a larger subset.
+            - Values can also be used with an initial C(M(!)) to specify that a specific subset should not be collected.
             - nvme is supported with ONTAP 9.4 onwards.
             - use "help" to get a list of supported information for your system.
         default: "all"
