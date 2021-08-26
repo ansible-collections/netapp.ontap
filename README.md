@@ -31,6 +31,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_interface - new option `from_name` to rename an interface.
+  - na_ontap_software_update - new option `validate_after_download` to run ONTAP software update validation checks.
   - na_ontap_svm - new option `services` to allow and/or enable protocol services when using REST.
   - na_ontap_svm - new option `ignore_rest_unsupported_options` to ignore older ZAPI options not available in REST.
 

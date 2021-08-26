@@ -54,6 +54,13 @@ options:
     default: False
     type: bool
     version_added: 20.4.0
+  validate_after_download:
+    description:
+      - By default validation is not run after download, as it is already done in the update step.
+      - This option is useful when using C(download_only), for instance when updating a MetroCluster system.
+    default: False
+    type: bool
+    version_added: 21.11.0
   stabilize_minutes:
     description:
       - Number of minutes that the update should wait after a takeover or giveback is completed.
@@ -93,6 +100,21 @@ EXAMPLES = """
 """
 
 RETURN = """
+validation_reports:
+  description: C(validation_reports_after_update) as a string, for backward compatibility.
+  returned: always
+  type: str
+validation_reports_after_download:
+  description:
+    - List of validation reports, after downloading the software package.
+    - Note that it is different from the validation checks reported after attempting an update.
+  returned: always
+  type: list
+validation_reports_after_updates:
+  description:
+    - List of validation reports, after attemting to update the software package.
+  returned: always
+  type: list
 """
 
 import time
@@ -122,6 +144,7 @@ class NetAppONTAPSoftwareUpdate():
             stabilize_minutes=dict(required=False, type='int'),
             timeout=dict(required=False, type='int', default=1800),
             force_update=dict(required=False, type='bool', default=False),
+            validate_after_download=dict(required=False, type='bool', default=False),
         ))
 
         self.module = AnsibleModule(
@@ -131,6 +154,7 @@ class NetAppONTAPSoftwareUpdate():
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.validation_reports_after_download = ['only available if validate_after_download is true']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -245,10 +269,15 @@ class NetAppONTAPSoftwareUpdate():
         except netapp_utils.zapi.NaApiError as error:
             msg = 'Error updating cluster image for %s: %s' % (self.parameters['package_version'], to_native(error))
             cluster_update_progress_info = self.cluster_image_update_progress_get(ignore_connection_error=True)
-            validation_reports = str(cluster_update_progress_info.get('validation_reports'))
-            if validation_reports == "None":
-                validation_reports = str(self.cluster_image_validate())
-            self.module.fail_json(msg=msg, validation_reports=validation_reports, exception=traceback.format_exc())
+            validation_reports = cluster_update_progress_info.get('validation_reports')
+            if validation_reports is None:
+                validation_reports = self.cluster_image_validate()
+            self.module.fail_json(
+                msg=msg,
+                validation_reports=str(validation_reports),
+                validation_reports_after_download=self.validation_reports_after_download,
+                validation_reports_after_update=validation_reports,
+                exception=traceback.format_exc())
 
     def cluster_image_package_download(self):
         """
@@ -322,10 +351,16 @@ class NetAppONTAPSoftwareUpdate():
         cluster_report_info = []
         if result.get_child_by_name('cluster-image-validation-report-list'):
             for report in result.get_child_by_name('cluster-image-validation-report-list').get_children():
+                info = self.na_helper.safe_get(report, ['required-action', 'required-action-info'])
+                required_action = {}
+                if info:
+                    for action in info.get_children():
+                        if action.get_content():
+                            required_action[self.get_localname(action.get_name())] = action.get_content()
                 cluster_report_info.append(dict(
                     ndu_check=report.get_child_content('ndu-check'),
                     ndu_status=report.get_child_content('ndu-status'),
-                    required_action=report.get_child_content('required-action')
+                    required_action=required_action
                 ))
         return cluster_report_info
 
@@ -374,23 +409,30 @@ class NetAppONTAPSoftwareUpdate():
             time.sleep(polling_interval)
             time_left -= polling_interval
             cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=True)
-        if cluster_update_progress.get('overall_status') == 'completed':
-            validation_reports = str(cluster_update_progress.get('validation_reports'))
-            self.cluster_image_package_delete()
-        else:
+
+        if cluster_update_progress.get('overall_status') != 'completed':
             cluster_update_progress = self.cluster_image_update_progress_get(ignore_connection_error=False)
-            if cluster_update_progress.get('overall_status') != 'completed':
-                if cluster_update_progress.get('overall_status') == 'in_progress':
-                    msg = 'Timeout error'
-                    action = '  Should the timeout value be increased?  Current value is %d seconds.' % self.parameters['timeout']
-                    action += '  The software update continues in background.'
-                else:
-                    msg = 'Error'
-                    action = ''
-                msg += ' updating image: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
-                msg += action
-                validation_reports = str(cluster_update_progress.get('validation_reports'))
-                self.module.fail_json(msg=msg, validation_reports=validation_reports)
+
+        validation_reports = cluster_update_progress.get('validation_reports')
+
+        if cluster_update_progress.get('overall_status') == 'completed':
+            self.cluster_image_package_delete()
+            return validation_reports
+
+        if cluster_update_progress.get('overall_status') == 'in_progress':
+            msg = 'Timeout error'
+            action = '  Should the timeout value be increased?  Current value is %d seconds.' % self.parameters['timeout']
+            action += '  The software update continues in background.'
+        else:
+            msg = 'Error'
+            action = ''
+        msg += ' updating image: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
+        msg += action
+        self.module.fail_json(
+            msg=msg,
+            validation_reports=str(validation_reports),
+            validation_reports_after_download=self.validation_reports_after_download,
+            validation_reports_after_update=validation_reports)
 
     def apply(self):
         """
@@ -402,13 +444,19 @@ class NetAppONTAPSoftwareUpdate():
             self.module.fail_json(msg='https parameter must be True')
         self.autosupport_log()
         changed = self.parameters['force_update'] or self.is_update_required()
-        validation_reports = 'only available after update'
+        validation_reports_after_update = ['only available after update']
         if not self.module.check_mode and changed:
             self.download_software()
+            if self.parameters['validate_after_download']:
+                self.validation_reports_after_download = self.cluster_image_validate()
             if self.parameters['download_only'] is False:
-                self.update_software()
+                validation_reports_after_update = self.update_software()
 
-        self.module.exit_json(changed=changed, validation_reports=validation_reports)
+        self.module.exit_json(
+            changed=changed,
+            validation_reports=str(validation_reports_after_update),
+            validation_reports_after_download=self.validation_reports_after_download,
+            validation_reports_after_update=validation_reports_after_update,)
 
 
 def main():
