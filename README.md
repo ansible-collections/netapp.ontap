@@ -38,6 +38,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_software_update - remove `absent` as a choice for `state` as it has no use.
   - na_ontap_svm - ignore `aggr_list: '*'` when using REST.
 
+### Bug Fixes
+  - na_ontap_ldap_client - remove limitation on schema so that custom schemas can be used.
+
 ## 21.10.0
 
 ### Minor Changes

@@ -153,6 +153,12 @@ class TestMyModule(unittest.TestCase):
             self.get_client_mock_object().apply()
         assert exc.value.args[0]['changed']
 
+    def test_successfully_create_ad_servers(self):
+        self.set_args_for_ad()
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_client_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
     def test_create_idempotency(self):
         set_module_args(self.mock_args())
         with pytest.raises(AnsibleExitJson) as exc:
@@ -160,20 +166,21 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     def test_successfully_delete(self):
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
+        self.set_args_for_delete()
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_client_mock_object('client').apply()
         assert exc.value.args[0]['changed']
 
     def test_delete_idempotency(self):
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
+        self.set_args_for_delete()
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_client_mock_object().apply()
         assert not exc.value.args[0]['changed']
+
+    def set_args_for_delete(self):
+        data = self.mock_args()
+        data['state'] = 'absent'
+        set_module_args(data)
 
     def test_successfully_modify(self):
         data = self.mock_args()
@@ -183,3 +190,16 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_client_mock_object('client').apply()
         assert exc.value.args[0]['changed']
+
+    def test_successfully_modify_ad_servers(self):
+        self.set_args_for_ad()
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_client_mock_object('client').apply()
+        assert exc.value.args[0]['changed']
+
+    def set_args_for_ad(self):
+        data = self.mock_args()
+        data.pop('ldap_servers')
+        data['ad_domain'] = 'example.com'
+        data['preferred_ad_servers'] = ['10.10.10.1', '10.10.10.2']
+        set_module_args(data)

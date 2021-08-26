@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-(c) 2018-2019, NetApp, Inc
+(c) 2018-2021, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
@@ -8,10 +8,6 @@ GNU General Public License v3.0+
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 
@@ -24,110 +20,111 @@ version_added: 2.9.0
 author: Milan Zink (@zeten30) <zeten30@gmail.com>/<mzink@redhat.com>
 
 description:
-- Create, modify or delete LDAP client on NetApp ONTAP
+  - Create, modify or delete LDAP client on NetApp ONTAP.
 
 options:
 
   state:
     description:
-    - Whether the specified LDAP client configuration exist or not.
+      - Whether the specified LDAP client configuration exist or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   vserver:
     description:
-    - vserver/svm that holds LDAP client configuration
+      - vserver/svm that holds LDAP client configuration.
     required: true
     type: str
 
   name:
     description:
-    - The name of LDAP client configuration
+      - The name of LDAP client configuration.
     required: true
     type: str
 
   ldap_servers:
     description:
-    - Comma separated list of LDAP servers. FQDN's or IP addreses
-    - Required if I(state=present).
+      - Comma separated list of LDAP servers. FQDN's or IP addreses.
+      - Required if I(state=present).
     type: list
     elements: str
 
   schema:
     description:
-    - LDAP schema
-    - Required if I(state=present).
-    choices: ['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']
+      - LDAP schema.
+      - Required if I(state=present).
+      - default schemas - 'AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307'.
+      - custom schemas are allowed as well.
     type: str
 
   ad_domain:
     description:
-    - Active Directory Domain Name
+      - Active Directory Domain Name.
     type: str
 
   base_dn:
     description:
-    - LDAP base DN
+      - LDAP base DN.
     type: str
 
   base_scope:
     description:
-    - LDAP search scope
+      - LDAP search scope.
     choices: ['subtree', 'onelevel', 'base']
     type: str
 
   bind_as_cifs_server:
     description:
-    -  The cluster uses the CIFS server's credentials to bind to the LDAP server.
+      - The cluster uses the CIFS server's credentials to bind to the LDAP server.
     type: bool
 
   preferred_ad_servers:
     description:
-    - Preferred Active Directory (AD) Domain Controllers
+      - Preferred Active Directory (AD) Domain Controllers.
     type: list
     elements: str
 
   tcp_port:
     description:
-    - LDAP server TCP port
+      - LDAP server TCP port.
     type: int
     version_added: 21.3.0
 
   query_timeout:
     description:
-    - LDAP server query timeout
+      - LDAP server query timeout.
     type: int
 
   min_bind_level:
     description:
-    - Minimal LDAP server bind level.
+      - Minimal LDAP server bind level.
     choices: ['anonymous', 'simple', 'sasl']
     type: str
 
   bind_dn:
     description:
-    - LDAP bind user DN
+      - LDAP bind user DN.
     type: str
 
   bind_password:
     description:
-    - LDAP bind user password
+      - LDAP bind user password.
     type: str
 
   use_start_tls:
     description:
-    - Start TLS on LDAP connection
+      - Start TLS on LDAP connection.
     type: bool
 
   referral_enabled:
     description:
-    - LDAP Referral Chasing
+      - LDAP Referral Chasing.
     type: bool
 
   session_security:
     description:
-    - Client Session Security
+      - Client Session Security.
     choices: ['none', 'sign', 'seal']
     type: str
 '''
@@ -135,7 +132,7 @@ options:
 EXAMPLES = '''
 
     - name: Create LDAP client
-      na_ontap_ldap_client:
+      netapp.ontap.na_ontap_ldap_client:
         state:         present
         name:          'example_ldap'
         vserver:       'vserver1'
@@ -159,7 +156,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapLDAPClient(object):
+class NetAppOntapLDAPClient():
     '''
     LDAP Client definition class
     '''
@@ -180,7 +177,7 @@ class NetAppOntapLDAPClient(object):
             tcp_port=dict(required=False, default=None, type='int'),
             query_timeout=dict(required=False, default=None, type='int'),
             referral_enabled=dict(required=False, type='bool'),
-            schema=dict(required=False, default=None, choices=['AD-IDMU', 'AD-SFU', 'MS-AD-BIS', 'RFC-2307']),
+            schema=dict(required=False, default=None),
             session_security=dict(required=False, default=None, choices=['none', 'sign', 'seal']),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             use_start_tls=dict(required=False, type='bool'),
@@ -256,16 +253,8 @@ class NetAppOntapLDAPClient(object):
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             attributes_list = result.get_child_by_name('attributes-list')
             client_config_info = attributes_list.get_child_by_name('ldap-client')
-            # Get LDAP servers list
-            ldap_server_list = list()
-            get_list = client_config_info.get_child_by_name('ldap-servers')
-            if get_list is not None:
-                ldap_server_list = [x.get_content() for x in get_list.get_children()]
-
-            preferred_ad_servers_list = list()
-            get_pref_ad_server_list = client_config_info.get_child_by_name('preferred-ad-servers')
-            if get_pref_ad_server_list is not None:
-                preferred_ad_servers_list = [x.get_content() for x in get_pref_ad_server_list.get_children()]
+            ldap_server_list = self.get_list_from_children(client_config_info, 'ldap-servers')
+            preferred_ad_servers_list = self.get_list_from_children(client_config_info, 'preferred-ad-servers')
 
             # Define config details structure
             client_config_details = {
@@ -292,6 +281,16 @@ class NetAppOntapLDAPClient(object):
             }
         return client_config_details
 
+    def get_list_from_children(self, client_config_info, element_name):
+        # Get list for element chidren
+        # returns empty list if element does not exist
+        result = []
+        get_list = client_config_info.get_child_by_name(element_name)
+        if get_list is not None:
+            result = [x.get_content() for x in get_list.get_children()]
+
+        return result
+
     def create_ldap_client(self):
         '''
         Create LDAP client configuration
@@ -312,17 +311,11 @@ class NetAppOntapLDAPClient(object):
 
         # LDAP servers NaElement
         if self.parameters.get('ldap_servers') is not None:
-            ldap_servers_element = netapp_utils.zapi.NaElement('ldap-servers')
-            for ldap_server_name in self.parameters['ldap_servers']:
-                ldap_servers_element.add_new_child('string', ldap_server_name)
-            ldap_client_create.add_child_elem(ldap_servers_element)
+            self.add_element_with_children('ldap-servers', 'ldap_servers', 'string', ldap_client_create)
 
         # preferred_ad_servers
         if self.parameters.get('preferred_ad_servers') is not None:
-            preferred_ad_servers_element = netapp_utils.zapi.NaElement('preferred-ad-servers')
-            for pref_ad_server in self.parameters['preferred_ad_servers']:
-                preferred_ad_servers_element.add_new_child('ip-address', pref_ad_server)
-            ldap_client_create.add_child_elem(preferred_ad_servers_element)
+            self.add_element_with_children('preferred-ad-servers', 'preferred_ad_servers', 'ip-address', ldap_client_create)
 
         # Try to create LDAP configuration
         try:
@@ -331,6 +324,12 @@ class NetAppOntapLDAPClient(object):
             self.module.fail_json(
                 msg='Error creating LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
                 exception=traceback.format_exc())
+
+    def add_element_with_children(self, element_name, param_name, child_name, ldap_client_create):
+        ldap_servers_element = netapp_utils.zapi.NaElement(element_name)
+        for ldap_server_name in self.parameters[param_name]:
+            ldap_servers_element.add_new_child(child_name, ldap_server_name)
+        ldap_client_create.add_child_elem(ldap_servers_element)
 
     def delete_ldap_client(self):
         '''
@@ -356,16 +355,10 @@ class NetAppOntapLDAPClient(object):
         for attribute in modify:
             # LDAP_servers
             if attribute == 'ldap_servers':
-                ldap_servers_element = netapp_utils.zapi.NaElement('ldap-servers')
-                for ldap_server_name in self.parameters['ldap_servers']:
-                    ldap_servers_element.add_new_child('string', ldap_server_name)
-                ldap_client_modify.add_child_elem(ldap_servers_element)
+                self.add_element_with_children('ldap-servers', 'ldap_servers', 'string', ldap_client_modify)
             # preferred_ad_servers
             if attribute == 'preferred_ad_servers':
-                preferred_ad_servers_element = netapp_utils.zapi.NaElement('preferred-ad-servers')
-                ldap_client_modify.add_child_elem(preferred_ad_servers_element)
-                for pref_ad_server in self.parameters['preferred_ad_servers']:
-                    preferred_ad_servers_element.add_new_child('ip-address', pref_ad_server)
+                self.add_element_with_children('preferred-ad-servers', 'preferred_ad_servers', 'ip-address', ldap_client_modify)
             # Simple attributes
             if attribute in self.simple_attributes:
                 ldap_client_modify.add_new_child(str(attribute).replace('_', '-'), str(self.parameters[attribute]))
@@ -399,16 +392,13 @@ class NetAppOntapLDAPClient(object):
                 msg='Error connecting to %s: %s' % (self.parameters['hostname'], to_native(errcatch)),
                 exception=traceback.format_exc())
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_ldap_client()
-                elif cd_action == 'delete':
-                    self.delete_ldap_client()
-                elif modify:
-                    self.modify_ldap_client(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_ldap_client()
+            elif cd_action == 'delete':
+                self.delete_ldap_client()
+            elif modify:
+                self.modify_ldap_client(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

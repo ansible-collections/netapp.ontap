@@ -7,10 +7,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -40,10 +36,11 @@ options:
         description:
         - Returns a parsesable dictionary instead of raw XML output
         - C(result_value)
-        - C(status) > passed, failed..
-        - C(stdout) > command output in plaintext)
-        - C(stdout_lines) > list of command output lines)
+        - C(status) > passed, failed.
+        - C(stdout) > command output in plaintext.
+        - C(stdout_lines) > list of command output lines.
         - C(stdout_lines_filter) > empty list or list of command output lines matching I(include_lines) or I(exclude_lines) parameters.
+        - C(xml_dict) > JSON representation of what the CLI returned.
         type: bool
         default: false
         version_added: 2.9.0
@@ -70,7 +67,7 @@ options:
 
 EXAMPLES = """
     - name: run ontap cli command
-      na_ontap_command:
+      netapp.ontap.na_ontap_command:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
@@ -78,7 +75,7 @@ EXAMPLES = """
 
     # Same as above, but returns parseable dictonary
     - name: run ontap cli command
-      na_ontap_command:
+      netapp.ontap.na_ontap_command:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
@@ -88,7 +85,7 @@ EXAMPLES = """
 
     # Same as above, but with lines filtering
     - name: run ontap cli command
-      na_ontap_command:
+      netapp.ontap.na_ontap_command:
         hostname: "{{ hostname }}"
         username: "{{ admin username }}"
         password: "{{ admin password }}"
@@ -109,7 +106,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPCommand(object):
+class NetAppONTAPCommand():
     ''' calls a CLI command '''
 
     def __init__(self):
@@ -135,14 +132,15 @@ class NetAppONTAPCommand(object):
         self.include_lines = parameters['include_lines']
         self.exclude_lines = parameters['exclude_lines']
 
-        self.result_dict = dict()
-        self.result_dict['status'] = ""
-        self.result_dict['result_value'] = 0
-        self.result_dict['invoked_command'] = " ".join(self.command)
-        self.result_dict['stdout'] = ""
-        self.result_dict['stdout_lines'] = []
-        self.result_dict['stdout_lines_filter'] = []
-        self.result_dict['xml_dict'] = dict()
+        self.result_dict = {
+            'status': "",
+            'result_value': 0,
+            'invoked_command': " ".join(self.command),
+            'stdout': "",
+            'stdout_lines': [],
+            'stdout_lines_filter': [],
+            'xml_dict': {},
+        }
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -185,12 +183,11 @@ class NetAppONTAPCommand(object):
             output = self.server.invoke_successfully(command_obj, True)
             if self.return_dict:
                 # Parseable dict output
-                retval = self.parse_xml_to_dict(output.to_string())
+                return self.parse_xml_to_dict(output.to_string())
             else:
                 # Raw XML output
-                retval = output.to_string()
+                return output.to_string()
 
-            return retval
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error running command %s: %s' %
                                   (self.command, to_native(error)),
@@ -283,7 +280,7 @@ class NetAppONTAPCommand(object):
 
     def _start_element(self, name, attrs):
         ''' Start XML element '''
-        self.result_dict['xml_dict'][name] = dict()
+        self.result_dict['xml_dict'][name] = {}
         self.result_dict['xml_dict'][name]['attrs'] = attrs
         self.result_dict['xml_dict'][name]['data'] = ""
         self.result_dict['xml_dict']['active_element'] = name
