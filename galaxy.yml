@@ -7,6 +7,7 @@ readme: README.md
 license_file: COPYING
 description: NetApp ONTAP Collection
 repository: https://github.com/ansible-collections/netapp.ontap
+issues: https://github.com/ansible-collections/netapp.ontap/issues
 homepage: https://netapp.io/configuration-management-and-automation/
 tags:
     - storage
