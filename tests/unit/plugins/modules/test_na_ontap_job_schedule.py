@@ -95,7 +95,7 @@ class MockONTAPConnection(object):
         self.params = data
         self.xml_in = None
         self.xml_out = None
-        self.call_log = list()
+        self.call_log = []
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
@@ -105,6 +105,8 @@ class MockONTAPConnection(object):
             xml = self.build_job_schedule_cron_info(self.params)
         elif self.kind == 'job_multiple':
             xml = self.build_job_schedule_multiple_cron_info(self.params)
+        elif self.kind == 'no_job':
+            xml = self.build_job_schedule_None_info(self.params)
         self.xml_out = xml
         return xml
 
@@ -126,6 +128,16 @@ class MockONTAPConnection(object):
                     }
                 }
             }
+        }
+        xml.translate_struct(attributes)
+        return xml
+
+    @staticmethod
+    def build_job_schedule_None_info(job_details):
+        ''' build xml data for vserser-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        attributes = {
+            'num-records': '0'
         }
         xml.translate_struct(attributes)
         return xml
@@ -266,7 +278,7 @@ class TestMyModule(unittest.TestCase):
         del data['job_minutes']
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object('job').create_job_schedule()
+            self.get_job_mock_object('no_job').apply()
         msg = 'Error: missing required parameter job_minutes for create'
         assert exc.value.args[0]['msg'] == msg
 

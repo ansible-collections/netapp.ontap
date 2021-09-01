@@ -38,9 +38,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor Changes
   - na_ontap_software_update - remove `absent` as a choice for `state` as it has no use.
   - na_ontap_svm - ignore `aggr_list: '*'` when using REST.
-
+  
 ### Bug Fixes
+  - na_ontap_job_schedule - fix idempotency issue with REST when job_minutes is set to -1.
   - na_ontap_ldap_client - remove limitation on schema so that custom schemas can be used.
+
+### Added REST support to existing modules
+  - na_ontap_ntp - Added REST support to the ntp module
 
 ## 21.10.0
 
@@ -50,6 +54,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before deleting vserver.
   - all modules - traceback on ONTAP 9.3 (and earlier) when trying to detect REST support.
+
 
 ## 21.9.0
 

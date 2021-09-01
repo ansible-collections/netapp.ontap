@@ -62,6 +62,9 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -84,11 +87,15 @@ class NetAppOntapNTPServer(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+
+        if not self.use_rest:
+            if HAS_NETAPP_LIB is False:
+                self.module.fail_json(
+                    msg="the python NetApp-Lib module is required")
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_ntp_server(self):
         """
@@ -98,6 +105,8 @@ class NetAppOntapNTPServer(object):
         :return: Details about the ntp server. None if not found.
         :rtype: dict
         """
+        if self.use_rest:
+            return self.get_ntp_server_rest()
         ntp_iter = netapp_utils.zapi.NaElement('ntp-server-get-iter')
         ntp_info = netapp_utils.zapi.NaElement('ntp-server-info')
         ntp_info.add_new_child('server-name', self.parameters['server_name'])
@@ -125,10 +134,21 @@ class NetAppOntapNTPServer(object):
 
         return return_value
 
+    def get_ntp_server_rest(self):
+        api = 'cluster/ntp/servers'
+        options = {'server': self.parameters['server_name'],
+                   'fields': 'server,version'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, options)
+        if error:
+            self.module.fail_json(msg=error)
+        return record
+
     def create_ntp_server(self):
         """
         create ntp server.
         """
+        if self.use_rest:
+            return self.create_ntp_server_rest()
         ntp_server_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'ntp-server-create', **{'server-name': self.parameters['server_name'],
                                     'version': self.parameters['version']
@@ -142,10 +162,22 @@ class NetAppOntapNTPServer(object):
                                   % (self.parameters['server_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def create_ntp_server_rest(self):
+        api = 'cluster/ntp/servers'
+        params = {
+            'server': self.parameters['server_name'],
+            'version': self.parameters['version']
+        }
+        dummy, error = rest_generic.post_async(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg=error)
+
     def delete_ntp_server(self):
         """
         delete ntp server.
         """
+        if self.use_rest:
+            return self.delete_ntp_server_rest()
         ntp_server_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'ntp-server-delete', **{'server-name': self.parameters['server_name']})
 
@@ -157,26 +189,40 @@ class NetAppOntapNTPServer(object):
                                   % (self.parameters['server_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def delete_ntp_server_rest(self):
+        dummy, error = rest_generic.delete_async(self.rest_api, 'cluster/ntp/servers', self.parameters['server_name'])
+        if error:
+            self.module.fail_json(msg=error)
+
     def modify_version(self):
         """
         modify the version.
         """
-        ntp_modify_versoin = netapp_utils.zapi.NaElement.create_node_with_children(
+        if self.use_rest:
+            return self.modify_version_rest()
+        ntp_modify_version = netapp_utils.zapi.NaElement.create_node_with_children(
             'ntp-server-modify',
             **{'server-name': self.parameters['server_name'], 'version': self.parameters['version']})
         try:
-            self.server.invoke_successfully(ntp_modify_versoin,
+            self.server.invoke_successfully(ntp_modify_version,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying version for ntp server %s: %s'
                                   % (self.parameters['server_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def modify_version_rest(self):
+        body = {'version': self.parameters['version']}
+        dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/ntp/servers', self.parameters['server_name'], body)
+        if error:
+            self.module.fail_json(msg=error)
+
     def apply(self):
         """Apply action to ntp-server"""
 
         modify = None
-        netapp_utils.ems_log_event_cserver("na_ontap_ntp", self.server, self.module)
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_ntp", self.server, self.module)
         current = self.get_ntp_server()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':

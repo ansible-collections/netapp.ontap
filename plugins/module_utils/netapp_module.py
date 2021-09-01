@@ -68,24 +68,25 @@ class NetAppModule(object):
 
     def __init__(self, module=None):
         self.module = module
-        self.log = list()
+        self.log = []
         self.changed = False
         self.parameters = {'name': 'not initialized'}
-        self.zapi_string_keys = dict()
-        self.zapi_bool_keys = dict()
-        self.zapi_list_keys = dict()
-        self.zapi_int_keys = dict()
-        self.zapi_required = dict()
+        self.zapi_string_keys = {}
+        self.zapi_bool_keys = {}
+        self.zapi_list_keys = {}
+        self.zapi_int_keys = {}
+        self.zapi_required = {}
+        self.params_to_rest_api_keys = {}
 
     def set_parameters(self, ansible_params):
-        self.parameters = dict()
+        self.parameters = {}
         for param in ansible_params:
             if ansible_params[param] is not None:
                 self.parameters[param] = ansible_params[param]
         return self.parameters
 
     def check_and_set_parameters(self, module):
-        self.parameters = dict()
+        self.parameters = {}
         check_for_none = netapp_utils.has_feature(module, 'check_required_params_for_none')
         if check_for_none:
             required_keys = [key for key, value in module.argument_spec.items() if value.get('required')]
@@ -177,11 +178,7 @@ class NetAppModule(object):
                 is_present = 'present'
             action = cd_action(current=is_present, desired = self.desired.state())
         '''
-        if 'state' in desired:
-            desired_state = desired['state']
-        else:
-            desired_state = 'present'
-
+        desired_state = desired['state'] if 'state' in desired else 'present'
         if current is None and desired_state == 'absent':
             return None
         if current is not None and desired_state == 'present':
@@ -193,7 +190,7 @@ class NetAppModule(object):
         return 'create'
 
     def compare_and_update_values(self, current, desired, keys_to_compare):
-        updated_values = dict()
+        updated_values = {}
         is_changed = False
         for key in keys_to_compare:
             if key in current:
@@ -237,7 +234,7 @@ class NetAppModule(object):
                 desired_diff_list.append(item)
 
         # get what in current but not in desired
-        current_diff_list = list()
+        current_diff_list = []
         for item in current:
             if item in desired_copy:
                 desired_copy.remove(item)
@@ -269,7 +266,7 @@ class NetAppModule(object):
             aggregate name)
         '''
         # if the object does not exist,  we can't modify it
-        modified = dict()
+        modified = {}
         if current is None:
             return modified
 
@@ -318,7 +315,7 @@ class NetAppModule(object):
             # idempotency (or) new_name_is_already_in_use
             # alternatively we could delete B and rename A to B
             return False
-        if source is None and target is not None:
+        if source is None:
             # do nothing, maybe the rename was already done
             return False
         # source is not None and target is None:
@@ -446,7 +443,7 @@ class NetAppModule(object):
         """
 
         if isinstance(list_or_dict, dict):
-            result = dict()
+            result = {}
             for key, value in list_or_dict.items():
                 if isinstance(value, (list, dict)):
                     sub = self.filter_out_none_entries(value)
@@ -459,7 +456,7 @@ class NetAppModule(object):
             return result
 
         if isinstance(list_or_dict, list):
-            alist = list()
+            alist = []
             for item in list_or_dict:
                 if isinstance(item, (list, dict)):
                     sub = self.filter_out_none_entries(item)

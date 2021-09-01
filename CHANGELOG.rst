@@ -5,6 +5,27 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.11.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_interface - new option ``from_name`` to rename an interface.
+- na_ontap_ntp - Added REST support to the ntp module
+- na_ontap_ntp - Added REST support to the ntp module
+- na_ontap_software_update - new option ``validate_after_download`` to run ONTAP software update validation checks.
+- na_ontap_software_update - remove ``absent`` as a choice for ``state`` as it has no use.
+- na_ontap_svm - ignore ``aggr_list`` with ``'*'`` when using REST.
+- na_ontap_svm - new option ``ignore_rest_unsupported_options`` to ignore older ZAPI options not available in REST.
+- na_ontap_svm - new option ``services`` to allow and/or enable protocol services.
+
+Bugfixes
+--------
+
+- na_ontap_job_schedule - fix idempotency issue with REST when job_minutes is set to -1.
+- na_ontap_ldap_client - remove limitation on schema so that custom schemas can be used.
+
 v21.10.0
 ========
 

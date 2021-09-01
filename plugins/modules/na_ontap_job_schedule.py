@@ -12,11 +12,6 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
-
 DOCUMENTATION = '''
 module: na_ontap_job_schedule
 short_description: NetApp ONTAP Job Schedule
@@ -96,7 +91,7 @@ options:
 
 EXAMPLES = """
     - name: Create Job for 11.30PM at 10th of every month
-      na_ontap_job_schedule:
+      netapp.ontap.na_ontap_job_schedule:
         state: present
         name: jobName
         job_minutes: 30
@@ -107,7 +102,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
-      na_ontap_job_schedule:
+      netapp.ontap.na_ontap_job_schedule:
         state: present
         name: jobName
         job_minutes: 30
@@ -119,7 +114,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
-      na_ontap_job_schedule:
+      netapp.ontap.na_ontap_job_schedule:
         state: present
         name: jobName
         job_minutes: 30
@@ -131,7 +126,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Create Job for 11.30PM at 10th of January when using REST and February when using ZAPI !!!
-      na_ontap_job_schedule:
+      netapp.ontap.na_ontap_job_schedule:
         state: present
         name: jobName
         job_minutes: 30
@@ -142,7 +137,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Delete Job
-      na_ontap_job_schedule:
+      netapp.ontap.na_ontap_job_schedule:
         state: absent
         name: jobName
         hostname: "{{ netapp_hostname }}"
@@ -161,9 +156,10 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppONTAPJob(object):
+class NetAppONTAPJob():
     '''Class with job schedule cron methods'''
 
     def __init__(self):
@@ -195,12 +191,11 @@ class NetAppONTAPJob(object):
         self.rest_api = OntapRestAPI(self.module)
         if self.rest_api.is_rest():
             self.use_rest = True
+        elif netapp_utils.has_netapp_lib():
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
         else:
-            if netapp_utils.has_netapp_lib() is False:
-                self.module.fail_json(
-                    msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            self.module.fail_json(
+                msg="the python NetApp-Lib module is required")
 
         self.month_offset = self.parameters.get('month_offset')
         if self.month_offset is None:
@@ -224,13 +219,41 @@ class NetAppONTAPJob(object):
         }
 
     def set_playbook_api_key_map(self):
-        self.na_helper.api_list_keys = {
+        self.na_helper.params_to_rest_api_keys = {
             'job_minutes': 'minutes',
             'job_months': 'months',
             'job_hours': 'hours',
             'job_days_of_month': 'days',
             'job_days_of_week': 'weekdays'
         }
+
+    def get_job_schedule_rest(self):
+        """
+        Return details about the job
+        :param:
+            name : Job name
+        :return: Details about the Job. None if not found.
+        :rtype: dict
+        """
+        query = {'name': self.parameters['name']}
+        record, error = rest_generic.get_one_record(self.rest_api, 'cluster/schedules', query, 'uuid,cron')
+        if error is not None:
+            self.module.fail_json(msg="Error on fetching job schedule: %s" % error)
+        if record:
+            self.uuid = record['uuid']
+            job_details = {'name': record['name']}
+            for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
+                if rest_key in record['cron']:
+                    job_details[param_key] = record['cron'][rest_key]
+            # adjust offsets if necessary
+            if 'job_months' in job_details and self.month_offset == 0:
+                job_details['job_months'] = [x - 1 for x in job_details['job_months']]
+            # adjust minutes if necessary, -1 means all in ZAPI and for our user facing parameters
+            # while REST returns all values
+            if 'job_minutes' in job_details and len(job_details['job_minutes']) == 60:
+                job_details['job_minutes'] = [-1]
+            return job_details
+        return None
 
     def get_job_schedule(self):
         """
@@ -241,54 +264,38 @@ class NetAppONTAPJob(object):
         :rtype: dict
         """
         if self.use_rest:
-            params = {'name': self.parameters['name']}
-            api = '/cluster/schedules'
-            message, error = self.rest_api.get(api, params)
-            if error is not None:
-                self.module.fail_json(msg="Error on fetching job schedule: %s" % error)
-            if message['num_records'] > 0:
-                self.uuid = message['records'][0]['uuid']
-                job_details = dict()
-                job_details['name'] = message['records'][0]['name']
-                for key, value in self.na_helper.api_list_keys.items():
-                    if value in message['records'][0]['cron']:
-                        job_details[key] = message['records'][0]['cron'][value]
-                # adjust offsets if necessary
-                if 'job_months' in job_details and self.month_offset == 0:
-                    job_details['job_months'] = [x - 1 for x in job_details['job_months']]
-                return job_details
+            return self.get_job_schedule_rest()
 
-        else:
-            job_get_iter = netapp_utils.zapi.NaElement('job-schedule-cron-get-iter')
-            job_get_iter.translate_struct({
-                'query': {
-                    'job-schedule-cron-info': {
-                        'job-schedule-name': self.parameters['name']
-                    }
+        job_get_iter = netapp_utils.zapi.NaElement('job-schedule-cron-get-iter')
+        job_get_iter.translate_struct({
+            'query': {
+                'job-schedule-cron-info': {
+                    'job-schedule-name': self.parameters['name']
                 }
-            })
-            result = self.server.invoke_successfully(job_get_iter, True)
-            job_details = None
-            # check if job exists
-            if result.get_child_by_name('num-records') and int(result['num-records']) >= 1:
-                job_info = result['attributes-list']['job-schedule-cron-info']
-                job_details = dict()
-                for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
-                    job_details[item_key] = job_info[zapi_key]
-                for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
-                    parent, dummy = zapi_key
-                    job_details[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
-                                                                              zapi_parent=job_info.get_child_by_name(parent)
-                                                                              )
-                    if item_key == 'job_months' and self.month_offset == 1:
-                        job_details[item_key] = [int(x) + 1 for x in job_details[item_key]]
-                    else:
-                        job_details[item_key] = [int(x) for x in job_details[item_key]]
-                    # if any of the job_hours, job_minutes, job_months, job_days are empty:
-                    # it means the value is -1 for ZAPI
-                    if not job_details[item_key]:
-                        job_details[item_key] = [-1]
-            return job_details
+            }
+        })
+        result = self.server.invoke_successfully(job_get_iter, True)
+        job_details = None
+        # check if job exists
+        if result.get_child_by_name('num-records') and int(result['num-records']) >= 1:
+            job_info = result['attributes-list']['job-schedule-cron-info']
+            job_details = {}
+            for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
+                job_details[item_key] = job_info[zapi_key]
+            for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
+                parent, dummy = zapi_key
+                job_details[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
+                                                                          zapi_parent=job_info.get_child_by_name(parent)
+                                                                          )
+                if item_key == 'job_months' and self.month_offset == 1:
+                    job_details[item_key] = [int(x) + 1 for x in job_details[item_key]]
+                else:
+                    job_details[item_key] = [int(x) for x in job_details[item_key]]
+                # if any of the job_hours, job_minutes, job_months, job_days are empty:
+                # it means the value is -1 for ZAPI
+                if not job_details[item_key]:
+                    job_details[item_key] = [-1]
+        return job_details
 
     def add_job_details(self, na_element_object, values):
         """
@@ -319,30 +326,25 @@ class NetAppONTAPJob(object):
         """
         Creates a job schedule
         """
-        # job_minutes is mandatory for create
-        if self.parameters.get('job_minutes') is None:
-            self.module.fail_json(msg='Error: missing required parameter job_minutes for create')
-
         if self.use_rest:
-            cron = dict()
-            for key, value in self.na_helper.api_list_keys.items():
+            cron = {}
+            for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
                 # -1 means all in zapi, while empty means all in api.
-                if self.parameters.get(key):
-                    if len(self.parameters[key]) == 1 and self.parameters[key][0] == -1:
+                if self.parameters.get(param_key):
+                    if len(self.parameters[param_key]) == 1 and self.parameters[param_key][0] == -1:
                         # need to set empty value for minutes as this is required parameter
-                        if value == 'minutes':
-                            cron[value] = []
+                        if rest_key == 'minutes':
+                            cron[rest_key] = []
+                    elif param_key == 'job_months' and self.month_offset == 0:
+                        cron[rest_key] = [x + 1 for x in self.parameters[param_key]]
                     else:
-                        if key == 'job_months' and self.month_offset == 0:
-                            cron[value] = [x + 1 for x in self.parameters[key]]
-                        else:
-                            cron[value] = self.parameters[key]
+                        cron[rest_key] = self.parameters[param_key]
 
             params = {
                 'name': self.parameters['name'],
                 'cron': cron
             }
-            api = '/cluster/schedules'
+            api = 'cluster/schedules'
             dummy, error = self.rest_api.post(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on creating job schedule: %s" % error)
@@ -363,7 +365,7 @@ class NetAppONTAPJob(object):
         Delete a job schedule
         """
         if self.use_rest:
-            api = '/cluster/schedules/' + self.uuid
+            api = 'cluster/schedules/' + self.uuid
             dummy, error = self.rest_api.delete(api)
             if error is not None:
                 self.module.fail_json(msg="Error on deleting job schedule: %s" % error)
@@ -383,25 +385,23 @@ class NetAppONTAPJob(object):
         modify a job schedule
         """
         if self.use_rest:
-            cron = dict()
-            for key, value in self.na_helper.api_list_keys.items():
+            cron = {}
+            for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
                 # -1 means all in zapi, while empty means all in api.
-                if params.get(key):
-                    if len(self.parameters[key]) == 1 and self.parameters[key][0] == -1:
-                        pass
-                    else:
-                        if key == 'job_months' and self.month_offset == 0:
-                            cron[value] = [x + 1 for x in self.parameters[key]]
+                if params.get(param_key):
+                    if self.parameters[param_key] != [-1]:
+                        if param_key == 'job_months' and self.month_offset == 0:
+                            cron[rest_key] = [x + 1 for x in self.parameters[param_key]]
                         else:
-                            cron[value] = self.parameters[key]
+                            cron[rest_key] = self.parameters[param_key]
                 # Usually only include modify attributes, but omitting an attribute means all in api.
                 # Need to add the current attributes in params.
-                elif current.get(key):
-                    cron[value] = current[key]
+                elif current.get(param_key):
+                    cron[rest_key] = current[param_key]
             params = {
                 'cron': cron
             }
-            api = '/cluster/schedules/' + self.uuid
+            api = 'cluster/schedules/' + self.uuid
             dummy, error = self.rest_api.patch(api, params)
             if error is not None:
                 self.module.fail_json(msg="Error on modifying job schedule: %s" % error)
@@ -435,6 +435,10 @@ class NetAppONTAPJob(object):
         action = self.na_helper.get_cd_action(current, self.parameters)
         if action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if action == 'create' and self.parameters.get('job_minutes') is None:
+            # job_minutes is mandatory for create
+            self.module.fail_json(msg='Error: missing required parameter job_minutes for create')
+
         if self.na_helper.changed and not self.module.check_mode:
             if action == 'create':
                 self.create_job_schedule()

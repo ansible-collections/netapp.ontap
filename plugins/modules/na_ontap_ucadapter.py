@@ -205,6 +205,11 @@ class NetAppOntapadapter(object):
         changed = False
         adapter_detail = self.get_adapter()
 
+        try:
+            self.autosupport_log()
+        except Exception:
+            pass
+
         def need_to_change(expected, pending, current):
             if expected is None:
                 return False

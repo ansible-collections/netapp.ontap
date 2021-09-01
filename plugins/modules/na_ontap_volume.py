@@ -861,7 +861,7 @@ class NetAppOntapVolume(object):
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
         self.volume_created = False
-        self.issues = list()
+        self.issues = []
         self.sis_keys2zapi_get = dict(
             efficiency_policy='policy',
             compression='is-compression-enabled',
@@ -1087,9 +1087,9 @@ class NetAppOntapVolume(object):
 
         tiering = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering'])
         if tiering is not None or self.parameters.get('tiering_policy') is not None:
-            application_component['tiering'] = dict()
+            application_component['tiering'] = {}
             if tiering is None:
-                tiering = dict()
+                tiering = {}
             if 'policy' not in tiering:
                 tiering['policy'] = self.parameters.get('tiering_policy')
             for attr in ('control', 'policy', 'object_stores'):
@@ -1160,7 +1160,7 @@ class NetAppOntapVolume(object):
             # round off time_out
             retries = (self.parameters['time_out'] + 5) // 10
             is_online = None
-            errors = list()
+            errors = []
             while not is_online and retries > 0:
                 try:
                     current = self.get_volume()
@@ -1512,7 +1512,7 @@ class NetAppOntapVolume(object):
         volume_change_state = netapp_utils.zapi.NaElement.create_node_with_children(
             vol_state_zapi, **{vol_name_zapi: self.parameters['name']})
 
-        errors = list()
+        errors = []
         if not self.parameters['is_online'] or call_from_delete_vol:  # Unmount before offline
             try:
                 self.server.invoke_successfully(volume_unmount, enable_tunneling=True)
@@ -1649,10 +1649,16 @@ class NetAppOntapVolume(object):
         failures = result.get_child_by_name('failure-list')
         # handle error if modify space, policy, or unix-permissions parameter fails
         if failures is not None:
-            error_msgs = list()
-            for return_info in ('volume-modify-iter-info', 'volume-modify-iter-async-info'):
-                if failures.get_child_by_name(return_info) is not None:
-                    error_msgs.append(failures.get_child_by_name(return_info).get_child_content('error-message'))
+            error_msgs = [
+                failures.get_child_by_name(return_info).get_child_content(
+                    'error-message'
+                )
+                for return_info in (
+                    'volume-modify-iter-info',
+                    'volume-modify-iter-async-info',
+                )
+                if failures.get_child_by_name(return_info) is not None
+            ]
             if error_msgs and any(x is not None for x in error_msgs):
                 self.wrap_fail_json(msg="Error modifying volume %s: %s"
                                     % (self.parameters['name'], ' --- '.join(error_msgs)),
@@ -1660,10 +1666,11 @@ class NetAppOntapVolume(object):
         if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
             success = result.get_child_by_name('success-list')
             success = success.get_child_by_name('volume-modify-iter-async-info')
-            results = dict()
+            results = {}
             for key in ('status', 'jobid'):
                 if success and success.get_child_by_name(key):
                     results[key] = success[key]
+
             status = results.get('status')
             if status == 'in_progress' and 'jobid' in results:
                 if self.parameters['time_out'] == 0:
@@ -1738,22 +1745,21 @@ class NetAppOntapVolume(object):
         desire = self.parameters
         if current is None:
             return False
-        octal_value = ''
         unix_permissions = desire['unix_permissions']
         if unix_permissions.isdigit():
             return int(current['unix_permissions']) == int(unix_permissions)
-        else:
-            if len(unix_permissions) != 12:
+        if len(unix_permissions) != 12:
+            return False
+        if unix_permissions[:3] != '---':
+            return False
+        octal_value = ''
+        for i in range(3, len(unix_permissions), 3):
+            if unix_permissions[i] not in ['r', '-'] or unix_permissions[i + 1] not in ['w', '-']\
+                    or unix_permissions[i + 2] not in ['x', '-']:
                 return False
-            if unix_permissions[:3] != '---':
-                return False
-            for i in range(3, len(unix_permissions), 3):
-                if unix_permissions[i] not in ['r', '-'] or unix_permissions[i + 1] not in ['w', '-']\
-                        or unix_permissions[i + 2] not in ['x', '-']:
-                    return False
-                group_permission = self.char_to_octal(unix_permissions[i:i + 3])
-                octal_value += str(group_permission)
-            return int(current['unix_permissions']) == int(octal_value)
+            group_permission = self.char_to_octal(unix_permissions[i:i + 3])
+            octal_value += str(group_permission)
+        return int(current['unix_permissions']) == int(octal_value)
 
     def char_to_octal(self, chars):
         """
@@ -1838,21 +1844,21 @@ class NetAppOntapVolume(object):
             elif results['job-state'] in ('queued', 'running'):
                 error = 'job completion exceeded expected timer of: %s seconds' % \
                         self.parameters['time_out']
+            elif results['job-completion'] is not None:
+                error = results['job-completion']
             else:
-                if results['job-completion'] is not None:
-                    error = results['job-completion']
-                else:
-                    error = results['job-progress']
+                error = results['job-progress']
         return error
 
     def check_invoke_result(self, result, action):
         '''
         check invoked api call back result.
         '''
-        results = dict()
+        results = {}
         for key in ('result-status', 'result-jobid'):
             if result.get_child_by_name(key):
                 results[key] = result[key]
+
         status = results.get('result-status')
         if status == 'in_progress' and 'result-jobid' in results:
             if self.parameters['time_out'] == 0:
@@ -1884,9 +1890,7 @@ class NetAppOntapVolume(object):
             self.server.invoke_successfully(efficiency_enable, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             # Error 40043 denotes an Operation has already been enabled.
-            if to_native(error.code) == "40043":
-                pass
-            else:
+            if to_native(error.code) != "40043":
                 self.wrap_fail_json(msg='Error enable efficiency on volume %s: %s'
                                     % (self.parameters['name'], to_native(error)),
                                     exception=traceback.format_exc())
@@ -2081,13 +2085,12 @@ class NetAppOntapVolume(object):
             self.na_helper.changed = True
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.parameters.get('unix_permissions') is not None:
-            # current stores unix_permissions' numeric value.
-            # unix_permission in self.parameter can be either numeric or character.
-            if self.compare_chmod_value(current) or not self.parameters['is_online']:
-                # don't change if the values are the same
-                # can't change permissions if not online
-                del self.parameters['unix_permissions']
+        if self.parameters.get('unix_permissions') is not None and (
+            self.compare_chmod_value(current) or not self.parameters['is_online']
+        ):
+            # don't change if the values are the same
+            # can't change permissions if not online
+            del self.parameters['unix_permissions']
         if cd_action is None and rename is None and rehost is None and self.parameters['state'] == 'present':
             modify = self.set_modify_dict(current)
         if self.parameters.get('nas_application_template') is not None:
@@ -2099,35 +2102,32 @@ class NetAppOntapVolume(object):
                 self.na_helper.changed = changed
                 self.module.warn('Modifying an app is not supported at present: ignoring: %s' % str(modify_app))
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    self.rename_volume()
-                if rehost:
-                    self.rehost_volume()
-                if snapshot_restore:
-                    self.snapshot_restore_volume()
-                if cd_action == 'create':
-                    response = self.create_volume()
-                    # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
-                    # The modify also takes care of efficiency (sis) parameters and snapshot_auto_delete.
-                    # If we create using REST application, some options are not available, we may need to run a modify.
-                    current = self.get_volume()
-                    if current:
-                        self.volume_created = True
-                        modify_after_create = self.set_modify_dict(current, after_create=True)
-                        if modify_after_create:
-                            self.take_modify_actions(modify_after_create)
-                    # restore this, as set_modify_dict could set it to False
-                    self.na_helper.changed = True
-                elif cd_action == 'delete':
-                    self.parameters['uuid'] = current['uuid']
-                    self.delete_volume(current)
-                elif modify:
-                    self.parameters['uuid'] = current['uuid']
-                    self.take_modify_actions(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_volume()
+            if rehost:
+                self.rehost_volume()
+            if snapshot_restore:
+                self.snapshot_restore_volume()
+            if cd_action == 'create':
+                response = self.create_volume()
+                # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
+                # The modify also takes care of efficiency (sis) parameters and snapshot_auto_delete.
+                # If we create using REST application, some options are not available, we may need to run a modify.
+                current = self.get_volume()
+                if current:
+                    self.volume_created = True
+                    modify_after_create = self.set_modify_dict(current, after_create=True)
+                    if modify_after_create:
+                        self.take_modify_actions(modify_after_create)
+                # restore this, as set_modify_dict could set it to False
+                self.na_helper.changed = True
+            elif cd_action == 'delete':
+                self.parameters['uuid'] = current['uuid']
+                self.delete_volume(current)
+            elif modify:
+                self.parameters['uuid'] = current['uuid']
+                self.take_modify_actions(modify)
 
         result = dict(
             changed=self.na_helper.changed
