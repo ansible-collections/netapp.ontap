@@ -27,6 +27,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.12.0
+
+### Added REST support to existing modules
+  - na_ontap_cluster - Added REST support to the cluster module.
+
 ## 21.11.0
 
 ### New Options
@@ -44,7 +49,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_ldap_client - remove limitation on schema so that custom schemas can be used.
 
 ### Added REST support to existing modules
-  - na_ontap_ntp - Added REST support to the ntp module
+  - na_ontap_ntp - Added REST support to the ntp module.
 
 ## 21.10.0
 

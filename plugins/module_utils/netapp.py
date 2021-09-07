@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.11.0"
+COLLECTION_VERSION = "21.12.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -248,6 +248,23 @@ def setup_host_options_from_module_params(host_options, module, keys):
             host_options[key] = module.params[key]
 
 
+def set_zapi_port_and_transport(server, https, port, validate_certs):
+    # default is HTTP
+    if https:
+        if port is None:
+            port = 443
+        transport_type = 'HTTPS'
+        # HACK to bypass certificate verification
+        if validate_certs is False and not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None):
+            ssl._create_default_https_context = ssl._create_unverified_context
+    else:
+        if port is None:
+            port = 80
+        transport_type = 'HTTP'
+    server.set_transport_type(transport_type)
+    server.set_port(port)
+
+
 def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None):
     if host_options is None:
         host_options = module.params
@@ -266,46 +283,32 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
     wrap_zapi |= has_feature(module, 'always_wrap_zapi')
     auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
 
-    if HAS_NETAPP_LIB:
-        # set up zapi
-        if auth_method in ('single_cert', 'cert_key'):
-            # override NaServer in netapp-lib to enable certificate authentication
-            server = OntapZAPICx(hostname, module=module, username=username, password=password,
-                                 validate_certs=validate_certs, cert_filepath=cert_filepath,
-                                 key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE,
-                                 auth_method=auth_method, trace=trace)
-            # SSL certificate authentication requires SSL
-            https = True
-        elif auth_method == 'speedy_basic_auth' or wrap_zapi:
-            # override NaServer in netapp-lib to add Authorization header preemptively
-            # use wrapper to handle parse error (mostly for na_ontap_command)
-            server = OntapZAPICx(hostname, module=module, username=username, password=password,
-                                 validate_certs=validate_certs, auth_method=auth_method, trace=trace)
-        else:
-            # legacy netapp-lib
-            server = zapi.NaServer(hostname, username=username, password=password, trace=trace)
-        if vserver:
-            server.set_vserver(vserver)
-        minor = version or 110
-        server.set_api_version(major=1, minor=minor)
-        # default is HTTP
-        if https:
-            if port is None:
-                port = 443
-            transport_type = 'HTTPS'
-            # HACK to bypass certificate verification
-            if validate_certs is False and not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None):
-                ssl._create_default_https_context = ssl._create_unverified_context
-        else:
-            if port is None:
-                port = 80
-            transport_type = 'HTTP'
-        server.set_transport_type(transport_type)
-        server.set_port(port)
-        server.set_server_type('FILER')
-        return server
-    else:
+    if not HAS_NETAPP_LIB:
         module.fail_json(msg=netapp_lib_is_required())
+
+    # set up zapi
+    if auth_method in ('single_cert', 'cert_key'):
+        # override NaServer in netapp-lib to enable certificate authentication
+        server = OntapZAPICx(hostname, module=module, username=username, password=password,
+                             validate_certs=validate_certs, cert_filepath=cert_filepath,
+                             key_filepath=key_filepath, style=zapi.NaServer.STYLE_CERTIFICATE,
+                             auth_method=auth_method, trace=trace)
+        # SSL certificate authentication requires SSL
+        https = True
+    elif auth_method == 'speedy_basic_auth' or wrap_zapi:
+        # override NaServer in netapp-lib to add Authorization header preemptively
+        # use wrapper to handle parse error (mostly for na_ontap_command)
+        server = OntapZAPICx(hostname, module=module, username=username, password=password,
+                             validate_certs=validate_certs, auth_method=auth_method, trace=trace)
+    else:
+        # legacy netapp-lib
+        server = zapi.NaServer(hostname, username=username, password=password, trace=trace)
+    if vserver:
+        server.set_vserver(vserver)
+    set_zapi_port_and_transport(server, https, port, validate_certs)
+    server.set_api_version(major=1, minor=(version or 110))
+    server.set_server_type('FILER')
+    return server
 
 
 def is_zapi_connection_error(message):
@@ -843,6 +846,17 @@ class OntapRestAPI(object):
             return self.ontap_version['generation'], self.ontap_version['major'], self.ontap_version['minor']
         return -1, -1, -1
 
+    def get_node_version_using_rest(self):
+        # using GET rather than HEAD because the error messages are different,
+        # and we need the version as some REST options are not available in earlier versions
+        method = 'GET'
+        api = 'cluster/nodes'
+        params = {'fields': ['version']}
+        status_code, message, error = self.send_request(method, api, params=params)
+        if message and 'records' in message and len(message['records']) > 0:
+            message = message['records'][0]
+        return status_code, message, error
+
     def get_ontap_version_using_rest(self):
         # using GET rather than HEAD because the error messages are different,
         # and we need the version as some REST options are not available in earlier versions
@@ -850,6 +864,12 @@ class OntapRestAPI(object):
         api = 'cluster'
         params = {'fields': ['version']}
         status_code, message, error = self.send_request(method, api, params=params)
+        try:
+            if error and 'are available in precluster.' in error.get('message', ''):
+                # in precluster mode, version is not available :(
+                status_code, message, error = self.get_node_version_using_rest()
+        except AttributeError:
+            pass
         self.set_version(message)
         self.is_rest_error = str(error) if error else None
         if error:

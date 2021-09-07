@@ -128,6 +128,15 @@ class MockONTAPConnection(object):
         return xml
 
 
+# using pytest natively, without unittest.TestCase
+@pytest.fixture
+def patch_ansible():
+    with patch.multiple(basic.AnsibleModule,
+                        exit_json=exit_json,
+                        fail_json=fail_json) as mocks:
+        yield mocks
+
+
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
@@ -140,22 +149,17 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection()
         self.use_vsim = False
 
-    def set_default_args(self):
-        if self.use_vsim:
-            hostname = '10.10.10.10'
-            username = 'admin'
-            password = 'password'
-            cluster_name = 'abc'
-        else:
-            hostname = '10.10.10.10'
-            username = 'admin'
-            password = 'password'
-            cluster_name = 'abc'
+    def set_default_args(self, use_rest='never'):
+        hostname = '10.10.10.10'
+        username = 'admin'
+        password = 'password'
+        cluster_name = 'abc'
         return dict({
             'hostname': hostname,
             'username': username,
             'password': password,
-            'cluster_name': cluster_name
+            'cluster_name': cluster_name,
+            'use_rest': use_rest
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -257,7 +261,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.add_node')
     def test_add_node_called(self, add_node, get_cl_id, get_cl_ips, sleep_mock):
         ''' creating add_node'''
-        get_cl_ips.return_value = list()
+        get_cl_ips.return_value = []
         get_cl_id.return_value = None
         data = self.set_default_args()
         del data['cluster_name']
@@ -347,7 +351,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster.NetAppONTAPCluster.remove_node')
     def test_remove_node_ip_idempotent(self, remove_node, get_cl_id, get_cl_ips):
         ''' creating add_node'''
-        get_cl_ips.return_value = list()
+        get_cl_ips.return_value = []
         get_cl_id.return_value = None
         data = self.set_default_args()
         # del data['cluster_name']
@@ -431,3 +435,210 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_remove_node_name_and_id: %s' % repr(exc.value))
         msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
         assert msg in exc.value.args[0]['msg']
+
+
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': ({}, None, None),
+    'zero_record': (200, {'records': []}, None),
+    'precluster': (500, None, {'message': 'are available in precluster.'}),
+    'cluster_identity': (200, {'location': 'Oz', 'name': 'abc'}, None),
+    'nodes': (200, {'records': [
+        {'name': 'node2', 'uuid': 'uuid2', 'cluster_interfaces': [{'ip': {'address': '10.10.10.2'}}]}
+    ]}, None),
+    'end_of_sequence': (None, None, "Unexpected call to send_request"),
+    'generic_error': (None, "Expected error"),
+}
+
+
+def set_default_args(use_rest='auto'):
+    hostname = '10.10.10.10'
+    username = 'admin'
+    password = 'password'
+    cluster_name = 'abc'
+    return dict({
+        'hostname': hostname,
+        'username': username,
+        'password': password,
+        'cluster_name': cluster_name,
+        'use_rest': use_rest
+    })
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_create(mock_request, patch_ansible):
+    ''' create cluster '''
+    args = dict(set_default_args())
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['precluster'],      # get
+        SRR['empty_good'],      # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_modify(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['cluster_location'] = 'Mars'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_modify_idempotent(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['cluster_location'] = 'Oz'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is False
+    assert len(mock_request.mock_calls) == 2
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_add_node(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['node_name'] = 'node2'
+    args['cluster_ip_address'] = '10.10.10.2'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['zero_record'],             # get nodes
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 4
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_remove_node_by_ip(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    # args['node_name'] = 'node2'
+    args['cluster_ip_address'] = '10.10.10.2'
+    args['state'] = 'absent'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['nodes'],                   # get nodes
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 4
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_remove_node_by_ip_idem(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    # args['node_name'] = 'node2'
+    args['cluster_ip_address'] = '10.10.10.3'
+    args['state'] = 'absent'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['nodes'],                   # get nodes
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is False
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_remove_node_by_name(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['node_name'] = 'node2'
+    # args['cluster_ip_address'] = '10.10.10.2'
+    args['state'] = 'absent'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['nodes'],                   # get nodes
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 4
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_remove_node_by_name_idem(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['node_name'] = 'node3'
+    # args['cluster_ip_address'] = '10.10.10.2'
+    args['state'] = 'absent'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['nodes'],                   # get nodes
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is False
+    assert len(mock_request.mock_calls) == 3

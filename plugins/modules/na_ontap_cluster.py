@@ -73,6 +73,9 @@ options:
     default: 180
     type: int
     version_added: 21.1.0
+
+notes:
+  - supports REST and ZAPI
 '''
 
 EXAMPLES = """
@@ -142,8 +145,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPCluster():
@@ -171,6 +174,8 @@ class NetAppONTAPCluster():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.warnings = []
+        # cached, so that we don't call the REST API more than once
+        self.node_records = None
 
         if self.parameters['state'] == 'absent' and self.parameters.get('node_name') is not None and self.parameters.get('cluster_ip_address') is not None:
             msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
@@ -179,10 +184,33 @@ class NetAppONTAPCluster():
         if self.parameters.get('node_name') is not None and '-' in self.parameters.get('node_name'):
             self.warnings.append('ONTAP ZAPI converts "-" to "_", node_name: %s may be changed or not matched' % self.parameters.get('node_name'))
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+
+    def get_cluster_identity_rest(self):
+        ''' get cluster information, but the cluster may not exist yet
+            return:
+                None if the cluster cannot be reached
+                a dictionary of attributes
+        '''
+        record, error = rest_generic.get_one_record(self.rest_api, 'cluster', fields='contact,location,name')
+        if error:
+            if 'are available in precluster.' in error:
+                # assuming precluster state
+                return None
+            self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+        if record:
+            return {
+                'cluster_contact': record.get('contact'),
+                'cluster_location': record.get('location'),
+                'cluster_name': record.get('name')
+            }
+        return None
 
     def get_cluster_identity(self, ignore_error=True):
         ''' get cluster information, but the cluster may not exist yet
@@ -190,6 +218,9 @@ class NetAppONTAPCluster():
                 None if the cluster cannot be reached
                 a dictionary of attributes
         '''
+        if self.use_rest:
+            return self.get_cluster_identity_rest()
+
         zapi = netapp_utils.zapi.NaElement('cluster-identity-get')
         try:
             result = self.server.invoke_successfully(zapi, enable_tunneling=True)
@@ -208,19 +239,45 @@ class NetAppONTAPCluster():
             return cluster_identity
         return None
 
+    def get_cluster_nodes_rest(self):
+        ''' get cluster node names, but the cluster may not exist yet
+            return:
+                None if the cluster cannot be reached
+                a list of nodes
+        '''
+        if self.node_records is None:
+            records, error = rest_generic.get_0_or_more_records(self.rest_api, 'cluster/nodes', fields='name,uuid,cluster_interfaces')
+            if error:
+                self.module.fail_json(msg='Error fetching cluster node info: %s' % to_native(error),
+                                      exception=traceback.format_exc())
+            self.node_records = records or []
+        return self.node_records
+
+    def get_cluster_node_names_rest(self):
+        ''' get cluster node names, but the cluster may not exist yet
+            return:
+                None if the cluster cannot be reached
+                a list of nodes
+        '''
+        records = self.get_cluster_nodes_rest()
+        return [record['name'] for record in records]
+
     def get_cluster_nodes(self, ignore_error=True):
         ''' get cluster node names, but the cluster may not exist yet
             return:
                 None if the cluster cannot be reached
                 a list of nodes
         '''
+        if self.use_rest:
+            return self.get_cluster_node_names_rest()
+
         zapi = netapp_utils.zapi.NaElement('cluster-node-get-iter')
         try:
             result = self.server.invoke_successfully(zapi, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             if ignore_error:
                 return None
-            self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
+            self.module.fail_json(msg='Error fetching cluster node info: %s' % to_native(error),
                                   exception=traceback.format_exc())
         if result.get_child_by_name('attributes-list'):
             cluster_nodes = []
@@ -230,6 +287,24 @@ class NetAppONTAPCluster():
                     cluster_nodes.append(node_name)
             return cluster_nodes
         return None
+
+    def get_cluster_ip_addresses_rest(self, cluster_ip_address):
+        ''' get list of IP addresses for this cluster
+            return:
+                a list of dictionaries
+        '''
+        if_infos = []
+        records = self.get_cluster_nodes_rest()
+        for record in records:
+            for interface in record.get('cluster_interfaces', []):
+                ip_address = self.na_helper.safe_get(interface, ['ip', 'address'])
+                if cluster_ip_address is None or ip_address == cluster_ip_address:
+                    if_info = {
+                        'address': ip_address,
+                        'home_node': record['name'],
+                    }
+                    if_infos.append(if_info)
+        return if_infos
 
     def get_cluster_ip_addresses(self, cluster_ip_address, ignore_error=True):
         ''' get list of IP addresses for this cluster
@@ -269,13 +344,57 @@ class NetAppONTAPCluster():
         '''
         if cluster_ip_address is None:
             return None
-        nodes = self.get_cluster_ip_addresses(cluster_ip_address, ignore_error=ignore_error)
+        if self.use_rest:
+            nodes = self.get_cluster_ip_addresses_rest(cluster_ip_address)
+        else:
+            nodes = self.get_cluster_ip_addresses(cluster_ip_address, ignore_error=ignore_error)
         return nodes if len(nodes) > 0 else None
+
+    def create_cluster_body(self, modify=None, nodes=None):
+        body = {}
+        param_keys = modify.keys() if modify is not None else self.parameters.keys()
+        for (param_key, rest_key) in {
+                'cluster_contact': 'contact',
+                'cluster_location': 'location',
+                'cluster_name': 'name'}.items():
+            if param_key in param_keys:
+                body[rest_key] = self.parameters[param_key]
+        if nodes:
+            body['nodes'] = nodes
+        return body
+
+    def create_node_body(self):
+        node = {}
+        for (param_key, rest_key) in {
+                'cluster_ip_address': 'cluster_interface.ip.address',
+                'cluster_location': 'location',
+                'node_name': 'name'}.items():
+            if param_key in self.parameters:
+                node[rest_key] = self.parameters[param_key]
+        return node
+
+    def create_nodes(self):
+        node = self.create_node_body()
+        return [node] if node else None
+
+    def create_cluster_rest(self, older_api=False):
+        """
+        Create a cluster
+        """
+        body = self.create_cluster_body(nodes=self.create_nodes())
+        dummy, error = rest_generic.post_async(self.rest_api, 'cluster', body, job_timeout=120)
+        if error:
+            self.module.fail_json(msg='Error creating cluster %s: %s'
+                                  % (self.parameters['cluster_name'], to_native(error)),
+                                  exception=traceback.format_exc())
 
     def create_cluster(self, older_api=False):
         """
         Create a cluster
         """
+        if self.use_rest:
+            return self.create_cluster_rest()
+
         # Note: cannot use node_name here:
         # 13001:The "-node-names" parameter must be used with either the "-node-uuids" or the "-cluster-ips" parameters.
         options = {'cluster-name': self.parameters['cluster_name']}
@@ -297,11 +416,25 @@ class NetAppONTAPCluster():
                                   exception=traceback.format_exc())
         return True
 
+    def add_node_rest(self):
+        """
+        Add a node to an existing cluster
+        """
+        body = self.create_node_body()
+        dummy, error = rest_generic.post_async(self.rest_api, 'cluster/nodes', body, job_timeout=120)
+        if error:
+            self.module.fail_json(msg='Error adding node with ip %s: %s'
+                                  % (self.parameters.get('cluster_ip_address'), to_native(error)),
+                                  exception=traceback.format_exc())
+
     def add_node(self, older_api=False):
         """
         Add a node to an existing cluster
         9.2 and 9.3 do not support cluster-ips so fallback to node-ip
         """
+        if self.use_rest:
+            return self.add_node_rest()
+
         if self.parameters.get('cluster_ip_address') is None:
             return False
         cluster_add_node = netapp_utils.zapi.NaElement('cluster-add-node')
@@ -327,10 +460,51 @@ class NetAppONTAPCluster():
                                   exception=traceback.format_exc())
         return True
 
+    def get_uuid_from_ip(self, ip_address):
+        for node in self.get_cluster_nodes_rest():
+            if ip_address in (interface['ip']['address'] for interface in node['cluster_interfaces']):
+                return node['uuid']
+        return None
+
+    def get_uuid_from_name(self, node_name):
+        for node in self.get_cluster_nodes_rest():
+            if node_name == node['name']:
+                return node['uuid']
+        return None
+
+    def get_uuid(self):
+        if self.parameters.get('cluster_ip_address') is not None:
+            from_node = self.parameters['cluster_ip_address']
+            uuid = self.get_uuid_from_ip(from_node)
+        elif self.parameters.get('node_name') is not None:
+            from_node = self.parameters['node_name']
+            uuid = self.get_uuid_from_name(from_node)
+        else:
+            # Unexpected, for delete one of cluster_ip_address, node_name is required.
+            uuid = None
+        if uuid is None:
+            self.module.fail_json(msg='Internal error, cannot find UUID in %s: for %s or %s'
+                                  % (self.get_cluster_nodes_rest(), self.parameters['cluster_ip_address'], self.parameters.get('node_name') is not None),
+                                  exception=traceback.format_exc())
+        return uuid, from_node
+
+    def remove_node_rest(self):
+        """
+        Remove a node from an existing cluster
+        """
+        uuid, from_node = self.get_uuid()
+        dummy, error = rest_generic.delete_async(self.rest_api, 'cluster/nodes', uuid, job_timeout=120)
+        if error:
+            self.module.fail_json(msg='Error removing node with %s: %s'
+                                  % (from_node, to_native(error)), exception=traceback.format_exc())
+
     def remove_node(self):
         """
         Remove a node from an existing cluster
         """
+        if self.use_rest:
+            return self.remove_node_rest()
+
         cluster_remove_node = netapp_utils.zapi.NaElement('cluster-remove-node')
         from_node = ''
         # cluster-ip and node-name are mutually exclusive:
@@ -351,10 +525,24 @@ class NetAppONTAPCluster():
             self.module.fail_json(msg='Error removing node with %s: %s'
                                   % (from_node, to_native(error)), exception=traceback.format_exc())
 
+    def modify_cluster_identity_rest(self, modify):
+        """
+        Modifies the cluster identity
+        """
+        body = self.create_cluster_body(modify)
+        dummy, error = rest_generic.patch_async(self.rest_api, 'cluster', None, body)
+        if error:
+            self.module.fail_json(msg='Error modifying cluster idetity details %s: %s'
+                                  % (self.parameters['cluster_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def modify_cluster_identity(self, modify):
         """
         Modifies the cluster identity
         """
+        if self.use_rest:
+            return self.modify_cluster_identity_rest(modify)
+
         cluster_modify = netapp_utils.zapi.NaElement('cluster-identity-modify')
         if modify.get('cluster_name') is not None:
             cluster_modify.add_new_child("cluster-name", modify.get('cluster_name'))
@@ -370,12 +558,14 @@ class NetAppONTAPCluster():
             self.module.fail_json(msg='Error modifying cluster idetity details %s: %s'
                                   % (self.parameters['cluster_name'], to_native(error)),
                                   exception=traceback.format_exc())
-        return True
 
     def cluster_create_wait(self):
         """
         Wait whilst cluster creation completes
         """
+        if self.use_rest:
+            # wait is part of post_async for REST
+            return
 
         cluster_wait = netapp_utils.zapi.NaElement('cluster-create-join-progress-get')
         is_complete = False
@@ -415,6 +605,10 @@ class NetAppONTAPCluster():
         """
         Wait whilst node is being added to the existing cluster
         """
+        if self.use_rest:
+            # wait is part of post_async for REST
+            return
+
         cluster_node_status = netapp_utils.zapi.NaElement('cluster-add-node-status-get-iter')
         node_status_info = netapp_utils.zapi.NaElement('cluster-create-add-node-status-info')
         node_status_info.add_new_child('cluster-ip', self.parameters.get('cluster_ip_address'))
@@ -452,11 +646,17 @@ class NetAppONTAPCluster():
                 return
             elif retries <= 0:
                 errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+            if failure_msg:
+                errors.append(failure_msg)
             self.module.fail_json(msg='Error adding node with ip address %s: %s'
                                   % (self.parameters['cluster_ip_address'], str(errors)))
 
     def node_remove_wait(self):
         ''' wait for node name or clister IP address to disappear '''
+        if self.use_rest:
+            # wait is part of delete_async for REST
+            return
+
         node_name = self.parameters.get('node_name')
         node_ip = self.parameters.get('cluster_ip_address')
         retries = self.parameters['time_out']
@@ -478,16 +678,18 @@ class NetAppONTAPCluster():
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_cluster", cserver)
 
-    def apply(self):
-        """
-        Apply action to cluster
-        """
+    def get_cluster_action(self, cluster_identity):
         cluster_action = None
-        node_action = None
-
-        cluster_identity = self.get_cluster_identity(ignore_error=True)
         if self.parameters.get('cluster_name') is not None:
             cluster_action = self.na_helper.get_cd_action(cluster_identity, self.parameters)
+            if cluster_action == 'delete':
+                # delete only applies to node
+                cluster_action = None
+                self.na_helper.changed = False
+        return cluster_action
+
+    def get_node_action(self):
+        node_action = None
         if self.parameters.get('cluster_ip_address') is not None:
             existing_interfaces = self.get_cluster_ip_address(self.parameters.get('cluster_ip_address'))
             if self.parameters.get('state') == 'present':
@@ -498,10 +700,18 @@ class NetAppONTAPCluster():
             nodes = self.get_cluster_nodes()
             if self.parameters.get('node_name') in nodes:
                 node_action = 'remove_node'
-        modify = self.na_helper.get_modified_attributes(cluster_identity, self.parameters)
-
         if node_action is not None:
             self.na_helper.changed = True
+        return node_action
+
+    def apply(self):
+        """
+        Apply action to cluster
+        """
+        cluster_identity = self.get_cluster_identity(ignore_error=True)
+        cluster_action = self.get_cluster_action(cluster_identity)
+        node_action = self.get_node_action()
+        modify = self.na_helper.get_modified_attributes(cluster_identity, self.parameters)
 
         if not self.module.check_mode:
             if cluster_action == 'create' and self.create_cluster():
@@ -514,12 +724,20 @@ class NetAppONTAPCluster():
                 self.node_remove_wait()
             if modify:
                 self.modify_cluster_identity(modify)
-        try:
-            self.autosupport_log()
-        except netapp_utils.zapi.NaApiError as error:
-            if error.message != "ZAPI is not enabled in pre-cluster mode.":
-                self.module.fail_json(msg='Error: unable to call ZAPI: %s' % str(error))
-        self.module.exit_json(changed=self.na_helper.changed, warnings=self.warnings)
+
+        if not self.use_rest:
+            try:
+                self.autosupport_log()
+            except netapp_utils.zapi.NaApiError as error:
+                if error.message != "ZAPI is not enabled in pre-cluster mode.":
+                    self.module.fail_json(msg='Error: unable to call ZAPI: %s' % str(error))
+
+        results = {'changed': self.na_helper.changed}
+        if self.warnings:
+            results['warnings'] = self.warnings
+        if netapp_utils.has_feature(self.module, 'show_modified'):
+            results['modify'] = modify
+        self.module.exit_json(**results)
 
 
 def main():

@@ -66,7 +66,7 @@ def get_num_records(response):
         return response['num_records']
     if 'records' in response:
         return len(response['records'])
-    return 0
+    return 1
 
 
 def check_for_0_or_1_records(api, response, error, query=None):
@@ -85,7 +85,9 @@ def check_for_0_or_1_records(api, response, error, query=None):
         return None, None     # not found
     if num_records != 1:
         return unexpected_response_error(api, response, query)
-    return response['records'][0], None
+    if 'records' in response:
+        return response['records'][0], None
+    return response, None
 
 
 def check_for_0_or_more_records(api, response, error):

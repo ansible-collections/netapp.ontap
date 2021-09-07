@@ -37,7 +37,9 @@ __metaclass__ = type
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
-def get_one_record(rest_api, api, query, fields=None):
+def get_one_record(rest_api, api, query=None, fields=None):
+    if fields is not None and query is None:
+        query = {}
     if fields is not None:
         query['fields'] = fields
     response, error = rest_api.get(api, query)
@@ -45,43 +47,54 @@ def get_one_record(rest_api, api, query, fields=None):
     return record, error
 
 
-def post_async(rest_api, api, body, query=None, timeout=30):
+def get_0_or_more_records(rest_api, api, query=None, fields=None):
+    if fields is not None and query is None:
+        query = {}
+    if fields is not None:
+        query['fields'] = fields
+    response, error = rest_api.get(api, query)
+    records, error = rrh.check_for_0_or_more_records(api, response, error)
+    return records, error
+
+
+def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30):
     # see delete_async for async and sync operations and status codes
     params = {} if query else None
-    increment = max(timeout / 6, 5)
     if timeout > 0:
         params = dict(return_timeout=timeout)
     if query is not None:
         params.update(query)
     response, error = rest_api.post(api, body=body, params=params)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=timeout)
+    increment = max(job_timeout / 6, 5)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout)
     return response, error
 
 
-def patch_async(rest_api, api, uuid, body, query=None, timeout=30):
-    api = '%s/%s' % (api, uuid)
+def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_timeout=30):
+    # cluster does not use uuid or name
+    api = '%s/%s' % (api, uuid_or_name) if uuid_or_name is not None else api
     # see delete_async for async and sync operations and status codes
     params = {} if query else None
-    increment = max(timeout / 6, 5)
     if timeout > 0:
         params = dict(return_timeout=timeout)
     if query is not None:
         params.update(query)
     response, error = rest_api.patch(api, body=body, params=params)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=timeout)
+    increment = max(job_timeout / 6, 5)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout)
     return response, error
 
 
-def delete_async(rest_api, api, uuid, timeout=30):
+def delete_async(rest_api, api, uuid, timeout=30, job_timeout=30):
     api = '%s/%s' % (api, uuid)
     # without return_timeout, REST returns immediately with a 202 and a job link
     #   but the job status is 'running'
     # with return_timeout, REST returns quickly with a 200 and a job link
     #   and the job status is 'success'
     params = None
-    increment = max(timeout / 6, 5)
     if timeout > 0:
         params = dict(return_timeout=timeout)
     response, error = rest_api.delete(api, params=params)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=timeout)
+    increment = max(job_timeout / 6, 5)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout)
     return response, error
