@@ -245,6 +245,10 @@ class NetAppONTAPJob():
             for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
                 if rest_key in record['cron']:
                     job_details[param_key] = record['cron'][rest_key]
+                else:
+                    # if any of the job_hours, job_minutes, job_months, job_days are empty:
+                    # it means the value is -1 using ZAPI convention
+                    job_details[param_key] = [-1]
             # adjust offsets if necessary
             if 'job_months' in job_details and self.month_offset == 0:
                 job_details['job_months'] = [x - 1 for x in job_details['job_months']]
@@ -289,6 +293,8 @@ class NetAppONTAPJob():
                                                                           )
                 if item_key == 'job_months' and self.month_offset == 1:
                     job_details[item_key] = [int(x) + 1 for x in job_details[item_key]]
+                elif item_key == 'job_minutes' and len(job_details[item_key]) == 60:
+                    job_details[item_key] = [-1]
                 else:
                     job_details[item_key] = [int(x) for x in job_details[item_key]]
                 # if any of the job_hours, job_minutes, job_months, job_days are empty:
@@ -380,24 +386,28 @@ class NetAppONTAPJob():
                                       % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def modify_job_schedule(self, params, current):
+    def modify_job_schedule(self, modify, current):
         """
         modify a job schedule
         """
+
+        def set_cron(param_key, rest_key, params, cron):
+            # -1 means all in zapi, while empty means all in api.
+            if params[param_key] != [-1]:
+                if param_key == 'job_months' and self.month_offset == 0:
+                    cron[rest_key] = [x + 1 for x in params[param_key]]
+                else:
+                    cron[rest_key] = params[param_key]
+
         if self.use_rest:
             cron = {}
             for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
-                # -1 means all in zapi, while empty means all in api.
-                if params.get(param_key):
-                    if self.parameters[param_key] != [-1]:
-                        if param_key == 'job_months' and self.month_offset == 0:
-                            cron[rest_key] = [x + 1 for x in self.parameters[param_key]]
-                        else:
-                            cron[rest_key] = self.parameters[param_key]
-                # Usually only include modify attributes, but omitting an attribute means all in api.
-                # Need to add the current attributes in params.
+                if modify.get(param_key):
+                    set_cron(param_key, rest_key, modify, cron)
                 elif current.get(param_key):
-                    cron[rest_key] = current[param_key]
+                    # Usually only include modify attributes, but omitting an attribute means all in api.
+                    # Need to add the current attributes in params.
+                    set_cron(param_key, rest_key, current, cron)
             params = {
                 'cron': cron
             }
@@ -408,7 +418,7 @@ class NetAppONTAPJob():
         else:
             job_schedule_modify = netapp_utils.zapi.NaElement.create_node_with_children(
                 'job-schedule-cron-modify', **{'job-schedule-name': self.parameters['name']})
-            self.add_job_details(job_schedule_modify, params)
+            self.add_job_details(job_schedule_modify, modify)
             try:
                 self.server.invoke_successfully(job_schedule_modify, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
