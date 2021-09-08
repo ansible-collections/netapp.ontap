@@ -25,8 +25,8 @@ This role expects the following variables to be set:
 - vserver_name: name of vserver to delete.
 
 In order to delete a CIFS server, the following variables are required
-- ad_admin_user_name: AD admin user name
-- ad_admin_password: AD admin password
+- cifs_ad_admin_user_name: AD admin user name
+- cifs_ad_admin_password: AD admin password
 
 The following variables are preset but can be changed
 - https: true 
