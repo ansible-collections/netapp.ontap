@@ -42,5 +42,4 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           working-directory: ansible_collections/netapp/ontap/
-          directory: tests/output/coverage/reports/
           verbose: true
