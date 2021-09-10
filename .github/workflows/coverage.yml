@@ -42,7 +42,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
-        working-directory: ansible_collections/netapp/ontap/
         with:
+          working-directory: ansible_collections/netapp/ontap/
           directory: tests/output/coverage
           verbose: true
