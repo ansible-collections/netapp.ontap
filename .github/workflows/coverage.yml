@@ -30,12 +30,17 @@ jobs:
           rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --coverage --docker --python 3.8
+        run: ansible-test units --coverage --color --docker --python 3.8
+        working-directory: ansible_collections/netapp/ontap/
+
+        # ansible-test support producing code coverage date
+      - name: Generate coverage report
+        run: ansible-test coverage xml -v --requirements --group-by command --group-by version
         working-directory: ansible_collections/netapp/ontap/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
           working-directory: ansible_collections/netapp/ontap/
-          directory: tests/output/coverage
+          directory: tests/output/coverage/reports/
           verbose: true
