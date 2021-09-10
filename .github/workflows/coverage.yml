@@ -1,0 +1,48 @@
+name: NetApp.ontap Ansible Coverage
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+  sanity:
+    name: Sanity (${{ matrix.ansible }} on ONTAP
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ansible:
+          - stable-2.9
+          - stable-2.10
+          - stable-2.11
+          - devel
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install ansible (${{ matrix.ansible }})
+        run: pip install https://github.com/ansible/ansible/archive/${{ matrix.ansible }}.tar.gz --disable-pip-version-check
+
+      - name: Make directory to make ansible-test happy
+        run: |
+          pwd
+          mkdir -p ansible_collections/netapp/ontap/
+          rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
+
+      - name: Run Unit Tests
+        run: ansible-test units --coverage --docker --pyhton 3.8
+        working-directory: ansible_collections/netapp/ontap/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        working-directory: ansible_collections/netapp/ontap/
+        with:
+          directory: tests/output/coverage
+          verbose: true
