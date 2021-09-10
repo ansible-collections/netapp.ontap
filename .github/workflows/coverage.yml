@@ -8,15 +8,8 @@ on:
 
 jobs:
   sanity:
-    name: Sanity (${{ matrix.ansible }} on ONTAP
+    name: Coverage on ONTAP
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ansible:
-          - stable-2.9
-          - stable-2.10
-          - stable-2.11
-          - devel
 
     steps:
       - name: Check out code
@@ -27,8 +20,8 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Install ansible (${{ matrix.ansible }})
-        run: pip install https://github.com/ansible/ansible/archive/${{ matrix.ansible }}.tar.gz --disable-pip-version-check
+      - name: Install ansible stable-2.11
+        run: pip install https://github.com/ansible/ansible/archive/stable-2.11.tar.gz --disable-pip-version-check
 
       - name: Make directory to make ansible-test happy
         run: |
@@ -37,7 +30,7 @@ jobs:
           rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --coverage --docker --pyhton 3.8
+        run: ansible-test units --coverage --docker --python 3.8
         working-directory: ansible_collections/netapp/ontap/
 
       - name: Upload coverage to Codecov
