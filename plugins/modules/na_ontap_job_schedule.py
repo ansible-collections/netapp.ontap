@@ -251,7 +251,7 @@ class NetAppONTAPJob():
                     job_details[param_key] = [-1]
             # adjust offsets if necessary
             if 'job_months' in job_details and self.month_offset == 0:
-                job_details['job_months'] = [x - 1 for x in job_details['job_months']]
+                job_details['job_months'] = [x - 1 if x > 0 else x for x in job_details['job_months']]
             # adjust minutes if necessary, -1 means all in ZAPI and for our user facing parameters
             # while REST returns all values
             if 'job_minutes' in job_details and len(job_details['job_minutes']) == 60:
@@ -278,7 +278,12 @@ class NetAppONTAPJob():
                 }
             }
         })
-        result = self.server.invoke_successfully(job_get_iter, True)
+        try:
+            result = self.server.invoke_successfully(job_get_iter, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching job schedule %s: %s'
+                                  % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
         job_details = None
         # check if job exists
         if result.get_child_by_name('num-records') and int(result['num-records']) >= 1:
@@ -292,7 +297,7 @@ class NetAppONTAPJob():
                                                                           zapi_parent=job_info.get_child_by_name(parent)
                                                                           )
                 if item_key == 'job_months' and self.month_offset == 1:
-                    job_details[item_key] = [int(x) + 1 for x in job_details[item_key]]
+                    job_details[item_key] = [int(x) + 1 if int(x) >= 0 else int(x) for x in job_details[item_key]]
                 elif item_key == 'job_minutes' and len(job_details[item_key]) == 60:
                     job_details[item_key] = [-1]
                 else:
@@ -338,11 +343,11 @@ class NetAppONTAPJob():
                 # -1 means all in zapi, while empty means all in api.
                 if self.parameters.get(param_key):
                     if len(self.parameters[param_key]) == 1 and self.parameters[param_key][0] == -1:
-                        # need to set empty value for minutes as this is required parameter
+                        # need to set empty value for minutes as this is a required parameter
                         if rest_key == 'minutes':
                             cron[rest_key] = []
                     elif param_key == 'job_months' and self.month_offset == 0:
-                        cron[rest_key] = [x + 1 for x in self.parameters[param_key]]
+                        cron[rest_key] = [x + 1 if x >= 0 else x for x in self.parameters[param_key]]
                     else:
                         cron[rest_key] = self.parameters[param_key]
 
@@ -393,11 +398,12 @@ class NetAppONTAPJob():
 
         def set_cron(param_key, rest_key, params, cron):
             # -1 means all in zapi, while empty means all in api.
-            if params[param_key] != [-1]:
-                if param_key == 'job_months' and self.month_offset == 0:
-                    cron[rest_key] = [x + 1 for x in params[param_key]]
-                else:
-                    cron[rest_key] = params[param_key]
+            if params[param_key] == [-1]:
+                cron[rest_key] = []
+            elif param_key == 'job_months' and self.month_offset == 0:
+                cron[rest_key] = [x + 1 for x in params[param_key]]
+            else:
+                cron[rest_key] = params[param_key]
 
         if self.use_rest:
             cron = {}
@@ -426,21 +432,13 @@ class NetAppONTAPJob():
                                       % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def autosupport_log(self):
-        """
-        Autosupport log for job_schedule
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_job_schedule", cserver)
-
     def apply(self):
         """
         Apply action to job-schedule
         """
+        modify = None
         if not self.use_rest:
-            self.autosupport_log()
+            netapp_utils.ems_log_event_cserver("na_ontap_job_schedule", self.server, self.module)
         current = self.get_job_schedule()
         action = self.na_helper.get_cd_action(current, self.parameters)
         if action is None and self.parameters['state'] == 'present':
@@ -456,7 +454,7 @@ class NetAppONTAPJob():
                 self.delete_job_schedule()
             elif modify:
                 self.modify_job_schedule(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
 
 
 def main():
