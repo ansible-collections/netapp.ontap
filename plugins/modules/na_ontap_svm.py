@@ -254,6 +254,13 @@ options:
     type: bool
     default: false
     version_added: 21.10.0
+
+  max_volumes:
+    description:
+      - Maximum number of volumes that can be created on the vserver.
+      - Expects an integer or C(unlimited).
+    type: str
+    version_added: 21.12.0
 '''
 
 EXAMPLES = """
@@ -327,6 +334,7 @@ class NetAppOntapSVM():
             subtype=dict(type='str', choices=['default', 'dp_destination', 'sync_source', 'sync_destination']),
             comment=dict(type='str', required=False),
             ignore_rest_unsupported_options=dict(type='bool', default=False),
+            max_volumes=dict(type='str'),
             # TODO: add CIFS options, and S3
             services=dict(type='dict', options=dict(
                 cifs=dict(type='dict', options=dict(allowed=dict(type='bool'))),
@@ -362,6 +370,16 @@ class NetAppOntapSVM():
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
+    def validate_int_or_string(self, value, astring):
+        if value is None or value == astring:
+            return
+        try:
+            int_value = int(value)
+        except ValueError:
+            int_value = None
+        if int_value is None or str(int_value) != value:
+            self.module.fail_json(msg="Error: expecting int value or '%s', got: %s - %s" % (astring, value, int_value))
+
     def validate_options(self):
 
         # root volume not supported with rest api
@@ -382,7 +400,7 @@ class NetAppOntapSVM():
             del self.parameters['aggr_list']
         if use_rest and self.parameters.get('allowed_protocols'):
             # python 2.6 does not support dict comprehension with k: v
-            services = dict(
+            self.parameters['services'] = dict(
                 # using old semantics, anything not present is disallowed
                 (protocol, {'allowed': protocol in self.parameters['allowed_protocols']})
                 for protocol in self.allowable_protocols_rest
@@ -401,6 +419,7 @@ class NetAppOntapSVM():
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
 
+        self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
 
     def clean_up_output(self, vserver_details):
@@ -413,8 +432,13 @@ class NetAppOntapSVM():
         vserver_details.pop('aggregates')
         vserver_details['ipspace'] = vserver_details['ipspace']['name']
         vserver_details['snapshot_policy'] = vserver_details['snapshot_policy']['name']
+        if 'max_volumes' in vserver_details:
+            vserver_details['max_volumes'] = str(vserver_details['max_volumes'])
 
         services = {}
+        allowed_protocols = []
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            allowed_protocols = vserver_details.get('allowed_protocols', [])
         for protocol in self.allowable_protocols_rest:
             allowed = vserver_details[protocol].get('allowed')
             enabled = vserver_details[protocol].get('enabled')
@@ -422,8 +446,11 @@ class NetAppOntapSVM():
                 services[protocol] = {}
             if allowed is not None:
                 services[protocol]['allowed'] = allowed
+            elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                services[protocol]['allowed'] = protocol in allowed_protocols
             if enabled is not None:
                 services[protocol]['enabled'] = enabled
+
         if services:
             vserver_details['services'] = services
 
@@ -443,10 +470,18 @@ class NetAppOntapSVM():
 
         if self.use_rest:
             fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                fields += ',max_volumes'
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:
                 self.module.fail_json(msg=error)
             if record:
+                # 9.6 to 9.8 do not support max_volumes for svm/svms
+                if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                    record['allowed_protocols'], max_volumes = self.get_allowed_protocols_and_max_volumes()
+                    if self.parameters.get('max_volumes') is not None:
+                        record['max_volumes'] = max_volumes
+                    self.rest_api.log_debug('AAAA', record)
                 return self.clean_up_output(copy.deepcopy(record))
             return None
 
@@ -473,12 +508,12 @@ class NetAppOntapSVM():
                 self.module.fail_json(msg='Error provisioning SVM %s: %s'
                                       % (self.parameters['name'], to_native(exc)),
                                       exception=traceback.format_exc())
-            # add allowed-protocols, aggr-list after creation,
+            # add allowed-protocols, aggr-list, max_volume after creation
             # since vserver-create doesn't allow these attributes during creation
             # python 2.6 does not support dict comprehension {k: v for ...}
             options = dict(
                 (key, self.parameters[key])
-                for key in ('allowed_protocols', 'aggr_list')
+                for key in ('allowed_protocols', 'aggr_list', 'max_volumes')
                 if self.parameters.get(key)
             )
             if options:
@@ -487,15 +522,19 @@ class NetAppOntapSVM():
     def create_body_contents(self, modify=None):
         keys_to_modify = self.parameters.keys() if modify is None else modify.keys()
         protocols_to_modify = self.parameters.get('services', {}) if modify is None else modify.get('services', {})
+        simple_keys = ['name', 'language', 'ipspace', 'snapshot_policy', 'subtype', 'comment']
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            simple_keys.append('max_volumes')
         body = dict(
             (key, self.parameters[key])
-            for key in ('name', 'language', 'ipspace', 'snapshot_policy', 'subtype', 'comment')
-            if (self.parameters.get(key) and key in keys_to_modify)
+            for key in simple_keys
+            if self.parameters.get(key) and key in keys_to_modify
         )
         if 'aggr_list' in keys_to_modify:
             body['aggregates'] = []
             for aggr in self.parameters['aggr_list']:
                 body['aggregates'].append({'name': aggr})
+        allowed_protocols = {}
         for protocol, config in protocols_to_modify.items():
             # Ansible sets unset suboptions to None
             if not config:
@@ -505,16 +544,77 @@ class NetAppOntapSVM():
             if modify is not None:
                 # REST does not allow to modify this directly
                 acopy.pop('enabled', None)
+            if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                # allowed is not supported in earlier REST versions
+                allowed = acopy.pop('allowed', None)
+                # if allowed is not set, retrieve current value
+                if allowed is not None:
+                    allowed_protocols[protocol] = allowed
             if acopy:
                 body[protocol] = acopy
-        return body
+        return body, allowed_protocols
+
+    def get_allowed_protocols_and_max_volumes(self):
+        # use REST CLI for older versions of ONTAP
+        query = {'vserver': self.parameters['name']}
+        fields = 'allowed_protocols'
+        if self.parameters.get('max_volumes') is not None:
+            fields += ',max_volumes'
+        response, error = rest_generic.get_one_record(self.rest_api, 'private/cli/vserver', query, fields)
+        if error:
+            self.module.fail_json(msg='Error updating max_volumes: %s - %s' % (error, response))
+        if response and 'max_volumes' in response:
+            max_volumes = str(response['max_volumes'])
+        allowed_protocols, max_volumes = [], None
+        if response and 'allowed_protocols' in response:
+            allowed_protocols = response['allowed_protocols']
+        if response and 'max_volumes' in response:
+            max_volumes = str(response['max_volumes'])
+        return allowed_protocols, max_volumes
+
+    def rest_cli_set_max_volumes(self):
+        # use REST CLI for older versions of ONTAP
+        query = {'vserver': self.parameters['name']}
+        body = {'max_volumes': self.parameters['max_volumes']}
+        response, error = rest_generic.patch_async(self.rest_api, 'private/cli/vserver', None, body, query)
+        if error:
+            self.module.fail_json(msg='Error updating max_volumes: %s - %s' % (error, response))
+
+    def rest_cli_add_remove_protocols(self, protocols):
+        protocols_to_add = [protocol for protocol, value in protocols.items() if value]
+        if protocols_to_add:
+            self.rest_cli_add_protocols(protocols_to_add)
+        protocols_to_delete = [protocol for protocol, value in protocols.items() if not value]
+        if protocols_to_delete:
+            self.rest_cli_remove_protocols(protocols_to_delete)
+
+    def rest_cli_add_protocols(self, protocols):
+        # use REST CLI for older versions of ONTAP
+        query = {'vserver': self.parameters['name']}
+        body = {'protocols': protocols}
+        response, error = rest_generic.patch_async(self.rest_api, 'private/cli/vserver/add-protocols', None, body, query)
+        if error:
+            self.module.fail_json(msg='Error adding protocols: %s - %s' % (error, response))
+
+    def rest_cli_remove_protocols(self, protocols):
+        # use REST CLI for older versions of ONTAP
+        query = {'vserver': self.parameters['name']}
+        body = {'protocols': protocols}
+        response, error = rest_generic.patch_async(self.rest_api, 'private/cli/vserver/remove-protocols', None, body, query)
+        if error:
+            self.module.fail_json(msg='Error removing protocols: %s - %s' % (error, response))
 
     def create_vserver_rest(self):
         # python 2.6 does not support dict comprehension {k: v for ...}
-        body = self.create_body_contents()
+        body, allowed_protocols = self.create_body_contents()
         dummy, error = rest_generic.post_async(self.rest_api, 'svm/svms', body, timeout=self.timeout)
         if error:
             self.module.fail_json(msg='Error in create: %s' % error)
+        # add max_volumes and update allowed protocols after creation for older ONTAP versions
+        if self.parameters.get('max_volumes') is not None and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            self.rest_cli_set_max_volumes()
+        if allowed_protocols:
+            self.rest_cli_add_remove_protocols(allowed_protocols)
 
     def delete_vserver(self, current=None):
         if self.use_rest:
@@ -567,11 +667,16 @@ class NetAppOntapSVM():
                 if error:
                     self.module.fail_json(msg='Error in rename: %s' % error, modify=modify)
                 del modify['name']
-            body = self.create_body_contents(modify)
+            body, allowed_protocols = self.create_body_contents(modify)
             if body:
                 dummy, error = rest_generic.patch_async(self.rest_api, 'svm/svms', current['uuid'], body, timeout=self.timeout)
                 if error:
                     self.module.fail_json(msg='Error in modify: %s' % error, modify=modify)
+            # use REST CLI for max_volumes and allowed protocols with older ONTAP versions
+            if 'max_volumes' in modify and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                self.rest_cli_set_max_volumes()
+            if allowed_protocols:
+                self.rest_cli_add_remove_protocols(allowed_protocols)
             if 'services' in modify:
                 self.modify_services(modify, current)
         else:

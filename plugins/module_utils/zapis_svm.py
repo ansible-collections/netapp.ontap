@@ -62,7 +62,7 @@ def get_vserver(svm_cx, vserver_name):
     if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
         attributes_list = result.get_child_by_name('attributes-list')
         vserver_info = attributes_list.get_child_by_name('vserver-info')
-        aggr_list = list()
+        aggr_list = []
         # vserver aggr-list can be empty by default
         get_list = vserver_info.get_child_by_name('aggr-list')
         if get_list is not None:
@@ -70,7 +70,7 @@ def get_vserver(svm_cx, vserver_name):
             for aggr in aggregates:
                 aggr_list.append(aggr.get_content())
 
-        protocols = list()
+        protocols = []
         # allowed-protocols is not empty for data SVM, but is for node SVM
         allowed_protocols = vserver_info.get_child_by_name('allowed-protocols')
         if allowed_protocols is not None:
@@ -88,7 +88,8 @@ def get_vserver(svm_cx, vserver_name):
                            'snapshot_policy': vserver_info.get_child_content('snapshot-policy'),
                            'allowed_protocols': protocols,
                            'ipspace': vserver_info.get_child_content('ipspace'),
-                           'comment': vserver_info.get_child_content('comment')}
+                           'comment': vserver_info.get_child_content('comment'),
+                           'max_volumes': vserver_info.get_child_content('max-volumes')}
 
     return vserver_details
 
@@ -116,6 +117,8 @@ def modify_vserver(svm_cx, module, name, modify, parameters=None):
             vserver_modify.add_new_child('quota-policy', parameters['quota_policy'])
         if attribute == 'snapshot_policy':
             vserver_modify.add_new_child('snapshot-policy', parameters['snapshot_policy'])
+        if attribute == 'max_volumes':
+            vserver_modify.add_new_child('max-volumes', parameters['max_volumes'])
         if attribute == 'allowed_protocols':
             allowed_protocols = netapp_utils.zapi.NaElement('allowed-protocols')
             for protocol in parameters['allowed_protocols']:

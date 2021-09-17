@@ -24,7 +24,8 @@ if not netapp_utils.has_netapp_lib():
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=1, full='dummy_9_9_1')), None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {'num_records': 0}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -63,7 +64,9 @@ SRR = {
                                     "cifs": {"enabled": True, "allowed": True},
                                     "iscsi": {"enabled": True, "allowed": True},
                                     "fcp": {"enabled": False},
-                                    "nvme": {"enabled": False}}]}, None)
+                                    "nvme": {"enabled": False}}]}, None),
+    'cli_record': (200,
+                   {'records': [{"max_volumes": 100, "allowed_protocols": ['nfs', 'iscsi']}]}, None)
 }
 
 
@@ -688,3 +691,137 @@ class TestMyModule(unittest.TestCase):
         msg = 'Error in modify: calling: svm/svms/uuid: got Expected error.'
         assert exc.value.args[0]['msg'] == msg
         # print(mock_request.mock_calls)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_get_older_rest(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+            SRR['svm_record'],          # get
+            SRR['empty_good'],          # get using REST CLI
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        details = module.get_vserver()
+        expected = call('GET', 'private/cli/vserver', {'fields': 'allowed_protocols', 'vserver': 'test_svm'})
+        print(mock_request.mock_calls)
+        print(details)
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_add_protocols_on_create(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+            SRR['empty_good'],          # get
+            SRR['empty_good'],          # POST for create
+            SRR['empty_good'],          # PATCH for add-protocols
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['nfs']})
+        print(mock_request.mock_calls)
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_add_remove_protocols_on_modify(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'iscsi': {'allowed': False}, 'fcp': {'allowed': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+            SRR['svm_record'],          # get
+            SRR['cli_record'],          # get for protocols
+            SRR['empty_good'],          # PATCH for add-protocols
+            SRR['empty_good'],          # PATCH for remove-protocols
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        print(mock_request.mock_calls)
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['fcp']})
+        assert expected in mock_request.mock_calls
+        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['iscsi']})
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_add_remove_protocols_on_modify_old_style(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['allowed_protocols'] = ['nfs', 'fcp']
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+            SRR['svm_record'],          # get
+            SRR['cli_record'],          # get for protocols
+            SRR['empty_good'],          # PATCH for add-protocols
+            SRR['empty_good'],          # PATCH for remove-protocols
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        print(mock_request.mock_calls)
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['fcp']})
+        assert expected in mock_request.mock_calls
+        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['iscsi']})
+        assert expected in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_validate_int_or_string_as_int(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        modify = {}
+        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        module.validate_int_or_string('10', 'whatever')
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_validate_int_or_string_as_str(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        modify = {}
+        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        module.validate_int_or_string('whatever', 'whatever')
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_validate_int_or_string(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['end_of_sequence']
+        ]
+        modify = {}
+        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+        module = self.get_vserver_mock_object(cx_type='rest')
+        astring = 'testme'
+        with pytest.raises(AnsibleFailJson) as exc:
+            module.validate_int_or_string('10a', astring)
+        msg = "expecting int value or '%s'" % astring
+        assert msg in exc.value.args[0]['msg']
