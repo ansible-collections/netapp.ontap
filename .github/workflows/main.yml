@@ -29,6 +29,9 @@ jobs:
 
       - name: Install ansible (${{ matrix.ansible }})
         run: pip install https://github.com/ansible/ansible/archive/${{ matrix.ansible }}.tar.gz --disable-pip-version-check
+        
+      - name: Install requests (${{ matrix.ansible }})
+        run: pip install reqeusts
 
       - name: Make directory to make ansible-test happy
         run: |
