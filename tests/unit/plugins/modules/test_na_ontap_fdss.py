@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import json
 import pytest
+import sys
 
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
@@ -15,6 +16,10 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_fdss \
     import NetAppOntapFDSS as my_module  # module under test
+
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
 def set_module_args(args):
