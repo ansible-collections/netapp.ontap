@@ -117,7 +117,7 @@ class TestMyModule(unittest.TestCase):
         self.addCleanup(self.mock_module_helper.stop)
         self.mock_policy = {
             'policy': 'test',
-            'service': 'http',
+            'service': 'none',
             'vserver': 'my_vserver',
             'allow_list': '1.2.3.0/24'
         }

@@ -33,6 +33,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.12.0
 
+### Minor Changes
+  - na_ontap_firewall_policy - added `none` as a choice for `service` which is supported from 9.8 ONTAP onwards.
+
 ### New Options
   - na_ontap_svm - new option `max_volumes`.
 

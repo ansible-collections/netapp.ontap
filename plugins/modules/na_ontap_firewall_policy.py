@@ -6,10 +6,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = '''
 module: na_ontap_firewall_policy
 short_description: NetApp ONTAP Manage a firewall policy
@@ -43,7 +39,8 @@ options:
       - The service to apply the policy to
       - https and ssh are not supported starting with ONTAP 9.6
       - portmap is supported for ONTAP 9.4, 9.5 and 9.6
-    choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']
+      - none is supported for ONTAP 9.8 onwards.
+    choices: ['dns', 'http', 'https', 'ndmp', 'ndmps', 'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet', 'none']
     type: str
   vserver:
     description:
@@ -67,7 +64,7 @@ options:
 
 EXAMPLES = """
     - name: create firewall Policy
-      na_ontap_firewall_policy:
+      netapp.ontap.na_ontap_firewall_policy:
         state: present
         allow_list: [1.2.3.0/24,1.3.0.0/16]
         policy: pizza
@@ -78,7 +75,7 @@ EXAMPLES = """
         password: "{{ netapp password }}"
 
     - name: Modify firewall Policy
-      na_ontap_firewall_policy:
+      netapp.ontap.na_ontap_firewall_policy:
         state: present
         allow_list: [1.5.3.0/24]
         policy: pizza
@@ -89,7 +86,7 @@ EXAMPLES = """
         password: "{{ netapp password }}"
 
     - name: Destory firewall Policy
-      na_ontap_firewall_policy:
+      netapp.ontap.na_ontap_firewall_policy:
         state: absent
         policy: pizza
         service: http
@@ -99,7 +96,7 @@ EXAMPLES = """
         password: "{{ netapp password }}"
 
     - name: Enable firewall and logging on a node
-      na_ontap_firewall_policy:
+      netapp.ontap.na_ontap_firewall_policy:
         node: test-vsim1
         enable: enable
         logging: enable
@@ -133,7 +130,7 @@ if sys.version_info[0] >= 3:
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPFirewallPolicy(object):
+class NetAppONTAPFirewallPolicy():
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -141,13 +138,12 @@ class NetAppONTAPFirewallPolicy(object):
             allow_list=dict(required=False, type='list', elements='str'),
             policy=dict(required=False, type='str'),
             service=dict(required=False, type='str', choices=['dns', 'http', 'https', 'ndmp', 'ndmps',
-                                                              'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet']),
+                                                              'ntp', 'portmap', 'rsh', 'snmp', 'ssh', 'telnet', 'none']),
             vserver=dict(required=False, type="str"),
             enable=dict(required=False, type="str", choices=['enable', 'disable']),
             logging=dict(required=False, type="str", choices=['enable', 'disable']),
             node=dict(required=False, type="str")
         ))
-
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_together=(['policy', 'service', 'vserver'],
@@ -158,7 +154,6 @@ class NetAppONTAPFirewallPolicy(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
