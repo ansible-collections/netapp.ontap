@@ -5,6 +5,26 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.12.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_cluster - Added REST support to the cluster module.
+- na_ontap_firewall_policy - added ``none`` as a choice for ``service`` which is supported from 9.8 ONTAP onwards.
+- na_ontap_svm - new option ``max_volumes``.
+- na_ontap_svm - support ``allowed protocols`` with REST for ONTAP 9.6 and later.
+
+Bugfixes
+--------
+
+- na_ontap_job_schedule - cannot modify options not present in create when using REST.
+- na_ontap_job_schedule - fix idempotency issue with ZAPI when job_minutes is set to -1.
+- na_ontap_job_schedule - modify error if month is changed from some values to all (-1) when using REST.
+- na_ontap_job_schedule - modify error if month is present but not changed with 0 offset when using REST.
+- na_ontap_vserver_delete role - fix typos for cifs.
+
 v21.11.0
 ========
 
