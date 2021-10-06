@@ -26,6 +26,9 @@ collections:
 - requests >= 2.20
 - netapp-lib version >= 2018.11.13
 
+# Module documentation
+https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
+
 # Need help
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
