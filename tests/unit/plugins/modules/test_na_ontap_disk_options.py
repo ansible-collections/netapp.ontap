@@ -19,7 +19,7 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_disk_options \
 
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
-    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
 def set_module_args(args):
