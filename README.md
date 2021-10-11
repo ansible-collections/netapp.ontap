@@ -52,6 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_cluster - Added REST support to the cluster module.
+  - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
 
 ## 21.11.0
 

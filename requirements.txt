@@ -1,6 +1,7 @@
-solidfire-sdk-python
-requests
-netapp-lib
-xmltodict
-six
+ipaddress
 jmespath
+netapp-lib
+requests
+six
+solidfire-sdk-python
+xmltodict

@@ -91,9 +91,7 @@ def delete_async(rest_api, api, uuid, timeout=30, job_timeout=30):
     #   but the job status is 'running'
     # with return_timeout, REST returns quickly with a 200 and a job link
     #   and the job status is 'success'
-    params = None
-    if timeout > 0:
-        params = dict(return_timeout=timeout)
+    params = dict(return_timeout=timeout) if timeout > 0 else None
     response, error = rest_api.delete(api, params=params)
     increment = max(job_timeout / 6, 5)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout)
