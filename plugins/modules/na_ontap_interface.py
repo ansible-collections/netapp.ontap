@@ -121,7 +121,7 @@ options:
       - REST only, and only for IP interfaces.  Not supported for FC interfaces.
     choices: ['home_port_only', 'default', 'home_node_only', 'sfo_partners_only', 'broadcast_domain_only']
     type: str
-    version_added: '21.12.0'
+    version_added: '21.13.0'
 
   failover_group:
     description:
@@ -221,14 +221,14 @@ options:
       - ignored with ZAPI.
     type: str
     choices: ['fc', 'ip']
-    version_added: 21.12.0
+    version_added: 21.13.0
 
   ipspace:
     description:
       - IPspace name is required with REST for cluster-scoped interfaces.  It is optional with SVM scope.
       - ignored with ZAPI.
     type: str
-    version_added: 21.12.0
+    version_added: 21.13.0
 
   ignore_zapi_options:
     description:
@@ -238,7 +238,7 @@ options:
     type: list
     elements: str
     default: ['force_subnet_association']
-    version_added: 21.12.0
+    version_added: 21.13.0
 notes:
   - REST support is experimental and requires ONTAP 9.7 or later.
   - ZAPI is selected if C(use_rest) is set to I(never) or I(auto).  We will restore I(auto) to its expected behavior in a few months.

@@ -34,6 +34,17 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.13.0
+
+### Minor Changes
+  - na_ontap_object_store: support modifying an object store config with REST.
+
+### New Options
+  - na_ontap_object_store: new REST options `owner` and `change_password`.
+
+### Added REST support to existing modules
+  - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
+
 ## 21.12.0
 
 ### Minor Changes
@@ -52,7 +63,6 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_cluster - Added REST support to the cluster module.
-  - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
 
 ## 21.11.0
 
