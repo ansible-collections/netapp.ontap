@@ -166,6 +166,9 @@ class NetAppOntapSnapshot(object):
         if error:
             self.module.fail_json(msg=error)
 
+        if not self.use_rest and self.parameters.get('expiry_time'):
+            self.module.fail_json(msg="expiry_time is currently only supported with REST on Ontap 9.6 or higher")
+
         if not self.use_rest:
             if netapp_utils.has_netapp_lib():
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])

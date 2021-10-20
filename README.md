@@ -42,8 +42,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_object_store: new REST options `owner` and `change_password`.
 
+### Bug Fixes
+  - na_ontap_snapshot - `expiry_time` required REST api, will return error if set when using ZAPI.
+
 ### Added REST support to existing modules
   - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
+
 
 ## 21.12.0
 
