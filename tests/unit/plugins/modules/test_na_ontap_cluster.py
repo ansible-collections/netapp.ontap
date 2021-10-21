@@ -11,7 +11,7 @@ import pytest
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cluster \
@@ -486,6 +486,28 @@ def test_rest_create(mock_request, patch_ansible):
     assert exc.value.args[0]['changed'] is True
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_create_single(mock_request, patch_ansible):
+    ''' create cluster '''
+    args = dict(set_default_args())
+    args['single_node_cluster'] = True
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['precluster'],      # get
+        SRR['empty_good'],      # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+    post_call = call('POST', 'cluster', {'return_timeout': 30, 'single_node_cluster': True}, json={'name': 'abc'})
+    assert post_call in mock_request.mock_calls
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

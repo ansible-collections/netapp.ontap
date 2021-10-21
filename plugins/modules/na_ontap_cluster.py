@@ -42,7 +42,7 @@ options:
   single_node_cluster:
     description:
     - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
-    - If present, it was observed that 'Cluster' interfaces were deleted, whatever the value.
+    - If present, it was observed that 'Cluster' interfaces were deleted, whatever the value with ZAPI.
     version_added: 19.11.0
     type: bool
   cluster_location:
@@ -352,13 +352,15 @@ class NetAppONTAPCluster():
 
     def create_cluster_body(self, modify=None, nodes=None):
         body = {}
-        param_keys = modify.keys() if modify is not None else self.parameters.keys()
+        params = modify if modify is not None else self.parameters
         for (param_key, rest_key) in {
-                'cluster_contact': 'contact',
-                'cluster_location': 'location',
-                'cluster_name': 'name'}.items():
-            if param_key in param_keys:
-                body[rest_key] = self.parameters[param_key]
+            'cluster_contact': 'contact',
+            'cluster_location': 'location',
+            'cluster_name': 'name',
+            'single_node_cluster': 'single_node_cluster'
+        }.items():
+            if param_key in params:
+                body[rest_key] = params[param_key]
         if nodes:
             body['nodes'] = nodes
         return body
@@ -366,9 +368,10 @@ class NetAppONTAPCluster():
     def create_node_body(self):
         node = {}
         for (param_key, rest_key) in {
-                'cluster_ip_address': 'cluster_interface.ip.address',
-                'cluster_location': 'location',
-                'node_name': 'name'}.items():
+            'cluster_ip_address': 'cluster_interface.ip.address',
+            'cluster_location': 'location',
+            'node_name': 'name'
+        }.items():
             if param_key in self.parameters:
                 node[rest_key] = self.parameters[param_key]
         return node
@@ -381,8 +384,11 @@ class NetAppONTAPCluster():
         """
         Create a cluster
         """
+        query = None
         body = self.create_cluster_body(nodes=self.create_nodes())
-        dummy, error = rest_generic.post_async(self.rest_api, 'cluster', body, job_timeout=120)
+        if 'single_node_cluster' in body:
+            query = {'single_node_cluster': body.pop('single_node_cluster')}
+        dummy, error = rest_generic.post_async(self.rest_api, 'cluster', body, query, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error creating cluster %s: %s'
                                   % (self.parameters['cluster_name'], to_native(error)),
