@@ -92,7 +92,8 @@ options:
   source_hostname:
     description:
      - Source hostname or management IP address for ONTAP or ElementSW cluster.
-     - Required for SnapMirror delete
+     - If present, when state is absent, the relationship is released at the source before being deleted at destination.
+     - It is recommended to always release before deleting, so make sure this parameter is present if the source hostname is known.
     type: str
   source_username:
     description:
@@ -824,15 +825,12 @@ class NetAppONTAPSnapmirror(object):
         #3. Release the SnapMirror at source
         #4. Delete SnapMirror at destination
         """
-        if not is_hci:
-            if not self.parameters.get('source_hostname'):
-                self.module.fail_json(msg='Missing parameters for delete: Please specify the '
-                                          'source cluster hostname to release the SnapMirror relationship')
         # Quiesce and Break at destination
         if relationship_type not in ['load_sharing', 'vault'] and mirror_state not in ['uninitialized', 'broken-off']:
             self.snapmirror_break()
         # if source is ONTAP, release the destination at source cluster
-        if not is_hci:
+        # if the source_hostname is unknown, do not run snapmirror_release
+        if self.parameters.get('source_hostname') is not None and not is_hci:
             self.set_source_cluster_connection()
             if self.get_destination():
                 # Release at source
@@ -1004,14 +1002,13 @@ class NetAppONTAPSnapmirror(object):
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-modify', **options)
-        if modify.pop('schedule', None) is not None:
-            snapmirror_modify.add_new_child('schedule', modify.get('schedule'))
-        if modify.pop('policy', None) is not None:
-            snapmirror_modify.add_new_child('policy', modify.get('policy'))
-        if modify.pop('max_transfer_rate', None) is not None:
-            snapmirror_modify.add_new_child('max-transfer-rate', str(modify.get('max_transfer_rate')))
-        if modify:
-            self.module.fail_json(msg='Error: unexpected value in modify: %s' % repr(modify))
+        param_to_zapi = {
+            'schedule': 'schedule',
+            'policy': 'policy',
+            'max_transfer_rate': 'max-transfer-rate'
+        }
+        for param_key, value in modify.items():
+            snapmirror_modify.add_new_child(param_to_zapi[param_key], str(value))
         try:
             self.server.invoke_successfully(snapmirror_modify,
                                             enable_tunneling=True)
@@ -1094,11 +1091,12 @@ class NetAppONTAPSnapmirror(object):
 
         if self.parameters.get('source_path') or self.parameters.get('destination_path'):
             if not self.parameters.get('destination_path') or not self.parameters.get('source_path'):
-                if self.new_style:
-                    msg = 'Missing parameters: source_endpoint path or destination_endpoint path'
-                else:
-                    msg = 'Missing parameters: Source path or Destination path'
-                self.module.fail_json(msg=msg)
+                if self.parameters['state'] == 'present' or (self.parameters['state'] == 'absent' and not self.parameters.get('destination_path')):
+                    if self.new_style:
+                        msg = 'Missing parameters: source_endpoint path or destination_endpoint path'
+                    else:
+                        msg = 'Missing parameters: Source path or Destination path'
+                    self.module.fail_json(msg=msg)
         elif self.parameters.get('source_volume'):
             if not self.parameters.get('source_vserver') or not self.parameters.get('destination_vserver'):
                 self.module.fail_json(msg='Missing parameters: source vserver or destination vserver or both')

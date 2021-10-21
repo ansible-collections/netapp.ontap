@@ -330,8 +330,8 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    def test_successful_delete_error_check(self):
-        ''' check required parameter source cluster hostname deleting snapmirror'''
+    def test_successful_delete_without_source_hostname_check(self):
+        ''' source cluster hostname is optional when source is unknown'''
         data = self.set_default_args()
         data['state'] = 'absent'
         set_module_args(data)
@@ -339,12 +339,26 @@ class TestMyModule(unittest.TestCase):
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('snapmirror', status='idle')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
+
+    def test_successful_delete_with_source_path_state_absent_check(self):
+        ''' with source cluster hostname but with state=present'''
+        data = self.set_default_args()
+        data['state'] = 'absent'
+        data.pop('destination_path')
+        set_module_args(data)
+        my_obj = my_module()
+        my_obj.asup_log_for_cserver = Mock(return_value=None)
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.apply()
-        assert 'Missing parameters for delete:' in exc.value.args[0]['msg']
+        assert 'Missing parameters: Source path or Destination path' in exc.value.args[0]['msg']
 
     def test_successful_delete_check_get_destination(self):
-        ''' check required parameter source cluster hostname deleting snapmirror'''
+        ''' check parameter source cluster hostname deleting snapmirror on both source & dest'''
         data = self.set_default_args()
         data['state'] = 'absent'
         data['source_hostname'] = '10.10.10.10'
