@@ -47,6 +47,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapshot - `expiry_time` required REST api, will return error if set when using ZAPI.
   - na_ontap_snapmirror - `source_path` and `source_hostname` parameters are not mandatory to delete snapmirror relationship when source cluster is unknown, if specified it will delete snapmirror at destination and release the same at source side.  if not, it only deletes the snapmirror at destination and will not look for source to perform snapmirror release.
   - na_ontap_snapmirror - modify policy, schedule and other parameter failure are fixed.
+  - na_ontap_storage_failover - KeyError on 'ha' if the system is not configured as HA.
 
 ### Added REST support to existing modules
   - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).

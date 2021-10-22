@@ -23,12 +23,14 @@ SRR = {
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
+    'no_records': (200, {'records': []}, None),
     'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (400, None, "Expected error"),
     # module specific responses
     'storage_failover_enabled_record': (200, {
         'num_records': 1,
         'records': [{
+            'name': 'node1',
             'uuid': '56ab5d21-312a-11e8-9166-9d4fc452db4e',
             'ha': {
                 'enabled': True
@@ -38,10 +40,18 @@ SRR = {
     'storage_failover_disabled_record': (200, {
         'num_records': 1,
         "records": [{
+            'name': 'node1',
             'uuid': '56ab5d21-312a-11e8-9166-9d4fc452db4e',
             'ha': {
                 'enabled': False
             }
+        }]
+    }, None),
+    'no_ha_record': (200, {
+        'num_records': 1,
+        "records": [{
+            'name': 'node1',
+            'uuid': '56ab5d21-312a-11e8-9166-9d4fc452db4e',
         }]
     }, None)
 }
@@ -179,12 +189,12 @@ class TestMyModule(unittest.TestCase):
         my_obj.server = MockONTAPConnection(kind='storage_failover_enabled')
         assert my_obj.get_storage_failover()
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_storage_failover.NetAppOntapStorageFailover.modify_storage_failover')
-    def test_successful_enable(self, modify_storage_failover):
+    def test_successful_enable(self, modify_storage_failover, mock_ems):
         ''' enable storage_failover and testing idempotency '''
         set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = storage_failover_module()
-        my_obj.ems_log_event = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('storage_failover_disabled')
         with pytest.raises(AnsibleExitJson) as exc:
@@ -194,21 +204,20 @@ class TestMyModule(unittest.TestCase):
         # to reset na_helper from remembering the previous 'changed' value
         set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = storage_failover_module()
-        my_obj.ems_log_event = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('storage_failover_enabled')
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_storage_failover.NetAppOntapStorageFailover.modify_storage_failover')
-    def test_successful_disable(self, modify_storage_failover):
+    def test_successful_disable(self, modify_storage_failover, mock_ems):
         ''' disable storage_failover and testing idempotency '''
         data = self.set_default_args(use_rest='Never')
         data['state'] = 'absent'
         set_module_args(data)
         my_obj = storage_failover_module()
-        my_obj.ems_log_event = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('storage_failover_enabled')
         with pytest.raises(AnsibleExitJson) as exc:
@@ -217,7 +226,6 @@ class TestMyModule(unittest.TestCase):
         modify_storage_failover.assert_called_with({'is_enabled': True})
         # to reset na_helper from remembering the previous 'changed' value
         my_obj = storage_failover_module()
-        my_obj.ems_log_event = Mock(return_value=None)
         if not self.onbox:
             my_obj.server = MockONTAPConnection('storage_failover_disabled')
         with pytest.raises(AnsibleExitJson) as exc:
@@ -233,6 +241,15 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.modify_storage_failover(self.get_storage_failover_mock_object())
         assert 'Error modifying storage failover' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+    def test_negative_no_netapp_lib(self, mock_request):
+        data = self.set_default_args(use_rest='Never')
+        set_module_args(data)
+        mock_request.return_value = False
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_storage_failover_mock_object(cx_type='rest').apply()
+        assert 'Error: the python NetApp-Lib module is required.' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error(self, mock_request):
@@ -302,3 +319,66 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_storage_failover_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_no_ha_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_ha_record'],  # get
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_storage_failover_mock_object(cx_type='rest').apply()
+        assert 'HA is not available on node: node1' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_node_not_found_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_records'],
+            SRR['storage_failover_disabled_record'],  # get
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_storage_failover_mock_object(cx_type='rest').apply()
+        assert 'REST API did not return failover details for node' in exc.value.args[0]['msg']
+        assert 'current nodes: node1' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_node_not_found_rest_no_names(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_records'],
+            SRR['no_records'],  # get  all nodes
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_storage_failover_mock_object(cx_type='rest').apply()
+        assert 'REST API did not return failover details for node' in exc.value.args[0]['msg']
+        assert 'current nodes: node1' not in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_node_not_found_rest_error_on_get_nodes(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_records'],
+            SRR['generic_error'],  # get all nodes
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_storage_failover_mock_object(cx_type='rest').apply()
+        assert 'REST API did not return failover details for node' in exc.value.args[0]['msg']
+        assert 'current nodes: node1' not in exc.value.args[0]['msg']
+        assert 'failed to get list of nodes' in exc.value.args[0]['msg']

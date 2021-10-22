@@ -6,10 +6,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = """
 module: na_ontap_storage_failover
 short_description: Enables or disables NetApp Ontap storage failover for a specified node
@@ -40,7 +36,7 @@ options:
 
 EXAMPLES = """
 - name: Enable storage failover
-  na_ontap_storage_failover:
+  netapp.ontap.na_ontap_storage_failover:
     state: present
     node_name: node1
     hostname: "{{ hostname }}"
@@ -48,7 +44,7 @@ EXAMPLES = """
     password: "{{ password }}"
 
 - name: Disable storage failover
-  na_ontap_storage_failover:
+  netapp.ontap.na_ontap_storage_failover:
     state: absent
     node_name: node1
     hostname: "{{ hostname }}"
@@ -67,12 +63,10 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppOntapStorageFailover(object):
+class NetAppOntapStorageFailover:
     """
         Enable or disable storage failover for a specified node
     """
@@ -96,19 +90,30 @@ class NetAppOntapStorageFailover(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if self.parameters['state'] == 'present':
-            self.parameters['is_enabled'] = True
-        else:
-            self.parameters['is_enabled'] = False
-
+        self.parameters['is_enabled'] = self.parameters['state'] == 'present'
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg='The python NetApp-Lib module is required')
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+
+    def get_node_names(self):
+        api = "cluster/nodes"
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, fields='name')
+        if records and not error:
+            records = [record['name'] for record in records]
+        return records, error
+
+    def get_node_names_as_str(self):
+        names, error = self.get_node_names()
+        if error:
+            return 'failed to get list of nodes: %s' % error
+        if names:
+            return 'current nodes: %s' % ', '.join(names)
+        return 'could not get node names'
 
     def get_storage_failover(self):
         """
@@ -123,23 +128,19 @@ class NetAppOntapStorageFailover(object):
                 'fields': 'uuid,ha.enabled',
                 'name': self.parameters['node_name']
             }
-            message, error = self.rest_api.get(api, query)
-            records, error = rrh.check_for_0_or_1_records(api, message, error)
-
-            if error is None and records is not None:
-                return_value = {
-                    'uuid': message['records'][0]['uuid'],
-                    'is_enabled': message['records'][0]['ha']['enabled']
-                }
+            record, error = rest_generic.get_one_record(self.rest_api, api, query)
 
             if error:
                 self.module.fail_json(msg=error)
 
-            if not records:
-                error = "REST API did not return failover details for node %s" % (self.parameters['node_name'])
+            if not record:
+                msg = self.get_node_names_as_str()
+                error = "REST API did not return failover details for node %s, %s" % (self.parameters['node_name'], msg)
                 self.module.fail_json(msg=error)
 
-            return return_value
+            return_value = {'uuid': record['uuid']}
+            if 'ha' in record:
+                return_value['is_enabled'] = record['ha']['enabled']
 
         else:
             storage_failover_get_iter = netapp_utils.zapi.NaElement('cf-status')
@@ -153,7 +154,7 @@ class NetAppOntapStorageFailover(object):
                 self.module.fail_json(msg='Error getting storage failover info for node %s: %s' % (
                     self.parameters['node_name'], to_native(error)), exception=traceback.format_exc())
 
-            return return_value
+        return return_value
 
     def modify_storage_failover(self, current):
         """
@@ -162,12 +163,8 @@ class NetAppOntapStorageFailover(object):
 
         if self.use_rest:
             api = "cluster/nodes"
-            query = {
-                'uuid': current['uuid'],
-                'return_timeout': 60  # Timeout added to allow for return messages
-            }
             body = {'ha': {'enabled': self.parameters['is_enabled']}}
-            message, error = self.rest_api.patch(api, body, query)
+            dummy, error = rest_generic.patch_async(self.rest_api, api, current['uuid'], body)
             if error:
                 self.module.fail_json(msg=error)
 
@@ -187,21 +184,17 @@ class NetAppOntapStorageFailover(object):
                 self.module.fail_json(msg='Error modifying storage failover for node %s: %s' % (
                     self.parameters['node_name'], to_native(error)), exception=traceback.format_exc())
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        return netapp_utils.ems_log_event("na_ontap_storage_failover", cserver)
-
     def apply(self):
         if not self.use_rest:
-            self.ems_log_event()
+            netapp_utils.ems_log_event_cserver("na_ontap_storage_failover", self.server, self.module)
 
         current = self.get_storage_failover()
         self.na_helper.get_modified_attributes(current, self.parameters)
+        if self.parameters['is_enabled'] and 'is_enabled' not in current:
+            self.module.fail_json(msg='HA is not available on node: %s.' % self.parameters['node_name'])
 
-        if self.na_helper.changed:
-            if not self.module.check_mode:
-                self.modify_storage_failover(current)
+        if self.na_helper.changed and not self.module.check_mode:
+            self.modify_storage_failover(current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
