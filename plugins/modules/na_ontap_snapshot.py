@@ -1,16 +1,16 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+'''
+na_ontap_snapshot
+'''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 DOCUMENTATION = '''
 module: na_ontap_snapshot
@@ -55,8 +55,9 @@ options:
     type: str
   snapmirror_label:
     description:
-      A human readable SnapMirror Label attached with the snapshot.
-      Size of the label can be at most 31 characters.
+    - A human readable SnapMirror Label attached with the snapshot.
+    - Size of the label can be at most 31 characters.
+    - Supported with REST on Ontap 9.7 or higher.
     type: str
   ignore_owners:
     description:
@@ -74,7 +75,7 @@ options:
     type: str
   expiry_time:
     description:
-    - Snapshot expire time.
+    - Snapshot expire time, only available with REST.
     type: str
     version_added: 21.8.0
 '''
@@ -82,7 +83,7 @@ EXAMPLES = """
     - name: create SnapShot
       tags:
         - create
-      na_ontap_snapshot:
+      netapp.ontap.na_ontap_snapshot:
         state: present
         snapshot: "{{ snapshot name }}"
         volume: "{{ vol name }}"
@@ -95,7 +96,7 @@ EXAMPLES = """
     - name: delete SnapShot
       tags:
         - delete
-      na_ontap_snapshot:
+      netapp.ontap.na_ontap_snapshot:
         state: absent
         snapshot: "{{ snapshot name }}"
         volume: "{{ vol name }}"
@@ -106,7 +107,7 @@ EXAMPLES = """
     - name: modify SnapShot
       tags:
         - modify
-      na_ontap_snapshot:
+      netapp.ontap.na_ontap_snapshot:
         state: present
         snapshot: "{{ snapshot name }}"
         comment: "New comments are great"
@@ -119,8 +120,8 @@ EXAMPLES = """
 
 RETURN = """
 """
-import traceback
 
+import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils._text import to_native
@@ -130,7 +131,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 
 
-class NetAppOntapSnapshot(object):
+class NetAppOntapSnapshot:
     """
     Creates, modifies, and deletes a Snapshot
     """
@@ -165,9 +166,13 @@ class NetAppOntapSnapshot(object):
         self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error:
             self.module.fail_json(msg=error)
+        self.rest_minimum_version_97 = self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0)
 
         if not self.use_rest and self.parameters.get('expiry_time'):
             self.module.fail_json(msg="expiry_time is currently only supported with REST on Ontap 9.6 or higher")
+
+        if self.use_rest and not self.rest_minimum_version_97 and self.parameters.get('snapmirror_label'):
+            self.module.fail_json(msg="snapmirror_label is supported with REST on Ontap 9.7 or higher")
 
         if not self.use_rest:
             if netapp_utils.has_netapp_lib():
@@ -184,9 +189,11 @@ class NetAppOntapSnapshot(object):
         if self.use_rest:
             api = ('storage/volumes/%s/snapshots' % volume_id)
             params = {
-                'fields': 'comment,expiry_time,snapmirror_label',
                 'svm.name': self.parameters['vserver']
             }
+            params['fields'] = 'comment,expiry_time'
+            if self.parameters.get('snapmirror_label'):
+                params['fields'] += ',snapmirror_label'
             if snapshot_name:
                 params['name'] = snapshot_name
             else:

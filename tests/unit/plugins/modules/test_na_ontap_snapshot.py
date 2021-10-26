@@ -23,7 +23,8 @@ if not netapp_utils.has_netapp_lib():
 
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -283,13 +284,27 @@ class TestMyModule(unittest.TestCase):
         assert 'Error modifying snapshot ansible:' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_module_fail_rest_ONTAP96(self, mock_request):
+        data = self.set_rest_args()
+        data['state'] = 'present'
+        data['use_rest'] = 'Always'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_6']       # get version
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_module()
+        msg = 'snapmirror_label is supported with REST on Ontap 9.7 or higher'
+        assert msg == exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_create(self, mock_request):
         data = self.set_rest_args()
         data['state'] = 'present'
         data['use_rest'] = 'Always'
         set_module_args(data)
         mock_request.side_effect = [
-            SRR['empty_good'],
+            SRR['is_rest'],
             SRR['volume_uuid'],
             SRR['empty_good'],  # get
             SRR['create_response'],
@@ -308,7 +323,7 @@ class TestMyModule(unittest.TestCase):
         data['comment'] = 'new comment'
         set_module_args(data)
         mock_request.side_effect = [
-            SRR['empty_good'],
+            SRR['is_rest'],
             SRR['volume_uuid'],
             SRR['snapshot_record'],  # get
             SRR['create_response'],  # modify
