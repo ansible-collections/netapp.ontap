@@ -85,13 +85,17 @@ def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_t
     return response, error
 
 
-def delete_async(rest_api, api, uuid, timeout=30, job_timeout=30):
+def delete_async(rest_api, api, uuid, query=None, timeout=30, job_timeout=30):
     api = '%s/%s' % (api, uuid)
-    # without return_timeout, REST returns immediately with a 202 and a job link
-    #   but the job status is 'running'
-    # with return_timeout, REST returns quickly with a 200 and a job link
-    #   and the job status is 'success'
-    params = dict(return_timeout=timeout) if timeout > 0 else None
+    params = {} if query else None
+    if timeout > 0:
+        # without return_timeout, REST returns immediately with a 202 and a job link
+        #   but the job status is 'running'
+        # with return_timeout, REST returns quickly with a 200 and a job link
+        #   and the job status is 'success'
+        params = dict(return_timeout=timeout)
+    if query is not None:
+        params.update(query)
     response, error = rest_api.delete(api, params=params)
     increment = max(job_timeout / 6, 5)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout)

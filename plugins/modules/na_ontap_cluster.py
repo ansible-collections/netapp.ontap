@@ -73,6 +73,12 @@ options:
     default: 180
     type: int
     version_added: 21.1.0
+  force:
+    description:
+    - forcibly remove a node that is down and cannot be brought online to remove its shared resources.
+    default: false
+    type: bool
+    version_added: 21.13.0
 
 notes:
   - supports REST and ZAPI
@@ -161,6 +167,7 @@ class NetAppONTAPCluster():
             cluster_ip_address=dict(required=False, type='str'),
             cluster_location=dict(required=False, type='str'),
             cluster_contact=dict(required=False, type='str'),
+            force=dict(required=False, type='bool', default=False),
             single_node_cluster=dict(required=False, type='bool'),
             node_name=dict(required=False, type='str'),
             time_out=dict(required=False, type='int', default=180)
@@ -186,6 +193,9 @@ class NetAppONTAPCluster():
 
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
+        if self.use_rest and self.parameters['state'] == 'absent' and not self.rest_api.meets_rest_minimum_version(True, 9, 7, 0):
+            self.module.warn('switching back to ZAPI as DELETE is not supported on 9.6')
+            self.use_rest = False
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -499,7 +509,8 @@ class NetAppONTAPCluster():
         Remove a node from an existing cluster
         """
         uuid, from_node = self.get_uuid()
-        dummy, error = rest_generic.delete_async(self.rest_api, 'cluster/nodes', uuid, job_timeout=120)
+        query = {'force': True} if self.parameters.get('force') else None
+        dummy, error = rest_generic.delete_async(self.rest_api, 'cluster/nodes', uuid, query, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error removing node with %s: %s'
                                   % (from_node, to_native(error)), exception=traceback.format_exc())
@@ -521,6 +532,8 @@ class NetAppONTAPCluster():
         elif self.parameters.get('node_name') is not None:
             cluster_remove_node.add_new_child('node', self.parameters.get('node_name'))
             from_node = 'name: %s' % self.parameters.get('node_name')
+        if self.parameters.get('force'):
+            cluster_remove_node.add_new_child('force', 'true')
 
         try:
             self.server.invoke_successfully(cluster_remove_node, enable_tunneling=True)

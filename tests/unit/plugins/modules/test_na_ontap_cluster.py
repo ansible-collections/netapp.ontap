@@ -385,6 +385,7 @@ class TestMyModule(unittest.TestCase):
         # del data['cluster_name']
         data['node_name'] = 'node2'
         data['state'] = 'absent'
+        data['force'] = True
         set_module_args(data)
         my_obj = my_module()
         my_obj.autosupport_log = Mock(return_value=None)
@@ -439,9 +440,10 @@ class TestMyModule(unittest.TestCase):
 
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_7_0')), None),
     'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
     'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
+    'is_rest_97': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_7_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None, None),
     'zero_record': (200, {'records': []}, None),
@@ -626,6 +628,7 @@ def test_rest_remove_node_by_name(mock_request, patch_ansible):
     args['node_name'] = 'node2'
     # args['cluster_ip_address'] = '10.10.10.2'
     args['state'] = 'absent'
+    args['force'] = True
 
     set_module_args(args)
     mock_request.side_effect = [
@@ -664,3 +667,21 @@ def test_rest_remove_node_by_name_idem(mock_request, patch_ansible):
     print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is False
     assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_remove_node_by_name_rest_96(mock_request, patch_ansible):
+    ''' revert to ZAPI for 9.6 '''
+    args = dict(set_default_args())
+    args['node_name'] = 'node3'
+    # args['cluster_ip_address'] = '10.10.10.2'
+    args['state'] = 'absent'
+
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    # revert to ZAPI for 9.6
+    assert not my_obj.use_rest
