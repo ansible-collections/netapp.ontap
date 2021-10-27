@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Minor Changes
   - na_ontap_object_store: support modifying an object store config with REST.
+  - PR15 - allow usage of Ansible module group defaults - for Ansible 2.12+.
 
 ### New Options
   - na_ontap_object_store: new REST options `owner` and `change_password`.
