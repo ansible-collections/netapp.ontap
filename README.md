@@ -43,6 +43,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_cluster - add `force` option when deleting a node.
   - na_ontap_object_store: new REST options `owner` and `change_password`.
+  - na_ontap_net_vlan - new options `broadcast_domain`, `ipspace` and `enabled` when using REST.
 
 ### Bug Fixes
   - na_ontap_cluster - `single_node_cluster` was silently ignored with REST.
@@ -55,6 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
+  - na_ontap_net_vlan - Added REST support to the net vlan module.
 
 ## 21.12.0
 
