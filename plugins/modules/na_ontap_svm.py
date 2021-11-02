@@ -348,7 +348,10 @@ class NetAppOntapSVM():
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            mutually_exclusive=[('allowed_protocols', 'services')]
+            mutually_exclusive=[('allowed_protocols', 'services'),
+                                ('services', 'root_volume'),
+                                ('services', 'root_volume_aggregate'),
+                                ('services', 'root_volume_security_style')]
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
