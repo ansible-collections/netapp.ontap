@@ -142,8 +142,8 @@ def test_module_fail_when_required_args_missing(patch_ansible):
         set_module_args(dict(hostname=''))
         my_module()
     print('Info: %s' % exc.value.args[0]['msg'])
-    msg = 'missing required arguments: node, parent_interface, vlanid'
-    assert msg == exc.value.args[0]['msg']
+    msg = 'missing required arguments:'
+    assert msg in exc.value.args[0]['msg']
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
