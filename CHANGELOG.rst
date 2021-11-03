@@ -5,6 +5,32 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.13.0
+========
+
+Minor Changes
+-------------
+
+- PR15 - allow usage of Ansible module group defaults - for Ansible 2.12+.
+- na_ontap_cluster - add ``force`` option when deleting a node.
+- na_ontap_interface - Added REST support to the interface module (for IP and FC interfaces).
+- na_ontap_net_vlan - Added REST support to the net vlan module.
+- na_ontap_net_vlan - new REST options ``broadcast_domain``, ``ipspace`` and ``enabled`` added.
+- na_ontap_object_store - new REST options ``owner`` and ``change_password``.
+- na_ontap_object_store - support modifying an object store config with REST.
+
+Bugfixes
+--------
+
+- na_ontap_cluster - ``single_node_cluster`` was silently ignored with REST.
+- na_ontap_cluster - switch to ZAPI when DELETE is required with ONTAP 9.6.
+- na_ontap_snapmirror - ``source_path`` and ``source_hostname`` parameters are not mandatory to delete snapmirror relationship when source cluster is unknown, if specified it will delete snapmirror at destination and release the same at source side.  if not, it only deletes the snapmirror at destination and will not look for source to perform snapmirror release.
+- na_ontap_snapmirror - modify policy, schedule and other parameter failure are fixed.
+- na_ontap_snapshot - ``expiry_time`` required REST api, will return error if set when using ZAPI.
+- na_ontap_snapshot - ``snapmirror_label`` is supported with REST on ONTAP 9.7 or higher, report error if used on ONTAP 9.6.
+- na_ontap_storage_failover - KeyError on 'ha' if the system is not configured as HA.
+- na_ontap_svm - module will on init if a rest only and zapi only option are used at the same time.
+
 v21.12.0
 ========
 
