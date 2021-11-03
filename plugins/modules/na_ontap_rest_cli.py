@@ -62,6 +62,15 @@ EXAMPLES = """
         verb: 'PATCH'
         params: {'vserver': 'ansibleSVM'}
         body: {'message': 'test'}
+
+    - name: set option
+      netapp.ontap.na_ontap_rest_cli:
+        command: options
+        verb: PATCH
+        params:
+          option_name: lldp.enable
+        body:
+          option_value: "on"
 """
 
 RETURN = """
