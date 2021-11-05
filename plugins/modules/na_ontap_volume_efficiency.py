@@ -127,6 +127,13 @@ options:
     version_added: '21.4.0'
     type: bool
 
+  storage_efficiency_mode:
+    description:
+    - Storage efficiency mode used by volume. This parameter is only supported on AFF platforms.
+    - Requires ONTAP 9.10.1 or later.
+    choices: ['default', 'efficient']
+    type: str
+    version_added: '21.14.0'
 """
 
 EXAMPLES = """
@@ -194,12 +201,14 @@ RETURN = """
 
 """
 
+import copy
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -225,6 +234,7 @@ class NetAppOntapVolumeEfficiency(object):
             enable_data_compaction=dict(required=False, type='bool'),
             enable_cross_volume_inline_dedupe=dict(required=False, type='bool'),
             enable_cross_volume_background_dedupe=dict(required=False, type='bool'),
+            storage_efficiency_mode=dict(required=False, choices=['default', 'efficient'], type='str'),
             volume_efficiency=dict(required=False, choices=['start', 'stop'], type='str'),
             start_ve_scan_all=dict(required=False, type='bool'),
             start_ve_build_metadata=dict(required=False, type='bool'),
@@ -265,6 +275,9 @@ class NetAppOntapVolumeEfficiency(object):
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
+        if self.parameters.get('storage_efficiency_mode') is not None:
+            self.rest_api.fail_if_not_rest_minimum_version('option storage_efficiency_mode', 9, 10, 1)
+
     def get_volume_efficiency(self):
         """
         get the storage efficiency for a given path
@@ -281,34 +294,30 @@ class NetAppOntapVolumeEfficiency(object):
                 'path': self.parameters['path'],
                 'vserver': self.parameters['vserver']
             }
+            if self.parameters.get('storage_efficiency_mode') is not None:
+                query['fields'] += ',storage_efficiency_mode'
             message, error = self.rest_api.get(api, query)
-
+            record, error = rrh.check_for_0_or_1_records(api, message, error)
             if error:
                 self.module.fail_json(msg=error)
-            if len(message.keys()) == 0:
+            if record is None:
                 return None
-            if 'records' in message and len(message['records']) == 0:
-                return None
-            if 'records' not in message:
-                error = "Unexpected response in api call from %s: %s" % (api, repr(message))
-                self.module.fail_json(msg=error)
             return_value = {
-                'path': message['records'][0]['path'],
-                'enabled': message['records'][0]['state'],
-                'status': message['records'][0]['op_status'],
-                'schedule': message['records'][0]['schedule'],
-                'enable_inline_compression': message['records'][0]['inline_compression'],
-                'enable_compression': message['records'][0]['compression'],
-                'enable_inline_dedupe': message['records'][0]['inline_dedupe'],
-                'enable_data_compaction': message['records'][0]['data_compaction'],
-                'enable_cross_volume_inline_dedupe': message['records'][0]['cross_volume_inline_dedupe'],
-                'enable_cross_volume_background_dedupe': message['records'][0]['cross_volume_background_dedupe']
+                'path': record['path'],
+                'enabled': record['state'],
+                'status': record['op_status'],
+                'schedule': record['schedule'],
+                'enable_inline_compression': record['inline_compression'],
+                'enable_compression': record['compression'],
+                'enable_inline_dedupe': record['inline_dedupe'],
+                'enable_data_compaction': record['data_compaction'],
+                'enable_cross_volume_inline_dedupe': record['cross_volume_inline_dedupe'],
+                'enable_cross_volume_background_dedupe': record['cross_volume_background_dedupe']
             }
-
-            if 'policy' in message['records'][0]:
-                return_value['policy'] = message['records'][0]['policy']
-            else:
-                return_value['policy'] = '-'
+            return_value['policy'] = record.get('policy', '-')
+            if self.parameters.get('storage_efficiency_mode') is not None:
+                # force a value to force a change - and an error if the system is not AFF
+                return_value['storage_efficiency_mode'] = record.get('storage_efficiency_mode', '-')
             return return_value
 
         else:
@@ -444,10 +453,12 @@ class NetAppOntapVolumeEfficiency(object):
                 body['cross_volume_inline_dedupe'] = self.parameters['enable_cross_volume_inline_dedupe']
             if 'enable_cross_volume_background_dedupe' in self.parameters:
                 body['cross_volume_background_dedupe'] = self.parameters['enable_cross_volume_background_dedupe']
+            if 'storage_efficiency_mode' in self.parameters:
+                body['storage_efficiency_mode'] = self.parameters['storage_efficiency_mode']
 
             dummy, error = self.rest_api.patch(api, body, query)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
 
         else:
 
@@ -514,7 +525,7 @@ class NetAppOntapVolumeEfficiency(object):
 
             dummy, error = self.rest_api.patch(api, body, query)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error in efficiency/start: %s' % error)
 
         else:
 
@@ -568,7 +579,7 @@ class NetAppOntapVolumeEfficiency(object):
 
             dummy, error = self.rest_api.patch(api, body, query)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error in efficiency/stop: %s' % error)
 
         else:
 
@@ -598,32 +609,35 @@ class NetAppOntapVolumeEfficiency(object):
             current = {'enabled': 'disabled'}
 
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        to_modify = copy.deepcopy(modify)
 
-        if self.na_helper.changed:
-            if not self.module.check_mode:
-                if self.parameters['state'] == 'present' and current['enabled'] == 'disabled':
+        if self.na_helper.changed and not self.module.check_mode:
+            if 'enabled' in modify:
+                if modify['enabled'] == 'enabled':
                     self.enable_volume_efficiency()
                     # Checking to see if there are any additional parameters that need to be set after enabling volume efficiency required for Non-AFF systems
                     current = self.get_volume_efficiency()
                     modify = self.na_helper.get_modified_attributes(current, self.parameters)
-                elif self.parameters['state'] == 'absent' and current['enabled'] == 'enabled':
+                    to_modify['modify_after_enable'] = copy.deepcopy(modify)
+                elif modify['enabled'] == 'disabled':
                     self.disable_volume_efficiency()
+                # key may not exist anymore, if modify is refreshed at line 620
+                modify.pop('enabled', None)
 
-                if 'enabled' in modify:
-                    del modify['enabled']
-                if 'status' in modify:
-                    ve_status = modify['status']
-                    del modify['status']
-                # Removed the enabled and volume efficiency status,
-                # if there is anything remaining in the modify dict we need to modify.
-                if modify:
-                    self.modify_volume_efficiency()
-                if ve_status == 'running':
-                    self.start_volume_efficiency()
-                elif ve_status == 'idle':
-                    self.stop_volume_efficiency()
+            if 'status' in modify:
+                ve_status = modify['status']
+                del modify['status']
 
-        self.module.exit_json(changed=self.na_helper.changed)
+            # Removed the enabled and volume efficiency status,
+            # if there is anything remaining in the modify dict we need to modify.
+            if modify:
+                self.modify_volume_efficiency()
+            if ve_status == 'running':
+                self.start_volume_efficiency()
+            elif ve_status == 'idle':
+                self.stop_volume_efficiency()
+
+        self.module.exit_json(changed=self.na_helper.changed, modify=to_modify)
 
 
 def main():

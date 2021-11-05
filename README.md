@@ -34,6 +34,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.14.0
+
+### New Options
+  - na_ontap_volume_efficiency - new option `storage_efficiency_mode` for AFF only with 9.10.1 or later.
+
 ## 21.13.1
 
 ### Bug Fixes

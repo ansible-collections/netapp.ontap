@@ -11,7 +11,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency \
-    import NetAppOntapVolumeEfficiency as volume_efficiency_module  # module under test
+    import NetAppOntapVolumeEfficiency as volume_efficiency_module, main  # module under test
 
 
 if not netapp_utils.has_netapp_lib():
@@ -21,8 +21,10 @@ if not netapp_utils.has_netapp_lib():
 SRR = {
     # common responses
     'is_rest': (200, {}, None),
+    'is_rest_9_10_0': (200, dict(version=dict(generation=9, major=10, minor=0, full='dummy_9_10_0')), None),
+    'is_rest_9_10_1': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
+    'empty_good': (200, {'num_records': 0}, None),
     'nonempty_good': (200, {'num_records': 1, 'cli_output': 'Efficiency for volume "volTest" of Vserver "vs1" is enabled.'}, None),
     'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (400, None, "Expected error"),
@@ -425,7 +427,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+        msg = 'calling: private/cli/volume/efficiency: got %s.' % SRR['generic_error'][2]
+        assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_enable_rest(self, mock_request):
@@ -546,10 +549,50 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_start_rest_all_options(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['volume_efficiency'] = 'start'
+        data['start_ve_scan_all'] = True
+        data['start_ve_build_metadata'] = True
+        data['start_ve_delete_checkpoint'] = True
+        data['start_ve_queue_operation'] = True
+        data['start_ve_scan_old_data'] = True
+        data['start_ve_qos_policy'] = 'background'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_enabled_record'],  # get
+            SRR['empty_good'],  # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_start_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['volume_efficiency'] = 'start'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_enabled_record'],  # get
+            SRR['generic_error'],  # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        msg = 'Error in efficiency/start: Expected error'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_stop_rest(self, mock_request):
         data = self.set_default_args()
         data['state'] = 'present'
         data['volume_efficiency'] = 'stop'
+        data['stop_ve_all_operations'] = True
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -574,3 +617,71 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_volume_efficiency_mock_object(cx_type='rest').apply()
         assert not exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_stop_rest(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['volume_efficiency'] = 'stop'
+        data['stop_ve_all_operations'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['volume_efficiency_running_record'],  # get
+            SRR['generic_error'],  # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        msg = 'Error in efficiency/stop: Expected error'
+        assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_modify_rest_se_mode_no_version(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['storage_efficiency_mode'] = 'default'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],     # is_rest
+            SRR['is_rest'],     # fail_if_ calls version again!
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10 or later.  Found: -1.-1.-1.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_negative_modify_rest_se_mode_version(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['storage_efficiency_mode'] = 'default'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_10_0'],  # is_rest
+            SRR['is_rest_9_10_0'],  # fail_if_ calls version again!
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
+        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10 or later.  Found: 9.10.0.'
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_modify_rest_se_mode(self, mock_request):
+        data = self.set_default_args()
+        data['state'] = 'present'
+        data['storage_efficiency_mode'] = 'default'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_10_1'],      # is_rest
+            SRR['is_rest_9_10_1'],      # fail_if_ calls version again!
+            SRR['empty_good'],          # get
+            SRR['nonempty_good'],       # enable
+            SRR['empty_good'],          # patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            main()
+        assert exc.value.args[0]['changed']
