@@ -34,6 +34,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.13.1
+
+### Bug Fixes
+  - cluster scoped modules are failing on FSx with 'Vserver API missing vserver parameter' error.
+
 ## 21.13.0
 
 ### Minor Changes

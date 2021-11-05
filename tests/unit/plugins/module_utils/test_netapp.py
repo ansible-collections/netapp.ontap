@@ -7,6 +7,7 @@ __metaclass__ = type
 
 import json
 import os.path
+import sys
 import tempfile
 
 import pytest
@@ -66,6 +67,12 @@ class MockONTAPConnection(object):
         self.xml_in = xml
         if self.type == 'vserver':
             xml = self.build_vserver_info(self.parm1)
+        if self.type == 'no_vserver':
+            xml = self.build_no_info()
+        if self.type == 'error_no_vserver':
+            raise netapp_utils.zapi.NaApiError(message='Vserver API missing vserver parameter.')
+        if self.type == 'error_other_error':
+            raise netapp_utils.zapi.NaApiError(message='Some other error message.')
         self.xml_out = xml
         return xml
 
@@ -77,6 +84,13 @@ class MockONTAPConnection(object):
         attributes.add_node_with_children('vserver-info',
                                           **{'vserver-name': vserver})
         xml.add_child_elem(attributes)
+        return xml
+
+    @staticmethod
+    def build_no_info():
+        ''' build xml data for vserser-info '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        xml.add_new_child('num_records', '0')
         return xml
 
 
@@ -100,6 +114,72 @@ def test_get_cserver():
     server = MockONTAPConnection('vserver', svm_name)
     cserver = netapp_utils.get_cserver(server)
     assert cserver == svm_name
+
+
+def test_get_cserver_none():
+    ''' validate cluster vserser name is correctly retrieved '''
+    svm_name = 'svm1'
+    server = MockONTAPConnection('no_vserver', svm_name)
+    cserver = netapp_utils.get_cserver(server)
+    assert cserver is None
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
+def test_ems_log_event_cserver(mock_setup):
+    ''' validate Ansible version is correctly read '''
+    source = 'unittest'
+    svm_name = 'svm1'
+    module = 'na'
+    server = MockONTAPConnection('vserver', svm_name)
+    mock_setup.return_value = MockONTAPConnection('vserver', 'cserver')
+    netapp_utils.ems_log_event_cserver(source, server, module)
+    xml = mock_setup.return_value.xml_in
+    print(xml.to_string())
+    version = xml.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
+def test_ems_log_event_cserver_no_admin(mock_setup):
+    ''' no error is a vserser missing error is reported '''
+    source = 'unittest'
+    svm_name = 'svm1'
+    module = 'na'
+    server = MockONTAPConnection('vserver', svm_name)
+    mock_setup.return_value = MockONTAPConnection('error_no_vserver')
+    netapp_utils.ems_log_event_cserver(source, server, module)
+    xml = mock_setup.return_value.xml_in
+    print(xml.to_string())
+    version = xml.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
+def test_ems_log_event_cserver_other_error(mock_setup):
+    ''' exception is raised for other errors '''
+    source = 'unittest'
+    svm_name = 'svm1'
+    module = 'na'
+    server = MockONTAPConnection('vserver', svm_name)
+    mock_setup.return_value = MockONTAPConnection('error_other_error')
+    with pytest.raises(netapp_utils.zapi.NaApiError) as exc:
+        netapp_utils.ems_log_event_cserver(source, server, module)
+    xml = mock_setup.return_value.xml_in
+    print(xml.to_string())
+    version = xml.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
 
 
 def mock_args(feature_flags=None):
@@ -129,15 +209,13 @@ def cert_args(feature_flags=None):
 def create_module(args):
     argument_spec = netapp_utils.na_ontap_host_argument_spec()
     set_module_args(args)
-    module = basic.AnsibleModule(argument_spec)
-    return module
+    return basic.AnsibleModule(argument_spec)
 
 
 def create_restapi_object(args):
     module = create_module(args)
     module.fail_json = fail_json
-    rest_api = netapp_utils.OntapRestAPI(module)
-    return rest_api
+    return netapp_utils.OntapRestAPI(module)
 
 
 def create_ontapzapicx_object(args, feature_flags=None):
@@ -148,8 +226,7 @@ def create_ontapzapicx_object(args, feature_flags=None):
     module.fail_json = fail_json
     my_args = dict(args)
     my_args.update(dict(module=module))
-    zapi_cx = netapp_utils.OntapZAPICx(**my_args)
-    return zapi_cx
+    return netapp_utils.OntapZAPICx(**my_args)
 
 
 def test_write_to_file():
@@ -517,7 +594,7 @@ def test_setup_host_options_from_module_params_from_empty():
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
     module = create_module(args)
-    host_options = dict()
+    host_options = {}
     keys = ('hostname', 'username')
     netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
     # we gave 2 keys
@@ -714,3 +791,32 @@ def test_wait_on_job(mock_request):
     msg = 'Job error message'
     assert msg in error
     assert message == 'any message'
+
+
+def test_is_zapi_connection_error():
+    message = 'URLError'
+    assert netapp_utils.is_zapi_connection_error(message)
+    if sys.version_info >= (3, 5, 0):
+        # not defined in python 2.7
+        message = (ConnectionError(), '')
+    assert netapp_utils.is_zapi_connection_error(message)
+    message = []
+    assert not netapp_utils.is_zapi_connection_error(message)
+
+
+def test_is_zapi_write_access_error():
+    message = 'Insufficient privileges: XXXXXXX does not have write access'
+    assert netapp_utils.is_zapi_write_access_error(message)
+    message = 'URLError'
+    assert not netapp_utils.is_zapi_write_access_error(message)
+    message = []
+    assert not netapp_utils.is_zapi_write_access_error(message)
+
+
+def test_is_zapi_missing_vserver_error():
+    message = 'Vserver API missing vserver parameter.'
+    assert netapp_utils.is_zapi_missing_vserver_error(message)
+    message = 'URLError'
+    assert not netapp_utils.is_zapi_missing_vserver_error(message)
+    message = []
+    assert not netapp_utils.is_zapi_missing_vserver_error(message)

@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.13.0"
+COLLECTION_VERSION = "21.13.1"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -314,19 +314,33 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
 def is_zapi_connection_error(message):
     ''' return True if it is a connection issue '''
     # netapp-lib message may contain a tuple or a str!
-    if isinstance(message, tuple) and isinstance(message[0], ConnectionError):
-        return True
-    if isinstance(message, str) and message.startswith(('URLError', 'Unauthorized')):
-        return True
-    return False
+    try:
+        if isinstance(message, tuple) and isinstance(message[0], ConnectionError):
+            return True
+    except NameError:
+        # python 2.7 does not know about ConnectionError
+        pass
+    return (
+        isinstance(message, str)
+        and message.startswith(('URLError', 'Unauthorized'))
+    )
 
 
 def is_zapi_write_access_error(message):
-    ''' return True if it is a connection issue '''
+    ''' return True if it is a write access error '''
     # netapp-lib message may contain a tuple or a str!
     if isinstance(message, str) and message.startswith('Insufficient privileges:'):
         return 'does not have write access' in message
     return False
+
+
+def is_zapi_missing_vserver_error(message):
+    ''' return True if it is a missing vserver error '''
+    # netapp-lib message may contain a tuple or a str!
+    return (
+        isinstance(message, str)
+        and message == 'Vserver API missing vserver parameter.'
+    )
 
 
 def ems_log_event_cserver(source, server, module):
@@ -358,7 +372,10 @@ def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECT
         # Do not fail if we can't connect to the server.
         # The module will report a better error when trying to get some data from ONTAP.
         # Do not fail if we don't have write privileges.
-        if not is_zapi_connection_error(exc.message) and not is_zapi_write_access_error(exc.message):
+        # Do not fail if there is no cserver, as on FSx.
+        if not is_zapi_connection_error(exc.message) \
+           and not is_zapi_write_access_error(exc.message) \
+           and not is_zapi_missing_vserver_error(exc.message):
             # raise on other errors, as it may be a bug in calling the ZAPI
             raise exc
 

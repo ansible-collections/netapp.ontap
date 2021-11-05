@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.13.1
+========
+
+Bugfixes
+--------
+
+- cluster scoped modules are failing on FSx with 'Vserver API missing vserver parameter' error.
+
 v21.13.0
 ========
 
