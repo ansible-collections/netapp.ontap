@@ -19,9 +19,9 @@ Role Variables
 --------------
 
 This role expects the following variables to be set:
-- hostname: IP address of ONTAP admin interface (can be vsadmin too).
-- username: user account with admin or vsadmin role.
-- password: for the user account with admin or vsadmin role.
+- netapp_hostname: IP address of ONTAP admin interface (can be vsadmin too).
+- netapp_username: user account with admin or vsadmin role.
+- netapp_password: for the user account with admin or vsadmin role.
 - vserver_name: name of vserver to delete.
 
 In order to delete a CIFS server, the following variables are required
@@ -51,9 +51,9 @@ Example Playbook
   gather_facts: no
   vars:
     login: &login
-      hostname: ip_address
-      username: admin
-      password: XXXXXXXXX
+      netapp_hostname: ip_address
+      netapp_username: admin
+      netapp_password: XXXXXXXXX
       https: true
       validate_certs: false
   roles:

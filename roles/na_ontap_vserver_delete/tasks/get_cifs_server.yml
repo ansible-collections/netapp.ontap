@@ -1,5 +1,15 @@
 ---
 # tasks file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
+- name: set-facts netapp_hostname,netapp_username & netapp_password
+  set_fact:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+  when:
+    - ( netapp_hostname is defined ) and ( netapp_hostname | length > 0 )
+    - ( netapp_username is defined ) and ( netapp_username | length > 0 )
+    - ( netapp_password is defined ) and ( netapp_password | length > 0 )
+
 - name: collect CIFS server names for vserver - we expect a list of one
   tags: gather
   na_ontap_rest_info:

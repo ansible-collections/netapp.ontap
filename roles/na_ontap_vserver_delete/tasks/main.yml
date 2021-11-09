@@ -19,6 +19,11 @@
 # confirm_before_removing_interfaces: true
 # confirm_before_removing_volumes: true
 #
+- name: set-facts netapp_hostname,netapp_username & netapp_password
+  set_fact:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: check REST is enabled and SVM exists
   import_tasks: assert_prereqs_and_vserver_exists.yml
