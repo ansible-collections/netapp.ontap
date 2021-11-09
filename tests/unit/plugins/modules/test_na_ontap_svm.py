@@ -523,7 +523,7 @@ class TestMyModule(unittest.TestCase):
             module.apply()
         assert exc.value.args[0]['changed']
         assert module.use_rest
-        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'})
+        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'}, headers=None)
         print(mock_request.mock_calls)
         assert expected in mock_request.mock_calls
 
@@ -544,7 +544,7 @@ class TestMyModule(unittest.TestCase):
         current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
         module = self.get_vserver_mock_object(cx_type='rest')
         module.modify_services(modify, current)
-        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'})
+        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'}, headers=None)
         print(mock_request.mock_calls)
         assert expected in mock_request.mock_calls
 
@@ -566,7 +566,7 @@ class TestMyModule(unittest.TestCase):
         current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid', 'fcp': fcp_dict}
         module = self.get_vserver_mock_object(cx_type='rest')
         module.modify_services(modify, current)
-        expected = call('PATCH', 'protocols/san/fcp/services/uuid', {'return_timeout': 30}, json={'enabled': True})
+        expected = call('PATCH', 'protocols/san/fcp/services/uuid', {'return_timeout': 30}, json={'enabled': True}, headers=None)
         print(mock_request.mock_calls)
         assert expected in mock_request.mock_calls
 
@@ -706,7 +706,7 @@ class TestMyModule(unittest.TestCase):
         ]
         module = self.get_vserver_mock_object(cx_type='rest')
         details = module.get_vserver()
-        expected = call('GET', 'private/cli/vserver', {'fields': 'allowed_protocols', 'vserver': 'test_svm'})
+        expected = call('GET', 'private/cli/vserver', {'fields': 'allowed_protocols', 'vserver': 'test_svm'}, headers=None)
         print(mock_request.mock_calls)
         print(details)
         assert expected in mock_request.mock_calls
@@ -727,7 +727,7 @@ class TestMyModule(unittest.TestCase):
         module = self.get_vserver_mock_object(cx_type='rest')
         with pytest.raises(AnsibleExitJson) as exc:
             module.apply()
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['nfs']})
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['nfs']}, headers=None)
         print(mock_request.mock_calls)
         assert expected in mock_request.mock_calls
 
@@ -749,9 +749,11 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             module.apply()
         print(mock_request.mock_calls)
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['fcp']})
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
+                        json={'protocols': ['fcp']}, headers=None)
         assert expected in mock_request.mock_calls
-        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['iscsi']})
+        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
+                        json={'protocols': ['iscsi']}, headers=None)
         assert expected in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -772,9 +774,11 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             module.apply()
         print(mock_request.mock_calls)
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['fcp']})
+        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
+                        json={'protocols': ['fcp']}, headers=None)
         assert expected in mock_request.mock_calls
-        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['iscsi']})
+        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
+                        json={'protocols': ['iscsi']}, headers=None)
         assert expected in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

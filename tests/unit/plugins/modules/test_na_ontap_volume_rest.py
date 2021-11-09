@@ -356,7 +356,7 @@ class TestMyModule(unittest.TestCase):
         assert 'volume-size' not in my_volume.server.zapis
         print(mock_request.call_args)
         query = {'return_timeout': 30, 'sizing_method': 'add_new_resources'}
-        mock_request.assert_called_with('PATCH', 'storage/volumes/123', query, json={'size': 22266633286068469760})
+        mock_request.assert_called_with('PATCH', 'storage/volumes/123', query, json={'size': 22266633286068469760}, headers=None)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_deleted(self, mock_request):
@@ -381,7 +381,7 @@ class TestMyModule(unittest.TestCase):
         print(mock_request.call_args)
         print(mock_request.mock_calls)
         query = {'return_timeout': 30}
-        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None)
+        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None, headers=None)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_deleted_with_app(self, mock_request):
@@ -407,4 +407,4 @@ class TestMyModule(unittest.TestCase):
         print(mock_request.call_args)
         print(mock_request.mock_calls)
         query = {'return_timeout': 30}
-        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None)
+        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None, headers=None)

@@ -110,16 +110,31 @@ def check_for_error_and_job_results(api, response, error, rest_api, **kwargs):
     """report first error if present
        otherwise call wait_on_job and retrieve job response or error
     """
+    format_error = not kwargs.pop('raw_error', False)
     if error:
-        error = api_error(api, error)
+        if format_error:
+            error = api_error(api, error)
     # we expect two types of response
     #   a plain response, for synchronous calls
     #   or a job response, for asynchronous calls
     # and it's possible to expect both when 'return_timeout' > 0
-    elif isinstance(response, dict) and 'job' in response:
-        job_response, error = rest_api.wait_on_job(response['job'], **kwargs)
-        if error:
-            error = job_error(response, error)
-        else:
-            response['job_response'] = job_response
+    #
+    # when using a query instead of UUID, REST return jobs (a list of jobs) rather than a single job
+    # only restit can send a query, all other calls are using a UUID.
+    elif isinstance(response, dict):
+        job = None
+        if 'job' in response:
+            job = response['job']
+        elif 'jobs' in response:
+            if response['num_records'] > 1:
+                error = "multiple jobs in progress, can't check status"
+            else:
+                job = response['jobs'][0]
+        if job:
+            job_response, error = rest_api.wait_on_job(job, **kwargs)
+            if error:
+                if format_error:
+                    error = job_error(response, error)
+            else:
+                response['job_response'] = job_response
     return response, error

@@ -113,38 +113,21 @@ class TestMyModule(unittest.TestCase):
         self.onbox = False
 
     def set_default_args(self):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            username = 'admin'
-            password = 'password'
-            source_path = 'ansible:ansible'
-            destination_path = 'ansible:ansible'
-            policy = 'ansible'
-            source_vserver = 'ansible'
-            destination_vserver = 'ansible'
-            relationship_type = 'data_protection'
-            schedule = None
-            source_username = 'admin'
-            source_password = 'password'
-            relationship_state = 'active'
-            update = True
-            use_rest = 'never'
-        else:
-            hostname = '10.10.10.10'
-            username = 'admin'
-            password = 'password'
-            source_path = 'ansible:ansible'
-            destination_path = 'ansible:ansible'
-            policy = 'ansible_policy'
-            source_vserver = 'ansible'
-            destination_vserver = 'ansible'
-            relationship_type = 'data_protection'
-            schedule = None
-            source_username = 'admin'
-            source_password = 'password'
-            relationship_state = 'active'
-            update = True
-            use_rest = 'never'
+        policy = 'ansible' if self.onbox else 'ansible_policy'
+        use_rest = 'never'
+        source_password = 'password'
+        hostname = '10.10.10.10'
+        update = True
+        schedule = None
+        username = 'admin'
+        source_vserver = 'ansible'
+        source_path = 'ansible:ansible'
+        destination_path = 'ansible:ansible'
+        relationship_state = 'active'
+        destination_vserver = 'ansible'
+        password = 'password'
+        source_username = 'admin'
+        relationship_type = 'data_protection'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -683,7 +666,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60}, headers=None,
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible:ansible'},
                                               'policy': 'ansible_policy'})
@@ -740,7 +723,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60}, headers=None,
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible:ansible'},
                                               'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},
@@ -784,7 +767,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60}, headers=None,
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible_svm:ansible'},
                                               'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},
@@ -831,7 +814,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         assert exc.value.args[0]['changed']
-        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60},
+        mock_request.assert_called_with('POST', 'snapmirror/relationships/', {'return_timeout': 60}, headers=None,
                                         json={'source': {'path': 'ansible:ansible'},
                                               'destination': {'path': 'ansible_svm:ansible', 'consistency_group_volumes': ['a1', 'b2']},
                                               'create_destination': {'enabled': True, 'tiering': {'policy': 'all'}},

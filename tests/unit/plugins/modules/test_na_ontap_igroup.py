@@ -314,7 +314,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             igroup().apply()
         assert exc.value.args[0]['changed']
-        expected_call = call('DELETE', 'protocols/san/igroups/a1b2c3', None, json=None)
+        expected_call = call('DELETE', 'protocols/san/igroups/a1b2c3', None, json=None, headers=None)
         assert expected_call in mock_request.mock_calls
 
     def test_successful_modify(self):
@@ -341,9 +341,9 @@ class TestMyModule(unittest.TestCase):
             igroup().apply()
         assert exc.value.args[0]['changed']
         print(mock_request.mock_calls)
-        expected_call = call('POST', 'protocols/san/igroups/a1b2c3/initiators', None, json={'records': [{'name': 'init1'}]})
+        expected_call = call('POST', 'protocols/san/igroups/a1b2c3/initiators', None, json={'records': [{'name': 'init1'}]}, headers=None)
         assert expected_call in mock_request.mock_calls
-        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'})
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'}, headers=None)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -423,7 +423,7 @@ class TestMyModule(unittest.TestCase):
             igroup().apply()
         assert exc.value.args[0]['changed']
         # print(mock_request.mock_calls)
-        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'name': 'test_new', 'os_type': 'linux'})
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'name': 'test_new', 'os_type': 'linux'}, headers=None)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -481,7 +481,7 @@ class TestMyModule(unittest.TestCase):
         assert not self.warnings
         expected_json = {'name': 'test', 'os_type': 'linux', 'svm': {'name': 'vserver'}, 'protocol': 'fcp', 'portset': 'my_portset',
                          'initiators': [{'name': 'init1'}]}
-        expected_call = call('POST', 'protocols/san/igroups', None, json=expected_json)
+        expected_call = call('POST', 'protocols/san/igroups', None, json=expected_json, headers=None)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

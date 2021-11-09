@@ -668,8 +668,7 @@ class OntapRestAPI(object):
             headers['X-Dot-SVM-UUID'] = vserver_uuid
         return headers
 
-    def send_request(self, method, api, params, json=None, accept=None,
-                     vserver_name=None, vserver_uuid=None):
+    def send_request(self, method, api, params, json=None, headers=None):
         ''' send http request and process reponse, including error conditions '''
         url = self.url + api
         status_code = None
@@ -677,7 +676,8 @@ class OntapRestAPI(object):
         json_dict = None
         json_error = None
         error_details = None
-        headers = self.build_headers(accept, vserver_name, vserver_uuid)
+        if headers is None:
+            headers = self.build_headers()
 
         def check_contents(response):
             '''json() may fail on an empty value, but it's OK if no response is expected.
@@ -815,29 +815,29 @@ class OntapRestAPI(object):
             runtime += increment
         return message, error
 
-    def get(self, api, params=None):
+    def get(self, api, params=None, headers=None):
         method = 'GET'
-        dummy, message, error = self.send_request(method, api, params)
+        dummy, message, error = self.send_request(method, api, params, headers=headers)
         return message, error
 
-    def post(self, api, body, params=None):
+    def post(self, api, body, params=None, headers=None):
         method = 'POST'
-        dummy, message, error = self.send_request(method, api, params, json=body)
+        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers)
         return message, error
 
-    def patch(self, api, body, params=None):
+    def patch(self, api, body, params=None, headers=None):
         method = 'PATCH'
-        dummy, message, error = self.send_request(method, api, params, json=body)
+        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers)
         return message, error
 
-    def delete(self, api, body=None, params=None):
+    def delete(self, api, body=None, params=None, headers=None):
         method = 'DELETE'
-        dummy, message, error = self.send_request(method, api, params, json=body)
+        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers)
         return message, error
 
-    def options(self, api, params=None):
+    def options(self, api, params=None, headers=None):
         method = 'OPTIONS'
-        dummy, message, error = self.send_request(method, api, params)
+        dummy, message, error = self.send_request(method, api, params, headers=headers)
         return message, error
 
     def set_version(self, message):

@@ -59,6 +59,14 @@ options:
       - if true, HAL-encoded links are returned in the response.
     default: false
     type: bool
+  wait_for_completion:
+    description:
+      - when true, POST/PATCH/DELETE can be handled synchronously and asynchronously.
+      - if the response indicates that a job is in progress, the job status is checked periodically until is completes.
+      - when false, the call returns immediately.
+    type: bool
+    default: false
+    version_added: 21.14.0
 '''
 
 EXAMPLES = """
@@ -209,6 +217,7 @@ response:
 status_code:
   description:
     - The http status code.
+    - When wait_for_completion is True, this is forced to 0.
   returned: Always
   type: str
 error_code:
@@ -228,6 +237,7 @@ error_message:
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPRestAPI(object):
@@ -243,6 +253,7 @@ class NetAppONTAPRestAPI(object):
             vserver_name=dict(required=False, type='str'),
             vserver_uuid=dict(required=False, type='str'),
             hal_linking=dict(required=False, type='bool', default=False),
+            wait_for_completion=dict(required=False, type='bool', default=False),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -257,20 +268,15 @@ class NetAppONTAPRestAPI(object):
         self.vserver_name = parameters['vserver_name']
         self.vserver_uuid = parameters['vserver_uuid']
         self.hal_linking = parameters['hal_linking']
+        self.wait_for_completion = parameters['wait_for_completion']
 
         self.rest_api = OntapRestAPI(self.module)
 
-    def run_api(self):
-        ''' calls the REST API '''
-        # TODO, log usage
+    def build_headers(self):
+        content_type = 'application/hal+json' if self.hal_linking else 'application/json'
+        return self.rest_api.build_headers(accept=content_type, vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
 
-        if self.hal_linking:
-            content_type = 'application/hal+json'
-        else:
-            content_type = 'application/json'
-        status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body,
-                                                             accept=content_type,
-                                                             vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
+    def fail_on_error(self, status, response, error):
         if error:
             if isinstance(error, dict):
                 error_message = error.pop('message', None)
@@ -285,11 +291,52 @@ class NetAppONTAPRestAPI(object):
             msg = "Error when calling '%s': %s" % (self.api, str(error))
             self.module.fail_json(msg=msg, status_code=status, response=response, error_message=error_message, error_code=error_code)
 
+    def run_api(self):
+        ''' calls the REST API '''
+        # TODO, log usage
+
+        status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body, self.build_headers())
+        self.fail_on_error(status, response, error)
+
         return status, response
+
+    def run_api_async(self):
+        ''' calls the REST API '''
+        # TODO, log usage
+
+        args = [self.rest_api, self.api]
+        kwargs = {}
+        if self.method == 'POST':
+            method = rest_generic.post_async
+            kwargs['body'] = self.body
+        elif self.method == 'PATCH':
+            method = rest_generic.patch_async
+            args.append(None)   # uuid should be provided in the API
+            kwargs['body'] = self.body
+        elif self.method == 'DELETE':
+            method = rest_generic.delete_async
+            args.append(None)   # uuid should be provided in the API
+        else:
+            self.module.warn('wait_for_completion ignored for %s method.' % self.method)
+            return self.run_api()
+
+        kwargs.update({
+            'raw_error': True,
+            'headers': self.build_headers()
+        })
+        if self.query:
+            kwargs['query'] = self.query
+        response, error = method(*args, **kwargs)
+        self.fail_on_error(0, response, error)
+
+        return 0, response
 
     def apply(self):
         ''' calls the api and returns json output '''
-        status_code, response = self.run_api()
+        if self.wait_for_completion:
+            status_code, response = self.run_api_async()
+        else:
+            status_code, response = self.run_api()
         self.module.exit_json(changed=True, status_code=status_code, response=response)
 
 

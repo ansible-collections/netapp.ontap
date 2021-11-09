@@ -49,13 +49,13 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
-LOG_MSGS = list()
+LOG_MSGS = []
 
 
 def log_msg(self, msg, log_args=None):  # pylint: disable=unused-argument
     global LOG_MSGS
     if log_args == 'CLEAN':
-        LOG_MSGS = list()
+        LOG_MSGS = []
         return
     LOG_MSGS.append(msg)
 
@@ -238,7 +238,7 @@ class TestMyModule(unittest.TestCase):
         expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
                          'san': {'application_components':
                                  [{'name': 'lun_name', 'lun_count': 1, 'total_size': 5368709120, 'tiering': {'control': 'required'}}]}}
-        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
+        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json, headers=None)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -570,7 +570,7 @@ class TestMyModule(unittest.TestCase):
         expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
                          'san': {'application_components':
                                  [{'name': 'lun_name'}]}}
-        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json)
+        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json, headers=None)
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
