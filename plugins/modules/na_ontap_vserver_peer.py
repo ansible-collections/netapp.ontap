@@ -126,6 +126,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -164,30 +166,37 @@ class NetAppONTAPVserverPeer():
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        if self.parameters.get('dest_hostname') is None and self.parameters.get('peer_options') is None:
+            return
+        if self.parameters.get('dest_hostname') is not None:
+            # if dest_hostname is present, peer_options is absent
+            self.parameters['peer_options'] = dict(
+                hostname=self.parameters.get('dest_hostname'),
+                username=self.parameters.get('dest_username'),
+                password=self.parameters.get('dest_password'),
+            )
         else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            if self.parameters.get('dest_hostname') is None and self.parameters.get('peer_options') is None:
-                return
-            if self.parameters.get('dest_hostname') is not None:
-                # if dest_hostname is present, peer_options is absent
-                self.parameters['peer_options'] = dict(
-                    hostname=self.parameters.get('dest_hostname'),
-                    username=self.parameters.get('dest_username'),
-                    password=self.parameters.get('dest_password'),
-                )
+            self.parameters['dest_hostname'] = self.parameters['peer_options']['hostname']
+        netapp_utils.setup_host_options_from_module_params(
+            self.parameters['peer_options'], self.module,
+            netapp_utils.na_ontap_host_argument_spec_peer().keys())
+        # Rest API objects
+        self.use_rest = False
+        self.rest_api = OntapRestAPI(self.module)
+        self.src_use_rest = self.rest_api.is_rest()
+        self.dst_rest_api = OntapRestAPI(self.module, host_options=self.parameters['peer_options'])
+        self.dst_use_rest = self.dst_rest_api.is_rest()
+        self.use_rest = True if self.src_use_rest and self.dst_use_rest else False
+        if not self.use_rest:
+            if HAS_NETAPP_LIB is False:
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
-                self.parameters['dest_hostname'] = self.parameters['peer_options']['hostname']
-            netapp_utils.setup_host_options_from_module_params(
-                self.parameters['peer_options'], self.module,
-                netapp_utils.na_ontap_host_argument_spec_peer().keys())
-            self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=self.parameters['peer_options'])
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+                self.dest_server = netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=self.parameters['peer_options'])
 
     def vserver_peer_get_iter(self, target):
         """
-        Compose NaElement object to query current vserver using remote-vserver-name and vserver parameters
+        Compose NaElement object to query current vserver using remote-vserver-name and vserver parameters.
         :return: NaElement object for vserver-get-iter with query
         """
         vserver_peer_get = netapp_utils.zapi.NaElement('vserver-peer-get-iter')
@@ -208,6 +217,9 @@ class NetAppONTAPVserverPeer():
         Get current vserver peer info
         :return: Dictionary of current vserver peer details if query successful, else return None
         """
+        if self.use_rest:
+            return self.vserver_peer_get_rest()
+
         vserver_peer_get_iter = self.vserver_peer_get_iter(target)
         vserver_info = dict()
         try:
@@ -234,6 +246,9 @@ class NetAppONTAPVserverPeer():
         """
         Delete a vserver peer
         """
+        if self.use_rest:
+            return self.vserver_peer_delete_rest(current)
+
         vserver_peer_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'vserver-peer-delete', **{'peer-vserver': current['local_peer_vserver'],
                                       'vserver': self.parameters['vserver']})
@@ -250,6 +265,9 @@ class NetAppONTAPVserverPeer():
         Get local cluster name
         :return: cluster name
         """
+        if self.use_rest:
+            return self.get_peer_cluster_name_rest()
+
         cluster_info = netapp_utils.zapi.NaElement('cluster-identity-get')
         try:
             result = self.server.invoke_successfully(cluster_info, enable_tunneling=True)
@@ -270,6 +288,9 @@ class NetAppONTAPVserverPeer():
             self.module.fail_json(msg='dest_hostname is required for peering a vserver in remote cluster')
         if self.parameters.get('peer_cluster') is None:
             self.parameters['peer_cluster'] = self.get_peer_cluster_name()
+        if self.use_rest:
+            return self.vserver_peer_create_rest()
+
         vserver_peer_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'vserver-peer-create', **{'peer-vserver': self.parameters['peer_vserver'],
                                       'vserver': self.parameters['vserver'],
@@ -281,11 +302,10 @@ class NetAppONTAPVserverPeer():
             applications.add_new_child('vserver-peer-application', application)
         vserver_peer_create.add_child_elem(applications)
         try:
-            self.server.invoke_successfully(vserver_peer_create,
-                                            enable_tunneling=True)
+            self.server.invoke_successfully(vserver_peer_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating vserver peer %s: %s'
-                                      % (self.parameters['vserver'], to_native(error)),
+                                  % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def is_remote_peer(self):
@@ -300,20 +320,20 @@ class NetAppONTAPVserverPeer():
         """
         # peer-vserver -> remote (source vserver is provided)
         # vserver -> local (destination vserver is provided)
-        vserver_peer_info = self.vserver_peer_get('peer')
-        if vserver_peer_info is None:
-            self.module.fail_json(msg='Error retrieving vserver peer information while accepting')
-        vserver_peer_accept = netapp_utils.zapi.NaElement.create_node_with_children(
-            'vserver-peer-accept', **{'peer-vserver': vserver_peer_info['local_peer_vserver'],
-                                      'vserver': self.parameters['peer_vserver']})
-        if 'local_name_for_source' in self.parameters:
-            vserver_peer_accept.add_new_child('local-name', self.parameters['local_name_for_source'])
-        try:
-            self.dest_server.invoke_successfully(vserver_peer_accept, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error accepting vserver peer %s: %s'
+        if not self.use_rest:
+            vserver_peer_info = self.vserver_peer_get('peer')
+            if vserver_peer_info is None:
+                self.module.fail_json(msg='Error retrieving vserver peer information while accepting')
+            vserver_peer_accept = netapp_utils.zapi.NaElement.create_node_with_children(
+                'vserver-peer-accept', **{'peer-vserver': vserver_peer_info['local_peer_vserver'], 'vserver': self.parameters['peer_vserver']})
+            if 'local_name_for_source' in self.parameters:
+                vserver_peer_accept.add_new_child('local-name', self.parameters['local_name_for_source'])
+            try:
+                self.dest_server.invoke_successfully(vserver_peer_accept, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error accepting vserver peer %s: %s'
                                       % (self.parameters['peer_vserver'], to_native(error)),
-                                  exception=traceback.format_exc())
+                                      exception=traceback.format_exc())
 
     def asup_log_for_cserver(self, event_name):
         """
@@ -322,9 +342,67 @@ class NetAppONTAPVserverPeer():
         :param event_name: Name of the event log
         :return: None
         """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
+        if not self.use_rest:
+            results = netapp_utils.get_cserver(self.server)
+            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
+            netapp_utils.ems_log_event(event_name, cserver)
+
+    def vserver_peer_get_rest(self):
+        """
+        Get current vserver peer info
+        :return: Dictionary of current vserver peer details if query successful, else return None
+        """
+        api = 'svm/peers'
+        vserver_info = dict()
+        options = {'svm.name': self.parameters['vserver'], 'peer.svm.name': self.parameters['peer_vserver'], 'fields': 'svm.name,peer.svm.name,state,uuid'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, options)
+        if error:
+            self.module.fail_json(msg=error)
+        if record is not None:
+            vserver_info['vserver'] = self.na_helper.safe_get(record, ['svm', 'name'])
+            vserver_info['peer_vserver'] = self.na_helper.safe_get(record, ['peer', 'svm', 'name'])
+            vserver_info['peer_state'] = record.get('state')
+            # required local_peer_vserver_uuid to delete the peer relationship
+            vserver_info['local_peer_vserver_uuid'] = record.get('uuid')
+            return vserver_info
+        return None
+
+    def vserver_peer_delete_rest(self, current):
+        """
+        Delete a vserver peer using rest.
+        """
+        dummy, error = rest_generic.delete_async(self.rest_api, 'svm/peers', current['local_peer_vserver_uuid'])
+        if error:
+            self.module.fail_json(msg=error)
+
+    def get_peer_cluster_name_rest(self):
+        """
+        Get local cluster name
+        :return: cluster name
+        """
+        api = 'cluster'
+        options = {'fields': 'name'}
+        record, error = rest_generic.get_one_record(self.dst_rest_api, api, options)
+        if error:
+            self.module.fail_json(msg=error)
+        if record is not None:
+            return record.get('name')
+        return None
+
+    def vserver_peer_create_rest(self):
+        """
+        Create a vserver peer using rest
+        """
+        api = 'svm/peers'
+        params = {
+            'svm.name': self.parameters['vserver'],
+            'peer.cluster.name': self.parameters['peer_cluster'],
+            'peer.svm.name': self.parameters['peer_vserver'],
+            'applications': self.parameters['applications']
+        }
+        dummy, error = rest_generic.post_async(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg=error)
 
     def apply(self):
         """
@@ -342,7 +420,6 @@ class NetAppONTAPVserverPeer():
                         self.vserver_peer_accept()
                 elif cd_action == 'delete':
                     self.vserver_peer_delete(current)
-
         self.module.exit_json(changed=self.na_helper.changed)
 
 

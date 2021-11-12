@@ -580,17 +580,21 @@ if HAS_NETAPP_LIB:
 
 class OntapRestAPI(object):
     ''' wrapper to send requests to ONTAP REST APIs '''
-    def __init__(self, module, timeout=60):
+    def __init__(self, module, timeout=60, host_options=None):
+        if host_options is None:
+            self.host_options = module.params
+        else:
+            self.host_options = host_options
         self.module = module
-        self.username = self.module.params['username']
-        self.password = self.module.params['password']
-        self.hostname = self.module.params['hostname']
-        self.use_rest = self.module.params['use_rest'].lower()
-        self.cert_filepath = self.module.params['cert_filepath']
-        self.key_filepath = self.module.params['key_filepath']
-        self.verify = self.module.params['validate_certs']
+        self.username = self.host_options['username']
+        self.password = self.host_options['password']
+        self.hostname = self.host_options['hostname']
+        self.use_rest = self.host_options['use_rest'].lower()
+        self.cert_filepath = self.host_options['cert_filepath']
+        self.key_filepath = self.host_options['key_filepath']
+        self.verify = self.host_options['validate_certs']
         self.timeout = timeout
-        port = self.module.params['http_port']
+        port = self.host_options['http_port']
         if port is None:
             self.url = 'https://' + self.hostname + '/api/'
         else:

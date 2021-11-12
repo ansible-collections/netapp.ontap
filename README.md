@@ -42,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Minor Changes
   - na_ontap_vserver_delete role - added set_fact to accept `netapp_{hostname|username|password}` or `hostname` `username` and `password` variables.
+  - na_ontap_vserver_peer - Added REST support to the vserver_peer module.
 
 ## 21.13.1
 

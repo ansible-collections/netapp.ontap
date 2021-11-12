@@ -6,6 +6,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import sys
 import json
 import pytest
 
@@ -149,7 +150,7 @@ class TestMyModule(unittest.TestCase):
         ''' required arguments are reported as errors '''
         with pytest.raises(AnsibleFailJson) as exc:
             set_module_args({})
-            vserver_peer()
+            my_obj = vserver_peer()
         print('Info: %s' % exc.value.args[0]['msg'])
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer.NetAppONTAPVserverPeer.vserver_peer_get')
@@ -329,3 +330,190 @@ class TestMyModule(unittest.TestCase):
             self.get_vserver_peer_mock_object().apply()
         msg = 'Error retrieving vserver peer information while accepting'
         assert msg in exc.value.args[0]['msg']
+
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
+
+
+WARNINGS = []
+
+
+def warn(dummy, msg):
+    WARNINGS.append(msg)
+
+
+def default_args():
+    return {
+        "hostname": "10.193.177.97",
+        "username": "admin",
+        "password": "netapp123",
+        "https": "yes",
+        "validate_certs": "no",
+        "use_rest": "always",
+        "state": "present",
+        "dest_hostname": "0.0.0.0"
+    }
+
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'src_use_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'dst_use_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
+    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'zero_record': (200, dict(records=[], num_records=0), None),
+    'one_record_uuid': (200, {
+        "records": [{
+            "vserver": "svmsrc1",
+            "peer_vserver": "svmdst1",
+            "peer_state": "peered",
+            "local_peer_vserver_uuid": "545d2562-2fca-11ec-8016-005056b3f5d5"
+        }],
+        "num_records": 1,
+    }, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'server_record': (200, {
+        "records": [{
+            "vserver": "svmsrc1",
+            "peer_vserver": "svmdst1",
+            "state": "peered",
+            "local_peer_vserver_uuid": "545d2562-2fca-11ec-8016-005056b3f5d5"
+        }],
+        'num_records': 1
+    }, None),
+
+    'create_server': (200, {
+        'job': {
+            'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
+            '_links': {
+                'self': {
+                    'href': '/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7'}}}
+    }, None),
+    'job': (200, {
+        "uuid": "fde79888-692a-11ea-80c2-005056b39fe7",
+        "state": "success",
+        "start_time": "2020-02-26T10:35:44-08:00",
+        "end_time": "2020-02-26T10:47:38-08:00",
+        "_links": {
+            "self": {
+                "href": "/api/cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7"
+            }
+        }
+    }, None)
+}
+
+
+# using pytest natively, without unittest.TestCase
+@pytest.fixture
+def patch_ansible():
+    with patch.multiple(basic.AnsibleModule,
+                        exit_json=exit_json,
+                        fail_json=fail_json,
+                        warn=warn) as mocks:
+        global WARNINGS
+        WARNINGS = []
+        yield mocks
+
+
+def test_module_fail_when_required_args_missing(patch_ansible):
+    ''' required arguments are reported as errors '''
+    args = dict(default_args())
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args(args)
+        my_obj = vserver_peer()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'missing required arguments: peer_vserver, vserver'
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_when_required_applications_args_missing(mock_request, patch_ansible):
+    args = dict(default_args())
+    args['vserver'] = 'svmsrc3'
+    args['peer_vserver'] = 'svmdst3'
+    args['state'] = 'present'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['src_use_rest'],
+        SRR['dst_use_rest'],
+        SRR['zero_record'],
+        SRR['create_server'],       # create
+        SRR['job'],
+        SRR['end_of_sequence']
+    ]
+    my_obj = vserver_peer()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = 'applications parameter is missing'
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_get_server_called(mock_request, patch_ansible):
+    args = dict(default_args())
+    args['vserver'] = 'svmsrc3'
+    args['peer_vserver'] = 'svmdst3'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['src_use_rest'],
+        SRR['dst_use_rest'],
+        SRR['one_record_uuid'],       # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = vserver_peer()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_create_server_called(mock_request, patch_ansible):
+    args = dict(default_args())
+    args['vserver'] = 'svmsrc3'
+    args['peer_vserver'] = 'svmdst3'
+    args['applications'] = ['snapmirror']
+    args['state'] = 'present'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['src_use_rest'],
+        SRR['dst_use_rest'],
+        SRR['zero_record'],
+        SRR['create_server'],       # create
+        SRR['job'],
+        SRR['end_of_sequence']
+    ]
+    my_obj = vserver_peer()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_delete_server_called(mock_request, patch_ansible):
+    args = dict(default_args())
+    args['vserver'] = 'svmsrc3'
+    args['peer_vserver'] = 'svmdst3'
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['src_use_rest'],
+        SRR['dst_use_rest'],
+        SRR['server_record'],
+        SRR['empty_good'],       # delete
+        SRR['end_of_sequence']
+    ]
+    my_obj = vserver_peer()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
