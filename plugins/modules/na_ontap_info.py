@@ -138,7 +138,7 @@ options:
             - "vserver_nfs_info"
             - "vserver_peer_info"
             - Can specify a list of values to include a larger subset.
-            - Values can also be used with an initial C(M(!)) to specify that a specific subset should not be collected.
+            - Values can also be used with an initial C(!) to specify that a specific subset should not be collected.
             - nvme is supported with ONTAP 9.4 onwards.
             - use "help" to get a list of supported information for your system.
         default: "all"
