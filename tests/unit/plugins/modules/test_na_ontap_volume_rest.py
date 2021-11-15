@@ -4,6 +4,7 @@
 ''' unit test template for ONTAP Ansible module '''
 
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
 
 import json
@@ -51,12 +52,160 @@ SRR = {
                                  "iscsi": {"enabled": False},
                                  "fcp": {"enabled": False},
                                  "nvme": {"enabled": False}}]}, None),
+    # Volume
+    'get_volume': (200,
+                   {'records': [{
+                       "uuid": "7882901a-1aef-11ec-a267-005056b30cfa",
+                       "comment": "carchi8py",
+                       "name": "test_svm",
+                       "state": "online",
+                       "style": "flexvol",
+                       "tiering": {
+                           "policy": "backup"
+                       },
+                       "type": "rw",
+                       "aggregates": [
+                           {
+                               "name": "aggr1"
+                           }
+                       ],
+                       "encryption": {
+                           "enabled": True
+                       },
+                       "efficiency": {
+                           "compression": "none",
+                           "policy": {
+                               "name": "-"
+                           }
+                       },
+                       "nas": {
+                           "gid": 0,
+                           "security_style": "unix",
+                           "uid": 0,
+                           "unix_permissions": 654,
+                           "path": '/this/path',
+                           "export_policy": {
+                               "name": "default"
+                           }
+                       },
+                       "snapshot_policy": {
+                           "name": "default",
+                           "uuid": "0a42a3d9-0c29-11ec-a267-005056b30cfa"
+                       },
+                       "space": {
+                           "size": 10737418240,
+                           "snapshot": {
+                               "reserve_percent": 5
+                           }
+                       },
+                       "guarantee": {
+                           "type": "volume"
+                       }
+                   }]}, None),
+    'get_volume_mount': (200,
+                         {'records': [{
+                             "uuid": "7882901a-1aef-11ec-a267-005056b30cfa",
+                             "comment": "carchi8py",
+                             "name": "test_svm",
+                             "state": "online",
+                             "style": "flexvol",
+                             "tiering": {
+                                 "policy": "none"
+                             },
+                             "type": "rw",
+                             "aggregates": [
+                                 {
+                                     "name": "aggr1"
+                                 }
+                             ],
+                             "encryption": {
+                                 "enabled": True
+                             },
+                             "efficiency": {
+                                 "compression": "none",
+                                 "policy": {
+                                     "name": "-"
+                                 }
+                             },
+                             "nas": {
+                                 "gid": 0,
+                                 "security_style": "unix",
+                                 "uid": 0,
+                                 "unix_permissions": 654,
+                                 "path": '',
+                                 "export_policy": {
+                                     "name": "default"
+                                 }
+                             },
+                             "snapshot_policy": {
+                                 "name": "default",
+                                 "uuid": "0a42a3d9-0c29-11ec-a267-005056b30cfa"
+                             },
+                             "space": {
+                                 "size": 10737418240,
+                                 "snapshot": {
+                                     "reserve_percent": 5
+                                 }
+                             },
+                             "guarantee": {
+                                 "type": "volume"
+                             }
+                         }]}, None),
+    'get_volume_encrypt_off': (200,
+                               {'records': [{
+                                   "uuid": "7882901a-1aef-11ec-a267-005056b30cfa",
+                                   "comment": "carchi8py",
+                                   "name": "test_svm",
+                                   "state": "online",
+                                   "style": "flexvol",
+                                   "tiering": {
+                                       "policy": "backup"
+                                   },
+                                   "type": "rw",
+                                   "aggregates": [
+                                       {
+                                           "name": "aggr1"
+                                       }
+                                   ],
+                                   "encryption": {
+                                       "enabled": False
+                                   },
+                                   "efficiency": {
+                                       "compression": "none",
+                                       "policy": {
+                                           "name": "-"
+                                       }
+                                   },
+                                   "nas": {
+                                       "gid": 0,
+                                       "security_style": "unix",
+                                       "uid": 0,
+                                       "unix_permissions": 654,
+                                       "path": '/this/path',
+                                       "export_policy": {
+                                           "name": "default"
+                                       }
+                                   },
+                                   "snapshot_policy": {
+                                       "name": "default",
+                                       "uuid": "0a42a3d9-0c29-11ec-a267-005056b30cfa"
+                                   },
+                                   "space": {
+                                       "size": 10737418240,
+                                       "snapshot": {
+                                           "reserve_percent": 5
+                                       }
+                                   },
+                                   "guarantee": {
+                                       "type": "volume"
+                                   }
+                               }]}, None),
     # module specific responses
     'nas_app_record': (200,
                        {'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
                                      "name": "test_app",
                                      "nas": {
-                                             "application_components": [{'xxx': 1}]}
+                                         "application_components": [{'xxx': 1}]}
                                      }]}, None)
 }
 
@@ -88,88 +237,6 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None, get_volume=None):
-        ''' save arguments '''
-        self.type = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-        self.get_volume = get_volume
-        self.zapis = list()
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        zapi = xml.get_name()
-        self.zapis.append(zapi)
-        request = xml.to_string().decode('utf-8')
-        if self.type == 'error':
-            raise OSError('unexpected call to %s' % self.params)
-        print('request:', request)
-        if request.startswith('<volume-get-iter>'):
-            what = None
-            if self.get_volume:
-                what = self.get_volume.pop(0)
-            if what is None:
-                xml = self.build_empty_response()
-            else:
-                xml = self.build_get_response(what)
-        self.xml_out = xml
-        print('response:', xml.to_string())
-        return xml
-
-    @staticmethod
-    def build_response(data):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        xml.translate_struct(data)
-        return xml
-
-    def build_empty_response(self):
-        data = {'num-records': '0'}
-        return self.build_response(data)
-
-    def build_get_response(self, name):
-        ''' build xml data for vserser-info '''
-        if name is None:
-            return self.build_empty_response()
-        data = {'num-records': 1,
-                'attributes-list': [{
-                    'volume-attributes': {
-                        'volume-id-attributes': {
-                            'name': name,
-                            'instance-uuid': '123',
-                            'junction-path': 'jpath',
-                            'style-extended': 'flexvol'
-                        },
-                        'volume-performance-attributes': {
-                            'is-atime-update-enabled': 'true'
-                        },
-                        'volume-security-attributes': {
-                            'volume-security-unix-attributes': {
-                                'permissions': 777
-                            }
-                        },
-                        'volume-snapshot-attributes': {
-                            'snapshot-policy': 'default'
-                        },
-                        'volume-snapshot-autodelete-attributes': {
-                            'is-autodelete-enabled': 'true'
-                        },
-                        'volume-space-attributes': {
-                            'size': 10737418240     # 10 GB
-                        },
-                        'volume-state-attributes': {
-                            'state': 'online'
-                        },
-                    }
-                }]}
-        return self.build_response(data)
-
-
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
@@ -189,12 +256,13 @@ class TestMyModule(unittest.TestCase):
             'subtype': 'default',
             'language': 'c.utf_8',
             'snapshot_policy': 'old_snapshot_policy',
-            'comment': 'new comment'
+            'comment': 'new comment',
+            'use_rest': 'always'
         }
 
     @staticmethod
     def mock_args():
-        return {'name': 'test_volume',
+        return {'name': 'test_svm',
                 'vserver': 'ansibleSVM',
                 'nas_application_template': dict(
                     tiering=None
@@ -204,14 +272,25 @@ class TestMyModule(unittest.TestCase):
                 'size_unit': 'gb',
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'}
+                'password': 'test_pass!',
+                'use_rest': 'always'}
 
-    def get_volume_mock_object(self, **kwargs):
-        volume_obj = volume_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
-        volume_obj.server = MockONTAPConnection(**kwargs)
-        volume_obj.cluster = MockONTAPConnection(kind='error', data='cluster ZAPI.')
-        return volume_obj
+    @staticmethod
+    def mock_args_volume():
+        return {
+            'name': 'test_svm',
+            'vserver': 'ansibleSVM',
+            'aggregate_name': 'aggr1',
+            'size': 10,
+            'size_unit': 'gb',
+            'hostname': 'test',
+            'username': 'test_user',
+            'password': 'test_pass!',
+            'use_rest': 'always'
+        }
+
+    def get_volume_mock_object(self):
+        return volume_module()
 
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
@@ -241,7 +320,8 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],       # GET application/applications
+            SRR['no_record'],  # GET volume
+            SRR['no_record'],  # GET application/applications
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
@@ -273,8 +353,9 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],           # GET application/applications
-            SRR['generic_error'],       # POST application/applications
+            SRR['no_record'],  # GET volume
+            SRR['no_record'],  # GET application/applications
+            SRR['generic_error'],  # POST application/applications
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
@@ -288,8 +369,10 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],        # GET application/applications
-            SRR['empty_good'],       # POST application/applications
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # GET application/applications
+            SRR['empty_good'],  # POST application/applications
+            SRR['get_volume'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -302,11 +385,13 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],        # GET application/applications
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # GET application/applications
             SRR['end_of_sequence']
+
         ]
         with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object(get_volume=['test']).apply()
+            self.get_volume_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -316,23 +401,23 @@ class TestMyModule(unittest.TestCase):
             2. immediately modify the volume to update options which not available in the nas template.
         '''
         data = dict(self.mock_args())
-        data['language'] = 'fr'     # TODO: apparently language is not supported for modify
+        data['language'] = 'fr'  # TODO: apparently language is not supported for modify
         data['unix_permissions'] = '---rw-rx-r--'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],        # GET application/applications
-            SRR['empty_good'],       # POST application/applications
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # GET application/applications
+            SRR['empty_good'],  # POST application/applications
             SRR['end_of_sequence']
         ]
-        my_volume = self.get_volume_mock_object(get_volume=[None, 'test'])
+        my_volume = self.get_volume_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
             my_volume.apply()
         assert exc.value.args[0]['changed']
         print(exc.value.args[0])
-        assert 'unix_permissions' in exc.value.args[0]['modify_after_create']
-        assert 'language' not in exc.value.args[0]['modify_after_create']        # eh!
-        assert 'volume-modify-iter' in my_volume.server.zapis
+        assert 'unix_permissions' in exc.value.args[0]['modify']
+        assert 'language' not in exc.value.args[0]['modify']  # eh!
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_resized(self, mock_request):
@@ -344,19 +429,23 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],        # GET application/applications
-            SRR['empty_good'],       # PATCH application/applications
-            SRR['end_of_sequence']
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # GET application/applications
+            SRR['empty_good'],  # PATCH storage/volumes
         ]
-        my_volume = self.get_volume_mock_object(get_volume=['test'])
+        my_volume = self.get_volume_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
             my_volume.apply()
         assert exc.value.args[0]['changed']
         print(exc.value.args[0])
-        assert 'volume-size' not in my_volume.server.zapis
         print(mock_request.call_args)
         query = {'return_timeout': 30, 'sizing_method': 'add_new_resources'}
-        mock_request.assert_called_with('PATCH', 'storage/volumes/123', query, json={'size': 22266633286068469760}, headers=None)
+        mock_request.assert_called_with('PATCH',
+                                        'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa',
+                                        query,
+                                        json={'size': 22266633286068469760},
+                                        headers=None
+                                        )
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_deleted(self, mock_request):
@@ -367,21 +456,26 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['no_record'],        # GET application/applications
-            SRR['empty_good'],       # PATCH storage/volumes - unmount
-            SRR['empty_good'],       # DELETE storage/volumes
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # GET application/applications
+            SRR['empty_good'],  # PATCH storage/volumes - unmount
+            SRR['empty_good'],  # DELETE storage/volumes
             SRR['end_of_sequence']
         ]
-        my_volume = self.get_volume_mock_object(get_volume=['test'])
+        my_volume = self.get_volume_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
             my_volume.apply()
         assert exc.value.args[0]['changed']
         print(exc.value.args[0])
-        assert 'volume-size' not in my_volume.server.zapis
         print(mock_request.call_args)
         print(mock_request.mock_calls)
         query = {'return_timeout': 30}
-        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None, headers=None)
+        mock_request.assert_called_with('DELETE',
+                                        'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa',
+                                        query,
+                                        json=None,
+                                        headers=None
+                                        )
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_deleted_with_app(self, mock_request):
@@ -392,19 +486,551 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['nas_app_record'],      # GET application/applications
-            SRR['nas_app_record'],      # GET application/applications/uuid
-            SRR['empty_good'],          # PATCH storage/volumes - unmount
-            SRR['empty_good'],          # DELETE storage/volumes
+            SRR['get_volume'],  # Get Volume
+            SRR['nas_app_record'],  # GET application/applications
+            SRR['nas_app_record'],  # GET application/applications/uuid
+            SRR['empty_good'],  # PATCH storage/volumes - unmount
+            SRR['empty_good'],  # DELETE storage/volumes
             SRR['end_of_sequence']
         ]
-        my_volume = self.get_volume_mock_object(get_volume=['test'])
+        my_volume = self.get_volume_mock_object()
         with pytest.raises(AnsibleExitJson) as exc:
             my_volume.apply()
         assert exc.value.args[0]['changed']
         print(exc.value.args[0])
-        assert 'volume-size' not in my_volume.server.zapis
         print(mock_request.call_args)
         print(mock_request.mock_calls)
         query = {'return_timeout': 30}
-        mock_request.assert_called_with('DELETE', 'storage/volumes/123', query, json=None, headers=None)
+        mock_request.assert_called_with('DELETE',
+                                        'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa',
+                                        query,
+                                        json=None,
+                                        headers=None)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_move_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['aggregate_name'] = 'aggr2'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Move volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_move_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['aggregate_name'] = 'aggr2'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['generic_error'],  # Move volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error moving volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_volume_unmount_rest(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['junction_path'] = ''
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Mount Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_volume_unmount_rest(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['junction_path'] = ''
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['generic_error'],  # Mount Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error unmounting volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_volume_mount_rest(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['junction_path'] = '/this/path'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_mount'],  # Get Volume
+            SRR['no_record'],  # Mount Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_volume_mount_rest(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['junction_path'] = '/this/path'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_mount'],  # Get Volume
+            SRR['generic_error'],  # Mount Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error mounting volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_change_volume_state(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['is_online'] = False
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Move volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_change_volume_state(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['is_online'] = False
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['generic_error'],  # Move volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error changing state of volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_attributes(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['space_guarantee'] = 'volume'
+        data['percent_snapshot_space'] = 10
+        data['snapshot_policy'] = 'default2'
+        data['export_policy'] = 'default2'
+        data['group_id'] = 5
+        data['user_id'] = 5
+        data['volume_security_style'] = 'mixed'
+        data['comment'] = 'carchi8py was here'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_attributes(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['space_guarantee'] = 'volume'
+        data['percent_snapshot_space'] = 10
+        data['snapshot_policy'] = 'default2'
+        data['export_policy'] = 'default2'
+        data['group_id'] = 5
+        data['user_id'] = 5
+        data['volume_security_style'] = 'mixed'
+        data['comment'] = 'carchi8py was here'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['generic_error'],  # Modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error modifying volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_get_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],  # Get Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "calling: storage/volumes: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_create_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['generic_error'],  # Create Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error creating volume test_svm: calling: storage/volumes: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_options(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['space_guarantee'] = 'volume'
+        data['percent_snapshot_space'] = 5
+        data['snapshot_policy'] = 'default'
+        data['export_policy'] = 'default'
+        data['group_id'] = 0
+        data['user_id'] = 0
+        data['volume_security_style'] = 'unix'
+        data['comment'] = 'carchi8py'
+        data['type'] = 'RW'
+        data['language'] = 'en'
+        data['encrypt'] = True
+        data['junction_path'] = '/this/path'
+        data['tiering_policy'] = 'backup'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_snapshot_restore_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['snapshot_restore'] = 'snapshot_copy'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Modify Snapshot restore
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_snapshot_restore_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['snapshot_restore'] = 'snapshot_copy'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['get_volume'],  # Get Volume
+            SRR['generic_error'],  # Modify Snapshot restore
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error restoring snapshot snapshot_copy in volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_rename_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['from_name'] = 'test_svm'
+        data['name'] = 'new_name'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume name
+            SRR['get_volume'],  # Get Volume from
+            SRR['get_volume'],  # Get Volume from
+            SRR['no_record'],  # Patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_rename_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['from_name'] = 'test_svm'
+        data['name'] = 'new_name'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume name
+            SRR['get_volume'],  # Get Volume from
+            SRR['get_volume'],  # Get Volume from
+            SRR['generic_error'],  # Patch
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error changing name of volume new_name: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_resizing_volume(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['sizing_method'] = 'add_new_resources'
+        data['size'] = 20737418240
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume name
+            SRR['generic_error'],  # Resize volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error resizing volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_unix_permissions(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['unix_permissions'] = '---rw-r-xr-x'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['no_record'],  # add unix permissions
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_qos_policy(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['qos_policy_group'] = 'policy-name'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['no_record'],  # Set policy name
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_qos_adaptive_policy_group(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['qos_adaptive_policy_group'] = 'policy-name'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['no_record'],  # Set policy name
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_qos_adaptive_policy_error(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['qos_adaptive_policy_group'] = 'policy-name'
+        data['qos_policy_group'] = 'policy-name'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['generic_error'],  # Set policy name
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error: With Rest API qos_policy_group and qos_adaptive_policy_group are now the same thing, and cannot be set at the same time"
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_with_tiring_policy(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['tiering_policy'] = 'all'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['no_record'],  # Set Tiering_policy
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_create_volume_encrypt(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['encrypt'] = False
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['no_record'],  # Set Encryption
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_volume_encrypt(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['encrypt'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['no_record'],  # Set Encryption
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_volume_encrypt(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['encrypt'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['generic_error'],  # Set Encryption
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error enabling encryption for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_volume_compression(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['efficiency_policy'] = 'test'
+        data['compression'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['no_record'],  # compression
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_volume_inline_compression(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['efficiency_policy'] = 'test'
+        data['inline_compression'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['no_record'],  # compression
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_volume_efficiency_policy(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['efficiency_policy'] = 'test'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['generic_error'],  # Set Encryption
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error set efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_volume_compression_both(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['compression'] = True
+        data['inline_compression'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_encrypt_off'],  # Get Volume
+            SRR['generic_error'],  # Set Encryption
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error set efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg

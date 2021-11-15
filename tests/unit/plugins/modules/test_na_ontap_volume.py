@@ -326,7 +326,8 @@ class TestMyModule(unittest.TestCase):
             'qos_adaptive_policy_group': 'performance',
             'percent_snapshot_space': 60,
             'language': 'en',
-            'vserver_dr_protection': 'unprotected'
+            'vserver_dr_protection': 'unprotected',
+            'use_rest': 'never'
         }
 
     def mock_args(self, tag=None):
@@ -351,7 +352,8 @@ class TestMyModule(unittest.TestCase):
             'percent_snapshot_space': 60,
             'type': 'type',
             'nvfail_enabled': True,
-            'space_slo': 'thick'
+            'space_slo': 'thick',
+            'use_rest': 'never'
         }
         if tag is None:
             args['aggregate_name'] = self.mock_vol['aggregate']

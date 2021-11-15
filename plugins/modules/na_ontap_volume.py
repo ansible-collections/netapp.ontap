@@ -751,7 +751,9 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -879,21 +881,38 @@ class NetAppOntapVolume(object):
                 if key not in ['commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
                                'prefix', 'destroy_list', 'state']:
                     self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(
-                module=self.module, vserver=self.parameters['vserver'])
-            self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
-
-        unsupported_rest_properties = []        # TODO: place holder when moving to REST for create/modify
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        unsupported_rest_properties = ['atime_update',
+                                       'cutover_action',
+                                       'encrypt-destination',
+                                       'force_restore',
+                                       'nvfail_enabled',
+                                       'preserve_lun_ids',
+                                       'snapdir-access-enabled',
+                                       'snapshot_auto_delete',
+                                       'space_slo',
+                                       'vserver_dr_protection']
+        self.rest_api = OntapRestAPI(self.module)
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
         self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             self.module.fail_json(msg=error)
+        if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
+            self.module.warn(
+                'Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')
+            self.use_rest = False
+
+        if not self.use_rest:
+            if HAS_NETAPP_LIB is False:
+                self.module.fail_json(
+                    msg="the python NetApp-Lib module is required")
+            elif self.parameters.get('sizing_method'):
+                self.module.fail_json(msg="sizing_method is not supported with ZAPI. It can only be used with REST")
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(
+                    module=self.module, vserver=self.parameters['vserver'])
+                self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if self.use_rest:
+            self.rest_errors()
 
         ontap_97_options = ['nas_application_template']
         if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
@@ -977,6 +996,8 @@ class NetAppOntapVolume(object):
         result = None
         if vol_name is None:
             vol_name = self.parameters['name']
+        if self.use_rest:
+            return self.get_volume_rest(vol_name)
         volume_info = self.volume_get_iter(vol_name)
         if self.na_helper.zapi_get_value(volume_info, ['num-records'], convert_to=int, default=0) > 0:
             # extract values from volume record
@@ -1142,6 +1163,8 @@ class NetAppOntapVolume(object):
         '''Create ONTAP volume'''
         if self.rest_app:
             return self.create_nas_application()
+        if self.use_rest:
+            return self.create_volume_rest()
         if self.volume_style == 'flexgroup':
             return self.create_volume_async()
 
@@ -1310,6 +1333,8 @@ class NetAppOntapVolume(object):
 
     def move_volume(self, encrypt_destination=None):
         '''Move volume from source aggregate to destination aggregate'''
+        if self.use_rest:
+            return self.move_volume_rest()
         volume_move = netapp_utils.zapi.NaElement.create_node_with_children(
             'volume-move-start', **{'source-volume': self.parameters['name'],
                                     'vserver': self.parameters['vserver'],
@@ -1423,6 +1448,8 @@ class NetAppOntapVolume(object):
         Note: 'is_infinite' needs to be set to True in order to rename an
         Infinite Volume. Use time_out parameter to set wait time for rename completion.
         """
+        if self.use_rest:
+            return self.rename_volume_rest()
         vol_rename_zapi, vol_name_zapi = ['volume-rename-async', 'volume-name'] if self.parameters['is_infinite']\
             else ['volume-rename', 'volume']
         volume_rename = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -1438,19 +1465,6 @@ class NetAppOntapVolume(object):
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def rest_resize_volume(self):
-        """
-        Re-size the volume using REST PATCH method.
-        """
-        uuid = self.parameters['uuid']
-        if uuid is None:
-            self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
-        body = dict(size=self.parameters['size'])
-        query = dict(sizing_method=self.parameters['sizing_method'])
-        response, error = rest_volume.patch_volume(self.rest_api, uuid, body, query)
-        self.na_helper.fail_on_error(error)
-        return response
-
     def resize_volume(self):
         """
         Re-size the volume.
@@ -1458,8 +1472,8 @@ class NetAppOntapVolume(object):
         Note: 'is_infinite' needs to be set to True in order to resize an
         Infinite Volume.
         """
-        if self.parameters.get('sizing_method') is not None:
-            return self.rest_resize_volume()
+        if self.use_rest:
+            return self.resize_volume_rest()
 
         vol_size_zapi, vol_name_zapi = ['volume-size-async', 'volume-name']\
             if (self.parameters['is_infinite'] or self.volume_style == 'flexgroup')\
@@ -1480,6 +1494,8 @@ class NetAppOntapVolume(object):
 
     def start_encryption_conversion(self, encrypt_destination):
         if encrypt_destination:
+            if self.rest_api:
+                return self.encryption_conversion_rest()
             zapi = netapp_utils.zapi.NaElement.create_node_with_children(
                 'volume-encryption-conversion-start', **{'volume': self.parameters['name']})
             try:
@@ -1499,6 +1515,8 @@ class NetAppOntapVolume(object):
         """
         Change volume's state (offline/online).
         """
+        if self.use_rest:
+            return self.change_volume_state_rest()
         if self.parameters['is_online'] and not call_from_delete_vol:    # Desired state is online, setup zapi APIs respectively
             vol_state_zapi, vol_name_zapi, action = ['volume-online-async', 'volume-name', 'online']\
                 if (self.parameters['is_infinite'] or self.volume_style == 'flexgroup')\
@@ -1550,6 +1568,8 @@ class NetAppOntapVolume(object):
         modify volume parameter 'export_policy','unix_permissions','snapshot_policy','space_guarantee', 'percent_snapshot_space',
                                 'qos_policy_group', 'qos_adaptive_policy_group'
         """
+        if self.use_rest:
+            return self.volume_modify_attributes_rest(params)
         if self.volume_style == 'flexgroup' or self.parameters['is_infinite']:
             vol_mod_iter = netapp_utils.zapi.NaElement('volume-modify-iter-async')
         else:
@@ -1686,6 +1706,8 @@ class NetAppOntapVolume(object):
         Mount an existing volume in specified junction_path
         :return: None
         """
+        if self.use_rest:
+            return self.volume_mount_rest()
         vol_mount = netapp_utils.zapi.NaElement('volume-mount')
         vol_mount.add_new_child('volume-name', self.parameters['name'])
         vol_mount.add_new_child('junction-path', self.parameters['junction_path'])
@@ -1701,6 +1723,8 @@ class NetAppOntapVolume(object):
         Unmount an existing volume
         :return: None
         """
+        if self.use_rest:
+            return self.volume_unmount_rest()
         vol_unmount = netapp_utils.zapi.NaElement.create_node_with_children(
             'volume-unmount', **{'volume-name': self.parameters['name']})
         try:
@@ -1721,7 +1745,9 @@ class NetAppOntapVolume(object):
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
                 self.volume_modify_attributes(modify)
                 break
-        if 'snapshot_auto_delete' in attributes:
+        if 'snapshot_auto_delete' in attributes and not self.use_rest:
+            # Rest doesn't support any snapshot_auto_delete option other than is_autodelete_enabled. For now i've completely
+            # disabled this in rest
             self.set_snapshot_auto_delete()
         if 'junction_path' in attributes:
             if modify.get('junction_path') == '':
@@ -1780,6 +1806,8 @@ class NetAppOntapVolume(object):
         if current is not None:
             return current.get('style_extended')
         if self.parameters.get('aggr_list') or self.parameters.get('aggr_list_multiplier') or self.parameters.get('auto_provision_as'):
+            if self.use_rest and self.parameters.get('auto_provision_as') and not self.parameters['aggr_list_multiplier']:
+                self.parameters['aggr_list_multiplier'] = 1
             return 'flexgroup'
         return None
 
@@ -1959,6 +1987,8 @@ class NetAppOntapVolume(object):
                 return_value[key] = value
 
     def modify_volume_efficiency_config(self, efficiency_config_modify_value):
+        if self.use_rest:
+            return self.set_efficiency_rest()
         if efficiency_config_modify_value == 'async':
             self.set_efficiency_config_async()
         else:
@@ -1979,6 +2009,8 @@ class NetAppOntapVolume(object):
                                     exception=traceback.format_exc())
 
     def rehost_volume(self):
+        if self.use_rest:
+            self.module.fail_json(msg='ONTAP Rest API does not support Rehosting Volumes')
         volume_rehost = netapp_utils.zapi.NaElement.create_node_with_children(
             'volume-rehost', **{'vserver': self.parameters['from_vserver'],
                                 'destination-vserver': self.parameters['vserver'],
@@ -1996,6 +2028,8 @@ class NetAppOntapVolume(object):
                                   exception=traceback.format_exc())
 
     def snapshot_restore_volume(self):
+        if self.use_rest:
+            return self.snapshot_restore_volume_rest()
         snapshot_restore = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapshot-restore-volume', **{'snapshot': self.parameters['snapshot_restore'],
                                           'volume': self.parameters['name']})
@@ -2065,12 +2099,349 @@ class NetAppOntapVolume(object):
                 efficiency_config_modify = 'sync'
             self.modify_volume_efficiency_config(efficiency_config_modify)
 
+    """ MAPPING OF VOLUME FIELDS FROM ZAPI TO REST
+    ZAPI = REST
+    encrypt = encryption.enabled
+    volume-comp-aggr-attributes.tiering-policy = tiering.policy
+    'volume-export-attributes.policy' = nas.export_policy.name
+    'volume-id-attributes.containing-aggregate-name' = aggregates.name
+    'volume-id-attributes.flexgroup-uuid' = uuid (Only for FlexGroup volumes)
+    'volume-id-attributes.instance-uuid' = uuid (Only for FlexVols)
+    'volume-id-attributes.junction-path' = nas.path
+    'volume-id-attributes.style-extended' = style
+    'volume-id-attributes.type' = type
+    'volume-id-attributes.comment' = comment
+    'volume-performance-attributes.is-atime-update-enabled' == NO REST VERSION
+    volume-qos-attributes.policy-group-name' = qos.policy.name
+    'volume-qos-attributes.adaptive-policy-group-name' = qos.policy.name
+    'volume-security-attributes.style = nas.security_style
+    volume-security-attributes.volume-security-unix-attributes.group-id' = nas.gid
+    'volume-security-attributes.volume-security-unix-attributes.permissions' =  nas.unix_permissions
+    'volume-security-attributes.volume-security-unix-attributes.user-id' = nas.uid
+    'volume-snapshot-attributes.snapdir-access-enabled' == NO REST VERSION
+    'volume-snapshot-attributes,snapshot-policy' = snapshot_policy
+    volume-space-attributes.percentage-snapshot-reserve = space.snapshot.reserve_percent
+    volume-space-attributes.size' = space.size
+    'volume-space-attributes.space-guarantee' = guarantee.type
+    volume-space-attributes.space-slo' == NO REST VERSION
+    'volume-state-attributes.is-nvfail-enabled' == NO REST Version
+    'volume-state-attributes.state' = state
+    'volume-vserver-dr-protection-attributes.vserver-dr-protection' = == NO REST Version
+    volume-snapshot-autodelete-attributes.* None exist other than space.snapshot.autodelete_enabled
+    From get_efficiency_info function
+    efficiency_policy = efficiency.policy.name
+    compression = efficiency.compression
+    inline_compression = efficiency.compression
+    """
+
+    def get_volume_rest(self, vol_name):
+        """
+        This covers the zapi functions
+        get_volume
+         - volume_get_iter
+         - get_efficiency_info
+        """
+        api = 'storage/volumes'
+        params = {'name': vol_name,
+                  'svm.name': self.parameters['vserver'],
+                  'fields': 'encryption.enabled,'
+                            'tiering.policy,'
+                            'nas.export_policy.name,'
+                            'aggregates.name,'
+                            'uuid,'
+                            'nas.path,'
+                            'style,'
+                            'type,'
+                            'comment,'
+                            'qos.policy.name,'
+                            'nas.security_style,'
+                            'nas.gid,'
+                            'nas.unix_permissions,'
+                            'nas.uid,'
+                            'snapshot_policy,'
+                            'space.snapshot.reserve_percent,'
+                            'space.size,'
+                            'guarantee.type,'
+                            'state,'
+                            'efficiency.policy.name,'
+                            'efficiency.compression'}
+
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg=error)
+        if record:
+            return self.format_get_volume_rest(record)
+        return None
+
+    def rename_volume_rest(self):
+        # volume-rename-async and volume-rename are the same in rest
+        # Zapi you had to give the old and new name to change a volume.
+        # Rest you need the old UUID, and the new name only
+        current = self.get_volume_rest(self.parameters['from_name'])
+        body = {
+            'name': self.parameters['name']
+        }
+        dummy, error = self.volume_rest_patch(body, uuid=current['uuid'])
+        if error:
+            self.module.fail_json(msg='Error changing name of volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def snapshot_restore_volume_rest(self):
+        # Rest does not have force_restore or preserve_lun_id
+        current = self.get_volume()
+        self.parameters['uuid'] = current['uuid']
+        body = {
+            'restore_to.snapshot.name': self.parameters['snapshot_restore']
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error restoring snapshot %s in volume %s: %s' % (
+                self.parameters['snapshot_restore'],
+                self.parameters['name'],
+                to_native(error)), exception=traceback.format_exc())
+
+    def create_volume_rest(self):
+        body = self.create_volume_body_rest()
+        dummy, error = rest_generic.post_async(self.rest_api, 'storage/volumes', body, job_timeout=120)
+        if error:
+            self.module.fail_json(msg='Error creating volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def create_volume_body_rest(self):
+        body = {
+            'name': self.parameters['name'],
+            'svm.name': self.parameters['vserver']
+        }
+        # Zapi's Space-guarantee and space-reserve are the same thing in Rest
+        if self.parameters.get('space_guarantee') is not None:
+            body['guarantee.type'] = self.parameters['space_guarantee']
+        # TODO: Check to see if there a difference in rest between flexgroup or not. might need to throw error
+        body = self.aggregates_rest(body)
+        if self.parameters.get('size') is not None:
+            body['size'] = self.parameters['size']
+        if self.parameters.get('snapshot_policy') is not None:
+            body['snapshot_policy.name'] = self.parameters['snapshot_policy']
+        if self.parameters.get('unix_permissions') is not None:
+            body['nas.unix_permissions'] = self.parameters['unix_permissions']
+        if self.parameters.get('group_id') is not None:
+            body['nas.gid'] = self.parameters['group_id']
+        if self.parameters.get('user_id') is not None:
+            body['nas.uid'] = self.parameters['user_id']
+        if self.parameters.get('volume_security_style') is not None:
+            body['nas.security_style'] = self.parameters['volume_security_style']
+        if self.parameters.get('export_policy') is not None:
+            body['nas.export_policy.name'] = self.parameters['export_policy']
+        if self.parameters.get('junction_path') is not None:
+            body['nas.path'] = self.parameters['junction_path']
+        if self.parameters.get('comment') is not None:
+            body['comment'] = self.parameters['comment']
+        if self.parameters.get('type') is not None:
+            body['type'] = self.parameters['type']
+        if self.parameters.get('percent_snapshot_space') is not None:
+            body['space.snapshot.reserve_percent'] = self.parameters['percent_snapshot_space']
+        if self.parameters.get('language') is not None:
+            body['language'] = self.parameters['language']
+        if self.get_qos_policy_group() is not None:
+            body['qos.policy.name'] = self.get_qos_policy_group()
+        if self.parameters.get('tiering_policy') is not None:
+            body['tiering.policy'] = self.parameters['tiering_policy']
+        if self.parameters.get('encrypt') is not None:
+            body['encryption.enabled'] = self.parameters['encrypt']
+        body['state'] = 'online' if self.parameters['is_online'] else 'offline'
+        return body
+
+    def aggregates_rest(self, body):
+        if self.parameters.get('aggregate_name') is not None:
+            body['aggregates'] = [{'name': self.parameters['aggregate_name']}]
+        if self.parameters.get('aggr_list') is not None:
+            body['aggregates'] = [{'name': name} for name in self.parameters['aggr_list']]
+        if self.parameters.get('aggr_list_multiplier') is not None:
+            body['constituents_per_aggregate'] = self.parameters['aggr_list_multiplier']
+        return body
+
+    def volume_modify_attributes_rest(self, params):
+        body = self.modify_volume_body_rest(params)
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error modifying volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def modify_volume_body_rest(self, params):
+        body = {}
+        if self.parameters.get('space_guarantee') is not None:
+            body['guarantee.type'] = self.parameters['space_guarantee']
+        if self.parameters.get('percent_snapshot_space') is not None:
+            body['space.snapshot.reserve_percent'] = self.parameters['percent_snapshot_space']
+        if self.parameters.get('snapshot_policy') is not None:
+            body['snapshot_policy.name'] = self.parameters['snapshot_policy']
+        if self.parameters.get('export_policy') is not None:
+            body['nas.export_policy.name'] = self.parameters['export_policy']
+        if self.parameters.get('unix_permissions') is not None:
+            body['nas.unix_permissions'] = self.parameters['unix_permissions']
+        if self.parameters.get('group_id') is not None:
+            body['nas.gid'] = self.parameters['group_id']
+        if self.parameters.get('user_id') is not None:
+            body['nas.uid'] = self.parameters['user_id']
+        if params and params.get('volume_security_style') is not None:
+            body['nas.security_style'] = self.parameters['volume_security_style']
+        if self.get_qos_policy_group() is not None:
+            body['qos.policy.name'] = self.get_qos_policy_group()
+        if params and params.get('tiering_policy') is not None:
+            body['tiering.policy'] = self.parameters['tiering_policy']
+        # TODO: Check if this work. The Zapi to Rest doc dosn't metion it. The Rest API example though show it exists
+        if self.parameters.get('comment') is not None:
+            body['comment'] = self.parameters['comment']
+        return body
+
+    def change_volume_state_rest(self):
+        # TODO: check if call_from_delete_vol is needed in rest
+        body = {
+            'state': 'online' if self.parameters['is_online'] else 'offline',
+            'name': self.parameters['name'],
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error changing state of volume %s: %s' % (self.parameters['name'],
+                                                                                 to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def volume_unmount_rest(self):
+        body = {
+            'nas.path': None,
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error unmounting volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def volume_mount_rest(self):
+        body = {
+            'nas.path': self.parameters['junction_path']
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error mounting volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def set_efficiency_rest(self):
+        body = {}
+        if self.parameters.get('efficiency_policy') is not None:
+            body['efficiency.policy.name'] = self.parameters['efficiency_policy']
+        if self.get_compression():
+            body['efficiency.compression'] = self.get_compression()
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error set efficiency for volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def encryption_conversion_rest(self):
+        # volume-encryption-conversion-start
+        # Set the "encryption.enabled" field to "true" to start the encryption conversion operation.
+        body = {
+            'encryption.enabled': True
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error enabling encryption for volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def resize_volume_rest(self):
+        query = None
+        if self.parameters.get('sizing_method') is not None:
+            query = dict(sizing_method=self.parameters['sizing_method'])
+        body = {
+            'size': self.parameters['size']
+        }
+        dummy, error = self.volume_rest_patch(body, query)
+        if error:
+            self.module.fail_json(msg='Error resizing volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def move_volume_rest(self):
+        body = {
+            'movement.destination_aggregate.name': self.parameters['aggregate_name']
+        }
+        dummy, error = self.volume_rest_patch(body)
+        if error:
+            self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def volume_rest_patch(self, body, query=None, uuid=None):
+        api = 'storage/volumes'
+        if not uuid:
+            uuid = self.parameters['uuid']
+        return rest_generic.patch_async(self.rest_api, api, uuid, body, query=query, job_timeout=120)
+
+    def get_qos_policy_group(self):
+        if self.parameters.get('qos_policy_group') is not None:
+            return self.parameters['qos_policy_group']
+        if self.parameters.get('qos_adaptive_policy_group') is not None:
+            return self.parameters['qos_adaptive_policy_group']
+        return None
+
+    def get_compression(self):
+        if self.parameters.get('compression') and self.parameters.get('inline_compression'):
+            return 'both'
+        if self.parameters.get('compression'):
+            return 'background'
+        if self.parameters.get('inline_compression'):
+            return 'inline'
+        if self.parameters.get('compression') is False and self.parameters.get('inline_compression') is False:
+            return 'none'
+        return None
+
+    def rest_errors(self):
+        # For variable that have been merged together we shoulf fail before we do anything
+        if self.parameters.get('qos_policy_group') and self.parameters.get('qos_adaptive_policy_group'):
+            self.module.fail_json(msg='Error: With Rest API qos_policy_group and qos_adaptive_policy_group are now '
+                                      'the same thing, and cannot be set at the same time')
+
+    def format_get_volume_rest(self, record):
+        is_online = record.get('state') == 'online'
+        # TODO FIX THIS!!!! ZAPI would only return a single aggr, REST can return more than 1.
+        # For now i'm going to hard code this, but we need a way to show all aggrs
+        aggregates = record.get('aggregates', None)
+        aggr_name = aggregates[0].get('name', None) if aggregates else None
+        rest_compression = self.none_to_bool(self.na_helper.safe_get(record, ['efficiency', 'compression']))
+        return {
+            'name': record.get('name', None),
+            'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
+            'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
+            'export_policy': self.na_helper.safe_get(record, ['nas', 'export_policy', 'name']),
+            'aggregate_name': aggr_name,
+            'flexgroup_uuid': record.get('uuid', None),  # this might need some additional logic
+            'instance_uuid': record.get('uuid', None),  # this might need some additional logic
+            'junction_path': self.na_helper.safe_get(record, ['nas', 'path']),
+            'style_extended': record.get('style', None),
+            'type': record.get('type', None),
+            'comment': record.get('comment', None),
+            'qos_policy_group': self.na_helper.safe_get(record, ['qos', 'policy', 'name']),
+            'qos_adaptive_policy_group': self.na_helper.safe_get(record, ['qos', 'policy', 'name']),
+            'volume_security_style': self.na_helper.safe_get(record, ['nas', 'security_style']),
+            'group_id': self.na_helper.safe_get(record, ['nas', 'gid']),
+            # Rest return an Int while Zapi return a string, force Rest to be an String
+            'unix_permissions': str(self.na_helper.safe_get(record, ['nas', 'unix_permissions'])),
+            'user_id': self.na_helper.safe_get(record, ['nas', 'uid']),
+            'snapshot_policy': self.na_helper.safe_get(record, ['snapshot_policy', 'name']),
+            'percent_snapshot_space': self.na_helper.safe_get(record, ['space', 'snapshot', 'reserve_percent']),
+            'size': self.na_helper.safe_get(record, ['space', 'size']),
+            'space_guarantee': self.na_helper.safe_get(record, ['guarantee', 'type']),
+            'is_online': is_online,
+            'uuid': record.get('uuid', None),
+            'efficiency_policy': self.na_helper.safe_get(record, ['efficiency', 'policy', 'name']),
+            'compression': rest_compression in ('both', 'background'),
+            'inline_compression': rest_compression in ('both', 'inline'),
+        }
+
+    def none_to_bool(self, value):
+        return value != 'none'
+
     def apply(self):
         '''Call create/modify/delete operations'''
         response = None
         modify_after_create = None
         current = self.get_volume()
-        self.volume_style = self.get_volume_style(current)
+        self.volume_style = self.get_volume_style(current)  # TODO: Check if this needed REST
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')
         rename, rehost, snapshot_restore, cd_action, modify = None, None, None, None, None
@@ -2101,10 +2472,10 @@ class NetAppOntapVolume(object):
             if modify_app:
                 self.na_helper.changed = changed
                 self.module.warn('Modifying an app is not supported at present: ignoring: %s' % str(modify_app))
-
         if self.na_helper.changed and not self.module.check_mode:
             if rename:
                 self.rename_volume()
+            # REST DOES NOT have a volume-rehost equivalent
             if rehost:
                 self.rehost_volume()
             if snapshot_restore:
@@ -2116,6 +2487,7 @@ class NetAppOntapVolume(object):
                 # If we create using REST application, some options are not available, we may need to run a modify.
                 current = self.get_volume()
                 if current:
+                    self.parameters['uuid'] = current['uuid']
                     self.volume_created = True
                     modify_after_create = self.set_modify_dict(current, after_create=True)
                     if modify_after_create:
