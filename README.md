@@ -41,12 +41,16 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_restit - new option `wait_for_completion` to support asynchronous operations and wait for job completion.
   - na_ontap_volume_efficiency - new option `storage_efficiency_mode` for AFF only with 9.10.1 or later.
   
+### Bug Fixes
+  - na_ontap_export_policy - fix error if more than 1 verser matched search name, the wrong uuid could be given
+  
 ### Minor Changes
   - na_ontap_vserver_delete role - added set_fact to accept `netapp_{hostname|username|password}` or `hostname` `username` and `password` variables.
   - na_ontap_vserver_peer - Added REST support to the vserver_peer module.
 
 ### Added REST support to existing modules
   - na_ontap_volume - Added REST support to the volume module
+
 
 ## 21.13.1
 

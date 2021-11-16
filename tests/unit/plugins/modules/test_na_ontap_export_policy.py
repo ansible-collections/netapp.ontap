@@ -1,4 +1,4 @@
-# (c) 2019, NetApp, Inc
+# (c) 2019-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_volume_export_policy '''
@@ -159,7 +159,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_export_policy_mock_object().apply()
         assert exc.value.args[0]['changed']
-        create_export_policy.assert_called_with(uuid=None)
+        create_export_policy.assert_called_with()
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy.NetAppONTAPExportPolicy.get_export_policy')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy.NetAppONTAPExportPolicy.rename_export_policy')
@@ -175,7 +175,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_export_policy_mock_object().apply()
         assert exc.value.args[0]['changed']
-        rename_export_policy.assert_called_with(policy_id=None)
+        rename_export_policy.assert_called_with()
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_create(self, mock_request):
@@ -184,8 +184,6 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['no_record'],
             SRR['empty_good'],
             SRR['end_of_sequence']
@@ -203,14 +201,25 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['empty_good'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_export_policy_mock_object(cx_type='rest').apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_fail_get_export_policy(self, mock_request):
+        '''Test successful rest delete'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_export_policy_mock_object(cx_type='rest').apply()
+        assert 'Error on fetching export policy: calling: protocols/nfs/export-policies/: got Expected error' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_rename(self, mock_request):
@@ -220,8 +229,6 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['no_record'],
             SRR['get_uuid_policy_id_export_policy'],
             SRR['empty_good'],
@@ -238,8 +245,6 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['no_record'],
             SRR['generic_error'],
             SRR['empty_good'],
@@ -247,7 +252,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_export_policy_mock_object(cx_type='rest').apply()
-        assert 'Error on creating export policy: Expected error' in exc.value.args[0]['msg']
+        assert 'Error on creating export policy: calling: protocols/nfs/export-policies: got Expected error.' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_delete(self, mock_request):
@@ -258,15 +263,14 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['generic_error'],
             SRR['empty_good'],
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_export_policy_mock_object(cx_type='rest').apply()
-        assert 'Error on deleting export policy: Expected error' in exc.value.args[0]['msg']
+        print(exc.value.args[0]['msg'])
+        assert 'Error on deleting export policy: calling: protocols/nfs/export-policies/123: got Expected error.' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_rename(self, mock_request):
@@ -276,8 +280,6 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_uuid_policy_id_export_policy'],
             SRR['no_record'],
             SRR['get_uuid_policy_id_export_policy'],
             SRR['generic_error'],
@@ -286,4 +288,5 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_export_policy_mock_object(cx_type='rest').apply()
-        assert 'Error on renaming export policy: Expected error' in exc.value.args[0]['msg']
+        print(exc.value.args[0]['msg'])
+        assert 'Error on renaming export policy: calling: protocols/nfs/export-policies/123: got Expected error.' in exc.value.args[0]['msg']
