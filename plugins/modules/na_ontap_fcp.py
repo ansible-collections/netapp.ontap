@@ -1,15 +1,10 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 module: na_ontap_fcp
@@ -63,16 +58,19 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapFCP(object):
+class NetAppOntapFCP:
     """
     Enable and Disable FCP
     """
 
     def __init__(self):
+        self.use_rest = False
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
@@ -88,11 +86,13 @@ class NetAppOntapFCP(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if HAS_NETAPP_LIB is False:
+        self.rest_api = OntapRestAPI(self.module)
+        if self.rest_api.is_rest():
+            self.use_rest = True
+        elif HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-        return
 
     def create_fcp(self):
         """
@@ -146,6 +146,8 @@ class NetAppOntapFCP(object):
                                   exception=traceback.format_exc())
 
     def get_fcp(self):
+        if self.use_rest:
+            return self.get_fcp_rest()
         fcp_obj = netapp_utils.zapi.NaElement('fcp-service-get-iter')
         fcp_info = netapp_utils.zapi.NaElement('fcp-service-info')
         fcp_info.add_new_child('vserver', self.parameters['vserver'])
@@ -169,14 +171,46 @@ class NetAppOntapFCP(object):
                                       (to_native(error)),
                                   exception=traceback.format_exc())
 
-    def apply(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_fcp", cserver)
-        exists = self.get_fcp()
+    def status_to_bool(self):
+        return self.parameters['status'] == 'up'
+
+    def get_fcp_rest(self):
+        options = {'fields': 'enabled,svm.uuid',
+                   'svm.name': self.parameters['vserver']}
+        api = 'protocols/san/fcp/services'
+        record, error = rest_generic.get_one_record(self.rest_api, api, options)
+        if error:
+            self.module.fail_json(msg="Error on fetching fcp: %s" % error)
+        if record:
+            record['status'] = 'up' if record.pop('enabled') else 'down'
+        return record
+
+    def create_fcp_rest(self):
+        params = {'svm.name': self.parameters['vserver'],
+                  'enabled': self.status_to_bool()}
+        api = 'protocols/san/fcp/services'
+        dummy, error = rest_generic.post_async(self.rest_api, api, params)
+        if error is not None:
+            self.module.fail_json(msg="Error on creating fcp: %s" % error)
+
+    def destroy_fcp_rest(self, current):
+        api = 'protocols/san/fcp/services'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, current['svm']['uuid'])
+        if error is not None:
+            self.module.fail_json(msg=" Error on deleting fcp policy: %s" % error)
+
+    def start_stop_fcp_rest(self, enabled, current):
+        params = {'enabled': enabled}
+        api = 'protocols/san/fcp/services/' + current['svm']['uuid']
+        dummy, error = rest_generic.patch_async(self.rest_api, api, current['svm']['uuid'], params)
+        if error is not None:
+            self.module.fail_json(msg="Error on modifying fcp: %s" % error)
+
+    def zapi_apply(self, current):
         changed = False
+        # this is a mess i don't want to touch...
         if self.parameters['state'] == 'present':
-            if exists:
+            if current:
                 if self.parameters['status'] == 'up':
                     if not self.current_status():
                         if not self.module.check_mode:
@@ -196,12 +230,36 @@ class NetAppOntapFCP(object):
                         self.stop_fcp()
                 changed = True
         else:
-            if exists:
+            if current:
                 if not self.module.check_mode:
                     if self.current_status():
                         self.stop_fcp()
                     self.destroy_fcp()
                 changed = True
+        return changed
+
+    def apply(self):
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_fcp", self.server, self.module)
+        current = self.get_fcp()
+        if not self.use_rest:
+            changed = self.zapi_apply(current)
+        else:
+            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            changed = self.na_helper.changed
+            if self.na_helper.changed and not self.module.check_mode:
+                if cd_action == 'create':
+                    self.create_fcp_rest()
+                elif modify:
+                    if modify['status'] == 'up':
+                        self.start_stop_fcp_rest(True, current)
+                    else:
+                        self.start_stop_fcp_rest(False, current)
+                elif cd_action == 'delete':
+                    if current['status'] == 'up':
+                        self.start_stop_fcp_rest(False, current)
+                    self.destroy_fcp_rest(current)
         self.module.exit_json(changed=changed)
 
 

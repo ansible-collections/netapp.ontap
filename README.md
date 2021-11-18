@@ -53,6 +53,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - Added REST support to the volume module
 
 
+### Added REST support to existing modules
+  - na_ontap_fcp -- Added REST support for FCP
+
 ## 21.13.1
 
 ### Bug Fixes
