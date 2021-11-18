@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -42,29 +42,36 @@ options:
   mtu:
     description:
     - Specifies the maximum transmission unit (MTU) reported by the port.
+    - Not supported with REST.
     type: int
   autonegotiate_admin:
     description:
     - Enables or disables Ethernet auto-negotiation of speed,
       duplex and flow control.
+    - Not supported with REST.
     type: bool
   duplex_admin:
     description:
     - Specifies the user preferred duplex setting of the port.
     - Valid values auto, half, full
+    - Not supported with REST.
     type: str
   speed_admin:
     description:
     - Specifies the user preferred speed setting of the port.
+    - Not supported with REST.
     type: str
   flowcontrol_admin:
     description:
     - Specifies the user preferred flow control setting of the port.
+    - Not supported with REST.
     type: str
   ipspace:
     description:
     - Specifies the port's associated IPspace name.
     - The 'Cluster' ipspace is reserved for cluster ports.
+    - Not supported with REST.
+    - use netapp.ontap.na_ontap_ports to modify ipspace with REST.
     type: str
   up_admin:
     description:
@@ -96,9 +103,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppOntapNetPort():
+class NetAppOntapNetPort:
     """
         Modify a Net port
     """
@@ -118,7 +127,7 @@ class NetAppOntapNetPort():
             duplex_admin=dict(required=False, type="str", default=None),
             speed_admin=dict(required=False, type="str", default=None),
             flowcontrol_admin=dict(required=False, type="str", default=None),
-            ipspace=dict(required=False, type="str", default=None),
+            ipspace=dict(required=False, type="str", default=None)
         ))
 
         self.module = AnsibleModule(
@@ -128,13 +137,21 @@ class NetAppOntapNetPort():
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.set_playbook_zapi_key_map()
 
-        if not netapp_utils.has_netapp_lib():
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        return
+        # Set up Rest API
+        self.rest_api = OntapRestAPI(self.module)
+        unsupported_rest_properties = ['mtu', 'autonegotiate_admin', 'duplex_admin', 'speed_admin', 'flowcontrol_admin', 'ipspace']
+        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
+        if error is not None:
+            self.module.fail_json(msg=error)
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
+            else:
+                self.set_playbook_zapi_key_map()
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
@@ -158,6 +175,8 @@ class NetAppOntapNetPort():
         :return: Dictionary with current state of the port. None if not found.
         :rtype: dict
         """
+        if self.use_rest:
+            return self.get_net_port_rest(port)
         net_port_get = netapp_utils.zapi.NaElement('net-port-get-iter')
         attributes = {
             'query': {
@@ -188,6 +207,26 @@ class NetAppOntapNetPort():
             port_details[item_key] = port_info.get_child_content(zapi_key)
         return port_details
 
+    def get_net_port_rest(self, port):
+        api = 'network/ethernet/ports'
+        query = {
+            'name': port,
+            'node.name': self.parameters['node'],
+        }
+        fields = 'name,node,uuid,enabled'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg=error)
+        if record:
+            current = {
+                'name': record['name'],
+                'node': record['node']['name'],
+                'uuid': record['uuid'],
+                'up_admin': record['enabled']
+            }
+            return current
+        return None
+
     def modify_net_port(self, port, modify):
         """
         Modify a port
@@ -196,6 +235,8 @@ class NetAppOntapNetPort():
         :param modify: dict with attributes to be modified
         :return: None
         """
+        if self.use_rest:
+            return self.modify_net_port_rest(port, modify)
 
         def get_zapi_key_and_value(key, value):
             zapi_key = self.na_helper.zapi_string_keys.get(key)
@@ -210,8 +251,7 @@ class NetAppOntapNetPort():
             raise KeyError(key)
 
         port_modify = netapp_utils.zapi.NaElement('net-port-modify')
-        port_attributes = {'node': self.parameters['node'],
-                           'port': port}
+        port_attributes = {'node': self.parameters['node'], 'port': port}
         for key, value in modify.items():
             zapi_key, value = get_zapi_key_and_value(key, value)
             port_attributes[zapi_key] = value
@@ -222,21 +262,22 @@ class NetAppOntapNetPort():
             self.module.fail_json(msg='Error modifying net ports for %s: %s' % (self.parameters['node'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def autosupport_log(self):
+    def modify_net_port_rest(self, uuid, modify):
         """
-        AutoSupport log for na_ontap_net_port
-        :return: None
+        Modify broadcast domain, ipspace and enable/disable port
         """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_net_port", cserver)
+        api = 'network/ethernet/ports'
+        body = {'enabled': modify['up_admin']}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
+        if error:
+            self.module.fail_json(msg=error)
 
     def apply(self):
         """
         Run Module based on play book
         """
-
-        self.autosupport_log()
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_net_port", self.server, self.module)
         # Run the task for all ports in the list of 'ports'
         missing_ports = list()
         modified = dict()
@@ -247,6 +288,7 @@ class NetAppOntapNetPort():
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             modified[port] = modify
             if modify and not self.module.check_mode:
+                port = current['uuid'] if self.use_rest else port
                 self.modify_net_port(port, modify)
         if missing_ports:
             plural, suffix = '', '.'
