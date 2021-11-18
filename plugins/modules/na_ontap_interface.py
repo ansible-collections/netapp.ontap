@@ -470,7 +470,7 @@ class NetAppOntapInterface():
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
             if self.parameters['use_rest'].lower() == 'always':
                 self.module.fail_json(msg='Error: %s' % msg)
-            self.warn('Falling back to ZAPI: %s' % msg)
+            self.module.warn('Falling back to ZAPI: %s' % msg)
             self.use_rest = False
         # TODO: revert this after a few months
         if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
