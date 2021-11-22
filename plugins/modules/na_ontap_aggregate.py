@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -9,12 +9,6 @@ na_ontap_aggregate
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 
@@ -186,11 +180,19 @@ options:
       - when set to true, these checks are ignored.
     type: bool
     version_added: 20.8.0
+
+  encryption:
+    description:
+      - whether to enable encryption.
+      - this is equivalent to -encrypt-with-aggr-key when using the CLI.
+      - requires a VE license.
+    type: bool
+    version_added: 21.14.0
 '''
 
 EXAMPLES = """
 - name: Create Aggregates and wait 5 minutes until aggregate is online
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: online
     name: ansibleAggr
@@ -203,7 +205,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Manage Aggregates
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: offline
     unmount_volumes: true
@@ -214,7 +216,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Attach object store
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: present
     name: aggr4
     object_store_name: sgws_305
@@ -223,7 +225,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Rename Aggregates
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: online
     from_name: ansibleAggr
@@ -234,7 +236,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Delete Aggregates
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: absent
     service_state: offline
     unmount_volumes: true
@@ -258,7 +260,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapAggregate(object):
+class NetAppOntapAggregate:
     ''' object initialize and class methods '''
 
     def __init__(self):
@@ -284,7 +286,8 @@ class NetAppOntapAggregate(object):
             time_out=dict(required=False, type='int', default=100),
             object_store_name=dict(required=False, type='str'),
             snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock']),
-            ignore_pool_checks=dict(required=False, type='bool')
+            ignore_pool_checks=dict(required=False, type='bool'),
+            encryption=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -330,10 +333,7 @@ class NetAppOntapAggregate(object):
         try:
             result = self.server.invoke_successfully(aggr_get_iter, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            # Error 13040 denotes an aggregate not being found.
-            if to_native(error.code) == "13040":
-                pass
-            else:
+            if to_native(error.code) != '13040':
                 msg = to_native(error)
                 if self.using_vserver_msg is not None:
                     msg += '.  Added info: %s.' % self.using_vserver_msg
@@ -351,13 +351,14 @@ class NetAppOntapAggregate(object):
         if name is None:
             name = self.parameters['name']
         aggr_get = self.aggr_get_iter(name)
-        if (aggr_get and aggr_get.get_child_by_name('num-records') and
-                int(aggr_get.get_child_content('num-records')) >= 1):
-            current_aggr = dict()
+        if aggr_get and aggr_get.get_child_by_name('num-records') and int(aggr_get.get_child_content('num-records')) >= 1:
+            current_aggr = {}
             attr = aggr_get.get_child_by_name('attributes-list').get_child_by_name('aggr-attributes')
             current_aggr['service_state'] = attr.get_child_by_name('aggr-raid-attributes').get_child_content('state')
             if attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'):
                 current_aggr['disk_count'] = int(attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'))
+            if attr.get_child_by_name('aggr-raid-attributes').get_child_content('encrypt-with-aggr-key'):
+                current_aggr['encryption'] = attr.get_child_by_name('aggr-raid-attributes').get_child_content('encrypt-with-aggr-key') == 'true'
             return current_aggr
         return None
 
@@ -411,10 +412,9 @@ class NetAppOntapAggregate(object):
             list of tuples (disk-name, plex-name)
             empty list if aggregate is not found
         """
-        disks = list()
+        disks = []
         aggr_get = self.disk_get_iter(name)
-        if (aggr_get and aggr_get.get_child_by_name('num-records') and
-                int(aggr_get.get_child_content('num-records')) >= 1):
+        if aggr_get and aggr_get.get_child_by_name('num-records') and int(aggr_get.get_child_content('num-records')) >= 1:
             attr = aggr_get.get_child_by_name('attributes-list')
             disks = [(disk_info.get_child_content('disk-name'),
                       disk_info.get_child_by_name('disk-raid-info').get_child_by_name('disk-aggregate-info').get_child_content('plex-name'))
@@ -449,9 +449,8 @@ class NetAppOntapAggregate(object):
             None if object store is not found
         """
         object_store_get = self.object_store_get_iter(name)
-        if (object_store_get and object_store_get.get_child_by_name('num-records') and
-                int(object_store_get.get_child_content('num-records')) >= 1):
-            current_object_store = dict()
+        if object_store_get and object_store_get.get_child_by_name('num-records') and int(object_store_get.get_child_content('num-records')) >= 1:
+            current_object_store = {}
             attr = object_store_get.get_child_by_name('attributes-list').\
                 get_child_by_name('object-store-information')
             current_object_store['object_store_name'] = attr.get_child_content('object-store-name')
@@ -508,28 +507,30 @@ class NetAppOntapAggregate(object):
         :return: None
         """
         options = {'aggregate': self.parameters['name']}
-        if self.parameters.get('disk_count'):
-            options['disk-count'] = str(self.parameters['disk_count'])
         if self.parameters.get('disk_type'):
             options['disk-type'] = self.parameters['disk_type']
-        if self.parameters.get('raid_size'):
-            options['raid-size'] = str(self.parameters['raid_size'])
-        if self.parameters.get('raid_type'):
-            options['raid-type'] = self.parameters['raid_type']
-        if self.parameters.get('disk_size'):
-            options['disk-size'] = str(self.parameters['disk_size'])
-        if self.parameters.get('disk_size_with_unit'):
-            options['disk-size-with-unit'] = str(self.parameters['disk_size_with_unit'])
-        if self.parameters.get('is_mirrored'):
-            options['is-mirrored'] = str(self.parameters['is_mirrored'])
-        if self.parameters.get('spare_pool'):
-            options['spare-pool'] = self.parameters['spare_pool']
         if self.parameters.get('raid_type'):
             options['raid-type'] = self.parameters['raid_type']
         if self.parameters.get('snaplock_type'):
             options['snaplock-type'] = self.parameters['snaplock_type']
+        if self.parameters.get('spare_pool'):
+            options['spare-pool'] = self.parameters['spare_pool']
+        # int to str
+        if self.parameters.get('disk_count'):
+            options['disk-count'] = str(self.parameters['disk_count'])
+        if self.parameters.get('disk_size'):
+            options['disk-size'] = str(self.parameters['disk_size'])
+        if self.parameters.get('disk_size_with_unit'):
+            options['disk-size-with-unit'] = str(self.parameters['disk_size_with_unit'])
+        if self.parameters.get('raid_size'):
+            options['raid-size'] = str(self.parameters['raid_size'])
+        # boolean to str
+        if self.parameters.get('is_mirrored'):
+            options['is-mirrored'] = str(self.parameters['is_mirrored']).lower()
         if self.parameters.get('ignore_pool_checks'):
-            options['ignore-pool-checks'] = str(self.parameters['ignore_pool_checks'])
+            options['ignore-pool-checks'] = str(self.parameters['ignore_pool_checks']).lower()
+        if self.parameters.get('encryption'):
+            options['encrypt-with-aggr-key'] = str(self.parameters['encryption']).lower()
         aggr_create = netapp_utils.zapi.NaElement.create_node_with_children('aggr-create', **options)
         if self.parameters.get('nodes'):
             nodes_obj = netapp_utils.zapi.NaElement('nodes')
@@ -556,9 +557,8 @@ class NetAppOntapAggregate(object):
             else:
                 current = self.get_aggr()
             if current is not None and current.get('disk_count') != self.parameters.get('disk_count'):
-                self.module.exit_json(changed=self.na_helper.changed,
-                                      warnings="Aggregate created with mismatched disk_count: created %s not %s"
-                                      % (current.get('disk_count'), self.parameters.get('disk_count')))
+                self.module.warn("Aggregate created with mismatched disk_count: created %s not %s"
+                                 % (current.get('disk_count'), self.parameters.get('disk_count')))
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg="Error provisioning aggregate %s: %s"
                                   % (self.parameters['name'], to_native(error)),
@@ -603,14 +603,10 @@ class NetAppOntapAggregate(object):
         if modify.get('service_state') == 'offline':
             self.aggregate_offline()
         else:
-            disk_size = 0
-            disk_size_with_unit = None
             if modify.get('service_state') == 'online':
                 self.aggregate_online()
-            if modify.get('disk_size'):
-                disk_size = modify.get('disk_size')
-            if modify.get('disk_size_with_unit'):
-                disk_size_with_unit = modify.get('disk_size_with_unit')
+            disk_size = modify.get('disk_size', 0)
+            disk_size_with_unit = modify.get('disk_size_with_unit')
             if modify.get('disk_count'):
                 self.add_disks(modify['disk_count'], disk_size=disk_size, disk_size_with_unit=disk_size_with_unit)
             if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
@@ -662,22 +658,6 @@ class NetAppOntapAggregate(object):
                                   (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        cserver = netapp_utils.get_cserver(self.server)
-        if cserver is None:
-            server = self.server
-            self.using_vserver_msg = netapp_utils.ERROR_MSG['no_cserver']
-            event_name += ':error_no_cserver'
-        else:
-            server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
-        netapp_utils.ems_log_event(event_name, server)
-
     def map_plex_to_primary_and_mirror(self, plex_disks, disks, mirror_disks):
         '''
         we have N plexes, and disks, and maybe mirror_disks
@@ -727,7 +707,7 @@ class NetAppOntapAggregate(object):
         disks_in_use = self.get_aggr_disks(aggr_name)
         # we expect a list of tuples (disk_name, plex_name), if there is a mirror, we should have 2 plexes
         # let's get a list of disks for each plex
-        plex_disks = dict()
+        plex_disks = {}
         for disk_name, plex_name in disks_in_use:
             plex_disks.setdefault(plex_name, []).append(disk_name)
         # find who is who
@@ -742,7 +722,7 @@ class NetAppOntapAggregate(object):
                                   (aggr_name, error, str(plex_disks)))
         # finally, what's to be added
         disks_to_add = [disk for disk in disks if disk not in plex_disks[disks_plex]]
-        mirror_disks_to_add = list()
+        mirror_disks_to_add = []
         if mirror_disks_plex:
             mirror_disks_to_add = [disk for disk in mirror_disks if disk not in plex_disks[mirror_disks_plex]]
         if mirror_disks_to_add and not disks_to_add:
@@ -753,48 +733,60 @@ class NetAppOntapAggregate(object):
 
         return disks_to_add, mirror_disks_to_add
 
-    def apply(self):
-        """
-        Apply action to the aggregate
-        :return: None
-        """
-        self.asup_log_for_cserver("na_ontap_aggregate")
-        object_store_cd_action = None
-        aggr_name = self.parameters['name']
-        current = self.get_aggr()
-        # rename and create are mutually exclusive
-        rename, cd_action, object_store_current = None, None, None
-        if self.parameters.get('from_name'):
-            old_aggr = self.get_aggr(self.parameters['from_name'])
-            rename = self.na_helper.is_rename_action(old_aggr, current)
-            if rename is None:
-                self.module.fail_json(msg="Error renaming: aggregate %s does not exist" % self.parameters['from_name'])
-            if rename:
-                current = old_aggr
-                aggr_name = self.parameters['from_name']
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
-
-        if cd_action is None and self.parameters.get('disks') and current is not None:
-            modify['disks_to_add'], modify['mirror_disks_to_add'] = \
-                self.get_disks_to_add(aggr_name, self.parameters['disks'], self.parameters.get('mirror_disks'))
-
+    def set_disk_count(self, current, modify):
         if modify.get('disk_count'):
             if int(modify['disk_count']) < int(current['disk_count']):
                 self.module.fail_json(msg="specified disk_count is less than current disk_count. Only adding_disk is allowed.")
             else:
                 modify['disk_count'] = modify['disk_count'] - current['disk_count']
 
+    def get_aggr_actions(self):
+        aggr_name = self.parameters['name']
+        rename, cd_action, object_store_current = None, None, None
+        current = self.get_aggr()
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            # create by renaming existing aggregate
+            old_aggregate = self.get_aggr(self.parameters['from_name'])
+            rename = self.na_helper.is_rename_action(old_aggregate, current)
+            if rename is None:
+                self.module.fail_json(msg='Error renaming aggregate %s: no aggregate with from_name %s.'
+                                      % (self.parameters['name'], self.parameters['from_name']))
+            if rename:
+                current = old_aggregate
+                aggr_name = self.parameters['from_name']
+                cd_action = None
+        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if 'encryption' in modify:
+            self.module.fail_json(msg='Error: modifying encryption is not supported with ZAPI.')
+
+        if cd_action is None and self.parameters.get('disks') and current is not None:
+            modify['disks_to_add'], modify['mirror_disks_to_add'] = \
+                self.get_disks_to_add(aggr_name, self.parameters['disks'], self.parameters.get('mirror_disks'))
+        self.set_disk_count(current, modify)
+
+        return current, cd_action, rename, modify
+
+    def get_object_store_action(self, current, rename):
+        object_store_cd_action = None
         if self.parameters.get('object_store_name'):
-            object_store_current = None
-            if current:
-                object_store_current = self.get_object_store(aggr_name)
+            aggr_name = self.parameters['from_name'] if rename else self.parameters['name']
+            object_store_current = self.get_object_store(aggr_name) if current else None
             object_store_cd_action = self.na_helper.get_cd_action(object_store_current, self.parameters.get('object_store_name'))
             if object_store_cd_action is None and object_store_current is not None\
                     and object_store_current['object_store_name'] != self.parameters.get('object_store_name'):
                 self.module.fail_json(msg='Error: object store %s is already associated with aggregate %s.' %
                                       (object_store_current['object_store_name'], aggr_name))
+        return object_store_cd_action
+
+    def apply(self):
+        """
+        Apply action to the aggregate
+        :return: None
+        """
+        netapp_utils.ems_log_event_cserver("na_ontap_aggregate", self.server, self.module)
+        current, cd_action, rename, modify = self.get_aggr_actions()
+        object_store_cd_action = self.get_object_store_action(current, rename)
 
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':

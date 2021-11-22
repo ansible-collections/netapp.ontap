@@ -62,7 +62,7 @@ class MockONTAPConnection(object):
         self.parm2 = parm2
         self.xml_in = None
         self.xml_out = None
-        self.zapis = list()
+        self.zapis = []
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
@@ -75,6 +75,9 @@ class MockONTAPConnection(object):
                 xml = None
             else:
                 xml = self.build_object_store_info()
+        elif zapi == 'vserver-get-iter':
+            # looking for cserver
+            xml = self.build_cserver_info()
         elif self.type in ('aggregate', 'aggr_disks', 'aggr_mirrors', 'aggregate_no_object_store'):
             with_os = self.type != 'aggregate_no_object_store'
             xml = self.build_aggregate_info(self.parm1, self.parm2, with_object_store=with_os)
@@ -100,7 +103,10 @@ class MockONTAPConnection(object):
                 'attributes-list':
                     {'aggr-attributes':
                      {'aggregate-name': aggregate,
-                      'aggr-raid-attributes': {'state': 'offline'}
+                      'aggr-raid-attributes': {
+                          'state': 'offline',
+                          'disk-count': '4',
+                          'encrypt-with-aggr-key': 'true'}
                       },
                      'object-store-information': {'object-store-name': 'abc'}
                      },
@@ -121,6 +127,19 @@ class MockONTAPConnection(object):
         data = {'num-records': 3,
                 'attributes-list':
                     {'object-store-information': {'object-store-name': 'abc'}
+                     }
+                }
+        xml.translate_struct(data)
+        print(xml.to_string())
+        return xml
+
+    @staticmethod
+    def build_cserver_info():
+        ''' build xml data for cserver '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        data = {'num-records': 1,
+                'attributes-list':
+                    {'vserver-info': {'vserver-name': 'svm-abc'}
                      }
                 }
         xml.translate_struct(data)
@@ -175,7 +194,7 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection('aggregate', '12', 'name')
         # whether to use a mock or a simulator
         self.onbox = False
-        self.zapis = list()
+        self.zapis = []
 
     def set_default_args(self):
         if self.onbox:
@@ -195,7 +214,7 @@ class TestMyModule(unittest.TestCase):
             'name': name
         })
 
-    def call_command(self, module_args, what=None):
+    def call_command(self, module_args, what=None, fail=False):
         ''' utility function to call apply '''
         args = dict(self.set_default_args())
         args.update(module_args)
@@ -214,6 +233,10 @@ class TestMyModule(unittest.TestCase):
             # mock the connection
             my_obj.server = MockONTAPConnection(aggregate, '12', AGGR_NAME)
             self.zapis = my_obj.server.zapis
+        if fail:
+            with pytest.raises(AnsibleFailJson) as exc:
+                my_obj.apply()
+            return exc.value.args[0]
         with pytest.raises(AnsibleExitJson) as exc:
             my_obj.apply()
         return exc.value.args[0]['changed']
@@ -227,10 +250,32 @@ class TestMyModule(unittest.TestCase):
 
     def test_create(self):
         module_args = {
-            'disk_count': '2',
-            'is_mirrored': 'true',
+            'disk_type': 'ATA',
+            'raid_type': 'raid_dp',
+            'snaplock_type': 'non_snaplock',
+            # 'spare_pool': 'Pool0',
+            'disk_count': 2,
+            'raid_size': 5,
+            'disk_size': 10,
+            # 'disk_size_with_unit': 'dsize_unit',
+            'is_mirrored': True,
+            'ignore_pool_checks': True,
+            'encryption': True,
+            'nodes': ['node1', 'node2']
         }
         changed = self.call_command(module_args, what='no_aggregate')
+        assert changed
+        assert 'aggr-object-store-attach' not in self.zapis
+        print(self.zapis)
+
+    @patch('time.sleep')
+    def test_create_wait_for_completion(self, mock_time):
+        module_args = {
+            'disk_count': '2',
+            'is_mirrored': 'true',
+            'wait_for_online': 'true'
+        }
+        changed = self.call_command(module_args, what='no_aggregate_then_aggregate')
         assert changed
         assert 'aggr-object-store-attach' not in self.zapis
 
@@ -246,7 +291,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_is_mirrored(self):
         module_args = {
-            'disk_count': '2',
+            'disk_count': '4',
             'is_mirrored': 'true',
         }
         changed = self.call_command(module_args)
@@ -269,11 +314,19 @@ class TestMyModule(unittest.TestCase):
 
     def test_spare_pool(self):
         module_args = {
-            'disk_count': '2',
+            'disk_count': '4',
             'spare_pool': 'Pool1'
         }
         changed = self.call_command(module_args)
         assert not changed
+
+    def test_negative_modify_encryption(self):
+        module_args = {
+            'encryption': False
+        }
+        exc = self.call_command(module_args, 'aggregate', fail=True)
+        msg = 'Error: modifying encryption is not supported with ZAPI.'
+        assert msg in exc['msg']
 
     def test_rename(self):
         module_args = {
@@ -289,7 +342,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'no_aggregate')
-        msg = 'Error renaming: aggregate %s does not exist' % module_args['from_name']
+        msg = 'Error renaming aggregate %s: no aggregate with from_name %s.' % (AGGR_NAME, module_args['from_name'])
         assert msg in exc.value.args[0]['msg']
 
     def test_rename_with_add_object_store(self):
@@ -326,9 +379,9 @@ class TestMyModule(unittest.TestCase):
     def test_if_all_methods_catch_exception(self):
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'service_state': 'online'})
-        module_args.update({'unmount_volumes': 'True'})
-        module_args.update({'from_name': 'test_name2'})
+        module_args['service_state'] = 'online'
+        module_args['unmount_volumes'] = 'True'
+        module_args['from_name'] = 'test_name2'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:

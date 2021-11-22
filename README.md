@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.14.0
 
 ### New Options
+  - na_ontap_aggregate - new option `encryption` to enable encryption with ZAPI.
   - na_ontap_restit - new option `wait_for_completion` to support asynchronous operations and wait for job completion.
   - na_ontap_volume_efficiency - new option `storage_efficiency_mode` for AFF only with 9.10.1 or later.
 
