@@ -1,14 +1,5 @@
 ---
 # tasks file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
-- name: set-facts netapp_hostname,netapp_username & netapp_password
-  set_fact:
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
-  when:
-    - ( netapp_hostname is defined ) and ( netapp_hostname | length > 0 )
-    - ( netapp_username is defined ) and ( netapp_username | length > 0 )
-    - ( netapp_password is defined ) and ( netapp_password | length > 0 )
 
 - name: collect igroups for vserver
   tags: gather
@@ -18,9 +9,9 @@
     parameters:
       svm.name: "{{ vserver_name }}"
       fields: name
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: "{{ https }}"
     validate_certs: "{{ validate_certs }}"
   register: ontap

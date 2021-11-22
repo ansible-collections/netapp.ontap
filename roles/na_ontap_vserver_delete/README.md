@@ -11,9 +11,11 @@ Requirements
 ------------
 
 - ONTAP collection.
-- ONTAP with REST support (9.6 or later).
+- ONTAP with REST support (9.7 or later).
 
 - The module requires the jmespath python package.
+- If json_query is not found, you may need to install the community.general collection.
+- C(ansible-galaxy collection install community.general)
 
 Role Variables
 --------------

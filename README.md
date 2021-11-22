@@ -44,17 +44,17 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_export_policy - fix error if more than 1 verser matched search name, the wrong uuid could be given.
   - na_ontap_interface - fix error where module will fail for ONTAP 9.6 if use_rest: was set to auto.
+  - na_ontap_vserver_delete role - report error if ONTAP version is 9.6 or older.
   
 ### Minor Changes
-  - na_ontap_vserver_delete role - added set_fact to accept `netapp_{hostname|username|password}` or `hostname` `username` and `password` variables.
+  - na_ontap_vserver_delete role - added set_fact to accept `netapp_{hostname|username|password}` or `hostname`, `username` and `password` variables.
+  - na_ontap_vserver_delete role - do not report an error if the vserver does not exist.
 
 ### Added REST support to existing modules
+  - na_ontap_fcp -- Added REST support for FCP.
+  - na_ontap_net_port - Added REST support to the net port module.
   - na_ontap_volume - Added REST support to the volume module.
   - na_ontap_vserver_peer - Added REST support to the vserver_peer module.
-  - na_ontap_net_port - Added REST support to the net port module.
-
-### Added REST support to existing modules
-  - na_ontap_fcp -- Added REST support for FCP
 
 ## 21.13.1
 
