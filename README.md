@@ -45,6 +45,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_export_policy - fix error if more than 1 verser matched search name, the wrong uuid could be given.
   - na_ontap_interface - fix error where module will fail for ONTAP 9.6 if use_rest: was set to auto.
+  - na_ontap_net_routes - metric was not always modified with ZAPI.
+  - na_ontap_net_routes - support cluster-scoped routes with REST.
   - na_ontap_vserver_delete role - report error if ONTAP version is 9.6 or older.
   
 ### Minor Changes
