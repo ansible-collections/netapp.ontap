@@ -260,5 +260,5 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_mock_object().apply()
         assert 'Error on modifying fcp: calling: ' + \
-               'protocols/san/fcp/services/671aa46e-11ad-11ec-a267-005056b30cfa/671aa46e-11ad-11ec-a267-005056b30cfa: ' + \
+               'protocols/san/fcp/services/671aa46e-11ad-11ec-a267-005056b30cfa: ' + \
                'got Expected error.' in exc.value.args[0]['msg']

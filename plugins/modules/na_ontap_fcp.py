@@ -201,7 +201,7 @@ class NetAppOntapFCP:
 
     def start_stop_fcp_rest(self, enabled, current):
         params = {'enabled': enabled}
-        api = 'protocols/san/fcp/services/' + current['svm']['uuid']
+        api = 'protocols/san/fcp/services'
         dummy, error = rest_generic.patch_async(self.rest_api, api, current['svm']['uuid'], params)
         if error is not None:
             self.module.fail_json(msg="Error on modifying fcp: %s" % error)
