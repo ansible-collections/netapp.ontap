@@ -222,7 +222,8 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_local_user_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+        msg = 'calling: private/cli/vserver/cifs/users-and-groups/local-user: got %s.' % SRR['generic_error'][2]
+        assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_modify_rest(self, mock_request):

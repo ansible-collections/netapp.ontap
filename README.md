@@ -43,6 +43,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume_efficiency - new option `storage_efficiency_mode` for AFF only with 9.10.1 or later.
 
 ### Bug Fixes
+  - na_ontap_cifs_local_user_modify - unexpected argument `name` error with REST.
+  - na_ontap_cifs_local_user_modify - KeyError on `description` or `full_name` with REST.
   - na_ontap_export_policy - fix error if more than 1 verser matched search name, the wrong uuid could be given.
   - na_ontap_interface - fix error where module will fail for ONTAP 9.6 if use_rest: was set to auto.
   - na_ontap_net_routes - metric was not always modified with ZAPI.

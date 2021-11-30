@@ -320,10 +320,7 @@ def is_zapi_connection_error(message):
     except NameError:
         # python 2.7 does not know about ConnectionError
         pass
-    return (
-        isinstance(message, str)
-        and message.startswith(('URLError', 'Unauthorized'))
-    )
+    return isinstance(message, str) and message.startswith(('URLError', 'Unauthorized'))
 
 
 def is_zapi_write_access_error(message):
@@ -337,10 +334,7 @@ def is_zapi_write_access_error(message):
 def is_zapi_missing_vserver_error(message):
     ''' return True if it is a missing vserver error '''
     # netapp-lib message may contain a tuple or a str!
-    return (
-        isinstance(message, str)
-        and message == 'Vserver API missing vserver parameter.'
-    )
+    return isinstance(message, str) and message == 'Vserver API missing vserver parameter.'
 
 
 def ems_log_event_cserver(source, server, module):
@@ -581,10 +575,7 @@ if HAS_NETAPP_LIB:
 class OntapRestAPI(object):
     ''' wrapper to send requests to ONTAP REST APIs '''
     def __init__(self, module, timeout=60, host_options=None):
-        if host_options is None:
-            self.host_options = module.params
-        else:
-            self.host_options = host_options
+        self.host_options = module.params if host_options is None else host_options
         self.module = module
         self.username = self.host_options['username']
         self.password = self.host_options['password']

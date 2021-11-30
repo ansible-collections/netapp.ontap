@@ -82,6 +82,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapCifsLocalUserModify():
@@ -126,27 +127,17 @@ class NetAppOntapCifsLocalUserModify():
                 'user-name': self.parameters['name'],
                 'vserver': self.parameters['vserver']
             }
-            message, error = self.rest_api.get(api, query)
-
+            record, error = rest_generic.get_one_record(self.rest_api, api, query=query)
             if error:
                 self.module.fail_json(msg=error)
-            if len(message.keys()) == 0:
-                return None
-            if 'records' in message and len(message['records']) == 0:
-                return None
-            if 'records' not in message:
-                error = "Unexpected response in get_cifs_local_user from %s: %s" % (api, repr(message))
-                self.module.fail_json(msg=error)
-
-            return_value = {
-                'name': message['records'][0]['user_name'],
-                'is_account_disabled': message['records'][0]['is_account_disabled'],
-                'vserver': message['records'][0]['vserver'],
-                'description': message['records'][0]['description'],
-                'full_name': message['records'][0]['full_name']
-            }
-            return return_value
-
+            if record:
+                return_value = {
+                    'name': record['user_name'],
+                    'is_account_disabled': record['is_account_disabled'],
+                    'vserver': record['vserver'],
+                    'description': record.get('description', ''),
+                    'full_name': record.get('full_name', '')
+                }
         else:
             cifs_local_user_obj = netapp_utils.zapi.NaElement('cifs-local-user-get-iter')
             cifs_local_user_info = netapp_utils.zapi.NaElement('cifs-local-user')
@@ -166,11 +157,10 @@ class NetAppOntapCifsLocalUserModify():
                 return_value = {
                     'name': local_cifs_user_attributes['user-name'],
                     'is_account_disabled': self.na_helper.get_value_for_bool(from_zapi=True, value=local_cifs_user_attributes['is-account-disabled']),
-                    'vserver': local_cifs_user_attributes['vserver']
+                    'vserver': local_cifs_user_attributes['vserver'],
+                    'full_name': '',
+                    'description': '',
                 }
-
-                return_value['full_name'] = ""
-                return_value['description'] = ""
 
                 if local_cifs_user_attributes['full-name']:
                     return_value['full_name'] = local_cifs_user_attributes['full-name']
@@ -178,7 +168,7 @@ class NetAppOntapCifsLocalUserModify():
                 if local_cifs_user_attributes['description']:
                     return_value['description'] = local_cifs_user_attributes['description']
 
-            return return_value
+        return return_value
 
     def modify_cifs_local_user(self, modify):
         """
@@ -194,7 +184,7 @@ class NetAppOntapCifsLocalUserModify():
 
             dummy, error = self.rest_api.patch(api, modify, query)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg=error, modify=modify)
         else:
             cifs_local_user_obj = netapp_utils.zapi.NaElement("cifs-local-user-modify")
             cifs_local_user_obj.add_new_child('user-name', self.parameters['name'])
@@ -222,13 +212,16 @@ class NetAppOntapCifsLocalUserModify():
             error = "User %s does not exist on vserver %s" % (self.parameters['name'], self.parameters['vserver'])
             self.module.fail_json(msg=error)
 
+        if self.use_rest:
+            # name is a key, and REST does not allow to change it
+            # it should match anyway, but REST may prepend the domain name
+            self.parameters['name'] = current['name']
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
-        if self.na_helper.changed:
-            if not self.module.check_mode:
-                self.modify_cifs_local_user(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            self.modify_cifs_local_user(modify)
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
 
 
 def main():
