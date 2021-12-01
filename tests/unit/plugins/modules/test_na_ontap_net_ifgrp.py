@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import json
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
@@ -19,6 +20,9 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_net_ifgrp \
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
 def set_module_args(args):
@@ -224,7 +228,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_ifgrp_mock_object().apply()
         get_ifgrp.assert_called_with()
-        delete_ifgrp.assert_called_with()
+        delete_ifgrp.assert_called_with(None)
 
     def test_get_return_value(self):
         data = self.mock_args()
@@ -297,3 +301,488 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_ifgrp_mock_object('ifgrp-fail').delete_if_grp()
         assert 'Error deleting if_group test' in exc.value.args[0]['msg']
+
+
+WARNINGS = list()
+
+
+def warn(dummy, msg):
+    WARNINGS.append(msg)
+
+
+def default_args():
+    args = {
+        'state': 'present',
+        'hostname': '10.10.10.10',
+        'username': 'admin',
+        'https': 'true',
+        'validate_certs': 'false',
+        'password': 'password',
+        'use_rest': 'always'
+    }
+    return args
+
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
+    'is_rest_9_7': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
+    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'zero_record': (200, dict(records=[], num_records=0), None),
+    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'ifgrp_record': (200, {
+        "num_records": 2,
+        "records": [
+            {
+                'lag': {
+                    'distribution_policy': 'ip',
+                    'mode': 'multimode_lacp'
+                },
+                'name': 'a0b',
+                'node': {'name': 'mohan9cluster2-01'},
+                'type': 'lag',
+                'uuid': '1b830a46-47cd-11ec-90df-005056b3dfc8'
+            },
+            {
+                'broadcast_domain': {
+                    'ipspace': {'name': 'ip1'},
+                    'name': 'test1'
+                },
+                'lag': {
+                    'distribution_policy': 'ip',
+                    'member_ports': [
+                        {
+                            'name': 'e0d',
+                            'node': {'name': 'mohan9cluster2-01'},
+                        }],
+                    'mode': 'multimode_lacp'},
+                'name': 'a0d',
+                'node': {'name': 'mohan9cluster2-01'},
+                'type': 'lag',
+                'uuid': '5aeebc96-47d7-11ec-90df-005056b3dfc8'
+            },
+            {
+                'broadcast_domain': {
+                    'ipspace': {'name': 'ip1'},
+                    'name': 'test1'
+                },
+                'lag': {
+                    'distribution_policy': 'ip',
+                    'member_ports': [
+                        {
+                            'name': 'e0c',
+                            'node': {'name': 'mohan9cluster2-01'},
+                        },
+                        {
+                            'name': 'e0a',
+                            'node': {'name': 'mohan9cluster2-01'},
+                        }],
+                    'mode': 'multimode_lacp'
+                },
+                'name': 'a0d',
+                'node': {'name': 'mohan9cluster2-01'},
+                'type': 'lag',
+                'uuid': '5aeebc96-47d7-11ec-90df-005056b3dsd4'
+            }]
+    }, None),
+    'ifgrp_record_create': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                'lag': {
+                    'distribution_policy': 'ip',
+                    'mode': 'multimode_lacp'
+                },
+                'name': 'a0b',
+                'node': {'name': 'mohan9cluster2-01'},
+                'type': 'lag',
+                'uuid': '1b830a46-47cd-11ec-90df-005056b3dfc8'
+            }]
+    }, None),
+    'ifgrp_record_modify': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                'broadcast_domain': {
+                    'ipspace': {'name': 'ip1'},
+                    'name': 'test1'
+                },
+                'lag': {
+                    'distribution_policy': 'ip',
+                    'member_ports': [
+                        {
+                            'name': 'e0c',
+                            'node': {'name': 'mohan9cluster2-01'},
+                        },
+                        {
+                            'name': 'e0d',
+                            'node': {'name': 'mohan9cluster2-01'},
+                        }],
+                    'mode': 'multimode_lacp'
+                },
+                'name': 'a0d',
+                'node': {'name': 'mohan9cluster2-01'},
+                'type': 'lag',
+                'uuid': '5aeebc96-47d7-11ec-90df-005056b3dsd4'
+            }]
+    }, None)
+}
+
+
+# using pytest natively, without unittest.TestCase
+@pytest.fixture
+def patch_ansible():
+    with patch.multiple(basic.AnsibleModule,
+                        exit_json=exit_json,
+                        fail_json=fail_json,
+                        warn=warn) as mocks:
+        global WARNINGS
+        WARNINGS = []
+        yield mocks
+
+
+def test_module_fail_when_required_args_missing(patch_ansible):
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args(dict(hostname=''))
+        ifgrp_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'missing required arguments:'
+    assert msg in exc.value.args[0]['msg']
+
+
+def test_module_fail_when_broadcast_domain_ipspace(patch_ansible):
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args(dict(hostname=''))
+        ifgrp_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'missing required arguments:'
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_broadcast_domain_ipspace_rest_ontap96(mock_request, patch_ansible):
+    '''throw error if broadcast_domain and ipspace are not set'''
+    args = dict(default_args())
+    args['ports'] = "e0c"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['node'] = "mohan9cluster2-01"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_6'],         # get version
+    ]
+    with pytest.raises(AnsibleFailJson) as exc:
+        ifgrp_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'are mandatory fields with ONTAP 9.6 and 9.7'
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_broadcast_domain_ipspace_rest_required_together(mock_request, patch_ansible):
+    '''throw error if one of broadcast_domain or ipspace only set'''
+    args = dict(default_args())
+    args['ports'] = "e0c"
+    args['distribution_function'] = "ip"
+    args['ipspace'] = "Default"
+    args['mode'] = "multimode_lacp"
+    args['node'] = "mohan9cluster2-01"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_6'],         # get version
+    ]
+    with pytest.raises(AnsibleFailJson) as exc:
+        ifgrp_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'parameters are required together: broadcast_domain, ipspace'
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_ifgrp_not_found_from_lag_ports(mock_request, patch_ansible):
+    ''' throw error if lag not found with both ports and from_lag_ports '''
+    args = dict(default_args())
+    args['node'] = "mohan9-vsim1"
+    args['ports'] = "e0f"
+    args['from_lag_ports'] = "e0l"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],          # get version
+        SRR['ifgrp_record']         # get for ports
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: cannot find LAG matching from_lag_ports: '['e0l']'."
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_from_lag_ports_1_or_more_ports_not_in_current(mock_request, patch_ansible):
+    ''' throw error if 1 or more from_lag_ports not found in current '''
+    args = dict(default_args())
+    args['node'] = "mohan9-vsim1"
+    args['ports'] = "e0f"
+    args['from_lag_ports'] = "e0d,e0h"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],        # get version
+    ]
+    my_obj = ifgrp_module()
+    my_obj.current_records = SRR['ifgrp_record'][1]['records']
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: cannot find LAG matching from_lag_ports: '['e0d', 'e0h']'."
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_from_lag_ports_are_in_different_LAG(mock_request, patch_ansible):
+    ''' throw error if ports in from_lag_ports are in different LAG '''
+    args = dict(default_args())
+    args['node'] = "mohan9-vsim1"
+    args['ports'] = "e0f"
+    args['from_lag_ports'] = "e0d,e0c"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],        # get version
+        SRR['ifgrp_record']        # get
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "'e0d, e0c' are in different LAG"
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_delete_only_partial_match_found(mock_request, patch_ansible):
+    ''' delete only with exact match of ports'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['broadcast_domain'] = "test1"
+    args['ipspace'] = "ip1"
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['ifgrp_record'],        # get
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_delete_ports_in_different_LAG(mock_request, patch_ansible):
+    ''' if ports are in different LAG, not to delete and returk ok'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c,e0d"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['broadcast_domain'] = "test1"
+    args['ipspace'] = "ip1"
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['ifgrp_record'],        # get
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_partial_match(mock_request, patch_ansible):
+    '''fail if partial match only found in from_lag_ports'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['from_lag_ports'] = "e0c,e0a,e0v"
+    args['ports'] = "e0n"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['state'] = 'present'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['ifgrp_record'],        # get
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: cannot find LAG matching from_lag_ports: '['e0c', 'e0a', 'e0v']'."
+    assert msg in exc.value.args[0]['msg']
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_fail_partial_match_ports_empty_record_from_lag_ports(mock_request, patch_ansible):
+    ''' remove port e0a from ifgrp a0d with ports e0d,e0c'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c"
+    args['from_lag_ports'] = "e0k"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['ifgrp_record_modify']         # get
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: cannot find LAG matching from_lag_ports: '['e0k']'."
+    assert msg in exc.value.args[0]['msg']
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_ifgrp_port(mock_request, patch_ansible):
+    ''' test create ifgrp '''
+    args = dict(default_args())
+    args['node'] = "mohan9-vsim1"
+    args['ports'] = "e0c,e0a"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['ifgrp_record_create'],        # get
+        SRR['empty_good'],                 # create
+        SRR['end_of_sequence']
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_ifgrp_port_idempotent(mock_request, patch_ansible):
+    ''' test create ifgrp idempotent '''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c,e0a"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['ifgrp_record'],               # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_modify_ifgrp_port(mock_request, patch_ansible):
+    ''' remove port e0a from ifgrp a0d with ports e0d,e0c'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c"
+    args['from_lag_ports'] = "e0c,e0d"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['ifgrp_record_modify'],        # get
+        SRR['empty_good'],                 # modify
+        SRR['end_of_sequence']
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_modify_ifgrp_broadcast_domain(mock_request, patch_ansible):
+    ''' modify broadcast domain and ipspace'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c,e0a"
+    args['from_lag_ports'] = 'e0c'
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['broadcast_domain'] = "test1"
+    args['ipspace'] = "Default"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['ifgrp_record'],        # get
+        SRR['empty_good'],          # modify
+        SRR['end_of_sequence']
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_delete_ifgrp(mock_request, patch_ansible):
+    ''' test delete LAG'''
+    args = dict(default_args())
+    args['node'] = "mohan9cluster2-01"
+    args['ports'] = "e0c,e0a"
+    args['distribution_function'] = "ip"
+    args['mode'] = "multimode_lacp"
+    args['broadcast_domain'] = "test1"
+    args['ipspace'] = "ip1"
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['ifgrp_record'],        # get
+        SRR['empty_good'],          # delete
+        SRR['end_of_sequence']
+    ]
+    my_obj = ifgrp_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
