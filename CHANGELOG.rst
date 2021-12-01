@@ -5,6 +5,35 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.14.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_aggregate - new option ``encryption`` to enable encryption with ZAPI.
+- na_ontap_fcp -- Added REST support for FCP
+- na_ontap_net_ifgrp - Added REST support to the net ifgrp module.
+- na_ontap_net_ifgrp - new REST only options ``from_lag_ports``, ``broadcast_domain`` and ``ipspace`` added.
+- na_ontap_net_port - Added REST support to the net port module
+- na_ontap_restit - new option ``wait_for_completion`` to support asynchronous operations and wait for job completion.
+- na_ontap_volume - Added REST support to the volume module
+- na_ontap_volume_efficiency - new option ``storage_efficiency_mode`` for AFF only with 9.10.1 or later.
+- na_ontap_vserver_delete role - added set_fact to accept ``netapp_{hostname|username|password}`` or ``hostname,username and password`` variables.
+- na_ontap_vserver_delete role - do not report an error if the vserver does not exist.
+- na_ontap_vserver_peer - Added REST support to the vserver_peer module
+
+Bugfixes
+--------
+
+- fix error where module will fail for ONTAP 9.6 if use_rest was set to auto
+- na_ontap_cifs_local_user_modify - KeyError on ``description`` or ``full_name`` with REST.
+- na_ontap_cifs_local_user_modify - unexpected argument ``name`` error with REST.
+- na_ontap_export_policy - fix error if more than 1 verser matched search name, the wrong uuid could be given
+- na_ontap_net_routes - metric was not always modified with ZAPI.
+- na_ontap_net_routes - support cluster-scoped routes with REST.
+- na_ontap_vserver_delete role - report error if ONTAP version is 9.6 or older.
+
 v21.13.1
 ========
 
