@@ -534,7 +534,7 @@ class NetAppOntapIfGrp:
                 if self.use_rest:
                     self.modify_ports_rest(modify, uuid)
                 else:
-                    self.modify_ports(current_ports)
+                    self.modify_ports(current_ports['ports'])
         self.module.exit_json(changed=self.na_helper.changed, modify=modify)
 
 

@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.14.1
+
+### Bug Fixes
+  - na_ontap_net_ifgrp - fix error in modify ports with zapi.
+
 ## 21.14.0
 
 ### New Options

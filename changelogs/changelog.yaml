@@ -1213,6 +1213,13 @@ releases:
     - DEVOPS-4465.yml
     - DEVOPS-4479.yaml
     release_date: '2021-12-01'
+  21.14.1:
+    changes:
+      bugfixes:
+      - na_ontap_net_ifgrp - fix error in modify ports with zapi.
+    fragments:
+    - DEVOPS-4487.yaml
+    release_date: '2021-12-06'
   21.2.0:
     changes:
       bugfixes:

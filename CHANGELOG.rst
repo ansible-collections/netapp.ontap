@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.14.1
+========
+
+Bugfixes
+--------
+
+- na_ontap_net_ifgrp - fix error in modify ports with zapi.
+
 v21.14.0
 ========
 
