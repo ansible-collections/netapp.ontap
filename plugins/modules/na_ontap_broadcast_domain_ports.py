@@ -97,6 +97,15 @@ class NetAppOntapBroadcastDomainPorts(object):
             supports_check_mode=True
         )
         parameters = self.module.params
+
+        if parameters['use_rest'].lower() == 'always':
+            msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.'
+            self.module.fail_json(msg='Error: %s' % msg)
+
+        if parameters['use_rest'].lower() == 'auto':
+            self.module.warn(
+                'Falling back to ZAPI as the module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.')
+
         # set up state variables
         self.state = parameters['state']
         self.broadcast_domain = parameters['broadcast_domain']

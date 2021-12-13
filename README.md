@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.15.0
+
+### Minor Changes
+  - na_ontap_broadcast_domain_ports - warn about deprecation, fall back to ZAPI or fail when REST is desired.
+
 ## 21.14.1
 
 ### Bug Fixes
