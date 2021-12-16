@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import json
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
@@ -19,6 +20,9 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain 
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
 def set_module_args(args):
@@ -104,7 +108,7 @@ class TestMyModule(unittest.TestCase):
         self.server = MockONTAPConnection()
         self.mock_broadcast_domain = {
             'name': 'test_broadcast_domain',
-            'mtu': '1000',
+            'mtu': 1000,
             'ipspace': 'Default',
             'ports': 'test_port_1'
         }
@@ -117,7 +121,8 @@ class TestMyModule(unittest.TestCase):
             'ports': self.mock_broadcast_domain['ports'],
             'hostname': 'test',
             'username': 'test_user',
-            'password': 'test_pass!'
+            'password': 'test_pass!',
+            'use_rest': 'never'
         }
 
     def get_broadcast_domain_mock_object(self, kind=None, data=None):
@@ -171,7 +176,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object().apply()
         assert exc.value.args[0]['changed']
-        create_broadcast_domain.assert_called_with()
+        create_broadcast_domain.assert_called_with(None)
 
     def test_create_idempotency(self):
         ''' Test create idempotency '''
@@ -184,7 +189,7 @@ class TestMyModule(unittest.TestCase):
     def test_modify_mtu(self):
         ''' Test successful modify mtu '''
         data = self.mock_args()
-        data['mtu'] = '1200'
+        data['mtu'] = 1200
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
@@ -193,12 +198,11 @@ class TestMyModule(unittest.TestCase):
     def test_modify_ipspace_idempotency(self):
         ''' Test modify ipsapce idempotency'''
         data = self.mock_args()
-        data['ipspace'] = 'Cluster'
+        data['ipspace'] = 'Default'
         set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
+        with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
-        msg = 'A domain ipspace can not be modified after the domain has been created.'
-        assert exc.value.args[0]['msg'] == msg
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.add_broadcast_domain_ports')
     def test_add_ports(self, add_broadcast_domain_ports):
@@ -233,8 +237,8 @@ class TestMyModule(unittest.TestCase):
         data['ports'] = 'test_port_2'
         set_module_args(data)
         current = {
-            'name': 'test_broadcast_domain',
-            'mtu': '1000',
+            'domain-name': 'test_broadcast_domain',
+            'mtu': 1000,
             'ipspace': 'Default',
             'ports': ['test_port_1,test_port2']
         }
@@ -258,12 +262,11 @@ class TestMyModule(unittest.TestCase):
         data['from_name'] = 'test_broadcast_domain'
         data['name'] = 'test_broadcast_domain_2'
         data['ports'] = ['test_port_1', 'test_port_2']
-        data['mtu'] = '1200'
+        data['mtu'] = 1200
         set_module_args(data)
-
         current = {
             'name': 'test_broadcast_domain',
-            'mtu': '1000',
+            'mtu': 1000,
             'ipspace': 'Default',
             'ports': ['test_port_1', 'test_port2']
         }
@@ -307,3 +310,382 @@ class TestMyModule(unittest.TestCase):
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
         assert exc.value.args[0]['changed'] is False
         split_broadcast_domain.assert_not_called()
+
+
+WARNINGS = list()
+
+
+def warn(dummy, msg):
+    WARNINGS.append(msg)
+
+
+def default_args():
+    args = {
+        'state': 'present',
+        'hostname': '10.10.10.10',
+        'username': 'admin',
+        'https': 'true',
+        'validate_certs': 'false',
+        'password': 'password',
+        'use_rest': 'always'
+    }
+    return args
+
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
+    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
+    'is_rest_9_7': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
+    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'zero_record': (200, dict(records=[], num_records=0), None),
+    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    'port_detail_e0d': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                'name': 'e0d',
+                'node': {'name': 'mohan9cluster2-01'},
+                'uuid': 'ea670505-2ab3-11ec-aa30-005056b3dfc8'
+            }]
+    }, None),
+    'port_detail_e0a': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                'name': 'e0a',
+                'node': {'name': 'mohan9cluster2-01'},
+                'uuid': 'ea63420b-2ab3-11ec-aa30-005056b3dfc8'
+            }]
+    }, None),
+    'port_detail_e0b': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                'name': 'e0b',
+                'node': {'name': 'mohan9cluster2-01'},
+                'uuid': 'ea64c0f2-2ab3-11ec-aa30-005056b3dfc8'
+            }]
+    }, None),
+    'broadcast_domain_record': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                "uuid": "4475a2c8-f8a0-11e8-8d33-005056bb986f",
+                "name": "domain1",
+                "ipspace": {"name": "ip1"},
+                "ports": [
+                    {
+                        "uuid": "ea63420b-2ab3-11ec-aa30-005056b3dfc8",
+                        "name": "e0a",
+                        "node": {
+                            "name": "mohan9cluster2-01"
+                        }
+                    },
+                    {
+                        "uuid": "ea64c0f2-2ab3-11ec-aa30-005056b3dfc8",
+                        "name": "e0b",
+                        "node": {
+                            "name": "mohan9cluster2-01"
+                        }
+                    },
+                    {
+                        "uuid": "ea670505-2ab3-11ec-aa30-005056b3dfc8",
+                        "name": "e0d",
+                        "node": {
+                            "name": "mohan9cluster2-01"
+                        }
+                    }
+                ],
+                "mtu": 9000
+            }]
+    }, None),
+    'broadcast_domain_record_split': (200, {
+        "num_records": 1,
+        "records": [
+            {
+                "uuid": "4475a2c8-f8a0-11e8-8d33-005056bb986f",
+                "name": "domain2",
+                "ipspace": {"name": "ip1"},
+                "ports": [
+                    {
+                        "uuid": "ea63420b-2ab3-11ec-aa30-005056b3dfc8",
+                        "name": "e0a",
+                        "node": {
+                            "name": "mohan9cluster2-01"
+                        }
+                    }
+                ],
+                "mtu": 9000
+            }]
+    }, None)
+}
+
+
+# using pytest natively, without unittest.TestCase
+@pytest.fixture
+def patch_ansible():
+    with patch.multiple(basic.AnsibleModule,
+                        exit_json=exit_json,
+                        fail_json=fail_json,
+                        warn=warn) as mocks:
+        global WARNINGS
+        WARNINGS = []
+        yield mocks
+
+
+def test_module_fail_when_required_args_missing(patch_ansible):
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args(dict(hostname=''))
+        broadcast_domain_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'missing required arguments:'
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_broadcast_domain(mock_request, patch_ansible):
+    ''' test create broadcast domain '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = "9000"
+    args['ports'] = ["mohan9cluster2-01:e0a", "mohan9cluster2-01:e0b", "mohan9cluster2-01:e0d"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['port_detail_e0a'],
+        SRR['port_detail_e0b'],
+        SRR['port_detail_e0d'],
+        SRR['zero_record'],                # get
+        SRR['empty_good'],                 # create
+        SRR['empty_good'],                 # add e0a
+        SRR['empty_good'],                 # add e0b
+        SRR['empty_good'],                 # add e0c
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_broadcast_domain_idempotency(mock_request, patch_ansible):
+    ''' test create broadcast domain '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 9000
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['broadcast_domain_record'],    # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_modify_broadcast_domain(mock_request, patch_ansible):
+    ''' test modify broadcast domain mtu '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['broadcast_domain_record'],    # get
+        SRR['empty_good'],                 # modify
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rename_broadcast_domain(mock_request, patch_ansible):
+    ''' test modify broadcast domain mtu '''
+    args = dict(default_args())
+    args['from_name'] = "domain1"
+    args['name'] = "domain2"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0a", "mohan9cluster2-01:e0b", "mohan9cluster2-01:e0d"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['port_detail_e0a'],
+        SRR['port_detail_e0b'],
+        SRR['port_detail_e0d'],
+        SRR['zero_record'],                # get
+        SRR['broadcast_domain_record'],    # get
+        SRR['empty_good'],                 # rename broadcast domain
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_split_broadcast_domain_create_domain2_with_e0a(mock_request, patch_ansible):
+    ''' test modify broadcast domain mtu '''
+    args = dict(default_args())
+    args['from_name'] = "domain1"
+    args['name'] = "domain2"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0a"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                 # get version
+        SRR['port_detail_e0a'],
+        SRR['zero_record'],                 # get
+        SRR['broadcast_domain_record'],     # get
+        SRR['empty_good'],                  # create broadcast domain
+        SRR['empty_good'],                  # add e0a to domain2
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_split_broadcast_domain_create_domain2_with_e0a_idempotent(mock_request, patch_ansible):
+    ''' test modify broadcast domain mtu '''
+    args = dict(default_args())
+    args['from_name'] = "domain1"
+    args['name'] = "domain2"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0a"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                     # get version
+        SRR['port_detail_e0a'],
+        SRR['broadcast_domain_record_split'],    # get domain2 details
+        SRR['zero_record'],                      # empty record for domain1
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_new_broadcast_domain_with_partial_match(mock_request, patch_ansible):
+    ''' test modify broadcast domain mtu '''
+    args = dict(default_args())
+    args['from_name'] = "domain2"
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0b"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                     # get version
+        SRR['port_detail_e0b'],
+        SRR['zero_record'],                      # empty record for domain1
+        SRR['broadcast_domain_record_split'],    # get domain2 details
+        SRR['empty_good'],                       # create broadcast domain domain1
+        SRR['empty_good'],                       # add e0b to domain1
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_delete_broadcast_domain(mock_request, patch_ansible):
+    ''' test delete broadcast domain mtu '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['state'] = "absent"
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['broadcast_domain_record'],    # get
+        SRR['empty_good'],                 # remove all the ports in broadcast domain
+        SRR['empty_good'],                 # delete broadcast domain
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_bad_format_port(mock_request, patch_ansible):
+    ''' test delete broadcast domain mtu '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 1500
+    args['state'] = "present"
+    args['ports'] = ["mohan9cluster2-01e0a"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+    ]
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj = broadcast_domain_module()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: Invalid value specified for port: mohan9cluster2-01e0a, provide port name as node_name:port_name"
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_try_to_create_domain_without_ipspace(mock_request, patch_ansible):
+    ''' test delete broadcast domain mtu '''
+    args = dict(default_args())
+    args['name'] = "domain1"
+    args['mtu'] = 1500
+    args['state'] = "present"
+    args['ports'] = ["mohan9cluster2-01:e0a"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+    ]
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj = broadcast_domain_module()
+    print('Info: %s' % exc.value.args[0])
+    msg = "Error: ipspace space is a required option with REST"
+    assert msg in exc.value.args[0]['msg']

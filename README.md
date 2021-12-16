@@ -40,6 +40,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor Changes
   - na_ontap_broadcast_domain_ports - warn about deprecation, fall back to ZAPI or fail when REST is desired.
 
+### Added REST support to existing modules
+  - na_ontap_broadcast_domain - Added REST support to the broadcast domain module.
+
 ## 21.14.1
 
 ### Bug Fixes
