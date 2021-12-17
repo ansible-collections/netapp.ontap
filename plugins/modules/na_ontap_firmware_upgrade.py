@@ -1,14 +1,9 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
-
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -42,12 +37,14 @@ options:
     description:
       - Clear logs on the device after update. Default value is true.
       - Not used if force_disruptive_update is False.
+      - Not supported with REST when set to false.
     type: bool
     default: true
   package:
     description:
       - Name of the package file containing the firmware to be installed. Not required when -baseline is true.
       - Not used if force_disruptive_update is False.
+      - Not supported with REST.
     type: str
   package_url:
     description:
@@ -62,28 +59,33 @@ options:
       - If set to C(False), and URL is given, the upgrade is non disruptive. If URL is not given, no operation is performed.
       - Do not set this to C(True), unless directed by NetApp Tech Support.
       - It will force an update even if the resource is not ready for it, and can be disruptive.
+      - Not supported with REST when set to true.
     type: bool
     version_added: "20.4.1"
-    default: False
+    default: false
   shelf_module_fw:
     description:
       - Shelf module firmware to be updated to.
       - Not used if force_disruptive_update is False (ONTAP will automatically select the firmware)
+      - Not supported with REST.
     type: str
   disk_fw:
     description:
       - disk firmware to be updated to.
       - Not used if force_disruptive_update is False (ONTAP will automatically select the firmware)
+      - Not supported with REST.
     type: str
   update_type:
     description:
       - Type of firmware update to be performed. Options include serial_full, serial_differential, network_full.
       - Not used if force_disruptive_update is False (ONTAP will automatically select the firmware)
+      - Not supported with REST.
     type: str
   install_baseline_image:
     description:
       - Install the version packaged with ONTAP if this parameter is set to true. Otherwise, package must be used to specify the package to install.
       - Not used if force_disruptive_update is False (ONTAP will automatically select the firmware)
+      - Not supported with REST when set to true.
     type: bool
     default: false
   firmware_type:
@@ -96,6 +98,9 @@ options:
       - This operation will only update firmware on shelves/disk that do not have the latest firmware-revision.
       - For normal operations, choose one of storage or service-processor.
       - Type storage includes acp, shelf and disk and ONTAP will automatically determine what to do.
+      - With REST, the module does not validate that the package matches the firmware type.  ONTAP determines the type automatically.
+      - With REST, C(storage) downloads any firmware, including service-processor firmware.
+      - With REST, C(service-processor) unlocks SP reboot options.
     choices: ['storage','service-processor', 'shelf', 'acp', 'disk']
     type: str
     default: storage
@@ -107,6 +112,7 @@ is still happening.
       - By default, this module ignores this error and assumes the download is progressing as ONTAP does not \
 provide a way to check the status.
       - When setting this option to true, the module will report 502 as an error.
+      - Not supported with REST when set to true.
     type: bool
     default: false
     version_added: "20.6.0"
@@ -114,21 +120,43 @@ provide a way to check the status.
     description:
       - Rename the package.
       - Only available if 'firmware_type' is 'service-processor'.
+      - Not supported with REST.
     type: str
     version_added: "20.6.1"
   replace_package:
     description:
       - Replace the local package.
       - Only available if 'firmware_type' is 'service-processor'.
+      - Not supported with REST when set to false.
     type: bool
     version_added: "20.6.1"
   reboot_sp:
     description:
       - Reboot service processor before downloading package.
       - Only available if 'firmware_type' is 'service-processor'.
+      - Defaults to True if not set when 'firmware_type' is 'service-processor'.
+      - Set this explictly to true to avoid a warning, and to false to not reboot the SP.
+      - Rebooting the SP before download is strongly recommended.
     type: bool
-    default: true
     version_added: "20.6.1"
+  reboot_sp_after_download:
+    description:
+      - Reboot service processor after downloading package.
+      - Only available if 'firmware_type' is 'service-processor'.
+    type: bool
+    version_added: "21.15.0"
+  server_username:
+    description:
+      - username to authenticate with the firmware package server.
+      - Ignored with ZAPI.
+    type: str
+    version_added: "21.15.0"
+  server_password:
+    description:
+      - password to authenticate with the firmware package server.
+      - Ignored with ZAPI.
+    type: str
+    version_added: "21.15.0"
 short_description:  NetApp ONTAP firmware upgrade for SP, shelf, ACP, and disk.
 version_added: 2.9.0
 '''
@@ -136,14 +164,14 @@ version_added: 2.9.0
 EXAMPLES = """
 
     - name: firmware upgrade
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         package_url: "{{ web_link }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: firmware upgrade, confirm successful download
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         package_url: "{{ web_link }}"
         hostname: "{{ netapp_hostname }}"
@@ -151,7 +179,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         fail_on_502_error: true
     - name: SP firmware upgrade
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
         package: "{{ file name }}"
@@ -167,7 +195,7 @@ EXAMPLES = """
     - name: SP firmware download replace package
       tags:
       - sp_download
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
         package_url: "{{ web_link }}"
@@ -182,7 +210,7 @@ EXAMPLES = """
     - name: SP firmware download rename package
       tags:
       - sp_download
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
         package_url: "{{ web_link }}"
@@ -194,32 +222,44 @@ EXAMPLES = """
         https: true
         validate_certs: false
     - name: ACP firmware download and upgrade
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
         firmware_type: acp
-        force_disruptive_update: False
         package_url: "{{ web_link }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: shelf firmware upgrade
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         firmware_type: shelf
-        shelf_module_fw: 1221
-        force_disruptive_update: False
         package_url: "{{ web_link }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: disk firmware upgrade
-      na_ontap_firmware_upgrade:
+      netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         firmware_type: disk
-        disk_fw: NA02
-        force_disruptive_update: False
         package_url: "{{ web_link }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: any firmware upgrade (REST)
+      netapp.ontap.na_ontap_firmware_upgrade:
+        state: present
+        package_url: "{{ web_link }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: SP firmware upgrade with reboots (REST)
+      netapp.ontap.na_ontap_firmware_upgrade:
+        state: present
+        package_url: "{{ web_link }}"
+        firmware_type: service-processor
+        reboot_sp_: true
+        reboot_sp_after_download: true
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -232,15 +272,16 @@ msg:
     type: str
 """
 
+import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-import time
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 MSGS = dict(
     no_action='No action taken.',
     dl_completed='Firmware download completed.',
@@ -249,7 +290,7 @@ MSGS = dict(
 )
 
 
-class NetAppONTAPFirmwareUpgrade(object):
+class NetAppONTAPFirmwareUpgrade:
     """
     Class with ONTAP firmware upgrade methods
     """
@@ -271,7 +312,10 @@ class NetAppONTAPFirmwareUpgrade(object):
             fail_on_502_error=dict(required=False, type='bool', default=False),
             rename_package=dict(required=False, type='str'),
             replace_package=dict(required=False, type='bool'),
-            reboot_sp=dict(required=False, type='bool', default=True)
+            reboot_sp=dict(required=False, type='bool'),
+            reboot_sp_after_download=dict(required=False, type='bool'),
+            server_username=dict(required=False, type='str'),
+            server_password=dict(required=False, type='str', no_log=True),
         ))
 
         self.module = AnsibleModule(
@@ -281,26 +325,59 @@ class NetAppONTAPFirmwareUpgrade(object):
                 ('firmware_type', 'disk', ['node']),
                 ('firmware_type', 'service-processor', ['node']),
                 ('force_disruptive_update', True, ['firmware_type']),
+                ('reboot_sp', True, ['node']),
+                ('reboot_sp_after_download', True, ['node']),
             ],
+            required_together=[['server_username', 'server_password']],
             supports_check_mode=True
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        if self.parameters.get('firmware_type') == 'storage':
-            if self.parameters.get('force_disruptive_update'):
-                self.module.fail_json(msg='Do not set force_disruptive_update to True, unless directed by NetApp Tech Support')
-        if self.parameters.get('firmware_type') == 'service-processor':
+        self._node_uuid = None       # to cache calls to get_node_uuid
+
+        self.rest_api = OntapRestAPI(self.module)
+        unsupported_rest_properties = ['package', 'update_type', 'rename_package', 'shelf_module_fw', 'disk_fw']
+        # only accept default value for these 5 options (2 True and 3 False)
+        for option in ('clear_logs', 'replace_package'):
+            # accept the default value (for replace_package, this is implicit for REST)
+            # but switch to ZAPI or error out if set to False
+            if self.parameters.get(option) is False:
+                unsupported_rest_properties.append('clear_logs')
+        for option in ('install_baseline_image', 'force_disruptive_update', 'fail_on_502_error'):
+            # accept the default value of False, but switch to ZAPI or error out if set to True
+            if self.parameters[option]:
+                unsupported_rest_properties.append(option)
+        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
+        if error is not None:
+            self.module.fail_json(msg=error)
+
+        if self.parameters.get('firmware_type') == 'storage' and self.parameters.get('force_disruptive_update'):
+            self.module.fail_json(msg='Do not set force_disruptive_update to True, unless directed by NetApp Tech Support')
+
+        for option in ('reboot_sp', 'reboot_sp_after_download'):
+            if self.parameters.get('firmware_type') != 'service-processor' and self.parameters.get(option):
+                self.module.warn('%s is ignored when firmware_type is not set to service-processor' % option)
+        if self.parameters.get('firmware_type') == 'service-processor' and self.parameters.get('reboot_sp') is None:
+            self.module.warn('Forcing a reboot of SP before download - set reboot_sp: true to disable this warning.')
+            self.parameters['reboot_sp'] = True
+        if not self.use_rest and self.parameters.get('firmware_type') == 'service-processor':
+            msg = 'With ZAPI and firmware_type set to service-processor: '
             if 'node' not in self.parameters:
-                self.module.fail_json(msg='Parameter node should be present when firmware type is service-processor')
+                self.module.fail_json(msg=msg + 'parameter node should be present.')
             if self.parameters.get('install_baseline_image') and self.parameters.get('package') is not None:
-                self.module.fail_json(msg='Do not specify both package and install_baseline_image: true')
-            if not self.parameters.get('package') and self.parameters.get('install_baseline_image') == 'False':
-                self.module.fail_json(msg='Specify at least one of package or install_baseline_image')
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
+                self.module.fail_json(msg=msg + 'do not specify both package and install_baseline_image: true.')
+            if self.parameters.get('force_disruptive_update') \
+               and self.parameters.get('install_baseline_image') is False \
+               and self.parameters.get('package') is None:
+                self.module.fail_json(msg=msg + 'specify at least one of package or install_baseline_image: true.')
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
 
     def firmware_image_get_iter(self):
         """
@@ -330,11 +407,10 @@ class NetAppONTAPFirmwareUpgrade(object):
         # return firmware image details
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
             sp_info = result.get_child_by_name('attributes-list').get_child_by_name('service-processor-info')
-            firmware_version = sp_info.get_child_content('firmware-version')
-            return firmware_version
+            return sp_info.get_child_content('firmware-version')
         return None
 
-    def acp_firmware_required_get(self):
+    def acp_firmware_update_required(self):
         """
         where acp firmware upgrade is required
         :return:  True is firmware upgrade is required else return None
@@ -349,9 +425,8 @@ class NetAppONTAPFirmwareUpgrade(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching acp firmware details details: %s'
                                   % (to_native(error)), exception=traceback.format_exc())
-        if result.get_child_by_name('attributes-list').get_child_by_name('storage-shelf-acp-module'):
-            acp_module_info = result.get_child_by_name('attributes-list').get_child_by_name(
-                'storage-shelf-acp-module')
+        acp_module_info = self.na_helper.safe_get(result, ['attributes-list', 'storage-shelf-acp-module'])
+        if acp_module_info:
             state = acp_module_info.get_child_content('state')
             if state == 'firmware_update_required':
                 # acp firmware version upgrade required
@@ -366,7 +441,7 @@ class NetAppONTAPFirmwareUpgrade(object):
         firmware_update_progress_get = netapp_utils.zapi.NaElement('service-processor-image-update-progress-get')
         firmware_update_progress_get.add_new_child('node', self.parameters['node'])
 
-        firmware_update_progress_info = dict()
+        firmware_update_progress_info = {}
         try:
             result = self.server.invoke_successfully(firmware_update_progress_get, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -384,7 +459,7 @@ class NetAppONTAPFirmwareUpgrade(object):
         Get the current firmware of shelf module
         :return:dict with module id and firmware info
         """
-        shelf_id_fw_info = dict()
+        shelf_id_fw_info = {}
         shelf_firmware_info_get = netapp_utils.zapi.NaElement('storage-shelf-info-get-iter')
         desired_attributes = netapp_utils.zapi.NaElement('desired-attributes')
         storage_shelf_info = netapp_utils.zapi.NaElement('storage-shelf-info')
@@ -414,7 +489,7 @@ class NetAppONTAPFirmwareUpgrade(object):
         Get the current firmware of disks module
         :return:
         """
-        disk_id_fw_info = dict()
+        disk_id_fw_info = {}
         disk_firmware_info_get = netapp_utils.zapi.NaElement('storage-disk-get-iter')
         desired_attributes = netapp_utils.zapi.NaElement('desired-attributes')
         storage_disk_info = netapp_utils.zapi.NaElement('storage-disk-info')
@@ -434,27 +509,27 @@ class NetAppONTAPFirmwareUpgrade(object):
                 disk_id_fw_info[disk.get_child_content('disk-uid')] = disk.get_child_by_name('disk-inventory-info').get_child_content('firmware-revision')
         return disk_id_fw_info
 
-    def disk_firmware_required_get(self):
+    def disk_firmware_update_required(self):
         """
         Check weather disk firmware upgrade is required or not
         :return: True if the firmware upgrade is required
         """
         disk_firmware_info = self.disk_firmware_info_get()
-        for disk in disk_firmware_info:
-            if (disk_firmware_info[disk]) != self.parameters['disk_fw']:
-                return True
-        return False
+        return any(
+            disk_firmware_info[disk] != self.parameters['disk_fw']
+            for disk in disk_firmware_info
+        )
 
-    def shelf_firmware_required_get(self):
+    def shelf_firmware_update_required(self):
         """
         Check weather shelf firmware upgrade is required or not
         :return: True if the firmware upgrade is required
         """
         shelf_firmware_info = self.shelf_firmware_info_get()
-        for module in shelf_firmware_info:
-            if (shelf_firmware_info[module]) != self.parameters['shelf_module_fw']:
-                return True
-        return False
+        return any(
+            shelf_firmware_info[module] != self.parameters['shelf_module_fw']
+            for module in shelf_firmware_info
+        )
 
     def sp_firmware_image_update(self):
         """
@@ -521,6 +596,9 @@ class NetAppONTAPFirmwareUpgrade(object):
         return True
 
     def download_firmware(self):
+        if self.use_rest:
+            return self.download_software_rest()
+
         ''' calls the system-cli ZAPI as there is no ZAPI for this feature '''
         msg = MSGS['dl_completed']
         command = ['storage', 'firmware', 'download', '-node', self.parameters['node'] if self.parameters.get('node') else '*',
@@ -596,7 +674,7 @@ class NetAppONTAPFirmwareUpgrade(object):
     def download_sp_image_progress(self):
         progress = netapp_utils.zapi.NaElement('system-image-update-progress-get')
         progress.add_new_child('node', self.parameters['node'])
-        progress_info = dict()
+        progress_info = {}
         try:
             result = self.server.invoke_successfully(progress, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -625,6 +703,8 @@ class NetAppONTAPFirmwareUpgrade(object):
         return progress_info
 
     def reboot_sp(self):
+        if self.use_rest:
+            return self.reboot_sp_rest()
         reboot = netapp_utils.zapi.NaElement('service-processor-reboot')
         reboot.add_new_child('node', self.parameters['node'])
         try:
@@ -634,9 +714,68 @@ class NetAppONTAPFirmwareUpgrade(object):
                                       % (to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_node_uuid(self):
+        if self._node_uuid is not None:
+            return self._node_uuid
+        api = 'cluster/nodes'
+        query = {'name': self.parameters['node']}
+        node, error = rest_generic.get_one_record(self.rest_api, api, query, fields='uuid')
+        if error:
+            self.module.fail_json(msg='Error reading node UUID: %s' % error)
+        if not node:
+            self.module.fail_json(msg='Error: node not found %s, current nodes: %s.' % (self.parameters['node'], ', '.join(self.get_node_names())))
+        self._node_uuid = node['uuid']
+        return node['uuid']
+
+    def get_node_names(self):
+        api = 'cluster/nodes'
+        nodes, error = rest_generic.get_0_or_more_records(self.rest_api, api, fields='name')
+        if error:
+            self.module.fail_json(msg='Error reading nodes: %s' % error)
+        return [node['name'] for node in nodes]
+
+    def reboot_sp_rest_cli(self):
+        """ for older versions of ONTAP, use the REST CLI passthrough """
+        api = 'private/cli/sp/reboot-sp'
+        query = {'node': self.parameters['node']}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, None, query)
+        return error
+
+    def get_sp_state(self):
+        api = 'cluster/nodes/%s' % self.get_node_uuid()
+        node, error = rest_generic.get_one_record(self.rest_api, api, fields='service_processor.state')
+        if error:
+            self.module.fail_json(msg='Error getting node SP state: %s' % error)
+        if node:
+            return self.na_helper.safe_get(node, ['service_processor', 'state'])
+
+    def wait_for_sp_reboot(self):
+        for dummy in range(20):
+            time.sleep(15)
+            state = self.get_sp_state()
+            if state != 'rebooting':
+                break
+        else:
+            self.module.warn('node did not finish up booting in 5 minutes!')
+
+    def reboot_sp_rest(self):
+        uuid = self.get_node_uuid()
+        api = 'cluster/nodes'
+        body = {'service_processor.action': 'reboot'}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
+        if error:
+            if 'Unexpected argument "service_processor.action"' in error:
+                error = self.reboot_sp_rest_cli()
+                if error:
+                    error = 'reboot_sp requires ONTAP 9.10.1 or newer, falling back to CLI passthrough failed: ' + error
+        if error:
+            self.module.fail_json(msg='Error rebooting node SP: %s' % error)
+
     def download_sp_firmware(self):
         if self.parameters.get('reboot_sp'):
             self.reboot_sp()
+        if self.use_rest:
+            return self.download_software_rest()
         self.download_sp_image()
         progress = self.download_sp_image_progress()
         # progress only show the current or most recent update/install operation.
@@ -649,14 +788,18 @@ class NetAppONTAPFirmwareUpgrade(object):
             return MSGS['dl_completed']
         return MSGS['no_action']
 
-    def autosupport_log(self):
-        """
-        Autosupport log for software_update
-        :return:
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_firmware_upgrade", cserver)
+    def download_software_rest(self):
+        body = {'url': self.parameters['package_url']}
+        for attr in ('username', 'password'):
+            value = self.parameters.get('server_%s' % attr)
+            if value:
+                body[attr] = value
+        api = 'cluster/software/download'
+        # burt 1442080 - when timeout is 30, the API may return a 500 error, though the job says download completed!
+        message, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=self.parameters.get('time_out', 180), timeout=0)
+        if error:
+            self.module.fail_json(msg='Error downloading software: %s' % error)
+        return message
 
     def apply(self):
         """
@@ -664,23 +807,33 @@ class NetAppONTAPFirmwareUpgrade(object):
         """
         changed = False
         msg = MSGS['no_action']
-        self.autosupport_log()
-        firmware_update_progress = dict()
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_firmware_upgrade", self.server, self.module)
+        firmware_update_progress = {}
         if self.parameters.get('package_url'):
             if not self.module.check_mode:
                 if self.parameters.get('firmware_type') == 'service-processor':
                     msg = self.download_sp_firmware()
+                    if self.parameters.get('reboot_sp') and self.use_rest:
+                        self.wait_for_sp_reboot()
                 else:
                     msg = self.download_firmware()
             changed = True
-        if not self.parameters['force_disruptive_update']:
+        if not self.parameters['force_disruptive_update'] and not self.parameters.get('reboot_sp_after update'):
             # disk_qual, disk, shelf, and ACP are automatically updated in background
             # The SP firmware is automatically updated on reboot
             self.module.exit_json(changed=changed, msg=msg)
         if msg == MSGS['dl_in_progress']:
             # can't force an update if the software is still downloading
             self.module.fail_json(msg="Cannot force update: %s" % msg)
+        self.disruptive_update(changed)
+
+    def disruptive_update(self, changed):
         if self.parameters.get('firmware_type') == 'service-processor':
+            if self.parameters.get('reboot_sp_after update'):
+                self.reboot_sp()
+            if not self.parameters['force_disruptive_update']:
+                return
             # service-processor firmware upgrade
             current = self.firmware_image_get(self.parameters['node'])
 
@@ -698,46 +851,30 @@ class NetAppONTAPFirmwareUpgrade(object):
 
         elif self.parameters.get('firmware_type') == 'shelf':
             # shelf firmware upgrade
-            if self.parameters.get('shelf_module_fw'):
-                if self.shelf_firmware_required_get():
-                    if not self.module.check_mode:
-                        changed = self.shelf_firmware_upgrade()
-                    else:
-                        changed = True
+            if self.parameters.get('shelf_module_fw') and self.shelf_firmware_update_required():
+                changed = self.shelf_firmware_upgrade() if not self.module.check_mode else True
             else:
-                if not self.module.check_mode:
-                    changed = self.shelf_firmware_upgrade()
-                else:
-                    # we don't know until we try the upgrade -- assuming the worst
-                    changed = True
-        elif self.parameters.get('firmware_type') == 'acp':
+                # with check_mode, we don't know until we try the upgrade -- assuming the worst
+                changed = self.shelf_firmware_upgrade() if not self.module.check_mode else True
+        elif self.parameters.get('firmware_type') == 'acp' and self.acp_firmware_update_required():
             # acp firmware upgrade
-            if self.acp_firmware_required_get():
-                if not self.module.check_mode:
-                    self.acp_firmware_upgrade()
-                changed = True
+            if not self.module.check_mode:
+                self.acp_firmware_upgrade()
+            changed = True
         elif self.parameters.get('firmware_type') == 'disk':
             # Disk firmware upgrade
-            if self.parameters.get('disk_fw'):
-                if self.disk_firmware_required_get():
-                    if not self.module.check_mode:
-                        changed = self.disk_firmware_upgrade()
-                    else:
-                        changed = True
+            if self.parameters.get('disk_fw') and self.disk_firmware_update_required():
+                changed = self.disk_firmware_upgrade() if not self.module.check_mode else True
             else:
-                if not self.module.check_mode:
-                    changed = self.disk_firmware_upgrade()
-                else:
-                    # we don't know until we try the upgrade -- assuming the worst
-                    changed = True
-
+                # with check_mode, we don't know until we try the upgrade -- assuming the worst
+                changed = self.disk_firmware_upgrade() if not self.module.check_mode else True
         self.module.exit_json(changed=changed, msg='forced update for %s' % self.parameters.get('firmware_type'))
 
 
 def main():
     """Execute action"""
-    community_obj = NetAppONTAPFirmwareUpgrade()
-    community_obj.apply()
+    fwupgrade_obj = NetAppONTAPFirmwareUpgrade()
+    fwupgrade_obj.apply()
 
 
 if __name__ == '__main__':

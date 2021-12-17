@@ -279,7 +279,7 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
     version = host_options.get('ontapi')
     trace = has_feature(module, 'trace_apis')
     if trace:
-        logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG)
+        logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
     wrap_zapi |= has_feature(module, 'always_wrap_zapi')
     auth_method = set_auth_method(module, username, password, cert_filepath, key_filepath)
 

@@ -42,6 +42,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_broadcast_domain - Added REST support to the broadcast domain module.
+  - na_ontap_firmware_upgrade - REST support to download firmware and reboot SP.
 
 ## 21.14.1
 
@@ -52,9 +53,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_aggregate - new option `encryption` to enable encryption with ZAPI.
+  - na_ontap_net_ifgrp - new REST only options `from_lag_ports`, `broadcast_domain` and `ipspace` added.
   - na_ontap_restit - new option `wait_for_completion` to support asynchronous operations and wait for job completion.
   - na_ontap_volume_efficiency - new option `storage_efficiency_mode` for AFF only with 9.10.1 or later.
-  - na_ontap_net_ifgrp - new REST only options `from_lag_ports`, `broadcast_domain` and `ipspace` added.
 
 ### Bug Fixes
   - na_ontap_cifs_local_user_modify - unexpected argument `name` error with REST.
@@ -71,10 +72,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_fcp -- Added REST support for FCP.
+  - na_ontap_net_ifgrp - Added REST support to the net ifgrp module.
   - na_ontap_net_port - Added REST support to the net port module.
   - na_ontap_volume - Added REST support to the volume module.
   - na_ontap_vserver_peer - Added REST support to the vserver_peer module.
-  - na_ontap_net_ifgrp - Added REST support to the net ifgrp module.
 
 ## 21.13.1
 
