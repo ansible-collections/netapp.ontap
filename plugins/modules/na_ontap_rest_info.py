@@ -153,7 +153,7 @@ options:
             - Request specific fields from subset.
                '*' to return all the fields, one or more subsets are allowed.
                '<list of fields>'  to return specified fields, only one subset will be allowed.
-            - If the option is not present, return all the fields.
+            - If the option is not present, return default REST subset of Api Fields for that API.
         version_added: '20.6.0'
     parameters:
         description:
