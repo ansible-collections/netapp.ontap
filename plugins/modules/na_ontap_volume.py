@@ -2297,7 +2297,6 @@ class NetAppOntapVolume(object):
         # TODO: check if call_from_delete_vol is needed in rest
         body = {
             'state': 'online' if self.parameters['is_online'] else 'offline',
-            'name': self.parameters['name'],
         }
         dummy, error = self.volume_rest_patch(body)
         if error:

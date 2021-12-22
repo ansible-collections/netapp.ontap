@@ -37,6 +37,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.15.0
 
+### Bug Fixes
+  - na_ontap_volume - Fixed issue that would fail the module in REST when changing `is_online` if two vserver volume had the same name.
+
 ### Minor Changes
   - na_ontap_broadcast_domain_ports - warn about deprecation, fall back to ZAPI or fail when REST is desired.
   - na_ontap_rest_info - update documention for `fields` to clarify the list of fields that are return by default.
