@@ -891,9 +891,10 @@ class NetAppOntapVolume(object):
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']
+        self.partially_supported_rest_properties = [['efficiency_policy', (9, 7)]]
         self.rest_api = OntapRestAPI(self.module)
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
+        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties, self.partially_supported_rest_properties, self.parameters)
         if error is not None:
             self.module.fail_json(msg=error)
         if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
@@ -2163,8 +2164,9 @@ class NetAppOntapVolume(object):
                             'space.size,'
                             'guarantee.type,'
                             'state,'
-                            'efficiency.policy.name,'
-                            'efficiency.compression'}
+                            'efficiency.compression,'}
+        if self.parameters.get('efficiency_policy'):
+            params['fields'] += 'efficiency.policy.name,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:

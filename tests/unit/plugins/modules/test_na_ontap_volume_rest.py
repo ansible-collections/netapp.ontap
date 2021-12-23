@@ -27,6 +27,7 @@ if not netapp_utils.has_netapp_lib():
 SRR = {
     # common responses
     'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'no_record': (200, {'num_records': 0, 'records': []}, None),
@@ -1033,4 +1034,17 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
         msg = "Error set efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_volume_efficiency_policy_with_ontap_96(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['efficiency_policy'] = 'test'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)\n"
         assert exc.value.args[0]['msg'] == msg

@@ -888,7 +888,7 @@ class OntapRestAPI(object):
             self.log_error(status_code, str(error))
         return status_code
 
-    def _is_rest(self, used_unsupported_rest_properties=None):
+    def _is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):
         if self.use_rest not in ['always', 'auto', 'never']:
             error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
             return False, error
@@ -900,6 +900,15 @@ class OntapRestAPI(object):
             # force ZAPI if requested
             return False, None
         status_code = self.get_ontap_version_using_rest()
+        if self.use_rest == "always" and partially_supported_rest_properties:
+            error = ''.join(
+                "Minimum version of ONTAP for %s is %s\n"
+                % (property[0], str(property[1]))
+                for property in partially_supported_rest_properties
+                if self.get_ontap_version()[0:2] < property[1] and property[0] in parameters
+            )
+            if error != '':
+                return True, error
         if self.use_rest == 'always':
             # ignore error, it will show up later when calling another REST API
             return True, None
@@ -916,9 +925,9 @@ class OntapRestAPI(object):
             return True, None
         return False, None
 
-    def is_rest(self, used_unsupported_rest_properties=None):
+    def is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):
         ''' only return error if there is a reason to '''
-        use_rest, error = self._is_rest(used_unsupported_rest_properties)
+        use_rest, error = self._is_rest(used_unsupported_rest_properties, partially_supported_rest_properties, parameters)
         if used_unsupported_rest_properties is None:
             return use_rest
         return use_rest, error
