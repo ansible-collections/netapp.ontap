@@ -8,7 +8,7 @@
 
  NetApp ONTAP Collection
 
- Copyright (c) 2021 NetApp, Inc. All rights reserved.
+ Copyright (c) 2022 NetApp, Inc. All rights reserved.
  Specifications subject to change without notice.
 
 =============================================================
@@ -36,6 +36,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 # Release Notes
 
 ## 21.15.0
+
+### New Options
+  - na_ontap_svm - new REST options of svm admin_state `stopped` and `running` added.
 
 ### Bug Fixes
   - na_ontap_volume - Fixed issue that would fail the module in REST when changing `is_online` if two vserver volume had the same name.

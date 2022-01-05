@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -34,6 +34,7 @@ SRR = {
     'svm_record': (200,
                    {'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
                                  "name": "test_svm",
+                                 "state": "running",
                                  "subtype": "default",
                                  "language": "c.utf_8",
                                  "aggregates": [{"name": "aggr_1",
@@ -52,6 +53,7 @@ SRR = {
                                  "nvme": {"enabled": False}}]}, None),
     'svm_record_ap': (200,
                       {'records': [{"name": "test_svm",
+                                    "state": "running",
                                     "aggregates": [{"name": "aggr_1",
                                                     "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"},
                                                    {"name": "aggr_2",
@@ -325,6 +327,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error(self, mock_request):
         data = self.mock_args(rest=True)
+        data['admin_state'] = 'running'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -338,6 +341,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_unsupported_parm(self, mock_request):
         data = self.mock_args(rest=True)
+        data['admin_state'] = 'running'
         data['use_rest'] = 'Always'
         data['root_volume'] = 'not_supported_by_rest'
         set_module_args(data)
@@ -383,6 +387,7 @@ class TestMyModule(unittest.TestCase):
         '''Test successful delete'''
         data = self.mock_args(rest=True)
         data['state'] = 'absent'
+        data['admin_state'] = 'running'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -399,6 +404,7 @@ class TestMyModule(unittest.TestCase):
         '''Test delete idempotency'''
         data = self.mock_args(rest=True)
         data['state'] = 'absent'
+        data['admin_state'] = 'running'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -415,6 +421,7 @@ class TestMyModule(unittest.TestCase):
         data = self.mock_args(rest=True)
         data['from_name'] = 'test_svm'
         data['name'] = 'test_new_svm'
+        data['admin_state'] = 'running'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -431,6 +438,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successful_modify_language(self, mock_request):
         '''Test successful modify language'''
         data = self.mock_args(rest=True)
+        data['admin_state'] = 'running'
         data['language'] = 'c'
         set_module_args(data)
         mock_request.side_effect = [
@@ -448,6 +456,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successful_get(self, mock_request):
         '''Test successful get'''
         data = self.mock_args(rest=True)
+        data['admin_state'] = 'running'
         data['language'] = 'c'
         set_module_args(data)
         mock_request.side_effect = [
@@ -509,6 +518,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_modify_with_service(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -531,6 +541,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_enable_service(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -552,6 +563,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_reenable_service(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -574,6 +586,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_enable_service(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -596,6 +609,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_modify_services(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -617,6 +631,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_modify_current_none(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -635,6 +650,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_modify_modify_none(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -653,6 +669,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_modify_error_1(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -674,6 +691,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_negative_modify_error_2(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         data['language'] = 'klingon'
         set_module_args(data)
@@ -696,6 +714,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_get_older_rest(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -735,6 +754,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_add_remove_protocols_on_modify(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'iscsi': {'allowed': False}, 'fcp': {'allowed': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -760,6 +780,7 @@ class TestMyModule(unittest.TestCase):
     def test_rest_successfully_add_remove_protocols_on_modify_old_style(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['allowed_protocols'] = ['nfs', 'fcp']
         set_module_args(data)
         mock_request.side_effect = [
@@ -784,6 +805,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_validate_int_or_string_as_int(self, mock_request):
         data = self.mock_args(rest=True)
+        data['admin_state'] = 'running'
         data['state'] = 'present'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
@@ -800,6 +822,7 @@ class TestMyModule(unittest.TestCase):
     def test_validate_int_or_string_as_str(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -815,6 +838,7 @@ class TestMyModule(unittest.TestCase):
     def test_negative_validate_int_or_string(self, mock_request):
         data = self.mock_args(rest=True)
         data['state'] = 'present'
+        data['admin_state'] = 'running'
         data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
         set_module_args(data)
         mock_request.side_effect = [
@@ -829,3 +853,40 @@ class TestMyModule(unittest.TestCase):
             module.validate_int_or_string('10a', astring)
         msg = "expecting int value or '%s'" % astring
         assert msg in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_with_admin_state(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['admin_state'] = 'stopped'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['svm_record'],  # get
+            SRR['empty_good'],
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_with_create(self, mock_request):
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['admin_state'] = 'stopped'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['empty_good'],  # empty record
+            SRR['empty_good'],  # create svm
+            SRR['svm_record'],  # get created svm
+            SRR['empty_good'],  # stop svm
+            SRR['end_of_sequence']
+        ]
+        module = self.get_vserver_mock_object(cx_type='rest')
+        with pytest.raises(AnsibleExitJson) as exc:
+            module.apply()
+        assert exc.value.args[0]['changed']

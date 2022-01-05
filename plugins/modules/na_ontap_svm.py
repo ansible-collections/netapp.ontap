@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -45,6 +45,14 @@ options:
       - Name of the SVM to be renamed
     type: str
     version_added: 2.7.0
+
+  admin_state:
+    description:
+      - when the SVM is created, it will be in the running state, unless specified otherwise.
+      - This is ignored with ZAPI.
+    choices: ['running', 'stopped']
+    type: str
+    version_added: 21.15.0
 
   root_volume:
     description:
@@ -292,6 +300,16 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: true
         validate_certs: false
+
+    - name: Stop SVM REST
+      netapp.ontap.na_ontap_svm:
+        state: present
+        name: ansibleVServer
+        admin_state: stopped
+        use_rest: always
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
@@ -306,8 +324,6 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_vserver, zapis_svm
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
 
 class NetAppOntapSVM():
     ''' create, delete, modify, rename SVM (aka vserver) '''
@@ -319,6 +335,7 @@ class NetAppOntapSVM():
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
+            admin_state=dict(required=False, type='str', choices=['running', 'stopped']),
             root_volume=dict(type='str'),
             root_volume_aggregate=dict(type='str'),
             root_volume_security_style=dict(type='str', choices=['unix',
@@ -367,11 +384,13 @@ class NetAppOntapSVM():
         self.allowable_protocols_zapi = netapp_utils.get_feature(self.module, 'svm_allowable_protocols_zapi')
         self.use_rest = self.validate_options()
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(
-                    msg="the python NetApp-Lib module is required")
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+                if self.parameters.get('admin_state') is not None:
+                    self.parameters.pop('admin_state')
+                    self.module.warn('admin_state is ignored when ZAPI is used.')
 
     def validate_int_or_string(self, value, astring):
         if value is None or value == astring:
@@ -435,6 +454,7 @@ class NetAppOntapSVM():
         vserver_details.pop('aggregates')
         vserver_details['ipspace'] = vserver_details['ipspace']['name']
         vserver_details['snapshot_policy'] = vserver_details['snapshot_policy']['name']
+        vserver_details['admin_state'] = vserver_details.pop('state')
         if 'max_volumes' in vserver_details:
             vserver_details['max_volumes'] = str(vserver_details['max_volumes'])
 
@@ -472,7 +492,7 @@ class NetAppOntapSVM():
             vserver_name = self.parameters['name']
 
         if self.use_rest:
-            fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme'
+            fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme,state'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
                 fields += ',max_volumes'
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
@@ -533,6 +553,9 @@ class NetAppOntapSVM():
             for key in simple_keys
             if self.parameters.get(key) and key in keys_to_modify
         )
+        # admin_state is only supported in modify
+        if modify and 'admin_state' in keys_to_modify:
+            body['state'] = self.parameters['admin_state']
         if 'aggr_list' in keys_to_modify:
             body['aggregates'] = []
             for aggr in self.parameters['aggr_list']:
@@ -731,7 +754,7 @@ class NetAppOntapSVM():
     def apply(self):
         '''Call create/modify/delete operations.'''
         if not self.use_rest:
-            self.asup_log_for_cserver("na_ontap_svm")
+            netapp_utils.ems_log_event_cserver("na_ontap_svm", self.server, self.module)
         current = self.get_vserver()
         cd_action, rename = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -766,9 +789,12 @@ class NetAppOntapSVM():
             # If rename is True, cd_action is None, but modify could be true or false.
             if cd_action == 'create':
                 self.create_vserver()
+                if self.parameters.get('admin_state') == 'stopped':
+                    current = self.get_vserver()
+                    modify = {'admin_state': 'stopped'}
             elif cd_action == 'delete':
                 self.delete_vserver(current)
-            elif modify:
+            if modify:
                 self.modify_vserver(modify, current)
 
         results = dict(changed=self.na_helper.changed)
@@ -778,17 +804,6 @@ class NetAppOntapSVM():
             if 'aggr_list' in modify and '*' in modify['aggr_list']:
                 results['warnings'] = "Changed always 'True' when aggr_list is '*'."
         self.module.exit_json(**results)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
 
 
 def main():
