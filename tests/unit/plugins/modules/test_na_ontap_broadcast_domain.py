@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -296,7 +296,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_broadcast_domain_mock_object().apply()
-        msg = 'A domain can not be split if it does not exist.'
+        msg = 'A domain cannot be split if it does not exist.'
         assert exc.value.args[0]['msg'], msg
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.split_broadcast_domain')
@@ -689,3 +689,86 @@ def test_module_try_to_create_domain_without_ipspace(mock_request, patch_ansible
     print('Info: %s' % exc.value.args[0])
     msg = "Error: ipspace space is a required option with REST"
     assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_modify_ipspace(mock_request, patch_ansible):
+    ''' test modify ipspace '''
+    args = dict(default_args())
+    args['name'] = "domain2"
+    args['from_ipspace'] = "ip1"
+    args['ipspace'] = "Default"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0b"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                     # get version
+        SRR['port_detail_e0b'],
+        SRR['zero_record'],                      # empty record for domain2 in ipspace Default
+        SRR['broadcast_domain_record_split'],    # get domain2 details in ipspace ip1
+        SRR['empty_good'],                       # modify ipspace
+        SRR['empty_good'],                       # add e0b to domain2
+        SRR['empty_good'],                       # remove e0a
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_modify_name_and_ipspace(mock_request, patch_ansible):
+    ''' test modify ipspace '''
+    args = dict(default_args())
+    args['from_name'] = "domain2"
+    args['name'] = "domain1"
+    args['from_ipspace'] = "ip1"
+    args['ipspace'] = "Default"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0a"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                     # get version
+        SRR['port_detail_e0a'],
+        SRR['zero_record'],                      # empty record for domain2 in ipspace Default
+        SRR['broadcast_domain_record_split'],    # get domain2 details in ipspace ip1
+        SRR['empty_good'],                       # modify name, ipspace and mtu
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_module_split_name_ipspace_if_not_exact_match_of_ports(mock_request, patch_ansible):
+    ''' test create new domain as exact match not found '''
+    args = dict(default_args())
+    args['from_name'] = "domain2"
+    args['name'] = "domain1"
+    args['from_ipspace'] = "ip1"
+    args['ipspace'] = "Default"
+    args['mtu'] = 1500
+    args['ports'] = ["mohan9cluster2-01:e0b"]
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                     # get version
+        SRR['port_detail_e0b'],
+        SRR['zero_record'],                      # empty record for domain1 in ipspace Default
+        SRR['broadcast_domain_record_split'],    # get domain2 details in ipspace ip1
+        SRR['empty_good'],                       # create new broadcast domain domain1 in ipspace Default
+        SRR['empty_good'],                       # Add e0b to domain1
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert not WARNINGS

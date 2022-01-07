@@ -143,7 +143,8 @@ class TestMyModule(unittest.TestCase):
             'rw_rule': 'any',
             'hostname': 'test',
             'username': 'test_user',
-            'password': 'test_pass!'
+            'password': 'test_pass!',
+            'use_rest': 'never'
         }
 
     def get_mock_object(self, kind=None):
@@ -195,19 +196,29 @@ class TestMyModule(unittest.TestCase):
         result = self.get_mock_object('policy').get_export_policy()
         assert result is not None
 
-    def test_create_missing_param_error(self):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy_rule.NetAppontapExportRule.get_export_policy')
+    def test_create_missing_param_error(self, get_export_policy):
         ''' Test validation error from create '''
         data = self.mock_rule_args()
         del data['ro_rule']
         set_module_args(data)
+        get_export_policy.side_effect = [
+            None,
+            {'id': 1}
+        ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_mock_object().apply()
         msg = 'Error: Missing required param for creating export policy rule ro_rule'
         assert exc.value.args[0]['msg'] == msg
 
-    def test_successful_create(self):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy_rule.NetAppontapExportRule.get_export_policy')
+    def test_successful_create(self, get_export_policy):
         ''' Test successful create '''
         set_module_args(self.mock_rule_args())
+        get_export_policy.side_effect = [
+            None,
+            {'id': 1}
+        ]
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_mock_object().apply()
         assert exc.value.args[0]['changed']
@@ -238,11 +249,15 @@ class TestMyModule(unittest.TestCase):
             self.get_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
-    def test_successful_modify(self):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_export_policy_rule.NetAppontapExportRule.get_export_policy')
+    def test_successful_modify(self, get_export_policy):
         ''' Test successful modify protocol '''
         data = self.mock_rule_args()
         data['protocol'] = ['cifs']
         data['allow_suid'] = 'true'
+        get_export_policy.side_effect = [
+            {'id': 1}
+        ]
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_mock_object('rule').apply()

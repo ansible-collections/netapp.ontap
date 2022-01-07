@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.15.0
 
 ### New Options
+  - na_ontap_broadcast_domain - new REST only option `from_ipspace` added.
   - na_ontap_svm - new REST options of svm admin_state `stopped` and `running` added.
 
 ### Bug Fixes
@@ -51,6 +52,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Added REST support to existing modules
   - na_ontap_broadcast_domain - Added REST support to the broadcast domain module.
   - na_ontap_firmware_upgrade - REST support to download firmware and reboot SP.
+
+### Added REST support to existing modules
+  - na_ontap_export_policy_rule -- Added Rest support for Export Policy Rules.
 
 ## 21.14.1
 

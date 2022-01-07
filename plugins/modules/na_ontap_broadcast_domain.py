@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -35,7 +35,7 @@ options:
     type: str
   from_name:
     description:
-      - Specify the  broadcast domain name to be split into new broadcast domain.
+      - Specify the broadcast domain name to be split into new broadcast domain.
     version_added: 2.8.0
     type: str
   mtu:
@@ -45,7 +45,16 @@ options:
   ipspace:
     description:
       - Specify the required ipspace for the broadcast domain.
-      - A domain ipspace can not be modified after the domain has been created.
+      - With ZAPI, a domain ipspace cannot be modified after the domain has been created.
+      - With REST, a domain ipspace can be modified.
+    type: str
+  from_ipspace:
+    description:
+      - if used with C(from_name), it will try to find broadcast domain C(from_name) in C(from_ipspace), split action either rename broadcast_domain and
+        ipspace or create a new broadcast domain.
+      - If not C(from_name) present, it will try to find C(name) broadcast domain in C(from_ipspace) and modify ipspace using C(ipspace).
+      - Only supported with REST.
+    version_added: 2.15.0
     type: str
   ports:
     description:
@@ -54,11 +63,11 @@ options:
       - Add a port if it is specified in expected state but not in current state.
       - Delete a port if it is specified in current state but not in expected state.
       - For split action, it represents the ports to be split from current broadcast domain and added to the new broadcast domain.
-      - if all ports are removed or split from a broadcast domain, the broadcast domain will be deleted automatically.
-      - with rest, if exact match of ports found with C(from_name), split action will rename the broadcast domain using C(name).
-      - with rest, if partial match of ports with C(from_name), split action will create a new broadcast domain using C(name) and
+      - If all ports are removed or split from a broadcast domain, the broadcast domain will be deleted automatically.
+      - With REST, if exact match of ports found with C(from_name), split action will rename the broadcast domain using C(name).
+      - With REST, if partial match of ports with C(from_name), split action will create a new broadcast domain using C(name) and
         move partial matched ports from C(from_name) to C(name).
-      - with rest, if C(ports) not in C(from_name), split action will create a new broadcast domain using C(name) with C(ports).
+      - With REST, if C(ports) not in C(from_name), split action will create a new broadcast domain using C(name) with C(ports).
     type: list
     elements: str
 '''
@@ -135,9 +144,32 @@ EXAMPLES = """
         mtu: 1200
         ipspace: Default
         ports: ["khutton-vsim1:e0d-12"]
-    - name: delete broadcast domain new_ansible_domain
+    - name: Modify both broadcast domain and ipspace REST.
       netapp.ontap.na_ontap_broadcast_domain:
         state: present
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
+        from_name: ansible_domain
+        from_ipspace: Default
+        name: ansible_domain_ip1
+        ipspace: ipspace_1
+        mtu: 1200
+        ports: ["khutton-vsim1:e0d-12"]
+    - name: Modify ipspace only REST.
+      netapp.ontap.na_ontap_broadcast_domain:
+        state: present
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
+        from_ipspace: ipspace_1
+        name: ansible_domain_ip1
+        ipspace: Default
+        mtu: 1200
+        ports: ["khutton-vsim1:e0d-12"]
+    - name: delete broadcast domain new_ansible_domain.
+      netapp.ontap.na_ontap_broadcast_domain:
+        state: absent
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
         hostname: "{{ netapp_hostname }}"
@@ -177,6 +209,7 @@ class NetAppOntapBroadcastDomain(object):
             mtu=dict(required=False, type='int'),
             ports=dict(required=False, type='list', elements='str'),
             from_name=dict(required=False, type='str'),
+            from_ipspace=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -205,8 +238,11 @@ class NetAppOntapBroadcastDomain(object):
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             else:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+                if 'from_ipspace' in self.parameters:
+                    self.parameters.pop('from_ipspace')
+                    self.module.warn("from_ipspace is ignored when ZAPI is used.")
 
-    def get_broadcast_domain(self, broadcast_domain=None):
+    def get_broadcast_domain(self, broadcast_domain=None, ipspace=None):
         """
         Return details about the broadcast domain
         :param broadcast_domain: specific broadcast domain to get.
@@ -215,13 +251,16 @@ class NetAppOntapBroadcastDomain(object):
         """
         if broadcast_domain is None:
             broadcast_domain = self.parameters['name']
+        if ipspace is None:
+            # unlike rest, ipspace is not mandatory field for zapi.
+            ipspace = self.parameters.get('ipspace')
         if self.use_rest:
-            return self.get_broadcast_domain_rest(broadcast_domain)
+            return self.get_broadcast_domain_rest(broadcast_domain, ipspace)
         domain_get_iter = netapp_utils.zapi.NaElement('net-port-broadcast-domain-get-iter')
         broadcast_domain_info = netapp_utils.zapi.NaElement('net-port-broadcast-domain-info')
         broadcast_domain_info.add_new_child('broadcast-domain', broadcast_domain)
-        if self.parameters.get('ipspace'):
-            broadcast_domain_info.add_new_child('ipspace', self.parameters['ipspace'])
+        if ipspace:
+            broadcast_domain_info.add_new_child('ipspace', ipspace)
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(broadcast_domain_info)
         domain_get_iter.add_child_elem(query)
@@ -248,9 +287,9 @@ class NetAppOntapBroadcastDomain(object):
             }
         return domain_exists
 
-    def get_broadcast_domain_rest(self, broadcast_domain):
+    def get_broadcast_domain_rest(self, broadcast_domain, ipspace):
         api = 'network/ethernet/broadcast-domains'
-        query = {'name': broadcast_domain, 'ipspace.name': self.parameters['ipspace']}
+        query = {'name': broadcast_domain, 'ipspace.name': ipspace}
         fields = 'uuid,name,ipspace,ports,mtu'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
@@ -371,17 +410,20 @@ class NetAppOntapBroadcastDomain(object):
         if len(self.get_broadcast_domain_ports(self.parameters['from_name'])) == 0:
             self.delete_broadcast_domain(self.parameters['from_name'])
 
-    def modify_redirect(self, modify, current=None):
+    def modify_broadcast_domain_or_ports(self, modify, current=None):
         """
         :param modify: modify attributes.
         """
         modify_keys = list(modify.keys())
-        domain_modify_options = ['mtu', 'name']
+        domain_modify_options = ['mtu', 'name', 'ipspace']
         if any(x in modify_keys for x in domain_modify_options):
             if self.use_rest:
                 if modify.get('ports'):
                     del modify['ports']
                 self.modify_broadcast_domain_rest(current['uuid'], modify)
+                # update current ipspace as it required in modifying ports later.
+                if modify.get('ipspace'):
+                    current['ipspace'] = modify['ipspace']
             else:
                 self.modify_broadcast_domain()
         if 'ports' in modify_keys:
@@ -511,6 +553,8 @@ class NetAppOntapBroadcastDomain(object):
         # rename broadcast domain.
         if 'name' in modify:
             body['name'] = modify['name']
+        if 'ipspace' in modify:
+            body['ipspace.name'] = modify['ipspace']
         if 'mtu' in modify:
             body['mtu'] = modify['mtu']
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
@@ -595,19 +639,22 @@ class NetAppOntapBroadcastDomain(object):
         current = self.get_broadcast_domain()
         cd_action, split = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action == 'create':
-            # either create new domain or split domain.
-            if self.parameters.get('from_name'):
-                from_current = self.get_broadcast_domain(self.parameters['from_name'])
-                split = self.na_helper.is_rename_action(from_current, current)
-                if split is None:
-                    self.module.fail_json(msg='A domain can not be split if it does not exist.',
-                                          exception=traceback.format_exc())
-                if split:
-                    cd_action = None
-                    current = from_current
-                    if self.use_rest:
-                        split = False
+        if cd_action == 'create' and any(self.parameters.get(attr) is not None for attr in ('from_name', 'from_ipspace')):
+            # either create new domain or split domain, also ipspace can be modified.
+            from_name = self.parameters.get('from_name', self.parameters['name'])
+            from_ipspace = self.parameters.get('from_ipspace', self.parameters.get('ipspace'))
+            from_current = self.get_broadcast_domain(from_name, from_ipspace)
+            split = self.na_helper.is_rename_action(from_current, current)
+            if split is None:
+                self.module.fail_json(msg='A domain cannot be split if it does not exist.',
+                                      exception=traceback.format_exc())
+            if split:
+                cd_action = None
+                current = from_current
+                if self.use_rest:
+                    split = False
+                    # check for exact match of ports only if from_name present.
+                    if self.parameters.get('from_name'):
                         # rename with no change in ports.
                         if 'ports' not in self.parameters:
                             self.parameters['ports'] = from_current['ports']
@@ -628,7 +675,7 @@ class NetAppOntapBroadcastDomain(object):
             elif cd_action == 'delete':
                 self.delete_broadcast_domain(current=current)
             elif modify:
-                self.modify_redirect(modify, current)
+                self.modify_broadcast_domain_or_ports(modify, current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
