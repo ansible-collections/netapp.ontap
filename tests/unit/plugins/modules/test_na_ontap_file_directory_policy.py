@@ -111,7 +111,6 @@ class TestMyModule(unittest.TestCase):
 
     def get_policy_mock_object(self, type='zapi', kind=None, status=None):
         policy_obj = policy_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
         if type == 'zapi':
             if kind is None:
                 policy_obj.server = MockONTAPConnection()

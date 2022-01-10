@@ -192,7 +192,6 @@ class TestMyModule(unittest.TestCase):
         """
         net_route_obj = net_route_module()
         if cx_type == 'zapi':
-            net_route_obj.ems_log_event = Mock(return_value=None)
             net_route_obj.cluster = Mock()
             net_route_obj.cluster.invoke_successfully = Mock()
             if sequence is not None:

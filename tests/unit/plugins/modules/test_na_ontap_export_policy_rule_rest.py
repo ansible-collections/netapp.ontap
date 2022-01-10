@@ -5,6 +5,7 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+import copy
 import json
 import pytest
 
@@ -237,7 +238,8 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_export_policy_rules'],
+            # the module under test modifies record directly, and may cause other tests to fail
+            copy.deepcopy(SRR['get_export_policy_rules']),
             SRR['get_uuid_policy_id_export_policy'],
             SRR['no_record'],
             SRR['end_of_sequence']
@@ -255,7 +257,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_export_policy_rules'],
+            copy.deepcopy(SRR['get_export_policy_rules']),
             SRR['get_uuid_policy_id_export_policy'],
             SRR['generic_error'],
         ]
@@ -314,7 +316,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],  # Get Policy
-            SRR['get_export_policy_rules'],  # Get rules
+            copy.deepcopy(SRR['get_export_policy_rules']),  # Get rules
             SRR['get_uuid_policy_id_export_policy'],  # Get Policy
             SRR['empty_good'],
             SRR['end_of_sequence']
@@ -334,7 +336,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],
-            SRR['get_export_policy_rules'],
+            copy.deepcopy(SRR['get_export_policy_rules']),
             SRR['get_uuid_policy_id_export_policy'],
             SRR['generic_error'],
         ]
@@ -352,7 +354,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['get_uuid_policy_id_export_policy'],  # Get policy
-            SRR['get_export_policy_rules'],  # Get Rules
+            copy.deepcopy(SRR['get_export_policy_rules']),  # Get Rules
             SRR['get_uuid_policy_id_export_policy'],  # Get Policy
             SRR['empty_good'],
             SRR['end_of_sequence']

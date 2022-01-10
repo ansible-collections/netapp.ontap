@@ -125,7 +125,6 @@ class TestMyModule(unittest.TestCase):
         :return: na_ontap_volume_snaplock object
         """
         snaplock_obj = snaplock_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
         if kind is None:
             snaplock_obj.server = MockONTAPConnection()
         else:
@@ -155,8 +154,9 @@ class TestMyModule(unittest.TestCase):
             self.get_snaplock_mock_object('snaplock').apply()
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_snaplock.NetAppOntapVolumeSnaplock.get_volume_snaplock_attrs')
-    def test_modify_snaplock_error(self, get_volume_snaplock_attrs):
+    def test_modify_snaplock_error(self, get_volume_snaplock_attrs, ems_log_event):
         data = self.mock_args()
         data['maximum_retention_period'] = '5years'
         set_module_args(data)

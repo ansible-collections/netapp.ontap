@@ -64,12 +64,12 @@ class MockONTAPConnection(object):
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
         request = xml.to_string().decode('utf-8')
-        if self.kind == 'error':
-            raise netapp_utils.zapi.NaApiError('test', 'expect error')
-        elif request.startswith("<ems-autosupport-log>"):
+        if request.startswith("<ems-autosupport-log>"):
             xml = None  # or something that may the logger happy, and you don't need @patch anymore
             # or
             # xml = build_ems_log_response()
+        elif self.kind == 'error':
+            raise netapp_utils.zapi.NaApiError('test', 'expect error')
         elif request.startswith("<file-directory-security-ntfs-get-iter>"):
             if self.kind == 'create':
                 xml = self.build_sd_info()
@@ -119,7 +119,7 @@ class TestMyModule(unittest.TestCase):
 
     def get_sd_mock_object(self, type='zapi', kind=None, status=None):
         sd_obj = sd_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
+        # netapp_utils.ems_log_event = Mock(return_value=None)
         if type == 'zapi':
             if kind is None:
                 sd_obj.server = MockONTAPConnection()

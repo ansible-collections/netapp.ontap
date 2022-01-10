@@ -5,6 +5,7 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+import copy
 import json
 import pytest
 
@@ -183,13 +184,14 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_delete(self, mock_request):
-        '''Test successful rest create'''
+        '''Test successful rest delete'''
         data = self.mock_args(rest=True)
         data['state'] = 'absent'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['fcp_record'],
+            # the module under test modifies record directly, and may cause other tests to fail
+            copy.deepcopy(SRR['fcp_record']),
             SRR['empty_good'],
             SRR['empty_good']
         ]
@@ -199,13 +201,13 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_delete(self, mock_request):
-        '''Test error rest create'''
+        '''Test error rest delete'''
         data = self.mock_args(rest=True)
         data['state'] = 'absent'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['fcp_record'],
+            copy.deepcopy(SRR['fcp_record']),
             SRR['empty_good'],
             SRR['generic_error'],
         ]
@@ -216,13 +218,13 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_disable(self, mock_request):
-        '''Test successful rest create'''
+        '''Test successful rest disable'''
         data = self.mock_args(rest=True)
         data['status'] = 'down'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['fcp_record'],
+            copy.deepcopy(SRR['fcp_record']),
             SRR['empty_good'],
 
         ]
@@ -232,13 +234,13 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_enable(self, mock_request):
-        '''Test successful rest create'''
+        '''Test successful rest enable'''
         data = self.mock_args(rest=True)
         data['status'] = 'up'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['fcp_record_disabled'],
+            copy.deepcopy(SRR['fcp_record_disabled']),
             SRR['empty_good'],
 
         ]
@@ -248,13 +250,13 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_enabled_change(self, mock_request):
-        '''Test error rest create'''
+        '''Test error rest change'''
         data = self.mock_args(rest=True)
         data['status'] = 'down'
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
-            SRR['fcp_record'],
+            copy.deepcopy(SRR['fcp_record']),
             SRR['generic_error'],
         ]
         with pytest.raises(AnsibleFailJson) as exc:

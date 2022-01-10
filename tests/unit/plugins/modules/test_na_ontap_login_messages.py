@@ -78,12 +78,12 @@ class MockONTAPConnection(object):
         self.xml_in = xml
         request = xml.to_string().decode('utf-8')
         print(request)
-        if self.kind == 'error':
-            raise netapp_utils.zapi.NaApiError('test', 'expect error')
-        elif request.startswith("<ems-autosupport-log>"):
+        if request.startswith("<ems-autosupport-log>"):
             xml = None  # or something that may the logger happy, and you don't need @patch anymore
             # or
             # xml = build_ems_log_response()
+        elif self.kind == 'error':
+            raise netapp_utils.zapi.NaApiError('test', 'expect error')
         elif request.startswith("<vserver-login-banner-get-iter>"):
             if self.kind == 'create':
                 xml = self.build_banner_info()
@@ -153,7 +153,6 @@ class TestMyModule(unittest.TestCase):
 
     def get_login_mock_object(self, cx_type='zapi', kind=None, status=None):
         banner_obj = messages_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
         if cx_type == 'zapi':
             if kind is None:
                 banner_obj.server = MockONTAPConnection()

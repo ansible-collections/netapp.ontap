@@ -112,7 +112,6 @@ class TestMyModule(unittest.TestCase):
 
     def get_quota_policy_mock_object(self, kind=None):
         policy_obj = quota_policy_module()
-        netapp_utils.ems_log_event = Mock(return_value=None)
         if kind is None:
             policy_obj.server = MockONTAPConnection()
         else:
