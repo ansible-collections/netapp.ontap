@@ -52,6 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Added REST support to existing modules
   - na_ontap_broadcast_domain - Added REST support to the broadcast domain module.
   - na_ontap_firmware_upgrade - REST support to download firmware and reboot SP.
+  - na_ontap_license - Added REST support to the license module.
 
 ### Added REST support to existing modules
   - na_ontap_export_policy_rule -- Added Rest support for Export Policy Rules.
