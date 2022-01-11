@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -42,8 +42,8 @@ options:
 
   policy:
     description:
-    - Specifies the storage efficiency policy to use, only supported on AFF systems.
-    choices: ['auto', 'default', 'inline-only', '-']
+    - Specifies the storage efficiency policy to use.
+    - By default, the following names are available 'auto', 'default', 'inline-only', '-'.
     type: str
 
   enable_compression:
@@ -134,6 +134,10 @@ options:
     choices: ['default', 'efficient']
     type: str
     version_added: '21.14.0'
+
+notes:
+  - supports ZAPI and REST.  REST requires ONTAP 9.6 or later.
+  - supports check mode.
 """
 
 EXAMPLES = """
@@ -159,7 +163,7 @@ EXAMPLES = """
         https: true
         validate_certs: false
 
-    - name: Modify storage efficiency policy
+    - name: Modify storage efficiency schedule
       na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
@@ -227,7 +231,7 @@ class NetAppOntapVolumeEfficiency(object):
             vserver=dict(required=True, type='str'),
             path=dict(required=True, type='str'),
             schedule=dict(required=False, type='str'),
-            policy=dict(required=False, choices=['auto', 'default', 'inline-only', '-'], type='str'),
+            policy=dict(required=False, type='str'),
             enable_inline_compression=dict(required=False, type='bool'),
             enable_compression=dict(required=False, type='bool'),
             enable_inline_dedupe=dict(required=False, type='bool'),

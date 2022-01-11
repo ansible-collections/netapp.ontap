@@ -56,9 +56,10 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
 class MockONTAPConnection(object):
     ''' mock server connection to ONTAP host '''
 
-    def __init__(self, kind=None):
+    def __init__(self, kind, param):
         ''' save arguments '''
         self.type = kind
+        self.param = param
         self.xml_in = None
         self.xml_out = None
 
@@ -86,6 +87,8 @@ class MockONTAPConnection(object):
             xml = self.list_of_two()
         elif self.type == 'list_of_two_dups':
             xml = self.list_of_two_dups()
+        elif self.type == 'aggr_efficiency_info':
+            xml = self.aggr_efficiency_info(self.param)
         else:
             raise KeyError(self.type)
         self.xml_out = xml
@@ -159,6 +162,16 @@ class MockONTAPConnection(object):
         xml.translate_struct(list_of_two)
         return xml
 
+    @staticmethod
+    def aggr_efficiency_info(param):
+        ''' build xml data for list of one info element '''
+        xml = netapp_utils.zapi.NaElement('xml')
+        info = {'attributes-list': [{'aggr-efficiency-info': {'node': 'v1', 'aggregate': 'v2'}}]}
+        if param == 'no_node':
+            info = {'attributes-list': [{'aggr-efficiency-info': {'aggregate': 'v2'}}]}
+        xml.translate_struct(info)
+        return xml
+
 
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
@@ -169,7 +182,7 @@ class TestMyModule(unittest.TestCase):
                                                  fail_json=fail_json)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
-        self.server = MockONTAPConnection()
+        self.server = MockONTAPConnection(None, None)
 
     def mock_args(self):
         return {
@@ -179,7 +192,7 @@ class TestMyModule(unittest.TestCase):
             'vserver': None
         }
 
-    def get_info_mock_object(self, kind=None):
+    def get_info_mock_object(self, kind=None, param=None):
         """
         Helper method to return an na_ontap_info object
         """
@@ -201,10 +214,7 @@ class TestMyModule(unittest.TestCase):
         max_records = module.params['max_records']
         obj = info_module(module, max_records)
         obj.netapp_info = dict()
-        if kind is None:
-            obj.server = MockONTAPConnection()
-        else:
-            obj.server = MockONTAPConnection(kind)
+        obj.server = MockONTAPConnection(kind, param)
         return obj
 
     def test_module_fail_when_required_args_missing(self):
@@ -565,3 +575,18 @@ class TestMyModule(unittest.TestCase):
         assert not obj.error_flags['missing_vserver_api_error']
         assert not obj.error_flags['rpc_error']
         assert not obj.error_flags['other_error']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
+    def test_get_subset_missing_key(self, mock_ems_log):
+        '''calling aggr_efficiency_info with missing key'''
+        set_module_args(self.mock_args())
+        obj = self.get_info_mock_object('aggr_efficiency_info')
+        call = obj.info_subsets['aggr_efficiency_info']
+        info = call['method'](**call['kwargs'])
+        print(info)
+        assert 'v1:v2' in info
+        obj = self.get_info_mock_object('aggr_efficiency_info', 'no_node')
+        call = obj.info_subsets['aggr_efficiency_info']
+        info = call['method'](**call['kwargs'])
+        print(info)
+        assert 'key_not_present:v2' in info

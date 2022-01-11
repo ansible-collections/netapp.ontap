@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # (c) 2018 Piotr Olczak <piotr.olczak@redhat.com>
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -863,7 +863,9 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'aggr-efficiency-get-iter',
                     'attribute': 'aggr-efficiency-info',
-                    'key_fields': ('node', 'aggregate'),
+                    # the preferred key is node_name:aggregate_name
+                    # but node is not present with MCC
+                    'key_fields': (('node', None), 'aggregate'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '140',
@@ -1692,6 +1694,9 @@ class NetAppONTAPGatherInfo(object):
 # https://stackoverflow.com/questions/14962485/finding-a-key-recursively-in-a-dictionary
 def __finditem(obj, key):
 
+    if key is None:
+        # allows for a key not to be present
+        return "key_not_present"
     if key in obj:
         if obj[key] is None:
             return "None"
