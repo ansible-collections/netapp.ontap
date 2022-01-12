@@ -5,6 +5,30 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.15.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_broadcast_domain - Added REST support to the broadcast domain module.
+- na_ontap_broadcast_domain - new REST only option ``from_ipspace`` added.
+- na_ontap_broadcast_domain_ports - warn about deprecation, fall back to ZAPI or fail when REST is desired.
+- na_ontap_export_policy_rule -- Added Rest support for Export Policy Rules
+- na_ontap_firmware_upgrade - REST support to download firmware and reboot SP.
+- na_ontap_license - Added REST support to the license module.
+- na_ontap_rest_info - update documention for `fields` to clarify the list of fields that are return by default.
+- na_ontap_svm - new REST options of svm admin_state ``stopped`` and ``running`` added.
+
+Bugfixes
+--------
+
+- na_ontap_broadcast_domain - fix idempotency issue when ``ports`` has identical values.
+- na_ontap_info - fix KeyError on node for aggr_efficiency_info option against a metrocluster system.
+- na_ontap_volume - Fixed issue that would fail the module in REST when changing `is_online` if two vserver volume had the same name.
+- na_ontap_volume - If using REST and ONTAP 9.6 and `efficiency_policy` module will fail as `efficiency_policy` is not supported in ONTAP 9.6.
+- na_ontap_volume_efficiency - Removed restriction on policy name.
+
 v21.14.1
 ========
 
