@@ -229,7 +229,7 @@ class NetAppOntapBroadcastDomain(object):
             self.module.fail_json(msg=error_msg)
 
         if 'ports' in self.parameters:
-            self.parameters['ports'] = [port.strip() for port in self.parameters['ports']]
+            self.parameters['ports'] = list(set([port.strip() for port in self.parameters['ports']]))
             if self.use_rest:
                 self.desired_ports = self.get_ports_rest(self.parameters['ports'])
 

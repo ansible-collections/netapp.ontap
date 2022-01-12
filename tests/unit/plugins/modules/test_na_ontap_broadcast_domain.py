@@ -169,10 +169,12 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.create_broadcast_domain')
-    def test_successful_create(self, create_broadcast_domain):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
+    def test_successful_create(self, get_broadcast_domain, create_broadcast_domain):
         ''' Test successful create '''
         data = self.mock_args()
         set_module_args(data)
+        get_broadcast_domain.side_effect = [None]
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object().apply()
         assert exc.value.args[0]['changed']
@@ -186,10 +188,21 @@ class TestMyModule(unittest.TestCase):
             obj.apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.create_broadcast_domain')
+    def test_create_idempotency_identical_ports(self, create_broadcast_domain):
+        ''' Test create idemptency identical ports '''
+        data = self.mock_args()
+        data['ports'] = ['test_port_1', 'test_port_1']
+        set_module_args(data)
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_broadcast_domain_mock_object('broadcast_domain').apply()
+        assert not exc.value.args[0]['changed']
+
     def test_modify_mtu(self):
         ''' Test successful modify mtu '''
         data = self.mock_args()
         data['mtu'] = 1200
+        data['from_ipspace'] = 'test'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
@@ -244,7 +257,6 @@ class TestMyModule(unittest.TestCase):
         }
         get_broadcast_domain.side_effect = [
             None,
-            current,
             current
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -272,7 +284,6 @@ class TestMyModule(unittest.TestCase):
         }
         get_broadcast_domain.side_effect = [
             None,
-            current,
             current
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -283,7 +294,7 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
     def test_split_broadcast_domain_not_exist(self, get_broadcast_domain):
-        ''' Test successful split broadcast domain '''
+        ''' Test split broadcast domain does not exist '''
         data = self.mock_args()
         data['from_name'] = 'test_broadcast_domain'
         data['name'] = 'test_broadcast_domain_2'
@@ -308,8 +319,60 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_broadcast_domain_mock_object('broadcast_domain').apply()
-        assert exc.value.args[0]['changed'] is False
+        assert not exc.value.args[0]['changed']
         split_broadcast_domain.assert_not_called()
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
+    def test_delete_broadcast_domain(self, get_broadcast_domain, delete_broadcast_domain):
+        ''' test delete broadcast domain '''
+        data = self.mock_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        current = {
+            'name': 'test_broadcast_domain',
+            'mtu': 1000,
+            'ipspace': 'Default',
+            'ports': ['test_port_1', 'test_port2']
+        }
+        get_broadcast_domain.side_effect = [current]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_broadcast_domain_mock_object().apply()
+        assert exc.value.args[0]['changed']
+        delete_broadcast_domain.assert_called_with(current=current)
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
+    def test_delete_broadcast_domain_idempotent(self, get_broadcast_domain, delete_broadcast_domain):
+        ''' test delete broadcast domain '''
+        data = self.mock_args()
+        data['state'] = 'absent'
+        set_module_args(data)
+        get_broadcast_domain.side_effect = [None]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_broadcast_domain_mock_object().apply()
+        assert not exc.value.args[0]['changed']
+        delete_broadcast_domain.assert_not_called()
+
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.delete_broadcast_domain')
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain.NetAppOntapBroadcastDomain.get_broadcast_domain')
+    def test_delete_broadcast_domain_if_all_ports_are_removed(self, get_broadcast_domain, delete_broadcast_domain):
+        ''' test delete broadcast domain if all the ports are deleted '''
+        data = self.mock_args()
+        data['ports'] = []
+        data['state'] = 'present'
+        set_module_args(data)
+        current = {
+            'name': 'test_broadcast_domain',
+            'mtu': 1000,
+            'ipspace': 'Default',
+            'ports': ['test_port_1', 'test_port2']
+        }
+        get_broadcast_domain.side_effect = [current]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_broadcast_domain_mock_object().apply()
+        assert exc.value.args[0]['changed']
+        delete_broadcast_domain.assert_called_with(current=current)
 
 
 WARNINGS = list()
@@ -489,6 +552,29 @@ def test_create_broadcast_domain_idempotency(mock_request, patch_ansible):
     mock_request.side_effect = [
         SRR['is_rest_9_8'],                # get version
         SRR['broadcast_domain_record'],    # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = broadcast_domain_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert not WARNINGS
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_create_broadcast_domain_idempotency_identical_ports(mock_request, patch_ansible):
+    ''' test create broadcast domain '''
+    args = dict(default_args())
+    args['name'] = "domain2"
+    args['ipspace'] = "ip1"
+    args['mtu'] = 9000
+    args['ports'] = ['mohan9cluster2-01:e0a', 'mohan9cluster2-01:e0a']
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],                # get version
+        SRR['port_detail_e0a'],
+        SRR['broadcast_domain_record_split'],    # get
         SRR['end_of_sequence']
     ]
     my_obj = broadcast_domain_module()

@@ -45,6 +45,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_info - Fixed KeyError on node for aggr_efficiency_info option against a metrocluster system.
   - na_ontap_volume - Fixed issue that would fail the module in REST when changing `is_online` if two vserver volume had the same name.
   - na_ontap_volume_efficiency - Removed restriction on policy name.
+  - na_ontap_broadcast_domain - fix idempotency issue when `ports` has identical values.
 
 ### Minor Changes
   - na_ontap_broadcast_domain_ports - warn about deprecation, fall back to ZAPI or fail when REST is desired.
