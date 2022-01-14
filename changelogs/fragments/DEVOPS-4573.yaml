@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_broadcast_domain - Fixed bug that prevent ZAPI and REST calls from working correctly

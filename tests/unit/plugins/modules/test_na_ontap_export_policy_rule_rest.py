@@ -227,7 +227,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_mock_object().apply()
         print(exc.value.args[0]['msg'])
-        assert 'Error on creating export policy Rule: calling: protocols/nfs/export-policies/123: got Expected error.' in exc.value.args[0]['msg']
+        assert 'Error on creating export policy Rule: calling: protocols/nfs/export-policies/123/rules: got Expected error.' in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_delete_rule(self, mock_request):

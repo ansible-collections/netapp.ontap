@@ -361,7 +361,7 @@ class NetAppontapExportRule:
             if self.parameters.get(key) is None:
                 self.module.fail_json(msg='Error: Missing required param for creating export policy rule %s' % key)
         if self.use_rest:
-            return self.create_export_policy_rule_rest(policy_id)
+            return self.create_export_policy_rule_rest(policy_id['id'])
         export_rule_create = netapp_utils.zapi.NaElement('export-rule-create')
         self.add_parameters_for_create_or_modify(export_rule_create, self.parameters)
         try:
@@ -391,7 +391,7 @@ class NetAppontapExportRule:
         delete rule for the export policy.
         """
         if self.use_rest:
-            return self.delete_export_policy_rule_rest(rule_index, policy_id)
+            return self.delete_export_policy_rule_rest(rule_index, policy_id['id'])
         export_rule_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'export-rule-destroy', **{'policy-name': self.parameters['name'],
                                       'rule-index': str(rule_index)})
@@ -411,7 +411,7 @@ class NetAppontapExportRule:
         :return: None
         '''
         if self.use_rest:
-            return self.modify_export_policy_rule_rest(params, policy_id, rule_index)
+            return self.modify_export_policy_rule_rest(params, policy_id['id'], rule_index)
         export_rule_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'export-rule-modify', **{'policy-name': self.parameters['name'],
                                      'rule-index': str(self.parameters['rule_index'])})
@@ -502,7 +502,7 @@ class NetAppontapExportRule:
             body['protocols'] = self.parameters['protocol']
         if self.parameters.get('super_user_security'):
             body['superuser'] = self.parameters['super_user_security']
-        api = 'protocols/nfs/export-policies/%s' % str(policy_id)
+        api = 'protocols/nfs/export-policies/%s/rules' % str(policy_id)
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg="Error on creating export policy Rule: %s" % error)
@@ -562,17 +562,17 @@ class NetAppontapExportRule:
                 if not current_policy:
                     self.create_export_policy()
                     current_policy = self.get_export_policy()
-                self.create_export_policy_rule(current_policy['id'])
+                self.create_export_policy_rule(current_policy)
             elif action == 'delete':
                 if self.use_rest:
-                    self.delete_export_policy_rule(current['rule_index'], current_policy['id'])
+                    self.delete_export_policy_rule(current['rule_index'], current_policy)
                 elif current['num_records'] > 1:
                     self.module.fail_json(msg='Multiple export policy rules exist.'
                                               'Please specify a rule_index to delete')
                 else:
                     self.delete_export_policy_rule(current['rule_index'])
             elif modify:
-                self.modify_export_policy_rule(modify, current_policy['id'], current['rule_index'])
+                self.modify_export_policy_rule(modify, current_policy, current['rule_index'])
 
         self.module.exit_json(changed=self.na_helper.changed)
 
