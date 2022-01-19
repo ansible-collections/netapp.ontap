@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.15.1
+========
+
+Bugfixes
+--------
+
+- na_ontap_export_policy_rule - Fixed bug that prevent ZAPI and REST calls from working correctly
+
 v21.15.0
 ========
 

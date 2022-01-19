@@ -1259,6 +1259,14 @@ releases:
     - DEVOPS-4566.yaml
     - DEVOPS-4568.yaml
     release_date: '2022-01-12'
+  21.15.1:
+    changes:
+      bugfixes:
+      - na_ontap_export_policy_rule - Fixed bug that prevent ZAPI and REST calls from
+        working correctly
+    fragments:
+    - DEVOPS-4573.yaml
+    release_date: '2022-01-14'
   21.2.0:
     changes:
       bugfixes:
