@@ -35,9 +35,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
-## 21.15.1
+## 21.16.0
+
 ### Bug Fixes
-- na_ontap_export_policy_rule -- Fixed bug that prevent ZAPI and REST calls from working correctly
+  - na_ontap_volume: report error when attempting to change the nas_application tiering control from disalllowed to required, or reciprocally.
+
+## 21.15.1
+
+### Bug Fixes
+  - na_ontap_export_policy_rule - Fixed bug that prevent ZAPI and REST calls from working correctly.
 
 ## 21.15.0
 

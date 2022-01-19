@@ -67,7 +67,8 @@ SRR = {
                        "type": "rw",
                        "aggregates": [
                            {
-                               "name": "aggr1"
+                               "name": "aggr1",
+                               "uuid": "aggr1_uuid"
                            }
                        ],
                        "encryption": {
@@ -207,7 +208,11 @@ SRR = {
                                      "name": "test_app",
                                      "nas": {
                                          "application_components": [{'xxx': 1}]}
-                                     }]}, None)
+                                     }]}, None),
+    'get_aggr_one_object_store': (200,
+                                  {'records': ['one']}, None),
+    'get_aggr_two_object_stores': (200,
+                                   {'records': ['two']}, None),
 }
 
 
@@ -238,13 +243,21 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
+WARNINGS = []
+
+
+def warn_mock(self, msg):
+    WARNINGS.append(msg)
+
+
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
         self.mock_module_helper = patch.multiple(basic.AnsibleModule,
                                                  exit_json=exit_json,
-                                                 fail_json=fail_json)
+                                                 fail_json=fail_json,
+                                                 warn=warn_mock)
         self.mock_module_helper.start()
         self.addCleanup(self.mock_module_helper.stop)
         # self.server = MockONTAPConnection()
@@ -260,6 +273,8 @@ class TestMyModule(unittest.TestCase):
             'comment': 'new comment',
             'use_rest': 'always'
         }
+        global WARNINGS
+        WARNINGS = []
 
     @staticmethod
     def mock_args():
@@ -1016,7 +1031,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
-        msg = "Error set efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        msg = "Error setting efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -1033,7 +1048,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
-        msg = "Error set efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        msg = "Error setting efficiency for volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -1048,3 +1063,102 @@ class TestMyModule(unittest.TestCase):
             self.get_volume_mock_object().apply()
         msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)\n"
         assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_backend_fabricpool(self, mock_request):
+        global WARNINGS
+        data = dict(self.mock_args())
+        data['nas_application_template']['tiering'] = {'control': 'required'}
+        data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],
+            SRR['no_record'],       # get_aggr_object_stores
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error: changing a volume from one backend to another is not allowed.  Current tiering control: disallowed, desired: required."
+        assert exc.value.args[0]['msg'] == msg
+
+        data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'invalid'}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],
+            SRR['no_record'],   # modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        print(exc.value.args[0])
+        warning = "Unexpected value 'invalid' for warn_or_fail_on_fabricpool_backend_change, expecting: None, 'ignore', 'fail', 'warn'"
+        assert warning in WARNINGS
+
+        WARNINGS = []
+        data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'warn'}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],
+            SRR['no_record'],   # get_aggr_object_stores
+            SRR['no_record'],   # modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        warning = "Ignored " + msg
+        assert warning in WARNINGS
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_negative_modify_backend_fabricpool(self, mock_request):
+        ''' fail to get aggregate object store'''
+        global WARNINGS
+        data = dict(self.mock_args())
+        data['nas_application_template']['tiering'] = {'control': 'required'}
+        data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],
+            SRR['generic_error'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Error getting object store for aggregate: aggr1: calling: storage/aggregates/aggr1_uuid/cloud-stores: got Expected error."
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_tiering_control(self, mock_request):
+        ''' The volume is supported by one or more aggregates
+            If all aggregates are associated with one or more object stores, the volume has a FabricPool backend.
+            If all aggregates are not associated with one or more object stores, the volume meets the 'disallowed' criteria.
+        '''
+        global WARNINGS
+        data = dict(self.mock_args())
+        data['nas_application_template']['tiering'] = {'control': 'required'}
+        data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],                   # get_aggr_object_stores aggr1
+            SRR['no_record'],                   # get_aggr_object_stores aggr2
+            SRR['get_aggr_one_object_store'],   # get_aggr_object_stores aggr1
+            SRR['no_record'],                   # get_aggr_object_stores aggr2
+            SRR['get_aggr_two_object_stores'],  # get_aggr_object_stores aggr1
+            SRR['get_aggr_one_object_store'],   # get_aggr_object_stores aggr2
+            SRR['end_of_sequence']
+        ]
+        current = {'aggregates': [{'name': 'aggr1', 'uuid': 'uuid1'}, {'name': 'aggr2', 'uuid': 'uuid2'}]}
+        vol_object = self.get_volume_mock_object()
+        result = vol_object.tiering_control(current)
+        assert result == 'disallowed'
+        result = vol_object.tiering_control(current)
+        assert result == 'best_effort'
+        result = vol_object.tiering_control(current)
+        assert result == 'required'
+        current = {'aggregates': []}
+        result = vol_object.tiering_control(current)
+        assert result is None

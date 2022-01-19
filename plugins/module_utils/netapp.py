@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.15.1"
+COLLECTION_VERSION = "21.16.0"
 CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
 IMPORT_EXCEPTION = None
 
@@ -171,6 +171,7 @@ def get_feature(module, feature_name):
         # for SVM, whch protocols can be allowed
         svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs'],
         svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
+        warn_or_fail_on_fabricpool_backend_change='fail'
     )
 
     if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -10,11 +10,6 @@ na_ontap_volume
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 
@@ -533,6 +528,13 @@ options:
     - Whether to enable inline compression for the volume (HDD and Flash Pool aggregates, AFF platforms).
     type: bool
     version_added: '20.12.0'
+
+notes:
+  - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
+  - REST is enabled when C(use_rest) is set to always.
+  - The feature_flag C(warn_or_fail_on_fabricpool_backend_change) controls whether an error is reported when
+    tiering control would require or disallow FabricPool for an existing volume with a different backend.
+    Allowed values are fail, warn, and ignore, and the default is set to fail.
 '''
 
 EXAMPLES = """
@@ -758,7 +760,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapVolume(object):
+class NetAppOntapVolume:
     '''Class with volume operations'''
 
     def __init__(self):
@@ -2078,6 +2080,20 @@ class NetAppOntapVolume(object):
             msg = "Error: changing a volume from one backend to another is not allowed."
             msg += '  Current: %s, desired: %s.' % (self.volume_style, desired_style)
             self.module.fail_json(msg=msg)
+        desired_tcontrol = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering', 'control'])
+        if desired_tcontrol in ('required', 'disallowed'):
+            warn_or_fail = netapp_utils.get_feature(self.module, 'warn_or_fail_on_fabricpool_backend_change')
+            if warn_or_fail in ('warn', 'fail'):
+                current_tcontrol = self.tiering_control(current)
+                if desired_tcontrol != current_tcontrol:
+                    msg = "Error: changing a volume from one backend to another is not allowed."
+                    msg += '  Current tiering control: %s, desired: %s.' % (current_tcontrol, desired_tcontrol)
+                    if warn_or_fail == 'fail':
+                        self.module.fail_json(msg=msg)
+                    self.module.warn("Ignored " + msg)
+            elif warn_or_fail not in (None, 'ignore'):
+                self.module.warn("Unexpected value '%s' for warn_or_fail_on_fabricpool_backend_change, expecting: None, 'ignore', 'fail', 'warn'"
+                                 % warn_or_fail)
         if self.parameters.get('snapshot_auto_delete') is not None:
             auto_delete_modify = self.na_helper.get_modified_attributes(auto_delete_info,
                                                                         self.parameters['snapshot_auto_delete'])
@@ -2149,6 +2165,7 @@ class NetAppOntapVolume(object):
                             'tiering.policy,'
                             'nas.export_policy.name,'
                             'aggregates.name,'
+                            'aggregates.uuid,'
                             'uuid,'
                             'nas.path,'
                             'style,'
@@ -2330,9 +2347,11 @@ class NetAppOntapVolume(object):
             body['efficiency.policy.name'] = self.parameters['efficiency_policy']
         if self.get_compression():
             body['efficiency.compression'] = self.get_compression()
+        if not body:
+            return
         dummy, error = self.volume_rest_patch(body)
         if error:
-            self.module.fail_json(msg='Error set efficiency for volume %s: %s' % (self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error setting efficiency for volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def encryption_conversion_rest(self):
@@ -2410,6 +2429,7 @@ class NetAppOntapVolume(object):
             'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
             'export_policy': self.na_helper.safe_get(record, ['nas', 'export_policy', 'name']),
             'aggregate_name': aggr_name,
+            'aggregates': aggregates,
             'flexgroup_uuid': record.get('uuid', None),  # this might need some additional logic
             'instance_uuid': record.get('uuid', None),  # this might need some additional logic
             'junction_path': self.na_helper.safe_get(record, ['nas', 'path']),
@@ -2436,6 +2456,30 @@ class NetAppOntapVolume(object):
 
     def none_to_bool(self, value):
         return value != 'none'
+
+    def is_fabricpool(self, name, aggregate_uuid):
+        '''whether the aggregate is associated with one or more object stores'''
+        api = 'storage/aggregates/%s/cloud-stores' % aggregate_uuid
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api)
+        if error:
+            self.module.fail_json(msg="Error getting object store for aggregate: %s: %s" % (name, error))
+        return records is not None and len(records) > 0
+
+    def tiering_control(self, current):
+        '''return whether the backend meets FabricPool requirements:
+            required: all aggregates are in a FabricPool
+            disallowed: all aggregates are not in a FabricPool
+            best_effort: mixed
+        '''
+        fabricpools = [self.is_fabricpool(aggregate['name'], aggregate['uuid'])
+                       for aggregate in current.get('aggregates', [])]
+        if not fabricpools:
+            return None
+        if all(fabricpools):
+            return 'required'
+        if any(fabricpools):
+            return 'best_effort'
+        return 'disallowed'
 
     def apply(self):
         '''Call create/modify/delete operations'''
