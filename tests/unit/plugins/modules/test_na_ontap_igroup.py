@@ -37,6 +37,7 @@ SRR = {
         dict(uuid='a1b2c3',
              name='test',
              svm=dict(name='vserver'),
+             initiators=[{'name': 'todelete'}],
              protocol='fcp',
              os_type='aix')
     ], num_records=1), None),
@@ -333,6 +334,7 @@ class TestMyModule(unittest.TestCase):
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post (remove initiators)
             SRR['empty_good'],          # post (add initiators)
             SRR['empty_good'],          # patch (modify os_type)
             SRR['end_of_sequence']
@@ -347,22 +349,74 @@ class TestMyModule(unittest.TestCase):
         assert expected_call in mock_request.mock_calls
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_modify_igroups_rest(self, mock_request):
+    def test_successful_modify_initiator_objects_rest(self, mock_request):
         ''' Test successful modify '''
-        data = dict(self.mock_args())
+        data = dict(self.mock_args('always'))
         data.pop('initiator_names')
-        data['igroups'] = ['test_igroup']
-        data['use_rest'] = 'auto'
+        data['initiator_objects'] = [{'name': 'init1', 'comment': 'comment1'}]
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest_9_9_1'],
             SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post (remove initiators)
             SRR['empty_good'],          # post (add initiators)
             SRR['empty_good'],          # patch (modify os_type)
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
             igroup().apply()
+        assert exc.value.args[0]['changed']
+        print(mock_request.mock_calls)
+        expected_call = call('POST', 'protocols/san/igroups/a1b2c3/initiators', None,
+                             json={'records': [{'name': 'init1', 'comment': 'comment1'}]}, headers=None)
+        assert expected_call in mock_request.mock_calls
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'}, headers=None)
+        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_modify_initiator_objects_comment_rest(self, mock_request):
+        ''' Test successful modify '''
+        data = dict(self.mock_args('always'))
+        data.pop('initiator_names')
+        data['initiator_objects'] = [{'name': 'todelete', 'comment': 'comment1'}]
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_9_1'],
+            SRR['one_igroup_record'],   # get
+            # SRR['empty_good'],          # post (remove initiators)
+            SRR['empty_good'],          # post (add initiators)
+            SRR['empty_good'],          # patch (modify os_type)
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        assert exc.value.args[0]['changed']
+        print(mock_request.mock_calls)
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3/initiators/todelete', None, json={'comment': 'comment1'}, headers=None)
+        assert expected_call in mock_request.mock_calls
+        expected_call = call('PATCH', 'protocols/san/igroups/a1b2c3', None, json={'os_type': 'linux'}, headers=None)
+        assert expected_call in mock_request.mock_calls
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_successful_modify_igroups_rest(self, mock_request):
+        ''' Test successful modify '''
+        data = dict(self.mock_args())
+        data.pop('initiator_names')
+        data['igroups'] = ['test_igroup']
+        data['use_rest'] = 'auto'
+        data['force_remove_initiator'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_9_9_1'],
+            SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post (remove initiators)
+            SRR['empty_good'],          # post (add initiators)
+            SRR['empty_good'],          # patch (modify os_type)
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            igroup().apply()
+        print(mock_request.mock_calls)
         assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -415,6 +469,7 @@ class TestMyModule(unittest.TestCase):
             SRR['is_rest'],
             SRR['zero_record'],         # get
             SRR['one_igroup_record'],   # get
+            SRR['empty_good'],          # post for remove initiator
             SRR['empty_good'],          # post for add initiator
             SRR['empty_good'],          # patch for rename
             SRR['end_of_sequence']

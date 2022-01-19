@@ -1,7 +1,7 @@
 #!/usr/bin/python
-''' this is igroup module
+''' na_ontap_igroup
 
- (c) 2018-2019, NetApp, Inc
+ (c) 2018-2022, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -9,55 +9,49 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'certified'
-}
-
 DOCUMENTATION = '''
 
 module: na_ontap_igroup
 short_description: NetApp ONTAP iSCSI or FC igroup configuration
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-    - Create/Delete/Rename Igroups and Modify initiators belonging to an igroup
+  - Create/Delete/Rename Igroups and Modify initiators belonging to an igroup
 
 options:
   state:
     description:
-    - Whether the specified Igroup should exist or not.
+      - Whether the specified Igroup should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
 
   name:
     description:
-    - The name of the igroup to manage.
+      - The name of the igroup to manage.
     required: true
     type: str
 
   initiator_group_type:
     description:
-    - Type of the initiator group.
-    - Required when C(state=present).
+      - Type of the initiator group.
+      - Required when C(state=present).
     choices: ['fcp', 'iscsi', 'mixed']
     type: str
     aliases: ['protocol']
 
   from_name:
     description:
-    - Name of igroup to rename to name.
+      - Name of igroup to rename to name.
     version_added: 2.7.0
     type: str
 
   os_type:
     description:
-    - OS type of the initiators within the group.
+      - OS type of the initiators within the group.
     type: str
     aliases: ['ostype']
 
@@ -109,12 +103,13 @@ options:
 
   bind_portset:
     description:
-    - Name of a current portset to bind to the newly created igroup.
+      - Name of a current portset to bind to the newly created igroup.
     type: str
 
   force_remove_initiator:
     description:
-    -  Forcibly remove the initiator even if there are existing LUNs mapped to this initiator group.
+      - Forcibly remove the initiator even if there are existing LUNs mapped to this initiator group.
+      - This parameter should be used with caution.
     type: bool
     default: false
     aliases: ['allow_delete_while_mapped']
@@ -125,11 +120,14 @@ options:
     required: true
     type: str
 
+notes:
+  - supports check mode.
+  - supports ZAPI and REST.
 '''
 
 EXAMPLES = '''
     - name: Create iSCSI Igroup
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: present
         name: ansibleIgroup3
         initiator_group_type: iscsi
@@ -141,7 +139,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Create iSCSI Igroup - ONTAP 9.9
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: present
         name: ansibleIgroup3
         initiator_group_type: iscsi
@@ -156,7 +154,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Create FC Igroup
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: present
         name: ansibleIgroup4
         initiator_group_type: fcp
@@ -168,7 +166,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: rename Igroup
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: present
         from_name: ansibleIgroup3
         name: testexamplenewname
@@ -181,7 +179,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Modify Igroup Initiators (replaces exisiting initiator_names)
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: present
         name: ansibleIgroup3
         initiator_group_type: iscsi
@@ -193,7 +191,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Delete Igroup
-      na_ontap_igroup:
+      netapp.ontap.na_ontap_igroup:
         state: absent
         name: ansibleIgroup3
         vserver: ansibleVServer
@@ -217,7 +215,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpe
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapIgroup(object):
+class NetAppOntapIgroup:
     """Create/Delete/Rename Igroups and Modify initiators list"""
     def __init__(self):
 
@@ -335,7 +333,7 @@ class NetAppOntapIgroup(object):
                 )
             except KeyError as exc:
                 self.module.fail_json(msg='Error: unexpected igroup body: %s, KeyError on %s' % (str(igroup), str(exc)))
-            igroup_details['name_to_key'] = dict()
+            igroup_details['name_to_key'] = {}
             for attr in ('igroups', 'initiators'):
                 option = 'initiator_names' if attr == 'initiators' else attr
                 if attr in igroup:
@@ -346,7 +344,7 @@ class NetAppOntapIgroup(object):
                     igroup_details['name_to_uuid'][option] = dict((item['name'], item.get('uuid', item['name'])) for item in igroup[attr])
                 else:
                     igroup_details[option] = []
-                    igroup_details['name_to_uuid'][option] = dict()
+                    igroup_details['name_to_uuid'][option] = {}
             return igroup_details
         return None
 
@@ -454,7 +452,8 @@ class NetAppOntapIgroup(object):
     def delete_initiator_or_igroup_rest(self, uuid, option, name_or_uuid):
         self.check_option_is_valid(option)
         api = "protocols/san/igroups/%s/%s/%s" % (uuid, self.get_rest_name_for_option(option), name_or_uuid)
-        dummy, error = self.rest_api.delete(api)
+        query = {'allow_delete_while_mapped': True} if self.parameters['force_remove_initiator'] else None
+        dummy, error = self.rest_api.delete(api, params=query)
         self.fail_on_error(error)
 
     def remove_initiators_or_igroups(self, uuid, option, current_names, mapping):
@@ -476,6 +475,8 @@ class NetAppOntapIgroup(object):
         """
         options = {'initiator-group-name': self.parameters['name'],
                    'initiator': initiator}
+        if zapi == 'igroup-remove' and self.parameters.get('force_remove_initiator'):
+            options['force'] = 'true'
 
         igroup_modify = netapp_utils.zapi.NaElement.create_node_with_children(zapi, **options)
 
@@ -566,10 +567,7 @@ class NetAppOntapIgroup(object):
 
     def delete_igroup_rest(self, uuid):
         api = "protocols/san/igroups/%s" % uuid
-        if self.parameters['force_remove_initiator']:
-            query = dict(allow_delete_while_mapped=True)
-        else:
-            query = None
+        query = {'allow_delete_while_mapped': True} if self.parameters['force_remove_initiator'] else None
         dummy, error = self.rest_api.delete(api, params=query)
         self.fail_on_error(error)
 
@@ -648,6 +646,25 @@ class NetAppOntapIgroup(object):
             cd_action = None
         return cd_action, rename, current
 
+    def modify_igroup(self, uuid, current, modify):
+        for attr in ('igroups', 'initiator_names'):
+            if attr in current:
+                # we need to remove everything first
+                self.remove_initiators_or_igroups(uuid, attr, current[attr], current['name_to_uuid'][attr])
+        for attr in ('igroups', 'initiator_names'):
+            if attr in current:
+                self.add_initiators_or_igroups(uuid, attr, current[attr])
+            modify.pop(attr, None)
+        if 'initiator_objects' in modify:
+            if self.use_rest:
+                # comments are not supported in ZAPI, we already checked for that in validate changes
+                changed_initiator_objects = self.change_in_initiator_comments(modify, current)
+                self.modify_initiators_rest(uuid, changed_initiator_objects)
+            modify.pop('initiator_objects',)
+        if modify:
+            # validate_modify ensured modify is empty with ZAPI
+            self.modify_igroup_rest(uuid, modify)
+
     def apply(self):
         self.autosupport_log()
         uuid = None
@@ -678,22 +695,7 @@ class NetAppOntapIgroup(object):
             elif cd_action == 'delete':
                 self.delete_igroup(uuid)
             if modify:
-                for attr in ('igroups', 'initiator_names'):
-                    if attr in current:
-                        # we need to remove everything first
-                        self.remove_initiators_or_igroups(uuid, attr, current[attr], current['name_to_uuid'][attr])
-                for attr in ('igroups', 'initiator_names'):
-                    if attr in current:
-                        self.add_initiators_or_igroups(uuid, attr, current[attr])
-                    modify.pop(attr, None)
-                if 'initiator_objects' in modify:
-                    if self.use_rest:
-                        # comments are not supported in ZAPI, we already checked for that in validate changes
-                        changed_initiator_objects = self.change_in_initiator_comments(modify, current)
-                        self.modify_initiators_rest(uuid, changed_initiator_objects)
-                    modify.pop('initiator_objects',)
-                if modify:
-                    self.modify_igroup_rest(uuid, modify)
+                self.modify_igroup(uuid, current, modify)
         self.module.exit_json(changed=self.na_helper.changed, current=current, modify=saved_modify)
 
 

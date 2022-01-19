@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.16.0
 
 ### Bug Fixes
+  - na_ontap_igroup - `force_remove_initiator` option was ignored when removing initiators from existing igroup.
   - na_ontap_volume: report error when attempting to change the nas_application tiering control from disalllowed to required, or reciprocally.
 
 ## 21.15.1
