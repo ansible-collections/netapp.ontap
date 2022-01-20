@@ -5,6 +5,7 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+import copy
 import json
 import pytest
 import sys
@@ -15,7 +16,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_certificates \
-    import NetAppOntapSecurityCertificates as my_module  # module under test
+    import NetAppOntapSecurityCertificates as my_module, main as my_main  # module under test
 
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
@@ -33,7 +34,10 @@ SRR = {
     # module specific responses
     'empty_records': (200, {'records': []}, None),
     'get_uuid': (200, {'records': [{'uuid': 'ansible'}]}, None),
-    'error_unexpected_name': (200, None, {'message': 'Unexpected argument "name".'})
+    'get_multiple_records': (200, {'records': [{'uuid': 'ansible'}, {'uuid': 'second'}]}, None),
+    'error_unexpected_name': (200, None, {'message': 'Unexpected argument "name".'}),
+    'error_duplicate_entry': (200, None, {'message': 'duplicate entry', 'target': 'uuid'}),
+    'error_some_error': (200, None, {'message': 'some error'}),
 }
 
 NAME_ERROR = "Error calling API: security/certificates - ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
@@ -111,9 +115,8 @@ def test_rest_error(mock_request, mock_fail):
         SRR['end_of_sequence']
     ]
     set_module_args(set_default_args())
-    my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
+        my_main()
     assert exc.value.args[0]['msg'] == EXPECTED_ERROR
 
 
@@ -193,6 +196,33 @@ def test_rest_idempotent_create(mock_request, mock_fail, mock_exit):
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
 @patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_create_duplicate_entry(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['empty_records'],   # get certificate -> not found
+        copy.deepcopy(SRR['error_duplicate_entry']),    # code under test modifies error in place
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'type': 'client_ca',
+        'common_name': 'cname'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Error creating or installing certificate: {'message': 'duplicate entry.  "\
+        + "Same certificate may already exist under a different name.', 'target': 'cluster'}"
+    print('EXC', exc.value.args[0]['msg'])
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_delete(mock_request, mock_fail, mock_exit):
     mock_exit.side_effect = exit_json
     mock_fail.side_effect = fail_json
@@ -239,6 +269,56 @@ def test_rest_idempotent_delete(mock_request, mock_fail, mock_exit):
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
 @patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_delete(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_uuid'],    # get certificate -> found
+        SRR['error_some_error'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'state': 'absent',
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Error deleting certificate: {'message': 'some error'}"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_multiple_records(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_multiple_records'],    # get certificate -> 2 records!
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'state': 'absent',
+        'common_name': 'cname',
+        'type': 'client_ca',
+    }
+    data.update(set_default_args())
+    data.pop('name')
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Duplicate records with same common_name are preventing safe operations: {'records': [{'uuid': 'ansible'}, {'uuid': 'second'}]}"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
     mock_exit.side_effect = exit_json
     mock_fail.side_effect = fail_json
@@ -250,7 +330,8 @@ def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
     ]
     data = {
         'vserver': 'abc',
-        'signing_request': 'CSR'
+        'signing_request': 'CSR',
+        'expiry_time': 'et'
     }
     data.update(set_default_args())
     set_module_args(data)
@@ -258,6 +339,32 @@ def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
     assert exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_sign(mock_request, mock_fail, mock_exit):
+    mock_exit.side_effect = exit_json
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_uuid'],    # get certificate -> found
+        SRR['error_some_error'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'vserver': 'abc',
+        'signing_request': 'CSR',
+        'expiry_time': 'et'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Error signing certificate: {'message': 'some error'}"
+    assert msg == exc.value.args[0]['msg']
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
@@ -439,3 +546,36 @@ def test_rest_successful_create_name_error(mock_request, mock_fail, mock_exit):
         my_obj.apply()
     assert exc.value.args[0]['changed']
     print(mock_request.mock_calls)
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+def test_rest_negative_no_name_and_type(mock_fail):
+    mock_fail.side_effect = fail_json
+    data = {
+        'common_name': 'cname',
+        # 'type': 'client_ca',
+        'vserver': 'abc',
+    }
+    data.update(set_default_args())
+    data.pop('name')
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = "Error: 'name' or ('common_name' and 'type') are required parameters."
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_ZAPI_only(mock_request, mock_fail):
+    mock_fail.side_effect = fail_json
+    mock_request.side_effect = [
+        SRR['is_zapi'],
+        SRR['end_of_sequence']
+    ]
+    set_module_args(set_default_args())
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj = my_module()
+    print(exc.value.args[0])
+    msg = "na_ontap_security_certificates only supports REST, and requires ONTAP 9.6 or later. - Unreachable"
+    assert msg == exc.value.args[0]['msg']

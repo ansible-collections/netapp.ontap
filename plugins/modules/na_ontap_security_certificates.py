@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -9,12 +9,6 @@ na_ontap_security_certificates
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 
@@ -122,11 +116,14 @@ options:
     default: true
     version_added: '20.8.0'
 
+notes:
+  - supports check mode.
+  - only supports REST.  Requires ONTAP 9.6 or later, ONTAP 9.8 or later is recommended.
 '''
 
 EXAMPLES = """
 - name: install certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     common_name: "{{ ontap_cert_common_name }}"
     name: "{{ ontap_cert_name }}"
@@ -135,7 +132,7 @@ EXAMPLES = """
     svm: "{{ vserver }}"
 
 - name: create certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     common_name: "{{ ontap_cert_root_common_name }}"
     name: "{{ ontap_cert_name }}"
@@ -145,7 +142,7 @@ EXAMPLES = """
 
 - name: sign certificate using newly create certificate
   tags: sign_request
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *login
     name: "{{ ontap_cert_name }}"
     svm: "{{ vserver }}"
@@ -169,7 +166,7 @@ EXAMPLES = """
     expiry_time: P180DT
 
 - name: delete certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     state: absent
     name: "{{ ontap_cert_name }}"
@@ -177,7 +174,7 @@ EXAMPLES = """
 
 # For ONTAP 9.6 or 9.7, use common_name and type, in addition to, or in lieu of name
 - name: install certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     common_name: "{{ ontap_cert_common_name }}"
     public_certificate: "{{ ssl_certificate }}"
@@ -185,7 +182,7 @@ EXAMPLES = """
     svm: "{{ vserver }}"
 
 - name: create certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     common_name: "{{ ontap_cert_root_common_name }}"
     type: root_ca
@@ -194,7 +191,7 @@ EXAMPLES = """
 
 - name: sign certificate using newly create certificate
   tags: sign_request
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *login
     common_name: "{{ ontap_cert_root_common_name }}"
     type: root_ca
@@ -219,7 +216,7 @@ EXAMPLES = """
     expiry_time: P180DT
 
 - name: delete certificate
-  na_ontap_security_certificates:
+  netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
     state: absent
     common_name: "{{ ontap_cert_root_common_name }}"
@@ -246,7 +243,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
 
-class NetAppOntapSecurityCertificates(object):
+class NetAppOntapSecurityCertificates:
     ''' object initialize and class methods '''
 
     def __init__(self):
@@ -276,10 +273,9 @@ class NetAppOntapSecurityCertificates(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if self.parameters.get('name') is None:
-            if self.parameters.get('common_name') is None or self.parameters.get('type') is None:
-                error = "'name' or ('common_name' and 'type') are required parameters."
-                self.module.fail_json(msg=error)
+        if self.parameters.get('name') is None and (self.parameters.get('common_name') is None or self.parameters.get('type') is None):
+            error = "Error: 'name' or ('common_name' and 'type') are required parameters."
+            self.module.fail_json(msg=error)
 
         # ONTAP 9.6 and 9.7 do not support name.  We'll change this to True if we detect an issue.
         self.ignore_name_param = False
@@ -344,29 +340,31 @@ class NetAppOntapSecurityCertificates(object):
             self.module.fail_json(msg=error)
         return None
 
-    def create_or_install_certificate(self):
+    def create_or_install_certificate(self, validate_only=False):
         """
         Create or install certificate
         :return: message (should be empty dict)
         """
         required_keys = ['type', 'common_name']
-        optional_keys = ['public_certificate', 'private_key', 'expiry_time', 'key_size', 'hash_function']
+        if validate_only:
+            if not set(required_keys).issubset(set(self.parameters.keys())):
+                self.module.fail_json(msg='Error creating or installing certificate: one or more of the following options are missing: %s'
+                                      % (', '.join(required_keys)))
+            return
+
+        optional_keys = ['public_certificate', 'private_key', 'expiry_time', 'key_size', 'hash_function', 'intermediate_certificates']
         if not self.ignore_name_param:
             optional_keys.append('name')
         # special key: svm
 
-        if not set(required_keys).issubset(set(self.parameters.keys())):
-            self.module.fail_json(msg='Error creating or installing certificate: one or more of the following options are missing: %s'
-                                  % (', '.join(required_keys)))
-
-        data = dict()
+        body = {}
         if self.parameters.get('svm') is not None:
-            data['svm'] = {'name': self.parameters['svm']}
+            body['svm'] = {'name': self.parameters['svm']}
         for key in required_keys + optional_keys:
             if self.parameters.get(key) is not None:
-                data[key] = self.parameters[key]
+                body[key] = self.parameters[key]
         api = "security/certificates"
-        message, error = self.rest_api.post(api, data)
+        message, error = self.rest_api.post(api, body)
         if error:
             if self.parameters.get('svm') is None and error.get('target') == 'uuid':
                 error['target'] = 'cluster'
@@ -381,12 +379,12 @@ class NetAppOntapSecurityCertificates(object):
         :return: a dictionary with key "public_certificate"
         """
         api = "security/certificates/%s/sign" % uuid
-        data = {'signing_request': self.parameters['signing_request']}
+        body = {'signing_request': self.parameters['signing_request']}
         optional_keys = ['expiry_time', 'hash_function']
         for key in optional_keys:
             if self.parameters.get(key) is not None:
-                data[key] = self.parameters[key]
-        message, error = self.rest_api.post(api, data)
+                body[key] = self.parameters[key]
+        message, error = self.rest_api.post(api, body)
         if error:
             self.module.fail_json(msg="Error signing certificate: %s" % error)
         return message
@@ -423,18 +421,20 @@ class NetAppOntapSecurityCertificates(object):
                 error = "'signing_request' is exclusive with other actions: create, install, delete"
             if error is not None:
                 self.module.fail_json(msg=error)
+            cd_action = 'sign'
             self.na_helper.changed = True
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    message = self.create_or_install_certificate()
-                elif cd_action == 'delete':
-                    message = self.delete_certificate(current['uuid'])
-                elif self.parameters.get('signing_request') is not None:
-                    message = self.sign_certificate(current['uuid'])
+        if self.na_helper.changed and cd_action == 'create':
+            # validate as much as we can in check_mode or not
+            self.create_or_install_certificate(validate_only=True)
+
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                message = self.create_or_install_certificate()
+            elif cd_action == 'sign':
+                message = self.sign_certificate(current['uuid'])
+            elif cd_action == 'delete':
+                message = self.delete_certificate(current['uuid'])
 
         results = {'changed': self.na_helper.changed}
         if message:

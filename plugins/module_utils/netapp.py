@@ -607,7 +607,7 @@ class OntapRestAPI(object):
             logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
 
     def requires_ontap_9_6(self, module_name):
-        self.requires_ontap_version(module_name)
+        return self.requires_ontap_version(module_name)
 
     def requires_ontap_version(self, module_name, version='9.6'):
         suffix = " - %s" % self.is_rest_error if self.is_rest_error is not None else ""

@@ -34,17 +34,17 @@
     # parameters to set up the certificate, ontap_cert_user must match the value of CN= when generating the certificate
     ontap_cert_user: cert_user
     ontap_cert_name: testme-cert
-    # admin or vsadmin
+    # data SVM, name and set role to vsadmin
+    svm: ansibleSVM
     ontap_cert_role: vsadmin
-    # data SVM
-    svm: trident_svm
-    # uncomment and leave the value empty for cluster certificate
+    # uncomment and leave the value empty for cluster certificate, set role to admin
     # svm:
+    # ontap_cert_role: admin
     # admin or SVM IP address (for admin, would the same as ontap_admin_ip)
     ontap_svm_ip: 10.XXX.XXX.X21
     # certificate and private key files
-    cert_filepath: "/home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.pem"
-    key_filepath: "/home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.key"
+    cert_filepath: "/home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.pem"
+    key_filepath: "/home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.key"
     # set this to false if the certificate is self-signed
     validate_certs_for_ssl_auth: false
 
