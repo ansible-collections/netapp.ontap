@@ -138,7 +138,8 @@ class TestMyModule(unittest.TestCase):
             'mode': self.mock_ifgrp['mode'],
             'hostname': 'test',
             'username': 'test_user',
-            'password': 'test_pass!'
+            'password': 'test_pass!',
+            'feature_flags': {'no_cserver_ems': True}
         }
 
     def get_ifgrp_mock_object(self, kind=None, data=None):

@@ -30,7 +30,7 @@ options:
 
 EXAMPLES = """
     - name: Set node compliance clock
-      na_ontap_snaplock_clock:
+      netapp.ontap.na_ontap_snaplock_clock:
         node: cluster1-01
         hostname: "{{ hostname }}"
         username: "{{ username }}"
@@ -51,7 +51,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
-class NetAppOntapSnaplockClock():
+class NetAppOntapSnaplockClock:
     '''Class with SnapLock clock operations'''
 
     def __init__(self):
@@ -139,7 +139,7 @@ class NetAppOntapSnaplockClock():
                 "node": self.parameters['node']
             }
 
-            body = dict()
+            body = {}
             dummy, error = self.rest_api.patch(api, body, query)
             if error:
                 self.module.fail_json(msg=error)
@@ -155,23 +155,17 @@ class NetAppOntapSnaplockClock():
                                           exception=traceback.format_exc())
             return result
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        return netapp_utils.ems_log_event("na_ontap_snaplock_clock", cserver)
-
     def apply(self):
         if not self.use_rest:
-            self.ems_log_event()
+            netapp_utils.ems_log_event_cserver("na_ontap_snaplock_clock", self.server, self.module)
 
         current = self.get_snaplock_node_compliance_clock()
 
         if current['compliance_clock_time'] == "ComplianceClock is not configured.":
             self.na_helper.changed = True
 
-        if self.na_helper.changed:
-            if not self.module.check_mode:
-                self.set_snaplock_node_compliance_clock()
+        if self.na_helper.changed and not self.module.check_mode:
+            self.set_snaplock_node_compliance_clock()
 
         self.module.exit_json(changed=self.na_helper.changed)
 

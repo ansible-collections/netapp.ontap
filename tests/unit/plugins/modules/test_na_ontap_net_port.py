@@ -122,7 +122,8 @@ class TestMyModule(unittest.TestCase):
             'mtu': self.mock_port['mtu'],
             'hostname': 'test',
             'username': 'test_user',
-            'password': 'test_pass!'
+            'password': 'test_pass!',
+            'feature_flags': {'no_cserver_ems': True}
         }
 
     def get_port_mock_object(self, kind=None, data=None):

@@ -65,10 +65,13 @@ class MockONTAPConnection(object):
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        print('IN:', xml.to_string())
         if self.kind == 'vserver_peer':
             xml = self.build_vserver_peer_info(self.data)
         if self.kind == 'cluster':
             xml = self.build_cluster_info(self.data)
+        if self.kind == 'zapi_error':
+            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         self.xml_out = xml
         return xml
 
@@ -127,6 +130,8 @@ class TestMyModule(unittest.TestCase):
             'dest_hostname': 'hostname',
             'username': 'username',
             'password': 'password',
+            'feature_flags': {'no_cserver_ems': True},
+            'use_rest': 'never'
 
         }
 
@@ -309,7 +314,7 @@ class TestMyModule(unittest.TestCase):
         data = dict(self.mock_vserver_peer)
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
-            uut_main()
+            self.get_vserver_peer_mock_object('zapi_error').apply()
         msg = "Error fetching vserver peer"
         assert msg in exc.value.args[0]['msg']
 

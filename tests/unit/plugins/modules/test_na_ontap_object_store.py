@@ -142,7 +142,8 @@ class TestMyModule(unittest.TestCase):
             'hostname': hostname,
             'username': username,
             'password': password,
-            'name': name
+            'name': name,
+            'feature_flags': {'no_cserver_ems': True}
         })
 
     def call_command(self, module_args, cx_type='zapi'):

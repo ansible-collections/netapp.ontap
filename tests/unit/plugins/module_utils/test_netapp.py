@@ -94,6 +94,13 @@ class MockONTAPConnection(object):
         return xml
 
 
+class MockModule:
+    def __init__(self):
+        self.params = {
+            'feature_flags': None
+        }
+
+
 def test_ems_log_event_version():
     ''' validate Ansible version is correctly read '''
     source = 'unittest'
@@ -129,7 +136,7 @@ def test_ems_log_event_cserver(mock_setup):
     ''' validate Ansible version is correctly read '''
     source = 'unittest'
     svm_name = 'svm1'
-    module = 'na'
+    module = MockModule()
     server = MockONTAPConnection('vserver', svm_name)
     mock_setup.return_value = MockONTAPConnection('vserver', 'cserver')
     netapp_utils.ems_log_event_cserver(source, server, module)
@@ -148,7 +155,7 @@ def test_ems_log_event_cserver_no_admin(mock_setup):
     ''' no error is a vserser missing error is reported '''
     source = 'unittest'
     svm_name = 'svm1'
-    module = 'na'
+    module = MockModule()
     server = MockONTAPConnection('vserver', svm_name)
     mock_setup.return_value = MockONTAPConnection('error_no_vserver')
     netapp_utils.ems_log_event_cserver(source, server, module)
@@ -167,7 +174,7 @@ def test_ems_log_event_cserver_other_error(mock_setup):
     ''' exception is raised for other errors '''
     source = 'unittest'
     svm_name = 'svm1'
-    module = 'na'
+    module = MockModule()
     server = MockONTAPConnection('vserver', svm_name)
     mock_setup.return_value = MockONTAPConnection('error_other_error')
     with pytest.raises(netapp_utils.zapi.NaApiError) as exc:

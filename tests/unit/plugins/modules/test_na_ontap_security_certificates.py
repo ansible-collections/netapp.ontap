@@ -214,10 +214,11 @@ def test_rest_negative_create_duplicate_entry(mock_request, mock_fail, mock_exit
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    msg = "Error creating or installing certificate: {'message': 'duplicate entry.  "\
-        + "Same certificate may already exist under a different name.', 'target': 'cluster'}"
     print('EXC', exc.value.args[0]['msg'])
-    assert msg == exc.value.args[0]['msg']
+    for fragment in ('Error creating or installing certificate: {',
+                     "'message': 'duplicate entry.  Same certificate may already exist under a different name.'",
+                     "'target': 'cluster'"):
+        assert fragment in exc.value.args[0]['msg']
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')

@@ -192,6 +192,7 @@ def test_successful_initialize(self, patch_ansible):
     ''' Initializing snaplock_clock and test idempotency '''
     args = dict(default_args())
     args['use_rest'] = 'never'
+    args['feature_flags'] = {'no_cserver_ems': True}
     set_module_args(args)
     my_obj = my_module()
     my_obj.server = MockONTAPConnection(kind='snaplock_clock_not_set')
@@ -204,6 +205,7 @@ def test_successful_initialize(self, patch_ansible):
     # test idempotency
     args = dict(default_args())
     args['use_rest'] = 'never'
+    args['feature_flags'] = {'no_cserver_ems': True}
     set_module_args(args)
     my_obj = my_module()
     my_obj.server = MockONTAPConnection('snaplock_clock_set')

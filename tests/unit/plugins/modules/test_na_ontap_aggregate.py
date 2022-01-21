@@ -202,16 +202,20 @@ class TestMyModule(unittest.TestCase):
             username = 'admin'
             password = 'netapp1!'
             name = 'name'
+            feature_flags = {}
         else:
             hostname = 'hostname'
             username = 'username'
             password = 'password'
             name = AGGR_NAME
+            feature_flags = {'no_cserver_ems': True}
         return dict({
             'hostname': hostname,
             'username': username,
             'password': password,
-            'name': name
+            'name': name,
+            'use_rest': 'never',
+            'feature_flags': feature_flags
         })
 
     def call_command(self, module_args, what=None, fail=False):

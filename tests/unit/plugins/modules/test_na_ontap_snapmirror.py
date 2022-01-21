@@ -997,8 +997,9 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_sm_break_success_no_data_transfer(self, mock_request):
+    def test_sm_break_success_no_data_transfer(self, mock_request, dont_sleep):
         ''' testing snapmirror break when no_data are transferring '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
@@ -1060,8 +1061,9 @@ class TestMyModule(unittest.TestCase):
         msg = "SnapMirror relationship cannot be broken if mirror state is uninitialized"
         assert exc.value.args[0]['msg'] == msg
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_squiesce_fail_when_state_not_paused(self, mock_request):
+    def test_snapmirror_quiesce_fail_when_state_not_paused(self, mock_request, dont_sleep):
         ''' testing snapmirror break when no_data are transferring '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
@@ -1145,8 +1147,9 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_delete(self, mock_request):
+    def test_snapmirror_delete(self, mock_request, dont_sleep):
         ''' snapmirror delete '''
         data = get_args_rest()
         data['state'] = 'absent'
@@ -1176,8 +1179,9 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
 
+    @patch('time.sleep')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_delete_calls_abort(self, mock_request):
+    def test_snapmirror_delete_calls_abort(self, mock_request, dont_sleep):
         ''' snapmirror delete calls abort when transfer state is in transferring'''
         data = get_args_rest()
         data['state'] = 'absent'

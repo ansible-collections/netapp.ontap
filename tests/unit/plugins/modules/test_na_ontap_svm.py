@@ -181,7 +181,9 @@ class TestMyModule(unittest.TestCase):
                 'hostname': 'test',
                 'username': 'test_user',
                 'password': 'test_pass!',
-                'use_rest': 'never'
+                'use_rest': 'never',
+                'feature_flags': {'no_cserver_ems': True}
+
             }
 
     def get_vserver_mock_object(self, kind=None, data=None, cx_type='zapi'):

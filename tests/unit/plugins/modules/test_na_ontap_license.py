@@ -93,7 +93,8 @@ class TestMyModule(unittest.TestCase):
             'username': 'test_user',
             'password': 'test_pass!',
             'use_rest': 'never',
-            'state': 'present'
+            'state': 'present',
+            'feature_flags': {'no_cserver_ems': True}
         }
 
     def get_license_mock_object(self, kind=None, data=None):
@@ -107,12 +108,7 @@ class TestMyModule(unittest.TestCase):
         license_obj.asup_log_for_cserver = Mock(return_value=None)
         license_obj.cluster = Mock()
         license_obj.cluster.invoke_successfully = Mock()
-        if kind is None:
-            license_obj.server = MockONTAPConnection()
-        elif kind == 'generic-error':
-            license_obj.server = MockONTAPConnection(kind=kind)
-        elif kind == 'entry-not-exist':
-            license_obj.server = MockONTAPConnection(kind=kind)
+        license_obj.server = MockONTAPConnection(kind=kind)
         return license_obj
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')

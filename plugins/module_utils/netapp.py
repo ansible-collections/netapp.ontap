@@ -171,7 +171,8 @@ def get_feature(module, feature_name):
         # for SVM, whch protocols can be allowed
         svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs'],
         svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
-        warn_or_fail_on_fabricpool_backend_change='fail'
+        warn_or_fail_on_fabricpool_backend_change='fail',
+        no_cserver_ems=False                    # when True, don't attempt to find cserver and don't send cserver EMS
     )
 
     if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:
@@ -339,6 +340,8 @@ def is_zapi_missing_vserver_error(message):
 
 
 def ems_log_event_cserver(source, server, module):
+    if has_feature(module, 'no_cserver_ems'):
+        return
     results = get_cserver(server)
     cserver = setup_na_ontap_zapi(module=module, vserver=results)
     ems_log_event(source, cserver)
@@ -695,16 +698,19 @@ class OntapRestAPI(object):
             error = json.get('error')
             return json, error
 
-        if self.auth_method == 'single_cert':
-            kwargs = dict(cert=self.cert_filepath)
-        elif self.auth_method == 'cert_key':
-            kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
-        elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
-            # with requests, there is no challenge, eg no 401.
-            kwargs = dict(auth=(self.username, self.password))
-        else:
-            raise KeyError(self.auth_method)
+        def get_auth_args():
+            if self.auth_method == 'single_cert':
+                kwargs = dict(cert=self.cert_filepath)
+            elif self.auth_method == 'cert_key':
+                kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
+            elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
+                # with requests, there is no challenge, eg no 401.
+                kwargs = dict(auth=(self.username, self.password))
+            else:
+                raise KeyError(self.auth_method)
+            return kwargs
 
+        kwargs = get_auth_args()
         self.log_debug('sending', repr(dict(method=method, url=url, verify=self.verify, params=params,
                                             timeout=self.timeout, json=json, headers=headers, **kwargs)))
         try:

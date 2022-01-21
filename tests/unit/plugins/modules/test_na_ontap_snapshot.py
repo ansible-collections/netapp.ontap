@@ -162,7 +162,8 @@ class TestMyModule(unittest.TestCase):
             'volume': volume,
             'snapshot': snapshot,
             'comment': comment,
-            'snapmirror_label': snapmirror_label
+            'snapmirror_label': snapmirror_label,
+            'use_rest': 'never'
         })
 
     def set_rest_args(self):
