@@ -95,6 +95,10 @@ SRR = {
                            "uuid": "0a42a3d9-0c29-11ec-a267-005056b30cfa"
                        },
                        "space": {
+                           "logical_space": {
+                               "enforcement": False,
+                               "reporting": False,
+                           },
                            "size": 10737418240,
                            "snapshot": {
                                "reserve_percent": 5
@@ -1063,6 +1067,39 @@ class TestMyModule(unittest.TestCase):
             self.get_volume_mock_object().apply()
         msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)\n"
         assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_created_with_logical_space(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['logical_space_enforcement'] = False
+        data['logical_space_reporting'] = False
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],  # Get Volume
+            SRR['no_record'],  # Create Volume
+            SRR['get_volume'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_modify_attributes(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['logical_space_enforcement'] = True
+        data['logical_space_reporting'] = True
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume'],  # Get Volume
+            SRR['no_record'],  # Modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_modify_backend_fabricpool(self, mock_request):

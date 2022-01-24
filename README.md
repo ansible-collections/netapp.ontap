@@ -37,6 +37,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.16.0
 
+### New Options
+  - na_ontap_volume - `logical_space_enforcement` to specifies whether to perform logical space accounting on the volume.
+  - na_ontap_volume - `logical_space_reporting` to specifies whether to report space logically on the volume.
+
 ### Bug Fixes
   - na_ontap_igroup - `force_remove_initiator` option was ignored when removing initiators from existing igroup.
   - na_ontap_security_certificates - `intermediate_certificates` option was ignored.

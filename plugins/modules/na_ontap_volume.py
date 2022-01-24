@@ -529,12 +529,31 @@ options:
     type: bool
     version_added: '20.12.0'
 
+  logical_space_enforcement:
+    description:
+    - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
+      logically, ONTAP enforces volume settings such that all the physical space saved by the storage efficiency
+      features will be calculated as used.
+    - This is only supported with REST.
+    type: bool
+    version_added: '20.16.0'
+
+  logical_space_reporting:
+    description:
+    - This optionally specifies whether to report space logically on the volume. When space is reported logically,
+      ONTAP reports the volume space such that all the physical space saved by the storage efficiency features are also
+      reported as used.
+    - This is only supported with REST.
+    type: bool
+    version_added: '20.16.0'
+
 notes:
   - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
   - REST is enabled when C(use_rest) is set to always.
   - The feature_flag C(warn_or_fail_on_fabricpool_backend_change) controls whether an error is reported when
     tiering control would require or disallow FabricPool for an existing volume with a different backend.
     Allowed values are fail, warn, and ignore, and the default is set to fail.
+
 '''
 
 EXAMPLES = """
@@ -852,6 +871,8 @@ class NetAppOntapVolume:
                 ))
             )),
             size_change_threshold=dict(type='int', default=10),
+            logical_space_enforcement=dict(required=False, type='bool'),
+            logical_space_reporting=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -894,6 +915,7 @@ class NetAppOntapVolume:
                                        'space_slo',
                                        'vserver_dr_protection']
         self.partially_supported_rest_properties = [['efficiency_policy', (9, 7)]]
+        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting']
         self.rest_api = OntapRestAPI(self.module)
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
         self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties, self.partially_supported_rest_properties, self.parameters)
@@ -908,9 +930,11 @@ class NetAppOntapVolume:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(
                     msg="the python NetApp-Lib module is required")
-            elif self.parameters.get('sizing_method'):
-                self.module.fail_json(msg="sizing_method is not supported with ZAPI. It can only be used with REST")
             else:
+                for unsupported_zapi_property in self.unsupported_zapi_properties:
+                    if self.parameters.get(unsupported_zapi_property) is not None:
+                        self.module.fail_json(
+                            msg="%s is not supported with ZAPI. It can only be used with REST" % unsupported_zapi_property)
                 self.server = netapp_utils.setup_na_ontap_zapi(
                     module=self.module, vserver=self.parameters['vserver'])
                 self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -1745,7 +1769,8 @@ class NetAppOntapVolume:
         for attribute in attributes:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
-                             'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection', 'comment']:
+                             'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
+                             'comment', 'logical_space_enforcement', 'logical_space_reporting']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2181,7 +2206,9 @@ class NetAppOntapVolume:
                             'space.size,'
                             'guarantee.type,'
                             'state,'
-                            'efficiency.compression,'}
+                            'efficiency.compression,'
+                            'space.logical_space.enforcement,'
+                            'space.logical_space.reporting,'}
         if self.parameters.get('efficiency_policy'):
             params['fields'] += 'efficiency.policy.name,'
 
@@ -2266,6 +2293,10 @@ class NetAppOntapVolume:
             body['tiering.policy'] = self.parameters['tiering_policy']
         if self.parameters.get('encrypt') is not None:
             body['encryption.enabled'] = self.parameters['encrypt']
+        if self.parameters.get('logical_space_enforcement') is not None:
+            body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
+        if self.parameters.get('logical_space_reporting') is not None:
+            body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
         body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
@@ -2310,6 +2341,11 @@ class NetAppOntapVolume:
         # TODO: Check if this work. The Zapi to Rest doc dosn't metion it. The Rest API example though show it exists
         if self.parameters.get('comment') is not None:
             body['comment'] = self.parameters['comment']
+        if self.parameters.get('logical_space_enforcement') is not None:
+            body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
+        if self.parameters.get('logical_space_reporting') is not None:
+            body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
+        body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
     def change_volume_state_rest(self):
@@ -2452,6 +2488,9 @@ class NetAppOntapVolume:
             'efficiency_policy': self.na_helper.safe_get(record, ['efficiency', 'policy', 'name']),
             'compression': rest_compression in ('both', 'background'),
             'inline_compression': rest_compression in ('both', 'inline'),
+            'logical_space_enforcement': self.na_helper.safe_get(record, ['space', 'logical_space', 'enforcement']),
+            'logical_space_reporting': self.na_helper.safe_get(record, ['space', 'logical_space', 'reporting'])
+
         }
 
     def none_to_bool(self, value):
