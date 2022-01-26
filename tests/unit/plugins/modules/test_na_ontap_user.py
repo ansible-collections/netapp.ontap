@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import json
 import pytest
+import sys
 
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
@@ -15,7 +16,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user \
-    import NetAppOntapUser as my_module  # module under test
+    import NetAppOntapUser as my_module, main as my_main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -29,15 +30,25 @@ SRR = {
     'zero_records': (200, {'num_records': 0}, None),
     'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
     'generic_error': (400, None, "Expected error"),
+    'repeated_password': (400, None, {'message': "New password must be different than the old password."}),
     'get_uuid': (200, {'owner': {'uuid': 'ansible'}}, None),
     'get_user_rest': (200,
                       {'num_records': 1,
                        'records': [{'owner': {'uuid': 'ansible_vserver'},
                                     'name': 'abcd'}]}, None),
+    'get_user_rest_multiple': (200,
+                               {'num_records': 2,
+                                'records': [{'owner': {'uuid': 'ansible_vserver'},
+                                             'name': 'abcd'},
+                                            {}]}, None),
     'get_user_details_rest': (200,
                               {'role': {'name': 'vsadmin'},
                                'applications': [{'application': 'http'}],
-                               'locked': False}, None)
+                               'locked': False}, None),
+    'get_user_details_rest_no_pwd': (200,       # locked is absent if no password was set
+                                     {'role': {'name': 'vsadmin'},
+                                      'applications': [{'application': 'http'}],
+                                      }, None)
 }
 
 
@@ -68,7 +79,7 @@ def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
     raise AnsibleFailJson(kwargs)
 
 
-def set_default_args_rest():
+def set_default_args_rest_zapi():
     return dict({
         'hostname': 'hostname',
         'username': 'username',
@@ -78,7 +89,7 @@ def set_default_args_rest():
         'applications': 'http',
         'authentication_method': 'password',
         'role_name': 'vsadmin',
-        'lock_user': 'True',
+        'lock_user': True,
     })
 
 
@@ -100,6 +111,8 @@ class MockONTAPConnection(object):
             xml = self.build_user_info(self.parm1, self.parm2)
         elif self.type == 'user_fail':
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
+        elif self.type == 'user_not_found':
+            raise netapp_utils.zapi.NaApiError(code='16034', message="This exception should not be seen")
         self.xml_out = xml
         return xml
 
@@ -136,25 +149,17 @@ class TestMyModule(unittest.TestCase):
     def set_default_args(self, rest=False):
         if self.onbox:
             hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
             user_name = 'test'
             vserver = 'ansible_test'
-            application = 'console'
-            authentication_method = 'password'
         else:
             hostname = 'hostname'
-            username = 'username'
-            password = 'password'
             user_name = 'name'
             vserver = 'vserver'
-            application = 'console'
-            authentication_method = 'password'
-        if rest:
-            use_rest = 'auto'
-        else:
-            use_rest = 'never'
-
+        password = 'password'
+        username = 'username'
+        application = 'console'
+        authentication_method = 'password'
+        use_rest = 'auto' if rest else 'never'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -177,10 +182,24 @@ class TestMyModule(unittest.TestCase):
         ''' a more interesting test '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'role_name': 'test'})
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.server = self.server
+        # app = dict(application='testapp', authentication_methods=['testam'])
+        user_info = my_obj.get_user()
+        print('Info: test_user_get: %s' % repr(user_info))
+        assert user_info is None
+
+    def test_ensure_user_get_called_not_found(self):
+        ''' a more interesting test '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['role_name'] = 'test'
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user_not_found', 'false')
         # app = dict(application='testapp', authentication_methods=['testam'])
         user_info = my_obj.get_user()
         print('Info: test_user_get: %s' % repr(user_info))
@@ -190,8 +209,8 @@ class TestMyModule(unittest.TestCase):
         ''' creating user and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -211,9 +230,9 @@ class TestMyModule(unittest.TestCase):
         ''' creating user with service_processor application and idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'application': 'service-processor'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['application'] = 'service-processor'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -228,8 +247,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_sp: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
-        # creating user with service_processor application and idempotency
-        module_args.update({'application': 'service_processor'})
+        module_args['application'] = 'service_processor'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -249,8 +267,8 @@ class TestMyModule(unittest.TestCase):
         ''' deleting user and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -259,7 +277,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'state': 'absent'})
+        module_args['state'] = 'absent'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -273,9 +291,9 @@ class TestMyModule(unittest.TestCase):
         ''' changing user_lock to True and checking idempotency'''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'lock_user': 'false'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -284,7 +302,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'lock_user': 'true'})
+        module_args['lock_user'] = 'true'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -298,9 +316,9 @@ class TestMyModule(unittest.TestCase):
         ''' changing user_lock to False and checking idempotency'''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'lock_user': 'false'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -309,7 +327,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'lock_user': 'false'})
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -323,9 +341,9 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['set_password'] = '123456'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -339,9 +357,9 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test123'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test123'
+        module_args['set_password'] = '123456'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -355,10 +373,10 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test123'})
-        module_args.update({'application': 'http'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test123'
+        module_args['application'] = 'http'
+        module_args['set_password'] = '123456'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -424,7 +442,7 @@ def test_ensure_user_get_rest_called(mock_request, mock_fail):
         SRR['get_user_rest'],
         SRR['end_of_sequence']
     ]
-    set_module_args(set_default_args_rest())
+    set_module_args(set_default_args_rest_zapi())
     my_obj = my_module()
     assert my_obj.get_user_rest() is not None
 
@@ -441,7 +459,9 @@ def test_ensure_create_user_rest_called(mock_request, mock_fail, mock_exit):
         SRR['empty_good'],              # create
         SRR['end_of_sequence']
     ]
-    set_module_args(set_default_args_rest())
+    data = {'set_password': 'xfjjttjwll`1'}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
@@ -465,7 +485,7 @@ def test_ensure_delete_user_rest_called(mock_request, mock_fail, mock_exit):
     data = {
         'state': 'absent',
     }
-    data.update(set_default_args_rest())
+    data.update(set_default_args_rest_zapi())
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
@@ -490,7 +510,7 @@ def test_ensure_modify_user_rest_called(mock_request, mock_fail, mock_exit):
     data = {
         'application': 'ssh',
     }
-    data.update(set_default_args_rest())
+    data.update(set_default_args_rest_zapi())
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
@@ -508,19 +528,25 @@ def test_ensure_lock_unlock_user_rest_called(mock_request, mock_fail, mock_exit)
         SRR['is_rest'],
         SRR['get_user_rest'],
         SRR['get_user_details_rest'],
-        SRR['get_user_rest'],
-        SRR['empty_good'],
+        SRR['empty_good'],      # modify
+        SRR['empty_good'],      # lock
         SRR['end_of_sequence']
     ]
     data = {
         'lock_user': 'newvalue',
     }
-    data.update(set_default_args_rest())
+    data.update(set_default_args_rest_zapi())
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
     assert exc.value.args[0]['changed']
+    print(mock_request.mock_calls)
+    # kwargs requires 2.7 or >= 3.8
+    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
+        print(mock_request.mock_calls[4].kwargs)
+        assert 'json' in mock_request.mock_calls[4].kwargs
+        assert 'locked' in mock_request.mock_calls[4].kwargs['json']
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')
@@ -533,16 +559,364 @@ def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_e
         SRR['is_rest'],
         SRR['get_user_rest'],
         SRR['get_user_details_rest'],
-        SRR['get_user_rest'],
-        SRR['empty_good'],
+        SRR['empty_good'],  # password
         SRR['end_of_sequence']
     ]
     data = {
-        'password': 'newvalue',
+        'set_password': 'newvalue',
     }
-    data.update(set_default_args_rest())
+    data.update(set_default_args_rest_zapi())
+    data.pop('applications')
+    data.pop('authentication_method')
+    data['lock_user'] = False
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
     assert exc.value.args[0]['changed']
+    print(mock_request.mock_calls)
+    # kwargs requires 2.7 or >= 3.8
+    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
+        print(mock_request.mock_calls[3].kwargs)
+        assert 'json' in mock_request.mock_calls[3].kwargs
+        assert 'password' in mock_request.mock_calls[3].kwargs['json']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_existing_password(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['repeated_password'],  # password
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'set_password': 'newvalue',
+    }
+    data.update(set_default_args_rest_zapi())
+    data.pop('applications')
+    data.pop('authentication_method')
+    data['lock_user'] = False
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    # kwargs requires 2.7 or >= 3.8
+    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
+        print(mock_request.mock_calls[3].kwargs)
+        assert 'json' in mock_request.mock_calls[3].kwargs
+        assert 'password' in mock_request.mock_calls[3].kwargs['json']
+    assert not exc.value.args[0]['changed']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_unsupported_property(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'privacy_password': 'value',
+        'use_rest': 'always',
+    }
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = "REST API currently does not support 'privacy_password'"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_negative_zapi_missing_netapp_lib(mock_has, mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_zapi'],
+        SRR['end_of_sequence']
+    ]
+    mock_has.return_value = False
+    data = {
+    }
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = "Error: the python NetApp-Lib module is required.  Import error: None"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_zapi_missing_apps(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_zapi'],
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    data.pop('applications')
+    data.pop('authentication_method')
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    msg = "application_dicts or application_strs is a required parameter with ZAPI"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_get_user(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['generic_error'],
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while fetching user info: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_get_user_multiple(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest_multiple'],
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while fetching user info, found multiple entries:"
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_get_user_details(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['generic_error'],
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while fetching user details: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_delete(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['generic_error'],
+        SRR['end_of_sequence']
+    ]
+    data = {'state': 'absent'}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while deleting user: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_unlocking(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['empty_good'],              # modify
+        SRR['generic_error'],           # unlock
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    print(mock_request.mock_calls)
+    msg = "Error while locking/unlocking user: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_unlocking_no_password(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest_no_pwd'],
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error: cannot modify lock state if password is not set."
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_changing_password(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['empty_good'],              # modify
+        SRR['generic_error'],           # password
+        SRR['end_of_sequence']
+    ]
+    data = {'set_password': '12345'}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while updating user password: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_rest_error_on_modify(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['generic_error'],           # modify
+        SRR['end_of_sequence']
+    ]
+    data = {'set_password': '12345'}
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_main()
+    msg = "Error while modifying user details: Expected error"
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_unlocking_with_password(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest_no_pwd'],
+        SRR['empty_good'],              # modify
+        SRR['empty_good'],              # password
+        SRR['empty_good'],              # lock
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'set_password': 'ansnssnajj12%'
+    }
+    data.update(set_default_args_rest_zapi())
+    set_module_args(data)
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_main()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed']
+    assert len(mock_request.mock_calls) == 6
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_negative_create_validations(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['zero_records'],            # get
+        SRR['is_rest'],
+        SRR['zero_records'],            # get
+        SRR['is_rest'],
+        SRR['zero_records'],            # get
+        SRR['end_of_sequence']
+    ]
+    data = {}
+    data.update(set_default_args_rest_zapi())
+    data.pop('role_name')
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = 'Error: missing required parameter for create: role_name.'
+    assert msg == exc.value.args[0]['msg']
+    data.pop('applications')
+    data.pop('authentication_method')
+    data['role_name'] = 'role'
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = 'Error: missing required parameter for create: application_dicts or application_strs.'
+    assert msg == exc.value.args[0]['msg']
+    data.pop('role_name')
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = 'Error: missing required parameters for create: role_name and: application_dicts or application_strs.'
+    assert msg == exc.value.args[0]['msg']

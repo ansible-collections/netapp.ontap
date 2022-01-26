@@ -4,6 +4,7 @@
 ''' unit tests ONTAP Ansible module: na_ontap_user '''
 
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
 import json
 import pytest
@@ -94,10 +95,12 @@ class MockONTAPConnection(object):
         self.parm2 = parm2
         self.xml_in = None
         self.xml_out = None
+        self.zapis = []
 
     def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
         ''' mock invoke_successfully returning xml data '''
         self.xml_in = xml
+        self.zapis.append(xml.to_string())
         if self.type == 'user':
             xml = self.build_user_info(self.parm1, self.parm2)
         elif self.type == 'user_fail':
@@ -114,9 +117,12 @@ class MockONTAPConnection(object):
         ''' build xml data for user-info '''
         xml = netapp_utils.zapi.NaElement('xml')
         data = {'num-records': 1,
-                'attributes-list': {
-                    'security-login-account-info': {
-                        'is-locked': locked, 'role-name': role_name, 'application': 'console', 'authentication-method': 'password'}}}
+                'attributes-list': [
+                    {'security-login-account-info': {
+                        'is-locked': locked, 'role-name': role_name, 'application': 'console', 'authentication-method': 'password'}},
+                    {'security-login-account-info': {
+                        'is-locked': locked, 'role-name': role_name, 'application': 'console', 'authentication-method': 'other'}},
+                ]}
 
         xml.translate_struct(data)
         print(xml.to_string())
@@ -138,25 +144,17 @@ class TestMyModule(unittest.TestCase):
     def set_default_args(self, rest=False):
         if self.onbox:
             hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
             user_name = 'test'
             vserver = 'ansible_test'
-            application = 'console'
-            authentication_method = 'password'
         else:
             hostname = 'hostname'
-            username = 'username'
-            password = 'password'
             user_name = 'name'
             vserver = 'vserver'
-            application = 'console'
-            authentication_method = 'password'
-        if rest:
-            use_rest = 'auto'
-        else:
-            use_rest = 'never'
-
+        password = 'password'
+        username = 'username'
+        application = 'console'
+        authentication_method = 'password'
+        use_rest = 'auto' if rest else 'never'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -179,7 +177,7 @@ class TestMyModule(unittest.TestCase):
         ''' a more interesting test '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'role_name': 'test'})
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.server = self.server
@@ -187,12 +185,12 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_user_get: %s' % repr(user_info))
         assert user_info is None
 
-    def test_ensure_user_apply_called(self):
+    def test_ensure_user_apply_called_replace(self):
         ''' creating user and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -207,14 +205,38 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
+        print(self.server.zapis)
+
+    def test_ensure_user_apply_called_add(self):
+        ''' creating user and checking idempotency '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['replace_existing_apps_and_methods'] = 'always'
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user', 'false')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        print(self.server.zapis)
 
     def test_ensure_user_sp_apply_called(self):
         ''' creating user with service_processor application and idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'application': 'service-processor'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['application'] = 'service-processor'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -229,8 +251,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_sp: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
-        # creating user with service_processor application and idempotency
-        module_args.update({'application': 'service_processor'})
+        module_args['application'] = 'service_processor'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -250,8 +271,8 @@ class TestMyModule(unittest.TestCase):
         ''' deleting user and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -260,7 +281,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'state': 'absent'})
+        module_args['state'] = 'absent'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -274,9 +295,9 @@ class TestMyModule(unittest.TestCase):
         ''' changing user_lock to True and checking idempotency'''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'lock_user': 'false'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -285,7 +306,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'lock_user': 'true'})
+        module_args['lock_user'] = 'true'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -299,9 +320,9 @@ class TestMyModule(unittest.TestCase):
         ''' changing user_lock to False and checking idempotency'''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'lock_user': 'false'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -310,7 +331,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'lock_user': 'false'})
+        module_args['lock_user'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -324,9 +345,9 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['set_password'] = '123456'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -340,9 +361,9 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test123'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test123'
+        module_args['set_password'] = '123456'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -356,10 +377,30 @@ class TestMyModule(unittest.TestCase):
         ''' set password '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'name': 'create'})
-        module_args.update({'role_name': 'test123'})
-        module_args.update({'application': 'http'})
-        module_args.update({'set_password': '123456'})
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test123'
+        module_args['applications'] = 'http'
+        module_args['set_password'] = '123456'
+        module_args['replace_existing_apps_and_methods'] = 'always'
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user', 'true')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+
+    def test_ensure_user_role_update_additional_method_called(self):
+        ''' set password '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test123'
+        module_args['applications'] = 'console'
+        module_args['authentication_method'] = 'domain'
+        module_args['set_password'] = '123456'
+        module_args['replace_existing_apps_and_methods'] = 'always'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.onbox:
@@ -467,6 +508,7 @@ def test_ensure_delete_user_rest_called(mock_request, mock_fail, mock_exit):
         'state': 'absent',
     }
     data.update(set_default_args_rest())
+    data['vserver'] = None
     set_module_args(data)
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
@@ -585,9 +627,7 @@ def test_sp_retry(mock_request, mock_fail, mock_exit):
         SRR['end_of_sequence']
     ]
     app = dict(application='service-processor', authentication_methods=['usm'])
-    data.update({
-        'application_dicts': [app],
-    })
+    data['application_dicts'] = [app]
     print(data)
     set_module_args(data)
     my_obj = my_module()
@@ -596,3 +636,39 @@ def test_sp_retry(mock_request, mock_fail, mock_exit):
     print(mock_request.mock_calls)
     assert 'service_processor' in repr(mock_request.mock_calls[-1])
     assert exc.value.args[0]['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_sp_transform(mock_request):
+    current = {'applications': []}
+    sp_app_u = 'service_processor'
+    sp_app_d = 'service-processor'
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['is_rest'],
+        SRR['end_of_sequence']
+    ]
+    # 1. no change using underscore
+    data = dict(set_default_args_rest())
+    data['application_dicts'].append({'application': sp_app_u, 'authentication_methods': ['password']})
+    set_module_args(data)
+    my_obj = my_module()
+    my_obj.change_sp_application([])
+    sp_apps = [application['application'] for application in my_obj.parameters['applications'] if application['application'].startswith('service')]
+    assert sp_apps == [sp_app_u]
+    # 2. change underscore -> dash
+    my_obj.change_sp_application([{'application': sp_app_d}])
+    sp_apps = [application['application'] for application in my_obj.parameters['applications'] if application['application'].startswith('service')]
+    assert sp_apps == [sp_app_d]
+    # 3. no change using dash
+    data = dict(set_default_args_rest())
+    data['application_dicts'].append({'application': sp_app_d, 'authentication_methods': ['password']})
+    set_module_args(data)
+    my_obj = my_module()
+    my_obj.change_sp_application([])
+    sp_apps = [application['application'] for application in my_obj.parameters['applications'] if application['application'].startswith('service')]
+    assert sp_apps == [sp_app_d]
+    # 4. change dash -> underscore
+    my_obj.change_sp_application([{'application': sp_app_u}])
+    sp_apps = [application['application'] for application in my_obj.parameters['applications'] if application['application'].startswith('service')]
+    assert sp_apps == [sp_app_u]
