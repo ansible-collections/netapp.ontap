@@ -200,15 +200,13 @@ class NetAppontapExportRule:
 
         unsupported_rest_properties = ['allow_suid']
         self.rest_api = OntapRestAPI(self.module)
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error:
-            self.module.fail_json(msg=error)
-        elif not netapp_utils.has_netapp_lib():
-            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(
-                module=self.module, vserver=self.parameters['vserver'])
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            else:
+                self.server = netapp_utils.setup_na_ontap_zapi(
+                    module=self.module, vserver=self.parameters['vserver'])
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {

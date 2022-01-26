@@ -932,6 +932,15 @@ class OntapRestAPI(object):
             return True, None
         return False, None
 
+    def is_rest_supported_properties(self, parameters, unsupported_rest_properties=None, partially_supported_rest_properties=None):
+        used_unsupported_rest_properties = None
+        if unsupported_rest_properties:
+            used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in parameters]
+        use_rest, error = self.is_rest(used_unsupported_rest_properties, partially_supported_rest_properties, parameters)
+        if error:
+            self.module.fail_json(msg=error)
+        return use_rest
+
     def is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):
         ''' only return error if there is a reason to '''
         use_rest, error = self._is_rest(used_unsupported_rest_properties, partially_supported_rest_properties, parameters)

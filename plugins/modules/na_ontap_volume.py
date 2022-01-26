@@ -904,6 +904,7 @@ class NetAppOntapVolume:
                 if key not in ['commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
                                'prefix', 'destroy_list', 'state']:
                     self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
+        self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = ['atime_update',
                                        'cutover_action',
                                        'encrypt-destination',
@@ -914,13 +915,9 @@ class NetAppOntapVolume:
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']
-        self.partially_supported_rest_properties = [['efficiency_policy', (9, 7)]]
+        partially_supported_rest_properties = [['efficiency_policy', (9, 7)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting']
-        self.rest_api = OntapRestAPI(self.module)
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties, self.partially_supported_rest_properties, self.parameters)
-        if error is not None:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
             self.module.warn(
                 'Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')

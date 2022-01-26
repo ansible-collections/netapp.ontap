@@ -348,10 +348,7 @@ class NetAppONTAPFirmwareUpgrade:
             # accept the default value of False, but switch to ZAPI or error out if set to True
             if self.parameters[option]:
                 unsupported_rest_properties.append(option)
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
 
         if self.parameters.get('firmware_type') == 'storage' and self.parameters.get('force_disruptive_update'):
             self.module.fail_json(msg='Do not set force_disruptive_update to True, unless directed by NetApp Tech Support')

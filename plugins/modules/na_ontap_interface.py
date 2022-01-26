@@ -462,10 +462,7 @@ class NetAppOntapInterface():
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = [key for key in REST_IGNORABLE_OPTIONS if key not in self.parameters['ignore_zapi_options']]
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
             if self.parameters['use_rest'].lower() == 'always':

@@ -325,10 +325,7 @@ class NetAppOntapUser():
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['authentication_password', 'authentication_protocol', 'engine_id',
                                        'privacy_password', 'privacy_protocol']
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
             if not HAS_NETAPP_LIB:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")

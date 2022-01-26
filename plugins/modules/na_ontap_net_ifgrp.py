@@ -235,11 +235,7 @@ class NetAppOntapIfGrp:
         # if rest and use_rest: auto and name is present, revert to zapi
         # if rest and use_rest: always and name is present, throw error.
         unsupported_rest_properties = ['name']
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
-
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if self.use_rest:
             # if rest and ports is not present, throw error as ports is a required field with REST
             if 'ports' not in self.parameters:

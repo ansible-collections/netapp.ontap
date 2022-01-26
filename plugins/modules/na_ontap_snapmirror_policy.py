@@ -279,11 +279,7 @@ class NetAppOntapSnapMirrorPolicy(object):
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['owner', 'restart', 'transfer_priority', 'tries', 'ignore_atime',
                                        'common_snapshot_schedule']
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-
-        if error:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg='The python NetApp-Lib module is required')

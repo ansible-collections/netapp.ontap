@@ -149,11 +149,7 @@ class NetAppOntapNetRoutes:
 
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['metric', 'from_metric']
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
-
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         self.validate_options()
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():

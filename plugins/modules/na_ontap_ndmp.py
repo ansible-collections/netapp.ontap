@@ -232,10 +232,7 @@ class NetAppONTAPNdmp(object):
                                        'ignore_ctime_enabled', 'is_secure_control_connection_enabled',
                                        'offset_map_enable', 'per_qtree_exclude_enable', 'preferred_interface_role',
                                        'restore_vm_cache_size', 'secondary_debug_filter', 'tcpnodelay', 'tcpwinsize']
-        used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
-        if error is not None:
-            self.module.fail_json(msg=error)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
