@@ -529,6 +529,14 @@ options:
     type: bool
     version_added: '20.12.0'
 
+  tiering_minimum_cooling_days:
+    description:
+    - Determines how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is
+      considered cold and eligible for tiering.
+    - This option is only supported in REST.
+    type: int
+    version_added: '20.16.0'
+
   logical_space_enforcement:
     description:
     - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
@@ -871,6 +879,7 @@ class NetAppOntapVolume:
                 ))
             )),
             size_change_threshold=dict(type='int', default=10),
+            tiering_minimum_cooling_days=dict(required=False, type='int'),
             logical_space_enforcement=dict(required=False, type='bool'),
             logical_space_reporting=dict(required=False, type='bool'),
         ))
@@ -1767,7 +1776,7 @@ class NetAppOntapVolume:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
-                             'comment', 'logical_space_enforcement', 'logical_space_reporting']:
+                             'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2205,7 +2214,8 @@ class NetAppOntapVolume:
                             'state,'
                             'efficiency.compression,'
                             'space.logical_space.enforcement,'
-                            'space.logical_space.reporting,'}
+                            'space.logical_space.reporting,'
+                            'tiering_minimum_cooling_days,'}
         if self.parameters.get('efficiency_policy'):
             params['fields'] += 'efficiency.policy.name,'
 
@@ -2294,6 +2304,8 @@ class NetAppOntapVolume:
             body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
         if self.parameters.get('logical_space_reporting') is not None:
             body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
+        if self.parameters.get('tiering_minimum_cooling_days') is not None:
+            body['tiering.min_cooling_days'] = self.parameters['tiering_minimum_cooling_days']
         body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
@@ -2342,6 +2354,8 @@ class NetAppOntapVolume:
             body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
         if self.parameters.get('logical_space_reporting') is not None:
             body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
+        if self.parameters.get('tiering_minimum_cooling_days') is not None:
+            body['tiering.min_cooling_days'] = self.parameters['tiering_minimum_cooling_days']
         body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
@@ -2486,7 +2500,8 @@ class NetAppOntapVolume:
             'compression': rest_compression in ('both', 'background'),
             'inline_compression': rest_compression in ('both', 'inline'),
             'logical_space_enforcement': self.na_helper.safe_get(record, ['space', 'logical_space', 'enforcement']),
-            'logical_space_reporting': self.na_helper.safe_get(record, ['space', 'logical_space', 'reporting'])
+            'logical_space_reporting': self.na_helper.safe_get(record, ['space', 'logical_space', 'reporting']),
+            'tiering_minimum_cooling_days': self.na_helper.safe_get(record, ['tiering', 'min_cooling_days']),
 
         }
 

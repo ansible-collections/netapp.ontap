@@ -40,6 +40,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_volume - `logical_space_enforcement` to specifies whether to perform logical space accounting on the volume.
   - na_ontap_volume - `logical_space_reporting` to specifies whether to report space logically on the volume.
+  - na_ontap_volume - `tiering_minimum_cooling_days` to specify how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is considered cold and eligible for tiering.
 
 ### Bug Fixes
   - na_ontap_igroup - `force_remove_initiator` option was ignored when removing initiators from existing igroup.

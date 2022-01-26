@@ -62,7 +62,8 @@ SRR = {
                        "state": "online",
                        "style": "flexvol",
                        "tiering": {
-                           "policy": "backup"
+                           "policy": "backup",
+                           "min_cooling_days": 0
                        },
                        "type": "rw",
                        "aggregates": [
@@ -662,6 +663,9 @@ class TestMyModule(unittest.TestCase):
         data['user_id'] = 5
         data['volume_security_style'] = 'mixed'
         data['comment'] = 'carchi8py was here'
+        data['tiering_minimum_cooling_days'] = 10
+        data['logical_space_enforcement'] = True
+        data['logical_space_reporting'] = True
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
@@ -756,12 +760,14 @@ class TestMyModule(unittest.TestCase):
         data['encrypt'] = True
         data['junction_path'] = '/this/path'
         data['tiering_policy'] = 'backup'
+        data['tiering_minimum_cooling_days'] = 10
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['no_record'],  # Get Volume
             SRR['no_record'],  # Create Volume
             SRR['get_volume'],
+            SRR['no_record'],  # modify Volume
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
@@ -1079,22 +1085,6 @@ class TestMyModule(unittest.TestCase):
             SRR['no_record'],  # Get Volume
             SRR['no_record'],  # Create Volume
             SRR['get_volume'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify_attributes(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['logical_space_enforcement'] = True
-        data['logical_space_reporting'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_volume'],  # Get Volume
-            SRR['no_record'],  # Modify
             SRR['end_of_sequence']
         ]
         with pytest.raises(AnsibleExitJson) as exc:
