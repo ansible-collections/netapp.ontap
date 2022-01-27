@@ -587,7 +587,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_mock_object().apply()
-        msg = "Error unmounting volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+        msg = 'Error unmounting volume test_svm: with path "", calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -604,6 +604,21 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_volume_mock_object().apply()
         assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successfully_volume_mount_do_nothing_rest(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['junction_path'] = ""
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_volume_mount'],  # Get Volume
+            SRR['no_record'],  # Mount Volume
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_volume_mock_object().apply()
+        assert not exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_volume_mount_rest(self, mock_request):

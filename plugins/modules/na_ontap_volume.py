@@ -2372,11 +2372,13 @@ class NetAppOntapVolume:
 
     def volume_unmount_rest(self):
         body = {
-            'nas.path': None,
+            'nas.path': '',
         }
         dummy, error = self.volume_rest_patch(body)
         if error:
-            self.module.fail_json(msg='Error unmounting volume %s: %s' % (self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error unmounting volume %s: with path "%s", %s' % (self.parameters['name'],
+                                                                                          self.parameters['junction_path'],
+                                                                                          to_native(error)),
                                   exception=traceback.format_exc())
 
     def volume_mount_rest(self):
@@ -2409,7 +2411,8 @@ class NetAppOntapVolume:
         }
         dummy, error = self.volume_rest_patch(body)
         if error:
-            self.module.fail_json(msg='Error enabling encryption for volume %s: %s' % (self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error enabling encryption for volume %s: %s' % (self.parameters['name'],
+                                                                                       to_native(error)),
                                   exception=traceback.format_exc())
 
     def resize_volume_rest(self):
@@ -2470,6 +2473,9 @@ class NetAppOntapVolume:
         aggregates = record.get('aggregates', None)
         aggr_name = aggregates[0].get('name', None) if aggregates else None
         rest_compression = self.none_to_bool(self.na_helper.safe_get(record, ['efficiency', 'compression']))
+        junction_path = self.na_helper.safe_get(record, ['nas', 'path'])
+        if junction_path is None:
+            junction_path = ''
         return {
             'name': record.get('name', None),
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
@@ -2479,7 +2485,7 @@ class NetAppOntapVolume:
             'aggregates': aggregates,
             'flexgroup_uuid': record.get('uuid', None),  # this might need some additional logic
             'instance_uuid': record.get('uuid', None),  # this might need some additional logic
-            'junction_path': self.na_helper.safe_get(record, ['nas', 'path']),
+            'junction_path': junction_path,
             'style_extended': record.get('style', None),
             'type': record.get('type', None),
             'comment': record.get('comment', None),
