@@ -1090,6 +1090,19 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_volume_tiering_minimum_cooling_days_98(self, mock_request):
+        data = dict(self.mock_args_volume())
+        data['tiering_minimum_cooling_days'] = 2
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest_96'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_volume_mock_object().apply()
+        msg = "Minimum version of ONTAP for tiering_minimum_cooling_days is (9, 8)\n"
+        assert exc.value.args[0]['msg'] == msg
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successfully_created_with_logical_space(self, mock_request):
         data = dict(self.mock_args_volume())
         data['logical_space_enforcement'] = False

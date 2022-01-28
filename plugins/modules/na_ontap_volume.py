@@ -533,7 +533,7 @@ options:
     description:
     - Determines how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is
       considered cold and eligible for tiering.
-    - This option is only supported in REST.
+    - This option is only supported in REST 9.8 or later.
     type: int
     version_added: '20.16.0'
 
@@ -924,7 +924,7 @@ class NetAppOntapVolume:
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']
-        partially_supported_rest_properties = [['efficiency_policy', (9, 7)]]
+        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
@@ -2214,10 +2214,11 @@ class NetAppOntapVolume:
                             'state,'
                             'efficiency.compression,'
                             'space.logical_space.enforcement,'
-                            'space.logical_space.reporting,'
-                            'tiering_minimum_cooling_days,'}
+                            'space.logical_space.reporting,'}
         if self.parameters.get('efficiency_policy'):
             params['fields'] += 'efficiency.policy.name,'
+        if self.parameters.get('tiering_minimum_cooling_days'):
+            params['fields'] += 'tiering.min_cooling_days,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
