@@ -54,6 +54,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - four modules (mediator, metrocluster, security_certificates, wwpn_alias) would report a None error when REST is not available.
 
 ### Added REST support to existing modules
+  - na_ontap_ports - Added REST support to the ports module.
   - na_ontap_volume_clone -- Added REST support.
 
 ## 21.15.1
