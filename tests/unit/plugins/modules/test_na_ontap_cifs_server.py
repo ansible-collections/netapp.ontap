@@ -1,10 +1,11 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs_server '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+import copy
 import json
 import pytest
 
@@ -19,6 +20,57 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_server \
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    # module specific responses
+    'cifs_record': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansibleSVM"
+                    },
+                    "enabled": True,
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    'cifs_record_disabled': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansibleSVM"
+                    },
+                    "enabled": False,
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+}
 
 
 def set_module_args(args):
@@ -111,7 +163,8 @@ class TestMyModule(unittest.TestCase):
             'username': username,
             'password': password,
             'cifs_server_name': cifs_server,
-            'vserver': vserver
+            'vserver': vserver,
+            'use_rest': 'never'
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -134,7 +187,7 @@ class TestMyModule(unittest.TestCase):
         ''' creating cifs server and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'cifs_server_name': 'create'})
+        module_args['cifs_server_name'] = 'create'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -154,10 +207,9 @@ class TestMyModule(unittest.TestCase):
         ''' deleting cifs server and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'cifs_server_name': 'delete'})
-        module_args.update({'admin_user_name': 'user1'})
-        module_args.update({'admin_password': 'pw1'})
-        module_args.update({'force': 'false'})
+        module_args['cifs_server_name'] = 'delete'
+        module_args['admin_password'] = 'pw1'
+        module_args['force'] = 'false'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -166,7 +218,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_cifs_server_apply: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'state': 'absent'})
+        module_args['state'] = 'absent'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -180,8 +232,8 @@ class TestMyModule(unittest.TestCase):
         ''' starting cifs server and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'cifs_server_name': 'delete'})
-        module_args.update({'service_state': 'started'})
+        module_args['cifs_server_name'] = 'delete'
+        module_args['service_state'] = 'started'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -190,7 +242,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_ensure_start_cifs_server: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'service_state': 'stopped'})
+        module_args['service_state'] = 'stopped'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -204,8 +256,8 @@ class TestMyModule(unittest.TestCase):
         ''' stopping cifs server and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
-        module_args.update({'cifs_server_name': 'delete'})
-        module_args.update({'service_state': 'stopped'})
+        module_args['cifs_server_name'] = 'delete'
+        module_args['service_state'] = 'stopped'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -214,7 +266,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_ensure_stop_cifs_server: %s' % repr(exc.value))
         assert not exc.value.args[0]['changed']
-        module_args.update({'service_state': 'started'})
+        module_args['service_state'] = 'started'
         set_module_args(module_args)
         my_obj = my_module()
         if not self.use_vsim:
@@ -223,3 +275,191 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         print('Info: test_ensure_stop_cifs_server: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
+
+    def mock_args(self, rest=False):
+        if rest:
+            return {
+                'hostname': 'test',
+                'username': 'test_user',
+                'password': 'test_pass!',
+                'use_rest': 'always',
+                'vserver': 'test_vserver',
+                'name': 'cifs_server_name'
+            }
+
+    def get_mock_object(self, kind=None):
+        """
+        Helper method to return an na_ontap_cifs_server object
+        :param kind: passes this param to MockONTAPConnection()
+        :return: na_ontap_cifs_server object
+        """
+        obj = my_module()
+        return obj
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_create(self, mock_request):
+        '''Test successful rest create'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_create_with_user(self, mock_request):
+        '''Test successful rest create'''
+        data = self.mock_args(rest=True)
+        data['admin_user_name'] = 'test_user'
+        data['admin_password'] = 'pwd'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_create_with_ou(self, mock_request):
+        '''Test successful rest create'''
+        data = self.mock_args(rest=True)
+        data['ou'] = 'ou'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_create_with_domain(self, mock_request):
+        '''Test successful rest create'''
+        data = self.mock_args(rest=True)
+        data['domain'] = 'domain'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_delete(self, mock_request):
+        '''Test successful rest delete'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),  # deepcopy as the code changes the record in place
+            SRR['empty_good'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_disable(self, mock_request):
+        '''Test successful rest disable'''
+        data = self.mock_args(rest=True)
+        data['service_state'] = 'stopped'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),
+            SRR['empty_good'],
+
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_enable(self, mock_request):
+        '''Test successful rest enable'''
+        data = self.mock_args(rest=True)
+        data['service_state'] = 'started'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record_disabled']),
+            SRR['empty_good'],
+
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_enabled_change(self, mock_request):
+        '''Test error rest change'''
+        data = self.mock_args(rest=True)
+        data['service_state'] = 'stopped'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),
+            SRR['generic_error'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on modifying cifs server: calling: ' + \
+               'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa: ' + \
+               'got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_get(self, mock_request):
+        '''Test error rest create'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on fetching cifs: calling: protocols/cifs/services: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_delete(self, mock_request):
+        '''Test error rest delete'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),
+            SRR['generic_error']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on deleting cifs server: calling: ' + \
+               'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_create(self, mock_request):
+        '''Test error rest create'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['generic_error']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on creating cifs: calling: protocols/cifs/services: got Expected error.' in exc.value.args[0]['msg']
