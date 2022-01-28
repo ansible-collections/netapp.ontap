@@ -83,6 +83,14 @@ POW2_BYTE_MAP = dict(
     # Here, 1 kb = 1024
     bytes=1,
     b=1,
+    k=1024,
+    m=1024 ** 2,
+    g=1024 ** 3,
+    t=1024 ** 4,
+    p=1024 ** 5,
+    e=1024 ** 6,
+    z=1024 ** 7,
+    y=1024 ** 8,
     kb=1024,
     mb=1024 ** 2,
     gb=1024 ** 3,
@@ -90,7 +98,7 @@ POW2_BYTE_MAP = dict(
     pb=1024 ** 5,
     eb=1024 ** 6,
     zb=1024 ** 7,
-    yb=1024 ** 8
+    yb=1024 ** 8,
 )
 
 ERROR_MSG = dict(
@@ -741,9 +749,9 @@ class OntapRestAPI(object):
             self.log_error(status_code, 'Endpoint error: %d: %s' % (status_code, json_error))
             error_details = json_error
         self.log_debug(status_code, content)
-        if not json_dict and method == 'OPTIONS':
+        if not error_details and not json_dict and method == 'OPTIONS':
             # OPTIONS provides the list of supported verbs
-            json_dict['Allow'] = response.headers['Allow']
+            json_dict['Allow'] = response.headers.get('Allow')
         return status_code, json_dict, error_details
 
     def wait_on_job(self, job, timeout=600, increment=60):

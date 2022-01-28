@@ -44,6 +44,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - `tiering_minimum_cooling_days` to specify how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is considered cold and eligible for tiering.
 
 ### Bug Fixes
+  - na_ontap_aggregate - Fixed KeyError on unmount_volumes when offlining a volume if option is not set.
+  - na_ontap_aggregate - Report an error when attempting to change snaplock_type.
   - na_ontap_igroup - `force_remove_initiator` option was ignored when removing initiators from existing igroup.
   - na_ontap_security_certificates - `intermediate_certificates` option was ignored.
   - na_ontap_user - Fixed lock state is not set if password is not changed.
@@ -52,6 +54,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - Report error when attempting to change the nas_application tiering control from disalllowed to required, or reciprocally.
   - na_ontap_volume - Fixed error with unmounting junction_path in rest.
   - four modules (mediator, metrocluster, security_certificates, wwpn_alias) would report a None error when REST is not available.
+  - module_utils - fixed KeyError on Allow when using OPTIONS method and the API failed.
+
+### Added REST support to existing modules
+  - na_ontap_aggregate - Added REST support.
 
 ### Added REST support to existing modules
   - na_ontap_ports - Added REST support to the ports module.

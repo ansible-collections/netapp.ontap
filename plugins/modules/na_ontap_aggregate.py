@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -20,149 +20,162 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Create, delete, or manage aggregates on ONTAP.
+  - Create, delete, or manage aggregates on ONTAP.
 
 options:
 
   state:
     description:
-    - Whether the specified aggregate should exist or not.
+      - Whether the specified aggregate should exist or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   service_state:
     description:
-    - Whether the specified aggregate should be enabled or disabled. Creates aggregate if doesnt exist.
+      - Whether the specified aggregate should be enabled or disabled. Creates aggregate if doesnt exist.
+      - Not supported with REST when set to offline.
+      - REST does not support changing the state from offline to online, and reciprocally.
     choices: ['online', 'offline']
     type: str
 
   name:
     description:
-    - The name of the aggregate to manage.
+      - The name of the aggregate to manage.
     required: true
     type: str
 
   from_name:
     description:
-    - Name of the aggregate to be renamed.
+      - Name of the aggregate to be renamed.
     type: str
     version_added: 2.7.0
 
   nodes:
     description:
-    - Node(s) for the aggregate to be created on.  If no node specified, mgmt lif home will be used.
-    - If multiple nodes specified an aggr stripe will be made.
+      - Node(s) for the aggregate to be created on.  If no node specified, mgmt lif home will be used.
+      - ZAPI only - if multiple nodes specified an aggr stripe will be made.
+      - With REST, only one node can be specified.  If disk_count is present, node name is required.
     type: list
     elements: str
 
   disk_type:
     description:
-    - Type of disk to use to build aggregate
+      - Type of disk to use to build aggregate.
+      - Not supported with REST.
     choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']
     type: str
     version_added: 2.7.0
 
   disk_count:
     description:
-    - Number of disks to place into the aggregate, including parity disks.
-    - The disks in this newly-created aggregate come from the spare disk pool.
-    - The smallest disks in this pool join the aggregate first, unless the C(disk-size) argument is provided.
-    - Either C(disk-count) or C(disks) must be supplied. Range [0..2^31-1].
-    - Required when C(state=present).
-    - Modifiable only if specified disk_count is larger than current disk_count.
-    - Cannot create raidgroup with 1 disk when using raid type raid4.
-    - If the disk_count % raid_size == 1, only disk_count/raid_size * raid_size will be added.
-    - If disk_count is 6, raid_type is raid4, raid_size 4, all 6 disks will be added.
-    - If disk_count is 5, raid_type is raid4, raid_size 4, 5/4 * 4 = 4 will be added. 1 will not be added.
+      - Number of disks to place into the aggregate, including parity disks.
+      - The disks in this newly-created aggregate come from the spare disk pool.
+      - The smallest disks in this pool join the aggregate first, unless the C(disk-size) argument is provided.
+      - Either C(disk-count) or C(disks) must be supplied. Range [0..2^31-1].
+      - Required when C(state=present).
+      - Modifiable only if specified disk_count is larger than current disk_count.
+      - Cannot create raidgroup with 1 disk when using raid type raid4.
+      - If the disk_count % raid_size == 1, only disk_count/raid_size * raid_size will be added.
+      - If disk_count is 6, raid_type is raid4, raid_size 4, all 6 disks will be added.
+      - If disk_count is 5, raid_type is raid4, raid_size 4, 5/4 * 4 = 4 will be added. 1 will not be added.
+      - With REST, C(nodes) is required if C(disk_count) is present.
     type: int
 
   disk_size:
     description:
-    - Disk size to use in 4K block size.  Disks within 10% of specified size will be used.
+      - Disk size to use in 4K block size.  Disks within 10% of specified size will be used.
+      - With REST, this is converted to bytes using 4096.  Use C(disk_size_with_unit) to skip the conversion.
     type: int
     version_added: 2.7.0
 
   disk_size_with_unit:
     description:
-    - Disk size to use in the specified unit.
-    - It is a positive integer number followed by unit of T/G/M/K. For example, 72G, 1T and 32M.
-    - This option is ignored if a specific list of disks is specified through the "disks" parameter.
-    - You must only use one of either "disk-size" or "disk-size-with-unit" parameters.
+      - Disk size to use in the specified unit.
+      - It is a positive integer number followed by unit of T/G/M/K. For example, 72G, 1T and 32M.
+      - Or the unit can be omitted for bytes (REST also accepts B).
+      - This option is ignored if a specific list of disks is specified through the "disks" parameter.
+      - You must only use one of either "disk-size" or "disk-size-with-unit" parameters.
+      - With REST, this is converted to bytes, assuming K=1024.
     type: str
 
   raid_size:
     description:
-    - Sets the maximum number of drives per raid group.
+      - Sets the maximum number of drives per raid group.
     type: int
     version_added: 2.7.0
 
   raid_type:
     description:
-    - Specifies the type of RAID groups to use in the new aggregate.
-    - raid_0 is only available on ONTAP Select.
+      - Specifies the type of RAID groups to use in the new aggregate.
+      - raid_0 is only available on ONTAP Select.
     choices: ['raid4', 'raid_dp', 'raid_tec', 'raid_0']
     type: str
     version_added: 2.7.0
 
   unmount_volumes:
     description:
-    - If set to "TRUE", this option specifies that all of the volumes hosted by the given aggregate are to be unmounted
-    - before the offline operation is executed.
-    - By default, the system will reject any attempt to offline an aggregate that hosts one or more online volumes.
+      - If set to "TRUE", this option specifies that all of the volumes hosted by the given aggregate are to be unmounted
+        before the offline operation is executed.
+      - By default, the system will reject any attempt to offline an aggregate that hosts one or more online volumes.
+      - Ignored with REST as offlining an aggregate is not supported.
     type: bool
 
   disks:
     description:
-    - Specific list of disks to use for the new aggregate.
-    - To create a "mirrored" aggregate with a specific list of disks, both 'disks' and 'mirror_disks' options must be supplied.
-      Additionally, the same number of disks must be supplied in both lists.
+      - Specific list of disks to use for the new aggregate.
+      - To create a "mirrored" aggregate with a specific list of disks, both 'disks' and 'mirror_disks' options must be supplied.
+        Additionally, the same number of disks must be supplied in both lists.
+      - Not supported with REST.
     type: list
     elements: str
     version_added: 2.8.0
 
   is_mirrored:
     description:
-    - Specifies that the new aggregate be mirrored (have two plexes).
-    - If set to true, then the indicated disks will be split across the two plexes. By default, the new aggregate will not be mirrored.
-    - This option cannot be used when a specific list of disks is supplied with either the 'disks' or 'mirror_disks' options.
+      - Specifies that the new aggregate be mirrored (have two plexes).
+      - If set to true, then the indicated disks will be split across the two plexes. By default, the new aggregate will not be mirrored.
+      - This option cannot be used when a specific list of disks is supplied with either the 'disks' or 'mirror_disks' options.
     type: bool
     version_added: 2.8.0
 
   mirror_disks:
     description:
-    - List of mirror disks to use. It must contain the same number of disks specified in 'disks'.
+      - List of mirror disks to use. It must contain the same number of disks specified in 'disks'.
+      - Not supported with REST.
     type: list
     elements: str
     version_added: 2.8.0
 
   spare_pool:
     description:
-    - Specifies the spare pool from which to select spare disks to use in creation of a new aggregate.
+      - Specifies the spare pool from which to select spare disks to use in creation of a new aggregate.
+      - Not supported with REST.
     choices: ['Pool0', 'Pool1']
     type: str
     version_added: 2.8.0
 
   wait_for_online:
     description:
-    - Set this parameter to 'true' for synchronous execution during create (wait until aggregate status is online)
-    - Set this parameter to 'false' for asynchronous execution
-    - For asynchronous, execution exits as soon as the request is sent, without checking aggregate status
+      - Set this parameter to 'true' for synchronous execution during create (wait until aggregate status is online).
+      - Set this parameter to 'false' for asynchronous execution.
+      - For asynchronous, execution exits as soon as the request is sent, without checking aggregate status.
+      - Ignored with REST (always wait).
     type: bool
     default: false
     version_added: 2.8.0
 
   time_out:
     description:
-      - time to wait for aggregate creation in seconds
-      - default is set to 100 seconds
+      - time to wait for aggregate creation in seconds.
+      - default is set to 100 seconds.
     type: int
     default: 100
     version_added: 2.8.0
 
   object_store_name:
     description:
-      - Name of the object store configuration attached to the aggregate
+      - Name of the object store configuration attached to the aggregate.
     type: str
     version_added: 2.9.0
 
@@ -178,16 +191,22 @@ options:
       - only valid when I(disks) option is used.
       - disks in a plex should belong to the same spare pool, and mirror disks to another spare pool.
       - when set to true, these checks are ignored.
+      - Ignored with REST as I(disks) is not supported.
     type: bool
     version_added: 20.8.0
 
   encryption:
     description:
-      - whether to enable encryption.
+      - whether to enable software encryption.
       - this is equivalent to -encrypt-with-aggr-key when using the CLI.
       - requires a VE license.
     type: bool
     version_added: 21.14.0
+
+notes:
+  - supports check_mode.
+  - support ZAPI and REST.
+
 '''
 
 EXAMPLES = """
@@ -249,6 +268,7 @@ EXAMPLES = """
 RETURN = """
 
 """
+import re
 import time
 import traceback
 
@@ -256,8 +276,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI, netapp_lib_is_required
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapAggregate:
@@ -307,14 +327,33 @@ class NetAppOntapAggregate:
         )
 
         self.na_helper = NetAppModule()
-        self.using_vserver_msg = None   # This module should be run as cluster admin
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        if self.parameters.get('mirror_disks') is not None and self.parameters.get('disks') is None:
-            self.module.fail_json(msg="mirror_disks require disks options to be set")
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        self.rest_api = OntapRestAPI(self.module)
+        self.uuid = None
+        # some attributes are not supported in earlier REST implementation
+        unsupported_rest_properties = ['disks', 'disk_type', 'mirror_disks', 'spare_pool']
+        if self.parameters.get('service_state') != 'online':
+            unsupported_rest_properties.append('service_state')
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        self.validate_options()
+
+    def validate_options(self):
+        errors = []
+        if self.use_rest:
+            if len(self.parameters.get('nodes', [])) > 1:
+                errors.append('only one node can be specified when using rest, found %s' % self.parameters['nodes'])
+            if 'disk_count' in self.parameters and 'nodes' not in self.parameters:
+                errors.append('nodes is required when disk_count is present')
+        else:
+            if self.parameters.get('mirror_disks') is not None and self.parameters.get('disks') is None:
+                errors.append('mirror_disks require disks options to be set')
+        if errors:
+            plural = 's' if len(errors) > 1 else ''
+            self.module.fail_json(msg='Error%s when validating options: %s.' % (plural, '; '.join(errors)))
 
     def aggr_get_iter(self, name):
         """
@@ -334,10 +373,7 @@ class NetAppOntapAggregate:
             result = self.server.invoke_successfully(aggr_get_iter, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
             if to_native(error.code) != '13040':
-                msg = to_native(error)
-                if self.using_vserver_msg is not None:
-                    msg += '.  Added info: %s.' % self.using_vserver_msg
-                self.module.fail_json(msg=msg, exception=traceback.format_exc())
+                self.module.fail_json(msg='Error getting aggregate: %s' % to_native(error), exception=traceback.format_exc())
         return result
 
     def get_aggr(self, name=None):
@@ -349,16 +385,20 @@ class NetAppOntapAggregate:
             None if aggregate is not found
         """
         if name is None:
-            name = self.parameters['name']
+            name = self.parameters.get('name')
+        if self.use_rest:
+            return self.get_aggr_rest(name)
         aggr_get = self.aggr_get_iter(name)
         if aggr_get and aggr_get.get_child_by_name('num-records') and int(aggr_get.get_child_content('num-records')) >= 1:
-            current_aggr = {}
             attr = aggr_get.get_child_by_name('attributes-list').get_child_by_name('aggr-attributes')
-            current_aggr['service_state'] = attr.get_child_by_name('aggr-raid-attributes').get_child_content('state')
+            current_aggr = {'service_state': attr.get_child_by_name('aggr-raid-attributes').get_child_content('state')}
             if attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'):
                 current_aggr['disk_count'] = int(attr.get_child_by_name('aggr-raid-attributes').get_child_content('disk-count'))
             if attr.get_child_by_name('aggr-raid-attributes').get_child_content('encrypt-with-aggr-key'):
                 current_aggr['encryption'] = attr.get_child_by_name('aggr-raid-attributes').get_child_content('encrypt-with-aggr-key') == 'true'
+            snaplock_type = self.na_helper.safe_get(attr, ['aggr-snaplock-attributes', 'snaplock-type'])
+            if snaplock_type:
+                current_aggr['snaplock_type'] = snaplock_type
             return current_aggr
         return None
 
@@ -401,7 +441,7 @@ class NetAppOntapAggregate:
         try:
             result = self.server.invoke_successfully(disk_get_iter, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error getting disks: %s' % to_native(error), exception=traceback.format_exc())
         return result
 
     def get_aggr_disks(self, name):
@@ -438,7 +478,7 @@ class NetAppOntapAggregate:
         try:
             result = self.server.invoke_successfully(object_store_get_iter, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error getting object store: %s' % to_native(error), exception=traceback.format_exc())
         return result
 
     def get_object_store(self, name):
@@ -448,13 +488,12 @@ class NetAppOntapAggregate:
             Dictionary of current details if object store attached to the given aggregate is found
             None if object store is not found
         """
+        if self.use_rest:
+            return self.get_object_store_rest()
         object_store_get = self.object_store_get_iter(name)
         if object_store_get and object_store_get.get_child_by_name('num-records') and int(object_store_get.get_child_content('num-records')) >= 1:
-            current_object_store = {}
-            attr = object_store_get.get_child_by_name('attributes-list').\
-                get_child_by_name('object-store-information')
-            current_object_store['object_store_name'] = attr.get_child_content('object-store-name')
-            return current_object_store
+            attr = object_store_get.get_child_by_name('attributes-list').get_child_by_name('object-store-information')
+            return {'object_store_name': attr.get_child_content('object-store-name')}
         return None
 
     def aggregate_online(self):
@@ -481,7 +520,7 @@ class NetAppOntapAggregate:
         offline_aggr = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-offline', **{'aggregate': self.parameters['name'],
                                'force-offline': 'false',
-                               'unmount-volumes': str(self.parameters['unmount_volumes'])})
+                               'unmount-volumes': str(self.parameters.get('unmount_volumes', False))})
         try:
             self.server.invoke_successfully(offline_aggr, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -506,6 +545,8 @@ class NetAppOntapAggregate:
         Create aggregate
         :return: None
         """
+        if self.use_rest:
+            return self.create_aggr_rest()
         options = {'aggregate': self.parameters['name']}
         if self.parameters.get('disk_type'):
             options['disk-type'] = self.parameters['disk_type']
@@ -569,6 +610,8 @@ class NetAppOntapAggregate:
         Delete aggregate.
         :return: None
         """
+        if self.use_rest:
+            return self.delete_aggr_rest()
         aggr_destroy = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-destroy', **{'aggregate': self.parameters['name']})
 
@@ -583,6 +626,8 @@ class NetAppOntapAggregate:
         """
         Rename aggregate.
         """
+        if self.use_rest:
+            return self.rename_aggr_rest()
         aggr_rename = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-rename', **{'aggregate': self.parameters['from_name'],
                               'new-aggregate-name': self.parameters['name']})
@@ -605,8 +650,8 @@ class NetAppOntapAggregate:
         else:
             if modify.get('service_state') == 'online':
                 self.aggregate_online()
-            disk_size = modify.get('disk_size', 0)
-            disk_size_with_unit = modify.get('disk_size_with_unit')
+            disk_size = self.parameters.get('disk_size', 0)
+            disk_size_with_unit = self.parameters.get('disk_size_with_unit')
             if modify.get('disk_count'):
                 self.add_disks(modify['disk_count'], disk_size=disk_size, disk_size_with_unit=disk_size_with_unit)
             if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
@@ -617,6 +662,8 @@ class NetAppOntapAggregate:
         Attach object store to aggregate.
         :return: None
         """
+        if self.use_rest:
+            return self.attach_object_store_to_aggr_rest()
         attach_object_store = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-object-store-attach', **{'aggregate': self.parameters['name'],
                                            'object-store-name': self.parameters['object_store_name']})
@@ -634,6 +681,8 @@ class NetAppOntapAggregate:
         Add additional disks to aggregate.
         :return: None
         """
+        if self.use_rest:
+            return self.add_disks_rest(count, disks, mirror_disks, disk_size, disk_size_with_unit)
         options = {'aggregate': self.parameters['name']}
         if count:
             options['disk-count'] = str(count)
@@ -667,7 +716,7 @@ class NetAppOntapAggregate:
         '''
         disks_plex = None
         mirror_disks_plex = None
-        error = None
+        error = ''
         for plex in plex_disks:
             common = set(plex_disks[plex]).intersection(set(disks))
             if common:
@@ -682,14 +731,14 @@ class NetAppOntapAggregate:
                         mirror_disks_plex = plex
                     else:
                         error = 'found overlapping mirror plexes: %s and %s' % (mirror_disks_plex, plex)
-        if error is None:
+        if not error:
             # make sure we found a match
             if disks_plex is None:
-                error = 'cannot not match disks with current aggregate disks'
+                error = 'cannot match disks with current aggregate disks'
             if mirror_disks is not None and mirror_disks_plex is None:
-                if error is not None:
+                if error:
                     error += ', and '
-                error = 'cannot not match mirror_disks with current aggregate disks'
+                error += 'cannot match mirror_disks with current aggregate disks'
         if error:
             self.module.fail_json(msg="Error mapping disks for aggregate %s: %s.  Found: %s" %
                                   (self.parameters['name'], error, str(plex_disks)))
@@ -736,12 +785,12 @@ class NetAppOntapAggregate:
     def set_disk_count(self, current, modify):
         if modify.get('disk_count'):
             if int(modify['disk_count']) < int(current['disk_count']):
-                self.module.fail_json(msg="specified disk_count is less than current disk_count. Only adding_disk is allowed.")
+                self.module.fail_json(msg="Error: specified disk_count is less than current disk_count. Only adding disks is allowed.")
             else:
                 modify['disk_count'] = modify['disk_count'] - current['disk_count']
 
     def get_aggr_actions(self):
-        aggr_name = self.parameters['name']
+        aggr_name = self.parameters.get('name')
         rename, cd_action, object_store_current = None, None, None
         current = self.get_aggr()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -757,8 +806,12 @@ class NetAppOntapAggregate:
                 aggr_name = self.parameters['from_name']
                 cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if 'encryption' in modify:
+        if 'encryption' in modify and not self.use_rest:
             self.module.fail_json(msg='Error: modifying encryption is not supported with ZAPI.')
+        if 'service_state' in modify and self.use_rest:
+            self.module.fail_json(msg='Error: modifying state is not supported with REST.  Cannot change to: %s.' % modify['service_state'])
+        if 'snaplock_type' in modify:
+            self.module.fail_json(msg='Error: snaplock_type is not modifiable.  Cannot change to: %s.' % modify['snaplock_type'])
 
         if cd_action is None and self.parameters.get('disks') and current is not None:
             modify['disks_to_add'], modify['mirror_disks_to_add'] = \
@@ -779,14 +832,155 @@ class NetAppOntapAggregate:
                                       (object_store_current['object_store_name'], aggr_name))
         return object_store_cd_action
 
+    def get_aggr_rest(self, name):
+        if not name:
+            return None
+        api = 'storage/aggregates'
+        query = {'name': name}
+        fields = 'uuid,state,block_storage.primary.disk_count,data_encryption,snaplock_type'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg='Error: failed to get aggregate %s: %s' % (name, error))
+        if record:
+            return {
+                'disk_count': self.na_helper.safe_get(record, ['block_storage', 'primary', 'disk_count']),
+                'encryption': self.na_helper.safe_get(record, ['data_encryption', 'software_encryption_enabled']),
+                'service_state': record['state'],
+                'snaplock_type': record['snaplock_type'],
+                'uuid': record['uuid'],
+            }
+        return None
+
+    def get_multiplier(self, unit):
+        if not unit:
+            return 1
+        try:
+            return netapp_utils.POW2_BYTE_MAP[unit[0].lower()]
+        except KeyError:
+            self.module.fail_json(msg='Error: unexpected unit in disk_size_with_unit: %s' % self.parameters['disk_size_with_unit'])
+
+    def get_disk_size(self):
+        if 'disk_size' in self.parameters:
+            return self.parameters['disk_size'] * 4 * 1024
+        if 'disk_size_with_unit' in self.parameters:
+            match = re.match(r'([\d.]+)(.*)', self.parameters['disk_size_with_unit'])
+            if match:
+                size, unit = match.groups()
+                mul = self.get_multiplier(unit)
+                return int(float(size) * mul)
+            self.module.fail_json(msg='Error: unexpected value in disk_size_with_unit: %s' % self.parameters['disk_size_with_unit'])
+        return None
+
+    def create_aggr_rest(self):
+        api = 'storage/aggregates'
+
+        disk_size = self.get_disk_size()
+        query = {'disk_size': disk_size} if disk_size else None
+
+        body = {'name': self.parameters['name']} if 'name' in self.parameters else {}
+        block_storage = {}
+        primary = {}
+        if self.parameters.get('nodes'):
+            body['node.name'] = self.parameters['nodes'][0]
+        if self.parameters.get('disk_count'):
+            primary['disk_count'] = self.parameters['disk_count']
+        if self.parameters.get('raid_size'):
+            primary['raid_size'] = self.parameters['raid_size']
+        if self.parameters.get('raid_type'):
+            primary['raid_type'] = self.parameters['raid_type']
+        if primary:
+            block_storage['primary'] = primary
+        mirror = {}
+        if self.parameters.get('is_mirrored'):
+            mirror['enabled'] = self.parameters['is_mirrored']
+        if mirror:
+            block_storage['mirror'] = mirror
+        if block_storage:
+            body['block_storage'] = block_storage
+        if self.parameters.get('encryption'):
+            body['data_encryption'] = {'software_encryption_enabled': True}
+        if self.parameters.get('snaplock_type'):
+            body['snaplock_type'] = self.parameters['snaplock_type']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body or None, query, job_timeout=self.parameters['time_out'])
+        if error:
+            self.module.fail_json(msg='Error: failed to create aggregate: %s' % error)
+
+    def delete_aggr_rest(self):
+        api = 'storage/aggregates'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid)
+        if error:
+            self.module.fail_json(msg='Error: failed to delete aggregate: %s' % error)
+
+    def patch_aggr_rest(self, action, body, query=None):
+        api = 'storage/aggregates'
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body, query)
+        if error:
+            self.module.fail_json(msg='Error: failed to %s aggregate: %s' % (action, error))
+
+    def add_disks_rest(self, count=0, disks=None, mirror_disks=None, disk_size=0, disk_size_with_unit=None):
+        """
+        Add additional disks to aggregate.
+        :return: None
+        """
+        if disks or mirror_disks:
+            self.module.fail_json(msg='Error: disks or mirror disks are mot supported with rest: %s, %s.' % (disks, mirror_disks))
+        primary = {'disk_count': self.parameters['disk_count']} if count else None
+        body = {'block_storage': {'primary': primary}} if primary else None
+        if body:
+            disk_size = self.get_disk_size()
+            query = {'disk_size': disk_size} if disk_size else None
+            self.patch_aggr_rest('increase disk count for', body, query)
+
+    def rename_aggr_rest(self):
+        body = {'name': self.parameters['name']}
+        self.patch_aggr_rest('rename', body)
+
+    def get_object_store_rest(self):
+        '''TODO: support mirror in addition to primary'''
+        api = 'storage/aggregates/%s/cloud-stores' % self.uuid
+        record, error = rest_generic.get_one_record(self.rest_api, api, query={'primary': True})
+        if error:
+            self.module.fail_json(msg='Error: failed to get cloud stores for aggregate: %s' % error)
+        return record
+
+    def get_cloud_target_uuid_rest(self):
+        api = 'cloud/targets'
+        query = {'name': self.parameters['object_store_name']}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error or not record:
+            self.module.fail_json(msg='Error: failed to find cloud store with name %s: %s' % (self.parameters['object_store_name'], error))
+        return record['uuid']
+
+    def attach_object_store_to_aggr_rest(self):
+        '''TODO: support mirror in addition to primary'''
+
+        body = {'target': {'uuid': self.get_cloud_target_uuid_rest()}}
+        api = 'storage/aggregates/%s/cloud-stores' % self.uuid
+        record, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error: failed to attach cloud store with name %s: %s' % (self.parameters['object_store_name'], error))
+        return record
+
+    def validate_expensive_options(self, cd_action, modify):
+        if cd_action == 'create' or (modify and 'disk_count' in modify):
+            # report an error if disk_size_with_unit is not valid
+            self.get_disk_size()
+
     def apply(self):
         """
         Apply action to the aggregate
         :return: None
         """
-        netapp_utils.ems_log_event_cserver("na_ontap_aggregate", self.server, self.module)
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_aggregate", self.server, self.module)
         current, cd_action, rename, modify = self.get_aggr_actions()
+        if current:
+            self.uuid = current.get('uuid')
         object_store_cd_action = self.get_object_store_action(current, rename)
+
+        if self.na_helper.changed and self.module.check_mode:
+            # additional validations that are done at runtime
+            self.validate_expensive_options(cd_action, modify)
 
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':

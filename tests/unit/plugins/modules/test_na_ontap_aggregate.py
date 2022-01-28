@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_aggregate """
@@ -70,7 +70,7 @@ class MockONTAPConnection(object):
         print('request:', xml.to_string())
         zapi = xml.get_name()
         self.zapis.append(zapi)
-        if zapi == 'aggr-object-store-get-iter':
+        if zapi == 'aggr-object-store-get-iter' and self.type != 'aggregate_fail':
             if self.type in ('aggregate_no_object_store',):
                 xml = None
             else:
@@ -106,7 +106,8 @@ class MockONTAPConnection(object):
                       'aggr-raid-attributes': {
                           'state': 'offline',
                           'disk-count': '4',
-                          'encrypt-with-aggr-key': 'true'}
+                          'encrypt-with-aggr-key': 'true'},
+                      'aggr-snaplock-attributes': {'snaplock-type': 'snap_t'}
                       },
                      'object-store-information': {'object-store-name': 'abc'}
                      },
@@ -218,12 +219,16 @@ class TestMyModule(unittest.TestCase):
             'feature_flags': feature_flags
         })
 
-    def call_command(self, module_args, what=None, fail=False):
-        ''' utility function to call apply '''
+    def create_object(self, module_args):
+        ''' utility function to create module object '''
         args = dict(self.set_default_args())
         args.update(module_args)
         set_module_args(args)
-        my_obj = my_module()
+        return my_module()
+
+    def call_command(self, module_args, what=None, fail=False):
+        ''' utility function to call apply '''
+        my_obj = self.create_object(module_args)
         my_obj.asup_log_for_cserver = Mock(return_value=None)
         aggregate = 'aggregate'
         if what == 'disks':
@@ -263,6 +268,43 @@ class TestMyModule(unittest.TestCase):
             'disk_size': 10,
             # 'disk_size_with_unit': 'dsize_unit',
             'is_mirrored': True,
+            'ignore_pool_checks': True,
+            'encryption': True,
+            'nodes': ['node1', 'node2']
+        }
+        changed = self.call_command(module_args, what='no_aggregate')
+        assert changed
+        assert 'aggr-object-store-attach' not in self.zapis
+        print(self.zapis)
+
+    def test_create_with_spare_pool(self):
+        module_args = {
+            'disk_type': 'ATA',
+            'raid_type': 'raid_dp',
+            'snaplock_type': 'non_snaplock',
+            'spare_pool': 'Pool0',
+            'disk_count': 2,
+            'raid_size': 5,
+            'disk_size_with_unit': '10m',
+            # 'disk_size_with_unit': 'dsize_unit',
+            'ignore_pool_checks': True,
+            'encryption': True,
+            'nodes': ['node1', 'node2']
+        }
+        changed = self.call_command(module_args, what='no_aggregate')
+        assert changed
+        assert 'aggr-object-store-attach' not in self.zapis
+        print(self.zapis)
+
+    def test_create_with_disks(self):
+        module_args = {
+            'disk_type': 'ATA',
+            'raid_type': 'raid_dp',
+            'snaplock_type': 'non_snaplock',
+            'disks': [1, 2],
+            'mirror_disks': [11, 12],
+            'raid_size': 5,
+            'disk_size_with_unit': '10m',
             'ignore_pool_checks': True,
             'encryption': True,
             'nodes': ['node1', 'node2']
@@ -419,7 +461,7 @@ class TestMyModule(unittest.TestCase):
         }
         with pytest.raises(AnsibleFailJson) as exc:
             self.call_command(module_args, 'mirrors')
-        msg = "Error mapping disks for aggregate %s: cannot not match disks with current aggregate disks." % AGGR_NAME
+        msg = "Error mapping disks for aggregate %s: cannot match disks with current aggregate disks." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
 
     def test_disks_overlapping_mirror(self):
@@ -474,3 +516,106 @@ class TestMyModule(unittest.TestCase):
             self.call_command(module_args, 'mirrors')
         msg = "Error cannot add mirror disks ['6'] without adding disks for aggregate %s." % AGGR_NAME
         assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_map_plex_to_primary_and_mirror_error_overlap(self):
+        my_obj = self.create_object({})
+        with pytest.raises(AnsibleFailJson) as exc:
+            plex_disks = {'plex1': [1, 2, 3], 'plex2': [4, 5, 6]}
+            disks = [1, 4, 5]
+            mirror_disks = []
+            my_obj.map_plex_to_primary_and_mirror(plex_disks, disks, mirror_disks)
+        msg = "Error mapping disks for aggregate aggr_name: found overlapping plexes:"
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_map_plex_to_primary_and_mirror_error_overlap_mirror(self):
+        my_obj = self.create_object({})
+        with pytest.raises(AnsibleFailJson) as exc:
+            plex_disks = {'plex1': [1, 2, 3], 'plex2': [4, 5, 6]}
+            disks = [1, 4, 5]
+            mirror_disks = [1, 4, 5]
+            my_obj.map_plex_to_primary_and_mirror(plex_disks, disks, mirror_disks)
+        msg = "Error mapping disks for aggregate aggr_name: found overlapping mirror plexes:"
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    def test_map_plex_to_primary_and_mirror_error_no_match(self):
+        my_obj = self.create_object({})
+        with pytest.raises(AnsibleFailJson) as exc:
+            plex_disks = {'plex1': [1, 2, 3], 'plex2': [4, 5, 6]}
+            disks = [7, 8, 9]
+            mirror_disks = [10, 11, 12]
+            my_obj.map_plex_to_primary_and_mirror(plex_disks, disks, mirror_disks)
+        msg = ("Error mapping disks for aggregate aggr_name: cannot match disks with current aggregate disks, "
+               + "and cannot match mirror_disks with current aggregate disks.")
+        assert exc.value.args[0]['msg'].startswith(msg)
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+    def test_missing_netapp_lib(self, mock_has_netapp_lib):
+        mock_has_netapp_lib.return_value = False
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.create_object({})
+        msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_disk_get_iter_error(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection(kind='aggregate_fail')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.disk_get_iter('name')
+        msg = 'Error getting disks: NetApp API failed. Reason - TEST:This exception is from the unit test'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_object_store_get_iter_error(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection(kind='aggregate_fail')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.object_store_get_iter('name')
+        msg = 'Error getting object store: NetApp API failed. Reason - TEST:This exception is from the unit test'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_attach_object_store_to_aggr_error(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection(kind='aggregate_fail')
+        my_obj.parameters['object_store_name'] = 'os12'
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.attach_object_store_to_aggr()
+        msg = 'Error attaching object store os12 to aggregate aggr_name: NetApp API failed. Reason - TEST:This exception is from the unit test'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_attach_object_store_to_aggr_error(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection(kind='aggregate_fail')
+        my_obj.parameters['object_store_name'] = 'os12'
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.attach_object_store_to_aggr()
+        msg = 'Error attaching object store os12 to aggregate aggr_name: NetApp API failed. Reason - TEST:This exception is from the unit test'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_add_disks_all_options(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection()
+        my_obj.parameters['ignore_pool_checks'] = True
+        my_obj.add_disks(count=2, disks=['1', '2'], disk_size=1, disk_size_with_unit='12GB')
+        print("\n---\n", my_obj.server.zapis, "\n---\n")
+        assert 'aggr-add' in my_obj.server.zapis
+
+    def test_add_disks_error(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection(kind='aggregate_fail')
+        with pytest.raises(AnsibleFailJson) as exc:
+            my_obj.add_disks()
+        msg = 'Error adding additional disks to aggregate aggr_name: NetApp API failed. Reason - TEST:This exception is from the unit test'
+        assert msg == exc.value.args[0]['msg']
+
+    def test_modify_aggr_offline(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection()
+        my_obj.modify_aggr({'service_state': 'offline'})
+        print("\n---\n", my_obj.server.zapis, "\n---\n")
+        assert 'aggr-offline' in my_obj.server.zapis
+
+    def test_modify_aggr_online(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection()
+        my_obj.modify_aggr({'service_state': 'online'})
+        print("\n---\n", my_obj.server.zapis, "\n---\n")
+        assert 'aggr-online' in my_obj.server.zapis
