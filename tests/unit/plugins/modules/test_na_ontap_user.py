@@ -113,6 +113,11 @@ class MockONTAPConnection(object):
             raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
         elif self.type == 'user_not_found':
             raise netapp_utils.zapi.NaApiError(code='16034', message="This exception should not be seen")
+        elif self.type == 'internal_error':
+            raise netapp_utils.zapi.NaApiError(code='13114', message="Forcing an internal error")
+        elif self.type == 'repeated_password':
+            # python3.9/site-packages/netapp_lib/api/zapi/errors.py
+            raise netapp_utils.zapi.NaApiError(code='13214', message="New password must be different than last 6 passwords.")
         self.xml_out = xml
         return xml
 
@@ -353,6 +358,32 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_user_apply: %s' % repr(exc.value))
         assert exc.value.args[0]['changed']
 
+    def test_set_password_internal_error(self):
+        ''' set password '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['set_password'] = '123456'
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('internal_error', 'true')
+        assert not my_obj.change_password()
+
+    def test_set_password_reused(self):
+        ''' set password '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args['set_password'] = '123456'
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('repeated_password', 'true')
+        assert not my_obj.change_password()
+
     def test_ensure_user_role_update_called(self):
         ''' set password '''
         module_args = {}
@@ -415,6 +446,31 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.modify_user(app, ['password'])
         assert 'Error modifying user ' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_create_user_with_usm_auth(self, mock_request):
+        data = self.set_default_args(rest=True)
+        data.update({'applications': 'snmp'})
+        data.update({'authentication_method': 'usm'})
+        data.update({'name': 'create'})
+        data.update({'role_name': 'test123'})
+        data.update({'set_password': '123456'})
+        data.update({'remote_switch_ipaddress': '12.34.56.78'})
+        data.update({'authentication_password': 'auth_pwd'})
+        data.update({'authentication_protocol': 'md5'})
+        data.update({'privacy_password': 'auth_pwd'})
+        data.update({'privacy_protocol': 'des'})
+        data.update({'engine_id': 'engine_123'})
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_zapi'],
+            SRR['end_of_sequence']
+        ]
+        my_obj = my_module()
+        my_obj.server = MockONTAPConnection('user', 'true')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_applications_snmp(self, mock_request):
@@ -580,6 +636,35 @@ def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_e
         print(mock_request.mock_calls[3].kwargs)
         assert 'json' in mock_request.mock_calls[3].kwargs
         assert 'password' in mock_request.mock_calls[3].kwargs['json']
+
+
+@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
+@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_change_password_user_rest_check_mode(mock_request, mock_fail, mock_exit):
+    mock_fail.side_effect = fail_json
+    mock_exit.side_effect = exit_json
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_user_rest'],
+        SRR['get_user_details_rest'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'set_password': 'newvalue',
+    }
+    data.update(set_default_args_rest_zapi())
+    data.pop('applications')
+    data.pop('authentication_method')
+    data['lock_user'] = False
+    set_module_args(data)
+    my_obj = my_module()
+    my_obj.module.check_mode = True
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
 
 
 @patch('ansible.module_utils.basic.AnsibleModule.exit_json')

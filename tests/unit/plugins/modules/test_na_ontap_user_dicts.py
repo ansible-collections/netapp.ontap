@@ -207,6 +207,36 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         print(self.server.zapis)
 
+    def test_ensure_user_apply_called_using_dict(self):
+        ''' creating user and checking idempotency '''
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args['name'] = 'create'
+        module_args['role_name'] = 'test'
+        module_args.pop('applications')
+        module_args.pop('authentication_method')
+        application = {
+            'application': 'ssh',
+            'authentication_methods': ['publickey'],
+            'second_authentication_method': 'password'
+        }
+        module_args['application_dicts'] = [application]
+        set_module_args(module_args)
+        my_obj = my_module()
+        if not self.onbox:
+            my_obj.server = self.server
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        if not self.onbox:
+            my_obj.server = MockONTAPConnection('user', 'false')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
+        print('Info: test_user_apply: %s' % repr(exc.value))
+        assert exc.value.args[0]['changed']
+        print(self.server.zapis)
+
     def test_ensure_user_apply_called_add(self):
         ''' creating user and checking idempotency '''
         module_args = {}
@@ -636,6 +666,22 @@ def test_sp_retry(mock_request, mock_fail, mock_exit):
     print(mock_request.mock_calls)
     assert 'service_processor' in repr(mock_request.mock_calls[-1])
     assert exc.value.args[0]['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_validate_application(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['end_of_sequence']
+    ]
+    data = dict(set_default_args_rest())
+    set_module_args(data)
+    my_obj = my_module()
+    assert 'second_authentication_method' in my_obj.parameters['applications'][0]
+    my_obj.parameters['applications'][0].pop('second_authentication_method')
+    my_obj.validate_applications()
+    assert 'second_authentication_method' in my_obj.parameters['applications'][0]
+    assert my_obj.parameters['applications'][0]['second_authentication_method'] is None
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

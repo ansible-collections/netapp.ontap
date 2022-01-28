@@ -810,7 +810,7 @@ class NetAppOntapUser():
             deferred_lock = self.take_action(cd_action, modify, current, uuid, name)
 
         password_changed = False
-        if cd_action is None and self.parameters.get('set_password') is not None:
+        if cd_action is None and self.parameters.get('set_password') is not None and self.parameters['state'] == 'present':
             # if check_mode, don't attempt to change the password, but assume it would be changed
             if self.use_rest:
                 password_changed = self.module.check_mode or self.change_password_rest(uuid, name)
