@@ -133,17 +133,6 @@ EXAMPLES = '''
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: Modify cifs_server
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        name: data2_new
-        vserver: svm1
-        admin_user_name: "{{ domain_login }}"
-        admin_password: "{{ domain_pwd }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
 '''
 
 RETURN = '''
@@ -281,20 +270,6 @@ class NetAppOntapcifsServer:
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error deleting cifs_server %s: %s' % (self.parameters['cifs_server_name'], to_native(exc)),
-                                  exception=traceback.format_exc())
-
-    def modify_cifs_server(self, admin_status):
-        """
-        RModify the cifs_server.
-        """
-        cifs_server_modify = netapp_utils.zapi.NaElement.create_node_with_children(
-            'cifs-server-modify', **{'cifs-server': self.parameters['cifs_server_name'],
-                                     'administrative-status': admin_status, 'vserver': self.parameters['vserver']})
-        try:
-            self.server.invoke_successfully(cifs_server_modify,
-                                            enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg='Error modifying cifs_server %s: %s' % (self.parameters['cifs_server_name'], to_native(e)),
                                   exception=traceback.format_exc())
 
     def start_cifs_server(self):
