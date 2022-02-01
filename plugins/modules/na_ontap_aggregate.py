@@ -62,10 +62,20 @@ options:
   disk_type:
     description:
       - Type of disk to use to build aggregate.
-      - Not supported with REST.
-    choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']
+      - Not supported with REST - see C(disk_class).
+      - SSD-NVM was added with ONTAP 9.6.
+      - SSD-CAP, VMLUN, VMLUN-SSD were added with ONTAP 9.8.
+    choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD-CAP', 'SSD-NVM', 'VMDISK', 'VMLUN', 'VMLUN-SSD']
     type: str
     version_added: 2.7.0
+
+  disk_class:
+    description:
+      - Class of disk to use to build aggregate.
+      - C(capacity_flash) is listed in swagger, but rejected as invalid by ONTAP.
+    choices: ['capacity', 'performance', 'archive', 'solid_state', 'array', 'virtual', 'data_center', 'capacity_flash']
+    type: str
+    version_added: 21.16.0
 
   disk_count:
     description:
@@ -291,7 +301,10 @@ class NetAppOntapAggregate:
             disk_count=dict(required=False, type='int', default=None),
             disk_size=dict(required=False, type='int'),
             disk_size_with_unit=dict(required=False, type='str'),
-            disk_type=dict(required=False, choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'VMDISK']),
+            disk_class=dict(required=False,
+                            choices=['capacity', 'performance', 'archive', 'solid_state', 'array', 'virtual', 'data_center', 'capacity_flash']),
+            disk_type=dict(required=False,
+                           choices=['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD-CAP', 'SSD-NVM', 'VMDISK', 'VMLUN', 'VMLUN-SSD']),
             from_name=dict(required=False, type='str'),
             mirror_disks=dict(required=False, type='list', elements='str'),
             nodes=dict(required=False, type='list', elements='str'),
@@ -321,7 +334,8 @@ class NetAppOntapAggregate:
                 ('is_mirrored', 'spare_pool'),
                 ('spare_pool', 'disks'),
                 ('disk_count', 'disks'),
-                ('disk_size', 'disk_size_with_unit')
+                ('disk_size', 'disk_size_with_unit'),
+                ('disk_class', 'disk_type'),
             ],
             supports_check_mode=True
         )
@@ -548,6 +562,8 @@ class NetAppOntapAggregate:
         if self.use_rest:
             return self.create_aggr_rest()
         options = {'aggregate': self.parameters['name']}
+        if self.parameters.get('disk_class'):
+            options['disk-class'] = self.parameters['disk_class']
         if self.parameters.get('disk_type'):
             options['disk-type'] = self.parameters['disk_type']
         if self.parameters.get('raid_type'):
@@ -692,6 +708,10 @@ class NetAppOntapAggregate:
             options['disk-size'] = str(disk_size)
         if disk_size_with_unit:
             options['disk-size-with-unit'] = disk_size_with_unit
+        if self.parameters.get('disk_class'):
+            options['disk-class'] = self.parameters['disk_class']
+        if self.parameters.get('disk_type'):
+            options['disk-type'] = self.parameters['disk_type']
         aggr_add = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-add', **options)
         if disks:
@@ -882,6 +902,8 @@ class NetAppOntapAggregate:
         primary = {}
         if self.parameters.get('nodes'):
             body['node.name'] = self.parameters['nodes'][0]
+        if self.parameters.get('disk_class'):
+            primary['disk_class'] = self.parameters['disk_class']
         if self.parameters.get('disk_count'):
             primary['disk_count'] = self.parameters['disk_count']
         if self.parameters.get('raid_size'):
@@ -924,6 +946,8 @@ class NetAppOntapAggregate:
         """
         if disks or mirror_disks:
             self.module.fail_json(msg='Error: disks or mirror disks are mot supported with rest: %s, %s.' % (disks, mirror_disks))
+        if self.parameters.get('disk_class'):
+            self.module.warn('disk_class is ignored when adding disks to an exiting aggregate')
         primary = {'disk_count': self.parameters['disk_count']} if count else None
         body = {'block_storage': {'primary': primary}} if primary else None
         if body:

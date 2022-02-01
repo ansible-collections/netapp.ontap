@@ -327,6 +327,7 @@ class TestMyModule(unittest.TestCase):
 
     def test_create_with_object_store(self):
         module_args = {
+            'disk_class': 'capacity',
             'disk_count': '2',
             'is_mirrored': 'true',
             'object_store_name': 'abc'
@@ -590,10 +591,20 @@ class TestMyModule(unittest.TestCase):
         msg = 'Error attaching object store os12 to aggregate aggr_name: NetApp API failed. Reason - TEST:This exception is from the unit test'
         assert msg == exc.value.args[0]['msg']
 
-    def test_add_disks_all_options(self):
+    def test_add_disks_all_options_class(self):
         my_obj = self.create_object({})
         my_obj.server = MockONTAPConnection()
         my_obj.parameters['ignore_pool_checks'] = True
+        my_obj.parameters['disk_class'] = 'performance'
+        my_obj.add_disks(count=2, disks=['1', '2'], disk_size=1, disk_size_with_unit='12GB')
+        print("\n---\n", my_obj.server.zapis, "\n---\n")
+        assert 'aggr-add' in my_obj.server.zapis
+
+    def test_add_disks_all_options_type(self):
+        my_obj = self.create_object({})
+        my_obj.server = MockONTAPConnection()
+        my_obj.parameters['ignore_pool_checks'] = True
+        my_obj.parameters['disk_type'] = 'SSD'
         my_obj.add_disks(count=2, disks=['1', '2'], disk_size=1, disk_size_with_unit='12GB')
         print("\n---\n", my_obj.server.zapis, "\n---\n")
         assert 'aggr-add' in my_obj.server.zapis

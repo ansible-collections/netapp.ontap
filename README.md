@@ -38,7 +38,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.16.0
 
 ### New Options
-  - na_ontap_cifs_server - Added REST support to the cifs server module.
+  - na_ontap_aggregate - Added `disk_class` option for REST and ZAPI.
+  - na_ontap_aggregate - Extended accepted `disk_type` values for ZAPI.
   - na_ontap_volume - `logical_space_enforcement` to specifies whether to perform logical space accounting on the volume.
   - na_ontap_volume - `logical_space_reporting` to specifies whether to report space logically on the volume.
   - na_ontap_volume - `tiering_minimum_cooling_days` to specify how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is considered cold and eligible for tiering.
@@ -58,8 +59,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_aggregate - Added REST support.
-
-### Added REST support to existing modules
+  - na_ontap_cifs_server - Added REST support to the cifs server module.
   - na_ontap_ports - Added REST support to the ports module.
   - na_ontap_volume_clone -- Added REST support.
 

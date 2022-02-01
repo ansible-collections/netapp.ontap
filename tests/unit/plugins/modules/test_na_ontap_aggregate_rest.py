@@ -242,6 +242,7 @@ def test_create_aggr_all_options(mock_request, patch_ansible):
     ]
     set_module_args(set_default_args())
     my_obj = my_module()
+    my_obj.parameters['disk_class'] = 'capacity'
     my_obj.parameters['disk_count'] = 12
     my_obj.parameters['disk_size_with_unit'] = '1567gb'
     my_obj.parameters['is_mirrored'] = True
@@ -257,6 +258,7 @@ def test_create_aggr_all_options(mock_request, patch_ansible):
     post_call = str(mock_request.mock_calls[1])
     print(post_call)
     assert expected_call in post_call
+    assert "'disk_class': 'capacity'" in post_call
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -400,6 +402,7 @@ def test_add_disks(mock_request, patch_ansible):
     ]
     set_module_args(set_default_args())
     my_obj = my_module()
+    my_obj.parameters['disk_class'] = 'performance'
     my_obj.parameters['disk_count'] = 12
     my_obj.uuid = 'aggr_uuid'
     my_obj.add_disks_rest(count=2)
