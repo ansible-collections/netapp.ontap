@@ -1840,7 +1840,7 @@ class NetAppOntapVolume:
         if current is not None:
             return current.get('style_extended')
         if self.parameters.get('aggr_list') or self.parameters.get('aggr_list_multiplier') or self.parameters.get('auto_provision_as'):
-            if self.use_rest and self.parameters.get('auto_provision_as') and not self.parameters['aggr_list_multiplier']:
+            if self.use_rest and self.parameters.get('auto_provision_as') and self.parameters.get('aggr_list_multiplier') is None:
                 self.parameters['aggr_list_multiplier'] = 1
             return 'flexgroup'
         return None
@@ -2307,6 +2307,8 @@ class NetAppOntapVolume:
             body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
         if self.parameters.get('tiering_minimum_cooling_days') is not None:
             body['tiering.min_cooling_days'] = self.parameters['tiering_minimum_cooling_days']
+        if self.volume_style:
+            body['style'] = self.volume_style
         body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
@@ -2544,7 +2546,7 @@ class NetAppOntapVolume:
         response = None
         modify_after_create = None
         current = self.get_volume()
-        self.volume_style = self.get_volume_style(current)  # TODO: Check if this needed REST
+        self.volume_style = self.get_volume_style(current)
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')
         rename, rehost, snapshot_restore, cd_action, modify = None, None, None, None, None
