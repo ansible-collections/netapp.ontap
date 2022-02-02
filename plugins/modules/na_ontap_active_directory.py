@@ -1,15 +1,11 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp Inc.
+# (c) 2020-2022, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 module: na_ontap_active_directory
@@ -67,6 +63,10 @@ options:
     description:
     - Organizational unit under which the Active Directory account will be created.
     type: str
+
+notes:
+  - Supports check_mode.
+  - Only supported with ZAPI.
 '''
 EXAMPLES = """
 -
@@ -76,7 +76,7 @@ EXAMPLES = """
     - netapp.ontap
   tasks:
     - name: run ontap active directory
-      na_ontap_active_directory:
+      netapp.ontap.na_ontap_active_directory:
         hostname: 10.193.78.219
         username: admin
         password: netapp1!
@@ -100,10 +100,8 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapActiveDirectory(object):
+class NetAppOntapActiveDirectory:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -122,28 +120,37 @@ class NetAppOntapActiveDirectory(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        if netapp_utils.has_netapp_lib() is False:
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_active_directory(self):
         active_directory_iter = netapp_utils.zapi.NaElement('active-directory-account-get-iter')
-        acitve_directory_info = netapp_utils.zapi.NaElement('active-directory-account-config')
-        acitve_directory_info.add_new_child('account-name', self.parameters['account_name'])
-        acitve_directory_info.add_new_child('vserver', self.parameters['vserver'])
+        active_directory_info = netapp_utils.zapi.NaElement('active-directory-account-config')
+        active_directory_info.add_new_child('account-name', self.parameters['account_name'])
+        active_directory_info.add_new_child('vserver', self.parameters['vserver'])
         query = netapp_utils.zapi.NaElement('query')
-        query.add_child_elem(acitve_directory_info)
+        query.add_child_elem(active_directory_info)
         active_directory_iter.add_child_elem(query)
         try:
             result = self.server.invoke_successfully(active_directory_iter, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error searching for Active Directory %s: %s' %
-                                      (self.parameters['account-name'], to_native(error)),
+                                      (self.parameters['account_name'], to_native(error)),
                                   exception=traceback.format_exc())
+        record = {}
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
-            return result.get_child_by_name('attributes-list').get_child_by_name('active-directory-account-config')
-        return None
+            account_info = result.get_child_by_name('attributes-list').get_child_by_name('active-directory-account-config')
+            for zapi_key, key in (('account-name', 'account_name'), ('domain', 'domain'), ('organizational-unit', 'organizational_unit')):
+                value = account_info.get_child_content(zapi_key)
+                if value is not None:
+                    record[key] = value
+            # normalize case, using user inputs
+            for key, value in record.items():
+                if key in self.parameters and self.parameters[key].lower() == value.lower():
+                    record[key] = self.parameters[key]
+        return record or None
 
     def create_active_directory(self):
         active_directory_obj = netapp_utils.zapi.NaElement('active-directory-account-create')
@@ -159,9 +166,8 @@ class NetAppOntapActiveDirectory(object):
         try:
             self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error creating on Active Directory %s: %s' %
-                                      (self.parameters['account_name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(msg='Error creating vserver Active Directory %s: %s' %
+                                      (self.parameters['account_name'], to_native(error)))
 
     def delete_active_directory(self):
         active_directory_obj = netapp_utils.zapi.NaElement('active-directory-account-delete')
@@ -170,9 +176,8 @@ class NetAppOntapActiveDirectory(object):
         try:
             self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error deleting on Active Directory %s: %s' %
-                                      (self.parameters['account_name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(msg='Error deleting vserver Active Directory %s: %s' %
+                                      (self.parameters['account_name'], to_native(error)))
 
     def modify_active_directory(self):
         active_directory_obj = netapp_utils.zapi.NaElement('active-directory-account-modify')
@@ -185,9 +190,8 @@ class NetAppOntapActiveDirectory(object):
         try:
             self.server.invoke_successfully(active_directory_obj, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error deleting on Active Directory %s: %s' %
-                                      (self.parameters['account_name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(msg='Error modifying vserver Active Directory %s: %s' %
+                                      (self.parameters['account_name'], to_native(error)))
 
     def asup_log_for_cserver(self, event_name):
         """
@@ -207,18 +211,16 @@ class NetAppOntapActiveDirectory(object):
         modify = None
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            # TODO add Modify
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_active_directory()
-                elif cd_action == 'delete':
-                    self.delete_active_directory()
-                elif modify:
-                    self.modify_active_directory()
-        self.module.exit_json(changed=self.na_helper.changed)
+            if modify and 'organizational_unit' in modify:
+                self.module.fail_json(msg='Error: organizational_unit cannot be modified; found %s.' % modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_active_directory()
+            elif cd_action == 'delete':
+                self.delete_active_directory()
+            elif modify:
+                self.modify_active_directory()
+        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
 
 
 def main():

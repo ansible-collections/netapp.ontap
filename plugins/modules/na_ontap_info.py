@@ -43,6 +43,7 @@ options:
         elements: str
         description:
             - When supplied, this argument will restrict the information collected to a given subset.  Possible values for this argument include
+            - "active_directory_account_info"
             - "aggregate_info"
             - "aggr_efficiency_info"
             - "autosupport_check_info"
@@ -329,6 +330,7 @@ ontap_info:
     type: dict
     sample: '{
         "ontap_info": {
+            "active_directory_account_info": {...},
             "aggregate_info": {...},
             "autosupport_check_info": {...},
             "cluster_identity_info": {...},
@@ -377,7 +379,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
-IMPORT_ERRORS = list()
+IMPORT_ERRORS = []
 try:
     import xmltodict
     HAS_XMLTODICT = True
@@ -403,12 +405,12 @@ class NetAppONTAPGatherInfo(object):
         self.max_records = str(max_records)
         volume_move_target_aggr_info = module.params.get('volume_move_target_aggr_info', dict())
         if volume_move_target_aggr_info is None:
-            volume_move_target_aggr_info = dict()
-        self.netapp_info = dict()
+            volume_move_target_aggr_info = {}
+        self.netapp_info = {}
         self.desired_attributes = module.params['desired_attributes']
         self.query = module.params['query']
         self.translate_keys = not module.params['use_native_zapi_tags']
-        self.warnings = list()  # warnings will be added to the info results, if any
+        self.warnings = []  # warnings will be added to the info results, if any
         self.set_error_flags()
 
         # thanks to coreywan (https://github.com/ansible/ansible/pull/47016)
@@ -482,6 +484,16 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'security-login-role-get-iter',
                     'attribute': 'security-login-role-info',
                     'key_fields': ('vserver', 'role-name', 'command-directory-name'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'active_directory_account_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'active-directory-account-get-iter',
+                    'attribute': 'active-directory-account-config',
+                    'key_fields': ('vserver', 'account-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
