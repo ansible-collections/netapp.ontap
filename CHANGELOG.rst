@@ -5,6 +5,41 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.16.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_aggregate - Added REST support.
+- na_ontap_aggregate - Added ``disk_class`` option for REST and ZAPI.
+- na_ontap_aggregate - Extended accepted ``disk_type`` values for ZAPI.
+- na_ontap_cifs_server - Added REST support to the cifs server module.
+- na_ontap_ports - Added REST support to the ports module.
+- na_ontap_snapmirror - Added REST support to the na_ontap_snapmirror module
+- na_ontap_volume - ``logical_space_enforcement`` to specifies whether to perform logical space accounting on the volume.
+- na_ontap_volume - ``logical_space_reporting`` to specifies whether to report space logically on the volume.
+- na_ontap_volume - ``tiering_minimum_cooling_days`` to specify how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is considered cold and eligible for tiering.
+- na_ontap_volume_clone - Added REST support.
+
+Bugfixes
+--------
+
+- four modules (mediator, metrocluster, security_certificates, wwpn_alias) would report a None error when REST is not available.
+- module_utils - fixed KeyError on Allow when using OPTIONS method and the API failed.
+- na_ontap_active_directory - Fixed idempotency and traceback issues.
+- na_ontap_aggregate - Fixed KeyError on unmount_volumes when offlining a volume if option is not set.
+- na_ontap_aggregate - Report an error when attempting to change snaplock_type.
+- na_ontap_igroup - ``force_remove_initiator`` option was ignored when removing initiators from existing igroup.
+- na_ontap_info - Add active_directory_account_info.
+- na_ontap_security_certificates - ``intermediate_certificates`` option was ignored.
+- na_ontap_user - Fixed TypeError 'tuple' object does not support item assignment.
+- na_ontap_user - Fixed issue when attempting to change pasword for absent user when set_password is set.
+- na_ontap_user - Fixed lock state is not set if password is not changed.
+- na_ontap_volume - Fixed error when creating a flexGroup when ``aggregate_name`` and ``aggr_list_multiplier`` are not set in rest.
+- na_ontap_volume - Fixed error with unmounting junction_path in rest.
+- na_ontap_volume - report error when attempting to change the nas_application tiering control from disalllowed to required, or reciprocally.
+
 v21.15.1
 ========
 
