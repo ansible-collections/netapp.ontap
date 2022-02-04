@@ -286,7 +286,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI, netapp_lib_is_required
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -811,7 +811,7 @@ class NetAppOntapAggregate:
 
     def get_aggr_actions(self):
         aggr_name = self.parameters.get('name')
-        rename, cd_action, object_store_current = None, None, None
+        rename, cd_action = None, None
         current = self.get_aggr()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and self.parameters.get('from_name'):

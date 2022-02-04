@@ -769,7 +769,6 @@ class OntapRestAPI(object):
         #         }
         #     }
         # }
-        keep_running = True
         error = None
         message = None
         runtime = 0

@@ -64,7 +64,6 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 

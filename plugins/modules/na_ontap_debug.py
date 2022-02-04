@@ -157,8 +157,6 @@ class NetAppONTAPDebug(object):
                 self.log_list.append('vserver: %s, interface: %s, IP: %s, service policies: %s' % tuple(data))
 
     def validate_user(self, vserver_name, user):
-        data = [vserver_name]
-        user_name = user.get('name')
         locked = user.get('locked')
         if locked:
             self.note_list.append('NOTE: user: %s is locked for: %s' % (user['name'], vserver_name))
