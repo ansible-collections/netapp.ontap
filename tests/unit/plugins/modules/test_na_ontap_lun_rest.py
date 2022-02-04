@@ -1,4 +1,4 @@
-# (c) 2020, NetApp, Inc
+# (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -6,13 +6,13 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import copy
-import json
 import pytest
 
 from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, assert_warning_was_raised, print_warnings
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun \
@@ -20,44 +20,6 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun \
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
-
-
-LOG_MSGS = []
-
-
-def log_msg(self, msg, log_args=None):  # pylint: disable=unused-argument
-    global LOG_MSGS
-    if log_args == 'CLEAN':
-        LOG_MSGS = []
-        return
-    LOG_MSGS.append(msg)
 
 
 # REST API canned responses when mocking send_request
@@ -150,12 +112,6 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json,
-                                                 log=log_msg)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         self.mock_lun_args = {
             'vserver': 'ansible',
             'name': 'lun_name',
@@ -488,12 +444,11 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=900, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
-        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
         print(lun_object.debug)
         msg = "Ignoring small reduction (10.0 %) in total size: total_size=1000, provisioned=1100, requested=900"
-        assert msg in LOG_MSGS[-1]
+        assert_warning_was_raised(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_app_changes_reduction_small_enough_17(self, mock_request):
@@ -511,13 +466,12 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=983, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
-        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
-        print(LOG_MSGS)
         print(lun_object.debug)
+        print_warnings()
         msg = "Ignoring small reduction (1.7 %) in total size: total_size=1000, provisioned=1100, requested=983"
-        assert msg in LOG_MSGS[-1]
+        assert_warning_was_raised(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_app_changes_increase_small_enough(self, mock_request):
@@ -535,12 +489,11 @@ class TestMyModule(unittest.TestCase):
         data['san_application_template'] = dict(name='san_appli', total_size=1050, total_size_unit='b')
         set_module_args(data)
         lun_object = self.get_lun_mock_object()
-        lun_object.module.log('', 'CLEAN')
         results = lun_object.app_changes('scope')
         print(results)
         print(lun_object.debug)
         msg = "Ignoring increase: requested size is too small: total_size=1000, provisioned=1100, requested=1050"
-        assert msg in LOG_MSGS[-1]
+        assert_warning_was_raised(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_convert_to_appli(self, mock_request):

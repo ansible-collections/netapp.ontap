@@ -5,14 +5,14 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import json
 import pytest
 
 from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ndmp \
     import NetAppONTAPNdmp as ndmp_module  # module under test
@@ -34,33 +34,6 @@ SRR = {
     'get_ndmp': (200, {"enabled": True, "authentication_types": ["test"],
                        "records": [{"svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None)
 }
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 class MockONTAPConnection(object):
@@ -110,11 +83,6 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         self.mock_ndmp = {
             'ignore_ctime_enabled': True,
             'backup_log_enable': 'false',

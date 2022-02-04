@@ -2,26 +2,19 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import json
 import pytest
 
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror \
     import NetAppONTAPSnapmirror as my_module
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
 
 
 def get_args_rest():
@@ -65,33 +58,6 @@ def get_args_restore_rest():
         "relationship_type": "restore"
     }
     return args
-
-
-def set_module_args_rest(args):
-    """prepare arguments to use for REST """
-    data = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(data)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 # REST API canned responses when mocking send_request
@@ -353,11 +319,6 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         self.server = MockONTAPConnection()
         self.source_server = MockONTAPConnection()
         self.onbox = False
@@ -929,7 +890,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_successful_rest_create(self, mock_request):
         ''' creating snapmirror and testing idempotency '''
-        set_module_args_rest(get_args_rest())
+        set_module_args(get_args_rest())
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_empty'],
@@ -962,7 +923,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_snapmirror_initialize(self, mock_request):
         ''' snapmirror initialize testing '''
-        set_module_args_rest(get_args_rest())
+        set_module_args(get_args_rest())
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_uninitialized'],  # first snapmirror_initialize calls sm_get
@@ -981,7 +942,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_snapmirror_update(self, mock_request):
         ''' snapmirror initialize testing '''
-        set_module_args_rest(get_args_rest())
+        set_module_args(get_args_rest())
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_mirrored'],  # first sm_get
@@ -1003,7 +964,7 @@ class TestMyModule(unittest.TestCase):
         ''' testing snapmirror break when no_data are transferring '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
@@ -1031,7 +992,7 @@ class TestMyModule(unittest.TestCase):
         ''' testing snapmirror break when no_data are transferring idempotency '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_broken'],  # apply first sm_get with no data transfer
@@ -1048,7 +1009,7 @@ class TestMyModule(unittest.TestCase):
         ''' testing snapmirror break fails if sm state uninitialized '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             # apply first sm_get with state uninitialized
@@ -1067,7 +1028,7 @@ class TestMyModule(unittest.TestCase):
         ''' testing snapmirror break when no_data are transferring '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
@@ -1094,7 +1055,7 @@ class TestMyModule(unittest.TestCase):
         ''' testing snapmirror break when no_data are transferring '''
         data = get_args_rest()
         data['relationship_state'] = 'broken'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             # apply first sm_get with data transfer
@@ -1111,7 +1072,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_resync_when_state_is_broken(self, mock_request):
         ''' resync when snapmirror state is broken and relationship_state active  '''
-        set_module_args_rest(get_args_rest())
+        set_module_args(get_args_rest())
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_broken'],  # apply first sm_get with state broken_off
@@ -1129,7 +1090,7 @@ class TestMyModule(unittest.TestCase):
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_resume_when_state_quiesced(self, mock_request):
         ''' resync when snapmirror state is broken and relationship_state active  '''
-        set_module_args_rest(get_args_rest())
+        set_module_args(get_args_rest())
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_paused'],  # apply first sm_get with state quiesced
@@ -1153,7 +1114,7 @@ class TestMyModule(unittest.TestCase):
         ''' snapmirror delete '''
         data = get_args_rest()
         data['state'] = 'absent'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
@@ -1185,7 +1146,7 @@ class TestMyModule(unittest.TestCase):
         ''' snapmirror delete calls abort when transfer state is in transferring'''
         data = get_args_rest()
         data['state'] = 'absent'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             # apply first sm_get with data transfer
@@ -1219,7 +1180,7 @@ class TestMyModule(unittest.TestCase):
         ''' snapmirror modify'''
         data = get_args_rest()
         data['policy'] = 'Asynchronous'
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             SRR['sm_get_mirrored'],  # apply first sm_get
@@ -1241,7 +1202,7 @@ class TestMyModule(unittest.TestCase):
     def test_snapmirror_restore(self, mock_request):
         ''' snapmirror restore '''
         data = get_args_restore_rest()
-        set_module_args_rest(data)
+        set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],
             # SRR['sm_get_mirrored'],  # apply first sm_get

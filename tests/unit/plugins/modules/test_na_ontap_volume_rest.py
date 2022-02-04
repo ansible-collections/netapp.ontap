@@ -7,14 +7,13 @@ from __future__ import (absolute_import, division, print_function)
 
 __metaclass__ = type
 
-import json
 import pytest
 
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, assert_warning_was_raised, print_warnings
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
     import NetAppOntapVolume as volume_module  # module under test
@@ -221,50 +220,10 @@ SRR = {
 }
 
 
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
-
-
-WARNINGS = []
-
-
-def warn_mock(self, msg):
-    WARNINGS.append(msg)
-
-
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json,
-                                                 warn=warn_mock)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         # self.server = MockONTAPConnection()
         self.mock_vserver = {
             'name': 'test_svm',
@@ -278,8 +237,6 @@ class TestMyModule(unittest.TestCase):
             'comment': 'new comment',
             'use_rest': 'always'
         }
-        global WARNINGS
-        WARNINGS = []
 
     @staticmethod
     def mock_args():
@@ -1121,7 +1078,6 @@ class TestMyModule(unittest.TestCase):
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_error_modify_backend_fabricpool(self, mock_request):
-        global WARNINGS
         data = dict(self.mock_args())
         data['nas_application_template']['tiering'] = {'control': 'required'}
         data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}
@@ -1148,10 +1104,10 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_volume_mock_object().apply()
         print(exc.value.args[0])
+        print_warnings()
         warning = "Unexpected value 'invalid' for warn_or_fail_on_fabricpool_backend_change, expecting: None, 'ignore', 'fail', 'warn'"
-        assert warning in WARNINGS
+        assert_warning_was_raised(warning)
 
-        WARNINGS = []
         data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'warn'}
         set_module_args(data)
         mock_request.side_effect = [
@@ -1164,12 +1120,12 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_volume_mock_object().apply()
         warning = "Ignored " + msg
-        assert warning in WARNINGS
+        print_warnings()
+        assert_warning_was_raised(warning)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_negative_modify_backend_fabricpool(self, mock_request):
         ''' fail to get aggregate object store'''
-        global WARNINGS
         data = dict(self.mock_args())
         data['nas_application_template']['tiering'] = {'control': 'required'}
         data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}
@@ -1191,7 +1147,6 @@ class TestMyModule(unittest.TestCase):
             If all aggregates are associated with one or more object stores, the volume has a FabricPool backend.
             If all aggregates are not associated with one or more object stores, the volume meets the 'disallowed' criteria.
         '''
-        global WARNINGS
         data = dict(self.mock_args())
         data['nas_application_template']['tiering'] = {'control': 'required'}
         data['feature_flags'] = {'warn_or_fail_on_fabricpool_backend_change': 'fail'}

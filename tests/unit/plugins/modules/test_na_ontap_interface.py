@@ -6,15 +6,14 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import copy
-import json
 import pytest
 import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface \
     import NetAppOntapInterface as interface_module, netmask_length_to_netmask, netmask_to_netmask_length
@@ -26,35 +25,6 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-    pass
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-    pass
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 class MockONTAPConnection(object):
@@ -115,11 +85,6 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         self.mock_interface = {
             'name': 'test_lif',
             'administrative-status': 'up',
@@ -383,15 +348,6 @@ SRR = {
     'end_of_sequence': (None, None, "Unexpected call to send_request"),
     'generic_error': (None, "Expected error"),
 }
-
-
-# using pytest natively, without unittest.TestCase
-@pytest.fixture
-def patch_ansible():
-    with patch.multiple(basic.AnsibleModule,
-                        exit_json=exit_json,
-                        fail_json=fail_json) as mocks:
-        yield mocks
 
 
 def set_default_args(use_rest='always', **kwargs):

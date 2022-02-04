@@ -5,14 +5,13 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import json
 import pytest
 import sys
 
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_fdspt \
     import NetAppOntapFDSPT as my_module  # module under test
@@ -20,33 +19,6 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_fdspt \
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 def default_args():
@@ -88,15 +60,6 @@ SRR = {
             'num_records': 1},
         None),
 }
-
-
-# using pytest natively, without unittest.TestCase
-@pytest.fixture
-def patch_ansible():
-    with patch.multiple(basic.AnsibleModule,
-                        exit_json=exit_json,
-                        fail_json=fail_json) as mocks:
-        yield mocks
 
 
 def test_module_fail_when_required_args_missing(patch_ansible):

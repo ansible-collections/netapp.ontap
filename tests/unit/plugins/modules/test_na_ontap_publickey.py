@@ -5,14 +5,14 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import json
 import pytest
 import sys
 
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, assert_warning_was_raised, assert_no_warnings, print_warnings
+
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_publickey \
     import NetAppOntapPublicKey as my_module, main as uut_main      # module under test
@@ -20,40 +20,6 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_publickey \
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
-
-
-WARNINGS = list()
-
-
-def warn(dummy, msg):
-    WARNINGS.append(msg)
 
 
 def default_args():
@@ -113,18 +79,6 @@ SRR = {
 }
 
 
-# using pytest natively, without unittest.TestCase
-@pytest.fixture
-def patch_ansible():
-    with patch.multiple(basic.AnsibleModule,
-                        exit_json=exit_json,
-                        fail_json=fail_json,
-                        warn=warn) as mocks:
-        global WARNINGS
-        WARNINGS = list()
-        yield mocks
-
-
 def test_module_fail_when_required_args_missing(patch_ansible):
     ''' required arguments are reported as errors '''
     with pytest.raises(AnsibleFailJson) as exc:
@@ -151,7 +105,7 @@ def test_ensure_get_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -172,7 +126,7 @@ def test_ensure_create_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -192,7 +146,7 @@ def test_ensure_create_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -210,8 +164,8 @@ def test_ensure_create_always_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    print(WARNINGS)
-    assert 'Module is not idempotent if index is not provided with state=present.' in WARNINGS
+    print_warnings()
+    assert_warning_was_raised('Module is not idempotent if index is not provided with state=present.')
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -232,7 +186,7 @@ def test_ensure_modify_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -254,7 +208,7 @@ def test_ensure_delete_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -275,7 +229,7 @@ def test_ensure_delete_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -296,7 +250,7 @@ def test_ensure_delete_failed_N_records(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: index is required as more than one public_key exists for user account user123'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -319,7 +273,7 @@ def test_ensure_delete_succeeded_N_records(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -342,7 +296,7 @@ def test_ensure_delete_succeeded_N_records_cluster(mock_request, patch_ansible):
         uut_main()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -364,7 +318,7 @@ def test_negative_extra_record(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in get_public_key: calling: security/authentication/publickeys: unexpected response'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -386,7 +340,7 @@ def test_negative_extra_arg_in_modify(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: attributes not supported in modify: {'index': 14}"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -406,7 +360,7 @@ def test_negative_empty_body_in_modify(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: nothing to change - modify called with: {}'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -428,7 +382,7 @@ def test_negative_create_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in create_public_key: Expected error'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -451,7 +405,7 @@ def test_negative_delete_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in delete_public_key: Expected error'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -474,7 +428,7 @@ def test_negative_modify_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in modify_public_key: Expected error'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -494,7 +448,7 @@ def test_negative_older_version(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: na_ontap_publickey only supports REST, and requires ONTAP 9.7 or later.  Found: 9.6.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -514,4 +468,4 @@ def test_negative_zapi_only(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: REST is required for this module, found: "use_rest: never"'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()

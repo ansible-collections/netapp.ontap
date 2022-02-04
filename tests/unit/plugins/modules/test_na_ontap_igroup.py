@@ -5,14 +5,14 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import json
 import pytest
 
 from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, exit_json, fail_json, assert_warning_was_raised, assert_no_warnings, print_warnings
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup \
     import NetAppOntapIgroup as igroup  # module under test
@@ -42,33 +42,6 @@ SRR = {
              os_type='aix')
     ], num_records=1), None),
 }
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 class MockONTAPConnection(object):
@@ -137,19 +110,6 @@ class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.warnings = list()
-
-        def log(other_self, msg, log_args=None):  # pylint: disable=unused-argument
-            if msg.startswith('Invoked with'):
-                return
-            self.warnings.append(msg)
-
-        self.mock_module_helper = patch.multiple(basic.AnsibleModule,
-                                                 exit_json=exit_json,
-                                                 fail_json=fail_json,
-                                                 log=log)
-        self.mock_module_helper.start()
-        self.addCleanup(self.mock_module_helper.stop)
         self.server = MockONTAPConnection()
 
     def mock_args(self, use_rest='never'):
@@ -496,7 +456,8 @@ class TestMyModule(unittest.TestCase):
             obj.apply()
         assert exc.value.args[0]['changed']
         msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0."
-        assert msg in self.warnings[-1]
+        print_warnings()
+        assert_warning_was_raised(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_positive_zapi_or_rest99_option(self, mock_request):
@@ -513,8 +474,8 @@ class TestMyModule(unittest.TestCase):
             obj.apply()
         assert exc.value.args[0]['changed']
         msg = "Warning: falling back to ZAPI: using bind_portset requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0."
-        print(self.warnings)
-        assert msg in self.warnings[-1]
+        print_warnings()
+        assert_warning_was_raised(msg)
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_create_rest_99(self, mock_request):
@@ -532,8 +493,8 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        print(self.warnings)
-        assert not self.warnings
+        print_warnings
+        assert_no_warnings()
         expected_json = {'name': 'test', 'os_type': 'linux', 'svm': {'name': 'vserver'}, 'protocol': 'fcp', 'portset': 'my_portset',
                          'initiators': [{'name': 'init1'}]}
         expected_call = call('POST', 'protocols/san/igroups', None, json=expected_json, headers=None)

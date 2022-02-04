@@ -6,14 +6,13 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import copy
-import json
 import pytest
 import sys
 
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, fail_json, exit_json
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_certificates \
     import NetAppOntapSecurityCertificates as my_module, main as my_main  # module under test
@@ -43,33 +42,6 @@ SRR = {
 NAME_ERROR = "Error calling API: security/certificates - ONTAP 9.6 and 9.7 do not support 'name'.  Use 'common_name' and 'type' as a work-around."
 TYPE_ERROR = "Error calling API: security/certificates - When using 'common_name', 'type' is required."
 EXPECTED_ERROR = "Error calling API: security/certificates - Expected error"
-
-
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
-
-
-class AnsibleExitJson(Exception):
-    """Exception class to be raised by module.exit_json and caught by the test case"""
-
-
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def exit_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over exit_json; package return data into an exception"""
-    if 'changed' not in kwargs:
-        kwargs['changed'] = False
-    raise AnsibleExitJson(kwargs)
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
 
 
 def set_default_args():
