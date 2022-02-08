@@ -192,7 +192,7 @@ class TestMyModule(unittest.TestCase):
         ''' Test if get_policy_group returns details for existing nfs '''
         set_module_args(self.mock_args())
         result = self.get_nfs_mock_object('nfs').get_nfs_service()
-        assert result['is_nfsv3_enabled']
+        assert result['nfsv3']
 
     def test_get_nonexistent_nfs_status(self):
         ''' Test if get__nfs_status returns None for non-existent nfs '''
@@ -209,29 +209,33 @@ class TestMyModule(unittest.TestCase):
     def test_modify_nfs(self):
         ''' Test if modify_nfs runs for existing nfs '''
         data = self.mock_args()
-        data['nfsv3'] = 'enabled'
-        data['nfsv3_fsid_change'] = 'enabled'
-        data['nfsv4'] = 'enabled'
-        data['nfsv41'] = 'enabled'
-        data['vstorage_state'] = 'enabled'
-        data['tcp'] = 'enabled'
-        data['udp'] = 'enabled'
-        data['nfsv4_id_domain'] = 'nfsv4_id_domain'
-        data['nfsv40_acl'] = 'enabled'
-        data['nfsv40_read_delegation'] = 'enabled'
-        data['nfsv40_write_delegation'] = 'enabled'
-        data['nfsv41_acl'] = 'enabled'
-        data['nfsv41_read_delegation'] = 'enabled'
-        data['nfsv41_write_delegation'] = 'enabled'
-        data['showmount'] = 'enabled'
-        data['tcp_max_xfer_size'] = '1048576'
+        current = {
+            'nfsv3': 'enabled',
+            'nfsv3_fsid_change': 'enabled',
+            'nfsv4': 'enabled',
+            'nfsv41': 'enabled',
+            'vstorage_state': 'enabled',
+            'tcp': 'enabled',
+            'udp': 'enabled',
+            'nfsv4_id_domain': 'nfsv4_id_domain',
+            'nfsv40_acl': 'enabled',
+            'nfsv40_read_delegation': 'enabled',
+            'nfsv40_write_delegation': 'enabled',
+            'nfsv41_acl': 'enabled',
+            'nfsv41_read_delegation': 'enabled',
+            'nfsv41_write_delegation': 'enabled',
+            'showmount': 'enabled',
+            'tcp_max_xfer_size': '1048576',
+        }
+
+        data.update(current)
         set_module_args(data)
-        self.get_nfs_mock_object('nfs_status').modify_nfs()
+        self.get_nfs_mock_object('nfs_status').modify_nfs_service(current)
 
     def test_successfully_modify_nfs(self):
         ''' Test modify nfs successful for modifying tcp max xfer size. '''
         data = self.mock_args()
-        data['tcp_max_xfer_size'] = '8192'
+        data['tcp_max_xfer_size'] = 8192
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_nfs_mock_object('nfs').apply()
@@ -246,8 +250,8 @@ class TestMyModule(unittest.TestCase):
             self.get_nfs_mock_object('nfs').apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_nfs.NetAppONTAPNFS.delete_nfs')
-    def test_successfully_delete_nfs(self, delete_nfs):
+    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_nfs.NetAppONTAPNFS.delete_nfs_service')
+    def test_successfully_delete_nfs(self, delete_nfs_service):
         ''' Test successfully delete nfs '''
         data = self.mock_args()
         data['state'] = 'absent'
@@ -256,7 +260,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             obj.apply()
         assert exc.value.args[0]['changed']
-        delete_nfs.assert_called_with()
+        delete_nfs_service.assert_called_with()
 
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_nfs.NetAppONTAPNFS.get_nfs_service')
     def test_successfully_enable_nfs(self, get_nfs_service):
