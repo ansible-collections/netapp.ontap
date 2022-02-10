@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.17.0
+
+### New Options
+  - na_ontap_cifs_acl - new option `type` for user-group-type.
+
 ## 21.16.0
 
 ### New Options

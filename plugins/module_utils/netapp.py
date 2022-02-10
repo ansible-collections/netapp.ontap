@@ -47,8 +47,8 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.16.0"
-CLIENT_APP_VERSION = "%s/" + COLLECTION_VERSION
+COLLECTION_VERSION = "21.17.0"
+CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
 try:
@@ -599,7 +599,7 @@ class OntapRestAPI(object):
         self.timeout = timeout
         port = self.host_options['http_port']
         if port is None:
-            self.url = 'https://' + self.hostname + '/api/'
+            self.url = 'https://%s/api/' % self.hostname
         else:
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
         self.is_rest_error = None
@@ -861,11 +861,9 @@ class OntapRestAPI(object):
                 self.ontap_version[key] = version.get(key, -1)
             except AttributeError:
                 self.ontap_version[key] = -1
-        self.ontap_version['valid'] = True
-        for key in self.ontap_version:
-            if self.ontap_version[key] == -1:
-                self.ontap_version['valid'] = False
-                break
+        self.ontap_version['valid'] = all(
+            self.ontap_version[key] != -1 for key in self.ontap_version if key != 'valid'
+        )
 
     def get_ontap_version(self):
         if self.ontap_version['valid']:
@@ -929,10 +927,10 @@ class OntapRestAPI(object):
         # we're now using 'auto'
         if used_unsupported_rest_properties:
             # force ZAPI if some parameter requires it
-            if self.get_ontap_version()[0:2] > (9, 5):
+            if self.get_ontap_version()[:2] > (9, 5):
                 self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
             return False, None
-        if self.get_ontap_version()[0:2] in ((9, 4), (9, 5)):
+        if self.get_ontap_version()[:2] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None
         if status_code == 200:
