@@ -1,22 +1,13 @@
 #!/usr/bin/python
 
-# (c) 2017-2019, NetApp, Inc
+# (c) 2017-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
-
-'''
-na_ontap_lun
-'''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
-
 module: na_ontap_lun
 
 short_description: NetApp ONTAP manage LUNs
@@ -320,7 +311,9 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -390,7 +383,7 @@ class NetAppOntapLUN(object):
                 unit = self.parameters['size_unit']
             self.parameters['san_application_template']['total_size'] *= netapp_utils.POW2_BYTE_MAP[unit]
 
-        self.debug = dict()
+        self.debug = {}
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
 
         if HAS_NETAPP_LIB is False:
@@ -461,8 +454,7 @@ class NetAppOntapLUN(object):
         :return: Details about the lun
         :rtype: dict
         """
-        return_value = dict()
-        return_value['size'] = int(lun.get_child_content('size'))
+        return_value = {'size': int(lun.get_child_content('size'))}
         bool_attr_map = {
             'is-space-alloc-enabled': 'space_allocation',
             'is-space-reservation-enabled': 'space_reserve'
@@ -517,15 +509,14 @@ class NetAppOntapLUN(object):
         """
         for lun in luns:
             path = lun.get_child_content('path')
-            if lun_path is not None:
-                if lun_path == path:
-                    return lun
-            else:
+            if lun_path is None:
                 if name == path:
                     return lun
                 _rest, _splitter, found_name = path.rpartition('/')
                 if found_name == name:
                     return lun
+            elif lun_path == path:
+                return lun
         return None
 
     def get_lun(self, name, lun_path=None):
@@ -592,10 +583,13 @@ class NetAppOntapLUN(object):
                 if value is not None:
                     application_component[attr] = value
         for attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group', 'total_size'):
-            if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0):
-                if attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group'):
-                    # os_type and qos are not supported in 9.7 for the SAN application_component
-                    continue
+            if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0) and attr in (
+                'os_type',
+                'qos_policy_group',
+                'qos_adaptive_policy_group',
+            ):
+                # os_type and qos are not supported in 9.7 for the SAN application_component
+                continue
             if not modify or attr in modify:
                 value = self.na_helper.safe_get(self.parameters, [attr])
                 if value is not None:
@@ -606,7 +600,7 @@ class NetAppOntapLUN(object):
                     application_component[attr] = value
         tiering = self.na_helper.safe_get(self.parameters, ['san_application_template', 'tiering'])
         if tiering is not None and not modify:
-            application_component['tiering'] = dict()
+            application_component['tiering'] = {}
             for attr in ('control', 'policy', 'object_stores'):
                 value = tiering.get(attr)
                 if attr == 'object_stores' and value is not None:
@@ -834,13 +828,14 @@ class NetAppOntapLUN(object):
         self.set_total_size(validate=True)
 
     def validate_app_changes(self, modify, warning):
-        errors = list()
         saved_modify = dict(modify)
-        for key in modify:
-            # if lun_count is present, 'igroup_name', 'os_type' are allowed for new LUNs
-            if key not in ('igroup_name', 'os_type', 'lun_count', 'total_size'):
-                errors.append("Error: the following application parameter cannot be modified: %s.  Received: %s."
-                              % (key, str(modify)))
+        errors = [
+            "Error: the following application parameter cannot be modified: %s.  Received: %s."
+            % (key, str(modify))
+            for key in modify
+            if key not in ('igroup_name', 'os_type', 'lun_count', 'total_size')
+        ]
+
         extra_attrs = tuple()
         if 'lun_count' in modify:
             extra_attrs = ('total_size', 'os_type', 'igroup_name')
@@ -931,105 +926,117 @@ class NetAppOntapLUN(object):
             app_modify = None
         return app_modify, None
 
+    def get_app_apply(self):
+        scope = self.na_helper.safe_get(self.parameters, ['san_application_template', 'scope'])
+        app_current, error = self.rest_app.get_application_uuid()
+        self.fail_on_error(error)
+        if scope == 'lun' and app_current is None:
+            self.module.fail_json(msg='Application not found: %s.  scope=%s.' %
+                                      (self.na_helper.safe_get(self.parameters, ['san_application_template', 'name']),
+                                       scope))
+        return scope, app_current
+
+    def app_actions(self, app_current, scope, actions, results, app_modify):
+        app_cd_action = self.na_helper.get_cd_action(app_current, self.parameters)
+        if app_cd_action == 'create':
+            # check if target volume already exists
+            cp_volume_name = self.parameters['name']
+            volume, error = rest_volume.get_volume(self.rest_api, self.parameters['vserver'], cp_volume_name)
+            self.fail_on_error(error)
+            if volume is not None:
+                if scope == 'application':
+                    # volume already exists, but not as part of this application
+                    app_cd_action = 'convert'
+                    if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0):
+                        msg = 'Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better.'
+                        self.module.fail_json(msg=msg)
+                else:
+                    # default name already in use, ask user to clarify intent
+                    msg = "Error: volume '%s' already exists.  Please use a different group name, or use 'application' scope.  scope=%s"
+                    self.module.fail_json(msg=msg % (cp_volume_name, scope))
+        if app_cd_action is not None:
+            actions.append('app_%s' % app_cd_action)
+        if app_cd_action == 'create':
+            self.validate_app_create()
+        if app_cd_action is None and app_current is not None:
+            app_modify, app_modify_warning = self.app_changes(scope)
+            if app_modify:
+                actions.append('app_modify')
+                results['app_modify'] = dict(app_modify)
+        return app_cd_action, actions, results, app_modify
+
+    def lun_actions(self, app_current, actions, results, scope, app_modify, lun_rename, lun_modify, lun_cd_action):
+        # actions at LUN level
+        lun_path, from_lun_path = None, None
+        from_name = self.parameters.get('from_name')
+        if self.rest_app and app_current:
+            # For LUNs created using a SAN application, we're getting lun paths from the backing storage
+            lun_path = self.get_lun_path_from_backend(self.parameters['name'])
+            if from_name is not None:
+                from_lun_path = self.get_lun_path_from_backend(from_name)
+        current = self.get_lun(self.parameters['name'], lun_path)
+        if current is not None and lun_path is None:
+            lun_path = current['path']
+        lun_cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if lun_cd_action == 'create' and from_name is not None:
+            # create by renaming existing LUN, if it really exists
+            old_lun = self.get_lun(from_name, from_lun_path)
+            lun_rename = self.na_helper.is_rename_action(old_lun, current)
+            if lun_rename is None:
+                self.module.fail_json(msg="Error renaming lun: %s does not exist" % from_name)
+            if lun_rename:
+                current = old_lun
+                if from_lun_path is None:
+                    from_lun_path = current['path']
+                head, _sep, tail = from_lun_path.rpartition(from_name)
+                if tail:
+                    self.module.fail_json(
+                        msg="Error renaming lun: %s does not match lun_path %s" % (from_name, from_lun_path))
+                lun_path = head + self.parameters['name']
+                lun_cd_action = None
+                actions.append('lun_rename')
+                app_modify_warning = None  # reset warning as we found a match
+        if lun_cd_action is not None:
+            actions.append('lun_%s' % lun_cd_action)
+        if lun_cd_action is None and self.parameters['state'] == 'present':
+            # we already handled rename if required
+            current.pop('name', None)
+            lun_modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if lun_modify:
+                actions.append('lun_modify')
+                results['lun_modify'] = dict(lun_modify)
+                app_modify_warning = None  # reset warning as we found a match
+        if lun_cd_action and self.rest_app and app_current:
+            msg = 'This module does not support %s a LUN by name %s a SAN application.' % \
+                  ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
+            if scope == 'auto':
+                # ignore LUN not found, as name can be a group name
+                self.module.warn(msg + ".  scope=%s, assuming 'application'" % scope)
+                if not app_modify:
+                    self.na_helper.changed = False
+            elif scope == 'lun':
+                self.module.fail_json(msg=msg + ".  scope=%s." % scope)
+            lun_cd_action = None
+        if lun_cd_action == 'create' and self.parameters.get('size') is None:
+            self.module.fail_json(msg="size is a required parameter for create.")
+        return lun_path, from_lun_path, lun_cd_action, lun_rename, actions, lun_modify, results
+
     def apply(self):
-        results = dict()
+        results = {}
         netapp_utils.ems_log_event("na_ontap_lun", self.server)
         app_cd_action, app_modify, lun_cd_action, lun_modify, lun_rename = None, None, None, None, None
-        app_modify_warning = None
-        actions = list()
+        app_modify_warning, app_current = None, None
+        actions = []
         if self.rest_app:
-            scope = self.na_helper.safe_get(self.parameters, ['san_application_template', 'scope'])
-            app_current, error = self.rest_app.get_application_uuid()
-            self.fail_on_error(error)
-            if scope == 'lun' and app_current is None:
-                self.module.fail_json(msg='Application not found: %s.  scope=%s.' %
-                                      (self.na_helper.safe_get(self.parameters, ['san_application_template', 'name']), scope))
+            scope, app_current = self.get_app_apply()
         else:
             # no application template, fall back to LUN only
             scope = 'lun'
-
         if self.rest_app and scope != 'lun':
-            app_cd_action = self.na_helper.get_cd_action(app_current, self.parameters)
-            if app_cd_action == 'create':
-                # check if target volume already exists
-                cp_volume_name = self.parameters['name']
-                volume, error = rest_volume.get_volume(self.rest_api, self.parameters['vserver'], cp_volume_name)
-                self.fail_on_error(error)
-                if volume is not None:
-                    if scope == 'application':
-                        # volume already exists, but not as part of this application
-                        app_cd_action = 'convert'
-                        if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0):
-                            msg = 'Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better.'
-                            self.module.fail_json(msg=msg)
-                    else:
-                        # default name already in use, ask user to clarify intent
-                        msg = "Error: volume '%s' already exists.  Please use a different group name, or use 'application' scope.  scope=%s"
-                        self.module.fail_json(msg=msg % (cp_volume_name, scope))
-            if app_cd_action is not None:
-                actions.append('app_%s' % app_cd_action)
-            if app_cd_action == 'create':
-                self.validate_app_create()
-            if app_cd_action is None and app_current is not None:
-                app_modify, app_modify_warning = self.app_changes(scope)
-                if app_modify:
-                    actions.append('app_modify')
-                    results['app_modify'] = dict(app_modify)
-
+            app_cd_action, actions, results, app_modify = self.app_actions(app_current, scope, actions, results, app_modify)
         if app_cd_action is None and scope != 'application':
-            # actions at LUN level
-            lun_path, from_lun_path = None, None
-            from_name = self.parameters.get('from_name')
-            if self.rest_app and app_current:
-                # For LUNs created using a SAN application, we're getting lun paths from the backing storage
-                lun_path = self.get_lun_path_from_backend(self.parameters['name'])
-                if from_name is not None:
-                    from_lun_path = self.get_lun_path_from_backend(from_name)
-            current = self.get_lun(self.parameters['name'], lun_path)
-            if current is not None and lun_path is None:
-                lun_path = current['path']
-            lun_cd_action = self.na_helper.get_cd_action(current, self.parameters)
-            if lun_cd_action == 'create' and from_name is not None:
-                # create by renaming existing LUN, if it really exists
-                old_lun = self.get_lun(from_name, from_lun_path)
-                lun_rename = self.na_helper.is_rename_action(old_lun, current)
-                if lun_rename is None:
-                    self.module.fail_json(msg="Error renaming lun: %s does not exist" % from_name)
-                if lun_rename:
-                    current = old_lun
-                    if from_lun_path is None:
-                        from_lun_path = current['path']
-                    head, _sep, tail = from_lun_path.rpartition(from_name)
-                    if tail:
-                        self.module.fail_json(msg="Error renaming lun: %s does not match lun_path %s" % (from_name, from_lun_path))
-                    lun_path = head + self.parameters['name']
-                    lun_cd_action = None
-                    actions.append('lun_rename')
-                    app_modify_warning = None       # reset warning as we found a match
-            if lun_cd_action is not None:
-                actions.append('lun_%s' % lun_cd_action)
-            if lun_cd_action is None and self.parameters['state'] == 'present':
-                # we already handled rename if required
-                current.pop('name', None)
-                lun_modify = self.na_helper.get_modified_attributes(current, self.parameters)
-                if lun_modify:
-                    actions.append('lun_modify')
-                    results['lun_modify'] = dict(lun_modify)
-                    app_modify_warning = None       # reset warning as we found a match
-            if lun_cd_action and self.rest_app and app_current:
-                msg = 'This module does not support %s a LUN by name %s a SAN application.' %\
-                    ('adding', 'to') if lun_cd_action == 'create' else ('removing', 'from')
-                if scope == 'auto':
-                    # ignore LUN not found, as name can be a group name
-                    self.module.warn(msg + ".  scope=%s, assuming 'application'" % scope)
-                    if not app_modify:
-                        self.na_helper.changed = False
-                elif scope == 'lun':
-                    self.module.fail_json(msg=msg + ".  scope=%s." % scope)
-                lun_cd_action = None
-            if lun_cd_action == 'create' and self.parameters.get('size') is None:
-                self.module.fail_json(msg="size is a required parameter for create.")
-
+            lun_path, from_lun_path, lun_cd_action, lun_rename, actions, lun_modify, results = \
+                self.lun_actions(app_current, actions, results, scope, app_modify, lun_rename, lun_modify, lun_cd_action)
         if self.na_helper.changed and not self.module.check_mode:
             if app_cd_action == 'create':
                 self.create_san_application()
