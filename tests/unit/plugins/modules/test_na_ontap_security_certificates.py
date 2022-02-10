@@ -12,7 +12,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, fail_json, exit_json
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_certificates \
     import NetAppOntapSecurityCertificates as my_module, main as my_main  # module under test
@@ -53,20 +53,16 @@ def set_default_args():
     })
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
-def test_module_fail_when_required_args_missing(mock_fail):
+def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    mock_fail.side_effect = fail_json
     set_module_args({})
     with pytest.raises(AnsibleFailJson) as exc:
         my_module()
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_get_certificate_called(mock_request, mock_fail):
-    mock_fail.side_effect = fail_json
+def test_ensure_get_certificate_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],
@@ -77,10 +73,8 @@ def test_ensure_get_certificate_called(mock_request, mock_fail):
     assert my_obj.get_certificate() is not None
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_error(mock_request, mock_fail):
-    mock_fail.side_effect = fail_json
+def test_rest_error(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['generic_error'],
@@ -92,12 +86,8 @@ def test_rest_error(mock_request, mock_fail):
     assert exc.value.args[0]['msg'] == EXPECTED_ERROR
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_failed(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_create_failed(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['empty_records'],   # get certificate -> not found
@@ -117,12 +107,8 @@ def test_rest_create_failed(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['msg'].startswith(msg)
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_successful_create(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_successful_create(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['empty_records'],   # get certificate -> not found
@@ -142,12 +128,8 @@ def test_rest_successful_create(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_idempotent_create(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_idempotent_create(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -165,12 +147,8 @@ def test_rest_idempotent_create(mock_request, mock_fail, mock_exit):
     assert not exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_create_duplicate_entry(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_negative_create_duplicate_entry(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['empty_records'],   # get certificate -> not found
@@ -193,12 +171,8 @@ def test_rest_negative_create_duplicate_entry(mock_request, mock_fail, mock_exit
         assert fragment in exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_successful_delete(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_successful_delete(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -216,12 +190,8 @@ def test_rest_successful_delete(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_idempotent_delete(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_idempotent_delete(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['empty_records'],   # get certificate -> not found
@@ -239,12 +209,8 @@ def test_rest_idempotent_delete(mock_request, mock_fail, mock_exit):
     assert not exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_delete(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_negative_delete(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -263,12 +229,8 @@ def test_rest_negative_delete(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_multiple_records(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_negative_multiple_records(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_multiple_records'],    # get certificate -> 2 records!
@@ -289,12 +251,8 @@ def test_rest_negative_multiple_records(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_successful_sign(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -314,12 +272,8 @@ def test_rest_successful_sign(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_sign(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_negative_sign(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -340,12 +294,8 @@ def test_rest_negative_sign(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_failed_sign_missing_ca(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_failed_sign_missing_ca(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['empty_records'],   # get certificate -> not found
@@ -365,12 +315,8 @@ def test_rest_failed_sign_missing_ca(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['msg'] == msg
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_failed_sign_absent(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_failed_sign_absent(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_uuid'],    # get certificate -> found
@@ -390,12 +336,8 @@ def test_rest_failed_sign_absent(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['msg'] == msg
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_failed_on_name(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_failed_on_name(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['error_unexpected_name'],   # get certificate -> error
@@ -417,12 +359,8 @@ def test_rest_failed_on_name(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['msg'] == NAME_ERROR
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_cannot_ignore_name_error_no_common_name(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_cannot_ignore_name_error_no_common_name(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['error_unexpected_name'],   # get certificate -> error
@@ -441,12 +379,8 @@ def test_rest_cannot_ignore_name_error_no_common_name(mock_request, mock_fail, m
     assert exc.value.args[0]['msg'] == NAME_ERROR
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_cannot_ignore_name_error_no_type(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_cannot_ignore_name_error_no_type(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['error_unexpected_name'],   # get certificate -> error
@@ -466,12 +400,8 @@ def test_rest_cannot_ignore_name_error_no_type(mock_request, mock_fail, mock_exi
     assert exc.value.args[0]['msg'] == TYPE_ERROR
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_ignore_name_error(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_ignore_name_error(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['error_unexpected_name'],   # get certificate -> error
@@ -494,12 +424,8 @@ def test_rest_ignore_name_error(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['msg'] == msg
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_successful_create_name_error(mock_request, mock_fail, mock_exit):
-    mock_exit.side_effect = exit_json
-    mock_fail.side_effect = fail_json
+def test_rest_successful_create_name_error(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['error_unexpected_name'],   # get certificate -> error
@@ -521,9 +447,7 @@ def test_rest_successful_create_name_error(mock_request, mock_fail, mock_exit):
     print(mock_request.mock_calls)
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
-def test_rest_negative_no_name_and_type(mock_fail):
-    mock_fail.side_effect = fail_json
+def test_rest_negative_no_name_and_type():
     data = {
         'common_name': 'cname',
         # 'type': 'client_ca',
@@ -538,10 +462,8 @@ def test_rest_negative_no_name_and_type(mock_fail):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_ZAPI_only(mock_request, mock_fail):
-    mock_fail.side_effect = fail_json
+def test_rest_negative_ZAPI_only(mock_request):
     mock_request.side_effect = [
         SRR['is_zapi'],
         SRR['end_of_sequence']

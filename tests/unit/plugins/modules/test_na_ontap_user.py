@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, fail_json, exit_json
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user \
     import NetAppOntapUser as my_module, main as my_main  # module under test
@@ -456,10 +456,8 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['msg'] == "snmp as application is not supported in REST."
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_user_get_rest_called(mock_request, mock_fail):
-    mock_fail.side_effect = fail_json
+def test_ensure_user_get_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -470,12 +468,8 @@ def test_ensure_user_get_rest_called(mock_request, mock_fail):
     assert my_obj.get_user_rest() is not None
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_user_rest_called(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_ensure_create_user_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['zero_records'],            # get
@@ -491,12 +485,8 @@ def test_ensure_create_user_rest_called(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_user_rest_called(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_ensure_delete_user_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -516,12 +506,8 @@ def test_ensure_delete_user_rest_called(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_modify_user_rest_called(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_ensure_modify_user_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -541,12 +527,8 @@ def test_ensure_modify_user_rest_called(mock_request, mock_fail, mock_exit):
     assert exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_lock_unlock_user_rest_called(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_ensure_lock_unlock_user_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -572,12 +554,8 @@ def test_ensure_lock_unlock_user_rest_called(mock_request, mock_fail, mock_exit)
         assert 'locked' in mock_request.mock_calls[4].kwargs['json']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_ensure_change_password_user_rest_called(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -605,12 +583,8 @@ def test_ensure_change_password_user_rest_called(mock_request, mock_fail, mock_e
         assert 'password' in mock_request.mock_calls[3].kwargs['json']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_change_password_user_rest_check_mode(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_change_password_user_rest_check_mode(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -634,12 +608,8 @@ def test_change_password_user_rest_check_mode(mock_request, mock_fail, mock_exit
     assert len(mock_request.mock_calls) == 3
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_existing_password(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_existing_password(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -667,12 +637,8 @@ def test_existing_password(mock_request, mock_fail, mock_exit):
     assert not exc.value.args[0]['changed']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_unsupported_property(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_unsupported_property(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['end_of_sequence']
@@ -689,13 +655,9 @@ def test_negative_rest_unsupported_property(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-def test_negative_zapi_missing_netapp_lib(mock_has, mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_zapi_missing_netapp_lib(mock_has, mock_request):
     mock_request.side_effect = [
         SRR['is_zapi'],
         SRR['end_of_sequence']
@@ -711,12 +673,8 @@ def test_negative_zapi_missing_netapp_lib(mock_has, mock_request, mock_fail, moc
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_zapi_missing_apps(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_zapi_missing_apps(mock_request):
     mock_request.side_effect = [
         SRR['is_zapi'],
         SRR['end_of_sequence']
@@ -732,12 +690,8 @@ def test_negative_zapi_missing_apps(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_get_user(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['generic_error'],
@@ -752,12 +706,8 @@ def test_negative_rest_error_on_get_user(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user_multiple(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_get_user_multiple(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest_multiple'],
@@ -772,12 +722,8 @@ def test_negative_rest_error_on_get_user_multiple(mock_request, mock_fail, mock_
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user_details(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_get_user_details(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -793,12 +739,8 @@ def test_negative_rest_error_on_get_user_details(mock_request, mock_fail, mock_e
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_delete(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_delete(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -815,12 +757,8 @@ def test_negative_rest_error_on_delete(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_unlocking(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_unlocking(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -839,12 +777,8 @@ def test_negative_rest_error_on_unlocking(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_unlocking_no_password(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_unlocking_no_password(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -860,12 +794,8 @@ def test_negative_rest_error_on_unlocking_no_password(mock_request, mock_fail, m
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_changing_password(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_changing_password(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -883,12 +813,8 @@ def test_negative_rest_error_on_changing_password(mock_request, mock_fail, mock_
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_modify(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_rest_error_on_modify(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -905,12 +831,8 @@ def test_negative_rest_error_on_modify(mock_request, mock_fail, mock_exit):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_unlocking_with_password(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_rest_unlocking_with_password(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['get_user_rest'],
@@ -932,12 +854,8 @@ def test_rest_unlocking_with_password(mock_request, mock_fail, mock_exit):
     assert len(mock_request.mock_calls) == 6
 
 
-@patch('ansible.module_utils.basic.AnsibleModule.exit_json')
-@patch('ansible.module_utils.basic.AnsibleModule.fail_json')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_create_validations(mock_request, mock_fail, mock_exit):
-    mock_fail.side_effect = fail_json
-    mock_exit.side_effect = exit_json
+def test_negative_create_validations(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
         SRR['zero_records'],            # get

@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, exit_json, fail_json, assert_warning_was_raised, assert_no_warnings, print_warnings
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, assert_warning_was_raised, assert_no_warnings, print_warnings
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_igroup \
     import NetAppOntapIgroup as igroup  # module under test
