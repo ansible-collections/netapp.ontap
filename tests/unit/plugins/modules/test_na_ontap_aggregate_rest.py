@@ -13,6 +13,9 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_aggregate \
     import NetAppOntapAggregate as my_module, main as my_main  # module under test
@@ -22,25 +25,15 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
-# REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+# REST API canned responses when mocking send_request.
+# The rest_factory provides default responses shared across testcases.
+SRR = rest_responses({
     # module specific responses
-    'empty_records': (200, {'records': []}, None),
     'one_record': (200, {'records': [
         {'uuid': 'ansible',
          'block_storage': {'primary': {'disk_count': 5}},
          'state': 'online', 'snaplock_type': 'snap'}]}, None),
-    # 'get_multiple_records': (200, {'records': [{'uuid': 'ansible'}, {'uuid': 'second'}]}, None),
-    # 'error_unexpected_name': (200, None, {'message': 'Unexpected argument "name".'}),
-    # 'error_duplicate_entry': (200, None, {'message': 'duplicate entry', 'target': 'uuid'}),
-    # 'error_some_error': (200, None, {'message': 'some error'}),
-}
+})
 
 
 def set_default_args():
@@ -52,12 +45,10 @@ def set_default_args():
     })
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_validate_options(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_validate_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ], 'test_validate_options')
     set_module_args(set_default_args())
     my_obj = my_module()
     # no error!
@@ -67,7 +58,6 @@ def test_validate_options(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.validate_options()
     print('Info: %s' % exc.value.args[0]['msg'])
-    print(mock_request.mock_calls, '\n---\n')
     msg = 'Error when validating options: only one node can be specified when using rest'
     assert msg in exc.value.args[0]['msg']
 
@@ -76,7 +66,6 @@ def test_validate_options(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.validate_options()
     print('Info: %s' % exc.value.args[0]['msg'])
-    print(mock_request.mock_calls, '\n---\n')
     msg = 'Error when validating options: nodes is required when disk_count is present.'
     assert msg == exc.value.args[0]['msg']
 
@@ -85,17 +74,14 @@ def test_validate_options(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.validate_options()
     print('Info: %s' % exc.value.args[0]['msg'])
-    print(mock_request.mock_calls, '\n---\n')
     msg = 'Error when validating options: mirror_disks require disks options to be set.'
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_disk_size(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_get_disk_size():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
 
@@ -129,13 +115,11 @@ def test_get_disk_size(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_rest_error(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_rest_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
@@ -145,63 +129,51 @@ def test_get_aggr_rest_error(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_rest_none(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_rest_none():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     assert my_obj.get_aggr_rest(None) is None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_rest_one_record(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_rest_one_record():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     assert my_obj.get_aggr_rest('aggr1') is not None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_rest_not_found(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_rest_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     assert my_obj.get_aggr_rest('aggr1') is None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_create_aggr(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_create_aggr():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('POST', 'storage/aggregates', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.create_aggr_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('POST', 'storage/aggregates', {'return_timeout': 30}, json={'name': 'aggr_name'}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_create_aggr_all_options(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_create_aggr_all_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('POST', 'storage/aggregates', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['disk_class'] = 'capacity'
@@ -215,21 +187,16 @@ def test_create_aggr_all_options(mock_request, patch_ansible):
     my_obj.parameters['snaplock_type'] = 'snap'
 
     my_obj.create_aggr_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = "'POST', 'storage/aggregates'"
-    post_call = str(mock_request.mock_calls[1])
-    print(post_call)
-    assert expected_call in post_call
-    assert "'disk_class': 'capacity'" in post_call
+    assert get_mock_record().is_record_in_json(
+        {'block_storage': {'primary': {'disk_class': 'capacity', 'disk_count': 12, 'raid_size': 4, 'raid_type': 'raid5'}, 'mirror': {'enabled': True}}},
+        'POST', 'storage/aggregates')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_create_aggr_error(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_create_aggr_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('POST', 'storage/aggregates', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['disk_count'] = 12
@@ -247,30 +214,23 @@ def test_create_aggr_error(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_delete_aggr(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_delete_aggr():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('DELETE', 'storage/aggregates/aggr_uuid', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['state'] = 'absent'
     my_obj.uuid = 'aggr_uuid'
-    my_obj.delete_aggr_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('DELETE', 'storage/aggregates/aggr_uuid', {'return_timeout': 30}, json=None, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert my_obj.delete_aggr_rest() is None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_delete_aggr_error(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_delete_aggr_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('DELETE', 'storage/aggregates/aggr_uuid', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['state'] = 'absent'
@@ -289,29 +249,23 @@ def test_delete_aggr_error(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_patch_aggr(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_patch_aggr():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
     my_obj.patch_aggr_rest('act on', {'key': 'value'})
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('PATCH', 'storage/aggregates/aggr_uuid', {'return_timeout': 30}, json={'key': 'value'}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert get_mock_record().is_record_in_json({'key': 'value'}, 'PATCH', 'storage/aggregates/aggr_uuid')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_patch_aggr_error(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_patch_aggr_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
@@ -323,12 +277,10 @@ def test_patch_aggr_error(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_set_disk_count(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_set_disk_count():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     current = {'disk_count': 2}
@@ -337,12 +289,10 @@ def test_set_disk_count(mock_request, patch_ansible):
     assert modify['disk_count'] == 3
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_set_disk_count_error(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_set_disk_count_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
 
@@ -355,30 +305,24 @@ def test_set_disk_count_error(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_add_disks(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_add_disks():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['disk_class'] = 'performance'
     my_obj.parameters['disk_count'] = 12
     my_obj.uuid = 'aggr_uuid'
     my_obj.add_disks_rest(count=2)
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('PATCH', 'storage/aggregates/aggr_uuid', {'return_timeout': 30}, json={'block_storage': {'primary': {'disk_count': 12}}}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert get_mock_record().is_record_in_json({'block_storage': {'primary': {'disk_count': 12}}}, 'PATCH', 'storage/aggregates/aggr_uuid')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_add_disks_error_local(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+def test_add_disks_error_local():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
@@ -390,13 +334,11 @@ def test_add_disks_error_local(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_add_disks_error_remote(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_add_disks_error_remote():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['disk_count'] = 12
@@ -409,29 +351,23 @@ def test_add_disks_error_remote(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rename_aggr(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
+def test_rename_aggr():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['empty_good'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
     my_obj.rename_aggr_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('PATCH', 'storage/aggregates/aggr_uuid', {'return_timeout': 30}, json={'name': 'aggr_name'}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'PATCH', 'storage/aggregates/aggr_uuid')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rename_aggr_error_remote(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_rename_aggr_error_remote():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
@@ -443,29 +379,23 @@ def test_rename_aggr_error_remote(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_object_store(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],
-        SRR['end_of_sequence']
-    ]
+def test_get_object_store():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates/aggr_uuid/cloud-stores', SRR['one_record'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
     record = my_obj.get_object_store_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('GET', 'storage/aggregates/aggr_uuid/cloud-stores', {'primary': True}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert record
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_object_store_error_remote(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_get_object_store_error_remote():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates/aggr_uuid/cloud-stores', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.uuid = 'aggr_uuid'
@@ -477,30 +407,24 @@ def test_get_object_store_error_remote(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_cloud_target_uuid(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],
-        SRR['end_of_sequence']
-    ]
+def test_get_cloud_target_uuid():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cloud/targets', SRR['one_record'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
     my_obj.uuid = 'aggr_uuid'
     record = my_obj.get_cloud_target_uuid_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('GET', 'cloud/targets', {'name': 'os12'}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert record
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_cloud_target_uuid_error_remote(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_get_cloud_target_uuid_error_remote():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cloud/targets', SRR['generic_error'])
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
@@ -513,34 +437,25 @@ def test_get_cloud_target_uuid_error_remote(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_attach_object_store_to_aggr(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],  # get object store UUID
-        SRR['empty_good'],  # attach (POST)
-        SRR['end_of_sequence']
-    ]
+def test_attach_object_store_to_aggr():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cloud/targets', SRR['one_record']),                                # get object store UUID
+        ('POST', 'storage/aggregates/aggr_uuid/cloud-stores', SRR['empty_good'])    # attach (POST)
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
     my_obj.uuid = 'aggr_uuid'
-    record = my_obj.attach_object_store_to_aggr_rest()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('GET', 'cloud/targets', {'name': 'os12'}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    expected_call = call('POST', 'storage/aggregates/aggr_uuid/cloud-stores', {'return_timeout': 30}, json={'target': {'uuid': 'ansible'}}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert my_obj.attach_object_store_to_aggr_rest() == {}
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_attach_object_store_to_aggr_error_remote(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],  # get object store UUID
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
+def test_attach_object_store_to_aggr_error_remote():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cloud/targets', SRR['one_record']),                                    # get object store UUID
+        ('POST', 'storage/aggregates/aggr_uuid/cloud-stores', SRR['generic_error'])     # attach (POST)
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
@@ -553,147 +468,114 @@ def test_attach_object_store_to_aggr_error_remote(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_create(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],  # get
-        SRR['empty_good'],     # create (POST)
-        SRR['end_of_sequence']
-    ]
+def test_apply_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),    # get
+        ('POST', 'storage/aggregates', SRR['empty_good']),      # create (POST)
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('POST', 'storage/aggregates', {'return_timeout': 30}, json={'name': 'aggr_name'}, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_create_with_object_store(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],  # get
-        SRR['empty_good'],     # create (POST)
-        SRR['one_record'],     # get object store uuid
-        SRR['empty_good'],     # attach (POST)
-        SRR['end_of_sequence']
-    ]
+def test_apply_create_with_object_store():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),                        # get
+        ('POST', 'storage/aggregates', SRR['empty_good']),                          # create (POST)
+        ('GET', 'cloud/targets', SRR['one_record']),                                # get object store uuid
+        ('POST', 'storage/aggregates/None/cloud-stores', SRR['empty_good']),        # attach (POST)
+    ])
+    # TODO: why None in storage/aggregates/None/cloud-stores? JIRA-4645
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('POST', 'storage/aggregates', {'return_timeout': 30}, json={'name': 'aggr_name'}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    expected_call = call('POST', 'storage/aggregates/None/cloud-stores', {'return_timeout': 30}, json={'target': {'uuid': 'ansible'}}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    assert len(mock_request.mock_calls) == 5
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
+    assert get_mock_record().is_record_in_json({'target': {'uuid': 'ansible'}}, 'POST', 'storage/aggregates/None/cloud-stores')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_create_check_mode(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],  # get
-        SRR['end_of_sequence']
-    ]
+def test_apply_create_check_mode():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),  # get
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.module.check_mode = True
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    assert len(mock_request.mock_calls) == 2
+    assert exc.value.args[0]['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_add_disks(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],      # get
-        SRR['empty_good'],      # patch (add disks)
-        SRR['end_of_sequence']
-    ]
+def test_apply_add_disks():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),               # get
+        ('PATCH', 'storage/aggregates/ansible', SRR['empty_good']),     # patch (add disks)
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['disk_count'] = 12
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('PATCH', 'storage/aggregates/ansible', {'return_timeout': 30}, json={'block_storage': {'primary': {'disk_count': 12}}}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    assert len(mock_request.mock_calls) == 3
+    assert get_mock_record().is_record_in_json({'block_storage': {'primary': {'disk_count': 12}}}, 'PATCH', 'storage/aggregates/ansible')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_add_object_store(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],      # get
-        SRR['empty_records'],   # get aggr cloud store
-        SRR['one_record'],      # get object store uuid
-        SRR['empty_good'],      # attach
-        SRR['end_of_sequence']
-    ]
+def test_apply_add_object_store():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),                           # get
+        ('GET', 'storage/aggregates/ansible/cloud-stores', SRR['empty_records']),   # get aggr cloud store
+        ('GET', 'cloud/targets', SRR['one_record']),                                # get object store uuid
+        ('POST', 'storage/aggregates/ansible/cloud-stores', SRR['empty_good']),     # attach
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['object_store_name'] = 'os12'
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('POST', 'storage/aggregates/ansible/cloud-stores', {'return_timeout': 30}, json={'target': {'uuid': 'ansible'}}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    assert len(mock_request.mock_calls) == 5
+    assert get_mock_record().is_record_in_json({'target': {'uuid': 'ansible'}}, 'POST', 'storage/aggregates/ansible/cloud-stores')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_rename(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],   # get aggr
-        SRR['one_record'],      # get from_aggr
-        SRR['empty_good'],      # patch (rename)
-        SRR['end_of_sequence']
-    ]
+def test_apply_rename():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),            # get aggr
+        ('GET', 'storage/aggregates', SRR['one_record']),               # get from_aggr
+        ('PATCH', 'storage/aggregates/ansible', SRR['empty_good']),     # patch (rename)
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['from_name'] = 'old_aggr'
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('PATCH', 'storage/aggregates/ansible', {'return_timeout': 30}, json={'name': 'aggr_name'}, headers=None)
-    assert expected_call in mock_request.mock_calls
-    assert len(mock_request.mock_calls) == 4
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'PATCH', 'storage/aggregates/ansible')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_apply_delete(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],      # get
-        SRR['empty_good'],      # delete
-        SRR['end_of_sequence']
-    ]
+def test_apply_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),               # get
+        ('DELETE', 'storage/aggregates/ansible', SRR['empty_good']),    # delete
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['state'] = 'absent'
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls, '\n---\n')
-    expected_call = call('DELETE', 'storage/aggregates/ansible', {'return_timeout': 30}, json=None, headers=None)
-    assert expected_call in mock_request.mock_calls
+    assert exc.value.args[0]['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_actions_error_service_state_rest(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],  # get
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_actions_error_service_state_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),  # get
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['service_state'] = 'offline'
@@ -705,13 +587,11 @@ def test_get_aggr_actions_error_service_state_rest(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_get_aggr_actions_error_snaplock(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record'],  # get
-        SRR['end_of_sequence']
-    ]
+def test_get_aggr_actions_error_snaplock():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),  # get
+    ])
     set_module_args(set_default_args())
     my_obj = my_module()
     my_obj.parameters['snaplock_type'] = 'enterprise'
@@ -723,17 +603,14 @@ def test_get_aggr_actions_error_snaplock(mock_request, patch_ansible):
     assert msg == exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_main_rest(mock_request, patch_ansible):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['empty_records'],   # get
-        SRR['empty_good'],      # create
-        SRR['end_of_sequence']
-    ]
+def test_main_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),    # get
+        ('POST', 'storage/aggregates', SRR['empty_good']),      # create
+    ])
     set_module_args(set_default_args())
 
     with pytest.raises(AnsibleExitJson) as exc:
         my_main()
-    print(mock_request.mock_calls, '\n---\n')
     assert exc.value.args[0]['changed']
