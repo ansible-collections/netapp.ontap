@@ -53,8 +53,15 @@ DEFAULT_ARGS = {
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    msg = 'missing required arguments: hostname, share_name, user_or_group, vserver'
-    assert expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg'] == msg
+    error_msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    for fragment in 'missing required arguments:', 'hostname', 'share_name', 'user_or_group', 'vserver':
+        assert fragment in error_msg
+    assert 'permission' not in error_msg
+
+    args = dict(DEFAULT_ARGS)
+    args.pop('permission')
+    msg = 'state is present but all of the following are missing: permission'
+    assert expect_and_capture_ansible_exception(create_module, 'fail', my_module, args)['msg'] == msg
 
 
 def test_create():
