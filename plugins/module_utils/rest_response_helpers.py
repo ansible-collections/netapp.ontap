@@ -37,9 +37,7 @@ __metaclass__ = type
 
 def api_error(api, error):
     """format error message for api error, if error is present"""
-    if error is not None:
-        return "calling: %s: got %s." % (api, error)
-    return None
+    return "calling: %s: got %s." % (api, error) if error is not None else None
 
 
 def no_response_error(api, response):
@@ -75,9 +73,7 @@ def check_for_0_or_1_records(api, response, error, query=None):
        return error otherwise (error, no response, more than 1 record)
     """
     if error:
-        if api:
-            return None, api_error(api, error)
-        return None, error
+        return (None, api_error(api, error)) if api else (None, error)
     if not response:
         return None, no_response_error(api, response)
     num_records = get_num_records(response)
@@ -96,9 +92,7 @@ def check_for_0_or_more_records(api, response, error):
        return error otherwise (error, no response)
     """
     if error:
-        if api:
-            return None, api_error(api, error)
-        return None, error
+        return (None, api_error(api, error)) if api else (None, error)
     if not response:
         return None, no_response_error(api, response)
     if get_num_records(response) == 0:

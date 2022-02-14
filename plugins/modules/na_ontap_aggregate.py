@@ -288,6 +288,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
 class NetAppOntapAggregate:
@@ -895,7 +896,12 @@ class NetAppOntapAggregate:
         api = 'storage/aggregates'
 
         disk_size = self.get_disk_size()
-        query = {'disk_size': disk_size} if disk_size else None
+        # Interestingly, REST expects True/False in body, but 'true'/'false' in query
+        # I guess it's because we're using json in the body
+        query = {'return_records': 'true'}    # in order to capture UUID
+        if disk_size:
+            query['disk_size'] = disk_size
+        # query = {'disk_size': disk_size} if disk_size else None
 
         body = {'name': self.parameters['name']} if 'name' in self.parameters else {}
         block_storage = {}
@@ -923,9 +929,17 @@ class NetAppOntapAggregate:
             body['data_encryption'] = {'software_encryption_enabled': True}
         if self.parameters.get('snaplock_type'):
             body['snaplock_type'] = self.parameters['snaplock_type']
-        dummy, error = rest_generic.post_async(self.rest_api, api, body or None, query, job_timeout=self.parameters['time_out'])
+        response, error = rest_generic.post_async(self.rest_api, api, body or None, query, job_timeout=self.parameters['time_out'])
         if error:
             self.module.fail_json(msg='Error: failed to create aggregate: %s' % error)
+        if response:
+            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
+            if not error and record and 'uuid' not in record:
+                error = 'uuid key not present in %s:' % record
+            if error:
+                self.module.fail_json(msg='Error: failed to parse create aggregate response: %s' % error)
+            if record:
+                self.uuid = record['uuid']
 
     def delete_aggr_rest(self):
         api = 'storage/aggregates'
@@ -978,6 +992,9 @@ class NetAppOntapAggregate:
     def attach_object_store_to_aggr_rest(self):
         '''TODO: support mirror in addition to primary'''
 
+        if self.uuid is None:
+            error = 'aggregate UUID is not set.'
+            self.module.fail_json(msg='Error: cannot attach cloud store with name %s: %s' % (self.parameters['object_store_name'], error))
         body = {'target': {'uuid': self.get_cloud_target_uuid_rest()}}
         api = 'storage/aggregates/%s/cloud-stores' % self.uuid
         record, error = rest_generic.post_async(self.rest_api, api, body)

@@ -51,9 +51,9 @@ def warn(dummy, msg):
 def expect_and_capture_ansible_exception(function, exception, *args, **kwargs):
     ''' wraps a call to a funtion in a pytest.raises context and return the exception data as a dict
 
-        function: the function to call -- without ()
-        mode: 'exit' or 'fail' to trap Ansible exceptions raised by exit_json or fail_json
-              can also take an exception to test soem corner cases (eg KeyError)
+        function:  the function to call -- without ()
+        exception: 'exit' or 'fail' to trap Ansible exceptions raised by exit_json or fail_json
+                   can also take an exception to test some corner cases (eg KeyError)
         *args, **kwargs  to capture any function arguments
     '''
     if exception in ('fail', 'exit'):
@@ -67,18 +67,35 @@ def expect_and_capture_ansible_exception(function, exception, *args, **kwargs):
     return exc.value.args[0]
 
 
-def create_module(my_module, default_args=None, module_args=None):
-    ''' utility function to create a module object '''
+def create_module(my_module, default_args=None, module_args=None, check_mode=None):
+    ''' utility function to create a module object
+        my_module: a class that represent an ONTAP Ansible module
+        default_args: a dict for the Ansible options - in general, what is accepted by all tests
+        module_args: additional options - in general what is specific to a test
+        check_mode: True/False - if not None, check_mode is set accordingly
+
+        returns an instance of the module
+    '''
     args = copy.deepcopy(default_args) if default_args else {}
     if module_args:
         args.update(module_args)
     set_module_args(args)
-    return my_module()
+    my_module_object = my_module()
+    if check_mode is not None:
+        my_module_object.module.check_mode = check_mode
+    return my_module_object
 
 
-def create_and_apply(my_module, default_args=None, module_args=None, fail=False):
-    ''' utility function to create a module and call apply '''
-    my_obj = create_module(my_module, default_args, module_args)
+def create_and_apply(my_module, default_args=None, module_args=None, fail=False, check_mode=None):
+    ''' utility function to create a module and call apply
+
+        calls create_module, then calls the apply function and checks for:
+             AnsibleExitJson exception if fail is False or not present.
+             AnsibleFailJson exception if fail is True.
+
+        see create_module for a description of the other arguments.
+    '''
+    my_obj = create_module(my_module, default_args, module_args, check_mode)
     return expect_and_capture_ansible_exception(my_obj.apply, 'fail' if fail else 'exit')
 
 

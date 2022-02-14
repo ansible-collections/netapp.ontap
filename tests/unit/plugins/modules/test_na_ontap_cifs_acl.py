@@ -143,8 +143,8 @@ def test_negative_modify_with_type():
     module_args = {
         'type': 'unix_group'
     }
-    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert msg == 'Error: changing the type is not supported by ONTAP - current: windows, desired: unix_group'
+    msg = 'Error: changing the type is not supported by ONTAP - current: windows, desired: unix_group'
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
 def test_negative_modify_with_extra_stuff():

@@ -40,6 +40,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_cifs_acl - new option `type` for user-group-type.
 
+### Bug Fixes
+  - na_ontap_aggregate - Fixed UUID issue when attempting to attach object store as part of creating the aggregate with REST.
+
 ## 21.16.0
 
 ### New Options
