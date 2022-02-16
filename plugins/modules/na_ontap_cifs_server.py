@@ -181,7 +181,8 @@ class NetAppOntapcifsServer:
         self.parameters['cifs_server_name'] = self.parameters['name']
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
+        unsupported_rest_properties = ['force', 'workgroup']
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
 
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
