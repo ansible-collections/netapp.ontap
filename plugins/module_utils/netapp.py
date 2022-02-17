@@ -206,22 +206,17 @@ def create_sf_connection(module, port=None):
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
     error = None
     if password is None and username is None:
-        if cert_filepath is None and key_filepath is not None:
-            error = 'Error: cannot have a key file without a cert file'
-        elif cert_filepath is None:
-            error = 'Error: ONTAP module requires username/password or SSL certificate file(s)'
-        elif key_filepath is None:
-            auth_method = 'single_cert'
+        if cert_filepath is None:
+            error = ('Error: cannot have a key file without a cert file' if key_filepath is not None
+                     else 'Error: ONTAP module requires username/password or SSL certificate file(s)')
         else:
-            auth_method = 'cert_key'
+            auth_method = 'single_cert' if key_filepath is None else 'cert_key'
     elif password is not None and username is not None:
         if cert_filepath is not None or key_filepath is not None:
             error = 'Error: cannot have both basic authentication (username/password) ' +\
                     'and certificate authentication (cert/key files)'
-        elif has_feature(module, 'classic_basic_authorization'):
-            auth_method = 'basic_auth'
         else:
-            auth_method = 'speedy_basic_auth'
+            auth_method = 'basic_auth' if has_feature(module, 'classic_basic_authorization') else 'speedy_basic_auth'
     else:
         error = 'Error: username and password have to be provided together'
         if cert_filepath is not None or key_filepath is not None:
@@ -499,27 +494,30 @@ if HAS_NETAPP_LIB:
             msg += '  More info: %s' % repr(exc)
             self.module.fail_json(msg=msg)
 
+        def sanitize_xml(self, response):
+            # some ONTAP CLI commands return BEL on error
+            new_response = response.replace(b'\x07\n', b'')
+            # And 9.1 uses \r\n rather than \n !
+            new_response = new_response.replace(b'\x07\r\n', b'')
+            # And 9.7 may send backspaces
+            for code_point in get_feature(self.module, 'sanitize_code_points'):
+                if bytes([8]) == b'\x08':   # python 3
+                    byte = bytes([code_point])
+                elif chr(8) == b'\x08':     # python 2
+                    byte = chr(code_point)
+                else:                       # very unlikely, noop
+                    byte = b'.'
+                new_response = new_response.replace(byte, b'.')
+            return new_response
+
         def _parse_response(self, response):
             ''' handling XML parsing exception '''
             try:
                 return super(OntapZAPICx, self)._parse_response(response)
             except zapi.etree.XMLSyntaxError as exc:
                 if has_feature(self.module, 'sanitize_xml'):
-                    # some ONTAP CLI commands return BEL on error
-                    new_response = response.replace(b'\x07\n', b'')
-                    # And 9.1 uses \r\n rather than \n !
-                    new_response = new_response.replace(b'\x07\r\n', b'')
-                    # And 9.7 may send backspaces
-                    for code_point in get_feature(self.module, 'sanitize_code_points'):
-                        if bytes([8]) == b'\x08':   # python 3
-                            byte = bytes([code_point])
-                        elif chr(8) == b'\x08':     # python 2
-                            byte = chr(code_point)
-                        else:                       # very unlikely, noop
-                            byte = b'.'
-                        new_response = new_response.replace(byte, b'.')
                     try:
-                        return super(OntapZAPICx, self)._parse_response(new_response)
+                        return super(OntapZAPICx, self)._parse_response(self.sanitize_xml(response))
                     except Exception:
                         # ignore a second exception, we'll report the first one
                         pass
@@ -678,15 +676,32 @@ class OntapRestAPI(object):
     def send_request(self, method, api, params, json=None, headers=None):
         ''' send http request and process reponse, including error conditions '''
         url = self.url + api
+
+        def get_auth_args():
+            if self.auth_method == 'single_cert':
+                kwargs = dict(cert=self.cert_filepath)
+            elif self.auth_method == 'cert_key':
+                kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
+            elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
+                # with requests, there is no challenge, eg no 401.
+                kwargs = dict(auth=(self.username, self.password))
+            else:
+                raise KeyError(self.auth_method)
+            return kwargs
+
+        status_code, json_dict, error_details = self._send_request(method, url, params, json, headers, get_auth_args())
+
+        return status_code, json_dict, error_details
+
+    def _send_request(self, method, url, params, json, headers, auth_args):
         status_code = None
-        content = None
         json_dict = None
         json_error = None
         error_details = None
         if headers is None:
             headers = self.build_headers()
 
-        def check_contents(response):
+        def fail_on_non_empty_value(response):
             '''json() may fail on an empty value, but it's OK if no response is expected.
                To avoid false positives, only report an issue when we expect to read a value.
                The first get will see it.
@@ -701,30 +716,16 @@ class OntapRestAPI(object):
             try:
                 json = response.json()
             except ValueError:
-                check_contents(response)
+                fail_on_non_empty_value(response)
                 return None, None
-            error = json.get('error')
-            return json, error
+            return json, json.get('error')
 
-        def get_auth_args():
-            if self.auth_method == 'single_cert':
-                kwargs = dict(cert=self.cert_filepath)
-            elif self.auth_method == 'cert_key':
-                kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
-            elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
-                # with requests, there is no challenge, eg no 401.
-                kwargs = dict(auth=(self.username, self.password))
-            else:
-                raise KeyError(self.auth_method)
-            return kwargs
-
-        kwargs = get_auth_args()
         self.log_debug('sending', repr(dict(method=method, url=url, verify=self.verify, params=params,
-                                            timeout=self.timeout, json=json, headers=headers, **kwargs)))
+                                            timeout=self.timeout, json=json, headers=headers, auth_args=auth_args)))
         try:
             response = requests.request(method, url, verify=self.verify, params=params,
-                                        timeout=self.timeout, json=json, headers=headers, **kwargs)
-            content = response.content  # for debug purposes
+                                        timeout=self.timeout, json=json, headers=headers, **auth_args)
+            self.log_debug(status_code, response.content)
             status_code = response.status_code
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
@@ -748,7 +749,6 @@ class OntapRestAPI(object):
         if json_error is not None:
             self.log_error(status_code, 'Endpoint error: %d: %s' % (status_code, json_error))
             error_details = json_error
-        self.log_debug(status_code, content)
         if not error_details and not json_dict and method == 'OPTIONS':
             # OPTIONS provides the list of supported verbs
             json_dict['Allow'] = response.headers.get('Allow')

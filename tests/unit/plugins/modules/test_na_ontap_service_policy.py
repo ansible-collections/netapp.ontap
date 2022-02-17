@@ -22,7 +22,7 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 
 
 def default_args():
-    args = {
+    return {
         'state': 'present',
         'hostname': '10.10.10.10',
         'username': 'admin',
@@ -32,7 +32,6 @@ def default_args():
         'name': 'sp123',
         'vserver': 'vserver',
     }
-    return args
 
 
 # REST API canned responses when mocking send_request
@@ -50,7 +49,7 @@ SRR = {
         "records": [{
             'name': 'sp123',
             'uuid': 'uuid123',
-            'vserver': dict(name='vserver'),
+            'svm': dict(name='vserver'),
             'services': ['data_core'],
             'scope': 'svm',
         }],
@@ -469,7 +468,7 @@ def test_negative_empty_body_in_modify(mock_request, patch_ansible):
     args = dict(default_args())
     set_module_args(args)
     current = dict(uuid='')
-    modify = dict()
+    modify = {}
     mock_request.side_effect = [
         SRR['is_rest_9_8'],         # get version
         SRR['end_of_sequence']

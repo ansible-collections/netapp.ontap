@@ -182,8 +182,9 @@ class NetAppOntapPublicKey:
             msg = "Error in get_public_key: %s" % error
             self.module.fail_json(msg=msg)
         if records is None or records == [None]:
-            records = list()
-        return records
+            records = []
+        # flatten {'account': {'name': 'some_name'}} into {'account': 'some_name'} to match input parameters
+        return [dict([(k, v if k != 'account' else v['name']) for k, v in record.items()]) for record in records]
 
     def create_public_key(self):
         api = 'security/authentication/publickeys'
@@ -205,10 +206,10 @@ class NetAppOntapPublicKey:
             self.module.fail_json(msg=msg)
 
     def modify_public_key(self, current, modify):
-        api = 'security/authentication/publickeys/%s/%s/%d'
-        api = api % (current['owner']['uuid'], current['account']['name'], current['index'])
-
-        body = dict()
+        # not supported in 2.6
+        # sourcery skip: dict-comprehension
+        api = 'security/authentication/publickeys/%s/%s/%d' % (current['owner']['uuid'], current['account'], current['index'])
+        body = {}
         modify_copy = dict(modify)
         for key in modify:
             if key in ('comment', 'public_key'):
@@ -229,9 +230,7 @@ class NetAppOntapPublicKey:
             self.module.fail_json(msg=msg)
 
     def delete_public_key(self, current):
-        api = 'security/authentication/publickeys/%s/%s/%d'
-        api = api % (current['owner']['uuid'], current['account']['name'], current['index'])
-
+        api = 'security/authentication/publickeys/%s/%s/%d' % (current['owner']['uuid'], current['account'], current['index'])
         dummy, error = self.rest_api.delete(api)
         if error:
             msg = "Error in delete_public_key: %s" % error
@@ -251,7 +250,7 @@ class NetAppOntapPublicKey:
         if self.parameters['state'] == 'present' and self.parameters.get('index') is None:
             # always create, by keeping current as None
             self.module.warn('Module is not idempotent if index is not provided with state=present.')
-            records = list()
+            records = []
         else:
             records = self.get_public_keys()
             if len(records) > 1:

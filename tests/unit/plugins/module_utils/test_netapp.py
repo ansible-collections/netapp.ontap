@@ -1,11 +1,10 @@
-# Copyright (c) 2018 NetApp
+# Copyright (c) 2018-2022 NetApp
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for module_utils netapp.py '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import json
 import os.path
 import sys
 import tempfile
@@ -14,179 +13,32 @@ import pytest
 
 from ansible.module_utils.ansible_release import __version__ as ansible_version
 from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import COLLECTION_VERSION
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
+    patch_ansible, create_module, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip("skipping as missing required netapp_lib")
 
 
-def set_module_args(args):
-    """prepare arguments so that they will be picked up during module creation"""
-    args = json.dumps({'ANSIBLE_MODULE_ARGS': args})
-    basic._ANSIBLE_ARGS = to_bytes(args)  # pylint: disable=protected-access
+SRR = rest_responses({
+})
+
+ZRR = zapi_responses({
+    'error_no_vserver': build_zapi_error(12345, 'Vserver API missing vserver parameter.'),
+    'error_other_error': build_zapi_error(12345, 'Some other error message.'),
+})
 
 
-class AnsibleFailJson(Exception):
-    """Exception class to be raised by module.fail_json and caught by the test case"""
-
-
-def fail_json(*args, **kwargs):  # pylint: disable=unused-argument
-    """function to patch over fail_json; package return data into an exception"""
-    kwargs['failed'] = True
-    raise AnsibleFailJson(kwargs)
-
-
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
-    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None),
-    'end_of_sequence': (None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
-}
-
-
-class MockONTAPConnection(object):
-    ''' mock a server connection to ONTAP host '''
-
-    def __init__(self, kind=None, parm1=None):
-        ''' save arguments '''
-        self.type = kind
-        self.parm1 = parm1
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'vserver':
-            xml = self.build_vserver_info(self.parm1)
-        if self.type == 'no_vserver':
-            xml = self.build_no_info()
-        if self.type == 'error_no_vserver':
-            raise netapp_utils.zapi.NaApiError(message='Vserver API missing vserver parameter.')
-        if self.type == 'error_other_error':
-            raise netapp_utils.zapi.NaApiError(message='Some other error message.')
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_vserver_info(vserver):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('attributes-list')
-        attributes.add_node_with_children('vserver-info',
-                                          **{'vserver-name': vserver})
-        xml.add_child_elem(attributes)
-        return xml
-
-    @staticmethod
-    def build_no_info():
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        xml.add_new_child('num_records', '0')
-        return xml
-
-
-class MockModule:
+class MockONTAPModule:
     def __init__(self):
-        self.params = {
-            'feature_flags': None
-        }
-
-
-def test_ems_log_event_version():
-    ''' validate Ansible version is correctly read '''
-    source = 'unittest'
-    server = MockONTAPConnection()
-    netapp_utils.ems_log_event(source, server)
-    xml = server.xml_in
-    version = xml.get_child_content('app-version')
-    if version == ansible_version:
-        assert version == ansible_version
-    else:
-        assert version == COLLECTION_VERSION
-    print("Ansible version: %s" % ansible_version)
-
-
-def test_get_cserver():
-    ''' validate cluster vserser name is correctly retrieved '''
-    svm_name = 'svm1'
-    server = MockONTAPConnection('vserver', svm_name)
-    cserver = netapp_utils.get_cserver(server)
-    assert cserver == svm_name
-
-
-def test_get_cserver_none():
-    ''' validate cluster vserser name is correctly retrieved '''
-    svm_name = 'svm1'
-    server = MockONTAPConnection('no_vserver', svm_name)
-    cserver = netapp_utils.get_cserver(server)
-    assert cserver is None
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
-def test_ems_log_event_cserver(mock_setup):
-    ''' validate Ansible version is correctly read '''
-    source = 'unittest'
-    svm_name = 'svm1'
-    module = MockModule()
-    server = MockONTAPConnection('vserver', svm_name)
-    mock_setup.return_value = MockONTAPConnection('vserver', 'cserver')
-    netapp_utils.ems_log_event_cserver(source, server, module)
-    xml = mock_setup.return_value.xml_in
-    print(xml.to_string())
-    version = xml.get_child_content('app-version')
-    if version == ansible_version:
-        assert version == ansible_version
-    else:
-        assert version == COLLECTION_VERSION
-    print("Ansible version: %s" % ansible_version)
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
-def test_ems_log_event_cserver_no_admin(mock_setup):
-    ''' no error is a vserser missing error is reported '''
-    source = 'unittest'
-    svm_name = 'svm1'
-    module = MockModule()
-    server = MockONTAPConnection('vserver', svm_name)
-    mock_setup.return_value = MockONTAPConnection('error_no_vserver')
-    netapp_utils.ems_log_event_cserver(source, server, module)
-    xml = mock_setup.return_value.xml_in
-    print(xml.to_string())
-    version = xml.get_child_content('app-version')
-    if version == ansible_version:
-        assert version == ansible_version
-    else:
-        assert version == COLLECTION_VERSION
-    print("Ansible version: %s" % ansible_version)
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.setup_na_ontap_zapi')
-def test_ems_log_event_cserver_other_error(mock_setup):
-    ''' exception is raised for other errors '''
-    source = 'unittest'
-    svm_name = 'svm1'
-    module = MockModule()
-    server = MockONTAPConnection('vserver', svm_name)
-    mock_setup.return_value = MockONTAPConnection('error_other_error')
-    with pytest.raises(netapp_utils.zapi.NaApiError) as exc:
-        netapp_utils.ems_log_event_cserver(source, server, module)
-    xml = mock_setup.return_value.xml_in
-    print(xml.to_string())
-    version = xml.get_child_content('app-version')
-    if version == ansible_version:
-        assert version == ansible_version
-    else:
-        assert version == COLLECTION_VERSION
-    print("Ansible version: %s" % ansible_version)
+        self.module = basic.AnsibleModule(netapp_utils.na_ontap_host_argument_spec())
 
 
 def mock_args(feature_flags=None):
@@ -198,7 +50,7 @@ def mock_args(feature_flags=None):
         'key_filepath': None,
     }
     if feature_flags is not None:
-        args.update({'feature_flags': feature_flags})
+        args['feature_flags'] = feature_flags
     return args
 
 
@@ -209,31 +61,116 @@ def cert_args(feature_flags=None):
         'key_filepath': 'test_key.key'
     }
     if feature_flags is not None:
-        args.update({'feature_flags': feature_flags})
+        args['feature_flags'] = feature_flags
     return args
 
 
-def create_module(args):
-    argument_spec = netapp_utils.na_ontap_host_argument_spec()
-    set_module_args(args)
-    return basic.AnsibleModule(argument_spec)
+def create_ontap_module(args=None):
+    return create_module(MockONTAPModule, args).module
 
 
 def create_restapi_object(args):
-    module = create_module(args)
-    module.fail_json = fail_json
-    return netapp_utils.OntapRestAPI(module)
+    module = create_module(MockONTAPModule, args)
+    return netapp_utils.OntapRestAPI(module.module)
 
 
-def create_ontapzapicx_object(args, feature_flags=None):
+def create_ontapzapicx_object(args):
     module_args = dict(args)
-    if feature_flags is not None:
-        module_args['feature_flags'] = feature_flags
-    module = create_module(module_args)
-    module.fail_json = fail_json
-    my_args = dict(args)
-    my_args.update(dict(module=module))
+    module = create_module(MockONTAPModule, module_args)
+
+    my_args = {}
+    for key in 'hostname', 'username', 'password', 'cert_filepath', 'key_filepath':
+        if key in args:
+            my_args[key] = args[key]
+    my_args.update(dict(module=module.module))
     return netapp_utils.OntapZAPICx(**my_args)
+
+
+def test_ems_log_event_version():
+    ''' validate Ansible version is correctly read '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+    ])
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(mock_args()))
+    source = 'unittest'
+    netapp_utils.ems_log_event(source, server)
+    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
+    version = request.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
+
+
+def test_get_cserver():
+    ''' validate cluster vserser name is correctly retrieved '''
+    register_responses([
+        ('vserver-get-iter', ZRR['cserver']),
+    ])
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(mock_args()))
+    cserver = netapp_utils.get_cserver(server)
+    assert cserver == 'cserver'
+
+
+def test_get_cserver_none():
+    ''' validate cluster vserser name is correctly retrieved '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+    ])
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(mock_args()))
+    cserver = netapp_utils.get_cserver(server)
+    assert cserver is None
+
+
+def test_ems_log_event_cserver():
+    ''' validate Ansible version is correctly read '''
+    register_responses([
+        ('vserver-get-iter', ZRR['cserver']),
+        ('ems-autosupport-log', ZRR['success']),
+    ])
+    module = create_ontap_module(mock_args())
+    server = netapp_utils.setup_na_ontap_zapi(module)
+    source = 'unittest'
+    netapp_utils.ems_log_event_cserver(source, server, module)
+    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
+    version = request.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
+
+
+def test_ems_log_event_cserver_no_admin():
+    ''' no error if a vserser missing error is reported '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['success']),
+    ])
+    module = create_ontap_module(mock_args())
+    server = netapp_utils.setup_na_ontap_zapi(module)
+    source = 'unittest'
+    netapp_utils.ems_log_event_cserver(source, server, module)
+    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
+    version = request.get_child_content('app-version')
+    if version == ansible_version:
+        assert version == ansible_version
+    else:
+        assert version == COLLECTION_VERSION
+    print("Ansible version: %s" % ansible_version)
+
+
+def test_ems_log_event_cserver_other_error():
+    ''' exception is raised for other errors '''
+    register_responses([
+        ('vserver-get-iter', ZRR['cserver']),
+        ('ems-autosupport-log', ZRR['error_other_error']),
+    ])
+    module = create_ontap_module(mock_args())
+    server = netapp_utils.setup_na_ontap_zapi(module)
+    source = 'unittest'
+    assert expect_and_capture_ansible_exception(netapp_utils.ems_log_event_cserver, netapp_utils.zapi.NaApiError, source, server, module)
 
 
 def test_write_to_file():
@@ -302,12 +239,11 @@ def test_write_to_file():
         assert lines[1].strip() == 'Error: 404 error'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_is_rest_true(mock_request):
+def test_is_rest_true():
     ''' is_rest is expected to return True '''
-    mock_request.side_effect = [
-        SRR['is_rest'],
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     rest_api = create_restapi_object(mock_args())
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
@@ -315,12 +251,11 @@ def test_is_rest_true(mock_request):
     assert is_rest
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_is_rest_false(mock_request):
+def test_is_rest_false():
     ''' is_rest is expected to return False '''
-    mock_request.side_effect = [
-        SRR['is_zapi'],
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+    ])
     rest_api = create_restapi_object(mock_args())
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
@@ -331,12 +266,11 @@ def test_is_rest_false(mock_request):
     assert rest_api.debug_logs[0][1] == SRR['is_zapi'][2]    # error
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_is_rest_false_9_5(mock_request):
+def test_is_rest_false_9_5():
     ''' is_rest is expected to return False '''
-    mock_request.side_effect = [
-        SRR['is_rest_95'],
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_95']),
+    ])
     rest_api = create_restapi_object(mock_args())
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
@@ -346,12 +280,11 @@ def test_is_rest_false_9_5(mock_request):
     assert not rest_api.debug_logs
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_is_rest_true_9_6(mock_request):
+def test_is_rest_true_9_6():
     ''' is_rest is expected to return False '''
-    mock_request.side_effect = [
-        SRR['is_rest_96'],
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
     rest_api = create_restapi_object(mock_args())
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
@@ -364,7 +297,7 @@ def test_is_rest_true_9_6(mock_request):
 def test_has_feature_success_default():
     ''' existing feature_flag with default '''
     flag = 'deprecation_warning'
-    module = create_module(mock_args())
+    module = create_ontap_module(mock_args())
     value = netapp_utils.has_feature(module, flag)
     assert value
 
@@ -373,7 +306,7 @@ def test_has_feature_success_user_true():
     ''' existing feature_flag with value set to True '''
     flag = 'user_deprecation_warning'
     args = dict(mock_args({flag: True}))
-    module = create_module(args)
+    module = create_ontap_module(args)
     value = netapp_utils.has_feature(module, flag)
     assert value
 
@@ -383,7 +316,7 @@ def test_has_feature_success_user_false():
     flag = 'user_deprecation_warning'
     args = dict(mock_args({flag: False}))
     print(args)
-    module = create_module(args)
+    module = create_ontap_module(args)
     value = netapp_utils.has_feature(module, flag)
     assert not value
 
@@ -391,33 +324,25 @@ def test_has_feature_success_user_false():
 def test_has_feature_invalid_key():
     ''' existing feature_flag with unknown key '''
     flag = 'deprecation_warning_bad_key'
-    module = create_module(mock_args())
-    # replace ANsible fail method with ours
-    module.fail_json = fail_json
-    with pytest.raises(AnsibleFailJson) as exc:
-        netapp_utils.has_feature(module, flag)
+    module = create_ontap_module(mock_args())
     msg = 'Internal error: unexpected feature flag: %s' % flag
-    assert exc.value.args[0]['msg'] == msg
+    assert expect_and_capture_ansible_exception(netapp_utils.has_feature, 'fail', module, flag)['msg'] == msg
 
 
 def test_fail_has_username_password_and_cert():
     ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
-    with pytest.raises(AnsibleFailJson) as exc:
-        create_restapi_object(args)
     msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
-    assert exc.value.args[0]['msg'] == msg
+    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args)['msg'] == msg
 
 
 def test_fail_has_username_password_and_key():
     ''' failure case in auth_method '''
     args = mock_args()
     args.update(dict(key_filepath='dummy'))
-    with pytest.raises(AnsibleFailJson) as exc:
-        create_restapi_object(args)
     msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
-    assert exc.value.args[0]['msg'] == msg
+    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args)['msg'] == msg
 
 
 def test_fail_has_username_and_cert():
@@ -425,10 +350,8 @@ def test_fail_has_username_and_cert():
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
     del args['password']
-    with pytest.raises(AnsibleFailJson) as exc:
-        create_restapi_object(args)
     msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
-    assert exc.value.args[0]['msg'] == msg
+    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args)['msg'] == msg
 
 
 def test_fail_has_password_and_cert():
@@ -436,10 +359,8 @@ def test_fail_has_password_and_cert():
     args = mock_args()
     args.update(dict(cert_filepath='dummy'))
     del args['username']
-    with pytest.raises(AnsibleFailJson) as exc:
-        create_restapi_object(args)
     msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
-    assert exc.value.args[0]['msg'] == msg
+    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args)['msg'] == msg
 
 
 def test_has_username_password():
@@ -468,12 +389,10 @@ def test_certificate_method_zapi():
     ''' should fail when trying to read the certificate file '''
     args = cert_args()
     zapi_cx = create_ontapzapicx_object(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        zapi_cx._create_certificate_auth_handler()
     msg1 = 'Cannot load SSL certificate, check files exist.'
     # for python 2,6 :(
     msg2 = 'SSL certificate authentication requires python 2.7 or later.'
-    assert exc.value.args[0]['msg'].startswith((msg1, msg2))
+    assert expect_and_capture_ansible_exception(zapi_cx._create_certificate_auth_handler, 'fail')['msg'].startswith((msg1, msg2))
 
 
 def test_classify_zapi_exception_cluster_only():
@@ -535,9 +454,9 @@ def test_zapi_parse_response_sanitized():
 
 def test_zapi_parse_response_unsanitized():
     ''' should fail when trying to read invalid XML characters (\x08) '''
-    args = mock_args()
     # use feature_flags to disable sanitization
-    zapi_cx = create_ontapzapicx_object(args, dict(sanitize_xml=False))
+    args = mock_args(dict(sanitize_xml=False))
+    zapi_cx = create_ontapzapicx_object(args)
     response = b"<?xml version='1.0' encoding='UTF-8' ?>\n<!DOCTYPE netapp SYSTEM 'file:/etc/netapp_gx.dtd'>\n"
     response += b"<netapp version='1.180' xmlns='http://www.netapp.com/filer/admin'>\n<results status=\"passed\">"
     response += b"<cli-output>  (cluster log-forwarding create)\n\n"
@@ -555,7 +474,7 @@ def test_zapi_parse_response_unsanitized():
 def test_zapi_cx_add_auth_header():
     ''' should add header '''
     args = mock_args()
-    module = create_module(args)
+    module = create_ontap_module(args)
     zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
     assert isinstance(zapi_cx, netapp_utils.OntapZAPICx)
     assert zapi_cx.base64_creds is not None
@@ -567,7 +486,7 @@ def test_zapi_cx_add_auth_header_explicit():
     ''' should add header '''
     args = mock_args()
     args['feature_flags'] = dict(classic_basic_authorization=False)
-    module = create_module(args)
+    module = create_ontap_module(args)
     zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
     assert isinstance(zapi_cx, netapp_utils.OntapZAPICx)
     assert zapi_cx.base64_creds is not None
@@ -579,7 +498,7 @@ def test_zapi_cx_no_auth_header():
     ''' should add header '''
     args = mock_args()
     args['feature_flags'] = dict(classic_basic_authorization=True, always_wrap_zapi=False)
-    module = create_module(args)
+    module = create_ontap_module(args)
     zapi_cx = netapp_utils.setup_na_ontap_zapi(module)
     assert not isinstance(zapi_cx, netapp_utils.OntapZAPICx)
     request, dummy = zapi_cx._create_request(netapp_utils.zapi.NaElement('dummy_tag'))
@@ -600,7 +519,7 @@ def test_get_na_ontap_host_argument_spec_peer():
 def test_setup_host_options_from_module_params_from_empty():
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
-    module = create_module(args)
+    module = create_ontap_module(args)
     host_options = {}
     keys = ('hostname', 'username')
     netapp_utils.setup_host_options_from_module_params(host_options, module, keys)
@@ -613,7 +532,7 @@ def test_setup_host_options_from_module_params_from_empty():
 def test_setup_host_options_from_module_params_username_not_set_when_cert_present():
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
-    module = create_module(args)
+    module = create_ontap_module(args)
     host_options = dict(cert_filepath='some_path')
     unchanged_keys = tuple(host_options.keys())
     copied_over_keys = ('hostname',)
@@ -635,7 +554,7 @@ def test_setup_host_options_from_module_params_not_none_fileds_are_preserved():
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
     args['cert_filepath'] = 'some_path'
-    module = create_module(args)
+    module = create_ontap_module(args)
     host_options = dict(cert_filepath='some_other_path')
     unchanged_keys = tuple(host_options.keys())
     copied_over_keys = ('hostname',)
@@ -657,7 +576,7 @@ def test_setup_host_options_from_module_params_cert_not_set_when_username_presen
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
     args['cert_filepath'] = 'some_path'
-    module = create_module(args)
+    module = create_ontap_module(args)
     host_options = dict(username='some_name')
     unchanged_keys = tuple(host_options.keys())
     copied_over_keys = ('hostname',)
@@ -678,126 +597,11 @@ def test_setup_host_options_from_module_params_cert_not_set_when_username_presen
 def test_setup_host_options_from_module_params_conflict():
     ''' make sure module.params options are reflected in host_options '''
     args = mock_args()
-    module = create_module(args)
+    module = create_ontap_module(args)
     host_options = dict(username='some_name', key_filepath='not allowed')
-    module.fail_json = fail_json
-    with pytest.raises(AnsibleFailJson) as exc:
-        netapp_utils.setup_host_options_from_module_params(host_options, module, host_options.keys())
     msg = 'Error: host cannot have both basic authentication (username/password) and certificate authentication (cert/key files).'
-    assert exc.value.args[0]['msg'] == msg
-
-
-class mockResponse:
-    def __init__(self, json_data, status_code, raise_action=None):
-        self.json_data = json_data
-        self.status_code = status_code
-        self.content = json_data
-        self.raise_action = raise_action
-
-    def raise_for_status(self):
-        pass
-
-    def json(self):
-        if self.raise_action == 'bad_json':
-            raise ValueError(self.raise_action)
-        return self.json_data
-
-
-@patch('requests.request')
-def test_empty_get_sent_bad_json(mock_request):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data='anything', status_code=200, raise_action='bad_json')
-    rest_api = create_restapi_object(mock_args())
-    message, error = rest_api.get('api', None)
-    assert error
-    assert 'Expecting json, got: anything' in error
-    print('errors:', rest_api.errors)
-    print('debug:', rest_api.debug_logs)
-
-
-@patch('requests.request')
-def test_empty_get_sent_bad_but_empty_json(mock_request):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data='', status_code=200, raise_action='bad_json')
-    rest_api = create_restapi_object(mock_args())
-    message, error = rest_api.get('api', None)
-    assert not error
-
-
-def test_wait_on_job_bad_url():
-    ''' URL format error '''
-    rest_api = create_restapi_object(mock_args())
-    api = 'testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = "URL Incorrect format: list index out of range - Job: {'_links': {'self': {'href': 'testme'}}}"
-    assert msg in error
-
-
-@patch('time.sleep')
-@patch('requests.request')
-def test_wait_on_job_timeout(mock_request, sleep_mock):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data='', status_code=200, raise_action='bad_json')
-    rest_api = create_restapi_object(mock_args())
-    api = 'api/testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = 'Timeout error: Process still running'
-    assert msg in error
-
-
-@patch('time.sleep')
-@patch('requests.request')
-def test_wait_on_job_job_error(mock_request, sleep_mock):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data=dict(error='Job error message'), status_code=200)
-    rest_api = create_restapi_object(mock_args())
-    api = 'api/testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = 'Job error message'
-    assert msg in error
-
-
-@patch('requests.request')
-def test_wait_on_job_job_failure(mock_request):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='failure', message='failure message'), status_code=200)
-    rest_api = create_restapi_object(mock_args())
-    api = 'api/testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = 'failure message'
-    assert msg in error
-    assert not message
-
-
-@patch('time.sleep')
-@patch('requests.request')
-def test_wait_on_job_timeout_running(mock_request, sleep_mock):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='running', message='any message'), status_code=200)
-    rest_api = create_restapi_object(mock_args())
-    api = 'api/testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = 'Timeout error: Process still running'
-    assert msg in error
-    assert message == 'any message'
-
-
-@patch('requests.request')
-def test_wait_on_job(mock_request):
-    ''' get with no data '''
-    mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='other', message='any message'), status_code=200)
-    rest_api = create_restapi_object(mock_args())
-    api = 'api/testme'
-    job = dict(_links=dict(self=dict(href=api)))
-    message, error = rest_api.wait_on_job(job)
-    msg = 'Job error message'
-    assert msg in error
-    assert message == 'any message'
+    assert expect_and_capture_ansible_exception(netapp_utils.setup_host_options_from_module_params,
+                                                'fail', host_options, module, host_options.keys())['msg'] == msg
 
 
 def test_is_zapi_connection_error():
@@ -827,3 +631,13 @@ def test_is_zapi_missing_vserver_error():
     assert not netapp_utils.is_zapi_missing_vserver_error(message)
     message = []
     assert not netapp_utils.is_zapi_missing_vserver_error(message)
+
+
+def test_set_auth_method():
+    args = {'hostname': None}
+    # neither password nor cert
+    error = expect_and_capture_ansible_exception(netapp_utils.set_auth_method, 'fail', create_ontap_module(args), None, None, None, None)['msg']
+    assert 'Error: ONTAP module requires username/password or SSL certificate file(s)' in error
+    # keyfile but no cert
+    error = expect_and_capture_ansible_exception(netapp_utils.set_auth_method, 'fail', create_ontap_module(args), None, None, None, 'keyfile')['msg']
+    assert 'Error: cannot have a key file without a cert file' in error

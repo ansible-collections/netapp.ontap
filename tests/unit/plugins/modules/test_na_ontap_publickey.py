@@ -23,7 +23,7 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 
 
 def default_args():
-    args = {
+    return {
         'state': 'present',
         'hostname': '10.10.10.10',
         'username': 'admin',
@@ -34,7 +34,6 @@ def default_args():
         'public_key': '161245ASDF',
         'vserver': 'vserver',
     }
-    return args
 
 
 # REST API canned responses when mocking send_request
@@ -353,7 +352,7 @@ def test_negative_empty_body_in_modify(mock_request, patch_ansible):
         SRR['end_of_sequence']
     ]
     current = dict(owner=dict(uuid=''), account=dict(name=''), index=0)
-    modify = dict()
+    modify = {}
     my_obj = my_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.modify_public_key(current, modify)

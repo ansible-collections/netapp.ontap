@@ -168,6 +168,7 @@ class MockCalls:
         except AttributeError:
             zapi_request = na_element
         record = {
+            'na_element': na_element,
             'zapi_request': zapi_request,
             'tunneling': enable_tunneling
         }

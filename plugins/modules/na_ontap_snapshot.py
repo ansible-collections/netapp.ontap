@@ -406,6 +406,8 @@ class NetAppOntapSnapshot:
 
             if current:
                 uuid = current['uuid']
+                # flatten {'volume': {'name' : 'some_name'}} to match input paramters
+                current['volume'] = current['volume']['name']
         rename, cd_action = None, None
         modify = {}
         if self.parameters.get('from_name'):
@@ -416,23 +418,20 @@ class NetAppOntapSnapshot:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
             if cd_action is None:
                 modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    if self.use_rest:
-                        uuid = self.get_snapshot(self.parameters['from_name'], volume_id=volume_id)['uuid']
-                        self.modify_snapshot(volume_id=volume_id, uuid=uuid, rename=True)
-                        self.get_snapshot(self.parameters['snapshot'], volume_id=volume_id)
-                    else:
-                        self.rename_snapshot()
-                if cd_action == 'create':
-                    self.create_snapshot(volume_id=volume_id)
-                elif cd_action == 'delete':
-                    self.delete_snapshot(volume_id=volume_id, uuid=uuid)
-                elif modify:
-                    self.modify_snapshot(volume_id=volume_id, uuid=uuid)
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                if self.use_rest:
+                    uuid = self.get_snapshot(self.parameters['from_name'], volume_id=volume_id)['uuid']
+                    self.modify_snapshot(volume_id=volume_id, uuid=uuid, rename=True)
+                    self.get_snapshot(self.parameters['snapshot'], volume_id=volume_id)
+                else:
+                    self.rename_snapshot()
+            if cd_action == 'create':
+                self.create_snapshot(volume_id=volume_id)
+            elif cd_action == 'delete':
+                self.delete_snapshot(volume_id=volume_id, uuid=uuid)
+            elif modify:
+                self.modify_snapshot(volume_id=volume_id, uuid=uuid)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

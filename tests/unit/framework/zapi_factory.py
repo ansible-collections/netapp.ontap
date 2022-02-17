@@ -49,7 +49,7 @@ _DEFAULT_RESPONSES = {
     'cserver': ({
         'attributes-list': {
             'vserver-info': {
-                'vserver-name': 'vserver'
+                'vserver-name': 'cserver'
             }
         }}, 1),
 }

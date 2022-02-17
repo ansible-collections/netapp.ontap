@@ -170,7 +170,7 @@ class NetAppOntapServicePolicy:
         if services and 'no_service' in services:
             if len(services) > 1:
                 self.module.fail_json(msg='Error: no other service can be present when no_service is specified.  Got: %s' % services)
-            self.parameters['services'] = list()
+            self.parameters['services'] = []
 
         scope = self.parameters.get('scope')
         if scope is None:
@@ -221,11 +221,10 @@ class NetAppOntapServicePolicy:
             self.module.fail_json(msg=msg)
 
     def modify_service_policy(self, current, modify):
-        api = 'network/ip/service-policies/%s'
-        api = api % current['uuid']
-
-        body = dict()
+        # sourcery skip: dict-comprehension
+        api = 'network/ip/service-policies/%s' % current['uuid']
         modify_copy = dict(modify)
+        body = {}
         for key in modify:
             if key in ('services'):
                 body[key] = modify_copy.pop(key)
@@ -242,8 +241,7 @@ class NetAppOntapServicePolicy:
             self.module.fail_json(msg=msg)
 
     def delete_service_policy(self, current):
-        api = 'network/ip/service-policies/%s'
-        api = api % current['uuid']
+        api = 'network/ip/service-policies/%s' % current['uuid']
 
         dummy, error = self.rest_api.delete(api)
         if error:

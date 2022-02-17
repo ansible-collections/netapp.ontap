@@ -227,10 +227,7 @@ class NetAppModule(object):
 
         if desired_diff_list or current_diff_list:
             # there are changes
-            if get_list_diff:
-                return desired_diff_list
-            else:
-                return desired
+            return desired_diff_list if get_list_diff else desired
         else:
             return None
 
@@ -254,28 +251,29 @@ class NetAppModule(object):
         if current is None:
             return modified
 
+        if not isinstance(desired, dict):
+            raise TypeError("Expecting dict, got: %s with current: %s" % (desired, current))
         # error out if keys do not match
         self.check_keys(current, desired)
 
         # collect changed attributes
         for key, value in current.items():
-            if key in desired and desired[key] is not None:
+            if desired.get(key) is not None:
+                modified_value = None
                 if isinstance(value, list):
-                    modified_list = self.compare_lists(value, desired[key], get_list_diff)  # get modified list from current and desired
-                    if modified_list is not None:
-                        modified[key] = modified_list
+                    modified_value = self.compare_lists(value, desired[key], get_list_diff)  # get modified list from current and desired
                 elif isinstance(value, dict):
-                    modified_dict = self.get_modified_attributes(value, desired[key])
-                    if modified_dict:
-                        modified[key] = modified_dict
+                    modified_value = self.get_modified_attributes(value, desired[key]) or None
                 else:
                     try:
                         result = cmp(value, desired[key])
                     except TypeError as exc:
                         raise TypeError("%s, key: %s, value: %s, desired: %s" % (repr(exc), key, repr(value), repr(desired[key])))
-                    else:
-                        if result != 0:
-                            modified[key] = desired[key]
+                    if result != 0:
+                        modified_value = desired[key]
+                if modified_value is not None:
+                    modified[key] = modified_value
+
         if modified:
             self.changed = True
         return modified
@@ -346,6 +344,26 @@ class NetAppModule(object):
                 return None
             raise exc
 
+    def convert_value(self, value, convert_to):
+        if convert_to is None:
+            return value, None
+        if not isinstance(value, str):
+            return None, ('Unexpected type: %s for %s' % (type(value), str(value)))
+        if convert_to == str:
+            return value, None
+        if convert_to == int:
+            try:
+                return int(value), None
+            except ValueError as exc:
+                return None, ('Unexpected value for int: %s, %s' % (str(value), str(exc)))
+        if convert_to == bool:
+            if value not in ('true', 'false'):
+                return None, 'Unexpected value: %s received from ZAPI for boolean attribute' % value
+            return value == 'true', None
+        if convert_to == 'bool_online':
+            return value == 'online', None
+        self.module.fail_json(msg='Error: Unexpected value for convert_to: %s' % convert_to)
+
     def zapi_get_value(self, na_element, key_list, required=False, default=None, convert_to=None):
         """ read a value from na_element using key_list
 
@@ -359,41 +377,16 @@ class NetAppModule(object):
             - a format conversion error
         """
 
-        def error_msg(suffix):
-            return 'Error reading %s from %s: %s' % (str(saved_key_list), na_element.to_string(), str(suffix))
-
-        def convert_value(value):
-            if convert_to is None:
-                return value
-            if not isinstance(value, str):
-                self.module.fail_json(msg=error_msg('Unexpected type: %s for %s' % (type(value), str(value))))
-            if convert_to == str:
-                return value
-            if convert_to == int:
-                try:
-                    return int(value)
-                except ValueError as exc:
-                    self.module.fail_json(msg=error_msg('Unexpected value for int: %s, %s' % (str(value), str(exc))))
-            if convert_to == bool:
-                if value not in ('true', 'false'):
-                    msg = 'Unexpected value: %s received from ZAPI for boolean attribute' % value
-                    self.module.fail_json(msg=error_msg(msg))
-                return value == 'true'
-            if convert_to == 'bool_online':
-                return value == 'online'
-            self.module.fail_json(msg='Error: Unexpected value for convert_to: %s' % convert_to)
-
         # keep a copy, as the list is mutated
         saved_key_list = list(key_list)
         try:
             value = self.safe_get(na_element, key_list, allow_sparse_dict=not required)
         except (KeyError, TypeError) as exc:
-            self.module.fail_json(msg=error_msg(exc))
-        if value is not None:
-            value = convert_value(value)
+            error = exc
         else:
-            # None value - not found
-            value = default
+            value, error = self.convert_value(value, convert_to) if value is not None else (default, None)
+        if error:
+            self.module.fail_json(msg='Error reading %s from %s: %s' % (saved_key_list, na_element.to_string(), error))
         return value
 
     def zapi_get_attrs(self, na_element, attr_dict, result):
@@ -421,36 +414,48 @@ class NetAppModule(object):
             if value is not None or not omitnone:
                 result[key] = value
 
+    def _filter_out_none_entries_from_dict(self, adict):
+        """take a dict as input and return a dict without keys whose values are None
+           skip empty dicts or lists.
+        """
+        result = {}
+        for key, value in adict.items():
+            if isinstance(value, (list, dict)):
+                sub = self.filter_out_none_entries(value)
+                if sub:
+                    # skip empty dict or list
+                    result[key] = sub
+            elif value is not None:
+                # skip None value
+                result[key] = value
+        return result
+
+    def _filter_out_none_entries_from_list(self, alist):
+        """take a list as input and return a list without elements whose values are None
+           skip empty dicts or lists.
+        """
+        result = []
+        for item in alist:
+            if isinstance(item, (list, dict)):
+                sub = self.filter_out_none_entries(item)
+                if sub:
+                    # skip empty dict or list
+                    result.append(sub)
+            elif item is not None:
+                # skip None value
+                result.append(item)
+        return result
+
     def filter_out_none_entries(self, list_or_dict):
         """take a dict or list as input and return a dict/list without keys/elements whose values are None
            skip empty dicts or lists.
         """
 
         if isinstance(list_or_dict, dict):
-            result = {}
-            for key, value in list_or_dict.items():
-                if isinstance(value, (list, dict)):
-                    sub = self.filter_out_none_entries(value)
-                    if sub:
-                        # skip empty dict or list
-                        result[key] = sub
-                elif value is not None:
-                    # skip None value
-                    result[key] = value
-            return result
+            return self._filter_out_none_entries_from_dict(list_or_dict)
 
         if isinstance(list_or_dict, list):
-            alist = []
-            for item in list_or_dict:
-                if isinstance(item, (list, dict)):
-                    sub = self.filter_out_none_entries(item)
-                    if sub:
-                        # skip empty dict or list
-                        alist.append(sub)
-                elif item is not None:
-                    # skip None value
-                    alist.append(item)
-            return alist
+            return self._filter_out_none_entries_from_list(list_or_dict)
 
         raise TypeError('unexpected type %s' % type(list_or_dict))
 

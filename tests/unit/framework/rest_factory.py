@@ -31,6 +31,8 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 _DEFAULT_RESPONSES = {
     # common responses
     'is_rest': (200, {}, None),
+    'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
