@@ -201,8 +201,6 @@ class NetAppONTAPVolumeClone:
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg='Error creating volume clone: %s: %s' %
                                       (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
-        if 'split' in self.parameters and self.parameters['split']:
-            self.start_volume_clone_split()
 
     def modify_volume_clone(self):
         """
@@ -259,15 +257,7 @@ class NetAppONTAPVolumeClone:
         api = 'storage/volumes'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
-                  'clone.is_flexclone': True,
-                  'fields': 'uuid,'
-                            'clone.parent_volume.name,'
-                            'qos.policy.name,'
-                            'clone.parent_snapshot.name,'
-                            'clone.parent_svm.name,'
-                            'nas.path,'
-                            'nas.uid,'
-                            'nas.gid'}
+                  'fields': 'clone.is_flexclone,uuid'}
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg='Error getting volume clone %s: %s' % (self.parameters['name'], to_native(error)),
@@ -280,16 +270,11 @@ class NetAppONTAPVolumeClone:
         return {
             'name': record.get('name', None),
             'uuid': record.get('uuid', None),
-            'parent_volume': self.na_helper.safe_get(record, ['clone', 'parent_volume', 'name']),
-            'vserver': self.na_helper.safe_get(record, ['svm', 'name']),
-            'qos_policy_group_name': self.na_helper.safe_get(record, ['qos', 'policy', 'name']),
-            'parent_snapshot': self.na_helper.safe_get(record, ['clone', 'parent_snapshot', 'name']),
-            'parent_vserver': self.na_helper.safe_get(record, ['clone', 'parent_svm', 'name']),
-            'volume_type': record.get('type', None),
-            'junction_path': self.na_helper.safe_get(record, ['nas', 'path']),
-            'uid': self.na_helper.safe_get(record, ['nas', 'uid']),
-            'gid': self.na_helper.safe_get(record, ['nas', 'gid']),
-            'split': False
+            'is_clone': self.na_helper.safe_get(record, ['clone', 'is_flexclone']),
+            # if it is a FlexClone, it is not split.
+            # if it is not a FlexClone, it can be either the result of a split, or a plain volume. We mark it as split,
+            # as it cannot be split again.
+            'split': self.na_helper.safe_get(record, ['clone', 'is_flexclone']) is not True
         }
 
     def create_volume_clone_rest(self):
@@ -336,6 +321,10 @@ class NetAppONTAPVolumeClone:
         current = self.get_volume_clone()
         if self.use_rest and current:
             self.parameters['uuid'] = current['uuid']
+            self.parameters['is_clone'] = current['is_clone']
+        if self.use_rest and current and not current['is_clone'] and not self.parameters.get('split'):
+            self.module.fail_json(
+                msg="Error: a volume %s which is not a FlexClone already exists, and split not requested." % self.parameters['name'])
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
@@ -343,6 +332,8 @@ class NetAppONTAPVolumeClone:
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_volume_clone()
+                if self.parameters.get('split'):
+                    self.modify_volume_clone()
             if modify:
                 self.modify_volume_clone()
         self.module.exit_json(changed=self.na_helper.changed)

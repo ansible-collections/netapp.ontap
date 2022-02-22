@@ -2,19 +2,17 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
-
 __metaclass__ = type
-
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone \
-    import NetAppONTAPVolumeClone as volume_clone_module  # module under test
+    import NetAppONTAPVolumeClone as my_module  # module under test
 
 # needed for get and modify/delete as they still use ZAPI
 if not netapp_utils.has_netapp_lib():
@@ -22,15 +20,7 @@ if not netapp_utils.has_netapp_lib():
 
 # REST API canned responses when mocking send_request
 
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'no_record': (200, {'num_records': 0, 'records': []}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     'volume_clone': (
         200,
         {'records': [{
@@ -58,161 +48,109 @@ SRR = {
         }
         ]}, None
     )
+})
+
+
+DEFAULT_ARGS = {
+    'vserver': 'ansibleSVM',
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'name': 'clone_of_parent_volume',
+    'parent_volume': 'parent_volume'
 }
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_successfully_create_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['empty_records']),
+        ('POST', 'storage/volumes', SRR['empty_good']),
+    ])
+    assert create_and_apply(my_module, DEFAULT_ARGS, {})['changed']
 
-    def setUp(self):
-        # self.server = MockONTAPConnection()
-        self.mock_vserver = {
-            'name': 'test_svm',
-            'use_rest': 'always'
-        }
-        global WARNINGS
-        WARNINGS = []
 
-    @staticmethod
-    def mock_args_volume():
-        return {
-            'vserver': 'ansibleSVM',
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'use_rest': 'always',
-            'name': 'clone_of_parent_volume',
-            'parent_volume': 'parent_volume'
-        }
+def test_error_getting_volume_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+    ])
+    my_module_object = create_module(my_module, DEFAULT_ARGS)
+    msg = 'Error getting volume clone clone_of_parent_volume: calling: storage/volumes: got Expected error.'
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_volume_clone_rest, 'fail')['msg']
 
-    def get_volume_mock_object(self):
-        return volume_clone_module()
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            volume_clone_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_error_creating_volume_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('POST', 'storage/volumes', SRR['generic_error']),
+    ])
+    my_module_object = create_module(my_module, DEFAULT_ARGS)
+    msg = 'Error creating volume clone clone_of_parent_volume: calling: storage/volumes: got Expected error.'
+    assert msg in expect_and_capture_ansible_exception(my_module_object.create_volume_clone_rest, 'fail')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successfully_create_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],  # Get Volume
-            SRR['no_record'],  # Create Volume
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_getting_volume_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],  # Error Get Volume
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object().apply()
-        msg = "Error getting volume clone clone_of_parent_volume: calling: storage/volumes: got Expected error."
-        assert exc.value.args[0]['msg'] == msg
+def test_error_space_reserve_volume_clone():
+    error = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    print('Info: %s' % error)
+    assert 'missing required arguments:' in error
+    assert 'name' in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_creating_volume_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],  # Get Volume
-            SRR['generic_error']  # Error creating volume
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object().apply()
-        msg = "Error creating volume clone clone_of_parent_volume: calling: storage/volumes: got Expected error."
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_space_reserve_volume_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['space_reserve'] = 'volume'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['generic_error'],  # Non rest option used
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object().apply()
-        msg = "REST API currently does not support 'space_reserve'"
-        assert exc.value.args[0]['msg'] == msg
+def test_successfully_create_with_optional_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['empty_records']),
+        ('POST', 'storage/volumes', SRR['empty_good']),
+    ])
+    module_args = {
+        'qos_policy_group_name': 'test_policy_name',
+        'parent_snapshot': 'test_snapshot',
+        'volume_type': 'rw',
+        'junction_path': '/test_junction_path',
+        'uid': 10,
+        'gid': 20,
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successfully_create_with_optional_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['qos_policy_group_name'] = 'test_policy_name'
-        data['parent_snapshot'] = 'test_snapshot'
-        data['volume_type'] = 'rw'
-        data['junction_path'] = '/test_junction_path'
-        data['uid'] = 10
-        data['gid'] = 20
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],  # Get Volume
-            SRR['no_record'],  # Create Volume
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successfully_create_with_parent_vserver_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['qos_policy_group_name'] = 'test_policy_name'
-        data['parent_snapshot'] = 'test_snapshot'
-        data['volume_type'] = 'rw'
-        data['parent_vserver'] = 'test_vserver'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],  # Get Volume
-            SRR['no_record'],  # Create Volume
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_successfully_create_with_parent_vserver_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['empty_records']),
+        ('POST', 'storage/volumes', SRR['empty_good']),
+    ])
+    module_args = {
+        'qos_policy_group_name': 'test_policy_name',
+        'parent_snapshot': 'test_snapshot',
+        'volume_type': 'rw',
+        'parent_vserver': 'test_vserver',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successfully_split_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['split'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_clone'],  # Get Volume
-            SRR['no_record'],  # Split Volume
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_split_volume_clone(self, mock_request):
-        data = dict(self.mock_args_volume())
-        data['split'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_clone'],  # Get Volume
-            SRR['generic_error'],  # Split Volume
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object().apply()
-        msg = "Error starting volume clone split clone_of_parent_volume: calling: storage/volumes/2458688d-7e24-11ec-a267-005056b30cfa: got Expected error."
-        assert exc.value.args[0]['msg'] == msg
+def test_successfully_split_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['volume_clone']),
+        ('PATCH', 'storage/volumes/2458688d-7e24-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {'split': True}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_split_volume_clone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/volumes/2458688d-7e24-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    my_obj.parameters['uuid'] = '2458688d-7e24-11ec-a267-005056b30cfa'
+    my_obj.parameters['split'] = True
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.start_volume_clone_split_rest()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = "Error starting volume clone split clone_of_parent_volume: calling: storage/volumes/2458688d-7e24-11ec-a267-005056b30cfa: got Expected error."
+    assert msg == exc.value.args[0]['msg']

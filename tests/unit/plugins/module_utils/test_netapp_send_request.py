@@ -5,6 +5,9 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import pytest
+import sys
+
 from ansible.module_utils import basic
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 
@@ -13,6 +16,8 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     create_module, expect_and_capture_ansible_exception
 
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 DEFAULT_ARGS = {
     'hostname': 'test',

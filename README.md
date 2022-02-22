@@ -42,7 +42,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_aggregate - Fixed UUID issue when attempting to attach object store as part of creating the aggregate with REST.
-- na_ontap_cifs_server -  error out if ZAPI only options `force` or `workgroup` are used with REST.
+  - na_ontap_cifs_server -  error out if ZAPI only options `force` or `workgroup` are used with REST.
+  
+### Added REST support to existing modules
+  - na_ontap_nfs - Added Rest Support.
+
+
+### Added REST support to existing modules
+  - na_ontap_volume_clone - Added REST support.
 
 ## 21.16.0
 
