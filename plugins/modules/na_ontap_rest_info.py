@@ -261,7 +261,7 @@ EXAMPLES = '''
     parameters:
       vserver: svm1
       path: /vol1/qtree1
-      use_python_keys: true
+    use_python_keys: true
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -346,43 +346,38 @@ class NetAppONTAPGatherInfo(object):
         if not error:
             return gathered_ontap_info
 
+        # If the API doesn't exist (using an older system), we don't want to fail the task.
+        if int(error.get('code', 0)) == 3 or (
+           # if Aggr recommender can't make a recommendation, it will fail with the following error code, don't fail the task.
+           int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message')):
+            return error.get('message')
+
         # Fail the module if error occurs from REST APIs call
         if int(error.get('code', 0)) == 6:
-            self.module.fail_json(msg="%s user is not authorized to make %s api call" % (self.parameters.get('username'), api))
-        # if Aggr recommender can't make a recommendation it will fail with the following error code.
-        # We don't want to fail
-        elif int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message'):
-            return error.get('message')
-        # If the API doesn't exist (using an older system) we don't want to fail
-        elif int(error.get('code', 0)) == 3:
-            return error.get('message')
-        else:
-            self.module.fail_json(msg=error)
-        return None
+            error = "%s user is not authorized to make %s api call" % (self.parameters.get('username'), api)
+        self.module.fail_json(msg=error)
 
-    def strip_dacls(self, response):
+    @staticmethod
+    def strip_dacls(response):
         # Use 'DACL - ACE' as a marker for the start of the list of DACLS in the descriptor.
-        if 'acls' in response['records'][0]:
-            if 'DACL - ACEs' in response['records'][0]['acls']:
-                index = response['records'][0]['acls'].index('DACL - ACEs')
-                dacls = response['records'][0]['acls'][(index + 1):]
-
-                dacl_list = []
-                if dacls:
-                    for dacl in dacls:
-                        dacl_dict = {}
-                        # The '-' marker is the start of the DACL, the '-0x' marker is the end of the DACL.
-                        start_hyphen = dacl.index('-') + 1
-                        first_hyphen_removed = dacl[start_hyphen:]
-                        end_hyphen = first_hyphen_removed.index('-0x')
-                        dacl_dict['access_type'] = dacl[:start_hyphen - 1].strip()
-                        dacl_dict['user_or_group'] = first_hyphen_removed[:end_hyphen]
-                        dacl_list.append(dacl_dict)
-                return dacl_list
-            else:
-                return None
-        else:
+        if 'acls' not in response['records'][0]:
             return None
+        if 'DACL - ACEs' not in response['records'][0]['acls']:
+            return None
+        index = response['records'][0]['acls'].index('DACL - ACEs')
+        dacls = response['records'][0]['acls'][(index + 1):]
+
+        dacl_list = []
+        if dacls:
+            for dacl in dacls:
+                # The '-' marker is the start of the DACL, the '-0x' marker is the end of the DACL.
+                start_hyphen = dacl.index('-') + 1
+                first_hyphen_removed = dacl[start_hyphen:]
+                end_hyphen = first_hyphen_removed.index('-0x')
+                dacl_dict = {'access_type': dacl[:start_hyphen - 1].strip()}
+                dacl_dict['user_or_group'] = first_hyphen_removed[:end_hyphen]
+                dacl_list.append(dacl_dict)
+        return dacl_list
 
     def run_post(self, gather_subset_info):
         api = gather_subset_info['api_call']
@@ -582,13 +577,42 @@ class NetAppONTAPGatherInfo(object):
                 subsets.append(subset)
         return subsets
 
+    def get_ontap_subset_info_all(self, subset, get_ontap_subset_info):
+        """ Iteratively get all records for a subset """
+        default_fields = None
+        if isinstance(subset, list):
+            subset, default_fields = subset
+        try:
+            # Verify whether the supported subset passed
+            specified_subset = get_ontap_subset_info[subset]
+        except KeyError:
+            self.module.fail_json(msg="Specified subset %s is not found, supported subsets are %s" %
+                                  (subset, list(get_ontap_subset_info.keys())))
+        subset_info = self.get_subset_info(specified_subset, default_fields)
+
+        if subset_info is not None and isinstance(subset_info, dict) and '_links' in subset_info:
+            while subset_info['_links'].get('next'):
+                # Get all the set of records if next link found in subset_info for the specified subset
+                next_api = subset_info['_links']['next']['href']
+                gathered_subset_info = self.get_next_records(next_api.replace('/api', ''))
+
+                # Update the subset info for the specified subset
+                subset_info['_links'] = gathered_subset_info['_links']
+                subset_info['records'].extend(gathered_subset_info['records'])
+
+            # metrocluster doesn't have a records field, so we need to skip this
+            if subset_info.get('records') is not None:
+                # Getting total number of records
+                subset_info['num_records'] = len(subset_info['records'])
+        if subset == 'private/cli/vserver/security/file-directory':
+            subset_info = self.strip_dacls(subset_info)
+
+        return subset_info
+
     def apply(self):
         """
         Perform pre-checks, call functions and exit
         """
-
-        result_message = {}
-
         # Validating ONTAP version
         self.validate_ontap_version()
 
@@ -836,11 +860,12 @@ class NetAppONTAPGatherInfo(object):
                 'api_call': 'svm/svms',
             }
         }
-        if 'gather_subset' in self.parameters:
-            if ('private/cli/vserver/security/file-directory' in self.parameters['gather_subset'] or
-                    'file_directory_security' in self.parameters['gather_subset']):
-                get_ontap_subset_info['private/cli/vserver/security/file-directory'] = {
-                    'api_call': 'private/cli/vserver/security/file-directory' + self.private_cli_fields('private/cli/vserver/security/file-directory')}
+        if 'gather_subset' in self.parameters and (
+                'private/cli/vserver/security/file-directory' in self.parameters['gather_subset']
+                or 'file_directory_security' in self.parameters['gather_subset']
+        ):
+            get_ontap_subset_info['private/cli/vserver/security/file-directory'] = {
+                'api_call': 'private/cli/vserver/security/file-directory' + self.private_cli_fields('private/cli/vserver/security/file-directory')}
 
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
@@ -859,38 +884,9 @@ class NetAppONTAPGatherInfo(object):
                 self.module.fail_json(msg="Error: fields: %s, only one subset will be allowed." % self.parameters.get('fields'))
         converted_subsets = self.convert_subsets()
 
+        result_message = {}
         for subset in converted_subsets:
-            default_fields = None
-            if isinstance(subset, list):
-                subset, default_fields = subset
-            try:
-                # Verify whether the supported subset passed
-                specified_subset = get_ontap_subset_info[subset]
-            except KeyError:
-                self.module.fail_json(msg="Specified subset %s is not found, supported subsets are %s" %
-                                      (subset, list(get_ontap_subset_info.keys())))
-            result_message[subset] = self.get_subset_info(specified_subset, default_fields)
-
-            if (
-                result_message[subset] is not None
-                and isinstance(result_message[subset], dict)
-                and '_links' in result_message[subset]
-            ):
-                while result_message[subset]['_links'].get('next'):
-                    # Get all the set of records if next link found in subset_info for the specified subset
-                    next_api = result_message[subset]['_links']['next']['href']
-                    gathered_subset_info = self.get_next_records(next_api.replace('/api', ''))
-
-                    # Update the subset info for the specified subset
-                    result_message[subset]['_links'] = gathered_subset_info['_links']
-                    result_message[subset]['records'].extend(gathered_subset_info['records'])
-
-                # metrocluster doesn't have a records field, so we need to skip this
-                if result_message[subset].get('records') is not None:
-                    # Getting total number of records
-                    result_message[subset]['num_records'] = len(result_message[subset]['records'])
-            if subset == 'private/cli/vserver/security/file-directory':
-                result_message[subset] = self.strip_dacls(result_message[subset])
+            result_message[subset] = self.get_ontap_subset_info_all(subset, get_ontap_subset_info)
 
         results = {'changed': False}
         if self.parameters.get('state') is not None:

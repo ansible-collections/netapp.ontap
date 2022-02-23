@@ -5,12 +5,13 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import create_module, expect_and_capture_ansible_exception, \
+    patch_ansible, create_and_apply
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
+    patch_request_and_invoke, register_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info \
     import NetAppONTAPGatherInfo as ontap_rest_info_module, main
@@ -20,7 +21,10 @@ SRR = {
     # common responses
     'validate_ontap_version_pass': (200, {'version': 'ontap_version'}, None),
     'validate_ontap_version_fail': (200, None, 'API not found error'),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'error_invalid_api': (500, None, {'code': 3, 'message': 'Invalid API'}),
+    'error_user_is_not_authorized': (500, None, {'code': 6, 'message': 'user is not authorized'}),
+    'error_no_processing': (500, None, {'code': 123, 'message': 'error reported as is'}),
+    'error_no_aggr_recommendation': (500, None, {'code': 19726344, 'message': 'No recommendation can be made for this cluster'}),
     'get_subset_info': (200,
                         {'_links': {'self': {'href': 'dummy_href'}},
                          'num_records': 3,
@@ -82,7 +86,15 @@ SRR = {
                                             {'node': 'node1', 'check_type': 'type'},
                                             {'node': 'node1', 'check_type': 'type'},
                                             {'node': 'node1', 'check_type': 'type'}],
-                                        "num_records": 3}, None)
+                                        "num_records": 3}, None),
+    'get_private_cli_vserver_security_file_directory_info': (
+        200,
+        {
+            'records': [
+                {'acls': ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123']},
+                {'node': 'node1', 'check_type': 'type'},
+                {'node': 'node1', 'check_type': 'type'}],
+            "num_records": 3}, None)
 
 }
 ALL_SUBSETS = ['application/applications',
@@ -167,471 +179,432 @@ ALL_SUBSETS = ['application/applications',
                'svm/svms']
 
 
-class TestMyModule(unittest.TestCase):
-    ''' A group of related Unit Tests '''
+# Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
+# The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
+ALL_RESPONSES = [
+    ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ('GET', 'application/applications', SRR['get_subset_info']),
+    ('GET', 'application/templates', SRR['get_subset_info']),
+    ('GET', 'cloud/targets', SRR['get_subset_info']),
+    ('GET', 'cluster', SRR['get_subset_info']),
+    ('GET', 'cluster/chassis', SRR['get_subset_info']),
+    ('GET', 'cluster/jobs', SRR['get_subset_info']),
+    ('GET', 'cluster/licensing/licenses', SRR['get_subset_info']),
+    ('GET', 'cluster/metrics', SRR['get_subset_info']),
+    ('GET', 'cluster/metrocluster', SRR['get_subset_info']),
+    # MCC DIAGs
+    ('POST', 'cluster/metrocluster/diagnostics', SRR['metrocluster_post']),
+    ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['job']),
+    ('GET', 'cluster/metrocluster/diagnostics', SRR['metrocluster_return']),
+    # Back to normal
+    ('GET', 'cluster/metrocluster/nodes', SRR['get_subset_info']),
+    ('GET', 'cluster/nodes', SRR['get_subset_info']),
+    ('GET', 'cluster/ntp/servers', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', '*', SRR['get_subset_info']),
+    ('GET', 'support/ems/filters', SRR['get_subset_info']),
+    ('GET', 'svm/peer-permissions', SRR['get_subset_info']),
+    ('GET', 'svm/peers', SRR['get_subset_info']),
+    ('GET', 'svm/svms', SRR['get_private_cli_subset_info']),
+    # ('GET', 'svm/svms', SRR['get_private_cli_subset_info']),
+]
 
-    def set_default_args(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False
-        })
 
-    def set_args_run_ontap_version_check(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['volume_info']
-        })
+def set_default_args():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False
+    })
 
-    def set_args_run_metrocluster_diag(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['cluster/metrocluster/diagnostics']
-        })
 
-    def set_args_run_ontap_gather_facts_for_vserver_info(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['vserver_info']
-        })
+def set_args_run_ontap_version_check():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['volume_info']
+    })
 
-    def set_args_run_ontap_gather_facts_for_volume_info(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['volume_info']
-        })
 
-    def set_args_run_ontap_gather_facts_for_all_subsets(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['all']
-        })
+def set_args_run_metrocluster_diag():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['cluster/metrocluster/diagnostics']
+    })
 
-    def set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'fields': '*',
-            'gather_subset': ['all']
-        })
 
-    def set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 1024,
-            'fields': ['uuid', 'name', 'node'],
-            'gather_subset': ['all']
-        })
+def set_args_run_ontap_gather_facts_for_vserver_info():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['vserver_info']
+    })
 
-    def set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'fields': ['uuid', 'name', 'node'],
-            'validate_certs': False,
-            'max_records': 1024,
-            'gather_subset': ['aggregate_info']
-        })
 
-    def set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass(self):
-        return dict({
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'https': True,
-            'validate_certs': False,
-            'max_records': 3,
-            'gather_subset': ['volume_info']
-        })
+def set_args_run_ontap_gather_facts_for_volume_info():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['volume_info']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_version_check_for_9_6_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_version_check())
-        my_obj = ontap_rest_info_module()
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def set_args_run_ontap_gather_facts_for_all_subsets():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['all']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_version_check_for_10_2_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_version_check())
-        my_obj = ontap_rest_info_module()
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'fields': '*',
+        'gather_subset': ['all']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_version_check_for_9_2_fail(self, mock_request):
-        ''' Test for Checking the ONTAP version '''
-        set_module_args(self.set_args_run_ontap_version_check())
-        my_obj = ontap_rest_info_module()
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_fail'],
-        ]
 
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['msg'] == SRR['validate_ontap_version_fail'][2]
+def set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 1024,
+        'fields': ['uuid', 'name', 'node'],
+        'gather_subset': ['all']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_metrocluster_pass(self, mock_request):
-        set_module_args(self.set_args_run_metrocluster_diag())
-        my_obj = ontap_rest_info_module()
-        gather_subset = ['cluster/metrocluster/diagnostics']
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['metrocluster_post'],
-            SRR['job'],
-            SRR['metrocluster_return']
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_metrocluster_digag_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'fields': ['uuid', 'name', 'node'],
+        'validate_certs': False,
+        'max_records': 1024,
+        'gather_subset': ['aggregate_info']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_vserver_info_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_vserver_info())
-        my_obj = ontap_rest_info_module()
-        gather_subset = ['svm/svms']
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_vserver_info_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'max_records': 3,
+        'gather_subset': ['volume_info']
+    })
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_volume_info_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_volume_info())
-        my_obj = ontap_rest_info_module()
-        gather_subset = ['storage/volumes']
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_volume_info_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def test_run_ontap_version_check_for_9_6_pass():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info']),
+    ])
+    assert not create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check())['changed']
 
-    # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
-    # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_all_subsets_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_all_subsets())
-        my_obj = ontap_rest_info_module()
-        # removed cluster/metrocluster/diagnostics
-        gather_subset = ALL_SUBSETS
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['metrocluster_post'],
-            SRR['job'],
-            SRR['metrocluster_return'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_private_cli_subset_info'],
-            SRR['end_of_sequence'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def test_run_ontap_version_check_for_10_2_pass():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info']),
+    ])
+    assert not create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check())['changed']
 
-    # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
-    # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass())
-        my_obj = ontap_rest_info_module()
-        # removed 'cluster/metrocluster/diagnostics',
-        gather_subset = ALL_SUBSETS
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['metrocluster_post'],
-            SRR['job'],
-            SRR['metrocluster_return'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_private_cli_subset_info'],
-            SRR['end_of_sequence'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def test_run_ontap_version_check_for_9_2_fail():
+    ''' Test for Checking the ONTAP version '''
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_fail']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check(), fail=True)['msg'] == SRR['validate_ontap_version_fail'][2]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail())
-        my_obj = ontap_rest_info_module()
-        error_message = "Error: fields: %s, only one subset will be allowed." \
-                        % self.set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass()['fields']
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_all_subsets_pass: %s' % repr(exc.value.args))
-        assert exc.value.args[0]['msg'] == error_message
+# metrocluster/diagnostics doesn't call get_subset_info and has 3 api calls instead of 1
+def test_run_metrocluster_pass():
+    gather_subset = ['cluster/metrocluster/diagnostics']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('POST', 'cluster/metrocluster/diagnostics', SRR['metrocluster_post']),
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['job']),
+        ('GET', 'cluster/metrocluster/diagnostics', SRR['metrocluster_return']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())['ontap_info']) == set(gather_subset)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_run_ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass(self, mock_request):
-        set_module_args(self.set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass())
-        my_obj = ontap_rest_info_module()
-        gather_subset = ['storage/aggregates']
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_run_ontap_gather_facts_for_volume_info_pass: %s' % repr(exc.value.args))
-        assert set(exc.value.args[0]['ontap_info']) == set(gather_subset)
+def test_run_ontap_gather_facts_for_vserver_info_pass():
+    gather_subset = ['svm/svms']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'svm/svms', SRR['get_subset_info']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_vserver_info())['ontap_info']) == set(gather_subset)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass(self, mock_request):
-        set_module_args(self.set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass())
-        my_obj = ontap_rest_info_module()
-        total_records = 5
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info_with_next'],
-            SRR['get_next_record'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(
-            exc.value.args))
-        assert exc.value.args[0]['ontap_info']['storage/volumes']['num_records'] == total_records
+def test_run_ontap_gather_facts_for_volume_info_pass():
+    gather_subset = ['storage/volumes']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_volume_info())['ontap_info']) == set(gather_subset)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass_python_keys(self, mock_request):
-        args = self.set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
-        args['use_python_keys'] = True
-        args['state'] = 'info'
-        set_module_args(args)
-        total_records = 5
-        mock_request.side_effect = [
-            SRR['validate_ontap_version_pass'],
-            SRR['get_subset_info_with_next'],
-            SRR['get_next_record'],
-        ]
 
-        with pytest.raises(AnsibleExitJson) as exc:
-            main()
-        print('Info: test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass: %s' % repr(
-            exc.value.args))
-        assert exc.value.args[0]['ontap_info']['storage_volumes']['num_records'] == total_records
+def test_run_ontap_gather_facts_for_all_subsets_pass():
+    gather_subset = ALL_SUBSETS
+    register_responses(ALL_RESPONSES)
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_all_subsets())['ontap_info']) == set(gather_subset)
+
+
+def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass():
+    gather_subset = ALL_SUBSETS
+    register_responses(ALL_RESPONSES)
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass()
+                                )['ontap_info']) == set(gather_subset)
+
+
+def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail():
+    error_message = "Error: fields: %s, only one subset will be allowed." \
+                    % set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass()['fields']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail(), fail=True
+                            )['msg'] == error_message
+
+
+def test_run_ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass():
+    gather_subset = ['storage/aggregates']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/aggregates', SRR['get_subset_info']),
+    ])
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass()
+                                )['ontap_info']) == set(gather_subset)
+
+
+def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass():
+    total_records = 5
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info_with_next']),
+        ('GET', '/next_record_api', SRR['get_next_record']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+                            )['ontap_info']['storage/volumes']['num_records'] == total_records
+
+
+def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass_python_keys():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    args['state'] = 'info'
+    total_records = 5
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info_with_next']),
+        ('GET', '/next_record_api', SRR['get_next_record']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']['storage_volumes']['num_records'] == total_records
+
+
+def test_get_all_records_for_volume_info_with_parameters():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    args['parameters'] = {'fields': '*'}
+    total_records = 5
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info_with_next']),
+        ('GET', '/next_record_api', SRR['get_next_record']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']['storage_volumes']['num_records'] == total_records
+
+
+def test_negative_bad_api():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['error_invalid_api']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']['storage_volumes'] == 'Invalid API'
+
+
+def test_negative_error_no_aggr_recommendation():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['error_no_aggr_recommendation']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']['storage_volumes'] == 'No recommendation can be made for this cluster'
+
+
+def test_negative_error_not_authorized():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['error_user_is_not_authorized']),
+    ])
+    assert 'user is not authorized to make' in create_and_apply(ontap_rest_info_module, args, fail=True)['msg']
+
+
+def test_negative_error_no_processing():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['error_no_processing']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg']['message'] == 'error reported as is'
+
+
+def test_strip_dacls():
+    record = {}
+    response = {
+        'records': [record]
+    }
+    assert ontap_rest_info_module.strip_dacls(response) is None
+    record['acls'] = []
+    assert ontap_rest_info_module.strip_dacls(response) is None
+    record['acls'] = ['junk', 'junk', 'DACL - ACEs']
+    assert ontap_rest_info_module.strip_dacls(response) == []
+    record['acls'] = ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123']
+    assert ontap_rest_info_module.strip_dacls(response) == [{'access_type': 'AT', 'user_or_group': 'user'}]
+    record['acls'] = ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123', 'AT2-group-0xABC']
+    assert ontap_rest_info_module.strip_dacls(response) == [{'access_type': 'AT', 'user_or_group': 'user'}, {'access_type': 'AT2', 'user_or_group': 'group'}]
+
+
+def test_private_cli_vserver_security_file_directory():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['gather_subset'] = 'private/cli/vserver/security/file-directory'
+    args['use_python_keys'] = True
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'private/cli/vserver/security/file-directory?fields=acls', SRR['get_private_cli_vserver_security_file_directory_info']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info'] == \
+        {'private_cli_vserver_security_file-directory': [{'access_type': 'AT', 'user_or_group': 'user'}]}
+
+
+def test_get_ontap_subset_info_all_with_field():
+    register_responses([
+        ('GET', 'some/api', SRR['get_subset_info']),
+    ])
+    my_obj = create_module(ontap_rest_info_module, set_default_args())
+    subset = ['subset', 'fields']
+    subset_info = {'subset': {'api_call': 'some/api'}}
+    assert my_obj.get_ontap_subset_info_all(subset, subset_info)['num_records'] == 3
+
+
+def test_negative_get_ontap_subset_info_all_bad_subset():
+    my_obj = create_module(ontap_rest_info_module, set_default_args())
+    msg = 'Specified subset bad_subset is not found, supported subsets are []'
+    assert expect_and_capture_ansible_exception(my_obj.get_ontap_subset_info_all, 'fail', 'bad_subset', {})['msg'] == msg
+
+
+def test_demo_subset():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'cluster/software', SRR['get_subset_info']),
+        ('GET', 'svm/svms', SRR['get_subset_info']),
+        ('GET', 'cluster/nodes', SRR['get_subset_info']),
+    ])
+    assert 'cluster/nodes' in create_and_apply(ontap_rest_info_module, set_default_args(), {'gather_subset': 'demo'})['ontap_info']

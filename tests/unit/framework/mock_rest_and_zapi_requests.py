@@ -13,6 +13,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+from copy import deepcopy
 from functools import partial
 import inspect
 import pytest
@@ -64,7 +65,8 @@ def register_responses(responses, function_name=None):
             response, valid = response
             if valid != 'valid':
                 raise ImportError(response)
-        fixed_records.append((expected_method, expected_api, response))
+        # some modules modify the record in place - keep the original intact
+        fixed_records.append((expected_method, expected_api, deepcopy(response)))
     _RESPONSES[function_name] = fixed_records
 
 
@@ -202,11 +204,12 @@ def _get_response(function, method, api):
         print_requests(function)
         raise KeyError('function %s received unhandled call %s %s' % (function, method, api))
     expected_method, expected_api, response = _RESPONSES[function][0]
-    if expected_method != method or expected_api != api:
+    if expected_method != method or expected_api not in ['*', api]:
         print_requests(function)
         raise KeyError('function %s received an unexpected call %s %s, expecting %s %s' % (function, method, api, expected_method, expected_api))
     _RESPONSES[function].pop(0)
-    return response
+    # some modules modify the record in place - keep the original intact
+    return deepcopy(response)
 
 
 def _get_or_create_mock_record(function_name):

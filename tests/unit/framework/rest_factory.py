@@ -24,8 +24,6 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-
 # name: (html_code, dict, None or error string)
 # dict is translated into an xml structure, num_records is None or an integer >= 0
 _DEFAULT_RESPONSES = {
@@ -46,9 +44,7 @@ class rest_responses:
         supports [key] to read an entry, and 'in' keyword to check key existence.
     '''
     def __init__(self, adict=None, allow_override=True):
-        self.responses = {}
-        for key, value in _DEFAULT_RESPONSES.items():
-            self.responses[key] = value
+        self.responses = dict(_DEFAULT_RESPONSES.items())
         if adict:
             for key, value in adict.items():
                 if not allow_override and key in self.responses:
