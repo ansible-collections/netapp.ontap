@@ -1,10 +1,13 @@
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' Unit Tests NetApp ONTAP REST APIs Ansible module: na_ontap_rest_info '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
+import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
@@ -15,6 +18,11 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info \
     import NetAppONTAPGatherInfo as ontap_rest_info_module, main
+
+
+if sys.version_info < (2, 6):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
+
 
 # REST API canned responses when mocking send_request
 SRR = {
