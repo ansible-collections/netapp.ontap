@@ -5,233 +5,214 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
+    call_main, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import zapi_responses, build_zapi_response, build_zapi_error
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone \
-    import NetAppONTAPVolumeClone as my_module
+    import NetAppONTAPVolumeClone as my_module, main as my_main
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+clone_info = {
+    'attributes': {
+        'volume-clone-info': {
+            'volume': 'ansible',
+            'parent-volume': 'ansible'}}}
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
+clone_info_split_in_progress = {
+    'attributes': {
+        'volume-clone-info': {
+            'volume': 'ansible',
+            'parent-volume': 'ansible',
+            'block-percentage-complete': 20,
+            'blocks-scanned': 56676,
+            'blocks-updated': 54588}}}
 
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
+ZRR = zapi_responses({
+    'clone_info': build_zapi_response(clone_info, 1),
+    'clone_info_split_in_progress': build_zapi_response(clone_info_split_in_progress, 1),
+    'error_no_clone': build_zapi_error(15661, 'flexclone not found.')
+})
 
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'volume_clone':
-            xml = self.build_volume_clone_info()
-        elif self.type == 'volume_clone_split_in_progress':
-            xml = self.build_volume_clone_info_split_in_progress()
-        elif self.type == 'volume_clone_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_volume_clone_info():
-        ''' build xml data for volume-clone-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'attributes': {'volume-clone-info': {'volume': 'ansible',
-                                                     'parent-volume': 'ansible'}}}
-        xml.translate_struct(data)
-        return xml
-
-    @staticmethod
-    def build_volume_clone_info_split_in_progress():
-        ''' build xml data for volume-clone-info whilst split in progress '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'attributes': {'volume-clone-info': {'volume': 'ansible',
-                                                     'parent-volume': 'ansible',
-                                                     'block-percentage-complete': 20,
-                                                     'blocks-scanned': 56676,
-                                                     'blocks-updated': 54588}}}
-        xml.translate_struct(data)
-        return xml
+DEFAULT_ARGS = {
+    'hostname': '10.10.10.10',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'ansible',
+    'volume': 'ansible',
+    'parent_volume': 'ansible',
+    'split': None,
+    'use_rest': 'never'
+}
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_module_fail_when_required_args_missing():
+    ''' test required arguments are reported as errors '''
+    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    print('Info: %s' % msg)
 
-    def setUp(self):
-        self.vserver = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'ansible'
-            volume = 'ansible'
-            parent_volume = 'ansible'
-            split = None
-        else:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'ansible'
-            volume = 'ansible'
-            parent_volume = 'ansible'
-            split = None
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'vserver': vserver,
-            'volume': volume,
-            'parent_volume': parent_volume,
-            'split': split,
-            'use_rest': 'never'
-        })
+def test_ensure_get_called():
+    ''' test get_volume_clone() for non-existent volume clone'''
+    register_responses([
+        ('volume-clone-get', ZRR['empty'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    assert my_obj.get_volume_clone() is None
 
-    def set_default_current(self):
-        return dict({
-            'split': False
-        })
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' test required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_ensure_get_called_existing():
+    ''' test get_volume_clone() for existing volume clone'''
+    register_responses([
+        ('volume-clone-get', ZRR['clone_info'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    current = {'split': False}
+    assert my_obj.get_volume_clone() == current
 
-    def test_ensure_get_called(self):
-        ''' test get_volume_clone() for non-existent volume clone'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.vserver = self.vserver
-        assert my_obj.get_volume_clone() is None
 
-    def test_ensure_get_called_existing(self):
-        ''' test get_volume_clone() for existing volume clone'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.vserver = MockONTAPConnection(kind='volume_clone')
-        current = self.set_default_current()
-        assert my_obj.get_volume_clone() == current
+def test_ensure_get_called_no_clone_error():
+    ''' test get_volume_clone() for existing volume clone'''
+    register_responses([
+        ('volume-clone-get', ZRR['error_no_clone'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    current = {'split': False}
+    assert my_obj.get_volume_clone() is None
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
-    def test_successful_create(self, create_volume_clone):
-        ''' test creating volume_clone without split and testing idempotency '''
-        module_args = {
-            'parent_snapshot': 'abc',
-            'volume_type': 'dp',
-            'qos_policy_group_name': 'abc',
-            'junction_path': 'abc',
-            'uid': '1',
-            'gid': '1'
-        }
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = self.vserver
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        create_volume_clone.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = MockONTAPConnection('volume_clone')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
-    def test_successful_create_with_split(self, create_volume_clone):
-        ''' test creating volume_clone with split and testing idempotency '''
-        module_args = {
-            'parent_snapshot': 'abc',
-            'volume_type': 'dp',
-            'qos_policy_group_name': 'abc',
-            'junction_path': 'abc',
-            'uid': '1',
-            'gid': '1'
-        }
-        module_args.update(self.set_default_args())
-        module_args['split'] = True
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = self.vserver
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        create_volume_clone.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = MockONTAPConnection('volume_clone_split_in_progress')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_create():
+    ''' test creating volume_clone without split and testing idempotency '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['empty']),
+        ('volume-clone-create', ZRR['success']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['clone_info']),
+    ])
+    module_args = {
+        'parent_snapshot': 'abc',
+        'volume_type': 'dp',
+        'qos_policy_group_name': 'abc',
+        'junction_path': 'abc',
+        'uid': '1',
+        'gid': '1'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
-    def test_successful_create_with_split_in_progress(self, create_volume_clone):
-        ''' test creating volume_clone with split and split already in progress '''
-        module_args = {
-            'parent_snapshot': 'abc',
-            'volume_type': 'dp',
-            'qos_policy_group_name': 'abc',
-            'junction_path': 'abc',
-            'uid': '1',
-            'gid': '1'
-        }
-        module_args.update(self.set_default_args())
-        module_args['split'] = True
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = MockONTAPConnection('volume_clone_split_in_progress')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone.NetAppONTAPVolumeClone.create_volume_clone')
-    def test_vserver_cluster_options_give_error(self, create_volume_clone):
-        module_args = {
-            'parent_snapshot': 'abc',
-            'parent_vserver': 'abc',
-            'volume_type': 'dp',
-            'qos_policy_group_name': 'abc',
-            'junction_path': 'abc',
-            'uid': '1',
-            'gid': '1'
-        }
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj = my_module()
-        assert "parameters are mutually exclusive: " in exc.value.args[0]['msg']
+def test_successful_create_with_split():
+    ''' test creating volume_clone with split and testing idempotency '''
+    register_responses([
+        # first test, create and split
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['empty']),
+        ('volume-clone-create', ZRR['success']),
+        ('volume-clone-split-start', ZRR['success']),
+        # second test, clone already exists but is not split
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['clone_info']),
+        ('volume-clone-split-start', ZRR['success']),
+        # third test, clone already exists, split already in progress
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['clone_info_split_in_progress']),
+    ])
+    module_args = {
+        'parent_snapshot': 'abc',
+        'volume_type': 'dp',
+        'qos_policy_group_name': 'abc',
+        'junction_path': 'abc',
+        'uid': '1',
+        'gid': '1',
+        'split': True
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_if_all_methods_catch_exception(self):
-        ''' test if all methods catch exception '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.vserver = MockONTAPConnection('volume_clone_fail')
-            my_obj.create_server = my_obj.vserver
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.get_volume_clone()
-        assert 'Error fetching volume clone information ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.create_volume_clone()
-        assert 'Error creating volume clone: ' in exc.value.args[0]['msg']
+
+def test_successful_create_with_parent_vserver():
+    ''' test creating volume_clone with split and testing idempotency '''
+    register_responses([
+        # first test, create and split
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['empty']),
+        ('volume-clone-create', ZRR['success']),
+        ('volume-clone-split-start', ZRR['success']),
+        # second test, clone already exists but is not split
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['clone_info']),
+        ('volume-clone-split-start', ZRR['success']),
+        # third test, clone already exists, split already in progress
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['clone_info_split_in_progress']),
+    ])
+    module_args = {
+        'parent_snapshot': 'abc',
+        'parent_vserver': 'abc',
+        'volume_type': 'dp',
+        'qos_policy_group_name': 'abc',
+        'space_reserve': 'volume',
+        'split': True
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_vserver_cluster_options_give_error():
+    module_args = {
+        'parent_snapshot': 'abc',
+        'parent_vserver': 'abc',
+        'volume_type': 'dp',
+        'qos_policy_group_name': 'abc',
+        'junction_path': 'abc',
+        'uid': '1',
+        'gid': '1'
+    }
+    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS, module_args)['msg']
+    assert "parameters are mutually exclusive: " in msg
+    print('Info: %s' % msg)
+
+
+def test_if_all_methods_catch_exception():
+    ''' test if all methods catch exception '''
+    register_responses([
+        ('volume-clone-get', ZRR['error']),
+        ('volume-clone-create', ZRR['error']),
+        ('volume-clone-split-start', ZRR['error']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    msg = expect_and_capture_ansible_exception(my_obj.get_volume_clone, 'fail')['msg']
+    assert 'Error fetching volume clone information ' in msg
+    msg = expect_and_capture_ansible_exception(my_obj.create_volume_clone, 'fail')['msg']
+    assert 'Error creating volume clone: ' in msg
+    msg = expect_and_capture_ansible_exception(my_obj.start_volume_clone_split, 'fail')['msg']
+    assert 'Error starting volume clone split: ' in msg
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_fail_missing_netapp_lib(mock_has_netapp_lib):
+    ''' test error when netapp_lib is missing '''
+    mock_has_netapp_lib.return_value = False
+    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS)['msg']
+    assert 'Error: the python NetApp-Lib module is required.  Import error: None' == msg
+
+
+def test_main():
+    ''' validate call to main() '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('volume-clone-get', ZRR['empty']),
+        ('volume-clone-create', ZRR['success']),
+    ])
+    assert expect_and_capture_ansible_exception(call_main, 'exit', my_main, DEFAULT_ARGS)['changed']

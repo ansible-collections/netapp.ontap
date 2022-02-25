@@ -104,15 +104,13 @@ EXAMPLES = """
 RETURN = """
 """
 
-import traceback
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
-from ansible.module_utils._text import to_native
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
 class NetAppONTAPVolumeClone:
@@ -154,15 +152,16 @@ class NetAppONTAPVolumeClone:
             ]
         )
 
+        self.uuid = None    # UUID if the FlexClone if it exists, or after creation
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = ['space_reserve']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            elif self.parameters.get('parent_vserver'):
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if self.parameters.get('parent_vserver'):
                 # use cluster ZAPI, as vserver ZAPI does not support parent-vserser for create
                 self.create_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
                 # keep vserver for ems log and clone-get
@@ -199,8 +198,7 @@ class NetAppONTAPVolumeClone:
         try:
             self.create_server.invoke_successfully(clone_obj, True)
         except netapp_utils.zapi.NaApiError as exc:
-            self.module.fail_json(msg='Error creating volume clone: %s: %s' %
-                                      (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error creating volume clone: %s: %s' % (self.parameters['name'], to_native(exc)))
 
     def modify_volume_clone(self):
         """
@@ -220,38 +218,35 @@ class NetAppONTAPVolumeClone:
         try:
             self.vserver.invoke_successfully(clone_obj, True)
         except netapp_utils.zapi.NaApiError as exc:
-            self.module.fail_json(msg='Error starting volume clone split: %s: %s' %
-                                      (self.parameters['name'], to_native(exc)), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error starting volume clone split: %s: %s' % (self.parameters['name'], to_native(exc)))
 
     def get_volume_clone(self):
         if self.use_rest:
             return self.get_volume_clone_rest()
         clone_obj = netapp_utils.zapi.NaElement('volume-clone-get')
         clone_obj.add_new_child("volume", self.parameters['name'])
-        current = None
         try:
             results = self.vserver.invoke_successfully(clone_obj, True)
-            if results.get_child_by_name('attributes'):
-                attributes = results.get_child_by_name('attributes')
-                info = attributes.get_child_by_name('volume-clone-info')
-                current = {}
-                # Check if clone is currently splitting. Whilst a split is in
-                # progress, these attributes are present in 'volume-clone-info':
-                # block-percentage-complete, blocks-scanned & blocks-updated.
-                if info.get_child_by_name('block-percentage-complete') or \
-                        info.get_child_by_name('blocks-scanned') or \
-                        info.get_child_by_name('blocks-updated'):
-                    current["split"] = True
-                else:
-                    # Clone hasn't been split.
-                    current["split"] = False
-            return current
         except netapp_utils.zapi.NaApiError as error:
             # Error 15661 denotes a volume clone not being found.
-            if to_native(error.code) != "15661":
-                self.module.fail_json(msg='Error fetching volume clone information %s: %s' %
-                                          (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
-        return None
+            if to_native(error.code) == "15661":
+                return None
+            self.module.fail_json(msg='Error fetching volume clone information %s: %s' % (self.parameters['name'], to_native(error)))
+        current = None
+        if results.get_child_by_name('attributes'):
+            attributes = results.get_child_by_name('attributes')
+            info = attributes.get_child_by_name('volume-clone-info')
+            # Check if clone is currently splitting. Whilst a split is in
+            # progress, these attributes are present in 'volume-clone-info':
+            # block-percentage-complete, blocks-scanned & blocks-updated.
+            current = {
+                'split': bool(
+                    info.get_child_by_name('block-percentage-complete')
+                    or info.get_child_by_name('blocks-scanned')
+                    or info.get_child_by_name('blocks-updated')
+                )
+            }
+        return current
 
     def get_volume_clone_rest(self):
         api = 'storage/volumes'
@@ -260,8 +255,7 @@ class NetAppONTAPVolumeClone:
                   'fields': 'clone.is_flexclone,uuid'}
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
-            self.module.fail_json(msg='Error getting volume clone %s: %s' % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+            self.module.fail_json(msg='Error getting volume clone %s: %s' % (self.parameters['name'], to_native(error)))
         if record:
             return self.format_get_volume_clone_rest(record)
         return record
@@ -297,20 +291,30 @@ class NetAppONTAPVolumeClone:
             body['nas.uid'] = self.parameters['uid']
         if self.parameters.get('gid'):
             body['nas.gid'] = self.parameters['gid']
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
+        query = {'return_records': 'true'}    # in order to capture UUID
+        response, error = rest_generic.post_async(self.rest_api, api, body, query, job_timeout=120)
         if error:
             self.module.fail_json(
-                msg='Error creating volume clone %s: %s' % (self.parameters['name'], to_native(error)),
-                exception=traceback.format_exc())
+                msg='Error creating volume clone %s: %s' % (self.parameters['name'], to_native(error)))
+        if response:
+            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
+            if not error and record and 'uuid' not in record:
+                error = 'uuid key not present in %s:' % record
+            if error:
+                self.module.fail_json(msg='Error: failed to parse create clone response: %s' % error)
+            if record:
+                self.uuid = record['uuid']
 
     def start_volume_clone_split_rest(self):
+        if self.uuid is None:
+            self.module.fail_json(msg='Error starting volume clone split %s: %s' % (self.parameters['name'],
+                                                                                    'clone UUID is not set'))
         api = 'storage/volumes'
         body = {'clone.split_initiated': True}
-        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['uuid'], body, job_timeout=120)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error starting volume clone split %s: %s' % (self.parameters['name'],
-                                                                                    to_native(error)),
-                                  exception=traceback.format_exc())
+                                                                                    to_native(error)))
 
     def apply(self):
         """
@@ -320,15 +324,16 @@ class NetAppONTAPVolumeClone:
             netapp_utils.ems_log_event("na_ontap_volume_clone", self.vserver)
         current = self.get_volume_clone()
         if self.use_rest and current:
-            self.parameters['uuid'] = current['uuid']
-            self.parameters['is_clone'] = current['is_clone']
+            self.uuid = current['uuid']
         if self.use_rest and current and not current['is_clone'] and not self.parameters.get('split'):
             self.module.fail_json(
                 msg="Error: a volume %s which is not a FlexClone already exists, and split not requested." % self.parameters['name'])
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            # the only thing that is supported is split
+            current_split = {'split': current.get('split')} if current else None
+            modify = self.na_helper.get_modified_attributes(current_split, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_volume_clone()

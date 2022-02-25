@@ -67,6 +67,21 @@ def expect_and_capture_ansible_exception(function, exception, *args, **kwargs):
     return exc.value.args[0]
 
 
+def call_main(my_main, default_args=None, module_args=None):
+    ''' utility function to call a module main() entry point
+        my_main: main function for a module
+        default_args: a dict for the Ansible options - in general, what is accepted by all tests
+        module_args: additional options - in general what is specific to a test
+
+        call main and should raise AnsibleExitJson or AnsibleFailJson
+    '''
+    args = copy.deepcopy(default_args) if default_args else {}
+    if module_args:
+        args.update(module_args)
+    set_module_args(args)
+    my_main()
+
+
 def create_module(my_module, default_args=None, module_args=None, check_mode=None):
     ''' utility function to create a module object
         my_module: a class that represent an ONTAP Ansible module
