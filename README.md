@@ -40,6 +40,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_cifs_acl - new option `type` for user-group-type.
 
+### Minor changes
+  - all modules that only support ZAPI - warn when `use_rest: always` is ignored.
+
 ### Bug Fixes
   - na_ontap_aggregate - Fixed UUID issue when attempting to attach object store as part of creating the aggregate with REST.
   - na_ontap_cifs_server -  error out if ZAPI only options `force` or `workgroup` are used with REST.

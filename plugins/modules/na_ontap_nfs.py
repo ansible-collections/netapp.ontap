@@ -15,140 +15,141 @@ extends_documentation_fragment:
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Enable or disable NFS on ONTAP
+  - Enable or disable NFS on ONTAP
 options:
   state:
     description:
-    - Whether NFS should exist or not.
+      - Whether NFS should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
   service_state:
     description:
-    - Whether the specified NFS should be enabled or disabled. Creates NFS service if doesnt exist.
+      - Whether the specified NFS should be enabled or disabled. Creates NFS service if doesnt exist.
     choices: ['started', 'stopped']
     type: str
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     required: true
     type: str
   nfsv3:
     description:
-    - status of NFSv3.
+      - status of NFSv3.
     choices: ['enabled', 'disabled']
     type: str
   nfsv3_fsid_change:
     description:
-    - status of if NFSv3 clients see change in FSID as they traverse filesystems.
+      - status of if NFSv3 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv4_fsid_change:
     description:
-    - status of if NFSv4 clients see change in FSID as they traverse filesystems.
+      - status of if NFSv4 clients see change in FSID as they traverse filesystems.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.9.0
   nfsv4:
     description:
-    - status of NFSv4.
+      - status of NFSv4.
     choices: ['enabled', 'disabled']
     type: str
   nfsv41:
     description:
-    - status of NFSv41.
+      - status of NFSv41.
     aliases: ['nfsv4.1']
     choices: ['enabled', 'disabled']
     type: str
   nfsv41_pnfs:
     description:
-    - status of NFSv41 pNFS.
+      - status of NFSv41 pNFS.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.9.0
   nfsv4_numeric_ids:
     description:
-    - status of NFSv4 numeric ID's.
+      - status of NFSv4 numeric ID's.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.9.0
   vstorage_state:
     description:
-    - status of vstorage_state.
+      - status of vstorage_state.
     choices: ['enabled', 'disabled']
     type: str
   nfsv4_id_domain:
     description:
-    - Name of the nfsv4_id_domain to use.
+      - Name of the nfsv4_id_domain to use.
     type: str
   nfsv40_acl:
     description:
-    - status of NFS v4.0 ACL feature
+      - status of NFS v4.0 ACL feature
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv40_read_delegation:
     description:
-    - status for NFS v4.0 read delegation feature.
+      - status for NFS v4.0 read delegation feature.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv40_write_delegation:
     description:
-    - status for NFS v4.0 write delegation feature.
+      - status for NFS v4.0 write delegation feature.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv41_acl:
     description:
-    - status of NFS v4.1 ACL feature
+      - status of NFS v4.1 ACL feature
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv41_read_delegation:
     description:
-    - status for NFS v4.1 read delegation feature.
+      - status for NFS v4.1 read delegation feature.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv41_write_delegation:
     description:
-    - status for NFS v4.1 write delegation feature.
+      - status for NFS v4.1 write delegation feature.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   nfsv40_referrals:
     description:
-    - status for NFS v4.0 referrals.
+      - status for NFS v4.0 referrals.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.9.0
   nfsv41_referrals:
     description:
-    - status for NFS v4.1 referrals.
+      - status for NFS v4.1 referrals.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.9.0
   tcp:
     description:
-    - Enable TCP (support from ONTAP 9.3 onward).
+      - Enable TCP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
     type: str
   udp:
     description:
-    - Enable UDP (support from ONTAP 9.3 onward).
+      - Enable UDP (support from ONTAP 9.3 onward).
     choices: ['enabled', 'disabled']
     type: str
   showmount:
     description:
-    - Whether SVM allows showmount
+      - Whether SVM allows showmount.
+      - With REST, supported from ONTAP 9.8 version.
     choices: ['enabled', 'disabled']
     type: str
     version_added: 2.7.0
   tcp_max_xfer_size:
     description:
-    - TCP Maximum Transfer Size (bytes). The default value is 65536.
+      - TCP Maximum Transfer Size (bytes). The default value is 65536.
     version_added: 2.8.0
     type: int
 
@@ -257,7 +258,8 @@ class NetAppONTAPNFS:
                                        'nfsv40_referrals',
                                        'nfsv41_referrals',
                                        'tcp_max_xfer_size']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        partially_supported_rest_properties = [['showmount', (9, 8)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         self.svm_uuid = None
         if not self.use_rest:
             if HAS_NETAPP_LIB is False:
@@ -396,9 +398,10 @@ class NetAppONTAPNFS:
                             'protocol.v41_features.acl_enabled,'
                             'protocol.v41_features.read_delegation_enabled,'
                             'protocol.v41_features.write_delegation_enabled,'
-                            'showmount_enabled,'
                             'enabled,'
-                            'svm.uuid'}
+                            'svm.uuid,'}
+        if self.parameters.get('showmount'):
+            params['fields'] += 'showmount_enabled,'
         # TODO: might return more than 1 record, find out
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -431,7 +434,7 @@ class NetAppONTAPNFS:
 
     def create_nfs_service_rest(self):
         api = 'protocols/nfs/services'
-        body = {'svm_name': self.parameters['vserver']}
+        body = {'svm.name': self.parameters['vserver']}
         body.update(self.create_modify_body(body))
         dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
         if error:

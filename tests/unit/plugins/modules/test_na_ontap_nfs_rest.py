@@ -89,6 +89,18 @@ def test_get_nfs_rest_none():
     assert my_obj.get_nfs_service_rest() is None
 
 
+def test_partially_supported_rest():
+    register_responses([('GET', 'cluster', SRR['is_rest_96'])])
+    module_args = set_default_args()
+    module_args['showmount'] = 'enabled'
+    set_module_args(module_args)
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = "Minimum version of ONTAP for showmount is (9, 8)\n"
+    assert msg == exc.value.args[0]['msg']
+
+
 def test_get_nfs_rest_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -142,7 +154,7 @@ def test_create_nfs_all_options():
     my_obj.parameters['showmount'] = True
     my_obj.parameters['service_state'] = 'stopped'
     my_obj.create_nfs_service_rest()
-    assert get_mock_record().is_record_in_json({'svm_name': 'ansibleSVM'}, 'POST', 'protocols/nfs/services')
+    assert get_mock_record().is_record_in_json({'svm.name': 'ansibleSVM'}, 'POST', 'protocols/nfs/services')
 
 
 def test_create_nfs_error():

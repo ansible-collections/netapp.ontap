@@ -49,8 +49,8 @@ class MockONTAPModule:
         self.module = basic.AnsibleModule(netapp_utils.na_ontap_host_argument_spec())
 
 
-def create_restapi_object(args):
-    module = create_module(MockONTAPModule, args)
+def create_restapi_object(default_args):
+    module = create_module(MockONTAPModule, default_args)
     return netapp_utils.OntapRestAPI(module.module)
 
 
@@ -194,7 +194,6 @@ def test_get_auth_cert_key(mock_request):
 
 
 def test_get_auth_method_keyerror():
-    # args = {'hostname': None, 'cert_filepath': 'cert_file'}
     my_cx = create_restapi_object(CERT_KEY_ARGS)
     my_cx.auth_method = 'invalid_method'
     args = ('method', 'api', 'params')

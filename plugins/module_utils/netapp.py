@@ -198,8 +198,8 @@ def create_sf_connection(module, port=None):
     if HAS_SF_SDK and hostname and username and password:
         try:
             return ElementFactory.create(hostname, username, password, port=port)
-        except Exception:
-            raise Exception("Unable to create SF connection")
+        except Exception as exc:
+            raise Exception("Unable to create SF connection: %s" % exc)
     module.fail_json(msg="the python SolidFire SDK module is required")
 
 
@@ -310,6 +310,10 @@ def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None
         server = zapi.NaServer(hostname, username=username, password=password, trace=trace)
     if vserver:
         server.set_vserver(vserver)
+    if host_options.get('use_rest') == 'always':
+        note = '' if https else '  Note: https is set to false.'
+        module.warn("Using ZAPI for %s, ignoring 'use_rest: always'.%s" % (module._name, note))
+
     set_zapi_port_and_transport(server, https, port, validate_certs)
     server.set_api_version(major=1, minor=(version or 110))
     server.set_server_type('FILER')
