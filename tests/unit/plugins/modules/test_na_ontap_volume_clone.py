@@ -215,4 +215,4 @@ def test_main():
         ('volume-clone-get', ZRR['empty']),
         ('volume-clone-create', ZRR['success']),
     ])
-    assert expect_and_capture_ansible_exception(call_main, 'exit', my_main, DEFAULT_ARGS)['changed']
+    assert call_main(my_main, DEFAULT_ARGS)['changed']

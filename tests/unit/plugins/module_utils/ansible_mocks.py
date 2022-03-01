@@ -67,7 +67,7 @@ def expect_and_capture_ansible_exception(function, exception, *args, **kwargs):
     return exc.value.args[0]
 
 
-def call_main(my_main, default_args=None, module_args=None):
+def call_main(my_main, default_args=None, module_args=None, fail=False):
     ''' utility function to call a module main() entry point
         my_main: main function for a module
         default_args: a dict for the Ansible options - in general, what is accepted by all tests
@@ -79,7 +79,7 @@ def call_main(my_main, default_args=None, module_args=None):
     if module_args:
         args.update(module_args)
     set_module_args(args)
-    my_main()
+    return expect_and_capture_ansible_exception(my_main, 'fail' if fail else 'exit')
 
 
 def create_module(my_module, default_args=None, module_args=None, check_mode=None):

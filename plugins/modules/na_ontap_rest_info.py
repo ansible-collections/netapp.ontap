@@ -577,11 +577,8 @@ class NetAppONTAPGatherInfo(object):
                 subsets.append(subset)
         return subsets
 
-    def get_ontap_subset_info_all(self, subset, get_ontap_subset_info):
+    def get_ontap_subset_info_all(self, subset, default_fields, get_ontap_subset_info):
         """ Iteratively get all records for a subset """
-        default_fields = None
-        if isinstance(subset, list):
-            subset, default_fields = subset
         try:
             # Verify whether the supported subset passed
             specified_subset = get_ontap_subset_info[subset]
@@ -886,7 +883,8 @@ class NetAppONTAPGatherInfo(object):
 
         result_message = {}
         for subset in converted_subsets:
-            result_message[subset] = self.get_ontap_subset_info_all(subset, get_ontap_subset_info)
+            subset, default_fields = subset if isinstance(subset, list) else (subset, None)
+            result_message[subset] = self.get_ontap_subset_info_all(subset, default_fields, get_ontap_subset_info)
 
         results = {'changed': False}
         if self.parameters.get('state') is not None:

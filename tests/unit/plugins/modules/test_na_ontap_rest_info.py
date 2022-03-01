@@ -11,13 +11,14 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import create_module, expect_and_capture_ansible_exception, \
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception, \
     patch_ansible, create_and_apply
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info \
-    import NetAppONTAPGatherInfo as ontap_rest_info_module, main
+    import NetAppONTAPGatherInfo as ontap_rest_info_module, main as my_main
 
 
 if sys.version_info < (2, 7):
@@ -25,7 +26,7 @@ if sys.version_info < (2, 7):
 
 
 # REST API canned responses when mocking send_request
-SRR = {
+SRR = rest_responses({
     # common responses
     'validate_ontap_version_pass': (200, {'version': 'ontap_version'}, None),
     'validate_ontap_version_fail': (200, None, 'API not found error'),
@@ -104,7 +105,8 @@ SRR = {
                 {'node': 'node1', 'check_type': 'type'}],
             "num_records": 3}, None)
 
-}
+})
+
 ALL_SUBSETS = ['application/applications',
                'application/templates',
                'cloud/targets',
@@ -524,6 +526,19 @@ def test_get_all_records_for_volume_info_with_parameters():
     assert create_and_apply(ontap_rest_info_module, args)['ontap_info']['storage_volumes']['num_records'] == total_records
 
 
+def test_negative_error_on_get_next():
+    args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    args['use_python_keys'] = True
+    args['parameters'] = {'fields': '*'}
+    total_records = 5
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['get_subset_info_with_next']),
+        ('GET', '/next_record_api', SRR['generic_error']),
+    ])
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == 'Expected error'
+
+
 def test_negative_bad_api():
     args = set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
     args['use_python_keys'] = True
@@ -597,15 +612,14 @@ def test_get_ontap_subset_info_all_with_field():
         ('GET', 'some/api', SRR['get_subset_info']),
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
-    subset = ['subset', 'fields']
     subset_info = {'subset': {'api_call': 'some/api'}}
-    assert my_obj.get_ontap_subset_info_all(subset, subset_info)['num_records'] == 3
+    assert my_obj.get_ontap_subset_info_all('subset', 'fields', subset_info)['num_records'] == 3
 
 
 def test_negative_get_ontap_subset_info_all_bad_subset():
     my_obj = create_module(ontap_rest_info_module, set_default_args())
     msg = 'Specified subset bad_subset is not found, supported subsets are []'
-    assert expect_and_capture_ansible_exception(my_obj.get_ontap_subset_info_all, 'fail', 'bad_subset', {})['msg'] == msg
+    assert expect_and_capture_ansible_exception(my_obj.get_ontap_subset_info_all, 'fail', 'bad_subset', None, {})['msg'] == msg
 
 
 def test_demo_subset():
@@ -615,4 +629,32 @@ def test_demo_subset():
         ('GET', 'svm/svms', SRR['get_subset_info']),
         ('GET', 'cluster/nodes', SRR['get_subset_info']),
     ])
-    assert 'cluster/nodes' in create_and_apply(ontap_rest_info_module, set_default_args(), {'gather_subset': 'demo'})['ontap_info']
+    assert 'cluster/nodes' in call_main(my_main, set_default_args(), {'gather_subset': 'demo'})['ontap_info']
+
+
+def test_subset_with_default_fields():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/aggregates', SRR['get_subset_info']),
+    ])
+    assert 'storage/aggregates' in create_and_apply(ontap_rest_info_module, set_default_args(), {'gather_subset': 'aggr_efficiency_info'})['ontap_info']
+
+
+def test_negative_error_on_post():
+    register_responses([
+        ('POST', 'api', SRR['generic_error']),
+    ])
+    assert create_module(ontap_rest_info_module, set_default_args()).run_post({'api_call': 'api'}) is None
+
+
+@patch('time.sleep')
+def test_negative_error_on_wait_after_post(sleep_mock):
+    register_responses([
+        ('POST', 'api', SRR['metrocluster_post']),
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),     # retries
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
+    ])
+    my_obj = create_module(ontap_rest_info_module, set_default_args())
+    assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == 'Expected error'
