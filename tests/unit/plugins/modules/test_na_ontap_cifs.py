@@ -1,10 +1,13 @@
-# (c) 2018, NetApp, Inc
+# (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
+import copy
+import json
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
@@ -19,6 +22,42 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs \
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+# REST API canned responses when mocking send_request
+SRR = {
+    # common responses
+    'is_rest': (200, {}, None),
+    'is_zapi': (400, {}, "Unreachable"),
+    'empty_good': (200, {}, None),
+    'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'generic_error': (400, None, "Expected error"),
+    # module specific responses
+    'cifs_record': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansibleSVM"
+                    },
+                    "name": 'cifssharename',
+                    "path": '/',
+                    "comment": 'CIFS share comment',
+                    "unix_symlink": 'widelink',
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+}
 
 
 class MockONTAPConnection(object):
@@ -70,7 +109,7 @@ class TestMyModule(unittest.TestCase):
             hostname = '10.193.77.37'
             username = 'admin'
             password = 'netapp1!'
-            share_name = 'test'
+            name = 'test'
             path = '/test'
             share_properties = 'browsable,oplocks'
             symlink_properties = 'disable'
@@ -80,7 +119,7 @@ class TestMyModule(unittest.TestCase):
             hostname = '10.193.77.37'
             username = 'admin'
             password = 'netapp1!'
-            share_name = 'test'
+            name = 'test'
             path = '/test'
             share_properties = 'show_previous_versions'
             symlink_properties = 'disable'
@@ -90,7 +129,7 @@ class TestMyModule(unittest.TestCase):
             'hostname': hostname,
             'username': username,
             'password': password,
-            'share_name': share_name,
+            'name': name,
             'path': path,
             'share_properties': share_properties,
             'symlink_properties': symlink_properties,
@@ -192,3 +231,198 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             my_obj.modify_cifs_share()
         assert 'Error modifying cifs-share' in exc.value.args[0]['msg']
+
+    def mock_args(self, rest=False):
+        if rest:
+            return {
+                'hostname': 'test',
+                'username': 'test_user',
+                'password': 'test_pass!',
+                'use_rest': 'always',
+                'vserver': 'test_vserver',
+                'name': 'cifs_share_name'
+            }
+
+    def get_mock_object(self, kind=None):
+        """
+        Helper method to return an na_ontap_cifs_server object
+        :param kind: passes this param to MockONTAPConnection()
+        :return: na_ontap_cifs_share object
+        """
+        obj = my_module()
+        return obj
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_create(self, mock_request):
+        '''Test successful rest create'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['path'] = "\\"
+        data['comment'] = "CIFS comment"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_successful_delete(self, mock_request):
+        '''Test successful rest delete'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),  # deepcopy as the code changes the record in place
+            SRR['empty_good'],
+            SRR['empty_good']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_get(self, mock_request):
+        '''Test error rest create'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['generic_error'],
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on fetching cifs shares: calling: protocols/cifs/shares: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_delete(self, mock_request):
+        '''Test error rest delete'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            copy.deepcopy(SRR['cifs_record']),
+            SRR['generic_error']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on deleting cifs shares: calling: ' + \
+               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_create(self, mock_request):
+        '''Test error rest create'''
+        data = self.mock_args(rest=True)
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['no_record'],
+            SRR['generic_error']
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on creating cifs shares: calling: protocols/cifs/shares: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_modify_cifs_share_path(self, mock_request):
+        ''' test modify CIFS share path '''
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['path'] = "\\"
+        data['symlink_properties'] = "local"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['empty_good'],                 # modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_rest_error_modify_path(self, mock_request):
+        ''' negative test for modifying cifs share path'''
+        data = self.mock_args(rest=True)
+        data['state'] = 'present'
+        data['path'] = "\\vol1"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['generic_error'],                 # modify
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on modifying cifs shares: calling: ' + \
+               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_modify_cifs_share_comment(self, mock_request):
+        ''' test modify CIFS share comment '''
+        data = self.mock_args(rest=True)
+        data['comment'] = "CIFs share comment"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['empty_good'],                 # modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_error_modify_cifs_share_comment(self, mock_request):
+        ''' negative test for modifying CIFS share comment '''
+        data = self.mock_args(rest=True)
+        data['comment'] = "CIFs share negative test"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['generic_error'],                 # modify
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on modifying cifs shares: calling: ' + \
+               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_modify_cifs_share_symlink(self, mock_request):
+        ''' test modify CIFS share symlink '''
+        data = self.mock_args(rest=True)
+        data['symlink_properties'] = "widelink"
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['empty_good'],                 # modify
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_mock_object().apply()
+        assert exc.value.args[0]['changed']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_error_modify_cifs_share_symlink(self, mock_request):
+        ''' negative test for modifying CIFS share symlink '''
+        data = self.mock_args(rest=True)
+        data['symlink_properties'] = 'test'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],                # get version
+            copy.deepcopy(SRR['cifs_record']),    # get
+            SRR['generic_error'],                 # modify
+        ]
+        with pytest.raises(AnsibleFailJson) as exc:
+            self.get_mock_object().apply()
+        assert 'Error on modifying cifs shares: calling: ' + \
+               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']

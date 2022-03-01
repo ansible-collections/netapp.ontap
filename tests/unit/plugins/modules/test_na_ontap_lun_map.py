@@ -76,7 +76,8 @@ class TestMyModule(unittest.TestCase):
             'initiator_group_name': initiator_group_name,
             'vserver': vserver,
             'path': path,
-            'lun_id': lun_id
+            'lun_id': lun_id,
+            'use_rest': 'false'
         })
 
     def test_module_fail_when_required_args_missing(self):

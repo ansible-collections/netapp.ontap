@@ -10,9 +10,10 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_acl \
     import NetAppONTAPCifsAcl as my_module, main as my_main     # module under test
@@ -198,3 +199,221 @@ def test_main():
     ])
     set_module_args(DEFAULT_ARGS)
     assert expect_and_capture_ansible_exception(my_main, 'exit')['changed']
+
+
+SRR = rest_responses({
+    'acl_record': (200, {"records": [
+        {
+            "svm": {
+                "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                "name": "ansibleSVM"
+            },
+            "share": "share_name",
+            "user_or_group": "Everyone",
+            "permission": "full_control",
+            "type": "windows"
+        }
+    ], "num_records": 1}, None),
+    'cifs_record': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansibleSVM"
+                    },
+                    "name": 'share_name',
+                    "path": '/',
+                    "comment": 'CIFS share comment',
+                    "unix_symlink": 'widelink',
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None
+    )
+})
+
+ARGS_REST = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'permission': 'full_control',
+    'share_name': 'share_name',
+    'user_or_group': 'Everyone',
+    'vserver': 'vserver',
+    'type': 'windows',
+    'use_rest': 'always',
+}
+
+
+def test_error_get_acl_rest():
+    ''' Test get error with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on fetching cifs shares acl:' in error
+
+
+def test_error_get_share_rest():
+    ''' Test get share not exists with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on fetching cifs shares:' in error
+
+
+def test_error_get_no_share_rest():
+    ''' Test get share not exists with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['empty_records']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error: the cifs share does not exist:' in error
+
+
+def test_create_rest():
+    ''' Test create with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['empty_records']),
+        ('POST', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['empty_good']),
+    ])
+    assert create_and_apply(my_module, ARGS_REST)
+
+
+def test_delete_rest():
+    ''' Test delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+        ('DELETE', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls/Everyone/windows', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_create_error_rest():
+    ''' Test create error with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['empty_records']),
+        ('POST', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on creating cifs share acl:' in error
+
+
+def test_error_delete_rest():
+    ''' Test delete error with rest API '''
+    module_args = {
+        'state': 'absent'
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+        ('DELETE', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls/Everyone/windows', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on deleting cifs share acl:' in error
+
+
+def test_modify_rest():
+    ''' Test modify with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls/Everyone/windows', SRR['empty_good']),
+    ])
+    module_args = {
+        'permission': 'no_access'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_modify_rest():
+    ''' Test modify error with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls/Everyone/windows', SRR['generic_error'])
+    ])
+    module_args = {'permission': 'no_access'}
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = 'Error modifying cifs share ACL permission: '\
+          'calling: protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls/Everyone/windows: got Expected error.'
+    assert msg == error
+
+
+def test_error_get_modify_rest():
+    ''' Test modify error with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+    ])
+    module_args = {
+        'type': 'unix_group'
+    }
+    msg = 'Error: changing the type is not supported by ONTAP - current: windows, desired: unix_group'
+    assert create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg'] == msg
+
+
+def test_negative_modify_with_extra_stuff_rest():
+    ''' Test modify error with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    my_module_object = create_module(my_module, ARGS_REST)
+    current = {'share_name': 'extra'}
+    msg = "Error: only permission can be changed - modify: {'share_name': 'share_name'}"
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_modify, 'fail', current)['msg']
+
+    current = {'share_name': 'extra', 'permission': 'permission'}
+    # don't check dict contents as order may differ
+    msg = "Error: only permission can be changed - modify:"
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_modify, 'fail', current)['msg']
+
+
+def test_delete_idempotent():
+    ''' Test delete idempotency with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['empty_records']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_create_modify_idempotent_rest():
+    ''' Test create and modify idempotency with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('GET', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/share_name/acls', SRR['acl_record']),
+    ])
+    module_args = {
+        'permission': 'full_control',
+        'type': 'windows'
+    }
+    assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']

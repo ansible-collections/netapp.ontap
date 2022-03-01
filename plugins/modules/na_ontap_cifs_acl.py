@@ -24,6 +24,7 @@ options:
       - The name of the cifs-share-access-control to manage.
     required: true
     type: str
+    aliases: ['share']
   state:
     choices: ['present', 'absent']
     description:
@@ -78,10 +79,13 @@ RETURN = """
 
 
 import traceback
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPCifsAcl:
@@ -94,7 +98,7 @@ class NetAppONTAPCifsAcl:
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            share_name=dict(required=True, type='str'),
+            share_name=dict(required=True, type='str', aliases=['share']),
             user_or_group=dict(required=True, type='str'),
             permission=dict(required=False, type='str', choices=['no_access', 'read', 'change', 'full_control']),
             type=dict(required=False, type='str', choices=['windows', 'unix_user', 'unix_group']),
@@ -106,13 +110,16 @@ class NetAppONTAPCifsAcl:
             ],
             supports_check_mode=True
         )
-        # set up state variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Set up Rest API
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
-        if netapp_utils.has_netapp_lib() is False:
-            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        if not self.use_rest:
+            if netapp_utils.has_netapp_lib() is False:
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_cifs_acl(self):
         """
@@ -218,22 +225,107 @@ class NetAppONTAPCifsAcl:
                                   % (current['type'], self.parameters['type']))
         self.module.fail_json(msg='Error: only permission can be changed - modify: %s' % modify)
 
+    def get_cifs_share_rest(self):
+        """
+        get uuid of the svm which has CIFS share with rest API.
+        """
+        options = {'svm.name': self.parameters.get('vserver'),
+                   'name': self.parameters.get('share_name')}
+        api = 'protocols/cifs/shares'
+        fields = 'svm.uuid,name'
+        record, error = rest_generic.get_one_record(self.rest_api, api, options, fields)
+        if error:
+            self.module.fail_json(msg="Error on fetching cifs shares: %s" % error)
+        if record:
+            return {'uuid': record['svm']['uuid']}
+        self.module.fail_json(msg="Error: the cifs share does not exist: %s" % self.parameters['share_name'])
+
+    def get_cifs_acl_rest(self, svm_uuid):
+        """
+        get details of the CIFS share acl with rest API.
+        """
+        if not self.use_rest:
+            return self.get_cifs_acl()
+        query = {'user_or_group': self.parameters.get('user_or_group')}
+        type = self.parameters.get('type')
+        if type:
+            query['type'] = type
+        api = 'protocols/cifs/shares/%s/%s/acls' % (svm_uuid['uuid'], self.parameters.get('share_name'))
+        fields = 'svm.uuid,user_or_group,type,permission'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg="Error on fetching cifs shares acl: %s" % error)
+        if record:
+            return {
+                'uuid': record['svm']['uuid'],
+                'share': record['share'],
+                'user_or_group': record['user_or_group'],
+                'type': record['type'],
+                'permission': record['permission']
+            }
+        return None
+
+    def create_cifs_acl_rest(self, svm_uuid):
+        """
+        create CIFS share acl with rest API.
+        """
+        if not self.use_rest:
+            return self.create_cifs_acl()
+        body = {
+            'user_or_group': self.parameters.get('user_or_group'),
+            'permission': self.parameters.get('permission')
+        }
+        type = self.parameters.get('type')
+        if type:
+            body['type'] = type
+        api = 'protocols/cifs/shares/%s/%s/acls' % (svm_uuid['uuid'], self.parameters.get('share_name'))
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error is not None:
+            self.module.fail_json(msg="Error on creating cifs share acl: %s" % error)
+
+    def delete_cifs_acl_rest(self, current):
+        """
+        Delete access control for the given CIFS share/user-group with rest API.
+        """
+        if not self.use_rest:
+            return self.delete_cifs_acl()
+        body = {'svm.name': self.parameters.get('vserver')}
+        api = 'protocols/cifs/shares/%s/%s/acls/%s/%s' % (
+            current['uuid'], self.parameters.get('share_name'), self.parameters.get('user_or_group'), current.get('type'))
+        dummy, error = rest_generic.delete_async(self.rest_api, api, None, body)
+        if error is not None:
+            self.module.fail_json(msg="Error on deleting cifs share acl: %s" % error)
+
+    def modify_cifs_acl_permission_rest(self, current):
+        """
+        Change permission or type for the given CIFS share/user-group with rest API.
+        """
+        if not self.use_rest:
+            return self.modify_cifs_acl_permission()
+        body = {'permission': self.parameters.get('permission')}
+        api = 'protocols/cifs/shares/%s/%s/acls/%s/%s' % (
+            current['uuid'], self.parameters.get('share_name'), self.parameters.get('user_or_group'), current.get('type'))
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
+        if error is not None:
+            self.module.fail_json(msg="Error modifying cifs share ACL permission: %s" % error)
+
     def apply(self):
         """
         Apply action to cifs-share-access-control
         """
-        netapp_utils.ems_log_event("na_ontap_cifs_acl", self.server)
-        current = self.get_cifs_acl()
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_cifs_acl", self.server)
+        svm_uuid = self.get_cifs_share_rest() if self.use_rest else None
+        current = self.get_cifs_acl_rest(svm_uuid)
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.get_modify(current) if cd_action is None and self.parameters['state'] == 'present' else None
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.create_cifs_acl()
+                self.create_cifs_acl_rest(svm_uuid)
             if cd_action == 'delete':
-                self.delete_cifs_acl()
+                self.delete_cifs_acl_rest(current)
             if modify:
-                self.modify_cifs_acl_permission()
-
+                self.modify_cifs_acl_permission_rest(current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

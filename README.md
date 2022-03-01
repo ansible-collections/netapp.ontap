@@ -50,9 +50,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_rest_info - Fixed example with wrong indentation for `use_python_keys`.
   
 ### Added REST support to existing modules
+  - na_ontap_cifs - Added REST support to the CIFS share module. 
+  - na_ontap_cifs_acl - Added REST support to the cifs share access control module.
+  - na_ontap_cluster_peer - Added REST support.
+  - na_ontap_lun_map - Added REST support.
   - na_ontap_nfs - Added Rest Support.
   - na_ontap_volume_clone - Added REST support.
-  - na_ontap_cluster_peer - Added REST support.
 
 ## 21.16.0
 
