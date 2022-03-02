@@ -5,6 +5,29 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.17.0
+========
+
+Minor Changes
+-------------
+
+- all modules that only support ZAPI - warn when ``use_rest`` with a value of ``always`` is ignored.
+- na_ontap_cifs_acl - Added REST support to the cifs share access control module.
+- na_ontap_cifs_acl - new option ``type`` for user-group-type.
+- na_ontap_cifs_share - Added REST support to the cifs share module.
+- na_ontap_cluster_peer - Added REST support to the cluster_peer module.
+- na_ontap_lun_map - Added REST support.
+- na_ontap_nfs - Added Rest Support
+- na_ontap_volume_clone - Added REST support.
+
+Bugfixes
+--------
+
+- na_ontap_aggregate - Fixed UUID issue when attempting to attach object store as part of creating the aggregate with REST.
+- na_ontap_cifs_server -  error out if ZAPI only options ``force`` or ``workgroup`` are used with REST.
+- na_ontap_cluster_peer - Fixed KeyError if both ``source_intercluster_lifs`` and ``dest_intercluster_lifs`` not present in cluster create.
+- na_ontap_rest_info - Fixed example with wrong indentation for ``use_python_keys``.
+
 v21.16.0
 ========
 

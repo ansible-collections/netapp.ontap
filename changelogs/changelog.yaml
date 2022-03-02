@@ -26,13 +26,14 @@ releases:
       - na_ontap_vserver_cifs_security - fix int and boolean options when modifying
         vserver cifs security.
       minor_changes:
-      - "Added REST support to existing modules.\n  By default, the module will use
-        REST if the target system supports it, and the options are supported.  Otherwise,
-        it will switch back to ZAPI.\n  This behavior can be controlled with the ``use_rest``
-        option.\n  Always - to force REST.  The module fails and reports an error
-        if REST cannot be used.\n  Never - to force ZAPI.  This could be useful if
-        you find some incompatibility with REST, or want to confirm the behavior is
-        identical between REST and ZAPI.\n  Auto - the default, as described above.\n"
+      - "Added REST support to existing modules.\n  By default, the module will use\
+        \ REST if the target system supports it, and the options are supported.  Otherwise,\
+        \ it will switch back to ZAPI.\n  This behavior can be controlled with the\
+        \ ``use_rest`` option.\n  Always - to force REST.  The module fails and reports\
+        \ an error if REST cannot be used.\n  Never - to force ZAPI.  This could be\
+        \ useful if you find some incompatibility with REST, or want to confirm the\
+        \ behavior is identical between REST and ZAPI.\n  Auto - the default, as described\
+        \ above.\n"
       - na_ontap_cluster_config - role updated to support a cleaner playbook
       - na_ontap_command - ``vserver`` - to allow command to run as either cluster
         admin or vserver admin.  To run as vserver admin you must use the vserver
@@ -1325,6 +1326,39 @@ releases:
     - DEVOPS-4621.yaml
     - DEVOPS-4623.yaml
     release_date: '2022-02-02'
+  21.17.0:
+    changes:
+      bugfixes:
+      - na_ontap_aggregate - Fixed UUID issue when attempting to attach object store
+        as part of creating the aggregate with REST.
+      - na_ontap_cifs_server -  error out if ZAPI only options ``force`` or ``workgroup``
+        are used with REST.
+      - na_ontap_cluster_peer - Fixed KeyError if both ``source_intercluster_lifs``
+        and ``dest_intercluster_lifs`` not present in cluster create.
+      - na_ontap_rest_info - Fixed example with wrong indentation for ``use_python_keys``.
+      minor_changes:
+      - all modules that only support ZAPI - warn when ``use_rest`` with a value of
+        ``always`` is ignored.
+      - na_ontap_cifs_acl - Added REST support to the cifs share access control module.
+      - na_ontap_cifs_acl - new option ``type`` for user-group-type.
+      - na_ontap_cifs_share - Added REST support to the cifs share module.
+      - na_ontap_cluster_peer - Added REST support to the cluster_peer module.
+      - na_ontap_lun_map - Added REST support.
+      - na_ontap_nfs - Added Rest Support
+      - na_ontap_volume_clone - Added REST support.
+    fragments:
+    - DEVOPS-4329.yaml
+    - DEVOPS-4341.yaml
+    - DEVOPS-4343.yaml
+    - DEVOPS-4350.yaml
+    - DEVOPS-4604.yaml
+    - DEVOPS-4605.yaml
+    - DEVOPS-4645.yaml
+    - DEVOPS-4648.yaml
+    - DEVOPS-4676.yaml
+    - DEVOPS-4679.yaml
+    - DEVOPS-4711.yaml
+    release_date: '2022-03-02'
   21.2.0:
     changes:
       bugfixes:
