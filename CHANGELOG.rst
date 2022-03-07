@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.17.1
+========
+
+Bugfixes
+--------
+
+- na_ontap_lun_map - fixed bugs resulting in REST support to not work.
+
 v21.17.0
 ========
 

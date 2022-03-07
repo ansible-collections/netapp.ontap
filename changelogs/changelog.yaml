@@ -26,14 +26,13 @@ releases:
       - na_ontap_vserver_cifs_security - fix int and boolean options when modifying
         vserver cifs security.
       minor_changes:
-      - "Added REST support to existing modules.\n  By default, the module will use\
-        \ REST if the target system supports it, and the options are supported.  Otherwise,\
-        \ it will switch back to ZAPI.\n  This behavior can be controlled with the\
-        \ ``use_rest`` option.\n  Always - to force REST.  The module fails and reports\
-        \ an error if REST cannot be used.\n  Never - to force ZAPI.  This could be\
-        \ useful if you find some incompatibility with REST, or want to confirm the\
-        \ behavior is identical between REST and ZAPI.\n  Auto - the default, as described\
-        \ above.\n"
+      - "Added REST support to existing modules.\n  By default, the module will use
+        REST if the target system supports it, and the options are supported.  Otherwise,
+        it will switch back to ZAPI.\n  This behavior can be controlled with the ``use_rest``
+        option.\n  Always - to force REST.  The module fails and reports an error
+        if REST cannot be used.\n  Never - to force ZAPI.  This could be useful if
+        you find some incompatibility with REST, or want to confirm the behavior is
+        identical between REST and ZAPI.\n  Auto - the default, as described above.\n"
       - na_ontap_cluster_config - role updated to support a cleaner playbook
       - na_ontap_command - ``vserver`` - to allow command to run as either cluster
         admin or vserver admin.  To run as vserver admin you must use the vserver
@@ -1359,6 +1358,13 @@ releases:
     - DEVOPS-4679.yaml
     - DEVOPS-4711.yaml
     release_date: '2022-03-02'
+  21.17.1:
+    changes:
+      bugfixes:
+      - na_ontap_lun_map - fixed bugs resulting in REST support to not work.
+    fragments:
+    - DEVOPS-4729.yml
+    release_date: '2022-03-07'
   21.2.0:
     changes:
       bugfixes:
