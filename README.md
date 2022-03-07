@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.17.1
+
+### Bug Fixes
+  - na_ontap_lun_map - fixed bugs resulting in REST support to not work.
+
 ## 21.17.0
 
 ### New Options

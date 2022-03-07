@@ -154,7 +154,7 @@ class NetAppOntapLUNMap:
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
-        if self.use_rest:
+        if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             else:
@@ -262,7 +262,7 @@ class NetAppOntapLUNMap:
 
     def get_lun_rest(self):
         api = 'storage/luns'
-        params = {'lun.name': self.parameters['path'],
+        params = {'name': self.parameters['path'],
                   'svm.name': self.parameters['vserver'],
                   'fields': 'name,'
                             'os_type,'
@@ -305,7 +305,7 @@ class NetAppOntapLUNMap:
 
     def create_lun_map_rest(self):
         api = 'protocols/san/lun-maps'
-        body = {'svn.name': self.parameters['vserver'],
+        body = {'svm.name': self.parameters['vserver'],
                 'igroup.name': self.parameters['initiator_group_name'],
                 'lun.name': self.parameters['path']}
         if self.parameters.get('lun_id') is not None:
