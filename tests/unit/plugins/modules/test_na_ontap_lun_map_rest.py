@@ -153,7 +153,7 @@ def test_delete_lun_map():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['empty_records']),
         ('GET', 'protocols/san/lun-maps', SRR['lun_map']),
-        ('DELETE', 'protocols/san/lun-maps/1ad8544d-8cd1-91e0-9e1c-723478563412/1cd8a442-86d1-11e0-ae1c-123478563412',
+        ('DELETE', 'protocols/san/lun-maps/1cd8a442-86d1-11e0-ae1c-123478563412/1ad8544d-8cd1-91e0-9e1c-723478563412',
          SRR['empty_good'])
     ])
     module_args = {'state': 'absent'}
@@ -174,7 +174,7 @@ def test_modify_lun_map_error():
 def test_delete_lun_map_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('DELETE', 'protocols/san/lun-maps/1ad8544d-8cd1-91e0-9e1c-723478563412/1cd8a442-86d1-11e0-ae1c-123478563412',
+        ('DELETE', 'protocols/san/lun-maps/1cd8a442-86d1-11e0-ae1c-123478563412/1ad8544d-8cd1-91e0-9e1c-723478563412',
          SRR['generic_error'])
     ])
     set_module_args(DEFAULT_ARGS)
@@ -183,5 +183,5 @@ def test_delete_lun_map_error():
     my_obj.igroup_uuid = '1ad8544d-8cd1-91e0-9e1c-723478563412'
     my_obj.lun_uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
     msg = 'Error deleting lun_map this/is/a/path: calling: ' \
-          'protocols/san/lun-maps/1ad8544d-8cd1-91e0-9e1c-723478563412/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error.'
+          'protocols/san/lun-maps/1cd8a442-86d1-11e0-ae1c-123478563412/1ad8544d-8cd1-91e0-9e1c-723478563412: got Expected error.'
     assert msg == expect_and_capture_ansible_exception(my_obj.delete_lun_map_rest, 'fail')['msg']

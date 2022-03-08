@@ -296,7 +296,7 @@ class NetAppONTAPGatherInfo(object):
         # set up variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.fields = []
+        self.fields = ''
 
         self.rest_api = OntapRestAPI(self.module)
 
@@ -326,7 +326,7 @@ class NetAppONTAPGatherInfo(object):
         if gather_subset_info.pop('post', False):
             self.run_post(gather_subset_info)
         if default_fields:
-            total_fields = default_fields + ','.join(self.fields)
+            total_fields = default_fields + ',' + self.fields
             data = {'max_records': self.parameters['max_records'], 'fields': total_fields}
         else:
             data = {'max_records': self.parameters['max_records'], 'fields': self.fields}

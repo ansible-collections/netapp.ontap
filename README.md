@@ -35,6 +35,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.17.2
+
+### Bug Fixes
+  - na_ontap_rest_info - Fixed an issue with adding field to specific info that didn't have a direct REST equivalent.
+  - na_ontap_lun_map - Fixed bug when deleting lun map using REST.
+
 ## 21.17.1
 
 ### Bug Fixes

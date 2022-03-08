@@ -1365,6 +1365,15 @@ releases:
     fragments:
     - DEVOPS-4729.yml
     release_date: '2022-03-07'
+  21.17.2:
+    changes:
+      bugfixes:
+      - na_ontap_rest_info - Fixed an issues with adding field to specific info that
+        didn't have a direct REST equivalent.
+      - na_ontap_lun_map - Fixed bug when deleting lun map using REST.
+    fragments:
+    - DEVOPS-4719.yml
+    release_date: '2022-03-08'
   21.2.0:
     changes:
       bugfixes:

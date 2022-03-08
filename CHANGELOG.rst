@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.17.2
+========
+
+Bugfixes
+--------
+
+- na_ontap_rest_info - Fixed an issues with adding field to specific info that didn't have a direct REST equivalent.
+
 v21.17.1
 ========
 

@@ -317,7 +317,7 @@ class NetAppOntapLUNMap:
 
     def delete_lun_map_rest(self):
         api = 'protocols/san/lun-maps'
-        both_uuids = '%s/%s' % (self.igroup_uuid, self.lun_uuid)
+        both_uuids = '%s/%s' % (self.lun_uuid, self.igroup_uuid)
         dummy, error = rest_generic.delete_async(self.rest_api, api, both_uuids, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error deleting lun_map %s: %s' % (self.parameters['path'], to_native(error)),
