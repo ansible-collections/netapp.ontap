@@ -60,6 +60,14 @@ _DEFAULT_ERRORS = {
 }
 
 
+def build_raw_xml_response(contents, num_records=None, force_dummy=False):
+    top_contents = {'results': contents}
+    xml, valid = build_zapi_response(top_contents)
+    if valid == 'valid' and not force_dummy:
+        return xml.to_string()
+    return b'<xml><results status="netapp-lib is missing"/></xml>'
+
+
 def build_zapi_response(contents, num_records=None):
     ''' build an XML response
         contents is translated into an xml structure

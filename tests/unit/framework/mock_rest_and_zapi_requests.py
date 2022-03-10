@@ -55,7 +55,7 @@ def register_responses(responses, function_name=None):
     for record in responses:
         try:
             expected_method, expected_api, response = record
-            if expected_method not in ['ZAPI', 'GET', 'POST', 'PATCH', 'DELETE']:
+            if expected_method not in ['ZAPI', 'GET', 'OPTIONS', 'POST', 'PATCH', 'DELETE']:
                 raise KeyError('Unexpected method %s in %s for function: %s' % (expected_method, record, function_name))
         except ValueError:
             expected_method = 'ZAPI'

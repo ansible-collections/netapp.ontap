@@ -118,7 +118,7 @@ def test_setup_host_options_from_module_params_username_not_set_when_cert_presen
         assert host_options[key] != DEFAULT_ARGS[key]
 
 
-def test_setup_host_options_from_module_params_not_none_fileds_are_preserved():
+def test_setup_host_options_from_module_params_not_none_fields_are_preserved():
     ''' make sure module.params options are reflected in host_options '''
     args = dict(DEFAULT_ARGS)
     args['cert_filepath'] = 'some_path'

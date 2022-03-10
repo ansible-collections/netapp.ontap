@@ -1,4 +1,4 @@
-# Copyright (c) 2018 NetApp
+# Copyright (c) 2018-2022 NetApp
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for module_utils netapp_module.py '''
@@ -9,8 +9,9 @@ import pytest
 import sys
 
 from ansible.module_utils import basic
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule as na_helper
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule as na_helper, cmp as na_cmp
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response
 
@@ -43,7 +44,16 @@ def test_get_cd_action_delete():
     assert result == 'delete'
 
 
-def test_get_cd_action():
+def test_get_cd_action_already_exist():
+    ''' validate cd_action for returning None '''
+    current = {'state': 'whatever'}
+    desired = {'state': 'present'}
+    my_obj = na_helper()
+    result = my_obj.get_cd_action(current, desired)
+    assert result is None
+
+
+def test_get_cd_action_already_absent():
     ''' validate cd_action for returning None '''
     current = None
     desired = {'state': 'absent'}
@@ -447,24 +457,6 @@ def test_filter_list_dict_list():
     assert expected == result
 
 
-def test_get_caller():
-    my_obj = na_helper()
-    fname = my_obj.get_caller(1)
-    assert fname == 'test_get_caller'
-
-    def one(depth):
-        return my_obj.get_caller(depth)
-    assert one(1) == 'one'
-
-    def two():
-        return one(2)
-    assert two() == 'two'
-
-    def three():
-        return two(), one(3)
-    assert three() == ('two', 'test_get_caller')
-
-
 def test_convert_value():
     ''' positive tests '''
     my_obj = na_helper()
@@ -642,3 +634,131 @@ def test_get_value_for_list():
         else:
             print(result.to_string())
             assert result.to_string() == expected
+
+
+def test_zapi_get_attrs():
+    my_obj = na_helper()
+    zapi_info = {
+        'a': {'b': 'a1', 'c': 'a2', 'd': 'a3', 'int': '123'}
+    }
+    naelement = get_zapi_na_element(zapi_info)
+    attr_dict = {
+        'first': {'key_list': ['a', 'b']}
+    }
+    result = {}
+    my_obj.zapi_get_attrs(naelement, attr_dict, result)
+    assert result == {'first': 'a1'}
+
+    # if element not found return None, unless omitnone is True
+    attr_dict = {
+        'none': {'key_list': ['a', 'z'], 'omitnone': True}
+    }
+    my_obj.zapi_get_attrs(naelement, attr_dict, result)
+    assert result == {'first': 'a1'}
+
+    # if element not found return None when required and omitnone are False
+    attr_dict = {
+        'none': {'key_list': ['a', 'z']}
+    }
+    my_obj.zapi_get_attrs(naelement, attr_dict, result)
+    assert result == {'first': 'a1', 'none': None}
+
+    # if element not found return default
+    result = {}
+    attr_dict = {
+        'none': {'key_list': ['a', 'z'], 'default': 'some_default'}
+    }
+    my_obj.zapi_get_attrs(naelement, attr_dict, result)
+    assert result == {'none': 'some_default'}
+
+    # convert to int
+    result = {}
+    attr_dict = {
+        'int': {'key_list': ['a', 'int'], 'convert_to': int}
+    }
+    my_obj.zapi_get_attrs(naelement, attr_dict, result)
+    assert result == {'int': 123}
+
+    # if element not found return None, unless required is True
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    attr_dict = {
+        'none': {'key_list': ['a', 'z'], 'required': True}
+    }
+    # the contents of to_string() may be in a different sequence depending on the pytohn version
+    assert expect_and_capture_ansible_exception(my_obj.na_helper.zapi_get_attrs, 'fail', naelement, attr_dict, result)['msg'].startswith((
+        "Error reading ['a', 'z'] from b'<xml status=\"passed\"><a>",   # python 3.x
+        "Error reading ['a', 'z'] from <xml status=\"passed\"><a>"      # python 2.7
+    ))
+
+
+def test_set_parameters():
+    my_obj = na_helper()
+    adict = dict((x, x * x) for x in range(10))
+    assert my_obj.set_parameters(adict) == adict
+    assert my_obj.parameters == adict
+    assert len(my_obj.parameters) == 10
+
+    # None values are copied
+    adict[3] = None
+    assert my_obj.set_parameters(adict) != adict
+    assert my_obj.parameters != adict
+    assert len(my_obj.parameters) == 9
+
+
+def test_get_caller():
+    assert na_helper.get_caller(0) == 'get_caller'
+    assert na_helper.get_caller(1) == 'test_get_caller'
+
+    def one(depth):
+        return na_helper.get_caller(depth)
+    assert one(1) == 'one'
+
+    def two():
+        return one(2)
+    assert two() == 'two'
+
+    def three():
+        return two(), one(3)
+    assert three() == ('two', 'test_get_caller')
+
+
+@patch('traceback.extract_stack')
+def test_get_caller_2_7(mock_frame):
+    frame = ('first', 'second', 'function_name')
+    mock_frame.return_value = [frame]
+    assert na_helper.get_caller(0) == 'function_name'
+
+
+@patch('traceback.extract_stack')
+def test_get_caller_bad_format(mock_frame):
+    frame = ('first', 'second')
+    mock_frame.return_value = [frame]
+    assert na_helper.get_caller(0) == "Error retrieving function name: tuple index out of range - [('first', 'second')]"
+
+
+def test_fail_on_error():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    assert my_obj.na_helper.fail_on_error(None) is None
+    assert expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg')['msg'] ==\
+        'Error in expect_and_capture_ansible_exception: error_msg'
+    assert expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api')['msg'] ==\
+        'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
+    exc = expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api', True)
+    assert exc['msg'] == 'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
+    assert exc['stack']
+    delattr(my_obj.na_helper, 'module')
+    assert expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, AttributeError, 'error_message') ==\
+        "Expecting self.module to be set when reporting {'msg': 'Error in expect_and_capture_ansible_exception: error_message'}"
+
+
+def test_cmp():
+    assert na_cmp(None, 'any') == -1
+    # string comparison ignores case
+    assert na_cmp('ABC', 'abc') == 0
+    assert na_cmp('abcd', 'abc') == 1
+    assert na_cmp('abd', 'abc') == 1
+    assert na_cmp(['abd', 'abc'], ['abc', 'abd']) == 0
+    # list comparison ignores case
+    assert na_cmp(['ABD', 'abc'], ['abc', 'abd']) == 0
+    # but not duplicates
+    assert na_cmp(['ABD', 'ABD', 'abc'], ['abc', 'abd']) == 1

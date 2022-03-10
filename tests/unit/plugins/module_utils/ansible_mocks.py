@@ -63,8 +63,10 @@ def expect_and_capture_ansible_exception(function, exception, *args, **kwargs):
     with pytest.raises(exception) as exc:
         function(*args, **kwargs)
     if VERBOSE:
-        print('EXC:', exception, exc.value.args[0])
-    return exc.value.args[0]
+        print('EXC:', exception, exc.value)
+    if exception in (AnsibleExitJson, AnsibleFailJson, Exception, AttributeError, KeyError, TypeError, ValueError):
+        return exc.value.args[0]
+    return exc
 
 
 def call_main(my_main, default_args=None, module_args=None, fail=False):

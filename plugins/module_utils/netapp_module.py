@@ -472,15 +472,12 @@ class NetAppModule(object):
         frames = traceback.extract_stack(limit=depth)
         try:
             function_name = frames[0].name
-            return function_name
         except AttributeError:
-            pass
-
-        # python 2.7 does not have named attributes for frames
-        try:
-            function_name = frames[0][2]
-        except Exception as exc:                                   # pylint: disable=broad-except
-            function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
+            # python 2.7 does not have named attributes for frames
+            try:
+                function_name = frames[0][2]
+            except Exception as exc:                                   # pylint: disable=broad-except
+                function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
         return function_name
 
     def fail_on_error(self, error, api=None, stack=False, depth=1):
@@ -494,6 +491,6 @@ class NetAppModule(object):
         results = dict(msg='Error in %s: %s' % (self.get_caller(depth), error))
         if stack:
             results['stack'] = traceback.format_stack()
-        if self.module is not None:
+        if getattr(self, 'module', None) is not None:
             self.module.fail_json(**results)
         raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))

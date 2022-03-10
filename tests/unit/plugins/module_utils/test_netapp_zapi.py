@@ -13,7 +13,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     patch_ansible, create_module, expect_and_capture_ansible_exception, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
-from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_raw_xml_response, build_zapi_error, zapi_responses
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 if not netapp_utils.has_netapp_lib():
@@ -21,6 +21,7 @@ if not netapp_utils.has_netapp_lib():
 
 ZRR = zapi_responses({
     'error_no_vserver': build_zapi_error(12345, 'Vserver API missing vserver parameter.'),
+    'error_connection_error': build_zapi_error(12345, 'URLError'),
     'error_other_error': build_zapi_error(12345, 'Some other error message.'),
 })
 
@@ -91,6 +92,61 @@ def test_get_cserver_none():
     assert cserver is None
 
 
+def test_negative_get_cserver():
+    ''' validate NaApiError is correctly reported '''
+    register_responses([
+        ('vserver-get-iter', ZRR['error']),
+    ])
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS))
+    assert expect_and_capture_ansible_exception(netapp_utils.get_cserver, netapp_utils.zapi.NaApiError, server)
+
+
+def test_negative_get_cserver_connection_error():
+    ''' validate NaApiError error is correctly ignore for connection or autorization issues '''
+    register_responses([
+        ('vserver-get-iter', ZRR['error_connection_error']),
+    ])
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS))
+    cserver = netapp_utils.get_cserver(server)
+    assert cserver is None
+
+
+def test_setup_na_ontap_zapi_logging():
+    module_args = {'feature_flags': {'trace_apis': False}}
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS, module_args))
+    assert not server._trace
+    module_args = {'feature_flags': {'trace_apis': True}}
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS, module_args))
+    assert server._trace
+
+
+def test_setup_na_ontap_zapi_auth_method_and_https():
+    module_args = {'feature_flags': {'trace_apis': False}}
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS, module_args))
+    assert server._auth_style == server.STYLE_LOGIN_PASSWORD
+    assert server.get_port() == '80'
+    module_args = {'feature_flags': {'trace_apis': True}}
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(CERT_ARGS, module_args))
+    assert server._auth_style == server.STYLE_CERTIFICATE
+    assert server.get_port() == '443'
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.HAS_NETAPP_LIB', False)
+def test_negative_setup_na_ontap_zapi():
+    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert expect_and_capture_ansible_exception(netapp_utils.setup_na_ontap_zapi, 'fail', create_ontap_module(DEFAULT_ARGS))['msg'] == error
+
+
+def test_set_zapi_port_and_transport():
+    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS))
+    netapp_utils.set_zapi_port_and_transport(server, True, None, False)
+    assert server.get_port() == '443'
+    assert server.get_transport_type() == 'https'
+    netapp_utils.set_zapi_port_and_transport(server, False, None, False)
+    assert server.get_port() == '80'
+    assert server.get_transport_type() == 'http'
+
+
 def test_ems_log_event_cserver():
     ''' validate Ansible version is correctly read '''
     register_responses([
@@ -133,13 +189,40 @@ def test_ems_log_event_cserver_other_error():
     assert expect_and_capture_ansible_exception(netapp_utils.ems_log_event_cserver, netapp_utils.zapi.NaApiError, source, server, module)
 
 
-def test_certificate_method_zapi():
+def test_ems_log_event_cserver_disabled():
+    ''' feature flag disables cserver EMS '''
+    module_args = {'feature_flags': {'no_cserver_ems': True}}
+    module = create_ontap_module(DEFAULT_ARGS, module_args)
+    source = 'unittest'
+    assert netapp_utils.ems_log_event_cserver(source, 'dummy', module) is None
+
+
+@patch('ssl.SSLContext.load_cert_chain')
+def test_certificate_method_zapi(mock_ssl):
+    ''' should fail when trying to read the certificate file '''
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    assert isinstance(zapi_cx._create_certificate_auth_handler(), netapp_utils.zapi.urllib.request.HTTPSHandler)
+    assert zapi_cx._get_url() == 'http://test:80/servlets/netapp.servlets.admin.XMLrequest_filer'
+
+
+def test_certificate_method_zapi_missing_files():
     ''' should fail when trying to read the certificate file '''
     zapi_cx = create_ontapzapicx_object(CERT_ARGS)
     msg1 = 'Cannot load SSL certificate, check files exist.'
     # for python 2,6 :(
     msg2 = 'SSL certificate authentication requires python 2.7 or later.'
     assert expect_and_capture_ansible_exception(zapi_cx._create_certificate_auth_handler, 'fail')['msg'].startswith((msg1, msg2))
+    assert zapi_cx._get_url() == 'http://test:80/servlets/netapp.servlets.admin.XMLrequest_filer'
+
+
+@patch('ssl.create_default_context')
+def test_negative_certificate_method_zapi(mock_ssl):
+    ''' should fail when trying to set context '''
+    mock_ssl.side_effect = AttributeError('for test purpose')
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    # AttributeError('for test purpose') with 3.x but AttributeError('for test purpose',) with 2.7
+    error = "SSL certificate authentication requires python 2.7 or later.  More info: AttributeError('for test purpose'"
+    assert expect_and_capture_ansible_exception(zapi_cx._create_certificate_auth_handler, 'fail')['msg'].startswith(error)
 
 
 def test_classify_zapi_exception_cluster_only():
@@ -172,6 +255,14 @@ def test_classify_zapi_exception_other_error():
     kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
     assert kind == 'other_error'
     assert new_message == error_message
+
+
+def test_classify_zapi_exception_attributeerror():
+    ''' verify output matches expectations '''
+    zapi_exception = 'invalid'
+    kind, new_message = netapp_utils.classify_zapi_exception(zapi_exception)
+    assert kind == 'other_error'
+    assert new_message == zapi_exception
 
 
 def test_zapi_parse_response_sanitized():
@@ -293,3 +384,50 @@ def test_warn_when_rest_is_not_supported_https():
     assert netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS, {'use_rest': 'always', 'https': True}))
     print_warnings()
     assert_warning_was_raised("Using ZAPI for basic.py, ignoring 'use_rest: always'.")
+
+
+def test_sanitize_xml():
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    xml = build_raw_xml_response({'test_key': 'test_Value'})
+    print('XML', xml)
+    assert zapi_cx.sanitize_xml(xml) == xml
+
+    # these tests require that 'V' is not used, and 3.x because of bytes
+    if sys.version_info > (3, 0):
+        test_xml = zapi_cx.sanitize_xml(xml.replace(b'V', bytes([8])))
+        sanitized_xml = xml.replace(b'V', b'.')
+        assert zapi_cx.sanitize_xml(test_xml) == sanitized_xml
+
+        with patch('builtins.bytes') as mock_bytes:
+            # forcing bytes to return some unexpected value to force the older paths
+            mock_bytes.return_value = 0
+            assert zapi_cx.sanitize_xml(test_xml) == sanitized_xml
+            with patch('builtins.chr') as mock_chr:
+                # forcing python 2.7 behavior
+                mock_chr.return_value = b'\x08'
+                assert zapi_cx.sanitize_xml(test_xml) == sanitized_xml
+
+
+def test_parse_response_exceptions():
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    exc = expect_and_capture_ansible_exception(zapi_cx._parse_response, netapp_utils.zapi.etree.XMLSyntaxError, b'response')
+    assert str(exc).startswith('Start tag expected')
+    print(exc.msg)
+
+
+@patch('netapp_lib.api.zapi.zapi.NaServer._parse_response')
+def test_parse_response_exceptions(mock_parse_response):
+    xml_exc = netapp_utils.zapi.etree.XMLSyntaxError('UT', 'code', 101, 22, 'filename')
+    mock_parse_response.side_effect = [xml_exc, KeyError('second exception')]
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    exc = expect_and_capture_ansible_exception(zapi_cx._parse_response, netapp_utils.zapi.etree.XMLSyntaxError, 'response')
+    print(exc)
+    assert str(exc.value) == 'UT.  Received: response (filename, line 101)'
+
+    # force an exception while processing exception
+    delattr(xml_exc, 'msg')
+    mock_parse_response.side_effect = [xml_exc, KeyError('second exception')]
+    zapi_cx = create_ontapzapicx_object(CERT_ARGS)
+    exc = expect_and_capture_ansible_exception(zapi_cx._parse_response, netapp_utils.zapi.etree.XMLSyntaxError, 'response')
+    print(exc)
+    assert str(exc.value) == 'None (filename, line 101)'

@@ -648,7 +648,7 @@ class OntapRestAPI(object):
         status_code = self.get_ontap_version_using_rest()
         msgs = []
         if self.use_rest == 'never':
-            msgs.append('Error: REST is required for this module, found: "use_rest: %s"' % self.module.params.get('use_rest'))
+            msgs.append('Error: REST is required for this module, found: "use_rest: %s".' % self.use_rest)
         if self.is_rest_error:
             msgs.append('Error using REST for version, error: %s.' % self.is_rest_error)
         if status_code != 200:
@@ -737,7 +737,7 @@ class OntapRestAPI(object):
         except requests.exceptions.HTTPError as err:
             try:
                 __, json_error = get_json(response)
-            except ValueError:
+            except (AttributeError, ValueError):
                 json_error = None
             if json_error is None:
                 self.log_error(status_code, 'HTTP error: %s' % err)

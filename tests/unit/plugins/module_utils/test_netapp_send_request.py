@@ -55,14 +55,16 @@ def create_restapi_object(default_args):
 
 
 class mockResponse:
-    def __init__(self, json_data, status_code, raise_action=None):
+    def __init__(self, json_data, status_code, raise_action=None, headers=None):
         self.json_data = json_data
         self.status_code = status_code
         self.content = json_data
         self.raise_action = raise_action
+        self.headers = headers or []
 
     def raise_for_status(self):
-        pass
+        if self.status_code >= 400 and self.status_code < 600:
+            raise netapp_utils.requests.exceptions.HTTPError('status_code: %s' % self.status_code, response=self)
 
     def json(self):
         if self.raise_action == 'bad_json':
@@ -199,3 +201,56 @@ def test_get_auth_method_keyerror():
     args = ('method', 'api', 'params')
     msg = 'xxxx'
     assert expect_and_capture_ansible_exception(my_cx.send_request, KeyError, *args) == 'invalid_method'
+
+
+@patch('requests.request')
+def test_http_error_no_json(mock_request):
+    ''' get raises HTTPError '''
+    mock_request.return_value = mockResponse(json_data={}, status_code=400)
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    api = 'api/testme'
+    message, error = rest_api.get(api)
+    assert error == 'status_code: 400'
+
+
+@patch('requests.request')
+def test_http_error_with_json_error_field(mock_request):
+    ''' get raises HTTPError '''
+    mock_request.return_value = mockResponse(json_data=dict(state='other', message='any message', error='error_message'), status_code=400)
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    api = 'api/testme'
+    message, error = rest_api.get(api)
+    assert error == 'error_message'
+
+
+@patch('requests.request')
+def test_http_error_attribute_error(mock_request):
+    ''' get raises HTTPError '''
+    mock_request.return_value = mockResponse(json_data='bad_data', status_code=400)
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    api = 'api/testme'
+    message, error = rest_api.get(api)
+    assert error == 'status_code: 400'
+
+
+@patch('requests.request')
+def test_connection_error(mock_request):
+    ''' get raises HTTPError '''
+    mock_request.side_effect = netapp_utils.requests.exceptions.ConnectionError('connection_error')
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    api = 'api/testme'
+    message, error = rest_api.get(api)
+    # print(rest_api.errors)
+    assert error == 'connection_error'
+    # assert False
+
+
+@patch('requests.request')
+def test_options_allow_in_header(mock_request):
+    ''' OPTIONS returns Allow key '''
+    mock_request.return_value = mockResponse(json_data={}, headers={'Allow': 'alllowed'}, status_code=200)
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    api = 'api/testme'
+    message, error = rest_api.options(api)
+    assert error is None
+    assert message == {'Allow': 'alllowed'}
