@@ -76,6 +76,12 @@ def test_exception_with_opener_generic_exception():
 
 
 def test_exception_with_opener_httperror():
+    if not hasattr(netapp_utils.zapi.urllib.error.HTTPError, 'reason'):
+        # skip the test in 2.6 as netapp_lib is not fully supported
+        # HTTPError does not support reason, and it's not worth changing the code
+        #   raise zapi.NaApiError(exc.code, exc.reason)
+        #   AttributeError: 'HTTPError' object has no attribute 'reason'
+        pytest.skip('this test requires HTTPError.reason which is not available in python 2.6')
     zapi_cx = create_ontapzapicx_object()
     zapi_cx._refresh_conn = False
     zapi_cx._opener = MockOpener(exception=netapp_utils.zapi.urllib.error.HTTPError('url', 400, 'testing', None, None))

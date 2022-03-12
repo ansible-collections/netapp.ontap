@@ -19,6 +19,9 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip("skipping as missing required netapp_lib")
 
+if not hasattr(netapp_utils.ssl, 'create_default_context') or not hasattr(netapp_utils.ssl, 'SSLContext'):
+    pytestmark = pytest.mark.skip("skipping as missing required ssl package with SSLContext support")
+
 ZRR = zapi_responses({
     'error_no_vserver': build_zapi_error(12345, 'Vserver API missing vserver parameter.'),
     'error_connection_error': build_zapi_error(12345, 'URLError'),
