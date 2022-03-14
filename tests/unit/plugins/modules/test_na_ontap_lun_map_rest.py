@@ -43,7 +43,7 @@ SRR = rest_responses({
                 "uuid": "1ad8544d-8cd1-91e0-9e1c-723478563412",
                 "name": "igroup1",
             },
-            "logical_unit_number": "1",
+            "logical_unit_number": 1,
             "lun": {
                 "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412",
                 "name": "this/is/a/path",
@@ -136,6 +136,15 @@ def test_create_lun_map_with_lun_id():
     ])
     module_args = {'lun_id': '1'}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_lun_map_with_lun_id_idempotent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['lun']),
+        ('GET', 'protocols/san/lun-maps', SRR['lun_map'])
+    ])
+    assert create_and_apply(my_module, DEFAULT_ARGS, {'lun_id': '1'})['changed'] is False
 
 
 def test_create_lun_map_error():

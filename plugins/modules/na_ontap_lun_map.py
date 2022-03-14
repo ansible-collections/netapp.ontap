@@ -295,7 +295,7 @@ class NetAppOntapLUNMap:
         if error:
             self.module.fail_json(msg='Error getting lun_map %s: %s' % (self.parameters['path'], error))
         if record:
-            return {'lun_id': self.na_helper.safe_get(record, ['logical_unit_number']),
+            return {'lun_id': str(self.na_helper.safe_get(record, ['logical_unit_number'])),
                     'igroup_uuid': self.na_helper.safe_get(record, ['igroup', 'uuid']),
                     'initiator_group_name': self.na_helper.safe_get(record, ['igroup', 'name']),
                     'lun_uuid': self.na_helper.safe_get(record, ['lun', 'uuid']),

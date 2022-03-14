@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.17.3
+
+### Bug Fixes
+  - na_ontap_lun_map - TypeError - '>' not supported between instances of 'int' and 'str '.
+
 ## 21.17.2
 
 ### Bug Fixes
