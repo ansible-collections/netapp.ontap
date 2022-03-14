@@ -565,18 +565,18 @@ class NetAppONTAPSnapmirror(object):
         ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
         if not self.use_rest and any(x in self.parameters for x in ontap_97_options):
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        if self.parameters.get('connection_type') != 'ontap_elementsw':
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        else:
-            if self.parameters.get('source_username'):
-                self.module.params['username'] = self.parameters['source_username']
-            if self.parameters.get('source_password'):
-                self.module.params['password'] = self.parameters['source_password']
-            self.module.params['hostname'] = self.parameters['source_hostname']
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if not self.use_rest:
+            if HAS_NETAPP_LIB is False:
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
+            if self.parameters.get('connection_type') != 'ontap_elementsw':
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            else:
+                if self.parameters.get('source_username'):
+                    self.module.params['username'] = self.parameters['source_username']
+                if self.parameters.get('source_password'):
+                    self.module.params['password'] = self.parameters['source_password']
+                self.module.params['hostname'] = self.parameters['source_hostname']
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def set_element_connection(self, kind):
         if kind == 'source':

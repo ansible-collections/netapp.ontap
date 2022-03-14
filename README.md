@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_lun_map - TypeError - '>' not supported between instances of 'int' and 'str '.
+  - na_ontap_snapmirror - Fixed bug by adding use_rest condition for the REST support to work when `use_rest: always`.
 
 ## 21.17.2
 
