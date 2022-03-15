@@ -121,7 +121,7 @@ def test_error_creating_volume_clone():
 
 
 def test_error_space_reserve_volume_clone():
-    error = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    error = create_module(my_module, fail=True)['msg']
     print('Info: %s' % error)
     assert 'missing required arguments:' in error
     assert 'name' in error

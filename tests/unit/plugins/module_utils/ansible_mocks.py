@@ -84,7 +84,7 @@ def call_main(my_main, default_args=None, module_args=None, fail=False):
     return expect_and_capture_ansible_exception(my_main, 'fail' if fail else 'exit')
 
 
-def create_module(my_module, default_args=None, module_args=None, check_mode=None):
+def create_module(my_module, default_args=None, module_args=None, check_mode=None, fail=False):
     ''' utility function to create a module object
         my_module: a class that represent an ONTAP Ansible module
         default_args: a dict for the Ansible options - in general, what is accepted by all tests
@@ -97,6 +97,8 @@ def create_module(my_module, default_args=None, module_args=None, check_mode=Non
     if module_args:
         args.update(module_args)
     set_module_args(args)
+    if fail:
+        return expect_and_capture_ansible_exception(my_module, 'fail')
     my_module_object = my_module()
     if check_mode is not None:
         my_module_object.module.check_mode = check_mode
@@ -112,7 +114,12 @@ def create_and_apply(my_module, default_args=None, module_args=None, fail=False,
 
         see create_module for a description of the other arguments.
     '''
-    my_obj = create_module(my_module, default_args, module_args, check_mode)
+    try:
+        my_obj = create_module(my_module, default_args, module_args, check_mode)
+    except Exception as exc:
+        print('Unexpected exception returned in create_module: %s' % exc)
+        print('If expected, use create_module with fail=True.')
+        raise
     return expect_and_capture_ansible_exception(my_obj.apply, 'fail' if fail else 'exit')
 
 

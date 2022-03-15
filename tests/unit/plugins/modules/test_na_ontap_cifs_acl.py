@@ -54,7 +54,7 @@ DEFAULT_ARGS = {
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    error_msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    error_msg = create_module(my_module, fail=True)['msg']
     for fragment in 'missing required arguments:', 'hostname', 'share_name', 'user_or_group', 'vserver':
         assert fragment in error_msg
     assert 'permission' not in error_msg
@@ -62,7 +62,7 @@ def test_module_fail_when_required_args_missing():
     args = dict(DEFAULT_ARGS)
     args.pop('permission')
     msg = 'state is present but all of the following are missing: permission'
-    assert expect_and_capture_ansible_exception(create_module, 'fail', my_module, args)['msg'] == msg
+    assert create_module(my_module, args, fail=True)['msg'] == msg
 
 
 def test_create():
@@ -188,7 +188,7 @@ def test_if_all_methods_catch_exception():
 def test_missing_netapp_lib(mock_has_netapp_lib):
     mock_has_netapp_lib.return_value = False
     msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert msg in expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS)['msg']
+    assert msg in create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
 
 
 def test_main():

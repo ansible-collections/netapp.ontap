@@ -90,7 +90,7 @@ DEFAULT_ARGS = {
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    error = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    error = create_module(my_module, fail=True)['msg']
     print('Info: %s' % error)
     assert 'missing required arguments:' in error
     assert 'name' in error
@@ -507,7 +507,7 @@ def test_map_plex_to_primary_and_mirror_error_no_match():
 def test_missing_netapp_lib(mock_has_netapp_lib):
     mock_has_netapp_lib.return_value = False
     msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert msg == expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS)['msg']
+    assert msg == create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
 
 
 def test_disk_get_iter_error():

@@ -616,7 +616,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10 or later.  Found: -1.-1.-1.'
+        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10.1 or later.  Found: -1.-1.-1.'
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -632,7 +632,7 @@ class TestMyModule(unittest.TestCase):
         ]
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10 or later.  Found: 9.10.0.'
+        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10.1 or later.  Found: 9.10.0.'
         assert exc.value.args[0]['msg'] == msg
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

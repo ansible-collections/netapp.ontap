@@ -56,7 +56,7 @@ DEFAULT_ARGS = {
 
 def test_module_fail_when_required_args_missing():
     ''' test required arguments are reported as errors '''
-    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module)['msg']
+    msg = create_module(my_module, fail=True)['msg']
     print('Info: %s' % msg)
 
 
@@ -179,7 +179,7 @@ def test_vserver_cluster_options_give_error():
         'uid': '1',
         'gid': '1'
     }
-    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS, module_args)['msg']
+    msg = create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert "parameters are mutually exclusive: " in msg
     print('Info: %s' % msg)
 
@@ -204,7 +204,7 @@ def test_if_all_methods_catch_exception():
 def test_fail_missing_netapp_lib(mock_has_netapp_lib):
     ''' test error when netapp_lib is missing '''
     mock_has_netapp_lib.return_value = False
-    msg = expect_and_capture_ansible_exception(create_module, 'fail', my_module, DEFAULT_ARGS)['msg']
+    msg = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert 'Error: the python NetApp-Lib module is required.  Import error: None' == msg
 
 

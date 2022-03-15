@@ -445,7 +445,7 @@ def test_negative_older_version(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = my_module()
     print('Info: %s' % exc.value.args[0])
-    msg = 'Error: na_ontap_publickey only supports REST, and requires ONTAP 9.7 or later.  Found: 9.6.'
+    msg = 'Error: na_ontap_publickey only supports REST, and requires ONTAP 9.7.0 or later.  Found: 9.6.0'
     assert msg in exc.value.args[0]['msg']
     assert_no_warnings()
 

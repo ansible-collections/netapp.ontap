@@ -30,7 +30,7 @@ FORCE_REGISTRATION = False
 @pytest.fixture(autouse=True)
 def patch_request_and_invoke(request):
     if DEBUG:
-        print('entering patch_request_and_invoke fixture for', str(request.function))
+        print('entering patch_request_and_invoke fixture for', request.function)
     function_name = request.function.__name__
 
     with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request') as mock_send_request:
@@ -238,7 +238,7 @@ def _mock_netapp_invoke_elem(function_name, na_element, enable_tunneling=False):
 def _patch_request_and_invoke_exit_checks(function_name):
     # action to be performed afther a test is complete
     if DEBUG:
-        print('exiting patch_request_and_invoke fixture for', str(function_name))
+        print('exiting patch_request_and_invoke fixture for', function_name)
     if FORCE_REGISTRATION:
         assert function_name in _RESPONSES, 'Error: responses for ZAPI invoke or REST send requests are not registered.'
     # make sure all expected requests were consumed

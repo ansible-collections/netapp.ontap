@@ -1,17 +1,21 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import expect_and_capture_ansible_exception, set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, create_module
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    get_mock_record, patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
     import NetAppOntapVolume as vol_module  # module under test
@@ -28,6 +32,39 @@ SRR = {
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
 }
+
+
+def vol_encryption_conversion_status(status):
+    return {
+        'num-records': 1,
+        'attributes-list': {
+            'volume-encryption-conversion-info': {
+                'status': status
+            }
+        }
+    }
+
+
+def vol_move_status(status):
+    return {
+        'num-records': 1,
+        'attributes-list': {
+            'volume-move-info': {
+                'state': status,
+                'details': 'some info'
+            }
+        }
+    }
+
+
+ZRR = zapi_responses({
+    'vol_encryption_conversion_status_running': build_zapi_response(vol_encryption_conversion_status('running')),
+    'vol_encryption_conversion_status_idle': build_zapi_response(vol_encryption_conversion_status('Not currently going on.')),
+    'vol_encryption_conversion_status_error': build_zapi_response(vol_encryption_conversion_status('other')),
+    'vol_move_status_running': build_zapi_response(vol_move_status('healthy')),
+    'vol_move_status_idle': build_zapi_response(vol_move_status('done')),
+    'vol_move_status_error': build_zapi_response(vol_move_status('failed')),
+})
 
 
 class MockONTAPConnection(object):
@@ -275,53 +312,58 @@ class MockONTAPConnection(object):
         return xml
 
 
+DEFAULT_ARGS = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'name': 'test_vol',
+    'vserver': 'test_vserver',
+    'policy': 'default',
+    'language': 'en',
+    'is_online': True,
+    'unix_permissions': '---rwxr-xr-x',
+    'user_id': 100,
+    'group_id': 1000,
+    'snapshot_policy': 'default',
+    'qos_policy_group': 'performance',
+    'qos_adaptive_policy_group': 'performance',
+    'size': 20,
+    'size_unit': 'mb',
+    'junction_path': '/test',
+    'percent_snapshot_space': 60,
+    'type': 'type',
+    'nvfail_enabled': True,
+    'space_slo': 'thick',
+    'use_rest': 'never'
+}
+
+MOCK_VOL = {
+    'name': 'test_vol',
+    'aggregate': 'test_aggr',
+    'junction_path': '/test',
+    'vserver': 'test_vserver',
+    'size': 20971520,
+    'unix_permissions': '755',
+    'user_id': 100,
+    'group_id': 1000,
+    'snapshot_policy': 'default',
+    'qos_policy_group': 'performance',
+    'qos_adaptive_policy_group': 'performance',
+    'percent_snapshot_space': 60,
+    'language': 'en',
+    'vserver_dr_protection': 'unprotected',
+    'use_rest': 'never'
+}
+
+
 class TestMyModule(unittest.TestCase):
     ''' a group of related Unit Tests '''
 
     def setUp(self):
-        self.mock_vol = {
-            'name': 'test_vol',
-            'aggregate': 'test_aggr',
-            'junction_path': '/test',
-            'vserver': 'test_vserver',
-            'size': 20971520,
-            'unix_permissions': '755',
-            'user_id': 100,
-            'group_id': 1000,
-            'snapshot_policy': 'default',
-            'qos_policy_group': 'performance',
-            'qos_adaptive_policy_group': 'performance',
-            'percent_snapshot_space': 60,
-            'language': 'en',
-            'vserver_dr_protection': 'unprotected',
-            'use_rest': 'never'
-        }
+        self.mock_vol = dict(MOCK_VOL)
 
     def mock_args(self, tag=None):
-        args = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'policy': 'default',
-            'language': self.mock_vol['language'],
-            'is_online': True,
-            'unix_permissions': '---rwxr-xr-x',
-            'user_id': 100,
-            'group_id': 1000,
-            'snapshot_policy': 'default',
-            'qos_policy_group': 'performance',
-            'qos_adaptive_policy_group': 'performance',
-            'size': 20,
-            'size_unit': 'mb',
-            'junction_path': '/test',
-            'percent_snapshot_space': 60,
-            'type': 'type',
-            'nvfail_enabled': True,
-            'space_slo': 'thick',
-            'use_rest': 'never'
-        }
+        args = dict(DEFAULT_ARGS)
         if tag is None:
             args['aggregate_name'] = self.mock_vol['aggregate']
             return args
@@ -1193,3 +1235,198 @@ class TestMyModule(unittest.TestCase):
             self.get_volume_mock_object('flexgroup').apply()
         msg = 'Error: aggregate_name option cannot be used with FlexGroups.'
         assert msg == exc.value.args[0]['msg']
+
+
+def test_error_snaplock_not_supported_with_zapi():
+    ''' Test successful modify vserver_dr_protection '''
+    module_args = {'snaplock': {'retention': {'default': 'P30TM'}}}
+    with pytest.raises(AnsibleFailJson) as exc:
+        create_module(vol_module, DEFAULT_ARGS, module_args).get_volume_mock_object().apply()
+    msg = 'snaplock option is not supported with ZAPI. It can only be used with REST.'
+    assert msg == exc.value.args[0]['msg']
+
+
+def test_ems_log_event():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.ems_log_event() is None
+
+
+def test_wait_for_task_completion_no_records():
+    register_responses([
+        ('ZAPI', 'xml', ZRR['no_records']),
+    ])
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_task_completion(zapi_iter, lambda: True) is None
+
+
+def test_wait_for_task_completion_no_records():
+    register_responses([
+        ('ZAPI', 'xml', ZRR['no_records']),
+    ])
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_task_completion(zapi_iter, lambda x: True) is None
+
+
+def test_wait_for_task_completion_one_response():
+    register_responses([
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+    ])
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_task_completion(zapi_iter, lambda x: False) is None
+
+
+@patch('time.sleep')
+def test_wait_for_task_completion_loop(skip_sleep):
+    register_responses([
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+    ])
+
+    def check_state(x):
+        check_state.counter += 1
+        # True continues the wait loop
+        # False exits the loop
+        return (True, True, False)[check_state.counter - 1]
+
+    check_state.counter = 0
+
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_task_completion(zapi_iter, check_state) is None
+
+
+@patch('time.sleep')
+def test_wait_for_task_completion_loop_with_recoverable_error(skip_sleep):
+    register_responses([
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+    ])
+
+    def check_state(x):
+        check_state.counter += 1
+        return (True, True, False)[check_state.counter - 1]
+
+    check_state.counter = 0
+
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_task_completion(zapi_iter, check_state) is None
+
+
+@patch('time.sleep')
+def test_wait_for_task_completion_loop_with_non_recoverable_error(skip_sleep):
+    register_responses([
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'xml', ZRR['error']),
+    ])
+
+    # using response to build a request
+    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert str(my_obj.wait_for_task_completion(zapi_iter, lambda x: True)) == 'NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+
+
+@patch('time.sleep')
+def test_wait_for_volume_encryption_conversion_with_non_recoverable_error(skip_sleep):
+    register_responses([
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_running']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_running']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_encryption_conversion, 'fail')['msg']
+    assert error == 'Error getting volume encryption_conversion status: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+
+
+@patch('time.sleep')
+def test_wait_for_volume_encryption_conversion(skip_sleep):
+    register_responses([
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_running']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_idle']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_volume_encryption_conversion() is None
+
+
+def test_wait_for_volume_encryption_conversion_bad_status():
+    register_responses([
+        ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_error']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_encryption_conversion, 'fail')['msg']
+    assert error == 'Error converting encryption for volume test_vol: other'
+
+
+@patch('time.sleep')
+def test_wait_for_volume_move_with_non_recoverable_error(skip_sleep):
+    register_responses([
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_running']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_running']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_move, 'fail')['msg']
+    assert error == 'Error getting volume move status: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+
+
+@patch('time.sleep')
+def test_wait_for_volume_move(skip_sleep):
+    register_responses([
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_running']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_idle']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    assert my_obj.wait_for_volume_move() is None
+
+
+def test_wait_for_volume_move_bad_status():
+    register_responses([
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_error']),
+    ])
+    my_obj = create_module(vol_module, DEFAULT_ARGS)
+    error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_move, 'fail')['msg']
+    assert error == 'Error moving volume test_vol: some info'

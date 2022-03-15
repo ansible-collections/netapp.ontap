@@ -5,30 +5,28 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    call_main, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot \
-    import NetAppOntapSnapshot as my_module
+    import NetAppOntapSnapshot as my_module, main as my_main
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
-    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
+SRR = rest_responses({
     'volume_uuid': (200,
                     {'records': [{"uuid": "test_uuid"}], 'num_records': 1}, None,
                     ),
@@ -59,243 +57,309 @@ SRR = {
                                    '_links': {'self': {'href': '/api/svm/svms/b663d6f0-c96d-11eb-9271-005056b3ef5a'}}},
                            '_links': {'self': {'href': '/api/cluster/jobs/e43a40db-cd61-11eb-a170-005056b338cd'}}},
                      None)
+}, allow_override=False)
+
+
+snapshot_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'snapshot-info': {
+            'comment': 'new comment',
+            'name': 'ansible',
+            'snapmirror-label': 'label12'
+        }
+    }
+}
+
+ZRR = zapi_responses({
+    'get_snapshot': build_zapi_response(snapshot_info)
+})
+
+
+DEFAULT_ARGS = {
+    'state': 'present',
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'vserver',
+    'comment': 'test comment',
+    'snapshot': 'test_snapshot',
+    'snapmirror_label': 'test_label',
+    'volume': 'test_vol'
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'snapshot':
-            xml = self.build_snapshot_info()
-        elif self.type == 'snapshot_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_snapshot_info():
-        ''' build xml data for snapshot-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'num-records': 1,
-                'attributes-list': {'snapshot-info': {'comment': 'new comment',
-                                                      'name': 'ansible',
-                                                      'snapmirror-label': 'label12'}}}
-        xml.translate_struct(data)
-        return xml
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    error = create_module(my_module, fail=True)['msg']
+    assert 'missing required arguments:' in error
+    for arg in ('hostname', 'snapshot', 'volume', 'vserver'):
+        assert arg in error
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_ensure_get_called():
+    ''' test get_snapshot()  for non-existent snapshot'''
+    register_responses([
+        ('snapshot-get-iter', ZRR['empty']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.get_snapshot() is None
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self):
-        if self.onbox:
-            hostname = '10.193.75.3'
-            username = 'admin'
-            password = 'netapp1!'
-            vserver = 'ansible'
-            volume = 'ansible'
-            snapshot = 'ansible'
-            comment = 'new comment'
-            snapmirror_label = 'label12'
-        else:
-            hostname = 'hostname'
-            username = 'username'
-            password = 'password'
-            vserver = 'vserver'
-            volume = 'ansible'
-            snapshot = 'ansible'
-            comment = 'new comment'
-            snapmirror_label = 'label12'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'vserver': vserver,
-            'volume': volume,
-            'snapshot': snapshot,
-            'comment': comment,
-            'snapmirror_label': snapmirror_label,
-            'use_rest': 'never'
-        })
+def test_ensure_get_called_existing():
+    ''' test get_snapshot()  for existing snapshot'''
+    register_responses([
+        ('snapshot-get-iter', ZRR['get_snapshot']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.get_snapshot()
 
-    def set_rest_args(self):
-        return dict(
-            {
-                'state': 'present',
-                'hostname': 'hostname',
-                'username': 'username',
-                'password': 'password',
-                'vserver': 'vserver',
-                'comment': 'test comment',
-                'snapshot': 'test_snapshot',
-                'snapmirror_label': 'test_label',
-                'volume': 'test_vol'
-            }
-        )
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_successful_create():
+    ''' creating snapshot and testing idempotency '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['empty']),
+        ('snapshot-create', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'async_bool': True
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_get_called(self):
-        ''' test get_snapshot()  for non-existent snapshot'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        assert my_obj.get_snapshot() is None
 
-    def test_ensure_get_called_existing(self):
-        ''' test get_snapshot()  for existing snapshot'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = MockONTAPConnection(kind='snapshot')
-        assert my_obj.get_snapshot()
+def test_successful_modify():
+    ''' modifying snapshot and testing idempotency '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['get_snapshot']),
+        ('snapshot-modify-iter', ZRR['success']),
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['get_snapshot']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'comment': 'adding comment',
+        'snapmirror_label': 'label22',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        'use_rest': 'never',
+        'comment': 'new comment',
+        'snapmirror_label': 'label12',
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot.NetAppOntapSnapshot.create_snapshot')
-    def test_successful_create(self, create_snapshot):
-        ''' creating snapshot and testing idempotency '''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        create_snapshot.assert_called_with(volume_id=None)
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapshot')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot.NetAppOntapSnapshot.modify_snapshot')
-    def test_successful_modify(self, modify_snapshot):
-        ''' modifying snapshot and testing idempotency '''
-        data = self.set_default_args()
-        data['comment'] = 'adding comment'
-        data['snapmirror_label'] = 'label22'
-        set_module_args(data)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapshot')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        modify_snapshot.assert_called_with(uuid=None, volume_id=None)
-        # to reset na_helper from remembering the previous 'changed' value
-        data['comment'] = 'new comment'
-        data['snapmirror_label'] = 'label12'
-        set_module_args(data)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapshot')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_rename():
+    ''' modifying snapshot and testing idempotency '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['empty']),
+        ('snapshot-get-iter', ZRR['get_snapshot']),
+        ('snapshot-rename', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'from_name': 'from_snapshot',
+        'comment': 'new comment',
+        'snapmirror_label': 'label12',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot.NetAppOntapSnapshot.delete_snapshot')
-    def test_successful_delete(self, delete_snapshot):
-        ''' deleting snapshot and testing idempotency '''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapshot')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        delete_snapshot.assert_called_with(uuid=None, volume_id=None)
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    def test_if_all_methods_catch_exception(self):
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapshot_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.create_snapshot()
-        assert 'Error creating snapshot ansible:' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.delete_snapshot()
-        assert 'Error deleting snapshot ansible:' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.modify_snapshot()
-        assert 'Error modifying snapshot ansible:' in exc.value.args[0]['msg']
+def test_successful_delete():
+    ''' deleting snapshot and testing idempotency '''
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['get_snapshot']),
+        ('snapshot-delete', ZRR['success']),
+        ('ems-autosupport-log', ZRR['success']),
+        ('snapshot-get-iter', ZRR['empty']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'state': 'absent',
+        'ignore_owners': True,
+        'snapshot_instance_uuid': 'uuid',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_module_fail_rest_ONTAP96(self, mock_request):
-        data = self.set_rest_args()
-        data['state'] = 'present'
-        data['use_rest'] = 'Always'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_9_6']       # get version
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_module()
-        msg = 'snapmirror_label is supported with REST on Ontap 9.7 or higher'
-        assert msg == exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create(self, mock_request):
-        data = self.set_rest_args()
-        data['state'] = 'present'
-        data['use_rest'] = 'Always'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_uuid'],
-            SRR['empty_good'],  # get
-            SRR['create_response'],
-            SRR['job_response'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_module().apply()
-        assert exc.value.args[0]['changed']
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('snapshot-create', ZRR['error']),
+        ('snapshot-delete', ZRR['error']),
+        ('snapshot-modify-iter', ZRR['error']),
+        ('snapshot-rename', ZRR['error']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),           # get version
+        ('POST', 'storage/volumes/None/snapshots', SRR['generic_error']),
+        ('DELETE', 'storage/volumes/None/snapshots/None', SRR['generic_error']),
+        ('PATCH', 'storage/volumes/None/snapshots/None', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error'])
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'from_name': 'from_snapshot'}
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error creating snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.create_snapshot, 'fail')['msg']
+    assert 'Error deleting snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.delete_snapshot, 'fail')['msg']
+    assert 'Error modifying snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.modify_snapshot, 'fail')['msg']
+    assert 'Error renaming snapshot from_snapshot to test_snapshot:' in expect_and_capture_ansible_exception(my_obj.rename_snapshot, 'fail')['msg']
+    module_args = {'use_rest': 'always'}
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error when creating snapshot:' in expect_and_capture_ansible_exception(my_obj.create_snapshot, 'fail')['msg']
+    assert 'Error when deleting snapshot:' in expect_and_capture_ansible_exception(my_obj.delete_snapshot, 'fail')['msg']
+    assert 'Error when modifying snapshot:' in expect_and_capture_ansible_exception(my_obj.modify_snapshot, 'fail')['msg']
+    assert 'Error getting volume info:' in expect_and_capture_ansible_exception(my_obj.get_volume_uuid, 'fail')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify(self, mock_request):
-        data = self.set_rest_args()
-        data['state'] = 'present'
-        data['use_rest'] = 'Always'
-        data['comment'] = 'new comment'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_uuid'],
-            SRR['snapshot_record'],  # get
-            SRR['create_response'],  # modify
-            SRR['job_response'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_module().apply()
-        assert exc.value.args[0]['changed']
+
+def test_module_fail_rest_ONTAP96():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])      # get version
+    ])
+    module_args = {'use_rest': 'always'}
+    msg = 'snapmirror_label is supported with REST on Ontap 9.7 or higher'
+    assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_successfully_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_good']),
+        ('POST', 'storage/volumes/test_uuid/snapshots', SRR['create_response']),
+        ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'expiry_time': 'expiry'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_create_no_volume():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['empty_records']),
+    ])
+    module_args = {'use_rest': 'always'}
+    msg = 'Error: volume test_vol not found for vserver vserver.'
+    assert msg == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_successfully_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('PATCH', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['create_response']),  # modify
+        ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'comment': 'new comment',
+        'expiry_time': 'expiry'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_rename():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_records']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('PATCH', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['create_response']),  # modify
+        ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'from_name': 'old_snapshot'}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_rename_from_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_records']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_records']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'from_name': 'old_snapshot'}
+    msg = 'Error renaming snapshot: test_snapshot - no snapshot with from_name: old_snapshot.'
+    assert msg == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_successfully_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('DELETE', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent'}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('DELETE', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent'}
+    msg = 'Error when deleting snapshot: calling: storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce: got Expected error.'
+    assert msg == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_call_main():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('DELETE', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent'}
+    msg = 'Error when deleting snapshot: calling: storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce: got Expected error.'
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_unsupported_options():
+    module_args = {
+        'use_rest': 'always',
+        'ignore_owners': True}
+    error = "REST API currently does not support 'ignore_owners'"
+    assert error == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args = {
+        'use_rest': 'never',
+        'expiry_time': 'any'}
+    error = "expiry_time is currently only supported with REST on Ontap 9.6 or higher"
+    assert error == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_missing_netapp_lib(mock_has_netapp_lib):
+    module_args = {
+        'use_rest': 'never',
+    }
+    mock_has_netapp_lib.return_value = False
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']

@@ -15,7 +15,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs \
     import NetAppONTAPCifsShare as my_module  # module under test
@@ -106,25 +106,18 @@ class TestMyModule(unittest.TestCase):
 
     def set_default_args(self):
         if self.onbox:
-            hostname = '10.193.77.37'
-            username = 'admin'
-            password = 'netapp1!'
-            name = 'test'
-            path = '/test'
             share_properties = 'browsable,oplocks'
-            symlink_properties = 'disable'
             vscan_fileop_profile = 'standard'
-            vserver = 'abc'
         else:
-            hostname = '10.193.77.37'
-            username = 'admin'
-            password = 'netapp1!'
-            name = 'test'
-            path = '/test'
             share_properties = 'show_previous_versions'
-            symlink_properties = 'disable'
             vscan_fileop_profile = 'no_scan'
-            vserver = 'abc'
+        password = 'netapp1!'
+        hostname = '10.193.77.37'
+        vserver = 'abc'
+        path = '/test'
+        username = 'admin'
+        symlink_properties = 'disable'
+        name = 'test'
         return dict({
             'hostname': hostname,
             'username': username,
@@ -134,7 +127,8 @@ class TestMyModule(unittest.TestCase):
             'share_properties': share_properties,
             'symlink_properties': symlink_properties,
             'vscan_fileop_profile': vscan_fileop_profile,
-            'vserver': vserver
+            'vserver': vserver,
+            'use_rest': 'never'
         })
 
     def test_module_fail_when_required_args_missing(self):
@@ -249,8 +243,7 @@ class TestMyModule(unittest.TestCase):
         :param kind: passes this param to MockONTAPConnection()
         :return: na_ontap_cifs_share object
         """
-        obj = my_module()
-        return obj
+        return my_module()
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_create(self, mock_request):

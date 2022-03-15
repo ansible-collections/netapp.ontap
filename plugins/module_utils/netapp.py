@@ -47,7 +47,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.17.3"
+COLLECTION_VERSION = "21.18.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
@@ -657,7 +657,7 @@ class OntapRestAPI(object):
             self.module.fail_json(msg='  '.join(msgs))
         version = self.get_ontap_version()
         if version < (minimum_generation, minimum_major, minimum_minor):
-            msg = 'Error: ' + self.requires_ontap_version(module_name, '%d.%d' % (minimum_generation, minimum_major))
+            msg = 'Error: ' + self.requires_ontap_version(module_name, '%d.%d.%d' % (minimum_generation, minimum_major, minimum_minor))
             msg += '  Found: %s.%s.%s.' % version
             self.module.fail_json(msg=msg)
 

@@ -178,7 +178,7 @@ class NetAppOntapSnapshot:
             if netapp_utils.has_netapp_lib():
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
             else:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         return
 
     def get_snapshot(self, snapshot_name=None, volume_id=None):
@@ -189,17 +189,19 @@ class NetAppOntapSnapshot:
         if self.use_rest:
             api = ('storage/volumes/%s/snapshots' % volume_id)
             params = {
-                'svm.name': self.parameters['vserver']
+                'svm.name': self.parameters['vserver'],
+                'fields': 'comment,expiry_time,volume',
             }
-            params['fields'] = 'comment,expiry_time'
             if self.parameters.get('snapmirror_label'):
                 params['fields'] += ',snapmirror_label'
-            if snapshot_name:
-                params['name'] = snapshot_name
-            else:
-                params['name'] = self.parameters['snapshot']
+            params['name'] = snapshot_name or self.parameters['snapshot']
             response, error = self.rest_api.get(api, params)
             snapshot, error = rrh.check_for_0_or_1_records(api, response, error, params)
+            if snapshot:
+                # flatten {'volume': {'name' : 'some_name'}} to match input paramters
+                snapshot['volume'] = snapshot['volume']['name']
+                # and add snapshot key to match input parameters
+                snapshot['snapshot'] = snapshot['name']
             return snapshot
 
         else:
@@ -229,11 +231,12 @@ class NetAppOntapSnapshot:
                     int(result.get_child_content('num-records')) == 1:
                 attributes_list = result.get_child_by_name('attributes-list')
                 snap_info = attributes_list.get_child_by_name('snapshot-info')
-                return_value = {'comment': snap_info.get_child_content('comment')}
+                return_value = {
+                    'comment': snap_info.get_child_content('comment'),
+                    'snapmirror_label': None
+                }
                 if snap_info.get_child_by_name('snapmirror-label'):
                     return_value['snapmirror_label'] = snap_info.get_child_content('snapmirror-label')
-                else:
-                    return_value['snapmirror_label'] = None
             return return_value
 
     def create_snapshot(self, volume_id=None):
@@ -316,12 +319,8 @@ class NetAppOntapSnapshot:
         :return:
         """
         if self.use_rest:
-            api = ('storage/volumes/%s/snapshots/%s' % (volume_id, uuid))
-            body = dict()
-            if rename:
-                body = {
-                    'name': self.parameters['snapshot'],
-                }
+            api = 'storage/volumes/%s/snapshots/%s' % (volume_id, uuid)
+            body = {'name': self.parameters['snapshot']} if rename else {}
             if self.parameters.get('comment'):
                 body['comment'] = self.parameters['comment']
             if self.parameters.get('snapmirror_label'):
@@ -384,11 +383,8 @@ class NetAppOntapSnapshot:
         """
         response, error = rest_volume.get_volume(self.rest_api, self.parameters['vserver'], self.parameters['volume'])
         if error is not None:
-            self.module.fail_json(msg="%s" % error)
-        if response:
-            return response['uuid']
-        else:
-            return None
+            self.module.fail_json(msg="Error getting volume info: %s" % error)
+        return response['uuid'] if response else None
 
     def apply(self):
         """
@@ -402,36 +398,34 @@ class NetAppOntapSnapshot:
             current = self.get_snapshot()
         else:
             volume_id = self.get_volume_uuid()
+            if volume_id is None:
+                self.module.fail_json(msg="Error: volume %s not found for vserver %s." % (self.parameters['volume'], self.parameters['vserver']))
             current = self.get_snapshot(volume_id=volume_id)
 
-            if current:
-                uuid = current['uuid']
-                # flatten {'volume': {'name' : 'some_name'}} to match input paramters
-                current['volume'] = current['volume']['name']
-        rename, cd_action = None, None
+        rename = False
         modify = {}
-        if self.parameters.get('from_name'):
-            current_old_name = self.get_snapshot(self.parameters['from_name'], volume_id=volume_id)
-            rename = self.na_helper.is_rename_action(current_old_name, current)
-            modify = self.na_helper.get_modified_attributes(current_old_name, self.parameters)
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-            if cd_action is None:
-                modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed and not self.module.check_mode:
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            current = self.get_snapshot(self.parameters['from_name'], volume_id=volume_id)
+            rename = self.na_helper.is_rename_action(current, None)
+            if rename is None:
+                self.module.fail_json(msg='Error renaming snapshot: %s - no snapshot with from_name: %s.'
+                                      % (self.parameters['snapshot'], self.parameters['from_name']))
             if rename:
-                if self.use_rest:
-                    uuid = self.get_snapshot(self.parameters['from_name'], volume_id=volume_id)['uuid']
-                    self.modify_snapshot(volume_id=volume_id, uuid=uuid, rename=True)
-                    self.get_snapshot(self.parameters['snapshot'], volume_id=volume_id)
-                else:
-                    self.rename_snapshot()
+                cd_action = None
+        if cd_action is None:
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if self.na_helper.changed and not self.module.check_mode:
+            uuid = current['uuid'] if current and self.use_rest else None
+            if rename and not self.use_rest:
+                # with REST, rename forces a change in modify for 'name'
+                self.rename_snapshot()
             if cd_action == 'create':
                 self.create_snapshot(volume_id=volume_id)
             elif cd_action == 'delete':
                 self.delete_snapshot(volume_id=volume_id, uuid=uuid)
             elif modify:
-                self.modify_snapshot(volume_id=volume_id, uuid=uuid)
+                self.modify_snapshot(volume_id=volume_id, uuid=uuid, rename=rename)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

@@ -13,7 +13,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+# from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_server \
     import NetAppOntapcifsServer as my_module  # module under test
@@ -130,7 +130,8 @@ class TestMyModule(unittest.TestCase):
             'password': password,
             'cifs_server_name': cifs_server,
             'vserver': vserver,
-            'use_rest': 'never'
+            'use_rest': 'never',
+            'feature_flags': {'no_cserver_ems': True}
         })
 
     def test_module_fail_when_required_args_missing(self):

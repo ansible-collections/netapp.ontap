@@ -95,6 +95,9 @@ options:
       - "years"
     type: str
 
+notes:
+  - supports ZAPI only.
+  - for REST, snaplock is supported in na_ontap_volume starting with 21.18.0.
 '''
 
 EXAMPLES = """
@@ -208,11 +211,8 @@ class NetAppOntapVolumeSnaplock(object):
         current, modify = self.get_volume_snaplock_attrs(), None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                self.set_volume_snaplock_attrs(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            self.set_volume_snaplock_attrs(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

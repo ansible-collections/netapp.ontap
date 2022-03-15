@@ -45,6 +45,8 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 _DEFAULT_RESPONSES = {
     'empty': ({}, None),
     'success': ({}, None),
+    'no_records': ({'num-records': '0'}, None),
+    'one_record_no_data': ({'num-records': '1'}, None),
     'version': ({'version': 'zapi_version'}, None),
     'cserver': ({
         'attributes-list': {

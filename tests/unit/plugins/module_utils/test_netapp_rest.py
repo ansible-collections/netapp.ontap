@@ -364,7 +364,7 @@ def test_fail_if_not_rest_minimum_version():
         'Error using REST for version, error: Expected error.  Error using REST for version, status_code: 400.'
     # version mismatch
     assert expect_and_capture_ansible_exception(rest_api.fail_if_not_rest_minimum_version, 'fail', 'module_name', 9, 7)['msg'] ==\
-        'Error: module_name only supports REST, and requires ONTAP 9.7 or later.  Found: 9.6.0.'
+        'Error: module_name only supports REST, and requires ONTAP 9.7.0 or later.  Found: 9.6.0.'
     # version match
     assert rest_api.fail_if_not_rest_minimum_version('module_name', 9, 6) is None
 
