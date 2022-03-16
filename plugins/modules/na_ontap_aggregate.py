@@ -354,7 +354,8 @@ class NetAppOntapAggregate:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        self.validate_options()
+        if self.parameters['state'] == 'present':
+            self.validate_options()
 
     def validate_options(self):
         errors = []
@@ -812,7 +813,7 @@ class NetAppOntapAggregate:
 
     def get_aggr_actions(self):
         aggr_name = self.parameters.get('name')
-        rename, cd_action = None, None
+        rename, cd_action, modify = None, None, {}
         current = self.get_aggr()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and self.parameters.get('from_name'):
@@ -826,18 +827,18 @@ class NetAppOntapAggregate:
                 current = old_aggregate
                 aggr_name = self.parameters['from_name']
                 cd_action = None
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if 'encryption' in modify and not self.use_rest:
-            self.module.fail_json(msg='Error: modifying encryption is not supported with ZAPI.')
-        if 'service_state' in modify and self.use_rest:
-            self.module.fail_json(msg='Error: modifying state is not supported with REST.  Cannot change to: %s.' % modify['service_state'])
-        if 'snaplock_type' in modify:
-            self.module.fail_json(msg='Error: snaplock_type is not modifiable.  Cannot change to: %s.' % modify['snaplock_type'])
-
-        if cd_action is None and self.parameters.get('disks') and current is not None:
-            modify['disks_to_add'], modify['mirror_disks_to_add'] = \
-                self.get_disks_to_add(aggr_name, self.parameters['disks'], self.parameters.get('mirror_disks'))
-        self.set_disk_count(current, modify)
+        if cd_action is None and self.parameters['state'] == 'present':
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if 'encryption' in modify and not self.use_rest:
+                self.module.fail_json(msg='Error: modifying encryption is not supported with ZAPI.')
+            if 'service_state' in modify and self.use_rest:
+                self.module.fail_json(msg='Error: modifying state is not supported with REST.  Cannot change to: %s.' % modify['service_state'])
+            if 'snaplock_type' in modify:
+                self.module.fail_json(msg='Error: snaplock_type is not modifiable.  Cannot change to: %s.' % modify['snaplock_type'])
+            if self.parameters.get('disks'):
+                modify['disks_to_add'], modify['mirror_disks_to_add'] = \
+                    self.get_disks_to_add(aggr_name, self.parameters['disks'], self.parameters.get('mirror_disks'))
+            self.set_disk_count(current, modify)
 
         return current, cd_action, rename, modify
 

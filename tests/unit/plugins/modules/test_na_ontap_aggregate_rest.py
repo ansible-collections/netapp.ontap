@@ -534,6 +534,7 @@ def test_apply_delete():
     ])
     module_args = {
         'state': 'absent',
+        'disk_count': 4
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -543,10 +544,7 @@ def test_get_aggr_actions_error_service_state_rest():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/aggregates', SRR['one_record']),  # get
     ])
-    module_args = {
-        'state': 'absent',
-    }
-    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['service_state'] = 'offline'
 
     error = expect_and_capture_ansible_exception(my_obj.get_aggr_actions, 'fail')['msg']

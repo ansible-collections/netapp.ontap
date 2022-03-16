@@ -107,7 +107,7 @@ def test_create():
         'raid_type': 'raid_dp',
         'snaplock_type': 'non_snaplock',
         # 'spare_pool': 'Pool0',
-        'disk_count': 2,
+        'disk_count': 4,
         'raid_size': 5,
         'disk_size': 10,
         # 'disk_size_with_unit': 'dsize_unit',
@@ -115,6 +115,18 @@ def test_create():
         'ignore_pool_checks': True,
         'encryption': True,
         'nodes': ['node1', 'node2']
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete():
+    register_responses([
+        ('aggr-get-iter', ZRR['aggr_info']),
+        ('aggr-destroy', ZRR['empty'])
+    ])
+    module_args = {
+        'state': 'absent',
+        'disk_count': 3
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
