@@ -38,13 +38,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.18.0
 
 ### New Options
+  - na_ontap_export_policy_rule - new option `ntfs_unix_security` for NTFS export UNIX security options added.
   - na_ontap_volume - add support for SnapLock - only for REST.
 
 ### Bug Fixes
+  - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
-  - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
+  - Fixed ONTAP minor version ignored in checking minimum ONTAP version.
 
 ## 21.17.3
 

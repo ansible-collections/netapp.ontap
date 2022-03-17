@@ -21,12 +21,12 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Create or delete or modify export rules in ONTAP
+  - Create or delete or modify export rules in ONTAP
 
 options:
   state:
     description:
-    - Whether the specified export policy rule should exist or not.
+      - Whether the specified export policy rule should exist or not.
     required: false
     choices: ['present', 'absent']
     type: str
@@ -34,73 +34,80 @@ options:
 
   name:
     description:
-    - The name of the export policy this rule will be added to (or modified, or removed from).
+      - The name of the export policy this rule will be added to (or modified, or removed from).
     required: True
     type: str
     aliases:
-    - policy_name
+      - policy_name
 
   client_match:
     description:
-    - List of Client Match host names, IP Addresses, Netgroups, or Domains
-    - If rule_index is not provided, client_match is used as a key to fetch current rule to determine create,delete,modify actions.
-      If a rule with provided client_match exists, a new rule will not be created, but the existing rule will be modified or deleted.
-      If a rule with provided client_match doesn't exist, a new rule will be created if state is present.
+      - List of Client Match host names, IP Addresses, Netgroups, or Domains
+      - If rule_index is not provided, client_match is used as a key to fetch current rule to determine create,delete,modify actions.
+        If a rule with provided client_match exists, a new rule will not be created, but the existing rule will be modified or deleted.
+        If a rule with provided client_match doesn't exist, a new rule will be created if state is present.
     type: list
     elements: str
 
   anonymous_user_id:
     description:
-    - User name or ID to which anonymous users are mapped. Default value is '65534'.
+      - User name or ID to which anonymous users are mapped. Default value is '65534'.
     type: str
 
   ro_rule:
     description:
-    - List of Read only access specifications for the rule
+      - List of Read only access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
     elements: str
 
   rw_rule:
     description:
-    - List of Read Write access specifications for the rule
+      - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
     elements: str
 
   super_user_security:
     description:
-    - List of Read Write access specifications for the rule
+      - List of Read Write access specifications for the rule
     choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
     type: list
     elements: str
 
   allow_suid:
     description:
-    - If 'true', NFS server will honor SetUID bits in SETATTR operation. Default value on creation is 'true'
+      - If 'true', NFS server will honor SetUID bits in SETATTR operation. Default value on creation is 'true'
     type: bool
 
   protocol:
     description:
-    - List of Client access protocols.
-    - Default value is set to 'any' during create.
+      - List of Client access protocols.
+      - Default value is set to 'any' during create.
     choices: [any,nfs,nfs3,nfs4,cifs,flexcache]
     type: list
     elements: str
     aliases:
-    - protocols
+      - protocols
 
   rule_index:
     description:
-    - index of the export policy rule
+      - index of the export policy rule
     type: int
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     required: true
     type: str
 
+  ntfs_unix_security:
+    description:
+      - NTFS export UNIX security options.
+      - With REST, supported from ONTAP 9.9.1 version.
+    type: str
+    choices: ['fail', 'ignore']
+    version_added: 21.18.0
 '''
 
 EXAMPLES = """
@@ -116,6 +123,7 @@ EXAMPLES = """
         super_user_security: any
         anonymous_user_id: 65534
         allow_suid: true
+        ntfs_unix_security: ignore
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -131,6 +139,7 @@ EXAMPLES = """
         rw_rule: any
         protocol: any
         allow_suid: false
+        ntfs_unix_security: fail
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -187,6 +196,7 @@ class NetAppontapExportRule:
             rule_index=dict(required=False, type='int'),
             anonymous_user_id=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
+            ntfs_unix_security=dict(required=False, type='str', choices=['fail', 'ignore'])
         ))
 
         self.module = AnsibleModule(
@@ -200,19 +210,19 @@ class NetAppontapExportRule:
 
         unsupported_rest_properties = ['allow_suid']
         self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        partially_supported_rest_properties = [['ntfs_unix_security', (9, 9, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(
-                    module=self.module, vserver=self.parameters['vserver'])
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
             'anonymous_user_id': 'anonymous-user-id',
             'client_match': 'client-match',
-            'name': 'policy-name'
+            'name': 'policy-name',
+            'ntfs_unix_security': 'export-ntfs-unix-security-ops'
         }
         self.na_helper.zapi_list_keys = {
             'protocol': ('protocol', 'access-protocol'),
@@ -441,6 +451,8 @@ class NetAppontapExportRule:
         if self.parameters.get('rule_index') is None:
             return self.get_export_policy_rule_without_index(policy)
         options = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
+        if 'ntfs_unix_security' in self.parameters:
+            options['fields'] += ',ntfs_unix_security'
         api = 'protocols/nfs/export-policies/%s/rules/%s' % (policy['id'], self.parameters['rule_index'])
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
@@ -454,6 +466,8 @@ class NetAppontapExportRule:
 
     def get_export_policy_rule_without_index(self, policy):
         options = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
+        if 'ntfs_unix_security' in self.parameters:
+            options['fields'] += ',ntfs_unix_security'
         api = 'protocols/nfs/export-policies/%s/rules' % policy['id']
         records, error = rest_generic.get_0_or_more_records(self.rest_api, api, options)
         if error:
@@ -500,6 +514,8 @@ class NetAppontapExportRule:
             body['protocols'] = self.parameters['protocol']
         if self.parameters.get('super_user_security'):
             body['superuser'] = self.parameters['super_user_security']
+        if self.parameters.get('ntfs_unix_security'):
+            body['ntfs_unix_security'] = self.parameters['ntfs_unix_security']
         api = 'protocols/nfs/export-policies/%s/rules' % str(policy_id)
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
@@ -529,6 +545,8 @@ class NetAppontapExportRule:
             body['ro_rule'] = self.parameters['ro_rule']
         if params.get('rw_rule'):
             body['rw_rule'] = self.parameters['rw_rule']
+        if params.get('ntfs_unix_security'):
+            body['ntfs_unix_security'] = self.parameters['ntfs_unix_security']
         api = 'protocols/nfs/export-policies/%s/rules' % str(policy_id)
         dummy, error = rest_generic. patch_async(self.rest_api, api, rule_index, body)
         if error:

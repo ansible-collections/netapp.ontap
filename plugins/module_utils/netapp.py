@@ -921,7 +921,7 @@ class OntapRestAPI(object):
                 "Minimum version of ONTAP for %s is %s\n"
                 % (property[0], str(property[1]))
                 for property in partially_supported_rest_properties
-                if self.get_ontap_version()[0:2] < property[1] and property[0] in parameters
+                if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters
             )
             if error != '':
                 return True, error
