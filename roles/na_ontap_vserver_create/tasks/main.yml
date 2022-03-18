@@ -9,6 +9,7 @@
     # with REST, the 3 root_volume options above are not needed, and not supported
     ignore_rest_unsupported_options: true
     aggr_list: "{{ '*' if item.aggr_list is not defined else item.aggr_list }}"
+    max_volumes: "{{ item.max_volumes | default(omit) }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"

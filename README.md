@@ -41,6 +41,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_export_policy_rule - new option `ntfs_unix_security` for NTFS export UNIX security options added.
   - na_ontap_volume - add support for SnapLock - only for REST.
 
+### Minor Changes
+  - na_ontap_vserver_create role - support max_volumes option.
+  - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
+
 ### Bug Fixes
   - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
   - na_ontap_snapshot - fix key error on volume when using REST.

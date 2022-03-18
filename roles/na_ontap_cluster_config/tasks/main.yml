@@ -22,15 +22,16 @@
     "{{ disks }}"
   when: disks != None
 - name: Set Login Message
-  na_ontap_motd:
-    state: present
+  na_ontap_login_messages:
     vserver: "{{ cluster }}"
-    message: "{{ motd }}"
+    motd_message: "{{ motd }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     https: true
     validate_certs: "{{ validate_certs }}"
+    # TODO: support cluster scope in na_ontap_login_messages when using REST
+    use_rest: never
   when: motd != None
 - name: Setup DNS
   na_ontap_dns:
