@@ -1050,7 +1050,7 @@ class NetAppONTAPGatherInfo(object):
                 'kwargs': {
                     'call': 'job-schedule-cron-get-iter',
                     'attribute': 'job-schedule-cron-info',
-                    'key_fields': ('job-schedule-name', 'job-schedule-cluster'),
+                    'key_fields': ('job-schedule-name', ('job-schedule-cluster', None)),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',

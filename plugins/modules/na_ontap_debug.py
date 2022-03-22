@@ -3,7 +3,7 @@
 create Debug module to diagnose netapp-lib import and connection
 """
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -68,16 +68,21 @@ class NetAppONTAPDebug(object):
         self.note_list = []
         self.server = None
 
+    def list_versions(self):
+        self.log_list.append('Ansible version: %s' % netapp_utils.ansible_version)
+        self.log_list.append('ONTAP collection version: %s' % netapp_utils.COLLECTION_VERSION)
+
     def import_lib(self):
         if not netapp_utils.has_netapp_lib():
             syspath = ','.join(sys.path)
-            msgs = list()
-            msgs.append('Error importing netapp-lib or a dependency: %s.' % str(netapp_utils.IMPORT_EXCEPTION))
-            msgs.append('Install the python netapp-lib module or a missing dependency.')
-            msgs.append('Additional diagnostic information:')
-            msgs.append('Python Executable Path: ' + sys.executable)
-            msgs.append('Python Version: Python Version: %s.' + sys.version)
-            msgs.append('System Path: ' + syspath)
+            msgs = [
+                'Error importing netapp-lib or a dependency: %s.' % str(netapp_utils.IMPORT_EXCEPTION),
+                'Install the python netapp-lib module or a missing dependency.',
+                'Additional diagnostic information:',
+                'Python Executable Path: %s.' % sys.executable,
+                'Python Version: %s.' % sys.version,
+                'System Path: %s.' % syspath,
+            ]
             self.error_list.append('  '.join(msgs))
             return
         self.log_list.append('netapp-lib imported successfully.')
@@ -87,10 +92,10 @@ class NetAppONTAPDebug(object):
         check connection errors and diagnose
         """
         error_string = None
-        if connection_type == "rest":
-            api = 'cluster/'
+        if connection_type == "REST":
+            api = 'cluster'
             message, error_string = self.rest_api.get(api)
-        elif connection_type == "zapi":
+        elif connection_type == "ZAPI":
             if 'vserver' not in self.parameters:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
             else:
@@ -100,6 +105,9 @@ class NetAppONTAPDebug(object):
                 result = self.server.invoke_successfully(version_obj, True)
             except netapp_utils.zapi.NaApiError as error:
                 error_string = to_native(error)
+        else:
+            self.module.fail_json(msg='Internal error, unexpected connection type: %s' % connection_type)
+
         if error_string is not None:
             summary_msg = None
             error_patterns = ['Connection timed out',
@@ -119,18 +127,14 @@ class NetAppONTAPDebug(object):
                 if 'vserver' in self.parameters:
                     summary_msg += ' for SVM: %s ' % self.parameters['vserver']
                 self.error_list.append('Error in hostname - DNS name cannot be resolved: ' + error_string)
-                self.error_list.append(summary_msg + ' cannot be resolved using' + connection_type)
+                self.error_list.append('%s cannot be resolved using %s.' % (summary_msg, connection_type))
             else:
                 self.error_list.append('Other error for hostname: %s using %s: %s.' % (self.parameters['hostname'], connection_type, error_string))
                 self.error_list.append('Unclassified, see msg')
             return False
 
-        if connection_type == 'zapi':
-            ontap_version = result['version']
-        elif connection_type == 'rest':
-            ontap_version = message['version']['full']
-
-        self.log_list.append(connection_type + ' connected successfully.')
+        ontap_version = message['version']['full'] if connection_type == 'REST' else result['version']
+        self.log_list.append('%s connected successfully.' % connection_type)
         self.log_list.append('ONTAP version: %s' % ontap_version)
         return True
 
@@ -156,49 +160,58 @@ class NetAppONTAPDebug(object):
                     data.append(value)
                 self.log_list.append('vserver: %s, interface: %s, IP: %s, service policies: %s' % tuple(data))
 
-    def validate_user(self, vserver_name, user):
+    def validate_user(self, user):
         locked = user.get('locked')
         if locked:
-            self.note_list.append('NOTE: user: %s is locked for: %s' % (user['name'], vserver_name))
-        applications = user.get('applications')
+            self.note_list.append('NOTE: user: %s is locked on vserver: %s' % (user['name'], self.na_helper.safe_get(user, ['owner', 'name'])))
+        applications = user.get('applications', [])
         apps = [app['application'] for app in applications]
-        for application in ('http', 'ontapi'):
-            if application not in apps:
+        role = self.na_helper.safe_get(user, ['role', 'name'])
+        for application in ('http', 'ontapi', 'console'):
+            if application not in apps and (application != 'console' or role == 'admin'):
                 self.note_list.append('NOTE: application %s not found for user: %s: %s' % (application, user['name'], apps))
+                if application == 'console':
+                    self.note_list.append("NOTE: console access is only needed for na_ontap_command.")
         has_http = locked is False and 'http' in apps
         has_ontapi = locked is False and 'ontapi' in apps
         return has_http, has_ontapi
 
-    def list_users(self, vserver_name, role='vsadmin'):
-        query = {'owner.name': vserver_name, 'role.name': role, 'fields': 'applications,locked'}
-        users, error = get_users(self.rest_api, query)
+    def list_users(self, vserver_name=None, user_name=None):
+        query = {'owner.name': vserver_name} if vserver_name else {'name': user_name}
+        users, error = get_users(self.rest_api, query, 'applications,locked,owner,role')
         if not error and not users:
             error = 'none found'
+        name = vserver_name or user_name
         if error:
             if 'not authorized for that command' in error:
-                self.log_list.append('Not autorized to get accounts with %s role for: %s: %s' % (role, vserver_name, error))
+                self.log_list.append('Not autorized to get accounts for: %s: %s' % (name, error))
             else:
-                self.error_list.append('Error getting accounts with %s role for: %s: %s' % (role, vserver_name, error))
+                self.error_list.append('Error getting accounts for: %s: %s' % (name, error))
         else:
             one_http, one_ontapi = False, False
             for user in users:
-                data = [vserver_name]
-                for field in ('name', 'locked', 'applications'):
-                    value = str(user.get(field))
-                    data.append(value)
-                self.log_list.append('vserver: %s, user: %s, locked: %s, applications: %s' % tuple(data))
-                has_http, has_ontapi = self.validate_user(vserver_name, user)
+                data = {}
+                for field in ('owner', 'name', 'role', 'locked', 'applications'):
+                    if field in ('owner', 'role'):
+                        value = str(self.na_helper.safe_get(user, [field, 'name']))
+                    else:
+                        value = str(user.get(field))
+                    data[field] = value
+                self.log_list.append(', '. join('%s: %s' % x for x in data.items()))
+                has_http, has_ontapi = self.validate_user(user)
                 one_http |= has_http
                 one_ontapi |= has_ontapi
+            msg = 'Error: no unlocked user for %s on vserver: %s'if vserver_name else\
+                  'Error: %s is not enabled for user %s'
             if not one_http:
-                self.error_list.append('Error: no unlocked user for http on vserver: %s' % vserver_name)
+                self.error_list.append(msg % ('http', name))
             if not one_ontapi:
-                self.error_list.append('Error: no unlocked user for ontapi on vserver: %s' % vserver_name)
+                self.error_list.append(msg % ('ontapi', name))
 
     def check_vserver(self, name):
 
         self.list_interfaces(name)
-        self.list_users(name)
+        self.list_users(vserver_name=name)
 
     def asup_log_for_cserver(self, event_name):
         """
@@ -211,6 +224,7 @@ class NetAppONTAPDebug(object):
         if cserver is None:
             server = self.server
             event_name += ':error_no_cserver'
+            self.note_list.append('cserver not found')
         else:
             server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
         netapp_utils.ems_log_event(event_name, server)
@@ -219,17 +233,20 @@ class NetAppONTAPDebug(object):
         """
         Apply debug
         """
+        # report Ansible and our collection versions
+        self.list_versions()
+
         # check import netapp-lib
         self.import_lib()
 
         # check zapi connection errors only if import successful
         if netapp_utils.has_netapp_lib():
-            has_zapi = self.check_connection("zapi")
+            has_zapi = self.check_connection("ZAPI")
         else:
             has_zapi = False
 
         # check rest connection errors
-        has_rest = self.check_connection("rest")
+        has_rest = self.check_connection("REST")
 
         # log asup event with current event_name
         if has_zapi:
@@ -238,10 +255,12 @@ class NetAppONTAPDebug(object):
             except netapp_utils.zapi.NaApiError as error:
                 self.error_list.append('Failed to log EMS message: %s' % str(error))
 
-        if 'vserver' in self.parameters and has_rest:
-            self.check_vserver(self.parameters['vserver'])
+        if has_rest:
+            self.list_users(user_name=self.parameters.get('username'))
+            if 'vserver' in self.parameters:
+                self.check_vserver(self.parameters['vserver'])
 
-        msgs = dict()
+        msgs = {}
         if self.note_list:
             msgs['notes'] = self.note_list
         if self.error_list:

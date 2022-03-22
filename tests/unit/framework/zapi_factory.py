@@ -120,6 +120,7 @@ class zapi_responses:
             value, valid = self.responses[name]
             # sanity checks for netapp-lib are deferred until the test is actually run
             if valid != 'valid':
+                print("Error: Defer any runtime dereference, eg ZRR['key'], until runtime or protect dereference under has_netapp_lib().")
                 raise ImportError(value)
             return value, valid
         except KeyError:

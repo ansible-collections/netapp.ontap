@@ -42,11 +42,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - add support for SnapLock - only for REST.
 
 ### Minor Changes
-  - na_ontap_vserver_create role - support max_volumes option.
   - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
+  - na_ontap_debug - report ansible version and ONTAP collection version.
+  - na_ontap_vserver_create role - support max_volumes option.
 
 ### Bug Fixes
   - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
+  - na_ontap_info - [#54] Fixes issue with na_ontap_info failing in 9.1 because of `job-schedule-cluster`.
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
