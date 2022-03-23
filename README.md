@@ -54,6 +54,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
   - Fixed ONTAP minor version ignored in checking minimum ONTAP version.
 
+### Added REST support to existing modules
+  - na_ontap_efficiency_policy - Added REST support.
+
 ## 21.17.3
 
 ### Bug Fixes

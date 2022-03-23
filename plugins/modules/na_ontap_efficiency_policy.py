@@ -1,15 +1,14 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2019-2022, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_efficiency_policy
+'''
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 DOCUMENTATION = '''
 module: na_ontap_efficiency_policy
@@ -19,79 +18,79 @@ extends_documentation_fragment:
 version_added: 2.9.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create/Modify/Delete efficiency policies (sis policies)
+  - Create/Modify/Delete efficiency policies (sis policies)
 options:
   state:
     description:
-    - Whether the specified efficiency policy should exist or not.
+      - Whether the specified efficiency policy should exist or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   policy_name:
     description:
-    - the name of the efficiency policy
+      - the name of the efficiency policy
     required: true
     type: str
 
   comment:
     description:
-    - A brief description of the policy.
+      - A brief description of the policy.
     type: str
 
   duration:
     description:
-    - The duration in hours for which the scheduled efficiency operation should run.
-      After this time expires, the efficiency operation will be stopped even if the operation is incomplete.
-      If '-' is specified as the duration, the efficiency operation will run till it completes. Otherwise, the duration has to be an integer greater than 0.
-      By default, the operation runs till it completes.
+      - The duration in hours for which the scheduled efficiency operation should run.
+        After this time expires, the efficiency operation will be stopped even if the operation is incomplete.
+        If '-' is specified as the duration, the efficiency operation will run till it completes. Otherwise, the duration has to be an integer greater than 0.
+        By default, the operation runs till it completes.
     type: str
 
   enabled:
     description:
-    - If the value is true, the efficiency policy is active in this cluster.
-      If the value is false this policy will not be activated by the schedulers and hence will be inactive.
+      - If the value is true, the efficiency policy is active in this cluster.
+        If the value is false this policy will not be activated by the schedulers and hence will be inactive.
     type: bool
 
   policy_type:
     description:
-    - The policy type reflects the reason a volume using this policy will start processing a changelog.
-    - (Changelog processing is identifying and eliminating duplicate blocks which were written since the changelog was last processed.)
-    - threshold Changelog processing occurs once the changelog reaches a certain percent full.
-    - scheduled Changelog processing will be triggered by time.
+      - The policy type reflects the reason a volume using this policy will start processing a changelog.
+      - (Changelog processing is identifying and eliminating duplicate blocks which were written since the changelog was last processed.)
+      - threshold Changelog processing occurs once the changelog reaches a certain percent full.
+      - scheduled Changelog processing will be triggered by time.
     choices: ['threshold', 'scheduled']
     type: str
 
   qos_policy:
     description:
-    - QoS policy for the efficiency operation.
-    - background efficiency operation will run in background with minimal or no impact on data serving client operations,
-    - best-effort efficiency operations may have some impact on data serving client operations.
+      - QoS policy for the efficiency operation.
+      - background efficiency operation will run in background with minimal or no impact on data serving client operations,
+      - best-effort efficiency operations may have some impact on data serving client operations.
     choices: ['background', 'best_effort']
     type: str
 
   schedule:
     description:
-    - Cron type job schedule name. When the associated policy is set on a volume, the efficiency operation will be triggered for the volume on this schedule.
-    - These schedules can be created using the na_ontap_job_schedule module
+      - Cron type job schedule name. When the associated policy is set on a volume, the efficiency operation will be triggered for the volume on this schedule.
+      - These schedules can be created using the na_ontap_job_schedule module
     type: str
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     required: true
     type: str
 
   changelog_threshold_percent:
     description:
-    - Specifies the percentage at which the changelog will be processed for a threshold type of policy, tested once each hour.
+      - Specifies the percentage at which the changelog will be processed for a threshold type of policy, tested once each hour.
     type: int
     version_added: '19.11.0'
 '''
 
 EXAMPLES = """
     - name: Create threshold efficiency policy
-      na_ontap_efficiency_policy:
+      netapp.ontap.na_ontap_efficiency_policy:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -105,7 +104,7 @@ EXAMPLES = """
         changelog_threshold_percent: 20
 
     - name: Create Scheduled efficiency Policy
-      na_ontap_efficiency_policy:
+      netapp.ontap.na_ontap_efficiency_policy:
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -128,8 +127,8 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapEfficiencyPolicy(object):
@@ -157,8 +156,21 @@ class NetAppOntapEfficiencyPolicy(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.set_playbook_zapi_key_map()
-        if self.parameters.get('policy_type'):
+
+        # Set up Rest API
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.uuid = None
+
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
+            msg = 'REST requires ONTAP 9.8 or later for efficiency_policy APIs.'
+            if self.parameters['use_rest'].lower() == 'always':
+                self.module.fail_json(msg='Error: %s' % msg)
+            if self.parameters['use_rest'].lower() == 'auto':
+                self.module.warn('Falling back to ZAPI: %s' % msg)
+                self.use_rest = False
+
+        if self.parameters.get('policy_type') and self.parameters['state'] == 'present':
             if self.parameters['policy_type'] == 'threshold':
                 if self.parameters.get('duration'):
                     self.module.fail_json(msg="duration cannot be set if policy_type is threshold")
@@ -168,10 +180,12 @@ class NetAppOntapEfficiencyPolicy(object):
             else:
                 if self.parameters.get('changelog_threshold_percent'):
                     self.module.fail_json(msg='changelog_threshold_percent cannot be set if policy_type is scheduled')
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            self.set_playbook_zapi_key_map()
 
     def set_playbook_zapi_key_map(self):
 
@@ -195,6 +209,8 @@ class NetAppOntapEfficiencyPolicy(object):
         Get a efficiency policy
         :return: a efficiency-policy info
         """
+        if self.use_rest:
+            return self.get_efficiency_policy_rest()
         sis_policy_obj = netapp_utils.zapi.NaElement("sis-policy-get-iter")
         query = netapp_utils.zapi.NaElement("query")
         sis_policy_info = netapp_utils.zapi.NaElement("sis-policy-info")
@@ -220,11 +236,35 @@ class NetAppOntapEfficiencyPolicy(object):
             return return_value
         return None
 
+    def get_efficiency_policy_rest(self):
+        api = 'storage/volume-efficiency-policies'
+        query = {'name': self.parameters['policy_name'], 'svm.name': self.parameters['vserver']}
+        fields = 'name,type,start_threshold_percent,qos_policy,schedule,comment,duration,enabled'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg="Error searching for efficiency policy %s: %s" % (self.parameters['policy_name'], error))
+        if record:
+            self.uuid = record['uuid']
+            current = {
+                'policy_name': record['name'],
+                'policy_type': record['type'],
+                'qos_policy': record['qos_policy'],
+                'schedule': record['schedule']['name'] if 'schedule' in record else None,
+                'enabled': record['enabled'],
+                'duration': record['duration'] if 'duration' in record else None,
+                'changelog_threshold_percent': record['start_threshold_percent'] if 'start_threshold_percent' in record else None,
+                'comment': record['comment']
+            }
+            return current
+        return None
+
     def create_efficiency_policy(self):
         """
         Creates a efficiency policy
         :return: None
         """
+        if self.use_rest:
+            return self.create_efficiency_policy_rest()
         sis_policy_obj = netapp_utils.zapi.NaElement("sis-policy-create")
         for option, zapi_key in self.na_helper.zapi_int_keys.items():
             if self.parameters.get(option):
@@ -245,11 +285,48 @@ class NetAppOntapEfficiencyPolicy(object):
             self.module.fail_json(msg="Error creating efficiency policy %s: %s" % (self.parameters["policy_name"], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def create_efficiency_policy_rest(self):
+        api = 'storage/volume-efficiency-policies'
+        body = {
+            'svm.name': self.parameters['vserver'],
+            'name': self.parameters['policy_name']
+        }
+        create_or_modify_body = self.form_create_or_modify_body(self.parameters)
+        if create_or_modify_body:
+            body.update(create_or_modify_body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg="Error creating efficiency policy %s: %s" % (self.parameters["policy_name"], error))
+
+    def form_create_or_modify_body(self, create_or_modify):
+        """
+        Form body contents for create or modify efficiency policy.
+        :return: create or modify body.
+        """
+        body = {}
+        if 'comment' in create_or_modify:
+            body['comment'] = create_or_modify['comment']
+        if 'duration' in create_or_modify:
+            body['duration'] = create_or_modify['duration']
+        if 'enabled' in create_or_modify:
+            body['enabled'] = create_or_modify['enabled']
+        if 'qos_policy' in create_or_modify:
+            body['qos_policy'] = create_or_modify['qos_policy']
+        if 'schedule' in create_or_modify:
+            body['schedule'] = {'name': create_or_modify['schedule']}
+        if 'changelog_threshold_percent' in create_or_modify:
+            body['start_threshold_percent'] = create_or_modify['changelog_threshold_percent']
+        if 'policy_type' in create_or_modify:
+            body['type'] = create_or_modify['policy_type']
+        return body
+
     def delete_efficiency_policy(self):
         """
         Delete a efficiency Policy
         :return: None
         """
+        if self.use_rest:
+            return self.delete_efficiency_policy_rest()
         sis_policy_obj = netapp_utils.zapi.NaElement("sis-policy-delete")
         sis_policy_obj.add_new_child("policy-name", self.parameters['policy_name'])
         try:
@@ -258,24 +335,21 @@ class NetAppOntapEfficiencyPolicy(object):
             self.module.fail_json(msg="Error deleting efficiency policy %s: %s" % (self.parameters["policy_name"], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_efficiency_policy(self, current, modify):
+    def delete_efficiency_policy_rest(self):
+        api = 'storage/volume-efficiency-policies'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid)
+        if error:
+            self.module.fail_json(msg="Error deleting efficiency policy %s: %s" % (self.parameters["policy_name"], error))
+
+    def modify_efficiency_policy(self, modify):
         """
         Modify a efficiency policy
         :return: None
         """
+        if self.use_rest:
+            return self.modify_efficiency_policy_rest(modify)
         sis_policy_obj = netapp_utils.zapi.NaElement("sis-policy-modify")
         sis_policy_obj.add_new_child("policy-name", self.parameters['policy_name'])
-        # sis-policy-create zapi pre-checks the options and fails if it's not supported.
-        # sis-policy-modify pre-checks one of the options, but tries to modify the others even it's not supported. And it will mess up the vsim.
-        # Do the checks before sending to the zapi.
-        if current['policy_type'] == 'scheduled' and self.parameters.get('policy_type') != 'threshold':
-            if modify.get('changelog_threshold_percent'):
-                self.module.fail_json(msg="changelog_threshold_percent cannot be set if policy_type is scheduled")
-        elif current['policy_type'] == 'threshold' and self.parameters.get('policy_type') != 'scheduled':
-            if modify.get('duration'):
-                self.module.fail_json(msg="duration cannot be set if policy_type is threshold")
-            elif modify.get('schedule'):
-                self.module.fail_json(msg="schedule cannot be set if policy_type is threshold")
         for attribute in modify:
             sis_policy_obj.add_new_child(self.attribute_to_name(attribute), str(self.parameters[attribute]))
         try:
@@ -288,22 +362,45 @@ class NetAppOntapEfficiencyPolicy(object):
     def attribute_to_name(attribute):
         return str.replace(attribute, '_', '-')
 
+    def validate_modify(self, current, modify):
+        """
+        sis-policy-create zapi pre-checks the options and fails if it's not supported.
+        is-policy-modify pre-checks one of the options, but tries to modify the others even it's not supported. And it will mess up the vsim.
+        Do the checks before sending to the zapi.
+        This checks applicable for REST modify too.
+        """
+        if current['policy_type'] == 'scheduled' and self.parameters.get('policy_type') != 'threshold':
+            if modify.get('changelog_threshold_percent'):
+                self.module.fail_json(msg="changelog_threshold_percent cannot be set if policy_type is scheduled")
+        elif current['policy_type'] == 'threshold' and self.parameters.get('policy_type') != 'scheduled':
+            if modify.get('duration'):
+                self.module.fail_json(msg="duration cannot be set if policy_type is threshold")
+            elif modify.get('schedule'):
+                self.module.fail_json(msg="schedule cannot be set if policy_type is threshold")
+
+    def modify_efficiency_policy_rest(self, modify):
+        api = 'storage/volume-efficiency-policies'
+        body = self.form_create_or_modify_body(modify)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
+        if error:
+            self.module.fail_json(msg="Error modifying efficiency policy %s: %s" % (self.parameters["policy_name"], error))
+
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_efficiency_policy", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_efficiency_policy", self.server)
         current = self.get_efficiency_policy()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_efficiency_policy()
-                elif cd_action == 'delete':
-                    self.delete_efficiency_policy()
-                elif modify:
-                    self.modify_efficiency_policy(current, modify)
+            if modify:
+                self.validate_modify(current, modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_efficiency_policy()
+            elif cd_action == 'delete':
+                self.delete_efficiency_policy()
+            elif modify:
+                self.modify_efficiency_policy(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
