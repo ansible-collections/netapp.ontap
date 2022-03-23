@@ -7,6 +7,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke
 
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree \
@@ -104,7 +105,7 @@ def set_default_args(use_rest=None):
         'flexvol_name': flexvol_name,
         'export_policy': export_policy,
         'security_style': security_style,
-        'unix_permissions': mode
+        'unix_permissions': mode,
     })
 
     if use_rest is not None:

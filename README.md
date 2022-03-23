@@ -49,6 +49,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Bug Fixes
   - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
   - na_ontap_info - [#54] Fixes issue with na_ontap_info failing in 9.1 because of `job-schedule-cluster`.
+  - na_ontap_qtree - Fixed issue with `oplocks` not being changed during a modify in Zapi.
+  - na_ontap_qtree - Fixed issue with `oplocks` not warning user about not being supported in REST
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.

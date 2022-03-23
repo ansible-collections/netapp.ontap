@@ -186,9 +186,9 @@ class NetAppOntapQTree():
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         self.rest_api = OntapRestAPI(self.module)
-        if self.rest_api.is_rest():
-            self.use_rest = True
-        else:
+        unsupported_rest_properties = ['oplocks']
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        if not self.use_rest:
             if HAS_NETAPP_LIB is False:
                 self.module.fail_json(
                     msg="the python NetApp-Lib module is required")
@@ -397,6 +397,10 @@ class NetAppOntapQTree():
                 modify = True
             if self.parameters.get('unix_permissions') and \
                     self.parameters['unix_permissions'] != str(current['unix_permissions']):
+                modify = True
+            # For a quick bug fix i'm going to follow what was done here, but we need a second story to swtich this to the modify
+            # helper
+            if self.parameters.get('oplocks') and self.parameters['oplocks'] != current['oplocks']:
                 modify = True
             # rest and zapi handle export policy differently
             if self.use_rest:
