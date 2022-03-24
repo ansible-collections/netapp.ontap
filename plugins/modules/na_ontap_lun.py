@@ -4,8 +4,8 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
-__metaclass__ = type
 
+__metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_lun
@@ -72,14 +72,12 @@ options:
       Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
       reducing the LUN size.
     type: bool
-    default: false
 
   force_remove:
     description:
     - If "true", override checks that prevent a LUN from being destroyed if it is online and mapped.
     - If "false", destroying an online and mapped LUN will fail.
     type: bool
-    default: false
 
   force_remove_fenced:
     description:
@@ -87,7 +85,6 @@ options:
     - If "false", attempting to destroy a fenced LUN will fail.
     - The default if not specified is "false". This field is available in Data ONTAP 8.2 and later.
     type: bool
-    default: false
 
   vserver:
     required: true
@@ -126,7 +123,6 @@ options:
     - This enables support for the SCSI Thin Provisioning features.  If the Host and file system do
       not support this do not enable it.
     type: bool
-    default: False
     version_added: 2.7.0
 
   use_exact_size:
@@ -320,6 +316,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 class NetAppOntapLUN(object):
     ''' create, modify, delete LUN '''
+
     def __init__(self):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -332,16 +329,16 @@ class NetAppOntapLUN(object):
                            choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                     'pb', 'eb', 'zb', 'yb'], type='str'),
             comment=dict(required=False, type='str'),
-            force_resize=dict(default=False, type='bool'),
-            force_remove=dict(default=False, type='bool'),
-            force_remove_fenced=dict(default=False, type='bool'),
+            force_resize=dict(type='bool'),
+            force_remove=dict(type='bool'),
+            force_remove_fenced=dict(type='bool'),
             flexvol_name=dict(type='str'),
             vserver=dict(required=True, type='str'),
             os_type=dict(required=False, type='str', aliases=['ostype']),
             qos_policy_group=dict(required=False, type='str'),
             qos_adaptive_policy_group=dict(required=False, type='str'),
             space_reserve=dict(required=False, type='bool', default=True),
-            space_allocation=dict(required=False, type='bool', default=False),
+            space_allocation=dict(required=False, type='bool'),
             use_exact_size=dict(required=False, type='bool', default=True),
             san_application_template=dict(type='dict', options=dict(
                 use_san_application=dict(type='bool', default=True),
@@ -356,7 +353,7 @@ class NetAppOntapLUN(object):
                 tiering=dict(type='dict', options=dict(
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
                     policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
-                    object_stores=dict(type='list', elements='str')     # create only
+                    object_stores=dict(type='list', elements='str')  # create only
                 )),
                 total_size=dict(type='int'),
                 total_size_unit=dict(choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
@@ -384,32 +381,40 @@ class NetAppOntapLUN(object):
             self.parameters['san_application_template']['total_size'] *= netapp_utils.POW2_BYTE_MAP[unit]
 
         self.debug = {}
+        self.uuid = None
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        self.rest_api = OntapRestAPI(self.module)
+        # use_exact_size is defaulted to true, bbut not supported with REST. To get around this we will ignore the variable in rest.
+        unsupported_rest_properties = ['force_resize', 'force_remove_fenced', 'qos_adaptive_policy_group']
+        partially_supported_rest_properties = [['san_application_template', (9, 7)],
+                                               ['space_allocation', (9, 10)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties,
+                                                                   partially_supported_rest_properties)
+        if self.use_rest:
+            self.parameters.pop('use_exact_size')
         else:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
         # REST API for application/applications if needed
-        self.rest_api, self.rest_app = self.setup_rest_application()
+        self.rest_app = self.setup_rest_application()
 
     def setup_rest_application(self):
         use_application_template = self.na_helper.safe_get(self.parameters, ['san_application_template', 'use_san_application'])
-        rest_api, rest_app = None, None
-        if use_application_template:
-            if self.parameters.get('flexvol_name') is not None:
-                self.module.fail_json(msg="'flexvol_name' option is not supported when san_application_template is present")
-            rest_api = netapp_utils.OntapRestAPI(self.module)
-            use_rest = rest_api.is_rest()
-            ontap_97_options = ['san_application_template']
-            if not rest_api.meets_rest_minimum_version(use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
-                self.module.fail_json(msg='Error: %s' % rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
-            name = self.na_helper.safe_get(self.parameters, ['san_application_template', 'name'], allow_sparse_dict=False)
-            rest_app = RestApplication(rest_api, self.parameters['vserver'], name)
-        elif self.parameters.get('flexvol_name') is None:
-            self.module.fail_json(msg="flexvol_name option is required when san_application_template is not present")
-        return rest_api, rest_app
+        rest_app = None
+        if self.use_rest:
+            if use_application_template:
+                if self.parameters.get('flexvol_name') is not None:
+                    self.module.fail_json(msg="'flexvol_name' option is not supported when san_application_template is present")
+                name = self.na_helper.safe_get(self.parameters, ['san_application_template', 'name'], allow_sparse_dict=False)
+                rest_app = RestApplication(self.rest_api, self.parameters['vserver'], name)
+            elif self.parameters.get('flexvol_name') is None:
+                self.module.fail_json(msg="flexvol_name option is required when san_application_template is not present")
+        if use_application_template and not self.use_rest:
+            self.module.fail_json(msg="Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled.")
+        return rest_app
 
     def get_luns(self, lun_path=None):
         """
@@ -418,6 +423,8 @@ class NetAppOntapLUN(object):
         :return: list of LUNs in XML format.
         :rtype: list
         """
+        if self.use_rest:
+            return self.get_luns_rest(lun_path)
         luns = []
         tag = None
         if lun_path is None and self.parameters.get('flexvol_name') is None:
@@ -454,6 +461,8 @@ class NetAppOntapLUN(object):
         :return: Details about the lun
         :rtype: dict
         """
+        if self.use_rest:
+            return lun
         return_value = {'size': int(lun.get_child_content('size'))}
         bool_attr_map = {
             'is-space-alloc-enabled': 'space_allocation',
@@ -507,6 +516,8 @@ class NetAppOntapLUN(object):
         :return: lun record
         :rtype: XML or None if not found
         """
+        if self.use_rest:
+            return self.find_lun_rest(luns, name, lun_path)
         for lun in luns:
             path = lun.get_child_content('path')
             if lun_path is None:
@@ -575,7 +586,7 @@ class NetAppOntapLUN(object):
 
         application_component = dict(name=self.parameters['name'])
         if not modify:
-            application_component['lun_count'] = 1      # default value for create, may be overriden below
+            application_component['lun_count'] = 1  # default value for create, may be overriden below
 
         for attr in ('igroup_name', 'lun_count', 'storage_service'):
             if not modify or attr in modify:
@@ -584,9 +595,9 @@ class NetAppOntapLUN(object):
                     application_component[attr] = value
         for attr in ('os_type', 'qos_policy_group', 'qos_adaptive_policy_group', 'total_size'):
             if not self.rest_api.meets_rest_minimum_version(True, 9, 8, 0) and attr in (
-                'os_type',
-                'qos_policy_group',
-                'qos_adaptive_policy_group',
+                    'os_type',
+                    'qos_policy_group',
+                    'qos_adaptive_policy_group',
             ):
                 # os_type and qos are not supported in 9.7 for the SAN application_component
                 continue
@@ -627,12 +638,12 @@ class NetAppOntapLUN(object):
                     if value:
                         san[attr] = value
         for attr in ('exclude_aggregates',):
-            if modify is None:      # only used for create
+            if modify is None:  # only used for create
                 values = self.na_helper.safe_get(self.parameters, ['san_application_template', attr])
                 if values:
                     san[attr] = [dict(name=name) for name in values]
         for attr in ('os_type',):
-            if not modify:      # not supported for modify operation, but required at application component level for create
+            if not modify:  # not supported for modify operation, but required at application component level for create
                 value = self.na_helper.safe_get(self.parameters, [attr])
                 if value is not None:
                     san[attr] = value
@@ -686,12 +697,15 @@ class NetAppOntapLUN(object):
         """
         Create LUN with requested name and size
         """
+        if self.use_rest:
+            return self.create_lun_rest()
         path = '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
         options = {'path': path,
                    'size': str(self.parameters['size']),
-                   'space-reservation-enabled': str(self.parameters['space_reserve']),
-                   'space-allocation-enabled': str(self.parameters['space_allocation']),
+                   'space-reservation-enabled': self.na_helper.get_value_for_bool(False, self.parameters['space_reserve']),
                    'use-exact-size': str(self.parameters['use_exact_size'])}
+        if self.parameters.get('space_allocation') is not None:
+            options['space-allocation-enabled'] = self.na_helper.get_value_for_bool(False, self.parameters['space_allocation'])
         if self.parameters.get('comment') is not None:
             options['comment'] = self.parameters['comment']
         if self.parameters.get('os_type') is not None:
@@ -707,13 +721,15 @@ class NetAppOntapLUN(object):
             self.server.invoke_successfully(lun_create, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as exc:
             self.module.fail_json(msg="Error provisioning lun %s of size %s: %s"
-                                  % (self.parameters['name'], self.parameters['size'], to_native(exc)),
+                                      % (self.parameters['name'], self.parameters['size'], to_native(exc)),
                                   exception=traceback.format_exc())
 
     def delete_lun(self, path):
         """
         Delete requested LUN
         """
+        if self.use_rest:
+            return self.delete_lun_rest()
         lun_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-destroy', **{'path': path,
                               'force': str(self.parameters['force_remove']),
@@ -728,11 +744,13 @@ class NetAppOntapLUN(object):
 
     def resize_lun(self, path):
         """
-        Resize requested LUN.
+        Resize requested LUN
 
         :return: True if LUN was actually re-sized, false otherwise.
         :rtype: bool
         """
+        if self.use_rest:
+            return self.resize_lun_rest()
         lun_resize = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-resize', **{'path': path,
                              'size': str(self.parameters['size']),
@@ -785,6 +803,8 @@ class NetAppOntapLUN(object):
         """
         update LUN properties (except size or name)
         """
+        if self.use_rest:
+            return self.modify_lun_rest(modify)
         for key, value in modify.items():
             self.set_lun_value(path, key, value)
 
@@ -792,6 +812,8 @@ class NetAppOntapLUN(object):
         """
         rename LUN
         """
+        if self.use_rest:
+            return self.rename_lun_rest(new_path)
         lun_move = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-move', **{'path': path,
                            'new-path': new_path})
@@ -842,8 +864,9 @@ class NetAppOntapLUN(object):
         else:
             ignored_keys = [key for key in modify if key not in ('total_size',)]
             for key in ignored_keys:
-                self.module.warn("Ignoring: %s.  This application parameter is only relevant when increasing the LUN count.  Received: %s."
-                                 % (key, str(saved_modify)))
+                self.module.warn(
+                    "Ignoring: %s.  This application parameter is only relevant when increasing the LUN count.  Received: %s."
+                    % (key, str(saved_modify)))
                 modify.pop(key)
         for attr in extra_attrs:
             value = self.parameters.get(attr)
@@ -863,7 +886,8 @@ class NetAppOntapLUN(object):
                 modify.pop('total_size')
                 saved_modify.pop('total_size')
         if modify and not self.rest_api.meets_rest_minimum_version(True, 9, 8):
-            self.module.fail_json(msg='Error: modifying %s is not supported on ONTAP 9.7' % ', '.join(saved_modify.keys()))
+            self.module.fail_json(
+                msg='Error: modifying %s is not supported on ONTAP 9.7' % ', '.join(saved_modify.keys()))
 
     def fail_on_large_size_reduction(self, app_current, desired, provisioned_size):
         """ Error if a reduction of size > 10% is requested.
@@ -886,6 +910,171 @@ class NetAppOntapLUN(object):
                 warning = "Ignoring increase: requested size is too small: %s" % details
         return warning
 
+    def get_luns_rest(self, lun_path=None):
+        if lun_path is None and self.parameters.get('flexvol_name') is None:
+            return []
+        api = 'storage/luns'
+        query = {'svm.name': self.parameters['vserver']}
+        query['fields'] = "space," \
+                          "comment," \
+                          "os_type," \
+                          "name," \
+                          "qos_policy.name," \
+                          "lun_maps"
+        if lun_path is not None:
+            query['name'] = lun_path
+        else:
+            query['location.volume.name'] = self.parameters['flexvol_name']
+        record, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
+        if error:
+            if lun_path is not None:
+                self.module.fail_json(msg="Error getting lun_path %s: %s" % (lun_path, to_native(error)),
+                                      exception=traceback.format_exc())
+            else:
+                self.module.fail_json(
+                    msg="Error getting LUN's for flexvol %s: %s" % (self.parameters['flexvol_name'], to_native(error)),
+                    exception=traceback.format_exc())
+        return self.format_get_luns(record)
+
+    def format_get_luns(self, records):
+        luns = []
+        if not records:
+            return None
+        for record in records:
+            # TODO: Check that path and name are the same in Rest
+            lun = {
+                'uuid': self.na_helper.safe_get(record, ['uuid']),
+                'name': self.na_helper.safe_get(record, ['name']),
+                'path': self.na_helper.safe_get(record, ['name']),
+                'size': self.na_helper.safe_get(record, ['space', 'size']),
+                'comment': self.na_helper.safe_get(record, ['comment']),
+                'flexvol_name': self.na_helper.safe_get(record, ['location', 'volume', 'name']),
+                'os_type': self.na_helper.safe_get(record, ['os_type']),
+                'qos_policy_group': self.na_helper.safe_get(record, ['qos_policy', 'name']),
+                'space_reserve': self.na_helper.safe_get(record, ['space', 'guarantee', 'requested']),
+                'space_allocation': self.na_helper.safe_get(record,
+                                                            ['space', 'scsi_thin_provisioning_support_enabled']),
+            }
+            luns.append(lun)
+        return luns
+
+    def find_lun_rest(self, luns, name, lun_path=None):
+        if luns is None:
+            return None
+        for lun in luns:
+            if lun_path is None:
+                if name == lun['name']:
+                    return lun
+                _rest, _splitter, found_name = lun['name'].rpartition('/')
+                if found_name == name:
+                    return lun
+            elif lun_path == lun['name']:
+                return lun
+        return None
+
+    def create_lun_rest(self):
+        name = self.create_lun_path_rest()
+        api = 'storage/luns'
+        body = {
+            'svm.name': self.parameters['vserver'],
+            'name': name,
+        }
+        if self.parameters.get('flexvol_name') is not None:
+            body['location.volume.name'] = self.parameters['flexvol_name']
+        if self.parameters.get('os_type') is not None:
+            body['os_type'] = self.parameters['os_type']
+        if self.parameters.get('size') is not None:
+            body['space.size'] = self.parameters['size']
+        if self.parameters.get('space_reserve') is not None:
+            body['space.guarantee.requested'] = self.parameters['space_reserve']
+        if self.parameters.get('space_allocation') is not None:
+            body['space.scsi_thin_provisioning_support_enabled'] = self.parameters['space_allocation']
+        if self.parameters.get('comment') is not None:
+            body['comment'] = self.parameters['comment']
+        if self.parameters.get('qos_policy_group') is not None:
+            body['qos_policy.name'] = self.parameters['qos_policy_group']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg="Error creating LUN %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def create_lun_path_rest(self):
+        # Zapi module accepts just a name, while Rest excepts a path. We need to convert a name in to a path for backward compatibility
+        if self.parameters['name'].startswith('/'):
+            # If the name start with a slash we will assume it a path and use it as the name
+            return self.parameters['name']
+        if self.parameters.get('flexvol_name') is not None:
+            # if it dosn't start with a slash and we have a flexvol name we will use it to build the path
+            return '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
+        # This case is not possible as the error in setup_rest_application will prevent it
+        return self.parameters['name']
+
+    def delete_lun_rest(self):
+        if self.uuid is None:
+            self.module.fail_json(msg="Error deleting LUN %s: UUID not found" % self.parameters['name'])
+        api = 'storage/luns'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid)
+        if error:
+            self.module.fail_json(msg="Error deleting LUN %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def rename_lun_rest(self, new_path):
+        if self.uuid is None:
+            self.module.fail_json(msg="Error renaming LUN %s: UUID not found" % self.parameters['name'])
+        api = 'storage/luns'
+        body = {'name': new_path}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
+        if error:
+            self.module.fail_json(msg="Error renaming LUN %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def resize_lun_rest(self):
+        if self.uuid is None:
+            self.module.fail_json(msg="Error resizing LUN %s: UUID not found" % self.parameters['name'])
+        api = 'storage/luns'
+        body = {'space.size': self.parameters['size']}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
+        if error:
+            self.module.fail_json(msg="Error resizing LUN %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+        return True
+
+    def modify_lun_rest(self, modify):
+        local_modify = modify.copy()
+        if self.uuid is None:
+            self.module.fail_json(msg="Error modifying LUN %s: UUID not found" % self.parameters['name'])
+        api = 'storage/luns'
+        body = {}
+        if local_modify.get('space_reserve') is not None:
+            body['space.guarantee.requested'] = local_modify.pop('space_reserve')
+        if local_modify.get('space_allocation') is not None:
+            body['space.scsi_thin_provisioning_support_enabled'] = local_modify.pop('space_allocation')
+        if local_modify.get('comment') is not None:
+            body['comment'] = local_modify.pop('comment')
+        if local_modify.get('qos_policy_group') is not None:
+            body['qos_policy.name'] = local_modify.pop('qos_policy_group')
+        if local_modify != {}:
+            self.module.fail_json(
+                msg="Error modifying LUN %s: Unknown parameters: %s" % (self.parameters['name'], local_modify))
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
+        if error:
+            self.module.fail_json(msg="Error modifying LUN %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def check_rest_errors(self, lun_cd_action):
+        errors = []
+        if lun_cd_action == 'create':
+            if self.parameters.get('flexvol_name') is None:
+                errors.append("The flexvol_name parameter is required for creating a LUN.")
+            if self.parameters.get('os_type') is None:
+                errors.append("The os_type parameter is required for creating a LUN.")
+        if errors:
+            self.module.fail_json(msg=' '.join(errors))
+
+    def set_uuid(self, current):
+        if self.use_rest and current is not None and current.get('uuid') is not None:
+            self.uuid = current['uuid']
+
     def app_changes(self, scope):
         # find and validate app changes
         app_current, error = self.rest_app.get_application_details('san')
@@ -897,11 +1086,11 @@ class NetAppOntapLUN(object):
         if provisioned_size is None:
             provisioned_size = 0
         if self.debug:
-            self.debug['app_current'] = app_current             # will be updated below as it is mutable
-            self.debug['got'] = copy.deepcopy(app_current)      # fixed copy
+            self.debug['app_current'] = app_current  # will be updated below as it is mutable
+            self.debug['got'] = copy.deepcopy(app_current)  # fixed copy
         # flatten
-        app_current = app_current['san']                                # app template
-        app_current.update(app_current['application_components'][0])    # app component
+        app_current = app_current['san']  # app template
+        app_current.update(app_current['application_components'][0])  # app component
         del app_current['application_components']
         # if component name does not match, assume a change at LUN level
         comp_name = app_current['name']
@@ -975,6 +1164,7 @@ class NetAppOntapLUN(object):
             if from_name is not None:
                 from_lun_path = self.get_lun_path_from_backend(from_name)
         current = self.get_lun(self.parameters['name'], lun_path)
+        self.set_uuid(current)
         if current is not None and lun_path is None:
             lun_path = current['path']
         lun_cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -992,6 +1182,7 @@ class NetAppOntapLUN(object):
                 if tail:
                     self.module.fail_json(
                         msg="Error renaming lun: %s does not match lun_path %s" % (from_name, from_lun_path))
+                self.set_uuid(current)
                 lun_path = head + self.parameters['name']
                 lun_cd_action = None
                 actions.append('lun_rename')
@@ -1023,9 +1214,10 @@ class NetAppOntapLUN(object):
 
     def apply(self):
         results = {}
-        netapp_utils.ems_log_event("na_ontap_lun", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_lun", self.server)
         app_cd_action, app_modify, lun_cd_action, lun_modify, lun_rename = None, None, None, None, None
-        app_modify_warning, app_current = None, None
+        app_modify_warning, app_current, lun_path, from_lun_path = None, None, None, None
         actions = []
         if self.rest_app:
             scope, app_current = self.get_app_apply()
@@ -1037,6 +1229,8 @@ class NetAppOntapLUN(object):
         if app_cd_action is None and scope != 'application':
             lun_path, from_lun_path, lun_cd_action, lun_rename, actions, lun_modify, results = \
                 self.lun_actions(app_current, actions, results, scope, app_modify, lun_rename, lun_modify, lun_cd_action)
+        if self.use_rest:
+            self.check_rest_errors(lun_cd_action)
         if self.na_helper.changed and not self.module.check_mode:
             if app_cd_action == 'create':
                 self.create_san_application()

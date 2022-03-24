@@ -61,6 +61,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_efficiency_policy - Added REST support.
+  - na_ontap_lun - Added Rest Support.
 
 ## 21.17.3
 

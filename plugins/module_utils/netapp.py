@@ -935,6 +935,13 @@ class OntapRestAPI(object):
             if self.get_ontap_version()[:2] > (9, 5):
                 self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
             return False, None
+        if partially_supported_rest_properties:
+            # if ontap version is lower than partially_supported_rest_properties version, force ZAPI, only if the paramater is used
+            for property in partially_supported_rest_properties:
+                if self.get_ontap_version()[0:2] < property[1] and property[0] in parameters:
+                    self.module.warn(
+                        'Falling back to ZAPI because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1])))
+                    return False, None
         if self.get_ontap_version()[:2] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None

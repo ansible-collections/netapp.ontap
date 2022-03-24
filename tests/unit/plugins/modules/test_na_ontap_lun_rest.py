@@ -1,548 +1,530 @@
 # (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-''' unit test template for ONTAP Ansible module '''
-
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
-import copy
+
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, assert_warning_was_raised, print_warnings
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun \
-    import NetAppOntapLUN as my_module  # module under test
+    import NetAppOntapLUN as my_module, main as my_main  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
-
-# REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
-    'is_rest_97': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
-    'is_rest_98': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
-    'get_apps_empty': (200,
-                       {'records': [],
-                        'num_records': 0
+SRR = rest_responses({
+    'one_lun': (200, {
+        "records": [
+            {
+                "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412",
+                "qos_policy": {
+                    "name": "qos1",
+                    "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+                },
+                "os_type": "aix",
+                "enabled": True,
+                "location": {
+                    "volume": {
+                        "name": "volume1",
+                        "uuid": "028baa66-41bd-11e9-81d5-00a0986138f7"
+                    },
+                },
+                "name": "/vol/volume1/qtree1/lun1",
+                "space": {
+                    "scsi_thin_provisioning_support_enabled": True,
+                    "guarantee": {
+                        "requested": True,
+                    },
+                    "size": 1073741824
+                },
+                "lun_maps": [
+                    {
+                        "igroup": {
+                            "name": "igroup1",
+                            "uuid": "4ea7a442-86d1-11e0-ae1c-123478563412"
                         },
-                       None
-                       ),
-    'get_apps_found': (200,
-                       {'records': [dict(name='san_appli', uuid='1234')],
-                        'num_records': 1
+                        "logical_unit_number": 0,
+                    }
+                ],
+                "comment": "string",
+                "svm": {
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+                },
+            }
+        ],
+    }, None),
+    'two_luns': (200, {
+        "records": [
+            {
+                "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412",
+                "qos_policy": {
+                    "name": "qos1",
+                    "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+                },
+                "os_type": "aix",
+                "enabled": True,
+                "location": {
+                    "volume": {
+                        "name": "volume1",
+                        "uuid": "028baa66-41bd-11e9-81d5-00a0986138f7"
+                    },
+                },
+                "name": "/vol/volume1/qtree1/lun1",
+                "space": {
+                    "scsi_thin_provisioning_support_enabled": True,
+                    "guarantee": {
+                        "requested": True,
+                    },
+                    "size": 1073741824
+                },
+                "lun_maps": [
+                    {
+                        "igroup": {
+                            "name": "igroup1",
+                            "uuid": "4ea7a442-86d1-11e0-ae1c-123478563412"
                         },
-                       None
-                       ),
-    'get_app_components': (200,
-                           {'records': [dict(name='san_appli', uuid='1234')],
-                            'num_records': 1
-                            },
-                           None
-                           ),
-    'get_app_details': (200,
-                        dict(name='san_appli', uuid='1234',
-                             san=dict(application_components=[dict(name='lun_name', lun_count=3, total_size=1000)]),
-                             statistics=dict(space=dict(provisioned=1100))
-                             ),
-                        None
-                        ),
-    'get_app_component_details': (200,
-                                  {'backing_storage': dict(luns=[]),
-                                   },
-                                  None
-                                  ),
-    'get_volumes_found': (200,
-                          {'records': [dict(name='san_appli', uuid='1234')],
-                           'num_records': 1
-                           },
-                          None
-                          ),
+                        "logical_unit_number": 0,
+                    }
+                ],
+                "comment": "string",
+                "svm": {
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+                },
+            },
+            {
+                "uuid": "1cd8a442-86d1-11e0-ae1c-123478563413",
+                "qos_policy": {
+                    "name": "qos2",
+                    "uuid": "1cd8a442-86d1-11e0-ae1c-123478563413"
+                },
+                "os_type": "aix",
+                "enabled": True,
+                "location": {
+                    "volume": {
+                        "name": "volume2",
+                        "uuid": "028baa66-41bd-11e9-81d5-00a0986138f3"
+                    },
+                },
+                "name": "/vol/volume1/qtree1/lun2",
+                "space": {
+                    "scsi_thin_provisioning_support_enabled": True,
+                    "guarantee": {
+                        "requested": True,
+                    },
+                    "size": 1073741824
+                },
+                "lun_maps": [
+                    {
+                        "igroup": {
+                            "name": "igroup2",
+                            "uuid": "4ea7a442-86d1-11e0-ae1c-123478563413"
+                        },
+                        "logical_unit_number": 0,
+                    }
+                ],
+                "comment": "string",
+                "svm": {
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f3"
+                },
+            }
+        ],
+    }, None)
+})
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'name': '/vol/volume1/qtree1/lun1',
+    'flexvol_name': 'volume1',
+    'vserver': 'svm1',
+    'use_rest': 'always',
+}
+
+DEFAULT_ARGS_NO_VOL = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'name': '/vol/volume1/qtree1/lun1',
+    'vserver': 'svm1',
+    'use_rest': 'always',
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, parm1=None):
-        ''' save arguments '''
-        self.type = kind
-        self.parm1 = parm1
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'lun':
-            xml = self.build_lun_info(self.parm1)
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_lun_info(lun_name):
-        ''' build xml data for lun-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        lun = dict(
-            lun_info=dict(
-                path="/what/ever/%s" % lun_name,
-                size=10
-            )
-        )
-        attributes = {
-            'num-records': 1,
-            'attributes-list': [lun]
-        }
-        xml.translate_struct(attributes)
-        return xml
+def test_get_lun_none():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records'])
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    assert my_obj.get_luns_rest() is None
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_get_lun_one():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['one_lun'])
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    get_results = my_obj.get_luns_rest()
+    assert len(get_results) == 1
+    assert get_results[0]['name'] == '/vol/volume1/qtree1/lun1'
 
-    def setUp(self):
-        self.mock_lun_args = {
-            'vserver': 'ansible',
-            'name': 'lun_name',
-            'flexvol_name': 'vol_name',
-            'state': 'present'
-        }
 
-    def mock_args(self):
-        return {
-            'vserver': self.mock_lun_args['vserver'],
-            'name': self.mock_lun_args['name'],
-            'flexvol_name': self.mock_lun_args['flexvol_name'],
-            'state': self.mock_lun_args['state'],
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-        }
-        # self.server = MockONTAPConnection()
+def test_get_lun_more():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['two_luns'])
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    get_results = my_obj.get_luns_rest()
+    assert len(get_results) == 2
+    assert get_results[0]['name'] == '/vol/volume1/qtree1/lun1'
+    assert get_results[1]['name'] == '/vol/volume1/qtree1/lun2'
 
-    def get_lun_mock_object(self, kind=None, parm1=None):
-        """
-        Helper method to return an na_ontap_lun object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_interface object
-        """
-        lun_obj = my_module()
-        lun_obj.autosupport_log = Mock(return_value=None)
-        lun_obj.server = MockONTAPConnection(kind=kind, parm1=parm1)
-        return lun_obj
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_error_get_lun_with_flexvol():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['generic_error'])
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    error = expect_and_capture_ansible_exception(my_obj.get_luns_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error getting LUN's for flexvol volume1: calling: storage/luns: got Expected error." == error
 
-    def test_create_error_missing_param(self):
-        ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
-        data = self.mock_args()
-        set_module_args(data)
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        msg = 'size is a required parameter for create.'
-        assert msg == exc.value.args[0]['msg']
 
-    def test_create_error_missing_param2(self):
-        ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
-        data = self.mock_args()
-        data.pop('flexvol_name')
-        data['size'] = 5
-        data['san_application_template'] = dict(lun_count=6)
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        msg = 'missing required arguments: name found in san_application_template'
-        assert msg == exc.value.args[0]['msg']
+def test_error_get_lun_with_lun_path():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['lun_path'] = '/vol/volume1/qtree1/lun1'
+    my_obj.parameters.pop('flexvol_name')
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_create_appli(self, mock_request):
-        ''' Test successful create '''
-        mock_request.side_effect = [
-            SRR['is_rest_98'],
-            SRR['get_apps_empty'],      # GET application/applications
-            SRR['get_apps_empty'],      # GET volumes
-            SRR['empty_good'],          # POST application/applications
-            SRR['end_of_sequence']
-        ]
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        tiering = dict(control='required')
-        data['san_application_template'] = dict(name='san_appli', tiering=tiering)
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        assert exc.value.args[0]['changed']
-        expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
-                         'san': {'application_components':
-                                 [{'name': 'lun_name', 'lun_count': 1, 'total_size': 5368709120, 'tiering': {'control': 'required'}}]}}
-        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json, headers=None)
-        assert expected_call in mock_request.mock_calls
+    error = expect_and_capture_ansible_exception(my_obj.get_luns_rest, 'fail', '/vol/volume1/qtree1/lun1')['msg']
+    print('Info: %s' % error)
+    assert "Error getting lun_path /vol/volume1/qtree1/lun1: calling: storage/luns: got Expected error." == error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_create_appli_idem(self, mock_request):
-        ''' Test successful create idempotent '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_create_appli_idem_no_comp(self, mock_request):
-        ''' Test successful create idempotent '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],      # GET application/applications
-            SRR['get_app_details'],     # GET application/applications/<uuid>
-            SRR['get_apps_empty'],      # GET application/applications/<uuid>/components
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        # print(mock_request.call_args_list)
-        msg = 'Error: no component for application san_appli'
-        assert msg == exc.value.args[0]['msg']
+def test_successfully_create_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['one_lun']),
+    ])
+    module_args = {
+        'size': 1073741824,
+        'size_unit': 'bytes',
+        'os_type': 'linux',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_delete_appli(self, mock_request):
-        ''' Test successful create '''
-        mock_request.side_effect = [
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],      # GET application/applications
-            SRR['empty_good'],          # POST application/applications
-            SRR['end_of_sequence']
-        ]
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_delete_appli_idem(self, mock_request):
-        ''' Test successful delete idempotent '''
-        mock_request.side_effect = [
-            SRR['is_rest_98'],
-            SRR['get_apps_empty'],      # GET application/applications
-            SRR['end_of_sequence']
-        ]
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        assert not exc.value.args[0]['changed']
+def test_successfully_create_lun_without_path():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['one_lun']),
+    ])
+    module_args = {
+        'size': 1073741824,
+        'size_unit': 'bytes',
+        'os_type': 'linux',
+        'flexvol_name': 'volume1',
+        'name': 'lun'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_modify_appli(self, mock_request):
-        ''' Test successful modify application '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['empty_good'],                      # PATCH application/applications/<uuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['os_type'] = 'xyz'
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', lun_count=5, total_size=1000, igroup_name='abc')
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        print(exc.value.args[0])
-        # print(mock_request.call_args_list)
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_modify_appli_missing_igroup(self, mock_request):
-        ''' Test successful modify application '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', lun_count=5)
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        msg = 'Error: igroup_name is a required parameter when increasing lun_count.'
-        assert msg in exc.value.args[0]['msg']
-        msg = 'Error: total_size is a required parameter when increasing lun_count.'
-        assert msg in exc.value.args[0]['msg']
-        msg = 'Error: os_type is a required parameter when increasing lun_count.'
-        assert msg in exc.value.args[0]['msg']
+def test_error_create_lun_missing_os_type():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    my_obj.parameters['size'] = 1073741824
+    my_obj.parameters['size_unit'] = 'bytes'
+    error = expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "The os_type parameter is required for creating a LUN." == error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_no_action(self, mock_request):
-        ''' Test successful modify application '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['name'] = 'unknown'
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', lun_count=5)
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        print(exc.value.args[0])
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_no_96(self, mock_request):
-        ''' Test SAN application not supported on 9.6 '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_96'],
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['name'] = 'unknown'
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', lun_count=5)
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        print(exc.value.args[0])
-        msg = 'Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled - ONTAP version: 9.6.'
-        assert msg in exc.value.args[0]['msg']
+def test_error_create_lun_missing_size():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    my_obj.parameters['os_type'] = 'linux'
+    error = expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "size is a required parameter for create." == error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_no_modify_on97(self, mock_request):
-        ''' Test modify SAN application not supported on 9.7 '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_97'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['os_type'] = 'xyz'
-        data['san_application_template'] = dict(name='san_appli', lun_count=5, total_size=1000, igroup_name='abc')
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        print(exc.value.args[0])
-        msg = 'Error: modifying lun_count, total_size is not supported on ONTAP 9.7'
-        # in python 2.6, keys() is not sorted!
-        msg2 = 'Error: modifying total_size, lun_count is not supported on ONTAP 9.7'
-        assert msg in exc.value.args[0]['msg'] or msg2 in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_no_modify_on97_2(self, mock_request):
-        ''' Test modify SAN application not supported on 9.7 '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_97'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', total_size=1000)
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        print(exc.value.args[0])
-        msg = 'Error: modifying total_size is not supported on ONTAP 9.7'
-        assert msg in exc.value.args[0]['msg']
+def test_error_create_lun_missing_name():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        # Not sure why test_error_create_lun_missing_os_type require this... but this test dosn't. they should follow the
+        # same path (unless we don't do a get with flexvol_name isn't set)
+        # ('GET', 'storage/luns', SRR['empty_records']),
+    ])
+    set_module_args(DEFAULT_ARGS)
+    my_obj = my_module()
+    my_obj.parameters.pop('flexvol_name')
+    my_obj.parameters['os_type'] = 'linux'
+    my_obj.parameters['size'] = 1073741824
+    my_obj.parameters['size_unit'] = 'bytes'
+    error = expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "The flexvol_name parameter is required for creating a LUN." == error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_app_changes_reduction_not_allowed(self, mock_request):
-        ''' Test modify SAN application - can't decrease size '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', total_size=899, total_size_unit='b')
-        set_module_args(data)
-        lun_object = self.get_lun_mock_object()
-        with pytest.raises(AnsibleFailJson) as exc:
-            lun_object.app_changes('scope')
-        msg = "Error: can't reduce size: total_size=1000, provisioned=1100, requested=899"
-        assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_app_changes_reduction_small_enough_10(self, mock_request):
-        ''' Test modify SAN application - a 10% reduction is ignored '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', total_size=900, total_size_unit='b')
-        set_module_args(data)
-        lun_object = self.get_lun_mock_object()
-        results = lun_object.app_changes('scope')
-        print(results)
-        print(lun_object.debug)
-        msg = "Ignoring small reduction (10.0 %) in total size: total_size=1000, provisioned=1100, requested=900"
-        assert_warning_was_raised(msg)
+def test_successfully_create_lun_all_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['one_lun']),
+    ])
+    module_args = {
+        'size': '1073741824',
+        'os_type': 'linux',
+        'space_reserve': True,
+        'space_allocation': True,
+        'comment': 'carchi8py was here',
+        'qos_policy_group': 'qos_policy_group_1',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_app_changes_reduction_small_enough_17(self, mock_request):
-        ''' Test modify SAN application - a 1.7% reduction is ignored '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', total_size=983, total_size_unit='b')
-        set_module_args(data)
-        lun_object = self.get_lun_mock_object()
-        results = lun_object.app_changes('scope')
-        print(results)
-        print(lun_object.debug)
-        print_warnings()
-        msg = "Ignoring small reduction (1.7 %) in total size: total_size=1000, provisioned=1100, requested=983"
-        assert_warning_was_raised(msg)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_app_changes_increase_small_enough(self, mock_request):
-        ''' Test modify SAN application - a 1.7% reduction is ignored '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_found'],                  # GET application/applications
-            SRR['get_app_details'],                 # GET application/applications/<uuid>
-            # SRR['get_apps_found'],                  # GET application/applications/<uuid>/components
-            # SRR['get_app_component_details'],       # GET application/applications/<uuid>/components/<cuuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli', total_size=1050, total_size_unit='b')
-        set_module_args(data)
-        lun_object = self.get_lun_mock_object()
-        results = lun_object.app_changes('scope')
-        print(results)
-        print(lun_object.debug)
-        msg = "Ignoring increase: requested size is too small: total_size=1000, provisioned=1100, requested=1050"
-        assert_warning_was_raised(msg)
+def test_error_create_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('POST', 'storage/luns', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['size'] = 1073741824
+    my_obj.parameters['size_unit'] = 'bytes'
+    my_obj.parameters['os_type'] = 'linux'
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_convert_to_appli(self, mock_request):
-        ''' Test successful convert to application
-            Appli does not exist, but the volume does.
-        '''
-        mock_request.side_effect = copy.deepcopy([
-            SRR['is_rest_98'],
-            SRR['get_apps_empty'],      # GET application/applications
-            SRR['get_volumes_found'],   # GET volumes
-            SRR['empty_good'],          # POST application/applications
-            SRR['get_apps_found'],      # GET application/applications
-            SRR['get_app_details'],     # GET application/applications/<uuid>
-            SRR['end_of_sequence']
-        ])
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        tiering = dict(control='required')
-        data['san_application_template'] = dict(name='san_appli', tiering=tiering, scope='application')
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_lun_mock_object().apply()
-        # assert exc.value.args[0]['changed']
-        print(mock_request.mock_calls)
-        print(exc.value.args[0])
-        expected_json = {'name': 'san_appli', 'svm': {'name': 'ansible'}, 'smart_container': True,
-                         'san': {'application_components':
-                                 [{'name': 'lun_name'}]}}
-        expected_call = call('POST', 'application/applications', {'return_timeout': 30, 'return_records': 'true'}, json=expected_json, headers=None)
-        assert expected_call in mock_request.mock_calls
+    error = expect_and_capture_ansible_exception(my_obj.create_lun_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error creating LUN /vol/volume1/qtree1/lun1: calling: storage/luns: got Expected error." == error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_convert_to_appli(self, mock_request):
-        ''' Test successful convert to application
-            Appli does not exist, but the volume does.
-        '''
-        mock_request.side_effect = [
-            SRR['is_rest_97'],
-            SRR['get_apps_empty'],      # GET application/applications
-            SRR['get_volumes_found'],   # GET volumes
-            SRR['end_of_sequence']
-        ]
-        data = dict(self.mock_args())
-        data['size'] = 5
-        data.pop('flexvol_name')
-        tiering = dict(control='required')
-        data['san_application_template'] = dict(name='san_appli', tiering=tiering, scope='application')
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_lun_mock_object().apply()
-        msg = "Error: converting a LUN volume to a SAN application container requires ONTAP 9.8 or better."
-        assert msg in exc.value.args[0]['msg']
+
+def test_successfully_delete_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['one_lun']),
+        ('DELETE', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'size': 1073741824,
+        'size_unit': 'bytes',
+        'os_type': 'linux',
+        'state': 'absent',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_delete_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('DELETE', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['size'] = 1073741824
+    my_obj.parameters['size_unit'] = 'bytes'
+    my_obj.parameters['os_type'] = 'linux'
+    my_obj.parameters['os_type'] = 'absent'
+    my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
+
+    error = expect_and_capture_ansible_exception(my_obj.delete_lun_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error deleting LUN /vol/volume1/qtree1/lun1: calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+
+
+def test_error_delete_lun_missing_uuid():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['size'] = 1073741824
+    my_obj.parameters['size_unit'] = 'bytes'
+    my_obj.parameters['os_type'] = 'linux'
+    my_obj.parameters['os_type'] = 'absent'
+
+    error = expect_and_capture_ansible_exception(my_obj.delete_lun_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error deleting LUN /vol/volume1/qtree1/lun1: UUID not found" == error
+
+
+def test_successfully_rename_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('GET', 'storage/luns', SRR['one_lun']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'name': '/vol/volume1/qtree12/lun1',
+        'from_name': '/vol/volume1/qtree1/lun1',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_rename_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1',
+    my_obj.parameters['from_name'] = '/vol/volume1/qtree1/lun1'
+    my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
+    error = expect_and_capture_ansible_exception(my_obj.rename_lun_rest, 'fail', '/vol/volume1/qtree12/lun1')['msg']
+    print('Info: %s' % error)
+    assert "Error renaming LUN ('/vol/volume1/qtree12/lun1',): calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+
+
+def test_error_rename_lun_missing_uuid():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1',
+    my_obj.parameters['from_name'] = '/vol/volume1/qtree1/lun1'
+    error = expect_and_capture_ansible_exception(my_obj.rename_lun_rest, 'fail', '/vol/volume1/qtree12/lun1')['msg']
+    print('Info: %s' % error)
+    assert "Error renaming LUN /vol/volume1/qtree12/lun1: UUID not found" == error
+
+
+def test_successfully_rsize_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['one_lun']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'size': 2147483648,
+        'size_unit': 'bytes',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_rsize_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['size'] = 2147483648
+    my_obj.parameters['size_unit'] = 'bytes'
+    my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
+    error = expect_and_capture_ansible_exception(my_obj.resize_lun_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error resizing LUN /vol/volume1/qtree1/lun1: calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+
+
+def test_error_rsize_lun_missing_uuid():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['size'] = 2147483648
+    my_obj.parameters['size_unit'] = 'bytes'
+    error = expect_and_capture_ansible_exception(my_obj.resize_lun_rest, 'fail')['msg']
+    print('Info: %s' % error)
+    assert "Error resizing LUN /vol/volume1/qtree1/lun1: UUID not found" == error
+
+
+def test_successfully_modify_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['one_lun']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'comment': 'carchi8py was here',
+        'qos_policy_group': 'qos_policy_group_12',
+        'space_reserve': False,
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successfully_modify_lun_9_10():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/luns', SRR['one_lun']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'comment': 'carchi8py was here',
+        'qos_policy_group': 'qos_policy_group_12',
+        'space_allocation': False,
+        'space_reserve': False,
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_modify_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['comment'] = 'carchi8py was here'
+    my_obj.parameters['qos_policy_group'] = 'qos_policy_group_12'
+    my_obj.parameters['space_allocation'] = False
+    my_obj.parameters['space_reserve'] = False
+    my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
+    modify = {'comment': 'carchi8py was here', 'qos_policy_group': 'qos_policy_group_12', 'space_reserve': False, 'space_allocation': False}
+    error = expect_and_capture_ansible_exception(my_obj.modify_lun_rest, 'fail', modify)['msg']
+    print('Info: %s' % error)
+    assert "Error modifying LUN /vol/volume1/qtree1/lun1: calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+
+
+def test_error_modify_lun_missing_uuid():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['comment'] = 'carchi8py was here'
+    my_obj.parameters['qos_policy_group'] = 'qos_policy_group_12'
+    my_obj.parameters['space_allocation'] = False
+    my_obj.parameters['space_reserve'] = False
+    modify = {'comment': 'carchi8py was here', 'qos_policy_group': 'qos_policy_group_12', 'space_reserve': False, 'space_allocation': False}
+    error = expect_and_capture_ansible_exception(my_obj.modify_lun_rest, 'fail', modify)['msg']
+    print('Info: %s' % error)
+    assert "Error modifying LUN /vol/volume1/qtree1/lun1: UUID not found" == error
+
+
+def test_error_modify_lun_extra_option():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['comment'] = 'carchi8py was here'
+    my_obj.parameters['qos_policy_group'] = 'qos_policy_group_12'
+    my_obj.parameters['space_allocation'] = False
+    my_obj.parameters['space_reserve'] = False
+    my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
+    modify = {'comment': 'carchi8py was here', 'qos_policy_group': 'qos_policy_group_12', 'space_reserve': False, 'space_allocation': False, 'fake': 'fake'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_lun_rest, 'fail', modify)['msg']
+    print('Info: %s' % error)
+    assert "Error modifying LUN /vol/volume1/qtree1/lun1: Unknown parameters: {'fake': 'fake'}" == error
