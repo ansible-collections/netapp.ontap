@@ -53,6 +53,9 @@ volume_info = {
             "name": "-"
         }
     },
+    "files": {
+        "maximum": 2000
+    },
     "nas": {
         "gid": 0,
         "security_style": "unix",
@@ -263,7 +266,6 @@ def test_rest_successfully_deleted():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['get_volume']),              # Get Volume
-        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['empty_good']),       # PATCH storage/volumes - unmount
         ('DELETE', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['empty_good']),      # DELETE storage/volumes
     ])
@@ -277,8 +279,6 @@ def test_rest_successfully_deleted_with_app():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['get_volume']),                                                      # Get Volume
-        ('GET', 'application/applications', SRR['nas_app_record']),                                         # GET application/applications
-        ('GET', 'application/applications/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['nas_app_record']),    # GET application/applications/uuid
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['empty_good']),               # PATCH storage/volumes - unmount
         ('DELETE', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['empty_good']),              # DELETE storage/volumes
     ])
@@ -891,3 +891,13 @@ def test_snaplock_volume_modify_other_options_idempotent():
         'retention': {'default': 'P30Y'}
     }}
     assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_max_files_volume_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_sl_enterprise']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+    ])
+    module_args = {'max_files': 3000}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']

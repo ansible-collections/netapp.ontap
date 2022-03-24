@@ -179,6 +179,7 @@ def get_feature(module, feature_name):
         # for SVM, whch protocols can be allowed
         svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs'],
         svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
+        max_files_change_threshold=1,           # percentage of increase/decrease required to trigger a modify action
         warn_or_fail_on_fabricpool_backend_change='fail',
         no_cserver_ems=False                    # when True, don't attempt to find cserver and don't send cserver EMS
     )

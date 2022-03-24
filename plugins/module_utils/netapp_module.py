@@ -210,7 +210,7 @@ class NetAppModule(object):
         desired_copy = deepcopy(desired)
 
         # get what in desired and not in current
-        desired_diff_list = list()
+        desired_diff_list = []
         for item in desired:
             if item in current_copy:
                 current_copy.remove(item)

@@ -40,10 +40,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### New Options
   - na_ontap_export_policy_rule - new option `ntfs_unix_security` for NTFS export UNIX security options added.
   - na_ontap_volume - add support for SnapLock - only for REST.
+  - na_ontap_volume - new option ``max_files`` to increase the inode count value.
 
 ### Minor Changes
   - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
   - na_ontap_debug - report ansible version and ONTAP collection version.
+  - na_ontap_volume - allow to modify volume after rename.
   - na_ontap_vserver_create role - support max_volumes option.
 
 ### Bug Fixes
@@ -54,6 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
+  - na_ontap_volume - do not attempt to mount volume if current state is offline.
   - Fixed ONTAP minor version ignored in checking minimum ONTAP version.
 
 ### Added REST support to existing modules

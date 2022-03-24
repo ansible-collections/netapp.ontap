@@ -8,13 +8,12 @@ __metaclass__ = type
 
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import expect_and_capture_ansible_exception, set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, create_module
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
-    get_mock_record, patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
+    create_module, create_and_apply, expect_and_capture_ansible_exception, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
+    get_mock_record, patch_request_and_invoke, print_requests, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
@@ -32,6 +31,87 @@ SRR = {
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
 }
+
+MOCK_VOL = {
+    'name': 'test_vol',
+    'aggregate': 'test_aggr',
+    'junction_path': '/test',
+    'vserver': 'test_vserver',
+    'size': 20971520,
+    'unix_permissions': '755',
+    'user_id': 100,
+    'group_id': 1000,
+    'snapshot_policy': 'default',
+    'qos_policy_group': 'performance',
+    'qos_adaptive_policy_group': 'performance',
+    'percent_snapshot_space': 60,
+    'language': 'en',
+    'vserver_dr_protection': 'unprotected',
+    'uuid': 'UUID'
+}
+
+
+def volume_info(style, vol_details=None):
+    if not vol_details:
+        vol_details = MOCK_VOL
+    return {
+        'num-records': 1,
+        'attributes-list': {
+            'volume-attributes': {
+                'volume-id-attributes': {
+                    'aggr-list': vol_details['aggregate'],
+                    'flexgroup-uuid': 'uuid',
+                    'junction-path': vol_details['junction_path'],
+                    'style-extended': style
+                },
+                'volume-comp-aggr-attributes': {
+                    'tiering-policy': 'snapshot-only'
+                },
+                'volume-language-attributes': {
+                    'language-code': 'en'
+                },
+                'volume-export-attributes': {
+                    'policy': 'default'
+                },
+                'volume-performance-attributes': {
+                    'is-atime-update-enabled': 'true'
+                },
+                'volume-state-attributes': {
+                    'state': "online",
+                    'is-nvfail-enabled': 'true'
+                },
+                'volume-inode-attributes': {
+                    'files-total': '2000',
+                },
+                'volume-space-attributes': {
+                    'space-guarantee': 'none',
+                    'size': vol_details['size'],
+                    'percentage-snapshot-reserve': vol_details['percent_snapshot_space'],
+                    'space-slo': 'thick'
+                },
+                'volume-snapshot-attributes': {
+                    'snapshot-policy': vol_details['snapshot_policy']
+                },
+                'volume-security-attributes': {
+                    'volume-security-unix-attributes': {
+                        'permissions': vol_details['unix_permissions'],
+                        'group-id': vol_details['group_id'],
+                        'user-id': vol_details['user_id']
+                    }
+                },
+                'volume-vserver-dr-protection-attributes': {
+                    'vserver-dr-protection': vol_details['vserver_dr_protection'],
+                },
+                'volume-qos-attributes': {
+                    'policy-group-name': vol_details['qos_policy_group'],
+                    'adaptive-policy-group-name': vol_details['qos_adaptive_policy_group']
+                },
+                'volume-snapshot-autodelete-attributes': {
+                    'commitment': 'try'
+                }
+            }
+        }
+    }
 
 
 def vol_encryption_conversion_status(status):
@@ -57,7 +137,52 @@ def vol_move_status(status):
     }
 
 
+def job_info(state, error):
+    return {
+        'num-records': 1,
+        'attributes': {
+            'job-info': {
+                'job-state': state,
+                'job-progress': 'dummy',
+                'job-completion': error,
+            }
+        }
+    }
+
+
+def results_info(status):
+    return {
+        'result-status': 'in_progress',
+        'result-jobid': 'job12345',
+    }
+
+
+def modify_async_results_info(status, error=None):
+    list_name = 'failure-list' if error else 'success-list'
+    info = {
+        list_name: {
+            'volume-modify-iter-async-info': {
+                'status': status,
+                'jobid': '1234'
+            }
+        }
+    }
+    if error:
+        info[list_name]['volume-modify-iter-async-info']['error-message'] = error
+    return info
+
+
 ZRR = zapi_responses({
+    'get_flexgroup': build_zapi_response(volume_info('flexgroup')),
+    'get_flexvol': build_zapi_response(volume_info('flexvol')),
+    'job_failure': build_zapi_response(job_info('failure', 'failure')),
+    'job_other': build_zapi_response(job_info('other', 'other_error')),
+    'job_running': build_zapi_response(job_info('running', None)),
+    'job_success': build_zapi_response(job_info('success', None)),
+    'job_time_out': build_zapi_response(job_info('running', 'time_out')),
+    'async_results': build_zapi_response(results_info('1')),
+    'modify_async_result_success': build_zapi_response(modify_async_results_info('in_progress')),
+    'modify_async_result_failure': build_zapi_response(modify_async_results_info('failure', 'error_in_modify')),
     'vol_encryption_conversion_status_running': build_zapi_response(vol_encryption_conversion_status('running')),
     'vol_encryption_conversion_status_idle': build_zapi_response(vol_encryption_conversion_status('Not currently going on.')),
     'vol_encryption_conversion_status_error': build_zapi_response(vol_encryption_conversion_status('other')),
@@ -67,249 +192,14 @@ ZRR = zapi_responses({
 })
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None, job_error=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-        self.job_error = job_error
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        # print("request: ", xml.to_string())
-        request = xml.to_string().decode('utf-8')
-        print(request)
-        if request.startswith('<sis-get-iter>'):
-            return self.build_sis_info()
-        if isinstance(self.kind, list):
-            kind = self.kind.pop(0)
-            if len(self.kind) == 0:
-                # loop over last element
-                self.kind = kind
-        else:
-            kind = self.kind
-
-        if kind == 'volume':
-            xml = self.build_volume_info(self.params)
-        if kind == 'flexgroup':
-            xml = self.build_flexgroup_info(self.params)
-        elif kind == 'job_info':
-            xml = self.build_job_info(self.job_error)
-        elif kind == 'error_modify':
-            xml = self.build_modify_error()
-        elif kind == 'failure_modify_async':
-            xml = self.build_failure_modify_async()
-        elif kind == 'missing_element_modify_async':
-            xml = self.build_missing_element_modify_async()
-        elif kind == 'success_modify_async':
-            xml = self.build_success_modify_async()
-        elif kind == 'zapi_error':
-            error = netapp_utils.zapi.NaApiError('test', 'error')
-            raise error
-        self.xml_out = xml
-        # print(xml.to_string())
-        return xml
-
-    @staticmethod
-    def build_volume_info(vol_details):
-        ''' build xml data for volume-attributes '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'volume-attributes': {
-                    'volume-id-attributes': {
-                        'containing-aggregate-name': vol_details['aggregate'],
-                        'instance-uuid': 'uuid',
-                        'junction-path': vol_details['junction_path'],
-                        'style-extended': 'flexvol'
-                    },
-                    'volume-language-attributes': {
-                        'language-code': 'en'
-                    },
-                    'volume-export-attributes': {
-                        'policy': 'default'
-                    },
-                    'volume-performance-attributes': {
-                        'is-atime-update-enabled': 'true'
-                    },
-                    'volume-state-attributes': {
-                        'state': "online",
-                        'is-nvfail-enabled': 'true'
-                    },
-                    'volume-space-attributes': {
-                        'space-guarantee': 'none',
-                        'size': vol_details['size'],
-                        'percentage-snapshot-reserve': vol_details['percent_snapshot_space'],
-                        'space-slo': 'thick'
-                    },
-                    'volume-snapshot-attributes': {
-                        'snapshot-policy': vol_details['snapshot_policy']
-                    },
-                    'volume-comp-aggr-attributes': {
-                        'tiering-policy': 'snapshot-only'
-                    },
-                    'volume-security-attributes': {
-                        'style': 'unix',
-                        'volume-security-unix-attributes': {
-                            'permissions': vol_details['unix_permissions'],
-                            'group-id': vol_details['group_id'],
-                            'user-id': vol_details['user_id']
-                        }
-                    },
-                    'volume-vserver-dr-protection-attributes': {
-                        'vserver-dr-protection': vol_details['vserver_dr_protection'],
-                    },
-                    'volume-qos-attributes': {
-                        'policy-group-name': vol_details['qos_policy_group'],
-                        'adaptive-policy-group-name': vol_details['qos_adaptive_policy_group']
-                    },
-                    'volume-snapshot-autodelete-attributes': {
-                        'commitment': 'try'
-                    }
-                }
-            }
-        }
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_flexgroup_info(vol_details):
-        ''' build xml data for flexGroup volume-attributes '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'volume-attributes': {
-                    'volume-id-attributes': {
-                        'aggr-list': vol_details['aggregate'],
-                        'flexgroup-uuid': 'uuid',
-                        'junction-path': vol_details['junction_path'],
-                        'style-extended': 'flexgroup'
-                    },
-                    'volume-language-attributes': {
-                        'language-code': 'en'
-                    },
-                    'volume-export-attributes': {
-                        'policy': 'default'
-                    },
-                    'volume-performance-attributes': {
-                        'is-atime-update-enabled': 'true'
-                    },
-                    'volume-state-attributes': {
-                        'state': "online",
-                    },
-                    'volume-space-attributes': {
-                        'space-guarantee': 'none',
-                        'size': vol_details['size']
-                    },
-                    'volume-snapshot-attributes': {
-                        'snapshot-policy': vol_details['snapshot_policy']
-                    },
-                    'volume-security-attributes': {
-                        'volume-security-unix-attributes': {
-                            'permissions': vol_details['unix_permissions']
-                        }
-                    },
-                    'volume-snapshot-autodelete-attributes': {
-                        'commitment': 'try'
-                    }
-                }
-            }
-        }
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_job_info(error):
-        ''' build xml data for a job '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('attributes')
-        if error is None:
-            state = 'success'
-        elif error == 'time_out':
-            state = 'running'
-        elif error == 'failure':
-            state = 'failure'
-        else:
-            state = 'other'
-        attributes.add_node_with_children('job-info', **{
-            'job-state': state,
-            'job-progress': 'dummy',
-            'job-completion': error,
-        })
-        xml.add_child_elem(attributes)
-        xml.add_new_child('result-status', 'in_progress')
-        xml.add_new_child('result-jobid', '1234')
-        return xml
-
-    @staticmethod
-    def build_modify_error():
-        ''' build xml data for modify error '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('failure-list')
-        info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-info')
-        info_list_obj.add_new_child('error-message', 'modify error message')
-        attributes.add_child_elem(info_list_obj)
-        xml.add_child_elem(attributes)
-        return xml
-
-    @staticmethod
-    def build_success_modify_async():
-        ''' build xml data for success modify async '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('success-list')
-        info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-async-info')
-        info_list_obj.add_new_child('status', 'in_progress')
-        info_list_obj.add_new_child('jobid', '1234')
-        attributes.add_child_elem(info_list_obj)
-        xml.add_child_elem(attributes)
-        return xml
-
-    @staticmethod
-    def build_missing_element_modify_async():
-        ''' build xml data for success modify async '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('success-list')
-        info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-info')      # no async!
-        info_list_obj.add_new_child('status', 'in_progress')
-        info_list_obj.add_new_child('jobid', '1234')
-        attributes.add_child_elem(info_list_obj)
-        xml.add_child_elem(attributes)
-        return xml
-
-    @staticmethod
-    def build_failure_modify_async():
-        ''' build xml data for failure modify async '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('failure-list')
-        info_list_obj = netapp_utils.zapi.NaElement('volume-modify-iter-async-info')
-        info_list_obj.add_new_child('status', 'failed')
-        info_list_obj.add_new_child('jobid', '1234')
-        info_list_obj.add_new_child('error-message', 'modify error message')
-        attributes.add_child_elem(info_list_obj)
-        xml.add_child_elem(attributes)
-        return xml
-
-    @staticmethod
-    def build_sis_info():
-        ''' build xml data for sis config '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'sis-status-info': {
-                    'policy': 'testme'
-                }
-            }
-        }
-        xml.translate_struct(attributes)
-        return xml
+MINIMUM_ARGS = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'name': 'test_vol',
+    'vserver': 'test_vserver',
+    'use_rest': 'never'
+}
 
 
 DEFAULT_ARGS = {
@@ -337,921 +227,977 @@ DEFAULT_ARGS = {
     'use_rest': 'never'
 }
 
-MOCK_VOL = {
-    'name': 'test_vol',
-    'aggregate': 'test_aggr',
-    'junction_path': '/test',
-    'vserver': 'test_vserver',
-    'size': 20971520,
-    'unix_permissions': '755',
-    'user_id': 100,
-    'group_id': 1000,
-    'snapshot_policy': 'default',
-    'qos_policy_group': 'performance',
-    'qos_adaptive_policy_group': 'performance',
-    'percent_snapshot_space': 60,
-    'language': 'en',
-    'vserver_dr_protection': 'unprotected',
-    'use_rest': 'never'
-}
-
-
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
-
-    def setUp(self):
-        self.mock_vol = dict(MOCK_VOL)
-
-    def mock_args(self, tag=None):
-        args = dict(DEFAULT_ARGS)
-        if tag is None:
-            args['aggregate_name'] = self.mock_vol['aggregate']
-            return args
-
-        elif tag == 'flexGroup_manual':
-            args['aggr_list'] = 'aggr_0,aggr_1'
-            args['aggr_list_multiplier'] = 2
-            return args
-
-        elif tag == 'flexGroup_auto':
-            args['auto_provision_as'] = 'flexgroup'
-            return args
-
-    def get_volume_mock_object(self, kind=None, job_error=None):
-        """
-        Helper method to return an na_ontap_volume object
-        :param kind: passes this param to MockONTAPConnection().
-        :param job_error: error message when getting job status.
-        :return: na_ontap_volume object
-        """
-        with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request') as mock_send:
-            mock_send.side_effect = [
-                SRR['is_zapi'],
-                SRR['end_of_sequence']
-            ]
-            vol_obj = vol_module()
-        vol_obj.ems_log_event = Mock(return_value=None)
-        vol_obj.get_efficiency_policy = Mock(return_value='test_efficiency')
-        vol_obj.volume_style = None
-        if kind is None:
-            vol_obj.server = MockONTAPConnection()
-        elif kind == 'job_info':
-            vol_obj.server = MockONTAPConnection(kind='job_info', data=self.mock_vol, job_error=job_error)
-            vol_obj.cluster = MockONTAPConnection(kind='job_info', data=self.mock_vol, job_error=job_error)
-        else:
-            vol_obj.server = MockONTAPConnection(kind=kind, data=self.mock_vol)
-            vol_obj.cluster = MockONTAPConnection(kind=kind, data=self.mock_vol)
-
-        return vol_obj
-
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            vol_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
-
-    def test_get_nonexistent_volume(self):
-        ''' Test if get_volume returns None for non-existent volume '''
-        set_module_args(self.mock_args())
-        result = self.get_volume_mock_object().get_volume()
-        assert result is None
-
-    def test_get_existing_volume(self):
-        ''' Test if get_volume returns details for existing volume '''
-        set_module_args(self.mock_args())
-        result = self.get_volume_mock_object('volume').get_volume()
-        assert result['name'] == self.mock_vol['name']
-        assert result['size'] == self.mock_vol['size']
-
-    def test_create_error_missing_param(self):
-        ''' Test if create throws an error if aggregate_name is not specified'''
-        data = self.mock_args()
-        del data['aggregate_name']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('volume').create_volume()
-        msg = 'Error provisioning volume test_vol: aggregate_name is required'
-        assert exc.value.args[0]['msg'] == msg
-
-    def test_successful_create(self):
-        ''' Test successful create '''
-        data = self.mock_args()
-        data['size'] = 20
-        data['encrypt'] = True
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    def test_create_idempotency(self):
-        ''' Test create idempotency '''
-        set_module_args(self.mock_args())
-        obj = self.get_volume_mock_object('volume')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_successful_delete(self):
-        ''' Test delete existing volume '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_delete_idempotency(self):
-        ''' Test delete idempotency '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_successful_modify_size(self):
-        ''' Test successful modify size '''
-        data = self.mock_args()
-        data['size'] = 200
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_modify_idempotency(self):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_modify_error(self):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('error_modify').volume_modify_attributes(dict())
-        assert exc.value.args[0]['msg'] == 'Error modifying volume test_vol: modify error message'
-
-    def test_mount_volume(self):
-        ''' Test mount volume '''
-        data = self.mock_args()
-        data['junction_path'] = "/test123"
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_unmount_volume(self):
-        ''' Test unmount volume '''
-        data = self.mock_args()
-        data['junction_path'] = ""
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_space(self):
-        ''' Test successful modify space '''
-        data = self.mock_args()
-        del data['space_slo']
-        data['space_guarantee'] = 'volume'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_unix_permissions(self):
-        ''' Test successful modify unix_permissions '''
-        data = self.mock_args()
-        data['unix_permissions'] = '---rw-r-xr-x'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_snapshot_policy(self):
-        ''' Test successful modify snapshot_policy '''
-        data = self.mock_args()
-        data['snapshot_policy'] = 'default-1weekly'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_efficiency_policy(self):
-        ''' Test successful modify efficiency_policy '''
-        data = self.mock_args()
-        data['efficiency_policy'] = 'test'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_percent_snapshot_space(self):
-        ''' Test successful modify percent_snapshot_space '''
-        data = self.mock_args()
-        data['percent_snapshot_space'] = '90'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_qos_policy_group(self):
-        ''' Test successful modify qos_policy_group '''
-        data = self.mock_args()
-        data['qos_policy_group'] = 'extreme'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_qos_adaptive_policy_group(self):
-        ''' Test successful modify qos_adaptive_policy_group '''
-        data = self.mock_args()
-        data['qos_adaptive_policy_group'] = 'extreme'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_move(self):
-        ''' Test successful modify aggregate '''
-        data = self.mock_args()
-        data['aggregate_name'] = 'different_aggr'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_rename(self, get_volume):
-        ''' Test successful rename volume '''
-        data = self.mock_args()
-        data['from_name'] = self.mock_vol['name']
-        data['name'] = 'new_name'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-        }
-        get_volume.side_effect = [
-            None,
-            current
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_rename_async(self, get_volume):
-        ''' Test successful rename volume '''
-        data = self.mock_args()
-        data['from_name'] = self.mock_vol['name']
-        data['name'] = 'new_name'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'is_infinite': True
-        }
-        get_volume.side_effect = [
-            None,
-            current
-        ]
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.change_volume_state')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.volume_mount')
-    def test_modify_helper(self, mount_volume, change_state):
-        data = self.mock_args()
-        set_module_args(data)
-        modify = {
-            'is_online': False,
-            'junction_path': 'something'
-        }
-        obj = self.get_volume_mock_object('volume')
-        obj.modify_volume(modify)
-        change_state.assert_called_with()
-        mount_volume.assert_called_with()
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_true_1(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '------------'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '0'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_true_2(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---rwxrwxrwx'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '777'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_true_3(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---rwxr-xr-x'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '755'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_true_4(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '755'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '755'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_false_1(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---rwxrwxrwx'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '0'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert not obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_false_2(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---rwxrwxrwx'
-        set_module_args(data)
-        current = None
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert not obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_invalid_input_1(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---xwrxwrxwr'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '777'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert not obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_invalid_input_2(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---rwx-wx--a'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '0'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert not obj.compare_chmod_value(current)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_compare_chmod_value_invalid_input_3(self, get_volume):
-        data = self.mock_args()
-        data['unix_permissions'] = '---'
-        set_module_args(data)
-        current = {
-            'unix_permissions': '0'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object()
-        assert not obj.compare_chmod_value(current)
-
-    def test_successful_create_flex_group_manually(self):
-        ''' Test successful create flexGroup manually '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 20
-        set_module_args(data)
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_create_flex_group_auto_provision(self):
-        ''' Test successful create flexGroup auto provision '''
-        data = self.mock_args('flexGroup_auto')
-        data['time_out'] = 20
-        set_module_args(data)
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_delete_flex_group(self, get_volume):
-        ''' Test successful delete flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['state'] = 'absent'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '755',
-            'is_online': True,
-            'uuid': 'uuid'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_resize_flex_group(self, get_volume):
-        ''' Test successful reszie flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['size'] = 400
-        data['size_unit'] = 'mb'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'size': 20971520,
-            'unix_permissions': '755',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.check_job_status')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_modify_unix_permissions_flex_group(self, get_volume, check_job_status):
-        ''' Test successful modify unix permissions flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 20
-        data['unix_permissions'] = '---rw-r-xr-x'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '777',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        check_job_status.side_effect = [
-            None
-        ]
-        obj = self.get_volume_mock_object('success_modify_async')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        print(exc)
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_modify_unix_permissions_flex_group_0_time_out(self, get_volume):
-        ''' Test successful modify unix permissions flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 0
-        data['unix_permissions'] = '---rw-r-xr-x'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '777',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('success_modify_async')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_modify_unix_permissions_flex_group_0_missing_result(self, get_volume):
-        ''' Test successful modify unix permissions flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 0
-        data['unix_permissions'] = '---rw-r-xr-x'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '777',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('missing_element_modify_async')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.apply()
-        msg = "Unexpected error when modifying volume: result is:"
-        assert exc.value.args[0]['msg'].startswith(msg)
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.check_job_status')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_error_modify_unix_permissions_flex_group(self, get_volume, check_job_status):
-        ''' Test error modify unix permissions flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 20
-        data['unix_permissions'] = '---rw-r-xr-x'
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '777',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        check_job_status.side_effect = ['error']
-        obj = self.get_volume_mock_object('success_modify_async')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['msg'] == 'Error when modifying volume: error'
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_failure_modify_unix_permissions_flex_group(self, get_volume):
-        ''' Test failure modify unix permissions flexGroup '''
-        data = self.mock_args('flexGroup_manual')
-        data['unix_permissions'] = '---rw-r-xr-x'
-        data['time_out'] = 20
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'unix_permissions': '777',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('failure_modify_async')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying volume test_vol: modify error message'
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_offline_state_flex_group(self, get_volume):
-        ''' Test successful offline flexGroup state '''
-        data = self.mock_args('flexGroup_manual')
-        data['is_online'] = False
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'is_online': True,
-            'junction_path': 'anything',
-            'unix_permissions': '755',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('job_info')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_online_state_flex_group(self, get_volume):
-        ''' Test successful online flexGroup state '''
-        data = self.mock_args('flexGroup_manual')
-        set_module_args(data)
-        current = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'style_extended': 'flexgroup',
-            'is_online': False,
-            'junction_path': 'anything',
-            'unix_permissions': '755',
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        online = 'job_info'  # not correct, but works
-        job = 'job_info'
-        success = 'success_modify_async'
-        mount = 'job_info'  # not correct, but works
-        kind = [online, job, job, success, mount, job, job]
-        obj = self.get_volume_mock_object(kind)
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    def test_check_job_status_error(self):
-        ''' Test check job status error '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 0
-        set_module_args(data)
-        obj = self.get_volume_mock_object('job_info', job_error='failure')
-        result = obj.check_job_status('123')
-        assert result == 'failure'
-
-    def test_check_job_status_time_out_is_0(self):
-        ''' Test check job status time out is 0'''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 0
-        set_module_args(data)
-        obj = self.get_volume_mock_object('job_info', job_error='time_out')
-        result = obj.check_job_status('123')
-        assert result == 'job completion exceeded expected timer of: 0 seconds'
-
-    def test_check_job_status_unexpected(self):
-        ''' Test check job status unexpected state '''
-        data = self.mock_args('flexGroup_manual')
-        data['time_out'] = 20
-        set_module_args(data)
-        obj = self.get_volume_mock_object('job_info', job_error='other')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.check_job_status('123')
-        assert exc.value.args[0]['failed']
-
-    def test_error_set_efficiency_policy(self):
-        data = self.mock_args()
-        data['efficiency_policy'] = 'test_policy'
-        set_module_args(data)
-        obj = self.get_volume_mock_object('zapi_error')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.set_efficiency_config()
-        assert exc.value.args[0]['msg'] == 'Error enable efficiency on volume test_vol: NetApp API failed. Reason - test:error'
-
-    def test_error_set_efficiency_policy_async(self):
-        data = self.mock_args()
-        data['efficiency_policy'] = 'test_policy'
-        set_module_args(data)
-        obj = self.get_volume_mock_object('zapi_error')
-        with pytest.raises(AnsibleFailJson) as exc:
-            obj.set_efficiency_config_async()
-        assert exc.value.args[0]['msg'] == 'Error enable efficiency on volume test_vol: NetApp API failed. Reason - test:error'
-
-    def test_successful_modify_tiering_policy(self):
-        ''' Test successful modify tiering policy '''
-        data = self.mock_args()
-        data['tiering_policy'] = 'auto'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_modify_vserver_dr_protection(self):
-        ''' Test successful modify vserver_dr_protection '''
-        data = self.mock_args()
-        data['vserver_dr_protection'] = 'protected'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_group_id(self):
-        ''' Test successful modify group_id '''
-        data = self.mock_args()
-        data['group_id'] = 1001
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_user_id(self):
-        ''' Test successful modify user_id '''
-        data = self.mock_args()
-        data['user_id'] = 101
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-    def test_successful_modify_snapshot_auto_delete(self, get_volume):
-        ''' Test successful modify unix permissions flexGroup '''
-        data = {
-            'snapshot_auto_delete': {'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
-                                     'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
-                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'test_vserver',
-
-        }
-        set_module_args(data)
-        current = {
-            'name': self.mock_vol['name'],
-            'vserver': self.mock_vol['vserver'],
-            'snapshot_auto_delete': {'delete_order': 'newest_first', 'destroy_list': 'lun_clone,vol_clone',
-                                     'target_free_space': 30, 'prefix': 'test', 'commitment': 'try',
-                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
-            'uuid': '1234'
-        }
-        get_volume.side_effect = [
-            current
-        ]
-        obj = self.get_volume_mock_object('volume')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
-
-    def test_error_modify_snapshot_auto_delete(self):
-        data = {
-            'snapshot_auto_delete': {'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
-                                     'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
-                                     'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'test_vserver',
-
-        }
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('zapi_error').set_snapshot_auto_delete()
-        assert exc.value.args[0]['msg'] == 'Error setting snapshot auto delete options for volume test_vol: NetApp API failed. Reason - test:error'
-
-    def test_successful_volume_rehost(self):
-        data = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'dest_vserver',
-            'from_vserver': 'source_vserver'
-        }
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_error_volume_rehost(self):
-        data = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'dest_vserver',
-            'from_vserver': 'source_vserver'
-        }
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('zapi_error').rehost_volume()
-        assert exc.value.args[0]['msg'] == 'Error rehosting volume test_vol: NetApp API failed. Reason - test:error'
-
-    def test_successful_volume_restore(self):
-        data = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'test_vserver',
-            'snapshot_restore': 'snapshot_copy'
-        }
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_error_volume_restore(self):
-        data = {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'name': 'test_vol',
-            'vserver': 'test_vserver',
-            'snapshot_restore': 'snapshot_copy'
-        }
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('zapi_error').snapshot_restore_volume()
-        assert exc.value.args[0]['msg'] == 'Error restoring volume test_vol: NetApp API failed. Reason - test:error'
-
-    def test_error_modify_flexvol_to_flexgroup(self):
-        ''' Test successful modify vserver_dr_protection '''
-        data = self.mock_args()
-        data['auto_provision_as'] = 'flexgroup'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('volume').apply()
-        msg = 'Error: changing a volume from one backend to another is not allowed.  Current: flexvol, desired: flexgroup.'
-        assert msg == exc.value.args[0]['msg']
-
-    def test_error_modify_flexgroup_to_flexvol(self):
-        ''' Test successful modify vserver_dr_protection '''
-        data = self.mock_args()
-        data['aggregate_name'] = 'nothing'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_mock_object('flexgroup').apply()
-        msg = 'Error: aggregate_name option cannot be used with FlexGroups.'
-        assert msg == exc.value.args[0]['msg']
+
+ZAPI_ERROR = 'NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+
+
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    error = create_module(vol_module, {}, fail=True)
+    print('Info: %s' % error['msg'])
+    assert 'missing required arguments:' in error['msg']
+
+
+def test_get_nonexistent_volume():
+    ''' Test if get_volume returns None for non-existent volume '''
+    register_responses([
+        ('ZAPI', 'volume-get-iter', ZRR['success']),
+    ])
+    assert create_module(vol_module, DEFAULT_ARGS).get_volume() is None
+
+
+def test_get_existing_volume():
+    ''' Test if get_volume returns details for existing volume '''
+    register_responses([
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    volume_info = create_module(vol_module, DEFAULT_ARGS).get_volume()
+    assert volume_info is not None
+    assert 'aggregate_name' in volume_info
+
+
+def test_create_error_missing_param():
+    ''' Test if create throws an error if aggregate_name is not specified'''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'size': 20,
+        'encrypt': True,
+    }
+    msg = 'Error provisioning volume test_vol: aggregate_name is required'
+    assert msg == create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_successful_create():
+    ''' Test successful create '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-create', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'aggregate_name': MOCK_VOL['aggregate'],
+        'size': 20,
+        'encrypt': True,
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_idempotency():
+    ''' Test create idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    assert not create_and_apply(vol_module, DEFAULT_ARGS)['changed']
+
+
+def test_successful_delete():
+    ''' Test delete existing volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-destroy', ZRR['success']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_idempotency():
+    ''' Test delete idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert not create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_modify_size():
+    ''' Test successful modify size '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-size', ZRR['success']),
+    ])
+    module_args = {
+        'size': 200,
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<new-size>209715200', 3)
+
+
+def test_modify_idempotency():
+    ''' Test modify idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    assert not create_and_apply(vol_module, DEFAULT_ARGS)['changed']
+
+
+def test_modify_error():
+    ''' Test modify idempotency '''
+    register_responses([
+        ('ZAPI', 'volume-modify-iter', ZRR['error']),
+    ])
+    msg = 'Error modifying volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, DEFAULT_ARGS).volume_modify_attributes, 'fail', {})['msg']
+
+
+def test_mount_volume():
+    ''' Test mount volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-mount', ZRR['success']),
+    ])
+    module_args = {
+        'junction_path': '/test123',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_unmount_volume():
+    ''' Test unmount volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+    ])
+    module_args = {
+        'junction_path': '',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_modify_space():
+    ''' Test successful modify space '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    del args['space_slo']
+    module_args = {
+        'space_guarantee': 'volume',
+    }
+    assert create_and_apply(vol_module, args, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<space-guarantee>volume', 3)
+
+
+def test_successful_modify_unix_permissions():
+    ''' Test successful modify unix_permissions '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<permissions>---rw-r-xr-x', 3)
+
+
+def test_successful_modify_max_files():
+    ''' Test successful modify unix_permissions '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'max_files': '3000',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<files-total>3000', 3)
+
+
+def test_successful_modify_snapshot_policy():
+    ''' Test successful modify snapshot_policy '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'snapshot_policy': 'default-1weekly',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<snapshot-policy>default-1weekly', 3)
+
+
+def test_successful_modify_efficiency_policy():
+    ''' Test successful modify efficiency_policy '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'sis-enable', ZRR['success']),
+        ('ZAPI', 'sis-set-config', ZRR['success']),
+    ])
+    module_args = {
+        'efficiency_policy': 'test',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<policy-name>test', 4)
+
+
+def test_successful_modify_percent_snapshot_space():
+    ''' Test successful modify percent_snapshot_space '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'percent_snapshot_space': 90,
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>90', 3)
+
+
+def test_successful_modify_qos_policy_group():
+    ''' Test successful modify qos_policy_group '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'qos_policy_group': 'extreme',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<policy-group-name>extreme', 3)
+
+
+def test_successful_modify_qos_adaptive_policy_group():
+    ''' Test successful modify qos_adaptive_policy_group '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'qos_adaptive_policy_group': 'extreme',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<adaptive-policy-group-name>extreme', 3)
+
+
+def test_successful_move():
+    ''' Test successful modify aggregate '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-move-start', ZRR['success']),
+    ])
+    module_args = {
+        'aggregate_name': 'different_aggr',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_rename(get_volume):
+    ''' Test successful rename volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-rename', ZRR['success']),
+    ])
+    module_args = {
+        'from_name': MOCK_VOL['name'],
+        'name': 'new_name',
+        'time_out': 20
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'uuid': MOCK_VOL['uuid'],
+        'vserver': MOCK_VOL['vserver'],
+    }
+    get_volume.side_effect = [
+        None,
+        current
+    ]
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_rename_async(get_volume):
+    ''' Test successful rename volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-rename-async', ZRR['success']),
+    ])
+    module_args = {
+        'from_name': MOCK_VOL['name'],
+        'name': 'new_name',
+        'is_infinite': True,
+        'time_out': 20
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'uuid': MOCK_VOL['uuid'],
+        'vserver': MOCK_VOL['vserver'],
+        'is_infinite': True
+    }
+    get_volume.side_effect = [
+        None,
+        current
+    ]
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_helper():
+    register_responses([
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+    ])
+    module_args = {'is_online': False}
+    modify = {
+        'is_online': False,
+        'junction_path': 'something'
+    }
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).modify_volume(modify, True) is None
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_true_1(get_volume):
+    module_args = {'unix_permissions': '------------'}
+    current = {
+        'unix_permissions': '0'
+    }
+    get_volume.return_value = current
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_true_2(get_volume):
+    module_args = {'unix_permissions': '---rwxrwxrwx'}
+    current = {
+        'unix_permissions': '777'
+    }
+    get_volume.return_value = current
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_true_3(get_volume):
+    module_args = {'unix_permissions': '---rwxr-xr-x'}
+    current = {
+        'unix_permissions': '755'
+    }
+    get_volume.return_value = current
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_true_4(get_volume):
+    module_args = {'unix_permissions': '755'}
+    current = {
+        'unix_permissions': '755'
+    }
+    get_volume.return_value = current
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_false_1(get_volume):
+    module_args = {'unix_permissions': '---rwxrwxrwx'}
+    current = {
+        'unix_permissions': '0'
+    }
+    get_volume.return_value = current
+    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_false_2(get_volume):
+    module_args = {'unix_permissions': '---rwxrwxrwx'}
+    current = None
+    get_volume.return_value = current
+    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_invalid_input_1(get_volume):
+    module_args = {'unix_permissions': '---xwrxwrxwr'}
+    current = {
+        'unix_permissions': '777'
+    }
+    get_volume.return_value = current
+    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_invalid_input_2(get_volume):
+    module_args = {'unix_permissions': '---rwx-wx--a'}
+    current = {
+        'unix_permissions': '0'
+    }
+    get_volume.return_value = current
+    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_compare_chmod_value_invalid_input_3(get_volume):
+    module_args = {'unix_permissions': '---'}
+    current = {
+        'unix_permissions': '0'
+    }
+    get_volume.return_value = current
+    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+
+
+def test_successful_create_flex_group_manually():
+    ''' Test successful create flexGroup manually '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['empty']),
+        ('ZAPI', 'volume-create-async', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'aggr_list': 'aggr_0,aggr_1',
+        'aggr_list_multiplier': 2,
+        'time_out': 20
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_create_flex_group_auto_provision():
+    ''' Test successful create flexGroup auto provision '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['empty']),
+        ('ZAPI', 'volume-create-async', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'auto_provision_as': 'flexgroup',
+        'time_out': 20
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_delete_flex_group(get_volume):
+    ''' Test successful delete flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+        ('ZAPI', 'volume-offline-async', ZRR['job_success']),
+        ('ZAPI', 'volume-destroy-async', ZRR['job_success']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '755',
+        'is_online': True,
+        'uuid': 'uuid'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_resize_flex_group(get_volume):
+    ''' Test successful reszie flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-size-async', ZRR['job_success']),
+    ])
+    module_args = {
+        'size': 400,
+        'size_unit': 'mb'
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'size': 20971520,
+        'unix_permissions': '755',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.check_job_status')
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_modify_unix_permissions_flex_group(get_volume, check_job_status):
+    ''' Test successful modify unix permissions flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+        'time_out': 20
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '777',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    check_job_status.return_value = None
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_modify_unix_permissions_flex_group_0_time_out(get_volume):
+    ''' Test successful modify unix permissions flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+        'time_out': 0
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '777',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_modify_unix_permissions_flex_group_0_missing_result(get_volume):
+    ''' Test successful modify unix permissions flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['job_running']),       # bad response
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+        'time_out': 0
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '777',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    # check_job_status.side_effect = ['job_error']
+    error = create_and_apply(vol_module, DEFAULT_ARGS, module_args, 'fail')
+    assert error['msg'].startswith('Unexpected error when modifying volume: result is:')
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.check_job_status')
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_error_modify_unix_permissions_flex_group(get_volume, check_job_status):
+    ''' Test error modify unix permissions flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+        'time_out': 20
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '777',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    check_job_status.side_effect = ['job_error']
+    error = create_and_apply(vol_module, DEFAULT_ARGS, module_args, 'fail')
+    assert error['msg'] == 'Error when modifying volume: job_error'
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_failure_modify_unix_permissions_flex_group(get_volume):
+    ''' Test failure modify unix permissions flexGroup '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_failure']),
+    ])
+    module_args = {
+        'unix_permissions': '---rw-r-xr-x',
+        'time_out': 20
+    }
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'unix_permissions': '777',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    error = create_and_apply(vol_module, DEFAULT_ARGS, module_args, 'fail')
+    assert error['msg'] == 'Error modifying volume test_vol: error_in_modify'
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_offline_state_flex_group(get_volume):
+    ''' Test successful offline flexGroup state '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+        ('ZAPI', 'volume-offline-async', ZRR['async_results']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {'is_online': False}
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'is_online': True,
+        'junction_path': 'anything',
+        'unix_permissions': '755',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_online_state_flex_group(get_volume):
+    ''' Test successful online flexGroup state '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-online-async', ZRR['async_results']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        ('ZAPI', 'volume-mount', ZRR['success']),
+    ])
+    current = {
+        'hostname': 'test',
+        'username': 'test_user',
+        'password': 'test_pass!',
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'style_extended': 'flexgroup',
+        'is_online': False,
+        'junction_path': 'anything',
+        'unix_permissions': '755',
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, DEFAULT_ARGS)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<group-id>', 4)
+    assert get_mock_record().is_text_in_zapi_request('<user-id>', 4)
+    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>', 4)
+    assert get_mock_record().is_text_in_zapi_request('<junction-path>/test</junction-path>', 7)
+
+
+def test_check_job_status_error():
+    ''' Test check job status error '''
+    register_responses([
+        ('ZAPI', 'job-get', ZRR['job_failure']),
+    ])
+    module_args = {
+        'aggr_list': 'aggr_0,aggr_1',
+        'aggr_list_multiplier': 2,
+        'time_out': 0
+    }
+    msg = 'failure'
+    assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
+
+
+def test_check_job_status_time_out_is_0():
+    ''' Test check job status time out is 0'''
+    register_responses([
+        ('ZAPI', 'job-get', ZRR['job_time_out']),
+    ])
+    module_args = {
+        'aggr_list': 'aggr_0,aggr_1',
+        'aggr_list_multiplier': 2,
+        'time_out': 0
+    }
+    msg = 'job completion exceeded expected timer of: 0 seconds'
+    assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
+
+
+def test_check_job_status_unexpected():
+    ''' Test check job status unexpected state '''
+    register_responses([
+        ('ZAPI', 'job-get', ZRR['job_other']),
+        ('ZAPI', 'job-get', ZRR['job_other']),
+    ])
+    module_args = {
+        'aggr_list': 'aggr_0,aggr_1',
+        'aggr_list_multiplier': 2,
+        'time_out': 20
+    }
+    msg = 'Unexpected job status in:'
+    assert msg in expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status, 'fail', '123')['msg']
+
+
+def test_error_set_efficiency_policy():
+    register_responses([
+        ('ZAPI', 'sis-enable', ZRR['error']),
+    ])
+    module_args = {'efficiency_policy': 'test_policy'}
+    msg = 'Error enable efficiency on volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).set_efficiency_config, 'fail')['msg']
+
+
+def test_error_set_efficiency_policy_async():
+    register_responses([
+        ('ZAPI', 'sis-enable-async', ZRR['error']),
+    ])
+    module_args = {'efficiency_policy': 'test_policy'}
+    msg = 'Error enable efficiency on volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).set_efficiency_config_async, 'fail')['msg']
+
+
+def test_successful_modify_tiering_policy():
+    ''' Test successful modify tiering policy '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {'tiering_policy': 'auto'}
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<tiering-policy>auto</tiering-policy>', 3)
+
+
+def test_successful_modify_vserver_dr_protection():
+    ''' Test successful modify vserver_dr_protection '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {'vserver_dr_protection': 'protected'}
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<vserver-dr-protection>protected</vserver-dr-protection>', 3)
+
+
+def test_successful_group_id():
+    ''' Test successful modify group_id '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {'group_id': 1001}
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<group-id>1001</group-id>', 3)
+
+
+def test_successful_modify_user_id():
+    ''' Test successful modify user_id '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {'user_id': 101}
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<user-id>101</user-id>', 3)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
+def test_successful_modify_snapshot_auto_delete(get_volume):
+    ''' Test successful modify unix permissions flexGroup '''
+    register_responses([
+        # One ZAPI call for each option!
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
+    ])
+    module_args = {
+        'snapshot_auto_delete': {
+            'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
+            'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
+            'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'}}
+    current = {
+        'name': MOCK_VOL['name'],
+        'vserver': MOCK_VOL['vserver'],
+        'snapshot_auto_delete': {
+            'delete_order': 'newest_first', 'destroy_list': 'lun_clone,vol_clone',
+            'target_free_space': 30, 'prefix': 'test', 'commitment': 'try',
+            'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'},
+        'uuid': '1234'
+    }
+    get_volume.return_value = current
+    assert create_and_apply(vol_module, MINIMUM_ARGS, module_args)['changed']
+
+
+def test_error_modify_snapshot_auto_delete():
+    register_responses([
+        ('ZAPI', 'snapshot-autodelete-set-option', ZRR['error']),
+    ])
+    module_args = {'snapshot_auto_delete': {
+        'delete_order': 'oldest_first', 'destroy_list': 'lun_clone,vol_clone',
+        'target_free_space': 20, 'prefix': 'test', 'commitment': 'try',
+        'state': 'on', 'trigger': 'snap_reserve', 'defer_delete': 'scheduled'}}
+    msg = 'Error setting snapshot auto delete options for volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).set_snapshot_auto_delete, 'fail')['msg']
+
+
+def test_successful_volume_rehost():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-rehost', ZRR['success']),
+    ])
+    module_args = {'from_vserver': 'source_vserver'}
+    assert create_and_apply(vol_module, MINIMUM_ARGS, module_args)['changed']
+
+
+def test_error_volume_rehost():
+    register_responses([
+        ('ZAPI', 'volume-rehost', ZRR['error']),
+    ])
+    module_args = {'from_vserver': 'source_vserver'}
+    msg = 'Error rehosting volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).rehost_volume, 'fail')['msg']
+
+
+def test_successful_volume_restore():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'snapshot-restore-volume', ZRR['success']),
+    ])
+    module_args = {'snapshot_restore': 'snapshot_copy'}
+    assert create_and_apply(vol_module, MINIMUM_ARGS, module_args)['changed']
+
+
+def test_error_volume_restore():
+    register_responses([
+        ('ZAPI', 'snapshot-restore-volume', ZRR['error']),
+    ])
+    module_args = {'snapshot_restore': 'snapshot_copy'}
+    msg = 'Error restoring volume test_vol: %s' % ZAPI_ERROR
+    assert msg == expect_and_capture_ansible_exception(create_module(vol_module, MINIMUM_ARGS, module_args).snapshot_restore_volume, 'fail')['msg']
+
+
+def test_error_modify_flexvol_to_flexgroup():
+    ''' Test successful modify vserver_dr_protection '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    module_args = {'auto_provision_as': 'flexgroup'}
+    msg = 'Error: changing a volume from one backend to another is not allowed.  Current: flexvol, desired: flexgroup.'
+    assert msg == create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_error_modify_flexgroup_to_flexvol():
+    ''' Changing the style from flexgroup to flexvol is not allowed '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+    ])
+    module_args = {'aggregate_name': 'nothing'}
+    msg = 'Error: aggregate_name option cannot be used with FlexGroups.'
+    assert msg == create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_error_snaplock_not_supported_with_zapi():
     ''' Test successful modify vserver_dr_protection '''
     module_args = {'snaplock': {'retention': {'default': 'P30TM'}}}
-    with pytest.raises(AnsibleFailJson) as exc:
-        create_module(vol_module, DEFAULT_ARGS, module_args).get_volume_mock_object().apply()
     msg = 'snaplock option is not supported with ZAPI. It can only be used with REST.'
-    assert msg == exc.value.args[0]['msg']
-
-
-def test_ems_log_event():
-    register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-    ])
-    my_obj = create_module(vol_module, DEFAULT_ARGS)
-    assert my_obj.ems_log_event() is None
+    assert msg == create_module(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_wait_for_task_completion_no_records():
@@ -1349,7 +1295,7 @@ def test_wait_for_task_completion_loop_with_non_recoverable_error(skip_sleep):
     # using response to build a request
     zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
     my_obj = create_module(vol_module, DEFAULT_ARGS)
-    assert str(my_obj.wait_for_task_completion(zapi_iter, lambda x: True)) == 'NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert str(my_obj.wait_for_task_completion(zapi_iter, lambda x: True)) == ZAPI_ERROR
 
 
 @patch('time.sleep')
@@ -1367,7 +1313,7 @@ def test_wait_for_volume_encryption_conversion_with_non_recoverable_error(skip_s
     ])
     my_obj = create_module(vol_module, DEFAULT_ARGS)
     error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_encryption_conversion, 'fail')['msg']
-    assert error == 'Error getting volume encryption_conversion status: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert error == 'Error getting volume encryption_conversion status: %s' % ZAPI_ERROR
 
 
 @patch('time.sleep')
@@ -1407,7 +1353,7 @@ def test_wait_for_volume_move_with_non_recoverable_error(skip_sleep):
     ])
     my_obj = create_module(vol_module, DEFAULT_ARGS)
     error = expect_and_capture_ansible_exception(my_obj.wait_for_volume_move, 'fail')['msg']
-    assert error == 'Error getting volume move status: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert error == 'Error getting volume move status: %s' % ZAPI_ERROR
 
 
 @patch('time.sleep')

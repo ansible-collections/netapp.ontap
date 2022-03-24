@@ -130,6 +130,16 @@ class MockCalls:
     def is_zapi_called(self, zapi):
         return any(self.get_requests('ZAPI', zapi))
 
+    def get_request(self, sequence):
+        return self.requests[sequence]
+
+    def is_text_in_zapi_request(self, text, sequence, present=True):
+        found = text in str(self.get_request(sequence)['zapi_request'])
+        if found != present:
+            not_expected = 'not ' if present else ''
+            print('Error: %s %sfound in %s' % (text, not_expected, self.get_request(sequence)['zapi_request']))
+        return found
+
     # private methods
 
     def __del__(self):
