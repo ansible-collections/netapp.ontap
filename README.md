@@ -45,18 +45,24 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Minor Changes
   - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
   - na_ontap_debug - report ansible version and ONTAP collection version.
+  - na_ontap_snapmirror -- Added more descriptive error messages for REST
   - na_ontap_volume - allow to modify volume after rename.
   - na_ontap_vserver_create role - support max_volumes option.
 
 ### Bug Fixes
   - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
+  - na_ontap_command - document that a READONLY user is not supported, even for show commands.
   - na_ontap_info - [#54] Fixes issue with na_ontap_info failing in 9.1 because of `job-schedule-cluster`.
-  - na_ontap_qtree - Fixed issue with `oplocks` not being changed during a modify in Zapi.
-  - na_ontap_qtree - Fixed issue with `oplocks` not warning user about not being supported in REST
+  - na_ontap_qtree - Fixed issue with `oplocks` not being changed during a modify in ZAPI.
+  - na_ontap_qtree - Fixed issue with `oplocks` not warning user about not being supported in REST.
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
   - na_ontap_volume - do not attempt to mount volume if current state is offline.
+  - na_ontap_vserver_peer - Fixed AttributeError if `dest_hostname` or `peer_options` not present.
+  - na_ontap_vserver_peer - Fixed `local_name_for_peer` and `local_name_for_source` options silently ignored in REST.
+  - na_ontap_vserver_peer - Added cluster peer accept code in REST.
+  - na_ontap_vserver_peer - Get peer cluster name if remote peer exist else use local cluster name.
   - Fixed ONTAP minor version ignored in checking minimum ONTAP version.
 
 ### Added REST support to existing modules

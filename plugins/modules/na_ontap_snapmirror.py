@@ -1285,7 +1285,7 @@ class NetAppONTAPSnapmirror(object):
         api = '/snapmirror/relationships'
         response, error = rest_generic.post_async(self.rest_api, api, body, timeout=120)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error Restoring Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
         self.snapmirror_get()
         relationship_uuid = self.parameters.get('uuid')
         # REST API call to start the restore transfer on the SnapMirror relationship
@@ -1293,7 +1293,8 @@ class NetAppONTAPSnapmirror(object):
             api = '/snapmirror/relationships/%s/transfers' % relationship_uuid
             response, error = rest_generic.post_async(self.rest_api, api, body_restore, timeout=60, job_timeout=120)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error Restoring Snapmirror Transfer: %s' % to_native(error), exception=traceback.format_exc())
+
         else:
             self.module.fail_json(msg="relationship.uuid for the snapmirror is not found")
 
@@ -1327,7 +1328,7 @@ class NetAppONTAPSnapmirror(object):
         if state == "paused":
             return response
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error patching Snapmirror: %s:' % to_native(error), exception=traceback.format_exc())
 
     def snapmirror_abort_rest(self):
         """
@@ -1341,7 +1342,7 @@ class NetAppONTAPSnapmirror(object):
         body = {"state": "aborted"}
         response, error = rest_generic.patch_async(self.rest_api, api, transfer_uuid, body)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error Aborting Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
 
     def snapmirror_quiesce_rest(self):
         """
@@ -1376,7 +1377,7 @@ class NetAppONTAPSnapmirror(object):
             self.module.fail_json(msg='Error in Deleting SnapMirror: %s uuid entry does not exist' % uuid)
         response, error = rest_generic.delete_async(self.rest_api, api, uuid)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error Deleting Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
 
     def snapmirror_rest_create(self):
         """
@@ -1386,7 +1387,7 @@ class NetAppONTAPSnapmirror(object):
         api = 'snapmirror/relationships'
         response, error = rest_generic.post_async(self.rest_api, api, body, timeout=60)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error Creating Snapmirror:%s' % to_native(error), exception=traceback.format_exc())
         if self.parameters['initialize'] and not initialized:
             self.snapmirror_initialize()
         return response
@@ -1404,7 +1405,8 @@ class NetAppONTAPSnapmirror(object):
                    '_links.self.href,uuid,state,transfer.state,transfer.uuid,policy.name,unhealthy_reason.message,healthy'}
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg="Error getting SnapMirror %s: %s" % (destination, to_native(error)),
+                                  exception=traceback.format_exc())
         if record is not None:
             self.parameters['uuid'] = self.na_helper.safe_get(record, ['uuid'])
             # self.parameters['relationship_uuid'] = self.na_helper.safe_get(record, ['_links', 'self', 'href'])

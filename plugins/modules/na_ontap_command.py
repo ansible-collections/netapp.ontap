@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -10,9 +10,12 @@ __metaclass__ = type
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - "Run system-cli commands on ONTAP"
+  - Run system-cli commands on ONTAP.
   - Can't be used with cert authentication and domain authentication accounts.
   - Requires ontapi and console permissions. Console is not supported for data vservers.
+  - Requires write permissions, even for show commands!  ONTAP reports
+    "Insufficient privileges" and "user 'xxxxx' does not have write access to this resource"
+    for a readonly user.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_command
