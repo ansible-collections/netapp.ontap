@@ -181,6 +181,11 @@ class NetAppOntapEfficiencyPolicy(object):
                 if self.parameters.get('changelog_threshold_percent'):
                     self.module.fail_json(msg='changelog_threshold_percent cannot be set if policy_type is scheduled')
 
+        # if duration not set for a policy, ZAPI returns "-", whereas REST returns 0.
+        # "-" is an invalid value in REST, set to 0 if REST.
+        if self.parameters.get('duration') == "-" and self.use_rest:
+            self.parameters['duration'] = '0'
+
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
@@ -251,7 +256,7 @@ class NetAppOntapEfficiencyPolicy(object):
                 'qos_policy': record['qos_policy'],
                 'schedule': record['schedule']['name'] if 'schedule' in record else None,
                 'enabled': record['enabled'],
-                'duration': record['duration'] if 'duration' in record else None,
+                'duration': str(record['duration']) if 'duration' in record else None,
                 'changelog_threshold_percent': record['start_threshold_percent'] if 'start_threshold_percent' in record else None,
                 'comment': record['comment']
             }

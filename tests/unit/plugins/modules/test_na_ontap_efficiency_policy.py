@@ -235,7 +235,7 @@ SRR = rest_responses({
             "svm": {"name": "svm3"},
             "name": "test_policy",
             "type": "scheduled",
-            "duration": "5",
+            "duration": 5,
             "schedule": {"name": "daily"},
             "qos_policy": "background",
             "enabled": True,
@@ -331,6 +331,16 @@ def test_successful_modify_duration_rest():
         ('PATCH', 'storage/volume-efficiency-policies/0d1f0860-a8a9-11ec-aa26-005056b323e5', SRR['success'])
     ])
     args = {'duration': 10, 'use_rest': 'always'}
+    assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed']
+
+
+def test_successful_modify_duration_set_hyphen_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volume-efficiency-policies', SRR['scheduled_policy_info']),
+        ('PATCH', 'storage/volume-efficiency-policies/0d1f0860-a8a9-11ec-aa26-005056b323e5', SRR['success'])
+    ])
+    args = {'duration': "-", 'use_rest': 'always'}
     assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed']
 
 
