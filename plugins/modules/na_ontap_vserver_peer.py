@@ -164,8 +164,8 @@ class NetAppONTAPVserverPeer:
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        if self.parameters.get('dest_hostname') is None and self.parameters.get('peer_options') is None and self.parameters['state'] == 'present':
-            self.module.fail_json(msg='Error: dest_hostname or peer_options required for creating vserver peer.')
+        if self.parameters.get('dest_hostname') is None and self.parameters.get('peer_options') is None:
+            self.parameters['dest_hostname'] = self.parameters.get('hostname')
         if self.parameters.get('dest_hostname') is not None:
             # if dest_hostname is present, peer_options is absent
             self.parameters['peer_options'] = dict(
@@ -336,15 +336,24 @@ class NetAppONTAPVserverPeer:
                                   % (self.parameters['peer_vserver'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def check_and_report_rest_error(self, error, action, where):
+        if error:
+            if "job reported error:" in error and "entry doesn't exist" in error:
+                # ignore RBAC issue with FSx - BURT1467620 - GitHub #45
+                self.module.warn('Ignoring job status, assuming success - Issue #45.')
+                return
+            self.module.fail_json(msg='Error %s vserver peer relationship on %s: %s' % (action, where, error))
+
     def vserver_peer_accept_rest(self, target):
         vserver_peer_info = self.vserver_peer_get_rest('peer')
+        if not vserver_peer_info:
+            self.module.fail_json(msg='Error reading vserver peer information on peer %s' % self.parameters['peer_vserver'])
         api = 'svm/peers'
         body = {"state": "peered"}
         if 'local_name_for_source' in self.parameters:
             body['name'] = self.parameters['local_name_for_source']
         dummy, error = rest_generic.patch_async(self.dst_rest_api, api, vserver_peer_info['local_peer_vserver_uuid'], body)
-        if error:
-            self.module.fail_json(msg='Error accepting vserver peer %s: %s' % (self.parameters['peer_vserver'], error))
+        self.check_and_report_rest_error(error, 'accepting', self.parameters['peer_vserver'])
 
     def vserver_peer_get_rest(self, target):
         """
@@ -374,8 +383,7 @@ class NetAppONTAPVserverPeer:
         Delete a vserver peer using rest.
         """
         dummy, error = rest_generic.delete_async(self.rest_api, 'svm/peers', current['local_peer_vserver_uuid'])
-        if error:
-            self.module.fail_json(msg='Error deleting vserver peer %s: %s' % (self.parameters['vserver'], error))
+        self.check_and_report_rest_error(error, 'deleting', self.parameters['vserver'])
 
     def get_peer_cluster_name_rest(self):
         """
@@ -408,8 +416,7 @@ class NetAppONTAPVserverPeer:
         if 'local_name_for_peer' in self.parameters:
             params['name'] = self.parameters['local_name_for_peer']
         dummy, error = rest_generic.post_async(self.rest_api, api, params)
-        if error:
-            self.module.fail_json(msg='Error creating vserver peer %s: %s' % (self.parameters['vserver'], error))
+        self.check_and_report_rest_error(error, 'creating', self.parameters['vserver'])
 
     def apply(self):
         """
@@ -432,8 +439,8 @@ class NetAppONTAPVserverPeer:
 
 def main():
     """Execute action"""
-    community_obj = NetAppONTAPVserverPeer()
-    community_obj.apply()
+    module_obj = NetAppONTAPVserverPeer()
+    module_obj.apply()
 
 
 if __name__ == '__main__':

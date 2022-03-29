@@ -63,6 +63,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_vserver_peer - Fixed `local_name_for_peer` and `local_name_for_source` options silently ignored in REST.
   - na_ontap_vserver_peer - Added cluster peer accept code in REST.
   - na_ontap_vserver_peer - Get peer cluster name if remote peer exist else use local cluster name.
+  - na_ontap_vserver_peer - ignore job entry doesn't exist error with REST to bypass ONTAP issue with FSx.
+  - na_ontap_vserver_peer - report error if SVM peer does not see a peering relationship after create.
   - Fixed ONTAP minor version ignored in checking minimum ONTAP version.
 
 ### Added REST support to existing modules

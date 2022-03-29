@@ -9,15 +9,16 @@ __metaclass__ = type
 import sys
 import pytest
 
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, set_module_args,\
+    AnsibleFailJson, patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
     register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_vserver_peer \
-    import NetAppONTAPVserverPeer as vserver_peer  # module under test
+    import NetAppONTAPVserverPeer as vserver_peer, main as my_main      # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -143,9 +144,9 @@ def test_helper_vserver_peer_get_iter():
     assert info['remote-vserver-name'] == DEFAULT_ARGS['peer_vserver']
 
 
-def test_error_if_dest_hostname_peer_options_absent():
-    msg = create_module(vserver_peer, DEFAULT_ARGS, fail=True)['msg']
-    assert 'Error: dest_hostname or peer_options required for creating vserver peer.' == msg
+def test_dest_hostname_absent():
+    my_obj = create_module(vserver_peer, DEFAULT_ARGS)
+    assert my_obj.parameters['hostname'] == my_obj.parameters['dest_hostname']
 
 
 def test_get_packet():
@@ -278,7 +279,13 @@ SRR = rest_responses({
         }],
         'num_records': 1
     }, None),
-    'cluster_info': (200, {"name": "mohanontap98cluster"}, None)
+    'cluster_info': (200, {"name": "mohanontap98cluster"}, None),
+    'job_info': (200, {
+        "job": {
+            "uuid": "d78811c1-aebc-11ec-b4de-005056b30cfa",
+            "_links": {"self": {"href": "/api/cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa"}}
+        }}, None),
+    'job_not_found': (404, "", {"message": "entry doesn't exist", "code": "4", "target": "uuid"})
 })
 
 
@@ -354,7 +361,7 @@ def test_error_in_vserver_accept_rest():
         ('PATCH', 'svm/peers', SRR['generic_error'])
     ])
     msg = create_and_apply(vserver_peer, DEFAULT_ARGS_REST, fail=True)['msg']
-    assert 'Error accepting vserver peer svmdst3: calling: svm/peers: got Expected error.' == msg
+    assert 'Error accepting vserver peer relationship on svmdst3: calling: svm/peers: got Expected error.' == msg
 
 
 def test_error_in_vserver_get_rest():
@@ -375,7 +382,7 @@ def test_error_in_vserver_delete_rest():
         ('DELETE', 'svm/peers', SRR['generic_error'])
     ])
     msg = create_and_apply(vserver_peer, DEFAULT_ARGS_REST, {'state': 'absent'}, fail=True)['msg']
-    assert 'Error deleting vserver peer svmsrc3: calling: svm/peers: got Expected error.' == msg
+    assert 'Error deleting vserver peer relationship on svmsrc3: calling: svm/peers: got Expected error.' == msg
 
 
 def test_error_in_peer_cluster_get_rest():
@@ -387,3 +394,46 @@ def test_error_in_peer_cluster_get_rest():
     ])
     msg = create_and_apply(vserver_peer, DEFAULT_ARGS_REST, fail=True)['msg']
     assert 'Error fetching peer cluster name for peer vserver svmdst3: calling: cluster: got Expected error.' == msg
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_missing_netapp_lib(mock_has_netapp_lib):
+    mock_has_netapp_lib.return_value = False
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert msg == create_module(vserver_peer, DEFAULT_ARGS, fail=True)['msg']
+
+
+@patch('time.sleep')
+def test_job_error_in_vserver_delete_rest(dont_sleep):
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'svm/peers', SRR['vserver_peer_info']),
+        ('DELETE', 'svm/peers', SRR['job_info']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found'])
+    ])
+    assert create_and_apply(vserver_peer, DEFAULT_ARGS_REST, {'state': 'absent'})['changed']
+    print_warnings()
+    assert_warning_was_raised('Ignoring job status, assuming success - Issue #45.')
+
+
+@patch('time.sleep')
+def test_job_error_in_vserver_create_rest(dont_sleep):
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'svm/peers', SRR['empty_records']),
+        ('GET', 'cluster', SRR['empty_records']),
+        ('POST', 'svm/peers', SRR['job_info']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'svm/peers', SRR['empty_records']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS_REST, fail=True)['msg'] == 'Error reading vserver peer information on peer svmdst3'
+    print_warnings()
+    assert_warning_was_raised('Ignoring job status, assuming success - Issue #45.')
