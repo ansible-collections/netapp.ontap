@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -74,9 +74,10 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppOntapDiskOptions():
+class NetAppOntapDiskOptions:
     def __init__(self):
 
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -102,6 +103,15 @@ class NetAppOntapDiskOptions():
         if not self.use_rest:
             self.module.fail_json(msg=self.rest_api.requires_ontap_version('na_ontap_disk_options', '9.6'))
 
+    def convert_to_bool(self, adict, key):
+        """burt1468160 - 9.8 returns True/False, but 9.10.1 returns 'on'/'off' """
+        value = adict[key]
+        if isinstance(value, bool):
+            return value
+        if value in ('on', 'off'):
+            return value == 'on'
+        self.module.fail_json(msg='Unexpected value for field %s: %s' % (key, value))
+
     def get_disk_options(self):
         """
         Return a the current storage disk options for the node
@@ -113,26 +123,19 @@ class NetAppOntapDiskOptions():
             'fields': 'node,autoassign,bkg-firmware-update,autocopy,autoassign-policy',
             'node': self.parameters['node']
         }
-        message, error = self.rest_api.get(api, query)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
 
         if error:
-            self.module.fail_json(msg=error)
-        if len(message.keys()) == 0:
-            return None
-        if 'records' in message and len(message['records']) == 0:
-            return None
-        if 'records' not in message:
-            error = "Unexpected response in get_disk_options from %s: %s" % (api, repr(message))
-            self.module.fail_json(msg=error)
-
-        return_value = {
-            'node': message['records'][0]['node'],
-            'bkg_firmware_update': message['records'][0]['bkg_firmware_update'],
-            'autocopy': message['records'][0]['autocopy'],
-            'autoassign': message['records'][0]['autoassign'],
-            'autoassign_policy': message['records'][0]['autoassign_policy']
+            self.module.fail_json(msg='Error %s' % error)
+        if record is None:
+            self.module.fail_json(msg='Error on GET %s, no record.' % api)
+        return {
+            'node': record['node'],
+            'bkg_firmware_update': self.convert_to_bool(record, 'bkg_firmware_update'),
+            'autocopy': self.convert_to_bool(record, 'autocopy'),
+            'autoassign': self.convert_to_bool(record, 'autoassign'),
+            'autoassign_policy': record['autoassign_policy']
         }
-        return return_value
 
     def modify_disk_options(self, modify):
         """
@@ -145,9 +148,9 @@ class NetAppOntapDiskOptions():
             'node': self.parameters['node']
         }
 
-        dummy, error = self.rest_api.patch(api, modify, query)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, modify, query)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg='Error %s' % error)
 
     def apply(self):
 

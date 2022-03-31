@@ -339,7 +339,7 @@ class NetAppONTAPVserverPeer:
     def check_and_report_rest_error(self, error, action, where):
         if error:
             if "job reported error:" in error and "entry doesn't exist" in error:
-                # ignore RBAC issue with FSx - BURT1467620 - GitHub #45
+                # ignore RBAC issue with FSx - BURT1467620 (fixed in 9.11.0) - GitHub #45
                 self.module.warn('Ignoring job status, assuming success - Issue #45.')
                 return
             self.module.fail_json(msg='Error %s vserver peer relationship on %s: %s' % (action, where, error))
