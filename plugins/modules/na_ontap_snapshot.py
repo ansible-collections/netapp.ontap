@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -122,12 +122,12 @@ RETURN = """
 """
 
 import traceback
-from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 
 
@@ -195,8 +195,7 @@ class NetAppOntapSnapshot:
             if self.parameters.get('snapmirror_label'):
                 params['fields'] += ',snapmirror_label'
             params['name'] = snapshot_name or self.parameters['snapshot']
-            response, error = self.rest_api.get(api, params)
-            snapshot, error = rrh.check_for_0_or_1_records(api, response, error, params)
+            snapshot, error = rest_generic.get_one_record(self.rest_api, api, params)
             if snapshot:
                 # flatten {'volume': {'name' : 'some_name'}} to match input paramters
                 snapshot['volume'] = snapshot['volume']['name']
@@ -258,8 +257,7 @@ class NetAppOntapSnapshot:
                 body['snapmirror_label'] = self.parameters['snapmirror_label']
             if self.parameters.get('expiry_time'):
                 body['expiry_time'] = self.parameters['expiry_time']
-            response, error = self.rest_api.post(api, body, None)
-            response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api, increment=5)
+            response, error = rest_generic.post_async(self.rest_api, api, body)
             if error:
                 self.module.fail_json(msg="Error when creating snapshot: %s" % error)
 
@@ -290,8 +288,7 @@ class NetAppOntapSnapshot:
         """
         if self.use_rest:
             api = ('storage/volumes/%s/snapshots/%s' % (volume_id, uuid))
-            response, error = self.rest_api.delete(api, None)
-            response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api, increment=5)
+            response, error = rest_generic.delete_async(self.rest_api, api, None)
             if error:
                 self.module.fail_json(msg="Error when deleting snapshot: %s" % error)
 
@@ -327,8 +324,7 @@ class NetAppOntapSnapshot:
                 body['snapmirror_label'] = self.parameters['snapmirror_label']
             if self.parameters.get('expiry_time'):
                 body['expiry_time'] = self.parameters['expiry_time']
-            response, error = self.rest_api.patch(api, body, None)
-            response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api, increment=5)
+            response, error = rest_generic.patch_async(self.rest_api, api, None, body)
             if error:
                 self.module.fail_json(msg="Error when modifying snapshot: %s" % error)
 
