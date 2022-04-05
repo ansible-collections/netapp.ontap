@@ -2,10 +2,10 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
-
 __metaclass__ = type
 
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -20,6 +20,10 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun_map \
 # needed for get and modify/delete as they still use ZAPI
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 # REST API canned responses when mocking send_request
 

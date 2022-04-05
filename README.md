@@ -46,6 +46,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
   - na_ontap_debug - report ansible version and ONTAP collection version.
   - na_ontap_snapmirror -- Added more descriptive error messages for REST
+  - na_ontap_svm - add support for web services (ssl modify) - REST only with 9.8 or later.
   - na_ontap_volume - allow to modify volume after rename.
   - na_ontap_vserver_create role - support max_volumes option.
 
@@ -58,6 +59,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_qtree - Fixed issue with `oplocks` not warning user about not being supported in REST.
   - na_ontap_snapshot - fix key error on volume when using REST.
   - na_ontap_snapshot - add error message if volume is not found with REST.
+  - na_ontap_svm - fixed KeyError issue on protocols when vserver is stopped.
   - na_ontap_volume - fix idempotency issue with compression settings when using REST.
   - na_ontap_volume - do not attempt to mount volume if current state is offline.
   - na_ontap_vserver_peer - Fixed AttributeError if `dest_hostname` or `peer_options` not present.

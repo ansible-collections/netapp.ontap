@@ -67,16 +67,13 @@ def get_vserver(svm_cx, vserver_name):
         get_list = vserver_info.get_child_by_name('aggr-list')
         if get_list is not None:
             aggregates = get_list.get_children()
-            for aggr in aggregates:
-                aggr_list.append(aggr.get_content())
-
+            aggr_list.extend(aggr.get_content() for aggr in aggregates)
         protocols = []
         # allowed-protocols is not empty for data SVM, but is for node SVM
         allowed_protocols = vserver_info.get_child_by_name('allowed-protocols')
         if allowed_protocols is not None:
             get_protocols = allowed_protocols.get_children()
-            for protocol in get_protocols:
-                protocols.append(protocol.get_content())
+            protocols.extend(protocol.get_content() for protocol in get_protocols)
         vserver_details = {'name': vserver_info.get_child_content('vserver-name'),
                            'root_volume': vserver_info.get_child_content('root-volume'),
                            'root_volume_aggregate': vserver_info.get_child_content('root-volume-aggregate'),

@@ -269,6 +269,25 @@ options:
       - Expects an integer or C(unlimited).
     type: str
     version_added: 21.12.0
+
+  web:
+    description:
+      - web services security configuration.
+      - requires ONTAP 9.8 or later for certificate name.
+      - requires ONTAP 9.10.1 or later for the other options.
+    type: dict
+    suboptions:
+      certificate:
+        description:
+          - name of certificate used by cluster and node management interfaces for TLS connection requests.
+          - The certificate must be of type "server".
+        type: str
+      client_enabled:
+        description: whether client authentication is enabled.
+        type: bool
+      ocsp_enabled:
+        description: whether online certificate status protocol verification is enabled.
+        type: bool
 '''
 
 EXAMPLES = """
@@ -359,6 +378,11 @@ class NetAppOntapSVM():
                 fcp=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 nfs=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 nvme=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
+            )),
+            web=dict(type='dict', options=dict(
+                certificate=dict(type='str'),
+                client_enabled=dict(type='bool'),
+                ocsp_enabled=dict(type='bool'),
             ))
         ))
 
@@ -385,12 +409,11 @@ class NetAppOntapSVM():
         self.use_rest = self.validate_options()
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-                if self.parameters.get('admin_state') is not None:
-                    self.parameters.pop('admin_state')
-                    self.module.warn('admin_state is ignored when ZAPI is used.')
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            if self.parameters.get('admin_state') is not None:
+                self.parameters.pop('admin_state')
+                self.module.warn('admin_state is ignored when ZAPI is used.')
 
     def validate_int_or_string(self, value, astring):
         if value is None or value == astring:
@@ -440,6 +463,18 @@ class NetAppOntapSVM():
 
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
+        if self.parameters.get('web'):
+            if not use_rest or not self.rest_api.meets_rest_minimum_version(use_rest, 9, 8, 0):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version('web', '9.8', use_rest=use_rest))
+            if not self.rest_api.meets_rest_minimum_version(use_rest, 9, 10, 1):
+                suboptions = ('client_enabled', 'ocsp_enabled')
+                for suboption in suboptions:
+                    if self.parameters['web'].get(suboption) is not None:
+                        self.module.fail_json(msg=self.rest_api.options_require_ontap_version(suboptions, '9.10.1', use_rest=use_rest))
+            if self.parameters['web'].get('certificate'):
+                # so that we can compare UUIDs while using a more friendly name in the user interface
+                self.parameters['web']['certificate'] = {'name': self.parameters['web']['certificate']}
+                self.set_certificate_uuid()
 
         self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
@@ -457,20 +492,31 @@ class NetAppOntapSVM():
         vserver_details['admin_state'] = vserver_details.pop('state')
         if 'max_volumes' in vserver_details:
             vserver_details['max_volumes'] = str(vserver_details['max_volumes'])
+        if vserver_details.get('web') is None and self.parameters.get('web'):
+            # force an entry to enable modify
+            vserver_details['web'] = {
+                'certificate': {
+                    # ignore name, as only certificate UUID is supported in svm/svms/uuid/web
+                    'uuid': vserver_details['certificate']['uuid'] if 'certificate' in vserver_details else None,
+                },
+                'client_enabled': None,
+                'ocsp_enabled': None
+            }
 
         services = {}
-        allowed_protocols = []
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
-            allowed_protocols = vserver_details.get('allowed_protocols', [])
+        allowed_protocols = ([] if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1)
+                             else vserver_details.get('allowed_protocols', []))
+
         for protocol in self.allowable_protocols_rest:
-            allowed = vserver_details[protocol].get('allowed')
-            enabled = vserver_details[protocol].get('enabled')
+            # protocols are not present when the vserver is stopped
+            allowed = self.na_helper.safe_get(vserver_details, [protocol, 'allowed'])
+            enabled = self.na_helper.safe_get(vserver_details, [protocol, 'enabled'])
             if allowed is not None or enabled is not None:
                 services[protocol] = {}
             if allowed is not None:
                 services[protocol]['allowed'] = allowed
             elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
-                services[protocol]['allowed'] = protocol in allowed_protocols
+                services[protocol] = {'allowed': protocol in allowed_protocols}
             if enabled is not None:
                 services[protocol]['enabled'] = enabled
 
@@ -478,6 +524,44 @@ class NetAppOntapSVM():
             vserver_details['services'] = services
 
         return vserver_details
+
+    def get_certificates(self, cert_type):
+        """Retrieve list of certificates"""
+        api = 'security/certificates'
+        query = {
+            'svm.name': self.parameters['name'],
+            'type': cert_type
+        }
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg='Error retrieving certificates: %s' % error)
+        if records:
+            return [record['name'] for record in records]
+        return []
+
+    def set_certificate_uuid(self):
+        """Retrieve certicate uuid for 9.8 or later"""
+        api = 'security/certificates'
+        query = {
+            'name': self.parameters['web']['certificate']['name'],
+            'svm.name': self.parameters['name'],
+            'type': 'server'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg='Error retrieving certificate %s: %s' % (self.parameters['web']['certificate'], error))
+        if not record:
+            self.module.fail_json(msg='Error certificate not found: %s.  Current certificates with type=server: %s'
+                                  % (self.parameters['web']['certificate'], self.get_certificates('server')))
+        self.parameters['web']['certificate']['uuid'] = record['uuid']
+
+    def get_web_service(self, uuid):
+        """Retrieve web service info for 9.10.1 or later"""
+        api = 'svm/svms/%s/web' % uuid
+        record, error = rest_generic.get_one_record(self.rest_api, api)
+        if error:
+            self.module.fail_json(msg='Error retrieving web info: %s' % error)
+        return record
 
     def get_vserver(self, vserver_name=None):
         """
@@ -495,16 +579,23 @@ class NetAppOntapSVM():
             fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme,state'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
                 fields += ',max_volumes'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0) and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+                # certificate is available starting with 9.7 and is deprecated with 9.10.1.
+                # we don't use certificate with 9.7 as name is only supported with 9.8 in /security/certificates
+                fields += ',certificate'
+
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:
                 self.module.fail_json(msg=error)
             if record:
-                # 9.6 to 9.8 do not support max_volumes for svm/svms
+                if self.parameters.get('web') and self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                    # only collect the info if the user wants to configure the web service, and ONTAP supports it
+                    record['web'] = self.get_web_service(record['uuid'])
                 if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+                    # 9.6 to 9.8 do not support max_volumes for svm/svms, using private/cli
                     record['allowed_protocols'], max_volumes = self.get_allowed_protocols_and_max_volumes()
                     if self.parameters.get('max_volumes') is not None:
                         record['max_volumes'] = max_volumes
-                    self.rest_api.log_debug('AAAA', record)
                 return self.clean_up_output(copy.deepcopy(record))
             return None
 
@@ -560,6 +651,8 @@ class NetAppOntapSVM():
             body['aggregates'] = []
             for aggr in self.parameters['aggr_list']:
                 body['aggregates'].append({'name': aggr})
+        if 'certificate' in keys_to_modify:
+            body['certificate'] = modify['certificate']
         allowed_protocols = {}
         for protocol, config in protocols_to_modify.items():
             # Ansible sets unset suboptions to None
@@ -588,7 +681,7 @@ class NetAppOntapSVM():
             fields += ',max_volumes'
         response, error = rest_generic.get_one_record(self.rest_api, 'private/cli/vserver', query, fields)
         if error:
-            self.module.fail_json(msg='Error updating max_volumes: %s - %s' % (error, response))
+            self.module.fail_json(msg='Error getting vserver info: %s - %s' % (error, response))
         if response and 'max_volumes' in response:
             max_volumes = str(response['max_volumes'])
         allowed_protocols, max_volumes = [], None
@@ -693,6 +786,12 @@ class NetAppOntapSVM():
                 if error:
                     self.module.fail_json(msg='Error in rename: %s' % error, modify=modify)
                 del modify['name']
+            if 'web' in modify and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+                # certificate is a deprecated field for 9.10.1, only use it for 9.8 and 9.9
+                uuid = self.na_helper.safe_get(modify, ['web', 'certificate', 'uuid'])
+                if uuid:
+                    modify['certificate'] = {'uuid': uuid}
+                modify.pop('web')
             body, allowed_protocols = self.create_body_contents(modify)
             if body:
                 dummy, error = rest_generic.patch_async(self.rest_api, 'svm/svms', current['uuid'], body, timeout=self.timeout)
@@ -705,6 +804,8 @@ class NetAppOntapSVM():
                 self.rest_cli_add_remove_protocols(allowed_protocols)
             if 'services' in modify:
                 self.modify_services(modify, current)
+            if 'web' in modify and self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+                self.modify_web_services(modify['web'], current)
         else:
             zapis_svm.modify_vserver(self.server, self.module, self.parameters['name'], modify, self.parameters)
 
@@ -734,6 +835,20 @@ class NetAppOntapSVM():
                 dummy, error = rest_generic.patch_async(self.rest_api, api, current['uuid'], body)
             if error:
                 self.module.fail_json(msg='Error in modify service for %s: %s' % (protocol, error))
+
+    def modify_web_services(self, record, current):
+        """Patch web service for 9.10.1 or later"""
+        api = 'svm/svms/%s/web' % current['uuid']
+        if 'certificate' in record:
+            # API only accepts a UUID
+            record['certificate'].pop('name', None)
+        body = self.na_helper.filter_out_none_entries(copy.deepcopy(record))
+        if not body:
+            self.module.warn('Nothing to change: %s' % record)
+            return
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
+        if error:
+            self.module.fail_json(msg='Error in modify web service for %s: %s' % (body, error))
 
     def add_parameter_to_dict(self, adict, name, key=None, tostr=False):
         '''
@@ -774,8 +889,8 @@ class NetAppOntapSVM():
 
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']
         msgs = ['%s - current: %s - desired: %s' % (attribute, current[attribute], self.parameters[attribute])
-                for attribute in modify
-                if attribute in fixed_attributes]
+                for attribute in fixed_attributes
+                if attribute in modify]
         if msgs:
             self.module.fail_json(msg='Error modifying SVM %s: cannot modify %s.' % (self.parameters['name'], ', '.join(msgs)))
 

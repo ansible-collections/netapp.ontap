@@ -31,6 +31,8 @@ _DEFAULT_RESPONSES = {
     'is_rest': (200, {}, None),
     'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
     'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
+    'is_rest_9_7_5': (200, dict(version=dict(generation=9, major=7, minor=5, full='dummy_9_7_5')), None),
+    'is_rest_9_8_0': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy_9_8_0')), None),
     'is_rest_9_9_1': (200, dict(version=dict(generation=9, major=9, minor=1, full='dummy_9_9_1')), None),
     'is_rest_9_9_0': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy_9_9_0')), None),
     'is_rest_9_10_1': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
@@ -39,6 +41,7 @@ _DEFAULT_RESPONSES = {
     'success': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'empty_records': (200, {'records': []}, None),
+    'zero_records': (200, {'num_records': 0}, None),
     'generic_error': (400, None, "Expected error"),
 }
 

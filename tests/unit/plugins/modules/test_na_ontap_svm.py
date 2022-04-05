@@ -1,56 +1,67 @@
-# (c) 2022, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
+
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import pytest
+import sys
 
-from ansible.module_utils import basic
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock, call
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
+    assert_warning_was_raised, call_main, clear_warnings, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm \
-    import NetAppOntapSVM as svm_module  # module under test
+    import NetAppOntapSVM as svm_module, main as my_main    # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
+
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=1, full='dummy_9_9_1')), None),
-    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {'num_records': 0}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
-    'svm_record': (200,
-                   {'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
-                                 "name": "test_svm",
-                                 "state": "running",
-                                 "subtype": "default",
-                                 "language": "c.utf_8",
-                                 "aggregates": [{"name": "aggr_1",
-                                                 "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"},
-                                                {"name": "aggr_2",
-                                                 "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"}],
-                                 "comment": "new comment",
-                                 "ipspace": {"name": "ansible_ipspace",
-                                             "uuid": "2b760d31-8dfd-11e9-b162-005056b39fe7"},
-                                 "snapshot_policy": {"uuid": "3b611707-8dfd-11e9-b162-005056b39fe7",
-                                                     "name": "old_snapshot_policy"},
-                                 "nfs": {"enabled": True, "allowed": True},
-                                 "cifs": {"enabled": False},
-                                 "iscsi": {"enabled": False},
-                                 "fcp": {"enabled": False},
-                                 "nvme": {"enabled": False}}]}, None),
+
+svm_info = {
+    "uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
+    "name": "test_svm",
+    "state": "running",
+    "subtype": "default",
+    "language": "c.utf_8",
+    "aggregates": [{"name": "aggr_1",
+                    "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"},
+                   {"name": "aggr_2",
+                    "uuid": "850dd65b-8811-4611-ac8c-6f6240475ff9"}],
+    "comment": "new comment",
+    "ipspace": {"name": "ansible_ipspace",
+                "uuid": "2b760d31-8dfd-11e9-b162-005056b39fe7"},
+    "snapshot_policy": {"uuid": "3b611707-8dfd-11e9-b162-005056b39fe7",
+                        "name": "old_snapshot_policy"},
+    "nfs": {"enabled": True, "allowed": True},
+    "cifs": {"enabled": False},
+    "iscsi": {"enabled": False},
+    "fcp": {"enabled": False},
+    "nvme": {"enabled": False},
+    'max_volumes': 3333
+}
+
+svm_info_cert1 = dict(svm_info)
+svm_info_cert1['certificate'] = {'name': 'cert_1', 'uuid': 'cert_uuid_1'}
+svm_info_cert2 = dict(svm_info)
+svm_info_cert2['certificate'] = {'name': 'cert_2', 'uuid': 'cert_uuid_2'}
+
+SRR = rest_responses({
+    'svm_record': (200, {'records': [svm_info]}, None),
+    'svm_record_cert1': (200, {'records': [svm_info_cert1]}, None),
+    'svm_record_cert2': (200, {'records': [svm_info_cert2]}, None),
     'svm_record_ap': (200,
                       {'records': [{"name": "test_svm",
                                     "state": "running",
@@ -68,795 +79,1181 @@ SRR = {
                                     "fcp": {"enabled": False},
                                     "nvme": {"enabled": False}}]}, None),
     'cli_record': (200,
-                   {'records': [{"max_volumes": 100, "allowed_protocols": ['nfs', 'iscsi']}]}, None)
+                   {'records': [{"max_volumes": 100, "allowed_protocols": ['nfs', 'iscsi']}]}, None),
+    'certificate_record_1': (200,
+                             {'records': [{"name": "cert_1",
+                                           "uuid": "cert_uuid_1"}]}, None),
+    'certificate_record_2': (200,
+                             {'records': [{"name": "cert_2",
+                                           "uuid": "cert_uuid_2"}]}, None),
+    'svm_web_record_1': (200, {
+        'records': [{
+            'certificate': {
+                "uuid": "cert_uuid_1"
+            },
+            'client_enabled': False,
+            'ocsp_enabled': False,
+        }]}, None),
+    'svm_web_record_2': (200, {
+        'records': [{
+            'certificate': {
+                "uuid": "cert_uuid_2"
+            },
+            'client_enabled': True,
+            'ocsp_enabled': True,
+        }]}, None)
+}, False)
+
+DEFAULT_ARGS = {
+    'name': 'test_svm',
+    'aggr_list': 'aggr_1,aggr_2',
+    'ipspace': 'ansible_ipspace',
+    'comment': 'new comment',
+    'subtype': 'default',
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!'
 }
 
-
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.type = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'vserver':
-            xml = self.build_vserver_info(self.params)
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_vserver_info(vserver):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'num-records': 1, 'attributes-list': {'vserver-info': {
-            'vserver-name': vserver['name'],
-            'ipspace': vserver['ipspace'],
-            'root-volume': vserver['root_volume'],
-            'root-volume-aggregate': vserver['root_volume_aggregate'],
-            'language': vserver['language'],
-            'comment': vserver['comment'],
-            'snapshot-policy': vserver['snapshot_policy'],
-            'vserver-subtype': vserver['subtype'],
+vserver_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'vserver-info': {
+            'vserver-name': 'test_svm',
+            'ipspace': 'ansible_ipspace',
+            'root-volume': 'ansible_vol',
+            'root-volume-aggregate': 'ansible_aggr',
+            'language': 'c.utf_8',
+            'comment': 'new comment',
+            'snapshot-policy': 'old_snapshot_policy',
+            'vserver-subtype': 'default',
             'allowed-protocols': [{'protocol': 'nfs'}, {'protocol': 'cifs'}],
             'aggr-list': [{'aggr-name': 'aggr_1'}, {'aggr-name': 'aggr_2'}],
         }}}
-        xml.translate_struct(data)
-        return xml
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+ZRR = zapi_responses({
+    'svm_record': build_zapi_response(vserver_info)
+})
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.mock_vserver = {
-            'name': 'test_svm',
-            'root_volume': 'ansible_vol',
-            'root_volume_aggregate': 'ansible_aggr',
-            'aggr_list': 'aggr_1,aggr_2',
-            'ipspace': 'ansible_ipspace',
-            'subtype': 'default',
-            'language': 'c.utf_8',
-            'snapshot_policy': 'old_snapshot_policy',
-            'comment': 'new comment'
-        }
 
-    def mock_args(self, rest=False):
-        if rest:
-            return {'name': self.mock_vserver['name'],
-                    'aggr_list': self.mock_vserver['aggr_list'],
-                    'ipspace': self.mock_vserver['ipspace'],
-                    'comment': self.mock_vserver['comment'],
-                    'subtype': 'default',
-                    'hostname': 'test',
-                    'username': 'test_user',
-                    'password': 'test_pass!'}
-        else:
-            return {
-                'name': self.mock_vserver['name'],
-                'root_volume': self.mock_vserver['root_volume'],
-                'root_volume_aggregate': self.mock_vserver['root_volume_aggregate'],
-                'aggr_list': self.mock_vserver['aggr_list'],
-                'ipspace': self.mock_vserver['ipspace'],
-                'comment': self.mock_vserver['comment'],
-                'subtype': 'default',
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!',
-                'use_rest': 'never',
-                'feature_flags': {'no_cserver_ems': True}
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    error = create_module(svm_module, {}, fail=True)['msg']
+    assert 'missing required arguments:' in error
+    assert 'hostname' in error
+    assert 'name' in error
 
-            }
 
-    def get_vserver_mock_object(self, kind=None, data=None, cx_type='zapi'):
-        """
-        Helper method to return an na_ontap_volume object
-        :param kind: passes this param to MockONTAPConnection()
-        :param data: passes this param to MockONTAPConnection()
-        :return: na_ontap_volume object
-        """
-        vserver_obj = svm_module()
-        if cx_type == 'zapi':
-            vserver_obj.asup_log_for_cserver = Mock(return_value=None)
-            vserver_obj.cluster = Mock()
-            vserver_obj.cluster.invoke_successfully = Mock()
-            if kind is None:
-                vserver_obj.server = MockONTAPConnection()
-            elif data is None:
-                vserver_obj.server = MockONTAPConnection(kind='vserver', data=self.mock_vserver)
-            else:
-                vserver_obj.server = MockONTAPConnection(kind='vserver', data=data)
-        return vserver_obj
+def test_error_missing_name():
+    ''' Test if create throws an error if name is not specified'''
+    register_responses([
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('name')
+    assert create_module(svm_module, args, fail=True)['msg'] == 'missing required arguments: name'
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            svm_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_get_nonexistent_vserver(self):
-        ''' test if get_vserver() throws an error if vserver is not specified '''
-        data = self.mock_args()
-        set_module_args(data)
-        result = self.get_vserver_mock_object().get_vserver()
-        assert result is None
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_error_missing_netapp_lib(mock_has_netapp_lib):
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+    ])
+    mock_has_netapp_lib.return_value = False
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert msg == create_module(svm_module, DEFAULT_ARGS, fail=True)['msg']
 
-    def test_create_error_missing_name(self):
-        ''' Test if create throws an error if name is not specified'''
-        data = self.mock_args()
-        del data['name']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vserver_mock_object('vserver').create_vserver()
-        msg = 'missing required arguments: name'
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.create_vserver')
-    def test_successful_create(self, create_vserver):
-        '''Test successful create'''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object().apply()
-        assert exc.value.args[0]['changed']
-        create_vserver.assert_called_with()
+def test_successful_create_zapi():
+    '''Test successful create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-create', ZRR['success']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    assert create_and_apply(svm_module, DEFAULT_ARGS)['changed']
 
-    def test_successful_create_zapi(self):
-        '''Test successful create'''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.create_vserver')
-    def test_create_idempotency(self, create_vserver):
-        '''Test successful create'''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert not exc.value.args[0]['changed']
-        create_vserver.assert_not_called()
+def test_create_idempotency():
+    '''Test API create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+    ])
+    assert not create_and_apply(svm_module, DEFAULT_ARGS)['changed']
 
-    def test_successful_delete(self):
-        '''Test successful delete'''
-        self._modify_options_with_expected_change('state', 'absent')
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.delete_vserver')
-    def test_delete_idempotency(self, delete_vserver):
-        '''Test delete idempotency'''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object().apply()
-        assert not exc.value.args[0]['changed']
-        delete_vserver.assert_not_called()
+def test_create_error():
+    '''Test successful create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-create', ZRR['error']),
+    ])
+    msg = 'Error provisioning SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm.NetAppOntapSVM.get_vserver')
-    def test_successful_rename(self, get_vserver):
-        '''Test successful rename'''
-        data = self.mock_args()
-        data['from_name'] = 'test_svm'
-        data['name'] = 'test_new_svm'
-        set_module_args(data)
-        current = {
-            'name': 'test_svm',
-            'root_volume': 'ansible_vol',
-            'root_volume_aggregate': 'ansible_aggr',
-            'ipspace': 'ansible_ipspace',
-            'subtype': 'default',
-            'language': 'c.utf_8'
-        }
-        get_vserver.side_effect = [
-            None,
-            current
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    def test_successful_modify_language(self):
-        '''Test successful modify language'''
-        self._modify_options_with_expected_change('language', 'c')
+def test_successful_delete():
+    '''Test successful delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-destroy', ZRR['success']),
+    ])
+    _modify_options_with_expected_change('state', 'absent')
 
-    def test_successful_modify_snapshot_policy(self):
-        '''Test successful modify language'''
-        self._modify_options_with_expected_change(
-            'snapshot_policy', 'new_snapshot_policy'
-        )
 
-    def test_successful_modify_allowed_protocols(self):
-        '''Test successful modify allowed protocols'''
-        self._modify_options_with_expected_change(
-            'allowed_protocols', 'nvme,fcp'
-        )
+def test_error_delete():
+    '''Test delete with ZAPI error
+    '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-destroy', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    msg = 'Error deleting SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    def test_successful_modify_aggr_list(self):
-        '''Test successful modify aggr-list'''
-        self._modify_options_with_expected_change(
-            'aggr_list', 'aggr_3,aggr_4'
-        )
 
-    def _modify_options_with_expected_change(self, arg0, arg1):
-        data = self.mock_args()
-        data[arg0] = arg1
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object('vserver').apply()
-        assert exc.value.args[0]['changed']
+def test_delete_idempotency():
+    '''Test delete idempotency '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['admin_state'] = 'running'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == 'calling: svm/svms: got %s.' % SRR['generic_error'][2]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_unsupported_parm(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['admin_state'] = 'running'
-        data['use_rest'] = 'Always'
-        data['root_volume'] = 'not_supported_by_rest'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == "REST API currently does not support 'root_volume'"
+def test_init():
+    '''Validate that:
+          admin_state is ignored with ZAPI
+          language is set to lower case for C.UTF-8
+    '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'language': 'C.uTf-8'
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    assert my_obj.parameters['language'] == 'c.utf_8'
+    assert_warning_was_raised('admin_state is ignored when ZAPI is used.')
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # post
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_create_idempotency(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_init_error():
+    '''Validate that:
+          unallowed protocol raises an error
+          services is not supported with ZAPI
+    '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('GET', 'cluster', SRR['is_zapi']),
+    ])
+    module_args = {
+        'allowed_protocols': 'dummy,humpty,dumpty,cifs,nfs',
+    }
+    error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Unexpected value dummy in allowed_protocols.' in error
+    assert 'Unexpected value humpty in allowed_protocols.' in error
+    assert 'Unexpected value dumpty in allowed_protocols.' in error
+    assert 'cifs' not in error
+    assert 'nfs' not in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_delete(self, mock_request):
-        '''Test successful delete'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        data['admin_state'] = 'running'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['empty_good'],  # delete
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+    module_args = {
+        'services': {},
+    }
+    error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error == 'using services requires ONTAP 9.6 or later and REST must be enabled - Unreachable - using ZAPI.'
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_delete_idempotency(self, mock_request):
-        '''Test delete idempotency'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        data['admin_state'] = 'running'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_rename(self, mock_request):
-        '''Test successful rename'''
-        data = self.mock_args(rest=True)
-        data['from_name'] = 'test_svm'
-        data['name'] = 'test_new_svm'
-        data['admin_state'] = 'running'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['svm_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_successful_rename():
+    '''Test successful rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-rename', ZRR['success']),
+    ])
+    module_args = {
+        'from_name': 'test_svm',
+        'name': 'test_new_svm',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_modify_language(self, mock_request):
-        '''Test successful modify language'''
-        data = self.mock_args(rest=True)
-        data['admin_state'] = 'running'
-        data['language'] = 'c'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['svm_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_vserver_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_get(self, mock_request):
-        '''Test successful get'''
-        data = self.mock_args(rest=True)
-        data['admin_state'] = 'running'
-        data['language'] = 'c'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],      # get
-            SRR['svm_record_ap'],   # get AP
-            SRR['end_of_sequence']
-        ]
-        na_ontap_svm_object = self.get_vserver_mock_object(cx_type='rest')
-        current = na_ontap_svm_object.get_vserver()
-        print(current)
-        assert current['services']['nfs']['allowed']
-        assert not current['services']['cifs']['enabled']
-        current = na_ontap_svm_object.get_vserver()
-        print(current)
-        assert not current['services']['nfs']['enabled']
-        assert current['services']['cifs']['allowed']
-        assert current['services']['iscsi']['allowed']
+def test_error_rename_no_from():
+    '''Test error rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'from_name': 'test_svm',
+        'name': 'test_new_svm',
+    }
+    msg = 'Error renaming SVM test_new_svm: no SVM with from_name test_svm.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create_ignore_zapi_option(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['root_volume'] = 'whatever'
-        data['aggr_list'] = '*'
-        data['ignore_rest_unsupported_options'] = 'true'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # post
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        assert exc.value.args[0]['changed']
-        assert module.use_rest
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create_with_service(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # post
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        assert exc.value.args[0]['changed']
-        assert module.use_rest
+def test_error_rename_zapi():
+    '''Test error rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-rename', ZRR['error']),
+    ])
+    module_args = {
+        'from_name': 'test_svm',
+        'name': 'test_new_svm',
+    }
+    msg = 'Error renaming SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify_with_service(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['empty_good'],  # patch svm for allowed
-            SRR['empty_good'],  # post to enable fcp service
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        assert exc.value.args[0]['changed']
-        assert module.use_rest
-        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'}, headers=None)
-        print(mock_request.mock_calls)
-        assert expected in mock_request.mock_calls
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_enable_service(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # post to enable FCP
-            SRR['end_of_sequence']
-        ]
-        # modify = {'enabled_protocols': ['nfs', 'fcp']}
-        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
-        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        module.modify_services(modify, current)
-        expected = call('POST', 'protocols/san/fcp/services', {'return_timeout': 30}, json={'enabled': True, 'svm.name': 'test_svm'}, headers=None)
-        print(mock_request.mock_calls)
-        assert expected in mock_request.mock_calls
+def test_successful_modify_language():
+    '''Test successful modify language'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    _modify_options_with_expected_change('language', 'c')
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_reenable_service(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # patch to reenable FCP
-            SRR['end_of_sequence']
-        ]
-        # modify = {'enabled_protocols': ['nfs', 'fcp']}
-        fcp_dict = {'_links': {'self': {'href': 'fcp_link'}}}
-        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid', 'fcp': fcp_dict}
-        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
-        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid', 'fcp': fcp_dict}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        module.modify_services(modify, current)
-        expected = call('PATCH', 'protocols/san/fcp/services/uuid', {'return_timeout': 30}, json={'enabled': True}, headers=None)
-        print(mock_request.mock_calls)
-        assert expected in mock_request.mock_calls
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_enable_service(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # patch to reenable FCP
-            SRR['end_of_sequence']
-        ]
-        # modify = {'enabled_protocols': ['nfs', 'bad_value']}
-        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme']}
-        modify = {'services': {'nfs': {'allowed': True}, 'bad_value': {'enabled': True}}, 'name': 'new_name'}
-        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        module.enablable_protocols = ['nfs', 'bad_value']
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_services(modify, current)
-        msg = 'Internal error, unexpecting service: bad_value.'
-        assert exc.value.args[0]['msg'] == msg
+def test_error_modify_language():
+    '''Test error modify language'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['error']),
+    ])
+    module_args = {
+        'language': 'c',
+    }
+    msg = 'Error modifying SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_modify_services(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],   # patch to reenable FCP
-            SRR['end_of_sequence']
-        ]
-        # modify = {'enabled_protocols': ['nfs', 'fcp']}
-        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}, 'name': 'new_name'}
-        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_services(modify, current)
-        msg = 'Error in modify service for fcp: calling: protocols/san/fcp/services: got Expected error.'
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_modify_current_none(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        modify = {'enabled_protocols': ['nfs', 'fcp']}
-        current = None
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_vserver(modify, current)
-        msg = 'Internal error, expecting SVM object in modify.'
-        assert exc.value.args[0]['msg'] == msg
+def test_error_modify_fixed_properties():
+    '''Test error modifying a fixed property'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+    ])
+    module_args = {
+        'ipspace': 'new',
+    }
+    msg = 'Error modifying SVM test_svm: cannot modify ipspace - current: ansible_ipspace - desired: new.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+    module_args = {
+        'ipspace': 'new',
+        'root_volume': 'new_root'
+    }
+    msg = 'Error modifying SVM test_svm: cannot modify root_volume - current: ansible_vol - desired: new_root, '\
+          'ipspace - current: ansible_ipspace - desired: new.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_modify_modify_none(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        modify = {}
-        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_vserver(modify, current)
-        msg = 'Internal error, expecting something to modify in modify.'
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_modify_error_1(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],   # patch to rename
-            SRR['end_of_sequence']
-        ]
-        # modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name'}
-        # current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'allowed': True}}, 'name': 'new_name'}
-        current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_vserver(modify, current)
-        msg = 'Error in rename: calling: svm/svms/uuid: got Expected error.'
-        assert exc.value.args[0]['msg'] == msg
+def test_successful_modify_snapshot_policy():
+    '''Test successful modify language'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    _modify_options_with_expected_change(
+        'snapshot_policy', 'new_snapshot_policy'
+    )
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_negative_modify_error_2(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        data['language'] = 'klingon'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],      # patch to rename
-            SRR['generic_error'],   # patch for other options
-            SRR['end_of_sequence']
-        ]
-        modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name', 'language': 'klingon'}
-        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.modify_vserver(modify, current)
-        msg = 'Error in modify: calling: svm/svms/uuid: got Expected error.'
-        assert exc.value.args[0]['msg'] == msg
-        # print(mock_request.mock_calls)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_get_older_rest(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_96'],
-            SRR['svm_record'],          # get
-            SRR['empty_good'],          # get using REST CLI
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        details = module.get_vserver()
-        expected = call('GET', 'private/cli/vserver', {'fields': 'allowed_protocols', 'vserver': 'test_svm'}, headers=None)
-        print(mock_request.mock_calls)
-        print(details)
-        assert expected in mock_request.mock_calls
+def test_successful_modify_allowed_protocols():
+    '''Test successful modify allowed protocols'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    _modify_options_with_expected_change(
+        'allowed_protocols', 'nvme,fcp'
+    )
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_add_protocols_on_create(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_96'],
-            SRR['empty_good'],          # get
-            SRR['empty_good'],          # POST for create
-            SRR['empty_good'],          # PATCH for add-protocols
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'}, json={'protocols': ['nfs']}, headers=None)
-        print(mock_request.mock_calls)
-        assert expected in mock_request.mock_calls
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_add_remove_protocols_on_modify(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}, 'iscsi': {'allowed': False}, 'fcp': {'allowed': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_96'],
-            SRR['svm_record'],          # get
-            SRR['cli_record'],          # get for protocols
-            SRR['empty_good'],          # PATCH for add-protocols
-            SRR['empty_good'],          # PATCH for remove-protocols
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        print(mock_request.mock_calls)
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
-                        json={'protocols': ['fcp']}, headers=None)
-        assert expected in mock_request.mock_calls
-        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
-                        json={'protocols': ['iscsi']}, headers=None)
-        assert expected in mock_request.mock_calls
+def test_successful_modify_aggr_list():
+    '''Test successful modify aggr-list'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    _modify_options_with_expected_change(
+        'aggr_list', 'aggr_3,aggr_4'
+    )
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_add_remove_protocols_on_modify_old_style(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['allowed_protocols'] = ['nfs', 'fcp']
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_96'],
-            SRR['svm_record'],          # get
-            SRR['cli_record'],          # get for protocols
-            SRR['empty_good'],          # PATCH for add-protocols
-            SRR['empty_good'],          # PATCH for remove-protocols
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        print(mock_request.mock_calls)
-        expected = call('PATCH', 'private/cli/vserver/add-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
-                        json={'protocols': ['fcp']}, headers=None)
-        assert expected in mock_request.mock_calls
-        expected = call('PATCH', 'private/cli/vserver/remove-protocols', {'return_timeout': 30, 'vserver': 'test_svm'},
-                        json={'protocols': ['iscsi']}, headers=None)
-        assert expected in mock_request.mock_calls
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_validate_int_or_string_as_int(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['admin_state'] = 'running'
-        data['state'] = 'present'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        modify = {}
-        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        module.validate_int_or_string('10', 'whatever')
+def test_successful_modify_aggr_list_star():
+    '''Test successful modify aggr-list'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
+        ('ZAPI', 'vserver-modify', ZRR['success']),
+    ])
+    module_args = {
+        'aggr_list': '*'
+    }
+    results = create_and_apply(svm_module, DEFAULT_ARGS, module_args)
+    assert results['changed']
+    assert results['warnings'] == "Changed always 'True' when aggr_list is '*'."
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_validate_int_or_string_as_str(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        modify = {}
-        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        module.validate_int_or_string('whatever', 'whatever')
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_validate_int_or_string(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'running'
-        data['services'] = {'nfs': {'allowed': True, 'enabled': True}}
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        modify = {}
-        current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
-        module = self.get_vserver_mock_object(cx_type='rest')
-        astring = 'testme'
-        with pytest.raises(AnsibleFailJson) as exc:
-            module.validate_int_or_string('10a', astring)
-        msg = "expecting int value or '%s'" % astring
-        assert msg in exc.value.args[0]['msg']
+def _modify_options_with_expected_change(arg0, arg1):
+    module_args = {
+        arg0: arg1,
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify_with_admin_state(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'stopped'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_record'],  # get
-            SRR['empty_good'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify_with_create(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['admin_state'] = 'stopped'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # empty record
-            SRR['empty_good'],  # create svm
-            SRR['svm_record'],  # get created svm
-            SRR['empty_good'],  # stop svm
-            SRR['end_of_sequence']
-        ]
-        module = self.get_vserver_mock_object(cx_type='rest')
-        with pytest.raises(AnsibleExitJson) as exc:
-            module.apply()
-        assert exc.value.args[0]['changed']
+def test_rest_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['generic_error']),
+    ])
+    module_args = {
+        'root_volume': 'whatever',
+        'aggr_list': '*',
+        'ignore_rest_unsupported_options': 'true',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'calling: svm/svms: got Expected error.'
+
+
+def test_rest_error_unsupported_parm():
+    register_responses([
+    ])
+    module_args = {
+        'root_volume': 'not_supported_by_rest',
+        'use_rest': 'always',
+    }
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == "REST API currently does not support 'root_volume'"
+
+
+def test_rest_successfully_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+    ])
+    assert create_and_apply(svm_module, DEFAULT_ARGS)['changed']
+
+
+def test_rest_error_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['generic_error']),
+    ])
+    msg = 'Error in create: calling: svm/svms: got Expected error.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, fail=True)['msg'] == msg
+
+
+def test_rest_create_idempotency():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+    ])
+    module_args = {
+        'root_volume': 'whatever',
+        'aggr_list': '*',
+        'ignore_rest_unsupported_options': 'true',
+    }
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successful_delete():
+    '''Test successful delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('DELETE', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_delete():
+    '''Test error delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('DELETE', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['generic_error']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    msg = 'Error in delete: calling: svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7: got Expected error.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_error_delete_no_svm():
+    '''Test error delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    my_obj = create_module(svm_module, DEFAULT_ARGS)
+    msg = 'Internal error, expecting SVM object in delete'
+    assert expect_and_capture_ansible_exception(my_obj.delete_vserver, 'fail')['msg'] == msg
+
+
+def test_rest_delete_idempotency():
+    '''Test delete idempotency'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successful_rename():
+    '''Test successful rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {
+        'from_name': 'test_svm',
+        'name': 'test_new_svm',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successful_modify_language():
+    '''Test successful modify language'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {
+        'language': 'c',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successful_get():
+    '''Test successful get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'language': 'c'
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    current = my_obj.get_vserver()
+    print(current)
+    assert current['services']['nfs']['allowed']
+    assert not current['services']['cifs']['enabled']
+    current = my_obj.get_vserver()
+    print(current)
+    assert not current['services']['nfs']['enabled']
+    assert current['services']['cifs']['allowed']
+    assert current['services']['iscsi']['allowed']
+
+
+def test_rest_successfully_create_ignore_zapi_option():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+    ])
+    module_args = {
+        'root_volume': 'whatever',
+        'aggr_list': '*',
+        'ignore_rest_unsupported_options': 'true',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_create_with_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+    ])
+    module_args = {
+        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_with_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+        ('POST', 'protocols/san/fcp/services', SRR['success']),
+    ])
+    module_args = {
+        'admin_state': 'stopped',
+        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_enable_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('POST', 'protocols/san/fcp/services', SRR['success']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
+    current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+    assert my_obj.modify_services(modify, current) is None
+
+
+def test_rest_successfully_reenable_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('PATCH', 'protocols/san/fcp/services/uuid', SRR['success']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}}
+    fcp_dict = {'_links': {'self': {'href': 'fcp_link'}}}
+    current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid', 'fcp': fcp_dict}
+    assert my_obj.modify_services(modify, current) is None
+
+
+def test_rest_negative_enable_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'services': {'nfs': {'allowed': True}, 'bad_value': {'enabled': True}}, 'name': 'new_name'}
+    current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_services, 'fail', modify, current)['msg']
+    assert error == 'Internal error, unexpecting service: bad_value.'
+
+
+def test_rest_negative_modify_services():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('POST', 'protocols/san/fcp/services', SRR['generic_error']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'services': {'nfs': {'allowed': True}, 'fcp': {'enabled': True}}, 'name': 'new_name'}
+    current = {'services': {'nfs': {'allowed': True}}, 'uuid': 'uuid'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_services, 'fail', modify, current)['msg']
+    assert error == 'Error in modify service for fcp: calling: protocols/san/fcp/services: got Expected error.'
+
+
+def test_rest_negative_modify_current_none():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'enabled_protocols': ['nfs', 'fcp']}
+    current = None
+    error = expect_and_capture_ansible_exception(my_obj.modify_vserver, 'fail', modify, current)['msg']
+    assert error == 'Internal error, expecting SVM object in modify.'
+
+
+def test_rest_negative_modify_modify_none():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {}
+    current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_vserver, 'fail', modify, current)['msg']
+    assert error == 'Internal error, expecting something to modify in modify.'
+
+
+def test_rest_negative_modify_error_1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('PATCH', 'svm/svms/uuid', SRR['generic_error']),   # rename
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'language': 'klingon',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name', 'language': 'klingon'}
+    current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_vserver, 'fail', modify, current)['msg']
+    assert error == 'Error in rename: calling: svm/svms/uuid: got Expected error.'
+
+
+def test_rest_negative_modify_error_2():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('PATCH', 'svm/svms/uuid', SRR['success']),         # rename
+        ('PATCH', 'svm/svms/uuid', SRR['generic_error']),   # modify
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'language': 'klingon',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name', 'language': 'klingon'}
+    current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+    error = expect_and_capture_ansible_exception(my_obj.modify_vserver, 'fail', modify, current)['msg']
+    assert error == 'Error in modify: calling: svm/svms/uuid: got Expected error.'
+
+
+def test_rest_successfully_get_older_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),      # get protocols
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_add_protocols_on_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['success']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_add_remove_protocols_on_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),                  # get protocols
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['success']),
+        ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success'])
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}, 'iscsi': {'allowed': False}, 'fcp': {'allowed': True}}
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_add_remove_protocols_on_modify_old_style():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),                  # get protocols
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['success']),
+        ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success'])
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'allowed_protocols': ['nfs', 'fcp']
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_validate_int_or_string_as_int():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    assert create_module(svm_module, DEFAULT_ARGS, module_args).validate_int_or_string('10', 'whatever') is None
+
+
+def test_validate_int_or_string_as_str():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    assert create_module(svm_module, DEFAULT_ARGS, module_args).validate_int_or_string('whatever', 'whatever') is None
+
+
+def test_negative_validate_int_or_string():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    astring = 'testme'
+    error = expect_and_capture_ansible_exception(create_module(svm_module, DEFAULT_ARGS, module_args).validate_int_or_string, 'fail', '10a', astring)['msg']
+    assert "expecting int value or '%s'" % astring in error
+
+
+def test_rest_successfully_modify_with_admin_state():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success'])   # change admin_state
+    ])
+    module_args = {'admin_state': 'stopped'}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_with_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success'])   # change admin_state
+    ])
+    module_args = {'admin_state': 'stopped'}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+# Tests for web services - 4 cases
+# ZAPI: not supported
+# REST < 9.8: not supported
+# REST 9.8, 9.9. 9.10.0: only certificate is supported, using deprecated certificate fields in svs/svms
+# REST >= 9.10.1: all options are supported, using svm/svms/uuid/web
+
+
+def test_web_services_error_zapi():
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = 'using web requires ONTAP 9.8 or later and REST must be enabled - Unreachable - using ZAPI.'
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_error_9_7_5():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_7_5']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = 'using web requires ONTAP 9.8 or later and REST must be enabled - ONTAP version: 9.7.5 - using REST.'
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_error_9_8_0():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    msg = "using ('client_enabled', 'ocsp_enabled') requires ONTAP 9.10.1 or later and REST must be enabled - ONTAP version: 9.8.0 - using REST."
+    module_args = {'web': {'certificate': 'cert_name', 'client_enabled': True}}
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+    module_args = {'web': {'certificate': 'cert_name', 'ocsp_enabled': True}}
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_8_0_none_set():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),                          # get protocols
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success'])  # change certificate
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_8_0_other_set():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record_cert2']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),                          # get protocols
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success'])  # change certificate
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_8_0_idempotent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record_cert1']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),                          # get protocols
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_8_0_error_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error certificate not found: {'name': 'cert_name'}.  Current certificates with type=server: ['cert_1']"
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_8_0_error_api1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['generic_error']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error retrieving certificate {'name': 'cert_name'}: calling: security/certificates: got Expected error."
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_8_0_error_api2():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+        ('GET', 'security/certificates', SRR['generic_error']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error retrieving certificates: calling: security/certificates: got Expected error."
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_none_set():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['zero_records']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['success'])  # change certificate
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_10_1_other_set():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['svm_web_record_2']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['success'])  # change certificate
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_10_1_idempotent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['svm_web_record_1']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_web_services_modify_certificate_9_10_1_error_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error certificate not found: {'name': 'cert_name'}.  Current certificates with type=server: ['cert_1']"
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+    msg = "Error certificate not found: {'name': 'cert_name'}.  Current certificates with type=server: []"
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_error_api1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['generic_error']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error retrieving certificate {'name': 'cert_name'}: calling: security/certificates: got Expected error."
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_error_api2():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['zero_records']),
+        ('GET', 'security/certificates', SRR['generic_error']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error retrieving certificates: calling: security/certificates: got Expected error."
+    assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_error_api3():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['generic_error']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = 'Error retrieving web info: calling: svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web: got Expected error.'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_error_api4():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('GET', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['svm_web_record_2']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web', SRR['generic_error'])  # change certificate
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error in modify web service for {'certificate': {'uuid': 'cert_uuid_1'}}: "\
+          "calling: svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web: got Expected error."
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_web_services_modify_certificate_9_10_1_warning():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+    ])
+    module_args = {'web': {'certificate': 'cert_name'}}
+    msg = "Error in modify web service for {'certificate': {'uuid': 'cert_uuid_1'}}: "\
+          "calling: svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7/web: got Expected error."
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    assert my_obj.modify_web_services({}, {'uuid': 'uuid'}) is None
+    assert_warning_was_raised('Nothing to change: {}')
+    clear_warnings()
+    assert my_obj.modify_web_services({'certificate': {'name': 'whatever'}}, {'uuid': 'uuid'}) is None
+    assert_warning_was_raised("Nothing to change: {'certificate': {}}")
+    clear_warnings()
+    assert my_obj.modify_web_services({'certificate': {}}, {'uuid': 'uuid'}) is None
+    assert_warning_was_raised("Nothing to change: {'certificate': {}}")
+
+
+def test_rest_cli_max_volumes_get():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+    ])
+    module_args = {
+        'max_volumes': 3333,
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    record = my_obj.get_vserver()
+    assert 'name' in SRR['svm_record_ap'][1]['records'][0]
+    assert 'max_volumes' not in SRR['svm_record_ap'][1]['records'][0]
+    assert 'max_volumes' in record
+
+
+def test_rest_cli_max_volumes_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('PATCH', 'private/cli/vserver', SRR['success']),
+    ])
+    module_args = {
+        'max_volumes': 3333,
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_cli_max_volumes_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+        ('PATCH', 'private/cli/vserver', SRR['success']),
+    ])
+    module_args = {
+        'max_volumes': 3333,
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_rest_cli_max_volumes_get():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['generic_error']),
+    ])
+    module_args = {
+        'max_volumes': 3333,
+    }
+    msg = 'Error getting vserver info: calling: private/cli/vserver: got Expected error. - None'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_error_rest_cli_max_volumes_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+        ('PATCH', 'private/cli/vserver', SRR['generic_error']),
+    ])
+    module_args = {
+        'max_volumes': 3333,
+    }
+    msg = 'Error updating max_volumes: calling: private/cli/vserver: got Expected error. - None'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_cli_add_remove_protocols_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['success']),
+        ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success']),
+    ])
+    module_args = {
+        'allowed_protocols': 'nfs,cifs',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_rest_cli_add_protocols_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['generic_error']),
+    ])
+    module_args = {
+        'allowed_protocols': 'nfs,cifs',
+    }
+    msg = 'Error adding protocols: calling: private/cli/vserver/add-protocols: got Expected error. - None'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_cli_remove_protocols_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+        ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success']),
+    ])
+    module_args = {
+        'allowed_protocols': 'nfs,cifs',
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_rest_cli_remove_protocols_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+        ('PATCH', 'private/cli/vserver/remove-protocols', SRR['generic_error']),
+    ])
+    module_args = {
+        'allowed_protocols': 'nfs,cifs',
+    }
+    msg = 'Error removing protocols: calling: private/cli/vserver/remove-protocols: got Expected error. - None'
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_add_parameter_to_dict():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'name': 'svm',
+        'ipspace': 'ipspace',
+        'max_volumes': 3333,
+    }
+    my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
+    test_dict = {}
+    my_obj.add_parameter_to_dict(test_dict, 'name', None)
+    my_obj.add_parameter_to_dict(test_dict, 'ipspace', 'ipspace_key')
+    my_obj.add_parameter_to_dict(test_dict, 'max_volumes', None, True)
+    print(test_dict)
+    assert test_dict['name'] == 'svm'
+    assert test_dict['ipspace_key'] == 'ipspace'
+    assert test_dict['max_volumes'] == '3333'

@@ -45,6 +45,7 @@ WARNINGS = []
 
 
 def warn(dummy, msg):
+    print('WARNING:', msg)
     WARNINGS.append(msg)
 
 
@@ -130,8 +131,7 @@ def patch_ansible():
                         exit_json=exit_json,
                         fail_json=fail_json,
                         warn=warn) as mocks:
-        global WARNINGS
-        WARNINGS = []
+        clear_warnings()
         # so that we get a SystemExit: 1 error (no able to read from stdin in ansible-test !)
         # if set_module_args() was not called
         basic._ANSIBLE_ARGS = None
@@ -163,3 +163,8 @@ def assert_warning_was_raised(warning, partial_match=False):
         assert any(warning in msg for msg in WARNINGS)
     else:
         assert warning in WARNINGS
+
+
+def clear_warnings():
+    global WARNINGS
+    WARNINGS = []
