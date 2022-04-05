@@ -305,7 +305,7 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             asup_info['local_collection_enabled'] = records[0]['local_collection'] if 'local_collection' in records[0] else False
             asup_info['ondemand_enabled'] = records[0]['ondemand_state'] if 'ondemand_state' in records[0] else False
             asup_info['service_state'] = 'started' if records[0]['state'] else 'stopped'
-
+            asup_info['partner_addresses'] = records[0]['partner_address'] if 'partner_address' in records[0] else list()
             return asup_info
 
         else:
@@ -371,7 +371,8 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 modify['local_collection'] = modify.pop('local_collection_enabled')
             if 'ondemand_enabled' in modify:
                 modify['ondemand_state'] = modify.pop('ondemand_enabled')
-
+            if 'partner_addresses' in modify:
+                modify['partner_address'] = modify.pop('partner_addresses')
             dummy, error = self.rest_api.patch(api, modify, query)
 
             if error:

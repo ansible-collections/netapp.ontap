@@ -118,7 +118,8 @@ SRR = {
             'remove_private_data': False,
             'local_collection': True,
             'ondemand_state': True,
-            'ondemand_server_url': 'https://support.netapp.com/aods/asupmessage'
+            'ondemand_server_url': 'https://support.netapp.com/aods/asupmessage',
+            'partner_address': ['test@example.com']
         }],
         'num_records': 1
     }, None)
@@ -230,6 +231,7 @@ def test_rest_modify_prepopulate(mock_request, patch_ansible):      # pylint: di
     ''' modify asup '''
     args = dict(default_args())
     args['ondemand_enabled'] = False
+    args['partner_addresses'] = []
     set_module_args(args)
     mock_request.side_effect = [
         SRR['is_rest'],

@@ -52,6 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_aggregate - Fixed error in delete aggregate if the `disk_count` is less than current disk count.
+  - na_ontap_autosupport - Fixed `partner_address` not working in REST.
   - na_ontap_command - document that a READONLY user is not supported, even for show commands.
   - na_ontap_disk_options - ONTAP 9.10.1 returns on/off rather than True/False.
   - na_ontap_info - [#54] Fixes issue with na_ontap_info failing in 9.1 because of `job-schedule-cluster`.
@@ -73,6 +74,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Added REST support to existing modules
   - na_ontap_efficiency_policy - Added REST support.
   - na_ontap_lun - Added Rest Support.
+  - na_ontap_snapshot_policy - Added Rest Support.
 
 ## 21.17.3
 

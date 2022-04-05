@@ -273,7 +273,8 @@ class TestMyModule(unittest.TestCase):
             'count': count,
             'schedule': schedule,
             'prefix': prefix,
-            'comment': comment
+            'comment': comment,
+            'use_rest': 'never'
         })
 
     def set_default_current(self):
