@@ -162,7 +162,7 @@ class NetAppOntapISCSI(object):
         """
         iscsi_service = netapp_utils.zapi.NaElement.create_node_with_children(
             'iscsi-service-create',
-            **{'start': 'true' if self.state == 'started' else 'false'
+            **{'start': 'true' if self.service_state == 'started' else 'false'
                })
 
         try:

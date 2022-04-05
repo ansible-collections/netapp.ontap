@@ -56,6 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_command - document that a READONLY user is not supported, even for show commands.
   - na_ontap_disk_options - ONTAP 9.10.1 returns on/off rather than True/False.
   - na_ontap_info - [#54] Fixes issue with na_ontap_info failing in 9.1 because of `job-schedule-cluster`.
+  - na_ontap_iscsi - Fixed issue with `start_state` always being set to stopped when creating an ISCSI.
   - na_ontap_qtree - Fixed issue with `oplocks` not being changed during a modify in ZAPI.
   - na_ontap_qtree - Fixed issue with `oplocks` not warning user about not being supported in REST.
   - na_ontap_snapshot - fix key error on volume when using REST.
