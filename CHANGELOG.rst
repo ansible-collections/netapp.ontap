@@ -5,12 +5,58 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.18.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
+- na_ontap_debug - report ansible version and ONTAP collection version.
+- na_ontap_efficiency_policy - Added REST support.
+- na_ontap_export_policy_rule - new option ``ntfs_unix_security`` for NTFS export UNIX security options added.
+- na_ontap_lun - Added REST support.
+- na_ontap_snapmirror -- Added more descriptive error messages for REST
+- na_ontap_snapshot_policy - Added REST support to the na_ontap_snapshot_policy module.
+- na_ontap_svm - add support for web services (ssl modify) - REST only with 9.8 or later.
+- na_ontap_volume - add support for SnapLock - only for REST.
+- na_ontap_volume - allow to modify volume after rename.
+- na_ontap_volume - new option ``max_files`` to increase the inode count value.
+- na_ontap_vserver_create role - support max_volumes option.
+
+Bugfixes
+--------
+
+- Fixed ONTAP minor version ignored in checking minimum ONTAP version.
+- na_ontap_aggregate - Fixed error in delete aggregate if the ``disk_count`` is less than current disk count.
+- na_ontap_autosupport - Fixed `partner_address` not working in REST.
+- na_ontap_command - document that a READONLY user is not supported, even for show commands.
+- na_ontap_disk_options - ONTAP 9.10.1 returns on/off rather than True/False.
+- na_ontap_info - Fixes issue with na_ontap_info failing in 9.1 because of ``job-schedule-cluster``.
+- na_ontap_iscsi - Fixed issue with ``start_state`` always being set to stopped when creating an ISCSI.
+- na_ontap_lun_map - TypeError - '>' not supported between instances of 'int' and 'str '.
+- na_ontap_qtree - Fixed issue with ``oplocks`` not being changed during a modify in Zapi.
+- na_ontap_qtree - Fixed issue with ``oplocks`` not warning user about not being supported in REST
+- na_ontap_snapmirror - Added use_rest condition for the REST support to work when use_rest `always`.
+- na_ontap_snapshot - add error message if volume is not found with REST.
+- na_ontap_snapshot - fix key error on volume when using REST.
+- na_ontap_svm - fixed KeyError issue on protocols when vserver is stopped.
+- na_ontap_volume - do not attempt to mount volume if current state is offline.
+- na_ontap_volume - fix idempotency issue with compression settings when using REST.
+- na_ontap_vserver_peer - Added cluster peer accept code in REST.
+- na_ontap_vserver_peer - Fixed AttributeError if ``dest_hostname`` or ``peer_options`` not present.
+- na_ontap_vserver_peer - Fixed ``local_name_for_peer`` and ``local_name_for_source`` options silently ignored in REST.
+- na_ontap_vserver_peer - Get peer cluster name if remote peer exist else use local cluster name.
+- na_ontap_vserver_peer - ignore job entry doesn't exist error with REST to bypass ONTAP issue with FSx.
+- na_ontap_vserver_peer - report error if SVM peer does not see a peering relationship after create.
+
 v21.17.2
 ========
 
 Bugfixes
 --------
 
+- na_ontap_lun_map - Fixed bug when deleting lun map using REST.
 - na_ontap_rest_info - Fixed an issues with adding field to specific info that didn't have a direct REST equivalent.
 
 v21.17.1
