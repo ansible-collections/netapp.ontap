@@ -35,6 +35,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.18.1
+
+### Bug Fixes
+  - na_ontap_lun - Fixed KeyError on options `force_resize`, `force_remove` and `force_remove_fenced` in ZAPI.
+  - na_ontap_lun - Fixed `force_remove` option silently ignored in REST.
+
 ## 21.18.0
 
 ### New Options

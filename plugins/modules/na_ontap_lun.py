@@ -78,6 +78,7 @@ options:
     - If "true", override checks that prevent a LUN from being destroyed if it is online and mapped.
     - If "false", destroying an online and mapped LUN will fail.
     type: bool
+    default: False
 
   force_remove_fenced:
     description:
@@ -330,7 +331,7 @@ class NetAppOntapLUN(object):
                                     'pb', 'eb', 'zb', 'yb'], type='str'),
             comment=dict(required=False, type='str'),
             force_resize=dict(type='bool'),
-            force_remove=dict(type='bool'),
+            force_remove=dict(required=False, type='bool', default=False),
             force_remove_fenced=dict(type='bool'),
             flexvol_name=dict(type='str'),
             vserver=dict(required=True, type='str'),
@@ -385,7 +386,7 @@ class NetAppOntapLUN(object):
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
 
         self.rest_api = OntapRestAPI(self.module)
-        # use_exact_size is defaulted to true, bbut not supported with REST. To get around this we will ignore the variable in rest.
+        # use_exact_size is defaulted to true, but not supported with REST. To get around this we will ignore the variable in rest.
         unsupported_rest_properties = ['force_resize', 'force_remove_fenced', 'qos_adaptive_policy_group']
         partially_supported_rest_properties = [['san_application_template', (9, 7)],
                                                ['space_allocation', (9, 10)]]
@@ -397,6 +398,11 @@ class NetAppOntapLUN(object):
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            # set default value for ZAPI only supported options.
+            if self.parameters.get('force_resize') is None:
+                self.parameters['force_resize'] = False
+            if self.parameters.get('force_remove_fenced') is None:
+                self.parameters['force_remove_fenced'] = False
 
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()
@@ -1013,7 +1019,8 @@ class NetAppOntapLUN(object):
         if self.uuid is None:
             self.module.fail_json(msg="Error deleting LUN %s: UUID not found" % self.parameters['name'])
         api = 'storage/luns'
-        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid)
+        query = {'allow_delete_while_mapped': self.parameters['force_remove']}
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid, query)
         if error:
             self.module.fail_json(msg="Error deleting LUN %s: %s" % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
