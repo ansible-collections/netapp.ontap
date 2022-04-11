@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.18.1
 
 ### Bug Fixes
+  - na_ontap_iscsi - fixed error starting iscsi service on vserver where Service, adapter, or operation already started.
   - na_ontap_lun - Fixed KeyError on options `force_resize`, `force_remove` and `force_remove_fenced` in ZAPI.
   - na_ontap_lun - Fixed `force_remove` option silently ignored in REST.
 

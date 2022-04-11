@@ -1,16 +1,14 @@
 #!/usr/bin/python
 
-# (c) 2017-2019, NetApp, Inc
+# (c) 2017-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+'''
+na_ontap_iscsi
+'''
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -24,20 +22,20 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- create, delete, start, stop iSCSI service on SVM.
+  - create, delete, start, stop iSCSI service on SVM.
 
 options:
 
   state:
     description:
-    - Whether the service should be present or deleted.
+      - Whether the service should be present or deleted.
     choices: ['present', 'absent']
     type: str
     default: present
 
   service_state:
     description:
-    - Whether the specified service should running.
+      - Whether the specified service should running.
     choices: ['started', 'stopped']
     type: str
 
@@ -45,13 +43,13 @@ options:
     required: true
     type: str
     description:
-    - The name of the vserver to use.
+      - The name of the vserver to use.
 
 '''
 
 EXAMPLES = """
 - name: Create iscsi service
-  na_ontap_iscsi:
+  netapp.ontap.na_ontap_iscsi:
     state: present
     service_state: started
     vserver: ansibleVServer
@@ -60,7 +58,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Stop Iscsi service
-  na_ontap_iscsi:
+  netapp.ontap.na_ontap_iscsi:
     state: present
     service_state: stopped
     vserver: ansibleVServer
@@ -69,7 +67,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Delete Iscsi service
-  na_ontap_iscsi:
+  netapp.ontap.na_ontap_iscsi:
     state: absent
     vserver: ansibleVServer
     hostname: "{{ netapp_hostname }}"
@@ -90,7 +88,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapISCSI(object):
+class NetAppOntapISCSI:
 
     def __init__(self):
 
@@ -169,8 +167,7 @@ class NetAppOntapISCSI(object):
             self.server.invoke_successfully(
                 iscsi_service, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error creating iscsi service: % s"
-                                  % (to_native(e)),
+            self.module.fail_json(msg="Error creating iscsi service: % s" % (to_native(e)),
                                   exception=traceback.format_exc())
 
     def delete_iscsi_service(self):
@@ -187,9 +184,7 @@ class NetAppOntapISCSI(object):
             self.server.invoke_successfully(
                 iscsi_delete, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error deleting iscsi service \
-                                  on vserver %s: %s"
-                                  % (self.vserver, to_native(e)),
+            self.module.fail_json(msg="Error deleting iscsi service on vserver %s: %s" % (self.vserver, to_native(e)),
                                   exception=traceback.format_exc())
 
     def stop_iscsi_service(self):
@@ -203,9 +198,7 @@ class NetAppOntapISCSI(object):
         try:
             self.server.invoke_successfully(iscsi_stop, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error Stopping iscsi service \
-                                  on vserver %s: %s"
-                                  % (self.vserver, to_native(e)),
+            self.module.fail_json(msg="Error Stopping iscsi service on vserver %s: %s" % (self.vserver, to_native(e)),
                                   exception=traceback.format_exc())
 
     def start_iscsi_service(self):
@@ -218,9 +211,7 @@ class NetAppOntapISCSI(object):
         try:
             self.server.invoke_successfully(iscsi_start, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error starting iscsi service \
-                                  on vserver %s: %s"
-                                  % (self.vserver, to_native(e)),
+            self.module.fail_json(msg="Error starting iscsi service on vserver %s: %s" % (self.vserver, to_native(e)),
                                   exception=traceback.format_exc())
 
     def apply(self):
@@ -251,9 +242,9 @@ class NetAppOntapISCSI(object):
                 if self.state == 'present':
                     if not iscsi_service_exists:
                         self.create_iscsi_service()  # the service is stopped when initially created
-                    if self.service_state == 'started':
+                    elif self.service_state == 'started':
                         self.start_iscsi_service()
-                    if iscsi_service_exists and self.service_state == 'stopped':
+                    elif iscsi_service_exists and self.service_state == 'stopped':
                         self.stop_iscsi_service()
 
                 elif self.state == 'absent':
