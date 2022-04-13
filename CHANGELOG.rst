@@ -5,6 +5,17 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.18.1
+========
+
+Bugfixes
+--------
+
+- na_ontap_iscsi - fixed error starting iscsi service on vserver where Service, adapter, or operation already started.
+- na_ontap_lun - Fixed KeyError on options ``force_resize``, ``force_remove`` and ``force_remove_fenced`` in Zapi.
+- na_ontap_lun - Fixed ``force_remove`` option silently ignored in REST.
+- na_ontap_snapshot_policy - Do not validate parameter when state is ``absent`` and fix KeyError on ``comment``.
+
 v21.18.0
 ========
 
