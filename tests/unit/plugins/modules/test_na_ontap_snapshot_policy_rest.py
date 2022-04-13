@@ -99,6 +99,19 @@ ARGS_REST = {
     'username': 'username',
     'password': 'password',
     'name': 'policy_name',
+    'vserver': 'ansibleSVM',
+    'enabled': True,
+    'count': [10, 30],
+    'schedule': "hourly,weekly",
+    'comment': 'modified comment',
+    'use_rest': 'always'
+}
+
+ARGS_REST_no_SVM = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'name': 'policy_name',
     'enabled': True,
     'count': [10, 30],
     'schedule': "hourly,weekly",
@@ -166,7 +179,7 @@ def test_create_snapshot_polciy_with_snapmirror_label_rest():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
-def test_create_snapshot_polciy_with_snapmirror_label_rest():
+def test_create_snapshot_polciy_with_prefix_rest():
     ''' Test create with rest API'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),

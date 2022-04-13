@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_iscsi - fixed error starting iscsi service on vserver where Service, adapter, or operation already started.
   - na_ontap_lun - Fixed KeyError on options `force_resize`, `force_remove` and `force_remove_fenced` in ZAPI.
   - na_ontap_lun - Fixed `force_remove` option silently ignored in REST.
+  - na_ontap_snapshot_policy - Don't validate parameter when state is `absent` and fix KeyError on `comment`.
 
 ## 21.18.0
 

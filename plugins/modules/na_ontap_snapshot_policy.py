@@ -195,23 +195,17 @@ class NetAppOntapSnapshotPolicy(object):
             if self.parameters['use_rest'].lower() == 'auto':
                 self.module.warn('Falling back to ZAPI: %s' % msg)
                 self.use_rest = False
-
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
+            if 'vserver' in self.parameters:
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
             else:
-                if 'vserver' in self.parameters:
-                    self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-                else:
-                    self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            return
+                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def safe_strip(self, option):
         """ strip the given string """
-        if option is not None:
-            return option.strip()
-        else:
-            return None
+        return option.strip() if option is not None else None
 
     def get_snapshot_policy(self):
         """
@@ -232,10 +226,9 @@ class NetAppOntapSnapshotPolicy(object):
             if result.get_child_by_name('num-records') and \
                     int(result.get_child_content('num-records')) == 1:
                 snapshot_policy = result.get_child_by_name('attributes-list').get_child_by_name('snapshot-policy-info')
-                current = {}
-                current['name'] = snapshot_policy.get_child_content('policy')
+                current = {'name': snapshot_policy.get_child_content('policy')}
                 current['vserver'] = snapshot_policy.get_child_content('vserver-name')
-                current['enabled'] = False if snapshot_policy.get_child_content('enabled').lower() == 'false' else True
+                current['enabled'] = snapshot_policy.get_child_content('enabled').lower() != 'false'
                 current['comment'] = snapshot_policy.get_child_content('comment') or ''
                 current['schedule'], current['count'], current['snapmirror_label'], current['prefix'] = [], [], [], []
                 if snapshot_policy.get_child_by_name('snapshot-policy-schedules'):
@@ -270,15 +263,11 @@ class NetAppOntapSnapshotPolicy(object):
                                       "schedule and can have up to a maximum of 5 schedules, with a count "
                                       "representing the maximum number of Snapshot copies for each schedule")
 
-        if 'snapmirror_label' in self.parameters:
-            if len(self.parameters['snapmirror_label']) != len(self.parameters['schedule']):
-                self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an "
-                                          "accompanying SnapMirror Label")
+        if 'snapmirror_label' in self.parameters and len(self.parameters['snapmirror_label']) != len(self.parameters['schedule']):
+            self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an accompanying SnapMirror Label")
 
-        if 'prefix' in self.parameters:
-            if len(self.parameters['prefix']) != len(self.parameters['schedule']):
-                self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an "
-                                          "accompanying prefix")
+        if 'prefix' in self.parameters and len(self.parameters['prefix']) != len(self.parameters['schedule']):
+            self.module.fail_json(msg="Error: Each Snapshot Policy schedule must have an accompanying prefix")
 
     def modify_snapshot_policy(self, current):
         """
@@ -344,10 +333,9 @@ class NetAppOntapSnapshotPolicy(object):
                     options['new-count'] = str(count)
                     modify = True
 
-                if snapmirror_label is not None:
-                    if snapmirror_label != current['snapmirror_label'][schedule_index]:
-                        options['new-snapmirror-label'] = snapmirror_label
-                        modify = True
+                if snapmirror_label is not None and snapmirror_label != current['snapmirror_label'][schedule_index]:
+                    options['new-snapmirror-label'] = snapmirror_label
+                    modify = True
 
                 if modify:
                     modify_schedules.append(options)
@@ -365,22 +353,22 @@ class NetAppOntapSnapshotPolicy(object):
             self.modify_snapshot_policy_schedule(options, 'snapshot-policy-remove-schedule')
 
         # Modify schedules.
-        while len(modify_schedules) > 0:
+        while modify_schedules:
             options = modify_schedules.pop()
             self.modify_snapshot_policy_schedule(options, 'snapshot-policy-modify-schedule')
 
-        # Add N-1 new schedules. Add last one after last schedule has been deleted.
-        while len(add_schedules) > 1:
+        # Add 1 new schedule. Add other ones after last schedule has been deleted.
+        if add_schedules:
             options = add_schedules.pop()
             self.modify_snapshot_policy_schedule(options, 'snapshot-policy-add-schedule')
 
         # Delete last schedule no longer required.
-        while len(delete_schedules) > 0:
+        while delete_schedules:
             options = delete_schedules.pop()
             self.modify_snapshot_policy_schedule(options, 'snapshot-policy-remove-schedule')
 
-        # Add last new schedule.
-        while len(add_schedules) > 0:
+        # Add remaining new schedules.
+        while add_schedules:
             options = add_schedules.pop()
             self.modify_snapshot_policy_schedule(options, 'snapshot-policy-add-schedule')
 
@@ -479,26 +467,28 @@ class NetAppOntapSnapshotPolicy(object):
         """
         get details of the snapshot schedule with rest API.
         """
-        scheduleRecords = {
-            'count': [],
-            'prefix': [],
-            'schedule': [],
-            'snapmirror_label': []
-        }
-        options = {'snapshot_policy.name': current['name']}
+        query = {'snapshot_policy.name': current['name']}
         api = 'storage/snapshot-policies/%s/schedules' % current['uuid']
         fields = 'schedule.name,schedule.uuid,snapmirror_label,count,prefix'
-        record, error = rest_generic.get_0_or_more_records(self.rest_api, api, options, fields)
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot schedule: %s" % error)
-        if record:
-            for item in record:
-                scheduleRecords['count'].append(item['count'])
-                scheduleRecords['prefix'].append(item['prefix'])
-                scheduleRecords['schedule'].append(item['schedule'])
-                scheduleRecords['snapmirror_label'].append(item['snapmirror_label'])
+        if records:
+            scheduleRecords = {
+                'counts': [],
+                'prefixes': [],
+                'schedule_names': [],
+                'schedule_uuids': [],
+                'snapmirror_labels': []
+            }
+            for item in records:
+                scheduleRecords['counts'].append(item['count'])
+                scheduleRecords['prefixes'].append(item['prefix'])
+                scheduleRecords['schedule_names'].append(item['schedule']['name'])
+                scheduleRecords['schedule_uuids'].append(item['schedule']['uuid'])
+                scheduleRecords['snapmirror_labels'].append(item['snapmirror_label'])
             return scheduleRecords
-        return record
+        return None
 
     def get_snapshot_policy_rest(self):
         """
@@ -506,33 +496,38 @@ class NetAppOntapSnapshotPolicy(object):
         """
         if not self.use_rest:
             return self.get_snapshot_policy()
-        options = {'svm.name': self.parameters.get('vserver'),
-                   'name': self.parameters.get('name')}
+        query = {'name': self.parameters['name']}
+        if self.parameters.get('vserver'):
+            query['svm.name'] = self.parameters['vserver']
+            query['scope'] = 'svm'
+        else:
+            query['scope'] = 'cluster'
         api = 'storage/snapshot-policies'
         fields = 'enabled,svm.uuid,comment,copies.snapmirror_label,copies.count,copies.prefix,copies.schedule.name,scope'
-        record, error = rest_generic.get_one_record(self.rest_api, api, options, fields)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot policy: %s" % error)
         if record:
             current = {
-                'svm_uuid': record['svm']['uuid'],
                 'enabled': record['enabled'],
                 'name': record['name'],
                 'uuid': record['uuid'],
-                'svm_name': record['svm']['name'],
-                'comment': record['comment'],
+                'comment': record.get('comment', ''),
                 'count': [],
                 'prefix': [],
                 'schedule': [],
                 'snapmirror_label': []
             }
+            if query['scope'] == 'svm':
+                current['svm_name'] = record['svm']['name']
+                current['svm_uuid'] = record['svm']['uuid']
             if record['copies']:
                 for item in record['copies']:
                     current['count'].append(item['count'])
                     current['prefix'].append(item['prefix'])
                     current['schedule'].append(item['schedule']['name'])
                     current['snapmirror_label'].append(item['snapmirror_label'])
-                return current
+            return current
         return record
 
     def create_snapshot_policy_rest(self):
@@ -542,14 +537,15 @@ class NetAppOntapSnapshotPolicy(object):
         if not self.use_rest:
             return self.create_snapshot_policy()
 
-        options = {
-            'svm.name': self.parameters.get('vserver'),
+        body = {
             'name': self.parameters.get('name'),
             'enabled': self.parameters.get('enabled'),
             'copies': []
         }
+        if self.parameters.get('vserver'):
+            body['svm.name'] = self.parameters['vserver']
         if 'comment' in self.parameters:
-            options['comment'] = self.parameters.get('comment')
+            body['comment'] = self.parameters['comment']
         if 'snapmirror_label' in self.parameters:
             snapmirror_labels = self.parameters['snapmirror_label']
         else:
@@ -564,9 +560,8 @@ class NetAppOntapSnapshotPolicy(object):
         for schedule, prefix, count, snapmirror_label in \
             zip(self.parameters['schedule'], prefixes,
                 self.parameters['count'], snapmirror_labels):
-            schedule = self.safe_strip(schedule)
             copy = {
-                'schedule': {'name': schedule},
+                'schedule': {'name': self.safe_strip(schedule)},
                 'count': count
             }
             snapmirror_label = self.safe_strip(snapmirror_label)
@@ -575,9 +570,9 @@ class NetAppOntapSnapshotPolicy(object):
             prefix = self.safe_strip(prefix)
             if prefix:
                 copy['prefix'] = prefix
-            options['copies'].append(copy)
+            body['copies'].append(copy)
         api = 'storage/snapshot-policies'
-        dummy, error = rest_generic.post_async(self.rest_api, api, options)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
             self.module.fail_json(msg="Error on creating snapshot policy: %s" % error)
 
@@ -633,86 +628,84 @@ class NetAppOntapSnapshotPolicy(object):
             # User hasn't supplied any prefix.
             prefixes = [None] * len(self.parameters['schedule'])
 
-        for schedule in current['schedule']:
-            schedule = self.safe_strip(schedule)
-            if schedule not in [item.strip() for item in self.parameters['schedule']]:
-                schedule_index = current['schedule'].index(schedule)
-                schedule_uuid = schedule_info['schedule'][schedule_index]['uuid']
-                options = {
-                    'schedule.name': schedule,
-                    'schedule_uuid': schedule_uuid
-                }
-                delete_schedules.append(options)
+        # Identify schedules to be deleted
+        for schedule_name, schedule_uuid in zip(schedule_info['schedule_names'], schedule_info['schedule_uuids']):
+            schedule_name = self.safe_strip(schedule_name)
+            if schedule_name not in [item.strip() for item in self.parameters['schedule']]:
+                delete_schedules.append(schedule_uuid)
 
         # Identify schedules to be modified or added
-        for schedule, count, snapmirror_label, prefix in zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, prefixes):
-            schedule = self.safe_strip(schedule)
+        for schedule_name, count, snapmirror_label, prefix in zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, prefixes):
+            schedule_name = self.safe_strip(schedule_name)
             if snapmirror_label:
                 snapmirror_label = self.safe_strip(snapmirror_label)
             if prefix:
                 prefix = self.safe_strip(prefix)
-            options = {}
-            if schedule in current['schedule']:
+            body = {}
+            if schedule_name in schedule_info['schedule_names']:
                 # Schedule exists. Only modify if it has changed.
                 modify = False
-                schedule_index = current['schedule'].index(schedule)
-                schedule_uuid = schedule_info['schedule'][schedule_index]['uuid']
-                if count != current['count'][schedule_index]:
-                    options['count'] = str(count)
+                schedule_index = schedule_info['schedule_names'].index(schedule_name)
+                schedule_uuid = schedule_info['schedule_uuids'][schedule_index]
+                if count != schedule_info['counts'][schedule_index]:
+                    body['count'] = str(count)
                     modify = True
 
-                if snapmirror_label is not None:
-                    if snapmirror_label != current['snapmirror_label'][schedule_index]:
-                        options['snapmirror_label'] = snapmirror_label
-                        modify = True
+                if snapmirror_label is not None and snapmirror_label != schedule_info['snapmirror_labels'][schedule_index]:
+                    body['snapmirror_label'] = snapmirror_label
+                    modify = True
 
-                if prefix is not None:
-                    if prefix != current['prefix'][schedule_index]:
-                        options['prefix'] = prefix
-                        modify = True
+                if prefix is not None and prefix != schedule_info['prefixes'][schedule_index]:
+                    body['prefix'] = prefix
+                    modify = True
 
                 if modify:
-                    options['schedule_uuid'] = schedule_uuid
-                    modify_schedules.append(options)
+                    body['schedule_uuid'] = schedule_uuid
+                    modify_schedules.append(body)
             else:
                 # New schedule
-                options['schedule.name'] = schedule
-                options['count'] = str(count)
+                body['schedule.name'] = schedule_name
+                body['count'] = str(count)
                 if snapmirror_label is not None and snapmirror_label != '':
-                    options['snapmirror_label'] = snapmirror_label
+                    body['snapmirror_label'] = snapmirror_label
                 if prefix is not None and prefix != '':
-                    options['prefix'] = prefix
-                add_schedules.append(options)
+                    body['prefix'] = prefix
+                add_schedules.append(body)
 
         # Delete N-1 schedules no longer required. Must leave 1 schedule in policy
         # at any one time. Delete last one afterwards.
         while len(delete_schedules) > 1:
-            options = delete_schedules.pop()
-            schedule_id = options['schedule_uuid']
-            del options['schedule_uuid']
-            record, error = rest_generic.delete_async(self.rest_api, api, schedule_id, options)
+            schedule_uuid = delete_schedules.pop()
+            record, error = rest_generic.delete_async(self.rest_api, api, schedule_uuid)
+            if error is not None:
+                self.module.fail_json(msg="Error on deleting snapshot policy schedule: %s" % error)
 
         # Modify schedules.
-        while len(modify_schedules) > 0:
-            options = modify_schedules.pop()
-            schedule_id = options['schedule_uuid']
-            del options['schedule_uuid']
-            record, error = rest_generic.patch_async(self.rest_api, api, schedule_id, options)
+        while modify_schedules:
+            body = modify_schedules.pop()
+            schedule_id = body.pop('schedule_uuid')
+            record, error = rest_generic.patch_async(self.rest_api, api, schedule_id, body)
+            if error is not None:
+                self.module.fail_json(msg="Error on modifying snapshot policy schedule: %s" % error)
 
-        # Add N-1 new schedules. Add last one after last schedule has been deleted.
-        while len(add_schedules) > 1:
-            options = add_schedules.pop()
-            record, error = rest_generic.post_async(self.rest_api, api, options)
+        # Add 1 new schedule.  At least one schedule must be present, before we can delete the last old one.
+        if add_schedules:
+            body = add_schedules.pop()
+            record, error = rest_generic.post_async(self.rest_api, api, body)
+            if error is not None:
+                self.module.fail_json(msg="Error on adding snapshot policy schedule: %s" % error)
 
-        while len(delete_schedules) > 0:
-            options = delete_schedules.pop()
-            schedule_id = options['schedule_uuid']
-            del options['schedule_uuid']
-            record, error = rest_generic.delete_async(self.rest_api, api, schedule_id, options)
+        while delete_schedules:
+            schedule_uuid = delete_schedules.pop()
+            record, error = rest_generic.delete_async(self.rest_api, api, schedule_uuid)
+            if error is not None:
+                self.module.fail_json(msg="Error on deleting snapshot policy schedule: %s" % error)
 
-        while len(add_schedules) > 0:
-            options = add_schedules.pop()
-            record, error = rest_generic.post_async(self.rest_api, api, options)
+        while add_schedules:
+            body = add_schedules.pop()
+            record, error = rest_generic.post_async(self.rest_api, api, body)
+            if error is not None:
+                self.module.fail_json(msg="Error on adding snapshot policy schedule: %s" % error)
 
     def apply(self):
         """
@@ -723,7 +716,8 @@ class NetAppOntapSnapshotPolicy(object):
         current = self.get_snapshot_policy_rest()
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        self.validate_parameters()
+        if self.parameters['state'] == 'present':
+            self.validate_parameters()
         if cd_action is None and self.parameters['state'] == 'present':
             # Don't sort schedule/prefix/count/snapmirror_label lists as it can
             # mess up the intended parameter order.
