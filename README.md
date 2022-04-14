@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.19.0
+
+### Added REST support to existing modules
+  - na_ontap_iscsi - Added REST support.
+
 ## 21.18.1
 
 ### Bug Fixes
