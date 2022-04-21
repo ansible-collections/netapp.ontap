@@ -47,97 +47,182 @@ options:
         elements: str
         description:
             - When supplied, this argument will restrict the information collected to a given subset.
-            - Either the info name or the REST API can be given. Possible values for this argument include
-            - aggregate_info or storage/aggregates
+            - Either the REST API or the ZAPI info name can be given. Possible values for this argument include
+            - application/applications or application_info
+            - application/consistency-groups
+            - application/templates or application_template_info
+            - cloud/targets or cloud_targets_info
+            - cluster/chassis or cluster_chassis_info
+            - cluster/fireware/history
+            - cluster/jobs or cluster_jobs_info
+            - cluster/licensing/licenses or license_info
+            - cluster/mediators
+            - cluster/metrics or cluster_metrics_info
+            - cluster/metrocluster or metrocluster_info
+            - cluster/metrocluster/diagnostics or cluster_metrocluster_diagnostics or metrocluster_check_info
+            - cluster/metrocluster/dr-groups
+            - cluster/metrocluster/interconnects
+            - cluster/metrocluster/nodes or metrocluster-node-get-iter
+            - cluster/metrocluster/operations
+            - cluster/nodes or cluster_node_info or sysconfig_info
+            - cluster/ntp/keys
+            - cluster/ntp/servers or ntp_server_info
+            - cluster/peers or cluster_peer_info
+            - cluster/schedules or cluster_schedules or job_schedule_cron_info
+            - cluster/software or ontap_system_version or  cluster_image_info
+            - cluster/software/download or cluster_software_download
+            - cluster/software/history or cluster_software_history
+            - cluster/software/packages or cluster_software_packages
+            - cluster/web
+            - name-services/dns or svm_dns_config_info or net_dns_info
+            - name-services/ldap or svm_ldap_config_info or ldap_client or ldap_config
+            - name-services/local-hosts
+            - name-services/name-mappings or svm_name_mapping_config_info
+            - name-services/nis or svm_nis_config_info
+            - name-services/unix-groups
+            - name-services/unix-users
+            - network/ethernet/broadcast-domains or broadcast_domains_info or net_port_broadcast_domain_info
+            - network/ethernet/ports or network_ports_info or  net_port_info
+            - network/ethernet/switch/ports
+            - network/ethernet/switches or cluster_switch_info
+            - network/fc/logins or san_fc_logins_info
+            - network/fc/ports
+            - network/fc/wwpn-aliases or san_fc_wppn-aliases or fcp_alias_info
+            - network/http-proxy
+            - network/ip/bgp/peer-groups
+            - network/ip/interfaces or ip_interfaces_info or net_interface_info
+            - network/ip/routes or ip_routes_info or net_routes_info
+            - network/ip/service-policies or ip_service_policies or net_interface_service_policy_info
+            - network/ipspaces or network_ipspaces_info or net_ipspaces_info
+            - private/support/alerts or sys_cluster_alerts
+            - private/cli/vserver/security/file-directory or file_directory_security
+            - protocols/audit
+            - protocols/cifs/domains
+            - protocols/cifs/home-directory/search-paths or cifs_home_directory_info
+            - protocols/cifs/local-groups
+            - protocols/cifs/local-users
+            - protocols/cifs/services or cifs_services_info or cifs_options_info
+            - protocols/cifs/sessions
+            - protocols/cifs/shares or cifs_share_info
+            - protocols/cifs/users-and-groups/privileges
+            - protocols/cifs/unix-symlink-mapping
+            - protocols/file-access-tracing/events
+            - protocols/file-access-tracing/filters
+            - protocols/fpolicy
+            - protocols/locks
+            - protocols/ndmp
+            - protocols/ndmp/nodes
+            - protocols/ndmp/sessions
+            - protocols/ndmp/svms
+            - protocols/nfs/connected-clients
+            - protocols/nfs/export-policies or export_policy_info
+            - protocols/nfs/kerberos/interfaces
+            - protocols/nfs/kerberos/realms or kerberos_realm_info
+            - protocols/nfs/services or vserver_nfs_info or nfs_info
+            - protocols/nvme/interfaces or nvme_interface_info
+            - protocols/nvme/services or nvme_info
+            - protocols/nvme/subsystems or nvme_subsystem_info
+            - protocols/nvme/subsystem-controllers
+            - protocols/nvme/subsystem-maps
+            - protocols/s3/buckets
+            - protocols/s3/services
+            - protocols/san/fcp/services or san_fcp_services or fcp_service_info
+            - protocols/san/igroups or nitiator_groups_info or igroup_info
+            - protocols/san/iscsi/credentials or san_iscsi_credentials
+            - protocols/san/iscsi/services or san_iscsi_services or iscsi_service_info
+            - protocols/san/iscsi/sessions
+            - protocols/san/lun-maps or san_lun_maps or lun_map_info
+            - protocols/san/portsets
+            - protocols/san/vvol-bindings
+            - protocols/vscan or vscan_status_info or vscan_info
+            - protocols/vscan/server-status or vscan_connection_status_all_info
+            - security/accounts or security_login_info or security_login_account_info
+            - security/anti-ransomware/suspects
+            - security/audit
+            - security/audit/destinations or cluster_log_forwarding_info
+            - security/audit/messages
+            - security/authentication/cluster/ad-proxy
+            - security/authentication/cluster/ldap
+            - security/authentication/cluster/nis
+            - security/authentication/cluster/saml-sp
+            - security/authentication/publickeys
+            - security/azure-key-vaults
+            - security/certificates
+            - security/gcp-kms
+            - security/ipsec
+            - security/ipsec/ca-certificates
+            - security/ipsec/policies
+            - security/ipsec/security-associations
+            - security/key-manager-configs
+            - security/key-managers
+            - security/key-stores
+            - security/login/messages
+            - security/roles or security_login_rest_role_info
+            - security/ssh
+            - security/ssh/svms
+            - snapmirror/policies or snapmirror_policy_info
+            - snapmirror/relationships or snapmirror_info
+            - storage/aggregates or aggregate_info
+            - storage/bridges or storage_bridge_info
+            - storage/cluster
+            - storage/disks or disk_info
+            - storage/file/clone/split-loads
+            - storage/file/clone/split-status
+            - storage/file/clone/tokens
+            - storage/flexcache/flexcaches or storage_flexcaches_info
+            - storage/flexcache/origins or storage_flexcaches_origin_info
+            - storage/luns or storage_luns_info or lun_info
+            - storage/monitored-files
+            - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
+            - storage/ports or storage_ports_info
+            - storage/qos/policies or storage_qos_policies or qos_policy_info or qos_adaptive_policy_info
+            - storage/qos/workloads
+            - storage/qtrees or storage_qtrees_config or qtree_info
+            - storage/quota/reports or storage_quota_reports or quota_report_info
+            - storage/quota/rules or storage_quota_policy_rules
+            - storage/shelves or storage_shelves_config or shelf_info
+            - storage/snaplock/audit-logs
+            - storage/snaplock/compliance-clocks
+            - storage/snaplock/event-retention/operations
+            - storage/snaplock/event-retention/policies
+            - storage/snaplock/file-fingerprints
+            - storage/snaplock/litigations
+            - storage/snapshot-policies or storage_snapshot_policies or snapshot_policy_info
+            - storage/switches
+            - storage/tape-devices
+            - storage/volumes or volume_info
+            - storage/volume-efficiency-policies or sis_policy_info
+            - support/autosupport or autosupport_config_info
+            - support/autosupport/check or autosupport_check_info
+            - support/autosupport/messages or autosupport_messages_history
+            - support/auto-update
+            - support/auto-update/configurations
+            - support/auto-update/updates
+            - support/configuration-backup
+            - support/configuration-backup/backups
+            - support/coredump/coredumps
+            - support/ems or support_ems_config
+            - support/ems/destinations or event_notification_info or event_notification_destination_info
+            - support/ems/events or support_ems_events
+            - support/ems/filters or support_ems_filters
+            - support/ems/messages
+            - support/snmp
+            - support/snmp/traphosts
+            - support/snmp/users
+            - svm/migrations
+            - svm/peers or svm_peers_info or vserver_peer_info
+            - svm/peer-permissions or svm_peer-permissions_info
+            - svm/svms or vserver_info
+            - B(The following do not have direct Rest API equivalent)
             - aggr_efficiency_info
-            - application_info or application/applications
-            - application_template_info or application/templates
-            - autosupport_check_info or support/autosupport/check
-            - autosupport_config_info or support/autosupport
-            - autosupport_messages_history or support/autosupport/messages
-            - broadcast_domains_info or net_port_broadcast_domain_info or network/ethernet/broadcast-domains
-            - cifs_home_directory_info or protocols/cifs/home-directory/search-paths
-            - cifs_services_info or cifs_options_info or protocols/cifs/services
             - cifs_vserver_security_info
-            - cifs_share_info or protocols/cifs/shares
             - clock_info
-            - cloud_targets_info or cloud/targets
-            - cluster_chassis_info or cluster/chassis
-            - cluster_log_forwarding_info or security/audit/destinations
             - cluster_identity_info
-            - cluster_jobs_info or cluster/jobs
-            - cluster_metrics_info or cluster/metrics
-            - cluster_metrocluster_diagnostics or metrocluster_check_info or cluster/metrocluster/diagnostics
-            - cluster_node_info or sysconfig_info or cluster/nodes
-            - cluster_peer_info or cluster/peers
-            - cluster_schedules or job_schedule_cron_info or cluster/schedules
-            - cluster_software_download or cluster/software/download
-            - cluster_software_history or cluster/software/history
-            - cluster_software_packages or cluster/software/packages
-            - cluster_switch_info or network/ethernet/switches
-            - disk_info or storage/disks
-            - event_notification_info or support/ems/destinations
-            - event_notification_destination_info or support/ems/destinations
-            - export_policy_info or protocols/nfs/export-policies
-            - file_directory_security or private/cli/vserver/security/file-directory
-            - initiator_groups_info or igroup_info or protocols/san/igroups
-            - ip_interfaces_info or net_interface_info or network/ip/interfaces
-            - ip_routes_info or net_routes_info or network/ip/routes
-            - ip_service_policies or net_interface_service_policy_info or network/ip/service-policies
-            - kerberos_realm_info or protocols/nfs/kerberos/realms
-            - license_info or cluster/licensing/licenses
-            - network_ipspaces_info or net_ipspaces_info or network/ipspaces
-            - network_ports_info or  net_port_info or network/ethernet/ports
             - net_vlan_info
-            - ntp_server_info or cluster/ntp/servers
-            - nvme_info or protocols/nvme/services
-            - nvme_interface_info or protocols/nvme/interfaces
-            - nvme_subsystem_info or protocols/nvme/subsystems
-            - metrocluster_info or cluster/metrocluster
-            - metrocluster-node-get-iter or cluster/metrocluster/nodes
-            - ontap_system_version or  cluster_image_info or cluster/software
-            - san_fc_logins_info or network/fc/logins
-            - san_fc_wppn-aliases or fcp_alias_info or network/fc/wwpn-aliases
-            - san_fcp_services or fcp_service_info or protocols/san/fcp/services
-            - san_iscsi_credentials or protocols/san/iscsi/credentials
-            - san_iscsi_services or iscsi_service_info or protocols/san/iscsi/services
-            - san_lun_maps or lun_map_info or protocols/san/lun-maps
-            - security_login_info or security_login_account_info or security/accounts
-            - security_login_rest_role_info or security/roles
             - sis_info
-            - sis_policy_info or storage/volume-efficiency-policies
             - snapmirror_destination_info
-            - snapmirror_info or snapmirror/relationships
-            - snapmirror_policy_info or snapmirror/policies
-            - storage_bridge_info or storage/bridges
-            - storage_flexcaches_info or storage/flexcache/flexcaches
-            - storage_flexcaches_origin_info or storage/flexcache/origins
-            - storage_luns_info or lun_info or storage/luns
-            - storage_NVMe_namespaces or nvme_namespace_info or storage/namespaces
-            - storage_ports_info or storage/ports
-            - storage_qos_policies or qos_policy_info or qos_adaptive_policy_info or storage/qos/policies
-            - storage_qtrees_config or qtree_info or storage/qtrees
-            - storage_quota_reports or quota_report_info or storage/quota/reports
-            - storage_quota_policy_rules or storage/quota/rules
-            - storage_shelves_config or shelf_info or storage/shelves
-            - storage_snapshot_policies or snapshot_policy_info or storage/snapshot-policies
-            - support_ems_config or support/ems
-            - support_ems_events or support/ems/events
-            - support_ems_filters or support/ems/filters
-            - svm_dns_config_info or net_dns_info or name-services/dns
-            - svm_ldap_config_info or ldap_client or ldap_config or name-services/ldap
-            - svm_name_mapping_config_info or name-services/name-mappings
-            - svm_nis_config_info or name-services/nis
-            - svm_peers_info or vserver_peer_info or svm/peers
-            - svm_peer-permissions_info or svm/peer-permissions
-            - sys_cluster_alerts or private/support/alerts
             - system_node_info
-            - vserver_info or svm/svms
-            - vserver_nfs_info or nfs_info or protocols/nfs/services
-            - volume_info or storage/volumes
             - volume_space_info
-            - vscan_connection_status_all_info or protocols/vscan/server-status
-            - vscan_status_info or vscan_info or protocols/vscan
             - Can specify a list of values to include a larger subset.
             - REST APIs are supported with ONTAP 9.6 onwards.
         default: "demo"
@@ -180,7 +265,7 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - vserver_info
+      - svm/svms
 
 - name: run ONTAP gather facts for aggregate info and volume info
   netapp.ontap.na_ontap_rest_info:
@@ -191,8 +276,8 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - aggregate_info
-      - volume_info
+      - storage/aggregates
+      - storage/volumes
 
 - name: run ONTAP gather facts for all subsets
   netapp.ontap.na_ontap_rest_info:
@@ -216,8 +301,8 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-        - aggregate_info
-        - volume_info
+        - storage/aggregates
+        - storage/volumes
 
 - name: run ONTAP gather facts for aggregate info with specified fields
   netapp.ontap.na_ontap_rest_info:
@@ -232,7 +317,7 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-        - aggregate_info
+        - storage/aggregates
       parameters:
         recommend:
           true
@@ -245,10 +330,11 @@ EXAMPLES = '''
       https: true
       validate_certs: false
       gather_subset:
-        - volume_info
+        - storage/volumes
       parameters:
         name: ansible*
         state: online
+
 - name: run ONTAP gather fact to get DACLs
   netapp.ontap.na_ontap_rest_info:
     hostname: "1.2.3.4"
@@ -585,6 +671,8 @@ class NetAppONTAPGatherInfo(object):
         except KeyError:
             self.module.fail_json(msg="Specified subset %s is not found, supported subsets are %s" %
                                   (subset, list(get_ontap_subset_info.keys())))
+        if 'api_call' not in specified_subset:
+            specified_subset['api_call'] = subset
         subset_info = self.get_subset_info(specified_subset, default_fields)
 
         if subset_info is not None and isinstance(subset_info, dict) and '_links' in subset_info:
@@ -615,247 +703,175 @@ class NetAppONTAPGatherInfo(object):
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
-            'application/applications': {
-                'api_call': 'application/applications',
-            },
-            'application/templates': {
-                'api_call': 'application/templates',
-            },
-            'cloud/targets': {
-                'api_call': 'cloud/targets',
-            },
-            'cluster': {
-                'api_call': 'cluster',
-            },
-            'cluster/chassis': {
-                'api_call': 'cluster/chassis',
-            },
-            'cluster/jobs': {
-                'api_call': 'cluster/jobs',
-            },
-            'cluster/licensing/licenses': {
-                'api_call': 'cluster/licensing/licenses',
-            },
-            'cluster/metrocluster': {
-                'api_call': 'cluster/metrocluster',
-            },
+            'application/applications': {},
+            'application/consistency-groups': {},
+            'application/templates': {},
+            'cloud/targets': {},
+            'cluster': {},
+            'cluster/chassis': {},
+            'cluster/fireware/history': {},
+            'cluster/jobs': {},
+            'cluster/licensing/licenses': {},
+            'cluster/mediators': {},
+            'cluster/metrocluster': {},
             'cluster/metrocluster/diagnostics': {
-                'api_call': 'cluster/metrocluster/diagnostics',
                 'post': True
             },
-            'cluster/metrocluster/nodes': {
-                'api_call': 'cluster/metrocluster/nodes',
-            },
-            'cluster/metrics': {
-                'api_call': 'cluster/metrics',
-            },
-            'cluster/nodes': {
-                'api_call': 'cluster/nodes',
-            },
-            'cluster/ntp/servers': {
-                'api_call': 'cluster/ntp/servers',
-            },
-            'cluster/peers': {
-                'api_call': 'cluster/peers',
-            },
-            'cluster/schedules': {
-                'api_call': 'cluster/schedules',
-            },
-            'cluster/software': {
-                'api_call': 'cluster/software',
-            },
-            'cluster/software/download': {
-                'api_call': 'cluster/software/download',
-            },
-            'cluster/software/history': {
-                'api_call': 'cluster/software/history',
-            },
-            'cluster/software/packages': {
-                'api_call': 'cluster/software/packages',
-            },
-            'name-services/dns': {
-                'api_call': 'name-services/dns',
-            },
-            'name-services/ldap': {
-                'api_call': 'name-services/ldap',
-            },
-            'name-services/name-mappings': {
-                'api_call': 'name-services/name-mappings',
-            },
-            'name-services/nis': {
-                'api_call': 'name-services/nis',
-            },
-            'network/ethernet/broadcast-domains': {
-                'api_call': 'network/ethernet/broadcast-domains',
-            },
-            'network/ethernet/ports': {
-                'api_call': 'network/ethernet/ports',
-            },
-            'network/fc/logins': {
-                'api_call': 'network/fc/logins',
-            },
-            'network/fc/wwpn-aliases': {
-                'api_call': 'network/fc/wwpn-aliases',
-            },
-            'network/ip/interfaces': {
-                'api_call': 'network/ip/interfaces',
-            },
-            'network/ip/routes': {
-                'api_call': 'network/ip/routes',
-            },
-            'network/ip/service-policies': {
-                'api_call': 'network/ip/service-policies',
-            },
-            'network/ipspaces': {
-                'api_call': 'network/ipspaces',
-            },
-            'network/ethernet/switches': {
-                'api_call': 'network/ethernet/switches',
-            },
-            'private/support/alerts': {
-                'api_call': 'private/support/alerts',
-            },
-            'protocols/cifs/home-directory/search-paths': {
-                'api_call': 'protocols/cifs/home-directory/search-paths',
-            },
-            'protocols/cifs/services': {
-                'api_call': 'protocols/cifs/services',
-            },
-            'protocols/cifs/shares': {
-                'api_call': 'protocols/cifs/shares',
-            },
-            'protocols/nfs/export-policies': {
-                'api_call': 'protocols/nfs/export-policies',
-            },
-            'protocols/nfs/kerberos/realms': {
-                'api_call': 'protocols/nfs/kerberos/realms',
-            },
-            'protocols/nfs/services': {
-                'api_call': 'protocols/nfs/services',
-            },
-            'protocols/nvme/interfaces': {
-                'api_call': 'protocols/nvme/interfaces',
-            },
-            'protocols/nvme/services': {
-                'api_call': 'protocols/nvme/services',
-            },
-            'protocols/nvme/subsystems': {
-                'api_call': 'protocols/nvme/subsystems',
-            },
-            'protocols/san/fcp/services': {
-                'api_call': 'protocols/san/fcp/services',
-            },
-            'protocols/san/igroups': {
-                'api_call': 'protocols/san/igroups',
-            },
-            'protocols/san/iscsi/credentials': {
-                'api_call': 'protocols/san/iscsi/credentials',
-            },
-            'protocols/san/iscsi/services': {
-                'api_call': 'protocols/san/iscsi/services',
-            },
-            'protocols/san/lun-maps': {
-                'api_call': 'protocols/san/lun-maps',
-            },
-            'protocols/vscan/server-status': {
-                'api_call': 'protocols/vscan/server-status',
-            },
-            'protocols/vscan': {
-                'api_call': 'protocols/vscan',
-            },
-            'security/accounts': {
-                'api_call': 'security/accounts',
-            },
-            'security/audit/destinations': {
-                'api_call': 'security/audit/destinations',
-            },
-            'security/roles': {
-                'api_call': 'security/roles',
-            },
-            'snapmirror/policies': {
-                'api_call': 'snapmirror/policies',
-            },
-            'snapmirror/relationships': {
-                'api_call': 'snapmirror/relationships',
-            },
-            'storage/aggregates': {
-                'api_call': 'storage/aggregates',
-            },
-            'storage/bridges': {
-                'api_call': 'storage/bridges',
-            },
-            'storage/disks': {
-                'api_call': 'storage/disks',
-            },
-            'storage/flexcache/flexcaches': {
-                'api_call': 'storage/flexcache/flexcaches',
-            },
-            'storage/flexcache/origins': {
-                'api_call': 'storage/flexcache/origins',
-            },
-            'storage/luns': {
-                'api_call': 'storage/luns',
-            },
-            'storage/namespaces': {
-                'api_call': 'storage/namespaces',
-            },
-            'storage/ports': {
-                'api_call': 'storage/ports',
-            },
-            'storage/qos/policies': {
-                'api_call': 'storage/qos/policies',
-            },
-            'storage/qtrees': {
-                'api_call': 'storage/qtrees',
-            },
-            'storage/quota/reports': {
-                'api_call': 'storage/quota/reports',
-            },
-            'storage/quota/rules': {
-                'api_call': 'storage/quota/rules',
-            },
-            'storage/shelves': {
-                'api_call': 'storage/shelves',
-            },
-            'storage/snapshot-policies': {
-                'api_call': 'storage/snapshot-policies',
-            },
-            'storage/volumes': {
-                'api_call': 'storage/volumes',
-            },
-            'storage/volume-efficiency-policies': {
-                'api_call': 'storage/volume-efficiency-policies',
-            },
-            'support/autosupport': {
-                'api_call': 'support/autosupport',
-            },
+            'cluster/metrocluster/dr-groups': {},
+            'cluster/metrocluster/interconnects': {},
+            'cluster/metrocluster/nodes': {},
+            'cluster/metrocluster/operations': {},
+            'cluster/metrics': {},
+            'cluster/nodes': {},
+            'cluster/ntp/keys': {},
+            'cluster/ntp/servers': {},
+            'cluster/peers': {},
+            'cluster/schedules': {},
+            'cluster/software': {},
+            'cluster/software/download': {},
+            'cluster/software/history': {},
+            'cluster/software/packages': {},
+            'cluster/web': {},
+            'name-services/dns': {},
+            'name-services/ldap': {},
+            'name-services/local-hosts': {},
+            'name-services/name-mappings': {},
+            'name-services/nis': {},
+            'name-services/unix-groups': {},
+            'name-services/unix-users': {},
+            'network/ethernet/broadcast-domains': {},
+            'network/ethernet/ports': {},
+            'network/ethernet/switch/ports': {},
+            'network/fc/logins': {},
+            'network/fc/ports': {},
+            'network/fc/wwpn-aliases': {},
+            'network/http-proxy': {},
+            'network/ip/bgp/peer-groups': {},
+            'network/ip/interfaces': {},
+            'network/ip/routes': {},
+            'network/ip/service-policies': {},
+            'network/ipspaces': {},
+            'network/ethernet/switches': {},
+            'private/support/alerts': {},
+            'protocols/audit': {},
+            'protocols/cifs/domains': {},
+            'protocols/cifs/home-directory/search-paths': {},
+            'protocols/cifs/local-groups': {},
+            'protocols/cifs/local-users': {},
+            'protocols/cifs/services': {},
+            'protocols/cifs/sessions': {},
+            'protocols/cifs/shares': {},
+            'protocols/cifs/users-and-groups/privileges': {},
+            'protocols/cifs/unix-symlink-mapping': {},
+            'protocols/file-access-tracing/events': {},
+            'protocols/file-access-tracing/filters': {},
+            'protocols/fpolicy': {},
+            'protocols/locks': {},
+            'protocols/ndmp': {},
+            'protocols/ndmp/nodes': {},
+            'protocols/ndmp/sessions': {},
+            'protocols/ndmp/svms': {},
+            'protocols/nfs/connected-clients': {},
+            'protocols/nfs/export-policies': {},
+            'protocols/nfs/kerberos/interfaces': {},
+            'protocols/nfs/kerberos/realms': {},
+            'protocols/nfs/services': {},
+            'protocols/nvme/interfaces': {},
+            'protocols/nvme/services': {},
+            'protocols/nvme/subsystems': {},
+            'protocols/nvme/subsystem-controllers': {},
+            'protocols/nvme/subsystem-maps': {},
+            'protocols/s3/buckets': {},
+            'protocols/s3/services': {},
+            'protocols/san/fcp/services': {},
+            'protocols/san/igroups': {},
+            'protocols/san/iscsi/credentials': {},
+            'protocols/san/iscsi/services': {},
+            'protocols/san/iscsi/sessions': {},
+            'protocols/san/lun-maps': {},
+            'protocols/san/portsets': {},
+            'protocols/san/vvol-bindings': {},
+            'protocols/vscan/server-status': {},
+            'protocols/vscan': {},
+            'security/accounts': {},
+            'security/anti-ransomware/suspects': {},
+            'security/audit': {},
+            'security/audit/destinations': {},
+            'security/audit/messages': {},
+            'security/authentication/cluster/ad-proxy': {},
+            'security/authentication/cluster/ldap': {},
+            'security/authentication/cluster/nis': {},
+            'security/authentication/cluster/saml-sp': {},
+            'security/authentication/publickeys': {},
+            'security/azure-key-vaults': {},
+            'security/certificates': {},
+            'security/gcp-kms': {},
+            'security/ipsec': {},
+            'security/ipsec/ca-certificates': {},
+            'security/ipsec/policies': {},
+            'security/ipsec/security-associations': {},
+            'security/key-manager-configs': {},
+            'security/key-managers': {},
+            'security/key-stores': {},
+            'security/login/messages': {},
+            'security/roles': {},
+            'security/ssh': {},
+            'security/ssh/svms': {},
+            'snapmirror/policies': {},
+            'snapmirror/relationships': {},
+            'storage/aggregates': {},
+            'storage/bridges': {},
+            'storage/cluster': {},
+            'storage/disks': {},
+            'storage/file/clone/split-loads': {},
+            'storage/file/clone/split-status': {},
+            'storage/file/clone/tokens': {},
+            'storage/flexcache/flexcaches': {},
+            'storage/flexcache/origins': {},
+            'storage/luns': {},
+            'storage/monitored-files': {},
+            'storage/namespaces': {},
+            'storage/ports': {},
+            'storage/qos/policies': {},
+            'storage/qos/workloads': {},
+            'storage/qtrees': {},
+            'storage/quota/reports': {},
+            'storage/quota/rules': {},
+            'storage/shelves': {},
+            'storage/snaplock/audit-logs': {},
+            'storage/snaplock/compliance-clocks': {},
+            'storage/snaplock/event-retention/operations': {},
+            'storage/snaplock/event-retention/policies': {},
+            'storage/snaplock/file-fingerprints': {},
+            'storage/snaplock/litigations': {},
+            'storage/snapshot-policies': {},
+            'storage/switches': {},
+            'storage/tape-devices': {},
+            'storage/volumes': {},
+            'storage/volume-efficiency-policies': {},
+            'support/autosupport': {},
             'support/autosupport/check': {
                 'api_call': '/private/cli/system/node/autosupport/check/details' + self.private_cli_fields('support/autosupport/check'),
             },
-            'support/autosupport/messages': {
-                'api_call': 'support/autosupport/messages',
-            },
-            'support/ems': {
-                'api_call': 'support/ems',
-            },
-            'support/ems/destinations': {
-                'api_call': 'support/ems/destinations',
-            },
-            'support/ems/events': {
-                'api_call': 'support/ems/events',
-            },
-            'support/ems/filters': {
-                'api_call': 'support/ems/filters',
-            },
-            'svm/peers': {
-                'api_call': 'svm/peers',
-            },
-            'svm/peer-permissions': {
-                'api_call': 'svm/peer-permissions',
-            },
-            'svm/svms': {
-                'api_call': 'svm/svms',
-            }
+            'support/autosupport/messages': {},
+            'support/auto-update': {},
+            'support/auto-update/configurations': {},
+            'support/auto-update/updates': {},
+            'support/configuration-backup': {},
+            'support/configuration-backup/backups': {},
+            'support/coredump/coredumps': {},
+            'support/ems': {},
+            'support/ems/destinations': {},
+            'support/ems/events': {},
+            'support/ems/filters': {},
+            'support/ems/messages': {},
+            'support/snmp': {},
+            'support/snmp/traphosts': {},
+            'support/snmp/users': {},
+            'svm/migrations': {},
+            'svm/peers': {},
+            'svm/peer-permissions': {},
+            'svm/svms': {}
         }
         if 'gather_subset' in self.parameters and (
                 'private/cli/vserver/security/file-directory' in self.parameters['gather_subset']
@@ -892,6 +908,7 @@ class NetAppONTAPGatherInfo(object):
             results['warnings'] = "option 'state' is deprecated."
         if self.parameters['use_python_keys']:
             new_dict = dict((key.replace('/', '_'), value) for (key, value) in result_message.items())
+            new_dict = dict((key.replace('-', '_'), value) for (key, value) in new_dict.items())
             result_message = new_dict
         self.module.exit_json(ontap_info=result_message, **results)
 
