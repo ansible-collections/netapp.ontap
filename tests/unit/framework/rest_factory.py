@@ -36,6 +36,7 @@ _DEFAULT_RESPONSES = {
     'is_rest_9_9_1': (200, dict(version=dict(generation=9, major=9, minor=1, full='dummy_9_9_1')), None),
     'is_rest_9_9_0': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy_9_9_0')), None),
     'is_rest_9_10_1': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
+    'is_rest_9_11_0': (200, dict(version=dict(generation=9, major=11, minor=0, full='dummy_9_11_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'success': (200, {}, None),

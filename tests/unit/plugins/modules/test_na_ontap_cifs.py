@@ -252,6 +252,7 @@ class TestMyModule(unittest.TestCase):
         data['state'] = 'present'
         data['path'] = "\\"
         data['comment'] = "CIFS comment"
+        data["symlink_properties"] = "disable"
         set_module_args(data)
         mock_request.side_effect = [
             SRR['is_rest'],

@@ -41,6 +41,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_igroup_initiator - Added REST support.
   - na_ontap_iscsi - Added REST support.
 
+### Bug Fixes
+  - na_ontap_cifs - fixed ``symlink_properties`` option silently ignored for cifs share creation when using REST.
+
 ## 21.18.1
 
 ### Bug Fixes

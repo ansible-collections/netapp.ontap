@@ -320,8 +320,13 @@ class NetAppONTAPCifsShare:
             return self.create_cifs_share()
         body = {'svm.name': self.parameters.get('vserver'),
                 'name': self.parameters.get('name'),
-                'path': self.parameters.get('path'),
-                'comment': self.parameters.get('comment')}
+                'path': self.parameters.get('path')
+                }
+        if 'comment' in self.parameters:
+            body['comment'] = self.parameters.get('comment')
+        if 'symlink_properties' in self.parameters:
+            symlink = "".join(self.parameters.get('symlink_properties'))
+            body['unix_symlink'] = symlink
         api = 'protocols/cifs/shares'
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
