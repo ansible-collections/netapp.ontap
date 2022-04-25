@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.19.0
 
 ### New Option
+  - na_ontap_qos_policy_group - Added REST only supported option `fixed_qos_options` for configuring max/min throughput policy.
   - na_ontap_rest_info: support added for application/consistency-groups
   - na_ontap_rest_info: support added for cluster/fireware/history
   - na_ontap_rest_info: support added for cluster/mediators
@@ -124,15 +125,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_rest_info: support added for svm/migrations
 
 ### Bug Fixes
+  - na_ontap_cifs - fixed ``symlink_properties`` option silently ignored for cifs share creation when using REST.
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.
   - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
 
 ### Added REST support to existing modules
   - na_ontap_igroup_initiator - Added REST support.
   - na_ontap_iscsi - Added REST support.
-
-### Bug Fixes
-  - na_ontap_cifs - fixed ``symlink_properties`` option silently ignored for cifs share creation when using REST.
+  - na_ontap_qos_policy_group - Added REST support.
 
 ## 21.18.1
 
