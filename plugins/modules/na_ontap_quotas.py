@@ -181,6 +181,7 @@ RETURN = """
 
 import time
 import traceback
+import re
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -234,6 +235,15 @@ class NetAppONTAPQuotas(object):
         # converted blank parameter to * as shown in vsim
         if self.parameters.get('quota_target') == "":
             self.parameters['quota_target'] = '*'
+        size_format_error_message = "input string is not a valid size format. A valid size format is constructed as" \
+                                    "<integer><size unit>. For example, '10MB', '10KB'.  Only numeric input is also valid." \
+                                    "The default unit size is KB."
+        if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-':
+            if self.convert_to_kb('disk_limit') is False:
+                self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
+        if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-':
+            if self.convert_to_kb('soft_disk_limit') is False:
+                self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
@@ -523,6 +533,24 @@ class NetAppONTAPQuotas(object):
                     self.on_or_off_quota('quota-on', cd_action)
 
         self.module.exit_json(changed=self.na_helper.changed)
+
+    def convert_to_kb(self, option):
+        """
+        convert input to kb, and set to self.parameters.
+        :param option: disk_limit or soft_disk_limit.
+        :return: boolean if it can be converted.
+        """
+        self.parameters[option].replace(' ', '')
+        slices = re.findall(r"\d+|\D+", self.parameters[option])
+        if len(slices) < 1 or len(slices) > 2:
+            return False
+        if not slices[0].isdigit():
+            return False
+        if len(slices) > 1 and slices[1].lower() not in ['kb', 'mb', 'gb']:
+            return False
+        if len(slices) > 1:
+            self.parameters[option] = str(int(slices[0]) * netapp_utils.POW2_BYTE_MAP[slices[1].lower()] // 1024)
+        return True
 
 
 def main():

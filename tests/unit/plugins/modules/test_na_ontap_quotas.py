@@ -314,3 +314,17 @@ class TestMyModule(unittest.TestCase):
         quotas = my_obj.get_quotas()
         print('QUOTAS', quotas)
         assert quotas
+
+    def test_convert_size_format(self):
+        module_args = {}
+        module_args.update(self.set_default_args())
+        module_args.update({'disk_limit': '10MB'})
+        set_module_args(module_args)
+        my_obj = my_module()
+        my_obj.convert_to_kb('disk_limit')
+        print(my_obj.parameters)
+        assert my_obj.parameters['disk_limit'] == '10240'
+        module_args.update({'disk_limit': '10'})
+        my_obj.convert_to_kb('disk_limit')
+        print(my_obj.parameters)
+        assert my_obj.parameters['disk_limit'] == '10240'

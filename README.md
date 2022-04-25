@@ -125,6 +125,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.
+  - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
 
 ### Added REST support to existing modules
   - na_ontap_igroup_initiator - Added REST support.
