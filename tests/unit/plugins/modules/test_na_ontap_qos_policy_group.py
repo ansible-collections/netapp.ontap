@@ -102,6 +102,7 @@ def test_error_if_fixed_qos_options_present():
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
     del DEFAULT_ARGS_COPY['max_throughput']
     del DEFAULT_ARGS_COPY['min_throughput']
+    del DEFAULT_ARGS_COPY['is_shared']
     DEFAULT_ARGS_COPY['fixed_qos_options'] = {'max_throughput_iops': 100}
     error = create_module(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
     assert "Error: 'fixed_qos_options' not supported with ZAPI, use 'max_throughput' and 'min_throughput'" in error
@@ -224,7 +225,7 @@ def test_modify_is_shared_error():
         'max_throughput': '900KB/s,900IOPS'
     }
     error = create_and_apply(qos_policy_group_module, DEFAULT_ARGS, args, fail=True)['msg']
-    assert 'Error cannot modify is_shared attribute.' in error
+    assert "Error cannot modify 'is_shared' attribute." in error
 
 
 def test_rename():
@@ -309,6 +310,7 @@ DEFAULT_ARGS_REST = {
     'https': 'True',
     'use_rest': 'always',
     'fixed_qos_options': {
+        'capacity_shared': False,
         'max_throughput_iops': 1000,
         'max_throughput_mbps': 100,
         'min_throughput_iops': 100,
@@ -329,6 +331,18 @@ SRR = rest_responses({
                 "min_throughput_iops": 100,
                 'min_throughput_mbps': 50,
                 "capacity_shared": False
+            }
+        }
+    ], 'num_records': 1}, None),
+    'adaptive_policy_info': (200, {"records": [
+        {
+            'uuid': '30d2fdd6-c45a-11ec-a164-005056b3bd39',
+            'svm': {'name': 'policy_vserver'},
+            'name': 'policy_1_',
+            'adaptive': {
+                'expected_iops': 200,
+                'peak_iops': 500,
+                'absolute_min_iops': 100
             }
         }
     ], 'num_records': 1}, None)
@@ -352,6 +366,23 @@ def test_create_idempotency_rest():
         ('GET', 'storage/qos/policies', SRR['qos_policy_info']),
     ])
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST)['changed'] is False
+
+
+def test_successful_create_adaptive_rest():
+    ''' Test successful create '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/qos/policies', SRR['empty_records']),
+        ('POST', 'storage/qos/policies', SRR['success']),
+    ])
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_COPY['fixed_qos_options']
+    DEFAULT_ARGS_COPY['adaptive_qos_options'] = {
+        "absolute_min_iops": 100,
+        "expected_iops": 200,
+        "peak_iops": 500
+    }
+    assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
 
 
 def test_create_error_rest():
@@ -384,7 +415,7 @@ def test_delete_idempotency_rest():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST, {'state': 'absent'})['changed'] is False
 
 
-def test_create_error_fixed_qos_options_missing():
+def test_create_error_fixed_adaptive_qos_options_missing():
     ''' Error if fixed_qos_optios not present in create '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -393,11 +424,11 @@ def test_create_error_fixed_qos_options_missing():
     DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
     del DEFAULT_ARGS_COPY['fixed_qos_options']
     error = create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
-    assert "Error: atleast one 'fixed_qos_options' required in creating qos_policy in REST" in error
+    assert "Error: atleast one 'fixed_qos_options' or 'adaptive_qos_options' required in creating qos_policy in REST" in error
 
 
 def test_delete_error_rest():
-    ''' Test create idempotency '''
+    ''' Test delete error '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['qos_policy_info']),
@@ -432,8 +463,43 @@ def test_modify_max_throughput_idempotency_rest():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST)['changed'] is False
 
 
+def test_successful_modify_adaptive_qos_options_rest():
+    ''' Test successful modify max throughput '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/qos/policies', SRR['adaptive_policy_info']),
+        ('PATCH', 'storage/qos/policies/30d2fdd6-c45a-11ec-a164-005056b3bd39', SRR['success'])
+    ])
+    DEFAULT_ARGS_REST_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_REST_COPY['fixed_qos_options']
+    args = {
+        'adaptive_qos_options': {
+            'expected_iops': 300,
+            'peak_iops': 600,
+            'absolute_min_iops': 200
+        }
+    }
+    assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST_COPY, args)['changed']
+
+
+def test_error_adaptive_qos_options_zapi():
+    ''' Test error adaptive_qos_options zapi '''
+    DEFAULT_ARGS_REST_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_REST_COPY['fixed_qos_options']
+    DEFAULT_ARGS_REST_COPY['use_rest'] = 'never'
+    args = {
+        'adaptive_qos_options': {
+            'expected_iops': 300,
+            'peak_iops': 600,
+            'absolute_min_iops': 200
+        }
+    }
+    error = create_module(qos_policy_group_module, DEFAULT_ARGS_REST_COPY, args, fail=True)['msg']
+    assert "Error: use 'na_ontap_qos_adaptive_policy_group' module for create/modify/delete adaptive policy with ZAPI" in error
+
+
 def test_modify_error_rest():
-    ''' Test create idempotency '''
+    ''' Test modify error rest '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['qos_policy_info']),
@@ -450,7 +516,7 @@ def test_modify_error_rest():
 
 
 def test_rename_rest():
-    ''' Test rename idempotency '''
+    ''' Test rename '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['empty_records']),
@@ -493,7 +559,7 @@ def test_rename_error_rest():
 
 
 def test_get_policy_error_rest():
-    ''' Test create idempotency '''
+    ''' Test get policy error rest '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['generic_error'])

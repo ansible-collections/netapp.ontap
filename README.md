@@ -37,7 +37,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.19.0
 
+### Minor Changes
+  - na_ontap_qos_adaptive_policy_group - warn about deprecation, fall back to ZAPI or fail when REST is desired.
+
 ### New Option
+  - na_ontap_qos_policy_group - Added REST only supported option `adaptive_qos_options` for configuring adaptive policy.
   - na_ontap_qos_policy_group - Added REST only supported option `fixed_qos_options` for configuring max/min throughput policy.
   - na_ontap_rest_info: support added for application/consistency-groups
   - na_ontap_rest_info: support added for cluster/fireware/history

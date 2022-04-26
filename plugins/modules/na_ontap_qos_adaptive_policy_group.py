@@ -1,15 +1,12 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 module: na_ontap_qos_adaptive_policy_group
@@ -32,34 +29,34 @@ options:
 
   name:
     description:
-    - The name of the policy group to manage.
+      - The name of the policy group to manage.
     type: str
     required: true
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     type: str
     required: true
 
   from_name:
     description:
-    - Name of the existing policy group to be renamed to name.
+      - Name of the existing policy group to be renamed to name.
     type: str
 
   absolute_min_iops:
     description:
-    - Absolute minimum IOPS defined by this policy.
+      - Absolute minimum IOPS defined by this policy.
     type: str
 
   expected_iops:
     description:
-    - Minimum expected IOPS defined by this policy.
+      - Minimum expected IOPS defined by this policy.
     type: str
 
   peak_iops:
     description:
-    - Maximum possible IOPS per allocated or used TB|GB.
+      - Maximum possible IOPS per allocated or used TB|GB.
     type: str
 
   peak_iops_allocation:
@@ -73,12 +70,12 @@ options:
     type: bool
     default: False
     description:
-    - Setting to 'true' forces the deletion of the workloads associated with the policy group along with the policy group.
+      - Setting to 'true' forces the deletion of the workloads associated with the policy group along with the policy group.
 '''
 
 EXAMPLES = """
     - name: create adaptive qos policy group
-      na_ontap_qos_adaptive_policy_group:
+      netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
         vserver: policy_vserver
@@ -91,7 +88,7 @@ EXAMPLES = """
         password: netapp1!
 
     - name: modify adaptive qos policy group expected iops
-      na_ontap_qos_adaptive_policy_group:
+      netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
         vserver: policy_vserver
@@ -104,7 +101,7 @@ EXAMPLES = """
         password: netapp1!
 
     - name: modify adaptive qos policy group peak iops allocation
-      na_ontap_qos_adaptive_policy_group:
+      netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
         vserver: policy_vserver
@@ -117,7 +114,7 @@ EXAMPLES = """
         password: netapp1!
 
     - name: delete qos policy group
-      na_ontap_qos_adaptive_policy_group:
+      netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: absent
         name: aq_policy_1
         vserver: policy_vserver
@@ -137,10 +134,8 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapAdaptiveQosPolicyGroup(object):
+class NetAppOntapAdaptiveQosPolicyGroup:
     """
     Create, delete, modify and rename a policy group.
     """
@@ -168,12 +163,17 @@ class NetAppOntapAdaptiveQosPolicyGroup(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(
-                module=self.module)
+        if self.parameters['use_rest'].lower() == 'always':
+            msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.'
+            self.module.fail_json(msg='Error: %s' % msg)
+
+        if self.parameters['use_rest'].lower() == 'auto':
+            self.module.warn(
+                'Falling back to ZAPI as the module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.')
+
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_policy_group(self, policy_group_name=None):
         """
@@ -303,18 +303,15 @@ class NetAppOntapAdaptiveQosPolicyGroup(object):
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    self.rename_policy_group()
-                if cd_action == 'create':
-                    self.create_policy_group()
-                elif cd_action == 'delete':
-                    self.delete_policy_group()
-                elif modify:
-                    self.modify_helper(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_policy_group()
+            if cd_action == 'create':
+                self.create_policy_group()
+            elif cd_action == 'delete':
+                self.delete_policy_group()
+            elif modify:
+                self.modify_helper(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
     def autosupport_log(self, event_name):

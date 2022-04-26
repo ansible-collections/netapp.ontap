@@ -63,7 +63,7 @@ options:
   is_shared:
     description:
       - Whether the SLOs of the policy group are shared between the workloads or if the SLOs are applied separately to each workload.
-      - With REST, default value is False if not used in creating qos policy.
+      - Not supported with REST, use C(fixed_qos_options).
     type: bool
     version_added: 20.12.0
 
@@ -78,9 +78,15 @@ options:
     type: dict
     description:
       - Set Minimum and Maximum throughput defined by this policy.
-      - Only supported with REST and is ignored with ZAPI.
+      - Only supported with REST.
       - Required one of throughtput options when creating qos_policy.
     suboptions:
+      capacity_shared:
+        description:
+          - Whether the SLOs of the policy group are shared between the workloads or if the SLOs are applied separately to each workload.
+          - Default value is False if not used in creating qos policy.
+        type: bool
+        required: False
       max_throughput_iops:
         description:
           - Maximum throughput defined by this policy. It is specified in terms of IOPS.
@@ -107,6 +113,34 @@ options:
           - Requires ONTAP 9.8 or later, and REST support.
         type: int
         required: False
+
+  adaptive_qos_options:
+    version_added: 21.19.0
+    type: dict
+    description:
+      - Adaptive QoS policy-groups define measurable service level objectives (SLOs) that adjust based on the storage object used space
+        and the storage object allocated space.
+      - Only supported with REST.
+    suboptions:
+      absolute_min_iops:
+        description:
+          - Specifies the absolute minimum IOPS that is used as an override when the expected_iops is less than this value.
+          - These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
+        type: int
+        required: False
+      expected_iops:
+        description:
+          - Expected IOPS. Specifies the minimum expected IOPS per TB allocated based on the storage object allocated size.
+          - These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
+        type: int
+        required: False
+      peak_iops:
+        description:
+          - Peak IOPS. Specifies the maximum possible IOPS per TB allocated based on the storage object allocated size or
+            the storage object used size.
+        type: int
+        required: False
+
 '''
 
 EXAMPLES = """
@@ -157,6 +191,7 @@ EXAMPLES = """
           max_throughput_mbps: 200
           min_throughput_iops: 500
           min_throughput_mbps: 100
+          capacity_shared: True
 
     - name: modify qos policy max_throughput in REST.
       netapp.ontap.na_ontap_qos_policy_group:
@@ -170,6 +205,20 @@ EXAMPLES = """
         fixed_qos_options:
           max_throughput_iops: 1000
           max_throughput_mbps: 300
+
+    - name: create adaptive qos policy group in REST.
+      netapp.ontap.na_ontap_qos_policy_group:
+        state: present
+        name: adaptive_policy
+        vserver: policy_vserver
+        hostname: 10.193.78.30
+        username: admin
+        password: netapp1!
+        use_rest: always
+        adaptive_qos_options:
+          absolute_min_iops: 100
+          expected_iops: 200
+          peak_iops: 500
 
 """
 
@@ -205,10 +254,16 @@ class NetAppOntapQosPolicyGroup:
             is_shared=dict(required=False, type='bool'),
             force=dict(required=False, type='bool'),
             fixed_qos_options=dict(required=False, type='dict', options=dict(
+                capacity_shared=dict(required=False, type='bool'),
                 max_throughput_iops=dict(required=False, type='int'),
                 max_throughput_mbps=dict(required=False, type='int'),
                 min_throughput_iops=dict(required=False, type='int'),
                 min_throughput_mbps=dict(required=False, type='int')
+            )),
+            adaptive_qos_options=dict(required=False, type='dict', options=dict(
+                absolute_min_iops=dict(required=False, type='int'),
+                expected_iops=dict(required=False, type='int'),
+                peak_iops=dict(required=False, type='int')
             ))
         ))
 
@@ -216,7 +271,13 @@ class NetAppOntapQosPolicyGroup:
             argument_spec=self.argument_spec,
             supports_check_mode=True,
             mutually_exclusive=[
-                ['max_throughput', 'fixed_qos_options'], ['min_throughput', 'fixed_qos_options']
+                ['max_throughput', 'fixed_qos_options'],
+                ['min_throughput', 'fixed_qos_options'],
+                ['max_throughput', 'adaptive_qos_options'],
+                ['min_throughput', 'adaptive_qos_options'],
+                ['fixed_qos_options', 'adaptive_qos_options'],
+                ['is_shared', 'adaptive_qos_options'],
+                ['is_shared', 'fixed_qos_options']
             ]
         )
         self.na_helper = NetAppModule()
@@ -224,19 +285,23 @@ class NetAppOntapQosPolicyGroup:
 
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
-        unsupported_rest_properties = ['max_throughput', 'min_throughput', 'force']
+        unsupported_rest_properties = ['is_shared', 'max_throughput', 'min_throughput', 'force']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+
         min_ontap_98 = self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8)
-        if self.use_rest and not min_ontap_98 and self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']):
+        if self.use_rest and not min_ontap_98 and \
+                self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']) and self.parameters['state'] == 'present':
             self.module.fail_json("Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)")
         self.uuid = None
 
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-            if 'fixed_qos_options' in self.parameters:
+            if 'adaptive_qos_options' in self.parameters:
+                self.module.fail_json(msg="Error: use 'na_ontap_qos_adaptive_policy_group' module for create/modify/delete adaptive policy with ZAPI")
+            if 'fixed_qos_options' in self.parameters and self.parameters['state'] == 'present':
                 self.module.fail_json(msg="Error: 'fixed_qos_options' not supported with ZAPI, use 'max_throughput' and 'min_throughput'")
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
             # default value for force is false in ZAPI.
             self.parameters['force'] = False
 
@@ -284,25 +349,34 @@ class NetAppOntapQosPolicyGroup:
             'name': policy_group_name,
             'svm.name': self.parameters['vserver']
         }
-        fields = 'name,svm,fixed'
+        fields = 'name,svm'
+        if 'fixed_qos_options' in self.parameters:
+            fields += ',fixed'
+        elif 'adaptive_qos_options' in self.parameters:
+            fields += ',adaptive'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg='Error fetching qos policy group %s: %s' %
                                   (self.parameters['name'], error))
         current = None
         if record:
-            is_shared = record['fixed']['capacity_shared']
             self.uuid = record['uuid']
             current = {
                 'name': record['name'],
-                'vserver': record['svm']['name'],
-                'fixed_qos_options': {},
-                'is_shared': is_shared
+                'vserver': record['svm']['name']
             }
-            for fixed_qos_options in ['max_throughput_iops', 'max_throughput_mbps', 'min_throughput_iops']:
-                current['fixed_qos_options'][fixed_qos_options] = record['fixed'].get(fixed_qos_options)
-            if self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']):
-                current['fixed_qos_options']['min_throughput_mbps'] = record['fixed'].get('min_throughput_mbps')
+
+            if 'fixed' in record:
+                current['fixed_qos_options'] = {}
+                for fixed_qos_option in ['capacity_shared', 'max_throughput_iops', 'max_throughput_mbps', 'min_throughput_iops']:
+                    current['fixed_qos_options'][fixed_qos_option] = record['fixed'].get(fixed_qos_option)
+                if self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']):
+                    current['fixed_qos_options']['min_throughput_mbps'] = record['fixed'].get('min_throughput_mbps')
+
+            if 'adaptive' in record:
+                current['adaptive_qos_options'] = {}
+                for adaptive_qos_option in ['absolute_min_iops', 'expected_iops', 'peak_iops']:
+                    current['adaptive_qos_options'][adaptive_qos_option] = record['adaptive'].get(adaptive_qos_option)
         return current
 
     def create_policy_group(self):
@@ -333,9 +407,13 @@ class NetAppOntapQosPolicyGroup:
             'name': self.parameters['name'],
             'svm.name': self.parameters['vserver']
         }
-        body['fixed'] = self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options'])
-        # default value for capacity shared is False in REST.
-        body['fixed']['capacity_shared'] = self.parameters.get('is_shared', False)
+        if 'fixed_qos_options' in self.parameters:
+            body['fixed'] = self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options'])
+            # default value for capacity_shared is False in REST.
+            if self.na_helper.safe_get(body, ['fixed', 'capacity_shared']) is None:
+                body['fixed']['capacity_shared'] = False
+        else:
+            body['adaptive'] = self.na_helper.filter_out_none_entries(self.parameters['adaptive_qos_options'])
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating qos policy group %s: %s' %
@@ -389,7 +467,11 @@ class NetAppOntapQosPolicyGroup:
 
     def modify_policy_group_rest(self):
         api = 'storage/qos/policies'
-        body = {'fixed': self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options'])}
+        body = {}
+        if 'fixed_qos_options' in self.parameters:
+            body['fixed'] = self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options'])
+        else:
+            body['adaptive'] = self.na_helper.filter_out_none_entries(self.parameters['adaptive_qos_options'])
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
         if error:
             self.module.fail_json(msg='Error modifying qos policy group %s: %s' %
@@ -424,11 +506,9 @@ class NetAppOntapQosPolicyGroup:
         helper method to modify policy group.
         :param modify: modified attributes.
         """
-        if 'is_shared' in modify:
-            self.module.fail_json(msg='Error cannot modify is_shared attribute.')
         if any(
             attribute in modify
-            for attribute in ['max_throughput', 'min_throughput', 'fixed_qos_options']
+            for attribute in ['max_throughput', 'min_throughput', 'fixed_qos_options', 'adaptive_qos_options']
         ):
             self.modify_policy_group()
 
@@ -437,7 +517,7 @@ class NetAppOntapQosPolicyGroup:
         Run module based on playbook
         """
         if not self.use_rest:
-            self.asup_log_for_cserver("na_ontap_qos_policy_group")
+            netapp_utils.ems_log_event_cserver("na_ontap_qos_policy_group", self.server, self.module)
         current = self.get_policy_group()
         rename, cd_action = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -452,8 +532,12 @@ class NetAppOntapQosPolicyGroup:
                 self.module.fail_json(msg='Error renaming qos policy group: cannot find %s' %
                                       self.parameters['from_name'])
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.use_rest and cd_action == 'create' and self.parameters.get('fixed_qos_options') is None:
-            self.module.fail_json(msg="Error: atleast one 'fixed_qos_options' required in creating qos_policy in REST")
+        if 'is_shared' in modify or self.na_helper.safe_get(modify, ['fixed_qos_options', 'capacity_shared']):
+            self.module.fail_json(msg="Error cannot modify '%s' attribute." %
+                                  ('is_shared' if 'is_shared' in modify else 'fixed_qos_options.capacity_shared'))
+        if self.use_rest and cd_action == 'create' and \
+                self.parameters.get('fixed_qos_options', self.parameters.get('adaptive_qos_options')) is None:
+            self.module.fail_json(msg="Error: atleast one 'fixed_qos_options' or 'adaptive_qos_options' required in creating qos_policy in REST")
         if self.na_helper.changed and not self.module.check_mode:
             if rename:
                 self.rename_policy_group()
@@ -464,17 +548,6 @@ class NetAppOntapQosPolicyGroup:
             elif modify:
                 self.modify_helper(modify)
         self.module.exit_json(changed=self.na_helper.changed)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
 
 
 def main():
