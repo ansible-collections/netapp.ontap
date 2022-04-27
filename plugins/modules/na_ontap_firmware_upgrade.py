@@ -101,7 +101,7 @@ options:
       - With REST, the module does not validate that the package matches the firmware type.  ONTAP determines the type automatically.
       - With REST, C(storage) downloads any firmware, including service-processor firmware.
       - With REST, C(service-processor) unlocks SP reboot options.
-    choices: ['storage','service-processor', 'shelf', 'acp', 'disk']
+    choices: ['storage','service-processor','shelf','acp','disk']
     type: str
     default: storage
   fail_on_502_error:
