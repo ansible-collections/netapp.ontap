@@ -116,6 +116,7 @@ options:
             - protocols/ndmp/svms
             - protocols/nfs/connected-clients
             - protocols/nfs/export-policies or export_policy_info
+            - protocols/nfs/export-policies/rules B(Requires the owning_resource to be set)
             - protocols/nfs/kerberos/interfaces
             - protocols/nfs/kerberos/realms or kerberos_realm_info
             - protocols/nfs/services or vserver_nfs_info or nfs_info
@@ -191,6 +192,7 @@ options:
             - storage/switches
             - storage/tape-devices
             - storage/volumes or volume_info
+            - storage/volumes/snapshots B(Requires the owning_resource to be set)
             - storage/volume-efficiency-policies or sis_policy_info
             - support/autosupport or autosupport_config_info
             - support/autosupport/check or autosupport_check_info
@@ -253,6 +255,14 @@ options:
         type: bool
         default: false
         version_added: '21.9.0'
+    owning_resource:
+        description:
+        - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snaphot.
+        - The following subsets require an owning resource, and the following suboptions when uuid is not present.
+        - <snapshot>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
+        - <export policy rule> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy, B(rule_index) is the rule index.
+        type: dict
+        version_added: '21.19.0'
 '''
 
 EXAMPLES = '''
@@ -322,6 +332,22 @@ EXAMPLES = '''
         recommend:
           true
 
+- name: Get Snapshot info (owning_resource example)
+  netapp.ontap.na_ontap_rest_info:
+      hostname: "1.2.3.4"
+      username: "testuser"
+      password: "test-password"
+      https: true
+      fields:
+        - '*'
+      validate_certs: false
+      use_rest: Always
+      gather_subset:
+        - storage/volumes/snapshots
+      owning_resource:
+        volume_name: volume_name
+        svm_name: svm_name
+
 - name: run ONTAP gather facts for volume info with query on name and state
   netapp.ontap.na_ontap_rest_info:
       hostname: "1.2.3.4"
@@ -354,6 +380,7 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPGatherInfo(object):
@@ -372,6 +399,7 @@ class NetAppONTAPGatherInfo(object):
             fields=dict(type='list', elements='str', required=False),
             parameters=dict(type='dict', required=False),
             use_python_keys=dict(type='bool', default=False),
+            owning_resource=dict(type='dict', required=False),
         ))
 
         self.module = AnsibleModule(
@@ -879,12 +907,12 @@ class NetAppONTAPGatherInfo(object):
         ):
             get_ontap_subset_info['private/cli/vserver/security/file-directory'] = {
                 'api_call': 'private/cli/vserver/security/file-directory' + self.private_cli_fields('private/cli/vserver/security/file-directory')}
-
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
             self.parameters['gather_subset'] = sorted(get_ontap_subset_info.keys())
         if 'demo' in self.parameters['gather_subset']:
             self.parameters['gather_subset'] = ['cluster/software', 'svm/svms', 'cluster/nodes']
+        get_ontap_subset_info = self.add_uuid_subsets(get_ontap_subset_info)
 
         length_of_subsets = len(self.parameters['gather_subset'])
 
@@ -911,6 +939,56 @@ class NetAppONTAPGatherInfo(object):
             new_dict = dict((key.replace('-', '_'), value) for (key, value) in new_dict.items())
             result_message = new_dict
         self.module.exit_json(ontap_info=result_message, **results)
+
+    def add_uuid_subsets(self, get_ontap_subset_info):
+        params = self.parameters.get('owning_resource')
+        if 'gather_subset' in self.parameters:
+            if 'storage/volumes/snapshots' in self.parameters['gather_subset']:
+                self.check_error_values('storage/volumes/snapshots', params, ['volume_name', 'svm_name'])
+                record = self.get_volume_uuid()
+                if record:
+                    get_ontap_subset_info['storage/volumes/snapshots'] = {
+                        'api_call': 'storage/volumes/%s/snapshots' % record.get('uuid'),
+                    }
+            if 'protocols/nfs/export-policies/rules' in self.parameters['gather_subset']:
+                self.check_error_values('protocols/nfs/export-policies/rules', params, ['policy_name', 'svm_name', 'rule_index'])
+                record = self.get_export_policy_id()
+                if record:
+                    get_ontap_subset_info['protocols/nfs/export-policies/rules'] = {
+                        'api_call': 'protocols/nfs/export-policies/%s/rules/%s' % (record.get('id'), self.parameters['owning_resource']['rule_index']),
+                    }
+        return get_ontap_subset_info
+
+    def get_volume_uuid(self):
+        api = 'storage/volumes'
+        query = {'name': self.parameters['owning_resource']['volume_name'],
+                 'svm.name': self.parameters['owning_resource']['svm_name']}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(
+                msg='Could not find volume %s on SVM %s' % (self.parameters['owning_resource']['volume_name'],
+                                                            self.parameters['owning_resource']['svm_name']))
+        if record:
+            return record
+        return None
+
+    def get_export_policy_id(self):
+        api = 'protocols/nfs/export-policies'
+        query = {'name': self.parameters['owning_resource']['policy_name'],
+                 'svm.name': self.parameters['owning_resource']['svm_name']}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(
+                msg='Could not find export policy %s on SVM %s' % (self.parameters['owning_resource']['policy_name'],
+                                                                   self.parameters['owning_resource']['svm_name']))
+        if record:
+            return record
+        return None
+
+    def check_error_values(self, api, params, items):
+        error = not params or sorted(list(params.keys())) != sorted(items)
+        if error:
+            self.module.fail_json(msg="Error: %s are required for %s" % (', '.join(items), api))
 
 
 def main():

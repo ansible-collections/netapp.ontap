@@ -103,8 +103,19 @@ SRR = rest_responses({
                 {'acls': ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123']},
                 {'node': 'node1', 'check_type': 'type'},
                 {'node': 'node1', 'check_type': 'type'}],
-            "num_records": 3}, None)
-
+            "num_records": 3}, None),
+    'volume_info': (200, {"uuid": "7882901a-1aef-11ec-a267-005056b30cfa"}, None),
+    'get_uuid_policy_id_export_policy': (
+        200,
+        {
+            "records": [{
+                "svm": {
+                    "uuid": "uuid",
+                    "name": "svm"},
+                "id": 123,
+                "name": "ansible"
+            }],
+            "num_records": 1}, None),
 })
 
 ALL_SUBSETS = ['application/applications',
@@ -827,3 +838,93 @@ def test_negative_error_on_wait_after_post(sleep_mock):
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
     assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == 'Expected error'
+
+
+def test_owning_resource_snapshot():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/volumes/snapshots'
+    args['owning_resource'] = {'volume_name': 'vol1', 'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['volume_info']),
+        ('GET', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa/snapshots', SRR['volume_info'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
+def test_owning_resource_snapshot_missing_1_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/volumes/snapshots'
+    args['owning_resource'] = {'volume_name': 'vol1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: volume_name, svm_name are required for storage/volumes/snapshots'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_snapshot_missing_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/volumes/snapshots'
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: volume_name, svm_name are required for storage/volumes/snapshots'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_snapshot_volume_not_found():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/volumes/snapshots'
+    args['owning_resource'] = {'volume_name': 'vol1', 'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+    ])
+    msg = 'Could not find volume vol1 on SVM svm1'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_export_policies_rules():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/nfs/export-policies/rules'
+    args['owning_resource'] = {'policy_name': 'policy_name', 'svm_name': 'svm1', 'rule_index': '1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
+        ('GET', 'protocols/nfs/export-policies/123/rules/1', SRR['get_uuid_policy_id_export_policy'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
+def test_owning_resource_export_policies_rules_missing_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/nfs/export-policies/rules'
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: policy_name, svm_name, rule_index are required for protocols/nfs/export-policies/rules'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_export_policies_rules_missing_1_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/nfs/export-policies/rules'
+    args['owning_resource'] = {'policy_name': 'policy_name', 'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: policy_name, svm_name, rule_index are required for protocols/nfs/export-policies/rules'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_export_policies_rules_policy_not_found():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/nfs/export-policies/rules'
+    args['owning_resource'] = {'policy_name': 'policy_name', 'svm_name': 'svm1', 'rule_index': '1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'protocols/nfs/export-policies', SRR['generic_error']),
+    ])
+    msg = 'Could not find export policy policy_name on SVM svm1'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
