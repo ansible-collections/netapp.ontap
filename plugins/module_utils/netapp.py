@@ -938,7 +938,7 @@ class OntapRestAPI(object):
         if partially_supported_rest_properties:
             # if ontap version is lower than partially_supported_rest_properties version, force ZAPI, only if the paramater is used
             for property in partially_supported_rest_properties:
-                if self.get_ontap_version()[0:2] < property[1] and property[0] in parameters:
+                if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters:
                     self.module.warn(
                         'Falling back to ZAPI because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1])))
                     return False, None

@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_qos_adaptive_policy_group - warn about deprecation, fall back to ZAPI or fail when REST is desired.
 
 ### New Option
+  - na_ontap_cifs_server - Added new option `force` for create, delete and `from_name`, `force` for rename when using REST.
   - na_ontap_qos_policy_group - Added REST only supported option `adaptive_qos_options` for configuring adaptive policy.
   - na_ontap_qos_policy_group - Added REST only supported option `fixed_qos_options` for configuring max/min throughput policy.
   - na_ontap_rest_info: support added for application/consistency-groups

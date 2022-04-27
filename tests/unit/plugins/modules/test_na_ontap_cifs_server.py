@@ -8,12 +8,13 @@ __metaclass__ = type
 import copy
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-# from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_server \
     import NetAppOntapcifsServer as my_module  # module under test
@@ -22,13 +23,7 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     # module specific responses
     'cifs_record': (
         200,
@@ -42,7 +37,8 @@ SRR = {
                     "enabled": True,
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
-                    }
+                    },
+                    "name": "cifs_server_name"
                 }
             ],
             "num_records": 1
@@ -59,8 +55,28 @@ SRR = {
                     },
                     "enabled": False,
                     "target": {
-                        "name": "20:05:00:50:56:b3:0c:fa"
-                    }
+                        "nam,e": "20:05:00:50:56:b3:0c:fa"
+                    },
+                    "name": "cifs_server_name"
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    'cifs_records_renamed': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansibleSVM"
+                    },
+                    "enabled": True,
+                    "target": {
+                        "nam,e": "20:05:00:50:56:b3:0c:fa"
+                    },
+                    "name": "cifs"
                 }
             ],
             "num_records": 1
@@ -70,363 +86,508 @@ SRR = {
         200,
         {"num_records": 0},
         None)
+})
+
+
+cifs_record_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'cifs-server-config': {
+            'cifs-server': 'cifs_server',
+            'administrative-status': 'up'}
+    }
+}
+cifs_record_disabled_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'cifs-server-config': {
+            'cifs-server': 'cifs_server',
+            'administrative-status': 'down'}
+    }
+}
+
+ZRR = zapi_responses({
+    'cifs_record_info': build_zapi_response(cifs_record_info),
+    'cifs_record_disabled_info': build_zapi_response(cifs_record_disabled_info)
+})
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'cifs_server_name': 'cifs_server',
+    'vserver': 'vserver',
+    'use_rest': 'never',
+    'feature_flags': {'no_cserver_ems': True}
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, parm1=None, parm2=None):
-        ''' save arguments '''
-        self.type = kind
-        self.parm1 = parm1
-        self.parm2 = parm2
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'cifs_server':
-            xml = self.build_vserver_info(self.parm1, self.parm2)
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_vserver_info(cifs_server, admin_status):
-        ''' build xml data for cifs-server-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'num-records': 1,
-                'attributes-list': {'cifs-server-config': {'cifs-server': cifs_server,
-                                                           'administrative-status': admin_status}}}
-        xml.translate_struct(data)
-        print(xml.to_string())
-        return xml
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args({})
+        my_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_get():
+    register_responses([
+        ('cifs-server-get-iter', ZRR['cifs_record_info'])
+    ])
+    cifs_obj = create_module(my_module, DEFAULT_ARGS)
+    result = cifs_obj.get_cifs_server()
+    assert result
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.use_vsim = False
 
-    def set_default_args(self):
-        if self.use_vsim:
-            hostname = '10.193.77.154'
-            username = 'admin'
-            password = 'netapp1!'
-            cifs_server = 'test'
-            vserver = 'ansible_test'
-        else:
-            hostname = 'hostname'
-            username = 'username'
-            password = 'password'
-            cifs_server = 'name'
-            vserver = 'vserver'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'cifs_server_name': cifs_server,
-            'vserver': vserver,
-            'use_rest': 'never',
-            'feature_flags': {'no_cserver_ems': True}
-        })
+def test_error_create():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['empty']),
+        ('cifs-server-create', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'present'
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
+    assert 'Error Creating cifs_server' in error
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_cifs_server_get_called(self):
-        ''' a more interesting test '''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        cifs_server = my_obj.get_cifs_server()
-        print('Info: test_cifs_server_get: %s' % repr(cifs_server))
-        assert cifs_server is None
+def test_create():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['empty']),
+        ('cifs-server-create', ZRR['success']),
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'admin_user_name': 'user1',
+        'admin_password': 'password'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_cifs_server_apply_for_create_called(self):
-        ''' creating cifs server and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['cifs_server_name'] = 'create'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_server_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'create', 'up')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_server_apply_for_create: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
 
-    def test_ensure_cifs_server_apply_for_delete_called(self):
-        ''' deleting cifs server and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['cifs_server_name'] = 'delete'
-        module_args['admin_password'] = 'pw1'
-        module_args['force'] = 'false'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'delete', 'up')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_server_apply: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['state'] = 'absent'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'delete', 'up')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_server_delete: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
+def test_create_with_force():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['empty']),
+        ('cifs-server-create', ZRR['success']),
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'admin_user_name': 'user1',
+        'admin_password': 'password',
+        'force': 'true'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_start_cifs_server_called(self):
-        ''' starting cifs server and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['cifs_server_name'] = 'delete'
-        module_args['service_state'] = 'started'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'test', 'up')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ensure_start_cifs_server: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['service_state'] = 'stopped'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'test', 'up')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ensure_start_cifs_server: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
 
-    def test_ensure_stop_cifs_server_called(self):
-        ''' stopping cifs server and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['cifs_server_name'] = 'delete'
-        module_args['service_state'] = 'stopped'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'test', 'down')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ensure_stop_cifs_server: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['service_state'] = 'started'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.use_vsim:
-            my_obj.server = MockONTAPConnection('cifs_server', 'test', 'down')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_ensure_stop_cifs_server: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
+def test_create_idempotent():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['cifs_record_info'])
+    ])
+    module_args = {
+        'state': 'present'
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def mock_args(self, rest=False):
-        if rest:
-            return {
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!',
-                'use_rest': 'always',
-                'vserver': 'test_vserver',
-                'name': 'cifs_server_name'
-            }
 
-    def get_mock_object(self, kind=None):
-        """
-        Helper method to return an na_ontap_cifs_server object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_cifs_server object
-        """
-        obj = my_module()
-        return obj
+def test_delete_idempotent():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['empty'])
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create_with_user(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        data['admin_user_name'] = 'test_user'
-        data['admin_password'] = 'pwd'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_delete():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['cifs_record_info']),
+        ('cifs-server-delete', ZRR['success']),
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'admin_user_name': 'user1',
+        'admin_password': 'password',
+        'force': 'false',
+        'state': 'absent'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create_with_ou(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        data['ou'] = 'ou'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create_with_domain(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        data['domain'] = 'domain'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_error_delete():
+    register_responses([
+        ('cifs-server-delete', ZRR['error']),
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'force': 'false',
+        'state': 'absent'
+    }
+    my_module_object = create_module(my_module, DEFAULT_ARGS)
+    msg = "Error deleting cifs_server"
+    assert msg in expect_and_capture_ansible_exception(my_module_object.delete_cifs_server, 'fail')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_delete(self, mock_request):
-        '''Test successful rest delete'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),  # deepcopy as the code changes the record in place
-            SRR['empty_good'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_disable(self, mock_request):
-        '''Test successful rest disable'''
-        data = self.mock_args(rest=True)
-        data['service_state'] = 'stopped'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),
-            SRR['empty_good'],
+def test_start_service_state():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['cifs_record_info']),
+        ('cifs-server-stop', ZRR['success']),
+    ])
+    module_args = {
+        'service_state': 'stopped'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)
 
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_enable(self, mock_request):
-        '''Test successful rest enable'''
-        data = self.mock_args(rest=True)
-        data['service_state'] = 'started'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record_disabled']),
-            SRR['empty_good'],
+def test_stop_service_state():
+    register_responses([
+        ('ems-autosupport-log', ZRR['success']),
+        ('cifs-server-get-iter', ZRR['cifs_record_disabled_info']),
+        ('cifs-server-start', ZRR['success']),
+    ])
+    module_args = {
+        'service_state': 'started'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)
 
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_enabled_change(self, mock_request):
-        '''Test error rest change'''
-        data = self.mock_args(rest=True)
-        data['service_state'] = 'stopped'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),
-            SRR['generic_error'],
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on modifying cifs server: calling: ' + \
-               'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa: ' + \
-               'got Expected error.' in exc.value.args[0]['msg']
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('cifs-server-create', ZRR['error']),
+        ('cifs-server-start', ZRR['error']),
+        ('cifs-server-stop', ZRR['error']),
+        ('cifs-server-delete', ZRR['error'])
+    ])
+    module_args = {}
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_get(self, mock_request):
-        '''Test error rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on fetching cifs: calling: protocols/cifs/services: got Expected error.' in exc.value.args[0]['msg']
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_delete(self, mock_request):
-        '''Test error rest delete'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),
-            SRR['generic_error']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on deleting cifs server: calling: ' + \
-               'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa: got Expected error.' in exc.value.args[0]['msg']
+    error = expect_and_capture_ansible_exception(my_obj.create_cifs_server, 'fail')['msg']
+    assert 'Error Creating cifs_server cifs_server: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_create(self, mock_request):
-        '''Test error rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['generic_error']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on creating cifs: calling: protocols/cifs/services: got Expected error.' in exc.value.args[0]['msg']
+    error = expect_and_capture_ansible_exception(my_obj.start_cifs_server, 'fail')['msg']
+    assert 'Error modifying cifs_server cifs_server: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.stop_cifs_server, 'fail')['msg']
+    assert 'Error modifying cifs_server cifs_server: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.delete_cifs_server, 'fail')['msg']
+    assert 'Error deleting cifs_server cifs_server: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+
+ARGS_REST = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'vserver': 'test_vserver',
+    'name': 'cifs_server_name'
+}
+
+
+def test_rest_error_get():
+    '''Test error rest get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on fetching cifs:' in error
+
+
+def test_module_error_ontap_version():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
+    ])
+    module_args = {'use_rest': 'always', 'force': True}
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for force is (9, 11)' in error
+
+
+def test_rest_successful_create():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    assert create_and_apply(my_module, ARGS_REST)
+
+
+def test_rest_successful_create_with_force():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'force': True
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_create_with_user():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_create_with_ou():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'ou': 'ou'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_create_with_domain():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'domain': 'domain'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_error_create():
+    '''Test error rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on creating cifs:' in error
+
+
+def test_delete_rest():
+    ''' Test delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('DELETE', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_delete_with_force_rest():
+    ''' Test delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('DELETE', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'force': True,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_delete_rest():
+    ''' Test error delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('DELETE', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on deleting cifs server:' in error
+
+
+def test_rest_successful_disable():
+    '''Test successful rest disable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'service_state': 'stopped'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_enable():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'service_state': 'started'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_rename_cifs():
+    '''Test successful rest rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'from_name': 'cifs_server_name',
+        'name': 'cifs',
+        'force': True,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_rename_modify_cifs():
+    '''Test successful rest rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'from_name': 'cifs_server_name',
+        'name': 'cifs',
+        'force': True,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd',
+        'service_state': 'stopped'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_rest_rename_cifs_without_force():
+    '''Test error rest rename with force false'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+    ])
+    module_args = {
+        'from_name': 'cifs_servers',
+        'name': 'cifs1',
+        'force': False,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error renaming cifs server from cifs_servers to cifs1 without force.' in error
+
+
+def test_error_rest_rename_error_state():
+    '''Test error rest rename with service state as started'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    module_args = {
+        'from_name': 'cifs_servers',
+        'name': 'cifs1',
+        'force': True,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd',
+        'service_state': 'started'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = 'Error on modifying cifs server: calling: protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa:'
+    assert msg in error
+
+
+def test_error_rest_rename_cifs():
+    '''Test error rest rename'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+    ])
+    module_args = {
+        'from_name': 'cifs_servers_test',
+        'name': 'cifs1',
+        'force': True,
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error renaming cifs server: cifs1 - no cifs server with from_name: cifs_servers_test' in error
+
+
+def test_rest_error_disable():
+    '''Test error rest disable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    module_args = {
+        'service_state': 'stopped'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on modifying cifs server:' in error
+
+
+def test_rest_successful_create_idempotency():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record'])
+    ])
+    module_args = {'use_rest': 'always'}
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
+
+
+def test_rest_successful_delete_idempotency():
+    '''Test successful rest delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records'])
+    ])
+    module_args = {'use_rest': 'always', 'state': 'absent'}
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
