@@ -107,10 +107,10 @@ options:
   fail_on_502_error:
     description:
       - The firmware download may take time if the web server is slow and if there are many nodes in the cluster.
-      - ONTAP will break the ZAPI connection after 5 minutes with a 502 Bad Gateway error, even though the download \
-is still happening.
-      - By default, this module ignores this error and assumes the download is progressing as ONTAP does not \
-provide a way to check the status.
+      - ONTAP will break the ZAPI connection after 5 minutes with a 502 Bad Gateway error, even though the download
+        is still happening.
+      - By default, this module ignores this error and assumes the download is progressing as ONTAP does not
+        provide a way to check the status.
       - When setting this option to true, the module will report 502 as an error.
       - Not supported with REST when set to true.
     type: bool
