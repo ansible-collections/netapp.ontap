@@ -5,23 +5,26 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, patch_ansible, create_module, create_and_apply
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_autosize \
-    import NetAppOntapVolumeAutosize as autosize_module  # module under test
+    import NetAppOntapVolumeAutosize as autosize_module, main as my_main                # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 # REST API canned responses when mocking send_request
-SRR = {
+SRR = rest_responses({
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
@@ -39,172 +42,331 @@ SRR = {
                                    "shrink_threshold": 40,
                                    "mode": "grow"
                                    }
-                      }, None)
+                      }, None),
+    'get_autosize_empty': (200, {
+        'uuid': 'testuuid',
+        'name': 'testname',
+        'autosize': {}
+    }, None)
+})
+
+
+MOCK_AUTOSIZE = {
+    'grow_threshold_percent': 99,
+    'maximum_size': '10g',
+    'minimum_size': '21m',
+    'increment_size': '10m',
+    'mode': 'grow',
+    'shrink_threshold_percent': 40,
+    'vserver': 'test_vserver',
+    'volume': 'test_volume'
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.kind == 'autosize':
-            xml = self.build_autosize_info(self.params)
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_autosize_info(autosize_details):
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'grow-threshold-percent': autosize_details['grow_threshold_percent'],
-            'maximum-size': '10485760',
-            'minimum-size': '21504',
-            'increment_size': '10240',
-            'mode': autosize_details['mode'],
-            'shrink-threshold-percent': autosize_details['shrink_threshold_percent']
-        }
-        xml.translate_struct(attributes)
-        return xml
+autosize_info = {
+    'grow-threshold-percent': MOCK_AUTOSIZE['grow_threshold_percent'],
+    'maximum-size': '10485760',
+    'minimum-size': '21504',
+    'increment-size': '10240',
+    'mode': MOCK_AUTOSIZE['mode'],
+    'shrink-threshold-percent': MOCK_AUTOSIZE['shrink_threshold_percent']
+}
 
 
-class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_job_schedule '''
+ZRR = zapi_responses({
+    'get_autosize': build_zapi_response(autosize_info)
+})
 
-    def setUp(self):
-        self.mock_autosize = {
-            'grow_threshold_percent': 99,
-            'maximum_size': '10g',
-            'minimum_size': '21m',
-            'increment_size': '10m',
-            'mode': 'grow',
-            'shrink_threshold_percent': 40,
-            'vserver': 'test_vserver',
-            'volume': 'test_volume'
-        }
 
-    def mock_args(self, rest=False):
-        if rest:
-            return {
-                'vserver': self.mock_autosize['vserver'],
-                'volume': self.mock_autosize['volume'],
-                'grow_threshold_percent': self.mock_autosize['grow_threshold_percent'],
-                'maximum_size': self.mock_autosize['maximum_size'],
-                'minimum_size': self.mock_autosize['minimum_size'],
-                'mode': self.mock_autosize['mode'],
-                'shrink_threshold_percent': self.mock_autosize['shrink_threshold_percent'],
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!'
-            }
-        else:
-            return {
-                'vserver': self.mock_autosize['vserver'],
-                'volume': self.mock_autosize['volume'],
-                'grow_threshold_percent': self.mock_autosize['grow_threshold_percent'],
-                'maximum_size': self.mock_autosize['maximum_size'],
-                'minimum_size': self.mock_autosize['minimum_size'],
-                'increment_size': self.mock_autosize['increment_size'],
-                'mode': self.mock_autosize['mode'],
-                'shrink_threshold_percent': self.mock_autosize['shrink_threshold_percent'],
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!',
-                'use_rest': 'never'
-            }
+DEFAULT_ARGS = {
+    'vserver': MOCK_AUTOSIZE['vserver'],
+    'volume': MOCK_AUTOSIZE['volume'],
+    'grow_threshold_percent': MOCK_AUTOSIZE['grow_threshold_percent'],
+    'maximum_size': MOCK_AUTOSIZE['maximum_size'],
+    'minimum_size': MOCK_AUTOSIZE['minimum_size'],
+    'mode': MOCK_AUTOSIZE['mode'],
+    'shrink_threshold_percent': MOCK_AUTOSIZE['shrink_threshold_percent'],
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!'
+}
 
-    def get_autosize_mock_object(self, cx_type='zapi', kind=None):
-        autosize_obj = autosize_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                autosize_obj.server = MockONTAPConnection()
-            elif kind == 'autosize':
-                autosize_obj.server = MockONTAPConnection(kind='autosize', data=self.mock_autosize)
-        return autosize_obj
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            autosize_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    args = dict(DEFAULT_ARGS)
+    args.pop('vserver')
+    error = 'missing required arguments: vserver'
+    assert create_module(autosize_module, args, fail=True)['msg'] == error
 
-    def test_idempotent_modify(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_autosize_mock_object('zapi', 'autosize').apply()
-        assert not exc.value.args[0]['changed']
 
-    def test_successful_modify(self):
-        data = self.mock_args()
-        data['maximum_size'] = '11g'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_autosize_mock_object('zapi', 'autosize').apply()
-        assert exc.value.args[0]['changed']
+def test_idempotent_modify():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
+    ])
+    module_args = {
+        'use_rest': 'never'
+    }
+    assert not create_and_apply(autosize_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_successful_reset(self):
-        data = {}
-        data['reset'] = True
-        data['hostname'] = 'test'
-        data['username'] = 'test_user'
-        data['password'] = 'test_pass!'
-        data['volume'] = 'test_vol'
-        data['vserver'] = 'test_vserver'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_autosize_mock_object('zapi', 'autosize').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_autosize_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+def test_successful_modify():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
+        ('ZAPI', 'volume-autosize-set', ZRR['success']),
+    ])
+    module_args = {
+        'increment_size': MOCK_AUTOSIZE['increment_size'],
+        'maximum_size': '11g',
+        'use_rest': 'never'
+    }
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_modify(self, mock_request):
-        data = self.mock_args(rest=True)
-        data['maximum_size'] = '11g'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_uuid'],
-            SRR['get_autosize'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_autosize_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_idempotent_modify(self, mock_request):
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_uuid'],
-            SRR['get_autosize'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_autosize_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_zapi__create_get_volume_return_no_data():
+    module_args = {
+        'use_rest': 'never'
+    }
+    my_obj = create_module(autosize_module, DEFAULT_ARGS, module_args)
+    assert my_obj._create_get_volume_return(build_zapi_response({'unsupported_key': 'value'})[0]) is None
+
+
+def test_error_get():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-autosize-get', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never'
+    }
+    error = 'Error fetching volume autosize info for test_volume: NetApp API failed. Reason - 12345:synthetic error for UT purpose.'
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_error_modify():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
+        ('ZAPI', 'volume-autosize-set', ZRR['error']),
+    ])
+    module_args = {
+        'increment_size': MOCK_AUTOSIZE['increment_size'],
+        'maximum_size': '11g',
+        'use_rest': 'never'
+    }
+    error = 'Error modifying volume autosize for test_volume: NetApp API failed. Reason - 12345:synthetic error for UT purpose.'
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_successful_reset():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
+        ('ZAPI', 'volume-autosize-set', ZRR['success']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    for arg in ('maximum_size', 'minimum_size', 'grow_threshold_percent', 'shrink_threshold_percent', 'mode'):
+        # remove args that are eclusive with reset
+        args.pop(arg)
+    module_args = {
+        'reset': True,
+        'use_rest': 'never'
+    }
+    assert create_and_apply(autosize_module, args, module_args)['changed']
+
+
+def test_rest_error_volume_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['zero_records']),
+    ])
+    error = 'Error fetching volume autosize info for test_volume: volume not found for vserver test_vserver.'
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, fail=True)['msg'] == error
+
+
+def test_rest_error_get():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+    ])
+    module_args = {
+        'maximum_size': '11g'
+    }
+    error = 'Error fetching volume autosize info for test_volume: calling: storage/volumes: got Expected error.'
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_rest_error_patch():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+        ('PATCH', 'storage/volumes/testuuid', SRR['generic_error']),
+    ])
+    module_args = {
+        'maximum_size': '11g'
+    }
+    error = 'Error modifying volume autosize for test_volume: calling: storage/volumes/testuuid: got Expected error.'
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_rest_successful_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+        ('PATCH', 'storage/volumes/testuuid', SRR['success']),
+    ])
+    module_args = {
+        'maximum_size': '11g'
+    }
+    assert create_and_apply(autosize_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_idempotent_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+    ])
+    assert not create_and_apply(autosize_module, DEFAULT_ARGS)['changed']
+
+
+def test_rest_idempotent_modify_no_attributes():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize_empty']),
+    ])
+    module_args = {
+        'maximum_size': '11g'
+    }
+    assert not create_and_apply(autosize_module, DEFAULT_ARGS)['changed']
+
+
+def test_rest__create_get_volume_return_no_data():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(autosize_module, DEFAULT_ARGS)
+    assert my_obj._create_get_volume_return({'unsupported_key': 'value'}) == {'uuid': None}
+
+
+def test_rest_modify_no_data():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(autosize_module, DEFAULT_ARGS)
+    # remove all attributes
+    for arg in ('maximum_size', 'minimum_size', 'grow_threshold_percent', 'shrink_threshold_percent', 'mode'):
+        my_obj.parameters.pop(arg)
+    assert my_obj.modify_volume_autosize('uuid') is None
+
+
+def test_rest_convert_to_bytes():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(autosize_module, DEFAULT_ARGS)
+
+    module_args = {
+        'minimum_size': '11k'
+    }
+    assert my_obj.convert_to_byte('minimum_size', module_args) == 11 * 1024
+
+    module_args = {
+        'minimum_size': '11g'
+    }
+    assert my_obj.convert_to_byte('minimum_size', module_args) == 11 * 1024 * 1024 * 1024
+
+
+def test_rest_convert_to_kb():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(autosize_module, DEFAULT_ARGS)
+
+    module_args = {
+        'minimum_size': '11k'
+    }
+    assert my_obj.convert_to_kb('minimum_size', module_args) == 11
+
+    module_args = {
+        'minimum_size': '11g'
+    }
+    assert my_obj.convert_to_kb('minimum_size', module_args) == 11 * 1024 * 1024
+
+
+def test_rest_invalid_values():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize'])
+    ])
+    module_args = {
+        'minimum_size': '11kb'
+    }
+    error = 'minimum_size must end with a k, m, g or t, found b in 11kb.'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+    module_args = {
+        'minimum_size': '11kk'
+    }
+    error = 'minimum_size must start with a number, found 11k in 11kk.'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+    module_args = {
+        'minimum_size': ''
+    }
+    error = "minimum_size must start with a number, and must end with a k, m, g or t, found ''."
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+    module_args = {
+        'minimum_size': 10
+    }
+    error = 'minimum_size must end with a k, m, g or t, found 0 in 10.'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_rest_unsupported_parameters():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_autosize'])
+    ])
+    module_args = {
+        'increment_size': '11k'
+    }
+    error = 'Rest API does not support increment size, please switch to ZAPI'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+
+    # reset is not supported - when set to True
+    module_args = {
+        'reset': True
+    }
+    args = dict(DEFAULT_ARGS)
+    for arg in ('maximum_size', 'minimum_size', 'grow_threshold_percent', 'shrink_threshold_percent', 'mode'):
+        # remove args that are eclusive with reset
+        args.pop(arg)
+    error = 'Rest API does not support reset, please switch to ZAPI'
+    assert call_main(my_main, args, module_args, fail=True)['msg'] == error
+
+    # reset is ignored when False
+    module_args = {
+        'reset': False
+    }
+    assert not call_main(my_main, args, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_missing_netapp_lib(mock_has_netapp_lib):
+    module_args = {
+        'use_rest': 'never',
+    }
+    mock_has_netapp_lib.return_value = False
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert msg == create_module(autosize_module, DEFAULT_ARGS, module_args, fail=True)['msg']

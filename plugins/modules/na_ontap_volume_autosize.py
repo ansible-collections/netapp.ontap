@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -92,7 +92,7 @@ options:
 
 EXAMPLES = """
     - name: Modify volume autosize
-      na_ontap_volume_autosize:
+      netapp.ontap.na_ontap_volume_autosize:
         hostname: 10.193.79.189
         username: admin
         password: netapp1!
@@ -106,7 +106,7 @@ EXAMPLES = """
         vserver: ansible_vserver
 
     - name: Reset volume autosize
-      na_ontap_volume_autosize:
+      netapp.ontap.na_ontap_volume_autosize:
         hostname: 10.193.79.189
         username: admin
         password: netapp1!
@@ -124,11 +124,10 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapVolumeAutosize(object):
+class NetAppOntapVolumeAutosize:
     ''' volume autosize configuration '''
     def __init__(self):
         self.use_rest = False
@@ -175,35 +174,40 @@ class NetAppOntapVolumeAutosize(object):
             if self.parameters.get('reset'):
                 self.module.fail_json(msg="Rest API does not support reset, please switch to ZAPI")
         else:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
-    def get_volume_autosize(self, uuid=None):
+    def get_volume_autosize(self):
         """
         Get volume_autosize information from the ONTAP system
         :return:
         """
         if self.use_rest:
-            params = {'fields': 'autosize'}
-            api = 'storage/volumes/' + uuid
-            message, error = self.rest_api.get(api, params)
+            query = {
+                'name': self.parameters['volume'],
+                'svm.name': self.parameters['vserver'],
+                'fields': 'autosize,uuid'
+            }
+            api = 'storage/volumes'
+            response, error = rest_generic.get_one_record(self.rest_api, api, query)
             if error is not None:
-                self.module.fail_json(msg="%s" % error)
-            return self._create_get_volume_return(message['autosize'])
+                self.module.fail_json(msg='Error fetching volume autosize info for %s: %s' % (self.parameters['volume'], error))
+            if response:
+                return self._create_get_volume_return(response['autosize'], response['uuid'])
+            self.module.fail_json(msg='Error fetching volume autosize info for %s: volume not found for vserver %s.'
+                                  % (self.parameters['volume'], self.parameters['vserver']))
         else:
             volume_autosize_info = netapp_utils.zapi.NaElement('volume-autosize-get')
             volume_autosize_info.add_new_child('volume', self.parameters['volume'])
             try:
                 result = self.server.invoke_successfully(volume_autosize_info, True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error fetching volume autosize infor for %s : %s' % (self.parameters['volume'],
-                                                                                                to_native(error)),
+                self.module.fail_json(msg='Error fetching volume autosize info for %s: %s.' % (self.parameters['volume'], to_native(error)),
                                       exception=traceback.format_exc())
             return self._create_get_volume_return(result)
 
-    def _create_get_volume_return(self, results):
+    def _create_get_volume_return(self, results, uuid=None):
         """
         Create a return value from volume-autosize-get info file
         :param results:
@@ -211,6 +215,7 @@ class NetAppOntapVolumeAutosize(object):
         """
         return_value = {}
         if self.use_rest:
+            return_value['uuid'] = uuid
             if 'mode' in results:
                 return_value['mode'] = results['mode']
             if 'grow_threshold' in results:
@@ -234,18 +239,16 @@ class NetAppOntapVolumeAutosize(object):
                 return_value['minimum_size'] = results.get_child_content('minimum-size')
             if results.get_child_by_name('shrink-threshold-percent'):
                 return_value['shrink_threshold_percent'] = int(results.get_child_content('shrink-threshold-percent'))
-        if return_value == {}:
+        if not return_value:
             return_value = None
         return return_value
 
-    def modify_volume_autosize(self, uuid=None):
+    def modify_volume_autosize(self, uuid):
         """
         Modify a Volumes autosize
         :return:
         """
         if self.use_rest:
-            params = {}
-            data = {}
             autosize = {}
             if self.parameters.get('mode'):
                 autosize['mode'] = self.parameters['mode']
@@ -257,11 +260,13 @@ class NetAppOntapVolumeAutosize(object):
                 autosize['minimum'] = self.parameters['minimum_size']
             if self.parameters.get('shrink_threshold_percent'):
                 autosize['shrink_threshold'] = self.parameters['shrink_threshold_percent']
-            data['autosize'] = autosize
-            api = "storage/volumes/" + uuid
-            dummy, error = self.rest_api.patch(api, data, params)
+            if not autosize:
+                return
+            api = 'storage/volumes'
+            body = {'autosize': autosize}
+            dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
             if error is not None:
-                self.module.fail_json(msg="%s" % error)
+                self.module.fail_json(msg="Error modifying volume autosize for %s: %s" % (self.parameters["volume"], error))
 
         else:
             volume_autosize_info = netapp_utils.zapi.NaElement('volume-autosize-set')
@@ -283,7 +288,7 @@ class NetAppOntapVolumeAutosize(object):
             try:
                 self.server.invoke_successfully(volume_autosize_info, True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg="Error modify volume autosize for %s: %s" % (self.parameters["volume"], to_native(error)),
+                self.module.fail_json(msg="Error modifying volume autosize for %s: %s." % (self.parameters["volume"], to_native(error)),
                                       exception=traceback.format_exc())
 
     def modify_to_kb(self, converted_parameters):
@@ -293,7 +298,7 @@ class NetAppOntapVolumeAutosize(object):
         :return:
         """
         for attr in ['maximum_size', 'minimum_size', 'increment_size']:
-            if converted_parameters.get(attr):
+            if converted_parameters.get(attr) is not None:
                 if self.use_rest:
                     converted_parameters[attr] = self.convert_to_byte(attr, converted_parameters)
                 else:
@@ -307,46 +312,32 @@ class NetAppOntapVolumeAutosize(object):
         :param converted_parameters: Dic of all parameters
         :return:
         """
-        if converted_parameters.get(variable)[-1] not in ['k', 'm', 'g', 't']:
-            self.module.fail_json(msg="%s must end with a k, m, g or t" % variable)
-        return self._size_unit_map[converted_parameters.get(variable)[-1]] * int(converted_parameters.get(variable)[:-1])
+        value = converted_parameters.get(variable)
+        if len(value) < 2:
+            self.module.fail_json(msg="%s must start with a number, and must end with a k, m, g or t, found '%s'." % (variable, value))
+        if value[-1] not in ['k', 'm', 'g', 't']:
+            self.module.fail_json(msg="%s must end with a k, m, g or t, found %s in %s." % (variable, value[-1], value))
+        try:
+            digits = int(value[:-1])
+        except ValueError:
+            self.module.fail_json(msg="%s must start with a number, found %s in %s." % (variable, value[:-1], value))
+        return self._size_unit_map[value[-1]] * digits
 
     def convert_to_byte(self, variable, converted_parameters):
-        if converted_parameters.get(variable)[-1] not in ['k', 'm', 'g', 't']:
-            self.module.fail_json(msg="%s must end with a k, m, g or t" % variable)
-        return (self._size_unit_map[converted_parameters.get(variable)[-1]] * int(converted_parameters.get(variable)[:-1])) * 1024
-
-    def get_volume_uuid(self):
-        """
-        Get a volume's UUID
-        :return: uuid of the volume
-        """
-        params = {'fields': '*',
-                  'name': self.parameters['volume'],
-                  'svm.name': self.parameters['vserver']}
-        api = "storage/volumes"
-        message, error = self.rest_api.get(api, params)
-        if error is not None:
-            self.module.fail_json(msg="%s" % error)
-        return message['records'][0]['uuid']
+        return self.convert_to_kb(variable, converted_parameters) * 1024
 
     def apply(self):
-        # TODO Logging for rest
-        uuid = None
         if not self.use_rest:
             netapp_utils.ems_log_event("na_ontap_volume_autosize", self.server)
-        if self.use_rest:
-            # we only have the volume name, we need to the the uuid for the volume
-            uuid = self.get_volume_uuid()
-        current = self.get_volume_autosize(uuid=uuid)
+        current = self.get_volume_autosize()
         converted_parameters = copy.deepcopy(self.parameters)
         converted_parameters = self.modify_to_kb(converted_parameters)
         self.na_helper.get_modified_attributes(current, converted_parameters)
         if self.parameters.get('reset') is True:
             self.na_helper.changed = True
-        if self.na_helper.changed:
-            if not self.module.check_mode:
-                self.modify_volume_autosize(uuid=uuid)
+        if self.na_helper.changed and not self.module.check_mode:
+            uuid = current.get('uuid') if current else None
+            self.modify_volume_autosize(uuid=uuid)
 
         self.module.exit_json(changed=self.na_helper.changed)
 

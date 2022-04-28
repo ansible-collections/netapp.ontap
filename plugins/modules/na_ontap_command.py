@@ -93,7 +93,7 @@ EXAMPLES = """
         username: "{{ admin username }}"
         password: "{{ admin password }}"
         command: ['node', 'show', '-fields', 'node,health,uptime,model']
-        exlude_lines: 'ode ' # Exclude lines with 'Node ' or 'node'
+        exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node ', or anything else containing 'ode '.
         privilege: 'admin'
         return_dict: true
 """
