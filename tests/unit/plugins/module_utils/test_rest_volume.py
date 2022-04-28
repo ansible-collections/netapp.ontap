@@ -79,18 +79,23 @@ SRR = {
              svm=dict(name='vserver'),
              )
     ], num_records=3), None),
-    'job': (200, dict(job=dict(
-        uuid='a1b2c3_job',
-        _links=dict(self=dict(href='api/some_link'))
-    )), None),
-    'job_bad_url': (200, dict(job=dict(
-        uuid='a1b2c3_job',
-        _links=dict(self=dict(href='some_link'))
-    )), None),
-    'job_status_success': (200, dict(
-        state='success',
-        message='success_message',
-    ), None),
+    'job': (200, {
+        'job': {
+            'uuid': 'a1b2c3_job',
+            '_links': {'self': {'href': 'api/some_link'}}
+        }}, None),
+    'job_bad_url': (200, {
+        'job': {
+            'uuid': 'a1b2c3_job',
+            '_links': {'self': {'href': 'some_link'}}
+        }}, None),
+    'job_status_success': (200, {
+        'state': 'success',
+        'message': 'success_message',
+        'job': {
+            'uuid': 'a1b2c3_job',
+            '_links': {'self': {'href': 'some_link'}}
+        }}, None),
 }
 
 
@@ -138,7 +143,7 @@ def test_get_volumes_one(mock_request):
     mock_request.side_effect = [
         SRR['one_volume_record'],
         SRR['end_of_sequence']]
-    volumes, error = rest_volume.get_volumes(rest_api)
+    volumes, error = rest_volume.get_volumes(rest_api, 'vserver', 'name')
     assert error is None
     assert volumes == [SRR['one_volume_record'][1]['records'][0]]
 
@@ -189,53 +194,6 @@ def test_get_volume_too_many(mock_request):
     dummy, error = rest_volume.get_volume(rest_api, 'name', 'vserver')
     expected = "calling: storage/volumes: unexpected response"
     assert expected in error
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_delete_volume_sync(mock_request):
-    module = MockModule()
-    rest_api = netapp_utils.OntapRestAPI(module)
-    mock_request.side_effect = [
-        SRR['empty_good'],
-        SRR['end_of_sequence']]
-    volume, error = rest_volume.delete_volume(rest_api, 'uuid')
-    assert error is None
-    assert volume == dict()
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_delete_volume_async(mock_request):
-    module = MockModule()
-    rest_api = netapp_utils.OntapRestAPI(module)
-    mock_request.side_effect = [
-        copy.deepcopy(SRR['job']),      # deepcopy as job is modified in place!
-        SRR['job_status_success'],
-        SRR['end_of_sequence']]
-    response, error = rest_volume.delete_volume(rest_api, 'uuid')
-    job = dict(SRR['job'][1])           # deepcopy as job is modified in place!
-    job['job_response'] = SRR['job_status_success'][1]['message']
-    assert error is None
-    assert response == job
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_delete_volume_async_bad_url(mock_request):
-    module = MockModule()
-    rest_api = netapp_utils.OntapRestAPI(module)
-    mock_request.side_effect = [
-        SRR['job_bad_url'],
-        SRR['end_of_sequence']]
-    try:
-        response, error = rest_volume.delete_volume(rest_api, 'uuid')
-    except UnboundLocalError:
-        # TODO: DEVOPS-3627
-        response = None
-        error = 'DEVOPS-3627'
-    # print(mock_request.mock_calls)
-    print(error)
-    print(response)
-    # assert error is None
-    # assert response is None
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

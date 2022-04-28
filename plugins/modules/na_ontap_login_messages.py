@@ -55,7 +55,7 @@ EXAMPLES = """
       na_ontap_login_messages:
         vserver: trident_svm
         banner: this is trident vserver
-        usename: "{{ username }}"
+        username: "{{ username }}"
         password: "{{ password }}"
         hostname: "{{ hostname }}"
 
@@ -64,7 +64,7 @@ EXAMPLES = """
         vserver: trident_svm
         motd_message: this is trident vserver
         show_cluster_motd: True
-        usename: "{{ username }}"
+        username: "{{ username }}"
         password: "{{ password }}"
         hostname: "{{ hostname }}"
 

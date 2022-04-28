@@ -323,9 +323,10 @@ options:
 
   time_out:
     description:
-    - time to wait for Flexgroup creation, modification, or deletion in seconds.
+    - With ZAPI - time to wait for Flexgroup creation, modification, or deletion in seconds.
+    - With REST - time to wait for any volume creation, modification, or deletion in seconds.
     - Error out if task is not completed in defined time.
-    - if 0, the request is asynchronous.
+    - With ZAPI - if 0, the request is asynchronous.
     - default is set to 3 minutes.
     default: 180
     type: int
@@ -1082,6 +1083,7 @@ class NetAppOntapVolume:
         attrs = dict(
             # The keys are used to index a result dictionary, values are read from a ZAPI object indexed by key_list.
             # If required is True, an error is reported if a key in key_list is not found.
+            # We may have observed cases where the record is incomplete as the volume is being created, so it may be better to ignore missing keys
             # I'm not sure there is much value in omitnone, but it preserves backward compatibility
             # If omitnone is absent or False, a None value is recorded, if True, the key is not set
             encrypt=dict(key_list=['encrypt'], convert_to=bool, omitnone=True),
@@ -1106,11 +1108,11 @@ class NetAppOntapVolume:
             snapdir_access=dict(key_list=['volume-snapshot-attributes', 'snapdir-access-enabled'], convert_to=bool),
             snapshot_policy=dict(key_list=['volume-snapshot-attributes', 'snapshot-policy'], omitnone=True),
             percent_snapshot_space=dict(key_list=['volume-space-attributes', 'percentage-snapshot-reserve'], convert_to=int, omitnone=True),
-            size=dict(key_list=['volume-space-attributes', 'size'], required=True, convert_to=int),
+            size=dict(key_list=['volume-space-attributes', 'size'], convert_to=int),
             space_guarantee=dict(key_list=['volume-space-attributes', 'space-guarantee']),
             space_slo=dict(key_list=['volume-space-attributes', 'space-slo']),
             nvfail_enabled=dict(key_list=['volume-state-attributes', 'is-nvfail-enabled'], convert_to=bool),
-            is_online=dict(key_list=['volume-state-attributes', 'state'], required=True, convert_to='bool_online'),
+            is_online=dict(key_list=['volume-state-attributes', 'state'], convert_to='bool_online', omitnone=True),
             vserver_dr_protection=dict(key_list=['volume-vserver-dr-protection-attributes', 'vserver-dr-protection']),
         )
 
@@ -1215,10 +1217,10 @@ class NetAppOntapVolume:
                 if value is not None:
                     application_component['tiering'][attr] = value
 
-        if self.parameters.get('qos_policy') is not None:
+        if self.get_qos_policy_group() is not None:
             application_component['qos'] = {
                 "policy": {
-                    "name": self.parameters['qos_policy'],
+                    "name": self.get_qos_policy_group(),
                 }
             }
         if self.parameters.get('export_policy') is not None:
@@ -1386,7 +1388,7 @@ class NetAppOntapVolume:
         response = None
         if current.get('junction_path'):
             body = dict(nas=dict(path=''))
-            response, error = rest_volume.patch_volume(self.rest_api, uuid, body)
+            response, error = self.volume_rest_patch(body)
             self.na_helper.fail_on_error(error)
         return response
 
@@ -1396,9 +1398,9 @@ class NetAppOntapVolume:
         """
         uuid = self.parameters['uuid']
         if uuid is None:
-            self.module.fail_json(msg='Could not read UUID for volume %s' % self.parameters['name'])
+            self.module.fail_json(msg='Could not read UUID for volume %s in delete.' % self.parameters['name'])
         self.rest_unmount_volume(uuid, current)
-        response, error = rest_volume.delete_volume(self.rest_api, uuid)
+        response, error = rest_generic.delete_async(self.rest_api, 'storage/volumes', uuid, job_timeout=self.parameters['time_out'])
         self.na_helper.fail_on_error(error)
         return response
 
@@ -1583,7 +1585,7 @@ class NetAppOntapVolume:
 
     def start_encryption_conversion(self, encrypt_destination):
         if encrypt_destination:
-            if self.rest_api:
+            if self.use_rest:
                 return self.encryption_conversion_rest()
             zapi = netapp_utils.zapi.NaElement.create_node_with_children(
                 'volume-encryption-conversion-start', **{'volume': self.parameters['name']})
@@ -1666,8 +1668,6 @@ class NetAppOntapVolume:
         attributes = netapp_utils.zapi.NaElement('attributes')
         vol_mod_attributes = netapp_utils.zapi.NaElement('volume-attributes')
         # Volume-attributes is split in to 25 sub categories
-        if params and 'encrypt' in params:
-            self.create_volume_attribute(None, vol_mod_attributes, 'encrypt', 'encrypt', bool)
         # volume-inode-attributes
         vol_inode_attributes = netapp_utils.zapi.NaElement('volume-inode-attributes')
         self.create_volume_attribute(vol_inode_attributes, vol_mod_attributes, 'files-total', 'max_files', int)
@@ -2040,7 +2040,7 @@ class NetAppOntapVolume:
             if error.message.startswith('Insufficient privileges: user ') and error.message.endswith(' does not have read access to this resource'):
                 self.issues.append('cannot read volume efficiency options (as expected when running as vserver): %s' % to_native(error))
                 return
-            self.wrap_fail_json(msg='Error fetching efficiency policy for volume %s : %s'
+            self.wrap_fail_json(msg='Error fetching efficiency policy for volume %s: %s'
                                 % (self.parameters['name'], to_native(error)),
                                 exception=traceback.format_exc())
         for key in self.sis_keys2zapi_get:
@@ -2330,7 +2330,7 @@ class NetAppOntapVolume:
 
     def create_volume_rest(self):
         body = self.create_volume_body_rest()
-        dummy, error = rest_generic.post_async(self.rest_api, 'storage/volumes', body, job_timeout=120)
+        dummy, error = rest_generic.post_async(self.rest_api, 'storage/volumes', body, job_timeout=self.parameters['time_out'])
         if error:
             self.module.fail_json(msg='Error creating volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
@@ -2528,10 +2528,11 @@ class NetAppOntapVolume:
                                   exception=traceback.format_exc())
 
     def volume_rest_patch(self, body, query=None, uuid=None):
-        api = 'storage/volumes'
         if not uuid:
             uuid = self.parameters['uuid']
-        return rest_generic.patch_async(self.rest_api, api, uuid, body, query=query, job_timeout=120)
+        if not uuid:
+            self.module.fail_json(msg='Could not read UUID for volume %s in patch.' % self.parameters['name'])
+        return rest_generic.patch_async(self.rest_api, 'storage/volumes', uuid, body, query=query, job_timeout=self.parameters['time_out'])
 
     def get_qos_policy_group(self):
         if self.parameters.get('qos_policy_group') is not None:
@@ -2682,7 +2683,8 @@ class NetAppOntapVolume:
         if self.parameters.get('nas_application_template') is not None:
             application = self.get_application()
             changed = self.na_helper.changed
-            modify_app = self.na_helper.get_modified_attributes(application, self.parameters.get('nas_application_template'))
+            app_component = self.create_nas_application_component() if self.parameters['state'] == 'present' else None
+            modify_app = self.na_helper.get_modified_attributes(application, app_component)
             # restore current change state, as we ignore this
             if modify_app:
                 self.na_helper.changed = changed
@@ -2696,7 +2698,6 @@ class NetAppOntapVolume:
         actions, current, modify = self.set_actions()
 
         response = None
-        modify_after_create = None
         if self.na_helper.changed and not self.module.check_mode:
             if 'rename' in actions:
                 self.rename_volume()
@@ -2732,8 +2733,8 @@ class NetAppOntapVolume:
             result['response'] = response
         if modify:
             result['modify'] = modify
-        if modify_after_create:
-            result['modify_after_create'] = modify_after_create
+        if actions:
+            result['actions'] = actions
         self.module.exit_json(**result)
 
 

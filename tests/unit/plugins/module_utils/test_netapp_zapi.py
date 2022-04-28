@@ -411,15 +411,15 @@ def test_sanitize_xml():
                 assert zapi_cx.sanitize_xml(test_xml) == sanitized_xml
 
 
-def test_parse_response_exceptions():
+def test_parse_response_exceptions_single():
     zapi_cx = create_ontapzapicx_object(CERT_ARGS)
     exc = expect_and_capture_ansible_exception(zapi_cx._parse_response, netapp_utils.zapi.etree.XMLSyntaxError, b'response')
-    assert str(exc).startswith('Start tag expected')
-    print(exc.msg)
+    print(exc.value)
+    assert str(exc.value).startswith('Start tag expected')
 
 
 @patch('netapp_lib.api.zapi.zapi.NaServer._parse_response')
-def test_parse_response_exceptions(mock_parse_response):
+def test_parse_response_exceptions_double(mock_parse_response):
     xml_exc = netapp_utils.zapi.etree.XMLSyntaxError('UT', 'code', 101, 22, 'filename')
     mock_parse_response.side_effect = [xml_exc, KeyError('second exception')]
     zapi_cx = create_ontapzapicx_object(CERT_ARGS)

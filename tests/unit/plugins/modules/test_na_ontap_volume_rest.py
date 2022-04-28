@@ -13,14 +13,14 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import create_and_apply,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_and_apply, expect_and_capture_ansible_exception,\
     patch_ansible, create_module, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
-    import NetAppOntapVolume as volume_module  # module under test
+    import NetAppOntapVolume as volume_module, main as my_main      # module under test
 
 # needed for get and modify/delete as they still use ZAPI
 if not netapp_utils.has_netapp_lib():
@@ -90,6 +90,7 @@ volume_info = {
 
 volume_info_mount = copy.deepcopy(volume_info)
 volume_info_mount['nas']['path'] = ''
+del volume_info_mount['nas']['path']
 volume_info_encrypt_off = copy.deepcopy(volume_info)
 volume_info_encrypt_off['encryption']['enabled'] = False
 volume_info_sl_enterprise = copy.deepcopy(volume_info)
@@ -117,8 +118,17 @@ SRR = rest_responses({
                        {'records': [{"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
                                      "name": "test_app",
                                      "nas": {
-                                         "application_components": [{'xxx': 1}]}
-                                     }]}, None),
+                                         "application_components": [{'xxx': 1}],
+                                     }}]}, None),
+    'nas_app_record_by_uuid': (200,
+                               {"uuid": "09e9fd5e-8ebd-11e9-b162-005056b39fe7",
+                                "name": "test_app",
+                                "nas": {
+                                    "application_components": [{'xxx': 1}],
+                                    "flexcache": {
+                                        "origin": {'svm': {'name': 'org_name'}}
+                                    }
+                                }}, None),
     'get_aggr_one_object_store': (200,
                                   {'records': ['one']}, None),
     'get_aggr_two_object_stores': (200,
@@ -304,6 +314,16 @@ def test_rest_error_move_volume():
     ])
     module_args = {'aggregate_name': 'aggr2'}
     msg = "Error moving volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_error_rehost_volume():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['zero_records']),                                              # Get Volume
+    ])
+    module_args = {'from_vserver': 'svm_orig'}
+    msg = "Error: ONTAP REST API does not support Rehosting Volumes"
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -498,6 +518,16 @@ def test_rest_error_snapshot_restore_volume():
     ])
     module_args = {'snapshot_restore': 'snapshot_copy'}
     msg = "Error restoring snapshot snapshot_copy in volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_error_snapshot_restore_volume_no_parent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['zero_records']),  # Get Volume
+    ])
+    module_args = {'snapshot_restore': 'snapshot_copy'}
+    msg = "Error restoring volume: cannot find parent: test_svm"
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -901,3 +931,272 @@ def test_max_files_volume_modify():
     ])
     module_args = {'max_files': 3000}
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_fallback_to_zapi_and_netapp_lib_missing(mock_has_netapp_lib):
+    """fallback to ZAPI when use_rest: auto"""
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    mock_has_netapp_lib.return_value = False
+    module_args = {'use_rest': 'auto'}
+    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == error
+    assert_warning_was_raised('Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')
+
+
+def test_error_conflict_export_policy_and_nfs_access():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    module_args = {
+        'export_policy': 'auto',
+        'nas_application_template': {
+            'tiering': None,
+            'nfs_access': [{'access': 'ro'}]
+        },
+        'tiering_policy': 'backup'
+    }
+    error = 'Conflict: export_policy option and nfs_access suboption in nas_application_template are mutually exclusive.'
+    assert create_module(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_create_nas_app_nfs_access():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
+        ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['get_volume']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'exclude_aggregates': ['aggr_ex'],
+            'nfs_access': [{'access': 'ro'}],
+            'tiering': None,
+        },
+        'snapshot_policy': 'snspol'
+    }
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
+def test_create_nas_app_tiering_object_store():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
+        ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('GET', 'storage/aggregates/aggr1_uuid/cloud-stores', SRR['get_aggr_one_object_store']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['get_volume']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+            'storage_service': 'extreme',
+            'tiering': {
+                'control': 'required',
+                'object_stores': ['obs1']
+            },
+        },
+        'export_policy': 'exppol',
+        'qos_policy_group': 'qospol',
+        'snapshot_policy': 'snspol'
+    }
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
+def test_create_nas_app_tiering_policy_flexcache():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
+        ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['get_volume']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+            'storage_service': 'extreme',
+        },
+        'qos_policy_group': 'qospol',
+        'snapshot_policy': 'snspol',
+        'tiering_policy': 'snapshot-only',
+    }
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
+def test_create_nas_app_tiering_flexcache():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
+        ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['get_volume']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+            'storage_service': 'extreme',
+            'tiering': {
+                'control': 'best_effort'
+            },
+        },
+        'qos_policy_group': 'qospol',
+        'snapshot_policy': 'snspol'
+    }
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
+def test_version_error_nas_app():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+        },
+    }
+    error = 'Error: using nas_application_template requires ONTAP 9.7 or later and REST must be enabled - ONTAP version: 9.6.0.'
+    assert create_module(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_version_error_nas_app_dr_cache():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+        },
+    }
+    error = 'Error: using flexcache: dr_cache requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0.'
+    assert create_module(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_error_volume_rest_patch():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    my_obj = create_module(volume_module, DEFAULT_APP_ARGS)
+    my_obj.parameters['uuid'] = None
+    error = 'Could not read UUID for volume test_svm in patch.'
+    assert expect_and_capture_ansible_exception(my_obj.volume_rest_patch, 'fail', {})['msg'] == error
+
+
+def test_error_volume_rest_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    my_obj = create_module(volume_module, DEFAULT_APP_ARGS)
+    my_obj.parameters['uuid'] = None
+    error = 'Could not read UUID for volume test_svm in delete.'
+    assert expect_and_capture_ansible_exception(my_obj.rest_delete_volume, 'fail', '')['msg'] == error
+
+
+def test_error_modify_app_not_supported_no_volume_but_app():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'application/applications', SRR['nas_app_record']),
+        ('GET', 'application/applications/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['nas_app_record_by_uuid']),
+    ])
+    module_args = {}
+    # TODO: we need to handle this error case with a better error mssage
+    error = \
+        'Error in create_nas_application: function create_application should not be called when application uuid is set: 09e9fd5e-8ebd-11e9-b162-005056b39fe7.'
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_warning_modify_app_not_supported():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('GET', 'application/applications', SRR['nas_app_record']),
+        ('GET', 'application/applications/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['nas_app_record_by_uuid']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'flexcache': {
+                'dr_cache': True,
+                'origin_component_name': 'ocn',
+                'origin_svm_name': 'osn',
+            },
+        },
+    }
+    assert not create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+    assert_warning_was_raised("Modifying an app is not supported at present: ignoring: {'flexcache': {'origin': {'svm': {'name': 'osn'}}}}")
+
+
+def test_create_flexgroup_volume_from_main():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # offline
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # modify
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # eff policy
+    ])
+    args = copy.deepcopy(DEFAULT_VOLUME_ARGS)
+    del args['aggregate_name']
+    module_args = {
+        'aggr_list': 'aggr_0,aggr_1',
+        'aggr_list_multiplier': 2,
+        'comment': 'some comment',
+        'compression': False,
+        'efficiency_policy': 'effpol',
+        'export_policy': 'exppol',
+        'group_id': 1001,
+        'junction_path': '/vol/mnt',
+        'inline_compression': False,
+        'is_online': False,
+        'language': 'us',
+        'percent_snapshot_space': 10,
+        'snapshot_policy': 'snspol',
+        'space_guarantee': 'file',
+        'tiering_minimum_cooling_days': 30,
+        'tiering_policy': 'snapshot-only',
+        'type': 'rw',
+        'user_id': 123,
+        'volume_security_style': 'unix',
+    }
+    assert call_main(my_main, args, module_args)['changed']
+
+
+def test_get_volume_style():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    args = copy.deepcopy(DEFAULT_VOLUME_ARGS)
+    del args['aggregate_name']
+    module_args = {
+        'auto_provision_as': 'flexgroup',
+    }
+    my_obj = create_module(volume_module, args, module_args)
+    assert my_obj.get_volume_style(None) == 'flexgroup'
+    assert my_obj.parameters.get('aggr_list_multiplier') == 1

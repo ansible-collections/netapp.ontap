@@ -47,9 +47,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_rest_info - new option `owning_resource` for REST info that requires an owning resource. For instance volume for a snapshot
 
 ### Bug Fixes
-  - na_ontap_cifs - fixed ``symlink_properties`` option silently ignored for cifs share creation when using REST.
+  - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs share creation when using REST.
+  - na_ontap_login_messages - fix typo in examples for username.
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.
   - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
+  - na_ontap_volume - use `time_out` value when creating/modifying/deleting volumes with REST rathar than hardcoded value.
+  - na_ontap_volume - QOS policy was not set when using NAS application.
+  - na_ontap_volume - correctly warn when attempting to modify NAS application.
+  - na_ontap_volume - do not set encrypt on modify, as it is already handled with specialized ZAPI calls.
 
 ### New Rest Info
   - na_ontap_rest_info - support added for application/consistency-groups

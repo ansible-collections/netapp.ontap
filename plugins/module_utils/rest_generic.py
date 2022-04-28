@@ -37,57 +37,17 @@ __metaclass__ = type
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
-def get_one_record(rest_api, api, query=None, fields=None):
+def build_query_with_fields(query, fields):
+    ''' for GET requests'''
     if fields is not None and query is None:
         query = {}
     if fields is not None:
         query['fields'] = fields
-    response, error = rest_api.get(api, query)
-    record, error = rrh.check_for_0_or_1_records(api, response, error, query)
-    return record, error
+    return query
 
 
-def get_0_or_more_records(rest_api, api, query=None, fields=None):
-    if fields is not None and query is None:
-        query = {}
-    if fields is not None:
-        query['fields'] = fields
-    response, error = rest_api.get(api, query)
-    records, error = rrh.check_for_0_or_more_records(api, response, error)
-    return records, error
-
-
-def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
-    # see delete_async for async and sync operations and status codes
-    params = {} if query else None
-    if timeout > 0:
-        params = dict(return_timeout=timeout)
-    if query is not None:
-        params.update(query)
-    response, error = rest_api.post(api, body=body, params=params, headers=headers)
-    increment = max(job_timeout / 6, 5)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
-    return response, error
-
-
-def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
-    # cluster does not use uuid or name, and query based PATCH does not use UUID (for restit)
-    api = '%s/%s' % (api, uuid_or_name) if uuid_or_name is not None else api
-    # see delete_async for async and sync operations and status codes
-    params = {} if query else None
-    if timeout > 0:
-        params = dict(return_timeout=timeout)
-    if query is not None:
-        params.update(query)
-    response, error = rest_api.patch(api, body=body, params=params, headers=headers)
-    increment = max(job_timeout / 6, 5)
-    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
-    return response, error
-
-
-def delete_async(rest_api, api, uuid, query=None, body=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
-    # query based DELETE does not use UUID (for restit)
-    api = '%s/%s' % (api, uuid) if uuid is not None else api
+def build_query_with_timeout(query, timeout):
+    ''' for POST, PATCH, DELETE requests'''
     params = {} if query else None
     if timeout > 0:
         # without return_timeout, REST returns immediately with a 202 and a job link
@@ -97,7 +57,44 @@ def delete_async(rest_api, api, uuid, query=None, body=None, timeout=30, job_tim
         params = dict(return_timeout=timeout)
     if query is not None:
         params.update(query)
-    response, error = rest_api.delete(api, body=body, params=params, headers=headers)
+    return params
+
+
+def get_one_record(rest_api, api, query=None, fields=None):
+    query = build_query_with_fields(query, fields)
+    response, error = rest_api.get(api, query)
+    record, error = rrh.check_for_0_or_1_records(api, response, error, query)
+    return record, error
+
+
+def get_0_or_more_records(rest_api, api, query=None, fields=None):
+    query = build_query_with_fields(query, fields)
+    response, error = rest_api.get(api, query)
+    records, error = rrh.check_for_0_or_more_records(api, response, error)
+    return records, error
+
+
+def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
+    # see delete_async for async and sync operations and status codes
+    response, error = rest_api.post(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
+    increment = max(job_timeout / 6, 5)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
+    return response, error
+
+
+def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
+    # cluster does not use uuid or name, and query based PATCH does not use UUID (for restit)
+    api = '%s/%s' % (api, uuid_or_name) if uuid_or_name is not None else api
+    response, error = rest_api.patch(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
+    increment = max(job_timeout / 6, 5)
+    response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
+    return response, error
+
+
+def delete_async(rest_api, api, uuid, query=None, body=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
+    # query based DELETE does not use UUID (for restit)
+    api = '%s/%s' % (api, uuid) if uuid is not None else api
+    response, error = rest_api.delete(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
     increment = max(job_timeout / 6, 5)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error
