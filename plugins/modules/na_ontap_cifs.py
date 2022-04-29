@@ -78,6 +78,15 @@ options:
     type: str
     version_added: 2.9.0
 
+  unix_symlink:
+    choices: ['local', 'widelink', 'disable']
+    description:
+      - The list of unix_symlink properties for this CIFS share
+      - supported only in REST.
+    type: str
+    default: local
+    version_added: 21.19.0
+
 short_description: NetApp ONTAP Manage cifs-share
 version_added: 2.6.0
 
@@ -144,6 +153,7 @@ class NetAppONTAPCifsShare:
             path=dict(required=False, type='str'),
             comment=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
+            unix_symlink=dict(required=False, type='str', choices=['local', 'widelink', 'disable'], default='local'),
             share_properties=dict(required=False, type='list', elements='str'),
             symlink_properties=dict(required=False, type='list', elements='str'),
             vscan_fileop_profile=dict(required=False, type='str', choices=['no_scan', 'standard', 'strict', 'writes_only'])
@@ -159,7 +169,7 @@ class NetAppONTAPCifsShare:
 
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
-        unsupported_rest_properties = ['share_properties', 'vscan_fileop_profile']
+        unsupported_rest_properties = ['share_properties', 'vscan_fileop_profile', 'symlink_properties']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
 
         if not self.use_rest:
@@ -310,7 +320,14 @@ class NetAppONTAPCifsShare:
         record, error = rest_generic.get_one_record(self.rest_api, api, options, fields)
         if error:
             self.module.fail_json(msg="Error on fetching cifs shares: %s" % error)
-        return record
+        if record:
+            return {
+                'svm': {'uuid': record['svm']['uuid']},
+                'path': record['path'],
+                'comment': record.get('comment', ''),
+                'unix_symlink': record['unix_symlink']
+            }
+        return None
 
     def create_cifs_share_rest(self):
         """
@@ -324,9 +341,8 @@ class NetAppONTAPCifsShare:
                 }
         if 'comment' in self.parameters:
             body['comment'] = self.parameters.get('comment')
-        if 'symlink_properties' in self.parameters:
-            symlink = "".join(self.parameters.get('symlink_properties'))
-            body['unix_symlink'] = symlink
+        if 'unix_symlink' in self.parameters:
+            body['unix_symlink'] = self.parameters.get('unix_symlink')
         api = 'protocols/cifs/shares'
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
@@ -352,15 +368,11 @@ class NetAppONTAPCifsShare:
             return self.modify_cifs_share()
         api = 'protocols/cifs/shares/%s' % current['svm']['uuid']
         body = {}
-        if 'path' in modify:
-            body['path'] = modify['path']
-        if 'comment' in modify:
-            body['comment'] = modify['comment']
-        if 'symlink_properties' in modify:  # symlink_properties value local|widelink|disable
-            modify['symlink_properties'] = "".join(modify['symlink_properties'])
-            body['unix_symlink'] = modify['symlink_properties']
+        for key in ('path', 'comment', 'unix_symlink'):
+            if key in modify:
+                body[key] = modify[key]
         if body:
-            dummy, error = rest_generic.patch_async(self.rest_api, api, current['name'], body)
+            dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body)
             if error is not None:
                 self.module.fail_json(msg="Error on modifying cifs shares: %s" % error)
 
@@ -370,17 +382,13 @@ class NetAppONTAPCifsShare:
             netapp_utils.ems_log_event("na_ontap_cifs", self.server)
         current = self.get_cifs_share()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = None
         if not self.use_rest and cd_action is None:
             # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter
             if 'show-previous-versions' in self.parameters.get('share_properties', []) and\
                current and 'show_previous_versions' in current.get('share_properties', []):
                 self.parameters['share_properties'].remove('show-previous-versions')
                 self.parameters['share_properties'].append('show_previous_versions')
-        elif cd_action is None and self.use_rest:
-            if current is not None:
-                current['symlink_properties'] = [current.pop('unix_symlink')]
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_cifs_share_rest()

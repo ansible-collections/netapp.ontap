@@ -45,6 +45,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_qos_policy_group - Added REST only supported option `adaptive_qos_options` for configuring adaptive policy.
   - na_ontap_qos_policy_group - Added REST only supported option `fixed_qos_options` for configuring max/min throughput policy.
   - na_ontap_rest_info - new option `owning_resource` for REST info that requires an owning resource. For instance volume for a snapshot
+  - na_ontap_cifs - Added ``unix_symlink`` option in REST.
 
 ### Bug Fixes
   - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs share creation when using REST.

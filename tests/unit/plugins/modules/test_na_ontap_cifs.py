@@ -1,21 +1,20 @@
-# (c) 2022, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-
 import copy
-import json
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs \
     import NetAppONTAPCifsShare as my_module  # module under test
@@ -24,13 +23,7 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     # module specific responses
     'cifs_record': (
         200,
@@ -41,7 +34,7 @@ SRR = {
                         "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
                         "name": "ansibleSVM"
                     },
-                    "name": 'cifssharename',
+                    "name": 'cifs_share_name',
                     "path": '/',
                     "comment": 'CIFS share comment',
                     "unix_symlink": 'widelink',
@@ -57,366 +50,374 @@ SRR = {
         200,
         {"num_records": 0},
         None)
+})
+
+cifs_record_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'cifs-share': {
+            'share-name': 'cifs_share_name',
+            'path': '/test',
+            'vscan-fileop-profile': 'standard',
+            'share-properties': [{'cifs-share-properties': 'browsable'}],
+            'symlink-properties': [{'cifs-share-symlink-properties': 'enable'}]
+        }
+    }
+}
+
+ZRR = zapi_responses({
+    'cifs_record_info': build_zapi_response(cifs_record_info)
+})
+
+DEFAULT_ARGS = {
+    'hostname': 'test',
+    'username': 'admin',
+    'password': 'netapp1!',
+    'name': 'cifs_share_name',
+    'path': '/test',
+    'share_properties': 'browsable',
+    'symlink_properties': 'enable',
+    'vscan_fileop_profile': 'standard',
+    'vserver': 'abc',
+    'use_rest': 'never'
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'cifs':
-            xml = self.build_cifs_info()
-        elif self.type == 'cifs_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_cifs_info():
-        ''' build xml data for cifs-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'num-records': 1, 'attributes-list': {'cifs-share': {
-            'share-name': 'test',
-            'path': '/test',
-            'vscan-fileop-profile': 'standard',
-            'share-properties': [{'cifs-share-properties': 'browsable'},
-                                 {'cifs-share-properties': 'oplocks'}],
-            'symlink-properties': [{'cifs-share-symlink-properties': 'enable'},
-                                   {'cifs-share-symlink-properties': 'read_only'}],
-        }}}
-        xml.translate_struct(data)
-        print(xml.to_string())
-        return xml
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args({})
+        my_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_get():
+    register_responses([
+        ('cifs-share-get-iter', ZRR['cifs_record_info'])
+    ])
+    cifs_obj = create_module(my_module, DEFAULT_ARGS)
+    result = cifs_obj.get_cifs_share()
+    assert result
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self):
-        if self.onbox:
-            share_properties = 'browsable,oplocks'
-            vscan_fileop_profile = 'standard'
-        else:
-            share_properties = 'show_previous_versions'
-            vscan_fileop_profile = 'no_scan'
-        password = 'netapp1!'
-        hostname = '10.193.77.37'
-        vserver = 'abc'
-        path = '/test'
-        username = 'admin'
-        symlink_properties = 'disable'
-        name = 'test'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'name': name,
-            'path': path,
-            'share_properties': share_properties,
-            'symlink_properties': symlink_properties,
-            'vscan_fileop_profile': vscan_fileop_profile,
-            'vserver': vserver,
-            'use_rest': 'never'
-        })
+def test_error_create():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['empty']),
+        ('cifs-share-create', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'present'
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
+    assert 'Error creating cifs-share' in error
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_cifs_get_called(self):
-        ''' fetching details of cifs '''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        cifs_get = my_obj.get_cifs_share()
-        print('Info: test_cifs_share_get: %s' % repr(cifs_get))
-        assert not bool(cifs_get)
+def test_create():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['empty']),
+        ('cifs-share-create', ZRR['success']),
+    ])
+    module_args = {
+        'state': 'present'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_apply_for_cifs_called(self):
-        ''' creating cifs share and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('cifs')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs.NetAppONTAPCifsShare.create_cifs_share')
-    def test_cifs_create_called(self, create_cifs_share):
-        ''' creating cifs'''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_apply: %s' % repr(exc.value))
-        create_cifs_share.assert_called_with()
+def test_delete():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-delete', ZRR['success']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs.NetAppONTAPCifsShare.delete_cifs_share')
-    def test_cifs_delete_called(self, delete_cifs_share):
-        ''' deleting cifs'''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['state'] = 'absent'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('cifs')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_apply: %s' % repr(exc.value))
-        delete_cifs_share.assert_called_with()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs.NetAppONTAPCifsShare.modify_cifs_share')
-    def test_cifs_modify_called(self, modify_cifs_share):
-        ''' modifying cifs'''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('cifs')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_cifs_apply: %s' % repr(exc.value))
-        modify_cifs_share.assert_called_with()
+def test_error_delete():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-delete', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error deleting cifs-share' in error
 
-    def test_if_all_methods_catch_exception(self):
-        module_args = {}
-        module_args.update(self.set_default_args())
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('cifs_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.create_cifs_share()
-        assert 'Error creating cifs-share' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.delete_cifs_share()
-        assert 'Error deleting cifs-share' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.modify_cifs_share()
-        assert 'Error modifying cifs-share' in exc.value.args[0]['msg']
 
-    def mock_args(self, rest=False):
-        if rest:
-            return {
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!',
-                'use_rest': 'always',
-                'vserver': 'test_vserver',
-                'name': 'cifs_share_name'
-            }
+def test_modify_path():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['success']),
+    ])
+    module_args = {
+        'path': '//'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def get_mock_object(self, kind=None):
-        """
-        Helper method to return an na_ontap_cifs_server object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_cifs_share object
-        """
-        return my_module()
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['path'] = "\\"
-        data['comment'] = "CIFS comment"
-        data["symlink_properties"] = "disable"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_modify_comment():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['success']),
+    ])
+    module_args = {
+        'comment': 'cifs modify'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_delete(self, mock_request):
-        '''Test successful rest delete'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),  # deepcopy as the code changes the record in place
-            SRR['empty_good'],
-            SRR['empty_good']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_get(self, mock_request):
-        '''Test error rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on fetching cifs shares: calling: protocols/cifs/shares: got Expected error.' in exc.value.args[0]['msg']
+def test_modify_share_properties():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['success']),
+    ])
+    module_args = {
+        'share_properties': 'oplocks'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_delete(self, mock_request):
-        '''Test error rest delete'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            copy.deepcopy(SRR['cifs_record']),
-            SRR['generic_error']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on deleting cifs shares: calling: ' + \
-               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa: got Expected error.' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_create(self, mock_request):
-        '''Test error rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['generic_error']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on creating cifs shares: calling: protocols/cifs/shares: got Expected error.' in exc.value.args[0]['msg']
+def test_modify_symlink_properties():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['success']),
+    ])
+    module_args = {
+        'symlink_properties': 'read_only'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_modify_cifs_share_path(self, mock_request):
-        ''' test modify CIFS share path '''
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['path'] = "\\"
-        data['symlink_properties'] = "local"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['empty_good'],                 # modify
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_modify_path(self, mock_request):
-        ''' negative test for modifying cifs share path'''
-        data = self.mock_args(rest=True)
-        data['state'] = 'present'
-        data['path'] = "\\vol1"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['generic_error'],                 # modify
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on modifying cifs shares: calling: ' + \
-               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']
+def test_modify_vscan_fileop_profile():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['success']),
+    ])
+    module_args = {
+        'vscan_fileop_profile': 'strict'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_modify_cifs_share_comment(self, mock_request):
-        ''' test modify CIFS share comment '''
-        data = self.mock_args(rest=True)
-        data['comment'] = "CIFs share comment"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['empty_good'],                 # modify
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_modify_cifs_share_comment(self, mock_request):
-        ''' negative test for modifying CIFS share comment '''
-        data = self.mock_args(rest=True)
-        data['comment'] = "CIFs share negative test"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['generic_error'],                 # modify
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on modifying cifs shares: calling: ' + \
-               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']
+def test_error_modify():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info']),
+        ('cifs-share-modify', ZRR['error']),
+    ])
+    module_args = {
+        'symlink_properties': 'read'
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error modifying cifs-share' in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_modify_cifs_share_symlink(self, mock_request):
-        ''' test modify CIFS share symlink '''
-        data = self.mock_args(rest=True)
-        data['symlink_properties'] = "widelink"
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['empty_good'],                 # modify
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object().apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_error_modify_cifs_share_symlink(self, mock_request):
-        ''' negative test for modifying CIFS share symlink '''
-        data = self.mock_args(rest=True)
-        data['symlink_properties'] = 'test'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],                # get version
-            copy.deepcopy(SRR['cifs_record']),    # get
-            SRR['generic_error'],                 # modify
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_mock_object().apply()
-        assert 'Error on modifying cifs shares: calling: ' + \
-               'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifssharename: got Expected error.' in exc.value.args[0]['msg']
+def test_create_idempotency():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['cifs_record_info'])
+    ])
+    assert create_and_apply(my_module, DEFAULT_ARGS)['changed'] is False
+
+
+def test_delete_idempotency():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-share-get-iter', ZRR['empty'])
+    ])
+    module_args = {'state': 'absent'}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed'] is False
+
+
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('cifs-share-create', ZRR['error']),
+        ('cifs-share-modify', ZRR['error']),
+        ('cifs-share-delete', ZRR['error'])
+    ])
+    module_args = {}
+
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+
+    error = expect_and_capture_ansible_exception(my_obj.create_cifs_share, 'fail')['msg']
+    assert 'Error creating cifs-share cifs_share_name: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.modify_cifs_share, 'fail')['msg']
+    assert 'Error modifying cifs-share cifs_share_name:NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.delete_cifs_share, 'fail')['msg']
+    assert 'Error deleting cifs-share cifs_share_name: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+
+ARGS_REST = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'vserver': 'test_vserver',
+    'name': 'cifs_share_name',
+    'path': '/',
+    'unix_symlink': 'widelink',
+}
+
+
+def test_rest_successful_create():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['empty_records']),
+        ('POST', 'protocols/cifs/shares', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': 'CIFS share comment',
+        'unix_symlink': 'disable'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_delete_rest():
+    ''' Test delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('DELETE', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent',
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_error_get():
+    '''Test error rest get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on fetching cifs shares: calling: protocols/cifs/shares: got Expected error.' in error
+
+
+def test_rest_error_create():
+    '''Test error rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['empty_records']),
+        ('POST', 'protocols/cifs/shares', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on creating cifs shares:' in error
+
+
+def test_error_delete_rest():
+    ''' Test error delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('DELETE', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on deleting cifs shares:' in error
+
+
+def test_modify_cifs_share_path():
+    ''' test modify CIFS share path '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        'path': "\\vol1"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_cifs_share_properties():
+    ''' test modify CIFS share properties '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        'unix_symlink': "disable"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_cifs_share_comment():
+    ''' test modify CIFS share comment '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': "cifs comment modify"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_modify_cifs_share_path():
+    ''' test modify CIFS share path error'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['generic_error']),
+    ])
+    module_args = {
+        'path': "\\vol1"
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on modifying cifs shares:' in error
+
+
+def test_error_modify_cifs_share_comment():
+    ''' test modify CIFS share comment error'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['generic_error']),
+    ])
+    module_args = {
+        'comment': "cifs comment modify"
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on modifying cifs shares:' in error
+
+
+def test_rest_successful_create_idempotency():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record'])
+    ])
+    module_args = {
+        'use_rest': 'always'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
+
+
+def test_rest_successful_delete_idempotency():
+    '''Test successful rest delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['empty_records'])
+    ])
+    module_args = {'use_rest': 'always', 'state': 'absent'}
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
