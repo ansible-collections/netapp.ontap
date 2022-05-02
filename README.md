@@ -48,6 +48,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_rest_info - new option `owning_resource` for REST info that requires an owning resource. For instance volume for a snapshot
   - na_ontap_cifs - Added ``unix_symlink`` option in REST.
 
+### New Module
+  - na_ontap_s3_bucket - Manage S3 Buckets.
+
 ### Bug Fixes
   - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs share creation when using REST.
   - na_ontap_cifs - fixed error in modifying comment if it is not set while creating CIFS share in REST.
