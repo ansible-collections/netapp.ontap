@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -9,10 +9,6 @@ __metaclass__ = type
 '''
 na_ontap_quotas
 '''
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -23,11 +19,11 @@ extends_documentation_fragment:
 version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Set/Modify/Delete quota on ONTAP
+  - Set/Modify/Delete quota on ONTAP
 options:
   state:
     description:
-    - Whether the specified quota should exist or not.
+      - Whether the specified quota should exist or not.
     choices: ['present', 'absent']
     default: present
     type: str
@@ -38,48 +34,51 @@ options:
     type: str
   volume:
     description:
-    - The name of the volume that the quota resides on.
+      - The name of the volume that the quota resides on.
     required: true
     type: str
   quota_target:
     description:
-    - The quota target of the type specified.
-    - Required to create or modify a rule.
+      - The quota target of the type specified.
+      - Required to create or modify a rule.
     type: str
   qtree:
     description:
-    - Name of the qtree for the quota.
-    - For user or group rules, it can be the qtree name or "" if no qtree.
-    - For tree type rules, this field must be "".
+      - Name of the qtree for the quota.
+      - For user or group rules, it can be the qtree name or "" if no qtree.
+      - For tree type rules, this field must be "".
     default: ""
     type: str
   type:
     description:
-    - The type of quota rule
-    - Required to create or modify a rule.
+      - The type of quota rule
+      - Required to create or modify a rule.
     choices: ['user', 'group', 'tree']
     type: str
   policy:
     description:
-    - Name of the quota policy from which the quota rule should be obtained.
+      - Name of the quota policy from which the quota rule should be obtained.
     type: str
   set_quota_status:
     description:
-    - Whether the specified volume should have quota status on or off.
+      - Whether the specified volume should have quota status on or off.
     type: bool
   perform_user_mapping:
     description:
-    - Whether quota management will perform user mapping for the user specified in quota-target.
-    - User mapping can be specified only for a user quota rule.
+      - Whether quota management will perform user mapping for the user specified in quota-target.
+      - User mapping can be specified only for a user quota rule.
     type: bool
     version_added: 20.12.0
   file_limit:
     description:
-    - The number of files that the target can have.
+      - The number of files that the target can have.
     type: str
   disk_limit:
     description:
-    - The amount of disk space that is reserved for the target.
+      - The amount of disk space that is reserved for the target.
+      - Expects a number followed with KB, MB, GB, TB.
+      - If the unit is not present KB is assumed.
+      - Examples - 10MB, 20GB, 1TB
     type: str
   soft_file_limit:
     description:
@@ -87,15 +86,16 @@ options:
     type: str
   soft_disk_limit:
     description:
-    - The amount of disk space the target would have to exceed before a message is logged and an SNMP trap is generated.
+      - The amount of disk space the target would have to exceed before a message is logged and an SNMP trap is generated.
+      - See C(disk_limit) for format description.
     type: str
   threshold:
     description:
-    - The amount of disk space the target would have to exceed before a message is logged.
+      - The amount of disk space the target would have to exceed before a message is logged.
     type: str
   activate_quota_on_change:
     description:
-    - Method to use to activate quota on a change.
+      - Method to use to activate quota on a change.
     choices: ['resize', 'reinitialize', 'none']
     default: resize
     type: str
@@ -187,10 +187,8 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPQuotas(object):
+class NetAppONTAPQuotas:
     '''Class with quotas methods'''
 
     def __init__(self):
@@ -238,18 +236,14 @@ class NetAppONTAPQuotas(object):
         size_format_error_message = "input string is not a valid size format. A valid size format is constructed as" \
                                     "<integer><size unit>. For example, '10MB', '10KB'.  Only numeric input is also valid." \
                                     "The default unit size is KB."
-        if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-':
-            if self.convert_to_kb('disk_limit') is False:
-                self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
-        if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-':
-            if self.convert_to_kb('soft_disk_limit') is False:
-                self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
+        if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-' and not self.convert_to_kb('disk_limit'):
+            self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
+        if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-' and not self.convert_to_kb('soft_disk_limit'):
+            self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_quota_status(self):
         """
@@ -268,9 +262,7 @@ class NetAppONTAPQuotas(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching quotas status info: %s' % to_native(error),
                                   exception=traceback.format_exc())
-        if result:
-            return result['status']
-        return None
+        return result['status']
 
     def get_quotas_with_retry(self, get_request, policy):
         return_values = None
@@ -352,15 +344,13 @@ class NetAppONTAPQuotas(object):
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching quota policies: %s' % to_native(error),
                                   exception=traceback.format_exc())
-        policies = []
-        if result and result.get_child_by_name('attributes-list'):
-            for policy in result['attributes-list'].get_children():
-                policies.append(policy['policy-name'])
-        return policies
+        return ([policy['policy-name'] for policy in result['attributes-list'].get_children()]
+                if result.get_child_by_name('attributes-list')
+                else [])
 
     def debug_quota_get_error(self, error):
         policies = self.get_quota_policies()
-        entries = dict()
+        entries = {}
         for policy in policies:
             entries[policy] = self.get_quotas(policy)
         if len(policies) == 1:
@@ -378,18 +368,7 @@ class NetAppONTAPQuotas(object):
                    'quota-type': self.parameters['type'],
                    'qtree': self.parameters['qtree']}
 
-        if self.parameters.get('file_limit'):
-            options['file-limit'] = self.parameters['file_limit']
-        if self.parameters.get('disk_limit'):
-            options['disk-limit'] = self.parameters['disk_limit']
-        if self.parameters.get('perform_user_mapping') is not None:
-            options['perform-user-mapping'] = str(self.parameters['perform_user_mapping'])
-        if self.parameters.get('soft_file_limit'):
-            options['soft-file-limit'] = self.parameters['soft_file_limit']
-        if self.parameters.get('soft_disk_limit'):
-            options['soft-disk-limit'] = self.parameters['soft_disk_limit']
-        if self.parameters.get('threshold'):
-            options['threshold'] = self.parameters['threshold']
+        self.set_zapi_options(options)
         if self.parameters.get('policy'):
             options['policy'] = self.parameters['policy']
         set_entry = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -429,6 +408,19 @@ class NetAppONTAPQuotas(object):
                    'quota-type': self.parameters['type'],
                    'qtree': self.parameters['qtree']}
         options.update(modify_attrs)
+        self.set_zapi_options(options)
+        if self.parameters.get('policy'):
+            options['policy'] = str(self.parameters['policy'])
+        modify_entry = netapp_utils.zapi.NaElement.create_node_with_children(
+            'quota-modify-entry', **options)
+        try:
+            self.server.invoke_successfully(modify_entry, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error modifying quota entry %s: %s'
+                                  % (self.parameters['volume'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def set_zapi_options(self, options):
         if self.parameters.get('file_limit'):
             options['file-limit'] = self.parameters['file_limit']
         if self.parameters.get('disk_limit'):
@@ -441,16 +433,6 @@ class NetAppONTAPQuotas(object):
             options['soft-disk-limit'] = self.parameters['soft_disk_limit']
         if self.parameters.get('threshold'):
             options['threshold'] = self.parameters['threshold']
-        if self.parameters.get('policy'):
-            options['policy'] = str(self.parameters['policy'])
-        modify_entry = netapp_utils.zapi.NaElement.create_node_with_children(
-            'quota-modify-entry', **options)
-        try:
-            self.server.invoke_successfully(modify_entry, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error modifying quota entry %s: %s'
-                                  % (self.parameters['volume'], to_native(error)),
-                                  exception=traceback.format_exc())
 
     def on_or_off_quota(self, status, cd_action=None):
         """
@@ -503,34 +485,32 @@ class NetAppONTAPQuotas(object):
                 modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
         quota_status = self.get_quota_status()
         if 'set_quota_status' in self.parameters and quota_status is not None:
-            quota_status_action = self.na_helper.get_modified_attributes(
-                {'set_quota_status': True if quota_status == 'on' else False}, self.parameters)
+            quota_status_action = self.na_helper.get_modified_attributes({'set_quota_status': quota_status == 'on'}, self.parameters)
+
             if quota_status_action:
                 modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
-        if (cd_action is not None or modify_quota is not None) and modify_quota_status is None and quota_status in ('on', None):
-            # do we need to resize or reinitialize:
-            if self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']:
-                modify_quota_status = self.parameters['activate_quota_on_change']
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.quota_entry_set()
-                elif cd_action == 'delete':
-                    self.quota_entry_delete()
-                elif modify_quota is not None:
-                    for key in list(modify_quota):
-                        modify_quota[key.replace("_", "-")] = modify_quota.pop(key)
-                    self.quota_entry_modify(modify_quota)
-                if modify_quota_status in ['quota-off', 'quota-on']:
-                    self.on_or_off_quota(modify_quota_status)
-                elif modify_quota_status == 'resize':
-                    self.resize_quota(cd_action)
-                elif modify_quota_status == 'reinitialize':
-                    self.on_or_off_quota('quota-off')
-                    time.sleep(10)  # status switch interval
-                    self.on_or_off_quota('quota-on', cd_action)
+        if (self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']
+                and (cd_action is not None or modify_quota is not None)
+                and modify_quota_status is None
+                and quota_status in ('on', None)):
+            modify_quota_status = self.parameters['activate_quota_on_change']
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.quota_entry_set()
+            elif cd_action == 'delete':
+                self.quota_entry_delete()
+            elif modify_quota:
+                for key in list(modify_quota):
+                    modify_quota[key.replace("_", "-")] = modify_quota.pop(key)
+                self.quota_entry_modify(modify_quota)
+            if modify_quota_status in ['quota-off', 'quota-on']:
+                self.on_or_off_quota(modify_quota_status)
+            elif modify_quota_status == 'resize':
+                self.resize_quota(cd_action)
+            elif modify_quota_status == 'reinitialize':
+                self.on_or_off_quota('quota-off')
+                time.sleep(10)  # status switch interval
+                self.on_or_off_quota('quota-on', cd_action)
 
         self.module.exit_json(changed=self.na_helper.changed)
 
@@ -546,7 +526,7 @@ class NetAppONTAPQuotas(object):
             return False
         if not slices[0].isdigit():
             return False
-        if len(slices) > 1 and slices[1].lower() not in ['kb', 'mb', 'gb']:
+        if len(slices) > 1 and slices[1].lower() not in ['kb', 'mb', 'gb', 'tb']:
             return False
         if len(slices) > 1:
             self.parameters[option] = str(int(slices[0]) * netapp_utils.POW2_BYTE_MAP[slices[1].lower()] // 1024)

@@ -385,6 +385,18 @@ def test_successful_create_adaptive_rest():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
 
 
+def test_error_create_adaptive_rest():
+    ''' Test successful create '''
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_COPY['fixed_qos_options']
+    DEFAULT_ARGS_COPY['adaptive_qos_options'] = {
+        "absolute_min_iops": 100,
+        "expected_iops": 200
+    }
+    error = create_module(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
+    assert "missing required arguments: peak_iops found in adaptive_qos_options" in error
+
+
 def test_create_error_rest():
     ''' Test create error '''
     register_responses([
@@ -424,7 +436,7 @@ def test_create_error_fixed_adaptive_qos_options_missing():
     DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
     del DEFAULT_ARGS_COPY['fixed_qos_options']
     error = create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
-    assert "Error: atleast one 'fixed_qos_options' or 'adaptive_qos_options' required in creating qos_policy in REST" in error
+    assert "Error: atleast one throughput in 'fixed_qos_options' or all 'adaptive_qos_options'" in error
 
 
 def test_delete_error_rest():

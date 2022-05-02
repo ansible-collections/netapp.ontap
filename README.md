@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Minor Changes
   - na_ontap_qos_adaptive_policy_group - warn about deprecation, fall back to ZAPI or fail when REST is desired.
+  - na_ontap_quotas - support TB as a unit, update doc with size format description.
 
 ### New Options
   - na_ontap_cifs_server - Added new option `force` for create, delete and `from_name`, `force` for rename when using REST.
@@ -49,10 +50,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs share creation when using REST.
+  - na_ontap_cifs - fixed error in modifying comment if it is not set while creating CIFS share in REST.
   - na_ontap_command - fix typo in example.
   - na_ontap_login_messages - fix typo in examples for username.
   - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.
+  - na_ontap_service_policy - fix examples in documentation.
   - na_ontap_volume - use `time_out` value when creating/modifying/deleting volumes with REST rathar than hardcoded value.
   - na_ontap_volume - QOS policy was not set when using NAS application.
   - na_ontap_volume - correctly warn when attempting to modify NAS application.

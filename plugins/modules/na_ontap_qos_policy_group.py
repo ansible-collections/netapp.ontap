@@ -86,33 +86,28 @@ options:
           - Whether the SLOs of the policy group are shared between the workloads or if the SLOs are applied separately to each workload.
           - Default value is False if not used in creating qos policy.
         type: bool
-        required: False
       max_throughput_iops:
         description:
           - Maximum throughput defined by this policy. It is specified in terms of IOPS.
           - 0 means no maximum throughput is enforced.
         type: int
-        required: False
       max_throughput_mbps:
         description:
           - Maximum throughput defined by this policy. It is specified in terms of Mbps.
           - 0 means no maximum throughput is enforced.
         type: int
-        required: False
       min_throughput_iops:
         description:
           - Minimum throughput defined by this policy. It is specified in terms of IOPS.
           - 0 means no minimum throughput is enforced.
           - These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
         type: int
-        required: False
       min_throughput_mbps:
         description:
           - Minimum throughput defined by this policy. It is specified in terms of Mbps.
           - 0 means no minimum throughput is enforced.
           - Requires ONTAP 9.8 or later, and REST support.
         type: int
-        required: False
 
   adaptive_qos_options:
     version_added: 21.19.0
@@ -127,19 +122,19 @@ options:
           - Specifies the absolute minimum IOPS that is used as an override when the expected_iops is less than this value.
           - These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
         type: int
-        required: False
+        required: true
       expected_iops:
         description:
           - Expected IOPS. Specifies the minimum expected IOPS per TB allocated based on the storage object allocated size.
           - These floors are not guaranteed on non-AFF platforms or when FabricPool tiering policies are set.
         type: int
-        required: False
+        required: true
       peak_iops:
         description:
           - Peak IOPS. Specifies the maximum possible IOPS per TB allocated based on the storage object allocated size or
             the storage object used size.
         type: int
-        required: False
+        required: true
 
 '''
 
@@ -261,9 +256,9 @@ class NetAppOntapQosPolicyGroup:
                 min_throughput_mbps=dict(required=False, type='int')
             )),
             adaptive_qos_options=dict(required=False, type='dict', options=dict(
-                absolute_min_iops=dict(required=False, type='int'),
-                expected_iops=dict(required=False, type='int'),
-                peak_iops=dict(required=False, type='int')
+                absolute_min_iops=dict(required=True, type='int'),
+                expected_iops=dict(required=True, type='int'),
+                peak_iops=dict(required=True, type='int')
             ))
         ))
 
@@ -446,12 +441,12 @@ class NetAppOntapQosPolicyGroup:
             self.module.fail_json(msg='Error deleting qos policy group %s: %s' %
                                   (self.parameters['name'], error))
 
-    def modify_policy_group(self):
+    def modify_policy_group(self, modify):
         """
         Modify policy group.
         """
         if self.use_rest:
-            return self.modify_policy_group_rest()
+            return self.modify_policy_group_rest(modify)
         policy_group_obj = netapp_utils.zapi.NaElement('qos-policy-group-modify')
         policy_group_obj.add_new_child('policy-group', self.parameters['name'])
         if self.parameters.get('max_throughput'):
@@ -465,13 +460,13 @@ class NetAppOntapQosPolicyGroup:
                                   (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_policy_group_rest(self):
+    def modify_policy_group_rest(self, modify):
         api = 'storage/qos/policies'
         body = {}
-        if 'fixed_qos_options' in self.parameters:
-            body['fixed'] = self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options'])
+        if 'fixed_qos_options' in modify:
+            body['fixed'] = modify['fixed_qos_options']
         else:
-            body['adaptive'] = self.na_helper.filter_out_none_entries(self.parameters['adaptive_qos_options'])
+            body['adaptive'] = self.parameters['adaptive_qos_options']
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
         if error:
             self.module.fail_json(msg='Error modifying qos policy group %s: %s' %
@@ -510,7 +505,19 @@ class NetAppOntapQosPolicyGroup:
             attribute in modify
             for attribute in ['max_throughput', 'min_throughput', 'fixed_qos_options', 'adaptive_qos_options']
         ):
-            self.modify_policy_group()
+            self.modify_policy_group(modify)
+
+    def validate_adaptive_or_fixed_qos_options(self):
+        error = None
+        # one of the fixed throughput option required in create qos_policy.
+        if 'fixed_qos_options' in self.parameters:
+            fixed_options = ['max_throughput_iops', 'max_throughput_mbps', 'min_throughput_iops', 'min_throughput_mbps']
+            if not any(x in self.na_helper.filter_out_none_entries(self.parameters['fixed_qos_options']) for x in fixed_options):
+                error = True
+        # error if both fixed_qos_options or adaptive_qos_options not present in creating qos policy.
+        elif self.parameters.get('fixed_qos_options', self.parameters.get('adaptive_qos_options')) is None:
+            error = True
+        return error
 
     def apply(self):
         """
@@ -532,12 +539,12 @@ class NetAppOntapQosPolicyGroup:
                 self.module.fail_json(msg='Error renaming qos policy group: cannot find %s' %
                                       self.parameters['from_name'])
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if 'is_shared' in modify or self.na_helper.safe_get(modify, ['fixed_qos_options', 'capacity_shared']):
+        if 'is_shared' in modify or self.na_helper.safe_get(modify, ['fixed_qos_options', 'capacity_shared']) is not None:
             self.module.fail_json(msg="Error cannot modify '%s' attribute." %
                                   ('is_shared' if 'is_shared' in modify else 'fixed_qos_options.capacity_shared'))
-        if self.use_rest and cd_action == 'create' and \
-                self.parameters.get('fixed_qos_options', self.parameters.get('adaptive_qos_options')) is None:
-            self.module.fail_json(msg="Error: atleast one 'fixed_qos_options' or 'adaptive_qos_options' required in creating qos_policy in REST")
+        if self.use_rest and cd_action == 'create' and self.validate_adaptive_or_fixed_qos_options():
+            error = "Error: atleast one throughput in 'fixed_qos_options' or all 'adaptive_qos_options' required in creating qos_policy in REST."
+            self.module.fail_json(msg=error)
         if self.na_helper.changed and not self.module.check_mode:
             if rename:
                 self.rename_policy_group()

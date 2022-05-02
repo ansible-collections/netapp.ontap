@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -65,7 +65,7 @@ options:
 
 notes:
   - This module supports check_mode.
-  - This module is not idempotent if index is omitted.
+  - This module does not support 'allowed-addresses' as REST does not support it.  It defaults to 0.0.0.0/0.
 '''
 
 EXAMPLES = """
@@ -73,9 +73,10 @@ EXAMPLES = """
     - name: Create service policy
       netapp.ontap.na_ontap_service_policy:
         state: present
-        account: SampleUser
-        index: 0
-        public_key: "{{ netapp_service_policy }}"
+        name: "{{ service_policy_name }}"
+        services:
+          - data_core
+          - data_nfs
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -84,7 +85,7 @@ EXAMPLES = """
     - name: Delete single service policy
       netapp.ontap.na_ontap_service_policy:
         state: absent
-        account: SampleUser
+        name: "{{ service_policy_name }}"
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -93,13 +94,34 @@ EXAMPLES = """
     - name: Modify single service policy
       netapp.ontap.na_ontap_service_policy:
         state: present
-        account: SampleUser
-        comment: ssh key for XXXX
-        index: 0
+        name: "{{ service_policy_name }}"
+        services:
+          - data_core
+          - data_nfs
+          - data_cifs
         vserver: ansibleVServer
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    - name: Modify service policy, remove services
+      netapp.ontap.na_ontap_service_policy:
+        state: present
+        name: "{{ service_policy_name }}"
+        services:
+          - no_service
+        vserver: "{{ vserver }}"
+
+    - name: Modify service policy at cluster level
+      netapp.ontap.na_ontap_service_policy:
+        state: present
+        name: "{{ service_policy_name }}"
+        ipspace: ansibleIpspace
+        scope: cluster
+        services:
+          - management_core
+          - management_autosupport
+          - management_ems
 """
 
 RETURN = """

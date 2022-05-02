@@ -178,7 +178,9 @@ class NetAppOntapIgroupInitiator(object):
         current = []
         if record:
             self.uuid = record['uuid']
-            current = [initiator['name'] for initiator in record['initiators']]
+            # igroup may have 0 initiators.
+            if 'initiators' in record:
+                current = [initiator['name'] for initiator in record['initiators']]
         return current
 
     def modify_initiator_rest(self, initiator_name, modify_action):

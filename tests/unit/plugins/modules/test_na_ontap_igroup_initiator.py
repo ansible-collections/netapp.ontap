@@ -154,6 +154,13 @@ SRR = rest_responses({
                 {'name': 'init3'}
             ]
         }
+    ], "num_records": 1}, None),
+    'igroup_without_intiators': (200, {"records": [
+        {
+            "svm": {"name": "svm1"},
+            "uuid": "897de45f-bbbf-11ec-9f18-005056alr297",
+            "name": "init22",
+        }
     ], "num_records": 1}, None)
 })
 
@@ -176,6 +183,16 @@ def test_successful_add_idempotency_rest():
     ])
     args = {'use_rest': 'always', 'name': 'iqn.2001-04.com.example:abc123'}
     assert create_and_apply(initiator, DEFAULT_ARGS, args)['changed'] is False
+
+
+def test_successful_add_to_0_initiator_igroup_rest():
+    ''' Test successful add'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'protocols/san/igroups', SRR['igroup_without_intiators']),
+        ('POST', 'protocols/san/igroups/897de45f-bbbf-11ec-9f18-005056alr297/initiators', SRR['success'])
+    ])
+    assert create_and_apply(initiator, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
 
 
 def test_successful_remove_rest():
