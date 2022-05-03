@@ -38,6 +38,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.19.0
 
 ### Minor Changes
+  - na_ontap_interface - use REST when `use_rest` is set to `auto`.
   - na_ontap_qos_adaptive_policy_group - warn about deprecation, fall back to ZAPI or fail when REST is desired.
   - na_ontap_quotas - support TB as a unit, update doc with size format description.
 
@@ -55,6 +56,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs share creation when using REST.
   - na_ontap_cifs - fixed error in modifying comment if it is not set while creating CIFS share in REST.
   - na_ontap_command - fix typo in example.
+  - na_ontap_interface - rename fails with 'inconsistency in rename action' for cluster interface with REST.
   - na_ontap_login_messages - fix typo in examples for username.
   - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.

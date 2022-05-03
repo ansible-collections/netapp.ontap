@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -240,9 +240,8 @@ options:
     default: ['force_subnet_association']
     version_added: 21.13.0
 notes:
-  - REST support is experimental and requires ONTAP 9.7 or later.
-  - ZAPI is selected if C(use_rest) is set to I(never) or I(auto).  We will restore I(auto) to its expected behavior in a few months.
-  - REST is only selected if C(use_rest) is set to I(always).
+  - REST support requires ONTAP 9.7 or later.
+  - Support check_mode.
 '''
 
 EXAMPLES = '''
@@ -469,14 +468,13 @@ class NetAppOntapInterface():
                 self.module.fail_json(msg='Error: %s' % msg)
             self.module.warn('Falling back to ZAPI: %s' % msg)
             self.use_rest = False
-        # TODO: revert this after a few months
-        if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as REST support for na_ontap_interface is in beta and use_rest: auto.  Set use_rest: always to force REST.')
+        if self.use_rest and not HAS_IPADDRESS_LIB:
+            msg = "the python ipaddress package is required for this module: %s" % IMPORT_ERROR
+            if self.parameters['use_rest'].lower() == 'always':
+                self.module.fail_json(msg='Error: %s' % msg)
+            self.module.warn('Falling back to ZAPI: %s' % msg)
             self.use_rest = False
         if self.use_rest:
-            if HAS_IPADDRESS_LIB is False:
-                self.module.fail_json(msg="the python ipaddress package is required for this module: %s" % IMPORT_ERROR)
             self.cluster_nodes = None       # cached value to limit number of API calls.
             self.map_failover_policy()
             self.validate_input_parameters()
@@ -589,11 +587,11 @@ class NetAppOntapInterface():
         full_name_records = [record for record in records if record['name'] == full_name]
         if len(full_name_records) > 1:
             self.module.fail_json(msg='Error: multiple records for: %s - %s' % (full_name, full_name_records))
-        return None if not full_name_records else full_name_records[0]
+        return full_name_records[0] if full_name_records else None
 
     def find_exact_match(self, records, name):
         """ with vserver, we expect an exact match
-            but ONTAP transform cluster interface names by prepending the home_port
+            but ONTAP transforms cluster interface names by prepending the home_port
         """
         if 'vserver' in self.parameters:
             if len(records) > 1:
@@ -619,7 +617,7 @@ class NetAppOntapInterface():
             if len(home_node_records) > 1:
                 self.module.fail_json(msg='Error: multiple matches for name: %s: %s.  Set home_node parameter.'
                                       % (name, [record['name'] for record in home_node_records]))
-            home_record = None if not home_node_records else home_node_records[0]
+            home_record = home_node_records[0] if home_node_records else None
             if record and home_node_records:
                 self.module.fail_json(msg='Error: multiple matches for name: %s: %s.  Set home_node parameter.'
                                       % (name, [record['name'] for record in (record, home_record)]))
@@ -826,15 +824,16 @@ class NetAppOntapInterface():
         if parameters.get('service_policy') is not None:
             options['service-policy'] = parameters['service_policy']
 
-    def fix_errors(self, options, parameters, errors):
+    def fix_errors(self, options, errors):
+        '''ignore role and firewall_policy if a service_policy can be safely derived'''
         block_p, file_p = self.derive_block_file_type(self.parameters.get('protocols'))
         if 'role' in errors:
             fixed = False
             if errors['role'] == 'data' and errors.get('firewall_policy', 'data') == 'data':
-                if file_p and parameters.get('service_policy', 'default-data-files') == 'default-data-files':
+                if file_p and self.parameters.get('service_policy', 'default-data-files') == 'default-data-files':
                     options['service_policy'] = 'default-data-files'
                     fixed = True
-                elif block_p and parameters.get('service_policy', 'default-data-blocks') == 'default-data-blocks':
+                elif block_p and self.parameters.get('service_policy', 'default-data-blocks') == 'default-data-blocks':
                     options['service_policy'] = 'default-data-blocks'
                     fixed = True
             if errors['role'] == 'data' and errors.get('firewall_policy') == 'mgmt':
@@ -849,7 +848,6 @@ class NetAppOntapInterface():
             if fixed:
                 errors.pop('role')
                 errors.pop('firewall_policy', None)
-        return None
 
     def set_options_rest(self, parameters):
         """ set attributes for create or modify """
@@ -1043,7 +1041,7 @@ class NetAppOntapInterface():
             required_keys = set(['interface_name', 'home_port', 'address', 'netmask'])
         self.validate_required_parameters(required_keys)
         body, migrate_body, errors = self.set_options_rest(modify)
-        self.fix_errors(body, self.parameters, errors)
+        self.fix_errors(body, errors)
         if errors:
             self.module.fail_json(msg='Error %s interface, unsupported options: %s'
                                   % ('modifying' if modify else 'creating', str(errors)))
@@ -1233,11 +1231,13 @@ class NetAppOntapInterface():
                     exception=traceback.format_exc())
 
     def get_action(self):
-        modify, rename = None, None
+        modify, rename, new_name = None, None, None
         current = self.get_interface()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and self.parameters.get('from_name'):
             # create by renaming existing interface
+            # self.parameters['interface_name'] may be overriden in self.get_interface so save a copy
+            new_name = self.parameters['interface_name']
             old_interface = self.get_interface(self.parameters['from_name'])
             rename = self.na_helper.is_rename_action(old_interface, current)
             if rename is None:
@@ -1251,7 +1251,7 @@ class NetAppOntapInterface():
         if rename and self.use_rest:
             rename = False
             if 'interface_name' not in modify:
-                self.module.fail_json(msg='Error: inconsistency in rename action.')
+                modify['interface_name'] = new_name
         if modify and modify.get('home_node') == 'localhost':
             modify.pop('home_node')
             if not modify:

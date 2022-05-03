@@ -1,4 +1,4 @@
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -12,9 +12,10 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_warning_was_raised, print_warnings, set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, create_module, create_and_apply, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface \
     import NetAppOntapInterface as interface_module, netmask_length_to_netmask, netmask_to_netmask_length
 
@@ -321,11 +322,11 @@ class TestMyModule(unittest.TestCase):
 
 SRR = {
     # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_6_0')), None),
+    'is_rest': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_7_0')), None),
     'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
     'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': ({}, None, None),
+    'success': ({}, None, None),
     'zero_record': (200, {'records': []}, None),
     'one_record_home_node': (200, {'records': [
         {'name': 'node2_abc_if',
@@ -350,19 +351,22 @@ SRR = {
 }
 
 
+DEFAULT_ARGS = {
+    'hostname': '10.10.10.10',
+    'username': 'admin',
+    'password': 'password',
+    'home_port': 'e0k',
+    'interface_name': 'abc_if',
+}
+
+
 def set_default_args(use_rest='always', **kwargs):
     hostname = '10.10.10.10'
     username = 'admin'
     password = 'password'
     if_name = 'abc_if'
-    args = dict({
-        'hostname': hostname,
-        'username': username,
-        'password': password,
-        'home_port': 'e0k',
-        'interface_name': if_name,
-        'use_rest': use_rest
-    })
+    args = dict(DEFAULT_ARGS)
+    args['use_rest'] = use_rest
     args.update(kwargs)
     if 'ip' in args and args.pop('ip'):
         args.update({
@@ -372,321 +376,247 @@ def set_default_args(use_rest='always', **kwargs):
     return args
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_ip_no_svm(mock_request, patch_ansible):
+def test_rest_create_ip_no_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['empty_good'],      # post
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
+        ('POST', 'network/ip/interfaces', SRR['success']),          # post
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 4
+        assert exc.value.args[0]['changed'] is True
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_ip_no_svm_idempotent(mock_request, patch_ansible):
+def test_rest_create_ip_no_svm_idempotent():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],     # get IP
-        # SRR['zero_record'],            # get FC
-        SRR['nodes'],                    # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed'] is False
-    assert len(mock_request.mock_calls) == 3
+        assert exc.value.args[0]['changed'] is False
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_ip_no_svm_idempotent_localhost(mock_request, patch_ansible):
+def test_rest_create_ip_no_svm_idempotent_localhost():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True, home_node='localhost'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],     # get IP
-        # SRR['zero_record'],            # get FC
-        SRR['nodes'],                    # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed'] is False
-    assert len(mock_request.mock_calls) == 3
+        assert exc.value.args[0]['changed'] is False
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_ip_with_svm(mock_request, patch_ansible):
+def test_rest_create_ip_with_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', vserver='vserver', ip=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['empty_good'],      # post
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
+        ('POST', 'network/ip/interfaces', SRR['success']),          # post
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 4
+        assert exc.value.args[0]['changed'] is True
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_create_ip(mock_request, patch_ansible):
+def test_rest_negative_create_ip():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['zero_record'],     # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
+        ('GET', 'cluster/nodes', SRR['zero_record']),               # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     msg = 'Error: Cannot guess home_node, home_node is required when home_port is present with REST.'
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_create_no_ip_address(mock_request, patch_ansible):
+def test_rest_negative_create_no_ip_address():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get IP
-        SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),    # get IP
+        ('GET', 'network/fc/interfaces', SRR['zero_record']),    # get FC
+        ('GET', 'cluster/nodes', SRR['nodes']),     # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     msg = 'Error: Missing one or more required parameters for creating interface: interface_type.'
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 4
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_get_multiple_ip_if(mock_request, patch_ansible):
+def test_rest_negative_get_multiple_ip_if():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['two_records'],     # get IP
-        SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['two_records']),       # get IP
+        ('GET', 'network/fc/interfaces', SRR['zero_record']),       # get FC
+        ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     msg = 'Error: multiple records for: node2_abc_if'
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 4
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_get_multiple_fc_if(mock_request, patch_ansible):
+def test_rest_negative_get_multiple_fc_if():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get IP
-        SRR['two_records'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),   # get IP
+        ('GET', 'network/fc/interfaces', SRR['two_records']),   # get FC
+        ('GET', 'cluster/nodes', SRR['nodes']),                 # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     msg = 'Error: multiple records for: node2_abc_if'
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 4
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_idempotent_ip_no_svm(mock_request, patch_ansible):
+def test_rest_modify_idempotent_ip_no_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],      # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                         # get nodes
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is False
-    assert len(mock_request.mock_calls) == 3
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_ip_no_svm(mock_request, patch_ansible):
+def test_rest_modify_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, home_node='node1'))
+    args = dict(set_default_args(ipspace='cluster', ip=True, home_node='node2', interface_name='new_name', from_name='abc_if'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],      # get IP
-        # SRR['zero_record'],     # get FC
-        # SRR['nodes'],           # get nodes (for get) when home_node is missing
-        SRR['empty_good'],      # patch
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),           # get IP
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),       # patch
+        # ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 3
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_ip_svm(mock_request, patch_ansible):
+def test_rest_modify_ip_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True, vserver='vserver', home_node='node1'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_vserver'],      # get IP
-        # SRR['zero_record'],           # get FC
-        # SRR['nodes'],                   # get nodes (for get)
-        SRR['empty_good'],              # patch
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),    # get IP
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),       # patch
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 3
 
 
 @patch('time.sleep')
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_migrate_ip_no_svm(mock_request, sleep_mock, patch_ansible):
+def test_rest_migrate_ip_no_svm(sleep_mock):
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True, current_node='node1'))
     set_module_args(args)
     modified = copy.deepcopy(SRR['one_record_home_node'])
     modified[1]['records'][0]['location']['node']['name'] = 'node1'
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],      # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes (for get)
-        SRR['empty_good'],      # patch
-        SRR['one_record_home_node'],      # get - no change
-        SRR['empty_good'],      # patch again
-        modified,               # get
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes (for get)
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),           # patch
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get - no change
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),           # patch
+        ('GET', 'network/ip/interfaces', modified),                         # get
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 7
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_ip_no_svm(mock_request, patch_ansible):
+def test_rest_delete_ip_no_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True, state='absent'))
     set_module_args(args)
-    modified = copy.deepcopy(SRR['one_record_home_node'])
-    modified[1]['records'][0]['location']['node']['name'] = 'node1'
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_record_home_node'],      # get IP
-        # SRR['zero_record'],     # get FC
-        SRR['nodes'],           # get nodes (for get)
-        SRR['empty_good'],      # delete
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                         # get nodes (for get)
+        ('DELETE', 'network/ip/interfaces/54321', SRR['success']),      # delete
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is True
-    assert len(mock_request.mock_calls) == 4
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_idempotent_ip_no_svm(mock_request, patch_ansible):
+def test_rest_delete_idempotent_ip_no_svm():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', ip=True, state='absent'))
     set_module_args(args)
-    modified = copy.deepcopy(SRR['one_record_home_node'])
-    modified[1]['records'][0]['location']['node']['name'] = 'node1'
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],         # get IP
-        # SRR['zero_record'],       # get FC
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'network/ip/interfaces', SRR['zero_record']),         # get IP
+        # ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get FC
+    ])
     my_obj = interface_module()
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is False
-    assert len(mock_request.mock_calls) == 2
 
 
 def test_netmask_to_len():
@@ -699,291 +629,299 @@ def test_len_to_netmask():
     assert netmask_length_to_netmask('10.10.10.10', '16') == '255.255.0.0'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_fc_protocol_fcp(mock_request):
+def test_derive_fc_protocol_fcp():
     args = dict(set_default_args(protocols=['fcp']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.derive_fc_data_protocol()
     assert my_obj.parameters['data_protocol'] == 'fcp'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_fc_protocol_nvme(mock_request):
+def test_derive_fc_protocol_nvme():
     args = dict(set_default_args(protocols=['fc-nvme']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.derive_fc_data_protocol()
     assert my_obj.parameters['data_protocol'] == 'fc_nvme'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_fc_protocol_nvme_empty(mock_request):
+def test_derive_fc_protocol_nvme_empty():
     args = dict(set_default_args(protocols=[]))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_derive_fc_protocol_nvme(mock_request, patch_ansible):
+def test_negative_derive_fc_protocol_nvme():
     args = dict(set_default_args(protocols=['fc-nvme', 'fcp']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.derive_fc_data_protocol()
-    print(mock_request.mock_calls)
     msg = "A single protocol entry is expected for FC interface, got ['fc-nvme', 'fcp']."
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_derive_fc_protocol_nvme_mismatch(mock_request, patch_ansible):
+def test_negative_derive_fc_protocol_nvme_mismatch():
     args = dict(set_default_args(protocols=['fc-nvme'], data_protocol='fcp'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.derive_fc_data_protocol()
-    print(mock_request.mock_calls)
     msg = "Error: mismatch between configured data_protocol: fcp and data_protocols: ['fc-nvme']"
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_interface_type_nvme(mock_request):
+def test_derive_interface_type_nvme():
     args = dict(set_default_args(protocols=['fc-nvme']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'fc'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_interface_type_iscsi(mock_request):
+def test_derive_interface_type_iscsi():
     args = dict(set_default_args(protocols=['iscsi']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'ip'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_interface_type_cluster(mock_request):
+def test_derive_interface_type_cluster():
     args = dict(set_default_args(role='cluster'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'ip'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_derive_interface_type_nvme_mismatch(mock_request, patch_ansible):
+def test_negative_derive_interface_type_nvme_mismatch():
     args = dict(set_default_args(protocols=['fc-nvme'], interface_type='ip'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.derive_interface_type()
-    print(mock_request.mock_calls)
     msg = "Error: mismatch between configured interface_type: ip and derived interface_type: fc."
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_derive_interface_type_unknown(mock_request, patch_ansible):
+def test_negative_derive_interface_type_unknown():
     args = dict(set_default_args(protocols=['unexpected']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.derive_interface_type()
-    print(mock_request.mock_calls)
     msg = "Error: Unexpected value(s) for protocols: ['unexpected']"
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_derive_interface_type_multiple(mock_request, patch_ansible):
+def test_negative_derive_interface_type_multiple():
     args = dict(set_default_args(protocols=['fc-nvme', 'cifs']))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.derive_interface_type()
-    print(mock_request.mock_calls)
     msg = "Error: Incompatible value(s) for protocols: ['fc-nvme', 'cifs']"
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_block_file_type_fcp(mock_request):
+def test_derive_block_file_type_fcp():
     args = dict(set_default_args())
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     block_p, file_p = my_obj.derive_block_file_type(['fcp'])
     assert block_p, not file_p
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_derive_block_file_type_cifs(mock_request):
+def test_derive_block_file_type_cifs():
     args = dict(set_default_args())
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     block_p, file_p = my_obj.derive_block_file_type(['cifs'])
     assert not block_p, file_p
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_map_failover_policy(mock_request):
+def test_map_failover_policy():
     args = dict(set_default_args(failover_policy='local-only'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     my_obj = interface_module()
     my_obj.map_failover_policy()
     assert my_obj.parameters['failover_scope'] == 'home_node_only'
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_unsupported_zapi_option_fail(mock_request, patch_ansible):
+def test_rest_negative_unsupported_zapi_option_fail():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+    ])
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = interface_module()
-    print(mock_request.mock_calls)
     msg = "REST API currently does not support 'is_ipv4_link_local'"
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 0
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_unsupported_zapi_option_force_zapi(mock_request, patch_ansible):
+def test_rest_negative_unsupported_zapi_option_force_zapi():
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True, use_rest='auto'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = interface_module()
-    print(mock_request.mock_calls)
     msg = "missing required arguments: vserver"
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 1
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_unsupported_zapi_option_force_zapi(mock_request, mock_netapp_lib, patch_ansible):
+def test_rest_negative_unsupported_zapi_option_force_zapi(mock_netapp_lib):
     ''' create cluster '''
     args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True, use_rest='auto'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
     mock_netapp_lib.return_value = False
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = interface_module()
-    print(mock_request.mock_calls)
     msg = "the python NetApp-Lib module is required"
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 1
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_negative_unsupported_rest_version(mock_request, patch_ansible):
+def test_rest_negative_unsupported_rest_version():
     ''' create cluster '''
     args = dict(set_default_args(use_rest='always'))
     set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_96'],
-        SRR['end_of_sequence']
-    ]
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
     # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = interface_module()
-    print(mock_request.mock_calls)
     msg = "Error: REST requires ONTAP 9.7 or later for interface APIs."
     assert msg in exc.value.args[0]['msg']
-    # print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 1
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_auto_falls_back_to_zapi(mock_request, patch_ansible):
-    ''' create cluster '''
-    args = dict(set_default_args(use_rest='auto'))
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        interface_module()
+def test_rest_auto_falls_back_to_zapi_if_ip_9_6():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])
+    ])
+    module_args = {'use_rest': 'auto'}
     # vserver is a required parameter with ZAPI
     msg = "missing required argument with ZAPI: vserver"
-    assert msg in exc.value.args[0]['msg']
-    assert len(mock_request.mock_calls) == 1
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    print_warnings
+    assert_warning_was_raised('Falling back to ZAPI: REST requires ONTAP 9.7 or later for interface APIs.')
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
+def test_rest_auto_falls_back_to_zapi_if_ip_address_library_is_missing():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {'use_rest': 'auto'}
+    # vserver is a required parameter with ZAPI
+    msg = "missing required argument with ZAPI: vserver"
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    print_warnings
+    assert_warning_was_raised('Falling back to ZAPI: the python ipaddress package is required for this module: None')
+
+
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
+def test_rest_always_fail_if_ip_address_library_is_missing():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {'use_rest': 'always'}
+    error = create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error == 'Error: the python ipaddress package is required for this module: None'
+
+
+def test_fix_errors():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {'use_rest': 'auto'}
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    control = {'xx': 11, 'yy': 22}
+    # no role in error
+    errors = dict(control)
+    assert my_obj.fix_errors(None, errors) is None
+    assert errors == control
+    # role/firewall_policy/protocols/service_policy -> service_policy
+    tests = [
+        ('data', 'data', ['nfs'], None, 'default-data-files', True),
+        ('data', 'data', ['cifs'], None, 'default-data-files', True),
+        ('data', 'data', ['iscsi'], None, 'default-data-blocks', True),
+        ('data', 'mgmt', ['ignored'], None, 'default-management', True),
+        ('data', '', ['nfs'], None, 'default-data-files', True),
+        ('data', '', ['cifs'], None, 'default-data-files', True),
+        ('data', '', ['iscsi'], None, 'default-data-blocks', True),
+        ('data', 'mgmt', ['ignored'], None, 'default-management', True),
+        ('intercluster', 'intercluster', ['ignored'], None, 'default-intercluster', True),
+        ('intercluster', '', ['ignored'], None, 'default-intercluster', True),
+        ('cluster', 'mgmt', ['ignored'], None, 'default-cluster', True),
+        ('cluster', '', ['ignored'], None, 'default-cluster', True),
+        ('cluster', 'other', ['ignored'], None, 'unchanged', False),
+    ]
+    for role, firewall_policy, protocols, service_policy, expected_service_policy, fixed in tests:
+        my_obj.parameters['protocols'] = protocols
+        if service_policy:
+            my_obj['service_policy'] = service_policy
+        options = {'service_policy': 'unchanged'}
+        errors = dict(control)
+        errors['role'] = role
+        if firewall_policy:
+            errors['firewall_policy'] = firewall_policy
+        assert my_obj.fix_errors(options, errors) is None
+        print('OPTIONS', options)
+        assert 'service_policy' in options
+        assert options['service_policy'] == expected_service_policy
+        assert errors == control or not fixed
+        assert fixed or 'role' in errors
