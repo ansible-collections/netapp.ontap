@@ -156,6 +156,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Added REST support to existing modules
   - na_ontap_igroup_initiator - Added REST support.
   - na_ontap_iscsi - Added REST support.
+  - na_ontap_nvme - Added REST support.
   - na_ontap_qos_policy_group - Added REST support.
 
 

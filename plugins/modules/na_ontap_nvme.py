@@ -1,14 +1,9 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -74,17 +69,19 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPNVMe(object):
+class NetAppONTAPNVMe:
     """
     Class with NVMe service methods
     """
 
     def __init__(self):
-
+        self.svm_uuid = None
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
@@ -99,10 +96,12 @@ class NetAppONTAPNVMe(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not HAS_NETAPP_LIB:
+                self.module.fail_json(msg="the python NetApp-Lib module is required")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_nvme(self):
@@ -110,6 +109,8 @@ class NetAppONTAPNVMe(object):
         Get current nvme details
         :return: dict if nvme exists, None otherwise
         """
+        if self.use_rest:
+            return self.get_nvme_rest()
         nvme_get = netapp_utils.zapi.NaElement('nvme-get-iter')
         query = {
             'query': {
@@ -127,14 +128,15 @@ class NetAppONTAPNVMe(object):
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             attributes_list = result.get_child_by_name('attributes-list')
             nvme_info = attributes_list.get_child_by_name('nvme-target-service-info')
-            return_value = {'status_admin': nvme_info.get_child_content('is-available')}
-            return return_value
+            return {'status_admin': self.na_helper.get_value_for_bool(True, nvme_info.get_child_content('is-available'))}
         return None
 
     def create_nvme(self):
         """
         Create NVMe service
         """
+        if self.use_rest:
+            return self.create_nvme_rest()
         nvme_create = netapp_utils.zapi.NaElement('nvme-create')
         if self.parameters.get('status_admin') is not None:
             options = {'is-available': self.parameters['status_admin']}
@@ -150,6 +152,8 @@ class NetAppONTAPNVMe(object):
         """
         Delete NVMe service
         """
+        if self.use_rest:
+            return self.delete_nvme_rest()
         nvme_delete = netapp_utils.zapi.NaElement('nvme-delete')
         try:
             self.server.invoke_successfully(nvme_delete, enable_tunneling=True)
@@ -164,6 +168,8 @@ class NetAppONTAPNVMe(object):
         """
         if status is None:
             status = self.parameters['status_admin']
+        if self.use_rest:
+            return self.modify_nvme_rest(status)
         options = {'is-available': status}
         nvme_modify = netapp_utils.zapi.NaElement('nvme-modify')
         nvme_modify.translate_struct(options)
@@ -174,29 +180,66 @@ class NetAppONTAPNVMe(object):
                                   % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_nvme_rest(self):
+        api = 'protocols/nvme/services'
+        params = {'svm.name': self.parameters['vserver'], 'fields': 'enabled'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching nvme info for vserver: %s' % self.parameters['vserver'])
+        if record:
+            self.svm_uuid = record['svm']['uuid']
+            record['status_admin'] = record.pop('enabled')
+            return record
+        return None
+
+    def create_nvme_rest(self):
+        api = 'protocols/nvme/services'
+        body = {'svm.name': self.parameters['vserver']}
+        if self.parameters.get('status_admin'):
+            body['enabled'] = self.parameters['status_admin']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error creating nvme for vserver %s: %s' % (self.parameters['vserver'],
+                                                                                  to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def delete_nvme_rest(self):
+        api = 'protocols/nvme/services'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.svm_uuid)
+        if error:
+            self.module.fail_json(msg='Error deleting nvme for vserver %s: %s' % (self.parameters['vserver'],
+                                                                                  to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def modify_nvme_rest(self, status):
+        if status == 'false':
+            status = False
+        api = 'protocols/nvme/services'
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.svm_uuid, {'enabled': status})
+        if error:
+            self.module.fail_json(msg='Error modifying nvme for vserver: %s' % self.parameters['vserver'])
+
     def apply(self):
         """
         Apply action to NVMe service
         """
-        netapp_utils.ems_log_event("na_ontap_nvme", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_nvme", self.server)
+        modify = None
         current = self.get_nvme()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.parameters.get('status_admin') is not None:
-            self.parameters['status_admin'] = self.na_helper.get_value_for_bool(False, self.parameters['status_admin'])
             if cd_action is None and self.parameters['state'] == 'present':
                 modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_nvme()
-                elif cd_action == 'delete':
-                    # NVMe status_admin needs to be down before deleting it
-                    self.modify_nvme('false')
-                    self.delete_nvme()
-                elif modify:
-                    self.modify_nvme()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_nvme()
+            elif cd_action == 'delete':
+                # NVMe status_admin needs to be down before deleting it
+                self.modify_nvme('false')
+                self.delete_nvme()
+            elif modify:
+                self.modify_nvme()
 
         self.module.exit_json(changed=self.na_helper.changed)
 
