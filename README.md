@@ -58,6 +58,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_command - fix typo in example.
   - na_ontap_interface - rename fails with 'inconsistency in rename action' for cluster interface with REST.
   - na_ontap_login_messages - fix typo in examples for username.
+  - na_ontap_nfs - fix TypeError on NoneType as `tcp_max_xfer_size` is not supported in earlier ONTAP versions.
+  - na_ontap_nfs - fix `Extra input` error with ZAPI for `is-nfsv4-enabled`.
   - na_ontap_quotas - Fix idempotency issue on `disk_limit` and `soft_disk_limit`.
   - na_ontap_rest_info: REST API's with hyphens in the name will now be converted to underscores when `use_python_keys` is set to `True` so that YAML parsing works correctly.
   - na_ontap_service_policy - fix examples in documentation.

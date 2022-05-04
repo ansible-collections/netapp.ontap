@@ -231,7 +231,7 @@ class NetAppONTAPNFS:
             'nfsv3': 'is-nfsv3-enabled',  # REST: protocol.v3_enabled
             'nfsv3_fsid_change': 'is-nfsv3-fsid-change-enabled',
             'nfsv4_fsid_change': 'is-nfsv4-fsid-change-enabled',
-            'nfsv4': 'is-nfsv4-enabled',  # REST: protocol.v40_enabled
+            'nfsv4': 'is-nfsv40-enabled',  # REST: protocol.v40_enabled
             'nfsv41': 'is-nfsv41-enabled',  # REST: protocol.v41_enabled
             'nfsv41_pnfs': 'is-nfsv41-pnfs-enabled',  # protocol.v41_features.pnfs_enabled
             'nfsv4_numeric_ids': 'is-nfsv4-numeric-ids-enabled',
@@ -304,7 +304,7 @@ class NetAppONTAPNFS:
             'nfsv41_referrals': self.convert_from_bool(attributes_list.get_child_content('is-nfsv41-referrals-enabled')),
             'nfsv41_write_delegation': self.convert_from_bool(attributes_list.get_child_content('is-nfsv41-write-delegation-enabled')),
             'showmount': self.convert_from_bool(attributes_list.get_child_content('showmount')),
-            'tcp_max_xfer_size': int(attributes_list.get_child_content('tcp-max-xfer-size'))
+            'tcp_max_xfer_size': self.na_helper.get_value_for_int(True, attributes_list.get_child_content('tcp-max-xfer-size'))
         }
 
     def get_nfs_status(self):
@@ -506,6 +506,11 @@ class NetAppONTAPNFS:
     def convert_from_bool_to_started(self, value):
         return 'started' if value in ['true', True] else 'stopped'
 
+    def validate_modify(self, current, modify):
+        '''Earlier ONTAP versions do not support tcp_max_xfer_size'''
+        if 'tcp_max_xfer_size' in modify and current['tcp_max_xfer_size'] is None:
+            self.module.fail_json(msg='Error: tcp_max_xfer_size is not supported on ONTAP 9.3 or earlier.')
+
     def apply(self):
         if not self.use_rest:
             netapp_utils.ems_log_event("na_ontap_nfs", self.server)
@@ -516,6 +521,7 @@ class NetAppONTAPNFS:
         modify = None
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            self.validate_modify(current, modify)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_nfs_service()
