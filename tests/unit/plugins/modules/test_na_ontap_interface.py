@@ -12,10 +12,12 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_warning_was_raised, print_warnings, set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, create_module, create_and_apply, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_warning_was_raised, print_warnings, create_module, create_and_apply, expect_and_capture_ansible_exception, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface \
     import NetAppOntapInterface as interface_module, netmask_length_to_netmask, netmask_to_netmask_length
 
@@ -28,317 +30,399 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.type = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        print(xml.to_string())
-        if self.type == 'interface':
-            xml = self.build_interface_info(self.params)
-        elif self.type == 'interface_rename':
-            self.type = 'interface'
-        elif self.type == 'zapi_error':
-            error = netapp_utils.zapi.NaApiError('test', 'error')
-            raise error
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_interface_info(data):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'net-interface-info': {
-                    'interface-name': data['name'],
-                    'administrative-status': data['administrative-status'],
-                    'failover-policy': data['failover-policy'],
-                    'firewall-policy': data['firewall-policy'],
-                    'is-auto-revert': data['is-auto-revert'],
-                    'home-node': data['home_node'],
-                    'home-port': data['home_port'],
-                    'address': data['address'],
-                    'netmask': data['netmask'],
-                    'role': data['role'],
-                    'protocols': data['protocols'] if data.get('protocols') else None,
-                    'dns-domain-name': data['dns_domain_name'],
-                    'listen-for-dns_query': data['listen_for_dns_query'],
-                    'is-dns-update-enabled': data['is_dns_update_enabled']
-                }
-            }
-        }
-        xml.translate_struct(attributes)
-        return xml
-
-
-# @pytest.mark.skip()
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
-
-    def setUp(self):
-        self.mock_interface = {
-            'name': 'test_lif',
+interface_info = {
+    'attributes-list': {
+        'net-interface-info': {
+            'interface-name': 'abc_if',
             'administrative-status': 'up',
             'failover-policy': 'up',
             'firewall-policy': 'up',
             'is-auto-revert': 'true',
-            'home_node': 'node',
-            'role': 'data',
-            'home_port': 'e0c',
+            'home-node': 'node',
+            'current-node': 'node',
+            'home-port': 'e0c',
+            'current-port': 'e0c',
             'address': '2.2.2.2',
             'netmask': '1.1.1.1',
-            'dns_domain_name': 'test.com',
-            'listen_for_dns_query': True,
-            'is_dns_update_enabled': True,
-            'admin_status': 'up'
+            'role': 'data',
+            'dns-domain-name': 'test.com',
+            'listen-for-dns_query': 'true',
+            'is-dns-update-enabled': 'true'
         }
-
-    def mock_args(self, use_rest='never'):
-        return {
-            'vserver': 'vserver',
-            'interface_name': self.mock_interface['name'],
-            'home_node': self.mock_interface['home_node'],
-            'role': self.mock_interface['role'],
-            'home_port': self.mock_interface['home_port'],
-            'address': self.mock_interface['address'],
-            'netmask': self.mock_interface['netmask'],
-            'hostname': 'hostname',
-            'username': 'username',
-            'password': 'password',
-            'use_rest': use_rest
-        }
-
-    def get_interface_mock_object(self, kind=None):
-        """
-        Helper method to return an na_ontap_interface object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_interface object
-        """
-        interface_obj = interface_module()
-        interface_obj.autosupport_log = Mock(return_value=None)
-        if kind is None:
-            interface_obj.server = MockONTAPConnection()
-        else:
-            interface_obj.server = MockONTAPConnection(kind=kind, data=self.mock_interface)
-        return interface_obj
-
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            interface_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
-
-    def test_create_error_missing_param(self):
-        # sourcery skip: class-extract-method
-        ''' Test if create throws an error if required param 'role' is not specified'''
-        data = self.mock_args()
-        del data['role']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_interface_mock_object('interface').create_interface(None)
-        msg = 'Error: Missing one or more required parameters for creating interface: ' \
-              'home_port, netmask, role, home_node, address'
-        expected = sorted(','.split(msg))
-        received = sorted(','.split(exc.value.args[0]['msg']))
-        assert expected == received
-
-    def test_get_nonexistent_interface(self):
-        ''' Test if get_interface returns None for non-existent interface '''
-        set_module_args(self.mock_args())
-        result = self.get_interface_mock_object().get_interface()
-        assert result is None
-
-    def test_get_existing_interface(self):
-        ''' Test if get_interface returns None for existing interface '''
-        set_module_args(self.mock_args())
-        result = self.get_interface_mock_object(kind='interface').get_interface()
-        assert result['interface_name'] == self.mock_interface['name']
-
-    def test_successful_create(self):
-        ''' Test successful create '''
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    def test_successful_create_for_NVMe(self):
-        ''' Test successful create for NVMe protocol'''
-        data = self.mock_args()
-        data['protocols'] = 'fc-nvme'
-        del data['address']
-        del data['netmask']
-        del data['home_port']
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    def test_create_idempotency_for_NVMe(self):
-        ''' Test create idempotency for NVMe protocol '''
-        data = self.mock_args()
-        data['protocols'] = 'fc-nvme'
-        del data['address']
-        del data['netmask']
-        del data['home_port']
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object('interface').apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_create_error_for_NVMe(self):
-        ''' Test if create throws an error if required param 'protocols' uses NVMe'''
-        data = self.mock_args()
-        data['protocols'] = 'fc-nvme'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_interface_mock_object('interface').create_interface(None)
-        msg = 'Error: Following parameters for creating interface are not supported for data-protocol fc-nvme: ' \
-              'netmask, firewall_policy, address'
-        expected = sorted(','.split(msg))
-        received = sorted(','.split(exc.value.args[0]['msg']))
-        assert expected == received
-
-    def test_create_idempotency(self):
-        ''' Test create idempotency '''
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object('interface').apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_successful_delete(self):
-        ''' Test delete existing interface '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object('interface').apply()
-        assert exc.value.args[0]['changed']
-
-    def test_delete_idempotency(self):
-        ''' Test delete idempotency '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object().apply()
-        assert not exc.value.args[0]['changed']
-
-    def test_successful_modify(self):
-        ''' Test successful modify interface_minutes '''
-        data = self.mock_args()
-        data['home_port'] = 'new_port'
-        data['dns_domain_name'] = 'test2.com'
-        data['listen_for_dns_query'] = False
-        data['is_dns_update_enabled'] = False
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            interface_obj = self.get_interface_mock_object('interface')
-            interface_obj.apply()
-        assert exc.value.args[0]['changed']
-
-    def test_modify_idempotency(self):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_interface_mock_object('interface').apply()
-        assert not exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.NetAppOntapInterface.get_interface')
-    def test_error_message(self, get_interface):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        set_module_args(data)
-        get_interface.side_effect = [None]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_interface_mock_object('zapi_error').apply()
-        assert exc.value.args[0]['msg'] == 'Error Creating interface test_lif: NetApp API failed. Reason - test:error'
-
-        data = self.mock_args()
-        data['home_port'] = 'new_port'
-        data['dns_domain_name'] = 'test2.com'
-        data['listen_for_dns_query'] = False
-        data['is_dns_update_enabled'] = False
-        set_module_args(data)
-        get_interface.side_effect = [
-            self.mock_interface
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_interface_mock_object('zapi_error').apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying interface test_lif: NetApp API failed. Reason - test:error'
-
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        current = self.mock_interface
-        current['admin_status'] = 'down'
-        get_interface.side_effect = [
-            current
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_interface_mock_object('zapi_error').apply()
-        assert exc.value.args[0]['msg'] == 'Error deleting interface test_lif: NetApp API failed. Reason - test:error'
-
-    def test_successful_rename(self):
-        ''' Test successful modify interface_minutes '''
-        data = self.mock_args()
-        data['home_port'] = 'new_port'
-        data['dns_domain_name'] = 'test2.com'
-        data['listen_for_dns_query'] = False
-        data['is_dns_update_enabled'] = False
-        data['from_name'] = 'from_interface_name'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            interface_obj = self.get_interface_mock_object('interface_rename')
-            interface_obj.apply()
-        assert exc.value.args[0]['changed']
-
-    def test_negative_rename_not_found(self):
-        ''' Test successful modify interface_minutes '''
-        data = self.mock_args()
-        data['home_port'] = 'new_port'
-        data['dns_domain_name'] = 'test2.com'
-        data['listen_for_dns_query'] = False
-        data['is_dns_update_enabled'] = False
-        data['from_name'] = 'from_interface_name'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            interface_obj = self.get_interface_mock_object()
-            interface_obj.apply()
-        msg = 'Error renaming interface test_lif: no interface with from_name from_interface_name.'
-        assert msg in exc.value.args[0]['msg']
+    }
+}
 
 
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_7_0')), None),
-    'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
-    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'success': ({}, None, None),
-    'zero_record': (200, {'records': []}, None),
+ZRR = zapi_responses({
+    'interface_info': build_zapi_response(interface_info, 1)
+})
+
+
+DEFAULT_ARGS = {
+    'hostname': '10.10.10.10',
+    'username': 'admin',
+    'password': 'password',
+    'home_port': 'e0c',
+    'interface_name': 'abc_if',
+}
+
+
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    module_args = {
+        'vserver': 'vserver',
+        'use_rest': 'never'
+    }
+    error = create_module(interface_module, module_args, fail=True)['msg']
+    assert 'missing required arguments:' in error
+    assert 'interface_name' in error
+
+
+def test_create_error_missing_param():
+    ''' Test successful create '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'home_node': 'node',
+        'home_port': 'e0c',
+        'use_rest': 'never'
+    }
+    msg = 'Error: Missing one or more required parameters for creating interface:'
+    error = create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error
+    assert 'role' in error
+
+
+def test_successful_create():
+    ''' Test successful create '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-create', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'home_node': 'node',
+        'role': 'data',
+        'home_port': 'e0c',
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_create_for_NVMe():
+    ''' Test successful create for NVMe protocol'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-create', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'home_node': 'node',
+        'role': 'data',
+        'home_port': 'e0c',
+        'protocols': ['fc-nvme'],
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_idempotency_for_NVMe():
+    ''' Test successful create for NVMe protocol'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'home_node': 'node',
+        'role': 'data',
+        'home_port': 'e0c',
+        'protocols': ['fc-nvme'],
+        'use_rest': 'never'
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_error_for_NVMe():
+    ''' Test if create throws an error if required param 'protocols' uses NVMe'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+    ])
+    msg = 'Error: Following parameters for creating interface are not supported for data-protocol fc-nvme:'
+    module_args = {
+        'vserver': 'vserver',
+        'protocols': ['fc-nvme'],
+        'address': '1.1.1.1',
+        'use_rest': 'never'
+    }
+    error = create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error
+    for option in ('netmask', 'address', 'firewall_policy'):
+        assert option in error
+
+
+def test_create_idempotency():
+    ''' Test create idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'use_rest': 'never'
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_delete():
+    ''' Test delete existing interface '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),               # offline
+        ('ZAPI', 'net-interface-delete', ZRR['success']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'vserver': 'vserver',
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_idempotency():
+    ''' Test delete idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'vserver': 'vserver',
+        'use_rest': 'never'
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successful_modify():
+    ''' Test successful modify interface_minutes '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'dns_domain_name': 'test2.com',
+        'home_port': 'e0d',
+        'is_dns_update_enabled': False,
+        'listen_for_dns_query': False,
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_idempotency():
+    ''' Test modify idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'use_rest': 'never'
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_message():
+    register_responses([
+        # create, missing params
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'cluster-node-get-iter', ZRR['no_records']),
+
+        # create error
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'cluster-node-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-create', ZRR['error']),
+
+        # modify error
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['error']),
+
+        # rename error
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-rename', ZRR['error']),
+
+        # delete error
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+        ('ZAPI', 'net-interface-delete', ZRR['error']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'use_rest': 'never',
+    }
+    msg = 'Error: Missing one or more required parameters for creating interface:'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['home_port'] = 'e0d'
+    module_args['role'] = 'data'
+    msg = 'Error Creating interface abc_if: NetApp API failed. Reason - 12345:'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['home_port'] = 'new_port'
+    msg = 'Error modifying interface abc_if: NetApp API failed. Reason - 12345:'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['from_name'] = 'old_name'
+    msg = 'Error renaming old_name to abc_if: NetApp API failed. Reason - 12345:'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['state'] = 'absent'
+    msg = 'Error deleting interface abc_if: NetApp API failed. Reason - 12345:'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_successful_rename():
+    ''' Test successful '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-rename', ZRR['success']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'dns_domain_name': 'test2.com',
+        'from_name': 'from_interface_name',
+        'home_port': 'new_port',
+        'is_dns_update_enabled': False,
+        'listen_for_dns_query': False,
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_negative_rename_not_found():
+    ''' Test from interface not found '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
+    ])
+    msg = 'Error renaming interface abc_if: no interface with from_name from_interface_name.'
+    module_args = {
+        'vserver': 'vserver',
+        'dns_domain_name': 'test2.com',
+        'from_name': 'from_interface_name',
+        'home_port': 'new_port',
+        'is_dns_update_enabled': False,
+        'listen_for_dns_query': False,
+        'use_rest': 'never'
+    }
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_successful_migrate():
+    ''' Test successful '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+        ('ZAPI', 'net-interface-migrate', ZRR['success']),
+        ('ZAPI', 'net-interface-migrate', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'dns_domain_name': 'test2.com',
+        'current_node': 'new_node',
+        'is_dns_update_enabled': False,
+        'listen_for_dns_query': False,
+        'use_rest': 'never'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_negative_migrate():
+    ''' Test successful '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+
+        # 2nd try
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+        ('ZAPI', 'net-interface-migrate', ZRR['error']),
+
+        # 3rd try
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+        ('ZAPI', 'net-interface-migrate', ZRR['success']),
+        ('ZAPI', 'net-interface-migrate', ZRR['error']),
+    ])
+    module_args = {
+        'vserver': 'vserver',
+        'dns_domain_name': 'test2.com',
+        'current_port': 'new_port',
+        'is_dns_update_enabled': False,
+        'listen_for_dns_query': False,
+        'use_rest': 'never'
+    }
+    msg = 'current_node must be set to migrate'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['current_node'] = 'new_node'
+    msg = 'Error migrating new_node: NetApp API failed. Reason - 12345'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = 'Error migrating new_node: NetApp API failed. Reason - 12345'
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+SRR = rest_responses({
     'one_record_home_node': (200, {'records': [
         {'name': 'node2_abc_if',
          'uuid': '54321',
          'enabled': True,
-         'location': {'home_port': {'name': 'e0k'}, 'home_node': {'name': 'node2'}, 'node': {'name': 'node2'}}
+         'location': {'home_port': {'name': 'e0c'}, 'home_node': {'name': 'node2'}, 'node': {'name': 'node2'}}
          }]}, None),
     'one_record_vserver': (200, {'records': [
         {'name': 'abc_if',
          'uuid': '54321',
          'enabled': True,
-         'location': {'home_port': {'name': 'e0k'}, 'home_node': {'name': 'node2'}, 'node': {'name': 'node2'}}
+         'location': {'home_port': {'name': 'e0c'}, 'home_node': {'name': 'node2'}, 'node': {'name': 'node2'}}
          }]}, None),
     'two_records': (200, {'records': [{'name': 'node2_abc_if'}, {'name': 'node2_abc_if'}]}, None),
     'precluster': (500, None, {'message': 'are available in precluster.'}),
@@ -346,232 +430,202 @@ SRR = {
     'nodes': (200, {'records': [
         {'name': 'node2', 'uuid': 'uuid2', 'cluster_interfaces': [{'ip': {'address': '10.10.10.2'}}]}
     ]}, None),
-    'end_of_sequence': (None, None, "Unexpected call to send_request"),
-    'generic_error': (None, "Expected error"),
-}
-
-
-DEFAULT_ARGS = {
-    'hostname': '10.10.10.10',
-    'username': 'admin',
-    'password': 'password',
-    'home_port': 'e0k',
-    'interface_name': 'abc_if',
-}
-
-
-def set_default_args(use_rest='always', **kwargs):
-    hostname = '10.10.10.10'
-    username = 'admin'
-    password = 'password'
-    if_name = 'abc_if'
-    args = dict(DEFAULT_ARGS)
-    args['use_rest'] = use_rest
-    args.update(kwargs)
-    if 'ip' in args and args.pop('ip'):
-        args.update({
-            'address': '10.12.12.13',
-            'netmask': '255.255.192.0',
-        })
-    return args
+}, False)
 
 
 def test_rest_create_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),      # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
         ('POST', 'network/ip/interfaces', SRR['success']),          # post
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-        assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_create_ip_no_svm_idempotent():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-        assert exc.value.args[0]['changed'] is False
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_create_ip_no_svm_idempotent_localhost():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, home_node='localhost'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-        assert exc.value.args[0]['changed'] is False
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'home_node': 'localhost',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_create_ip_with_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', vserver='vserver', ip=True))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),       # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
         ('POST', 'network/ip/interfaces', SRR['success']),          # post
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-        assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'vserver': 'vserver',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_negative_create_ip():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get IP
-        ('GET', 'cluster/nodes', SRR['zero_record']),               # get nodes
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),       # get IP
+        ('GET', 'cluster/nodes', SRR['zero_records']),               # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
     msg = 'Error: Cannot guess home_node, home_node is required when home_port is present with REST.'
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_negative_create_no_ip_address():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),    # get IP
-        ('GET', 'network/fc/interfaces', SRR['zero_record']),    # get FC
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),    # get IP
+        ('GET', 'network/fc/interfaces', SRR['zero_records']),    # get FC
         ('GET', 'cluster/nodes', SRR['nodes']),     # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
     msg = 'Error: Missing one or more required parameters for creating interface: interface_type.'
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+    }
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_negative_get_multiple_ip_if():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['two_records']),       # get IP
-        ('GET', 'network/fc/interfaces', SRR['zero_record']),       # get FC
+        ('GET', 'network/fc/interfaces', SRR['zero_records']),      # get FC
         ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
     msg = 'Error: multiple records for: node2_abc_if'
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+    }
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_negative_get_multiple_fc_if():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),   # get IP
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),  # get IP
         ('GET', 'network/fc/interfaces', SRR['two_records']),   # get FC
         ('GET', 'cluster/nodes', SRR['nodes']),                 # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
     msg = 'Error: multiple records for: node2_abc_if'
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+    }
+    assert msg in create_and_apply(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_modify_idempotent_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                         # get nodes
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is False
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_modify_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, home_node='node2', interface_name='new_name', from_name='abc_if'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),           # get IP
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),           # get IP
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
         ('PATCH', 'network/ip/interfaces/54321', SRR['success']),       # patch
-        # ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'home_node': 'node2',
+        'interface_name': 'new_name',
+        'from_name': 'abc_if'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_modify_ip_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, vserver='vserver', home_node='node1'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),    # get IP
         ('PATCH', 'network/ip/interfaces/54321', SRR['success']),       # patch
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'vserver': 'vserver',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'home_node': 'node1',
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 @patch('time.sleep')
 def test_rest_migrate_ip_no_svm(sleep_mock):
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, current_node='node1'))
-    set_module_args(args)
     modified = copy.deepcopy(SRR['one_record_home_node'])
     modified[1]['records'][0]['location']['node']['name'] = 'node1'
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),      # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                             # get nodes (for get)
         ('PATCH', 'network/ip/interfaces/54321', SRR['success']),           # patch
@@ -579,44 +633,48 @@ def test_rest_migrate_ip_no_svm(sleep_mock):
         ('PATCH', 'network/ip/interfaces/54321', SRR['success']),           # patch
         ('GET', 'network/ip/interfaces', modified),                         # get
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'current_node': 'node1',
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_delete_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, state='absent'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),  # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                         # get nodes (for get)
         ('DELETE', 'network/ip/interfaces/54321', SRR['success']),      # delete
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'state': 'absent',
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_delete_idempotent_ip_no_svm():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', ip=True, state='absent'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'network/ip/interfaces', SRR['zero_record']),         # get IP
-        # ('GET', 'network/ip/interfaces', SRR['zero_record']),       # get FC
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),         # get IP
     ])
-    my_obj = interface_module()
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is False
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'state': 'absent',
+    }
+    assert not create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_netmask_to_len():
@@ -630,222 +688,237 @@ def test_len_to_netmask():
 
 
 def test_derive_fc_protocol_fcp():
-    args = dict(set_default_args(protocols=['fcp']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fcp'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.derive_fc_data_protocol()
     assert my_obj.parameters['data_protocol'] == 'fcp'
 
 
 def test_derive_fc_protocol_nvme():
-    args = dict(set_default_args(protocols=['fc-nvme']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.derive_fc_data_protocol()
     assert my_obj.parameters['data_protocol'] == 'fc_nvme'
 
 
-def test_derive_fc_protocol_nvme_empty():
-    args = dict(set_default_args(protocols=[]))
-    set_module_args(args)
+def test_derive_fc_protocol_empty():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': [],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    assert my_obj.derive_fc_data_protocol() is None
 
 
 def test_negative_derive_fc_protocol_nvme():
-    args = dict(set_default_args(protocols=['fc-nvme', 'fcp']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.derive_fc_data_protocol()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme', 'fcp'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     msg = "A single protocol entry is expected for FC interface, got ['fc-nvme', 'fcp']."
-    assert msg in exc.value.args[0]['msg']
+    assert msg in expect_and_capture_ansible_exception(my_obj.derive_fc_data_protocol, 'fail')['msg']
 
 
 def test_negative_derive_fc_protocol_nvme_mismatch():
-    args = dict(set_default_args(protocols=['fc-nvme'], data_protocol='fcp'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.derive_fc_data_protocol()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme'],
+        'data_protocol': 'fcp'
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     msg = "Error: mismatch between configured data_protocol: fcp and data_protocols: ['fc-nvme']"
-    assert msg in exc.value.args[0]['msg']
+    assert msg in expect_and_capture_ansible_exception(my_obj.derive_fc_data_protocol, 'fail')['msg']
 
 
 def test_derive_interface_type_nvme():
-    args = dict(set_default_args(protocols=['fc-nvme']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'fc'
 
 
 def test_derive_interface_type_iscsi():
-    args = dict(set_default_args(protocols=['iscsi']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['iscsi'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'ip'
 
 
 def test_derive_interface_type_cluster():
-    args = dict(set_default_args(role='cluster'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'role': 'cluster',
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.derive_interface_type()
     assert my_obj.parameters['interface_type'] == 'ip'
 
 
 def test_negative_derive_interface_type_nvme_mismatch():
-    args = dict(set_default_args(protocols=['fc-nvme'], interface_type='ip'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.derive_interface_type()
     msg = "Error: mismatch between configured interface_type: ip and derived interface_type: fc."
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme'],
+        'interface_type': 'ip'
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    assert msg in expect_and_capture_ansible_exception(my_obj.derive_interface_type, 'fail')['msg']
 
 
 def test_negative_derive_interface_type_unknown():
-    args = dict(set_default_args(protocols=['unexpected']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.derive_interface_type()
     msg = "Error: Unexpected value(s) for protocols: ['unexpected']"
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['unexpected'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    assert msg in expect_and_capture_ansible_exception(my_obj.derive_interface_type, 'fail')['msg']
 
 
 def test_negative_derive_interface_type_multiple():
-    args = dict(set_default_args(protocols=['fc-nvme', 'cifs']))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.derive_interface_type()
     msg = "Error: Incompatible value(s) for protocols: ['fc-nvme', 'cifs']"
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'protocols': ['fc-nvme', 'cifs'],
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    assert msg in expect_and_capture_ansible_exception(my_obj.derive_interface_type, 'fail')['msg']
 
 
 def test_derive_block_file_type_fcp():
-    args = dict(set_default_args())
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     block_p, file_p = my_obj.derive_block_file_type(['fcp'])
     assert block_p, not file_p
 
 
 def test_derive_block_file_type_cifs():
-    args = dict(set_default_args())
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     block_p, file_p = my_obj.derive_block_file_type(['cifs'])
     assert not block_p, file_p
 
 
 def test_map_failover_policy():
-    args = dict(set_default_args(failover_policy='local-only'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    my_obj = interface_module()
+    module_args = {
+        'use_rest': 'always',
+        'failover_policy': 'local-only',
+    }
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     my_obj.map_failover_policy()
     assert my_obj.parameters['failover_scope'] == 'home_node_only'
 
 
 def test_rest_negative_unsupported_zapi_option_fail():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True))
-    set_module_args(args)
     register_responses([
     ])
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj = interface_module()
     msg = "REST API currently does not support 'is_ipv4_link_local'"
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'is_ipv4_link_local': True,
+    }
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-def test_rest_negative_unsupported_zapi_option_force_zapi():
+def test_rest_negative_unsupported_zapi_option_force_zapi_1():
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True, use_rest='auto'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj = interface_module()
-    msg = "missing required arguments: vserver"
-    assert msg in exc.value.args[0]['msg']
+    msg = "missing required argument with ZAPI: vserver"
+    module_args = {
+        'use_rest': 'auto',
+        'ipspace': 'cluster',
+        'is_ipv4_link_local': True,
+    }
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-def test_rest_negative_unsupported_zapi_option_force_zapi(mock_netapp_lib):
+def test_rest_negative_unsupported_zapi_option_force_zapi_2(mock_netapp_lib):
     ''' create cluster '''
-    args = dict(set_default_args(ipspace='cluster', is_ipv4_link_local=True, use_rest='auto'))
-    set_module_args(args)
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
     mock_netapp_lib.return_value = False
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj = interface_module()
     msg = "the python NetApp-Lib module is required"
-    assert msg in exc.value.args[0]['msg']
+    module_args = {
+        'use_rest': 'auto',
+        'ipspace': 'cluster',
+        'is_ipv4_link_local': True,
+    }
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_negative_unsupported_rest_version():
     ''' create cluster '''
-    args = dict(set_default_args(use_rest='always'))
-    set_module_args(args)
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
     ])
-    # with pytest.raises((AnsibleExitJson, AnsibleFailJson)) as exc:
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj = interface_module()
     msg = "Error: REST requires ONTAP 9.7 or later for interface APIs."
-    assert msg in exc.value.args[0]['msg']
+    module_args = {'use_rest': 'always'}
+    assert msg == create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_auto_falls_back_to_zapi_if_ip_9_6():
@@ -863,7 +936,7 @@ def test_rest_auto_falls_back_to_zapi_if_ip_9_6():
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
 def test_rest_auto_falls_back_to_zapi_if_ip_address_library_is_missing():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest'])
+        ('GET', 'cluster', SRR['is_rest_97'])
     ])
     module_args = {'use_rest': 'auto'}
     # vserver is a required parameter with ZAPI
@@ -876,7 +949,7 @@ def test_rest_auto_falls_back_to_zapi_if_ip_address_library_is_missing():
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
 def test_rest_always_fail_if_ip_address_library_is_missing():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest'])
+        ('GET', 'cluster', SRR['is_rest_97'])
     ])
     module_args = {'use_rest': 'always'}
     error = create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
@@ -885,7 +958,7 @@ def test_rest_always_fail_if_ip_address_library_is_missing():
 
 def test_fix_errors():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest'])
+        ('GET', 'cluster', SRR['is_rest_97'])
     ])
     module_args = {'use_rest': 'auto'}
     my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
