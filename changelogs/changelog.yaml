@@ -1468,6 +1468,164 @@ releases:
     - DEVOPS-4879.yaml
     - DEVOPS-4975.yaml
     release_date: '2022-04-13'
+  21.19.0:
+    changes:
+      bugfixes:
+      - na_ontap_cifs - fixed `symlink_properties` option silently ignored for cifs
+        share creation when using REST.
+      - na_ontap_cifs - fixed error in modifying comment if it is not set while creating
+        CIFS share in REST.
+      - na_ontap_command - fix typo in example.
+      - na_ontap_interface - rename fails with 'inconsistency in rename action' for
+        cluster interface with REST.
+      - na_ontap_login_messages - fix typo in examples for username.
+      - na_ontap_nfs - fix TypeError on NoneType as ``tcp_max_xfer_size`` is not supported
+        in earlier ONTAP versions.
+      - na_ontap_nfs - fix ``Extra input`` error with ZAPI for ``is-nfsv4-enabled``.
+      - na_ontap_quotas - fix idempotency issue on ``disk_limit`` and ``soft_disk_limit``.
+      - na_ontap_service_policy - fix examples in documentation.
+      - na_ontap_volume - QOS policy was not set when using NAS application.
+      - na_ontap_volume - correctly warn when attempting to modify NAS application.
+      - na_ontap_volume - do not set encrypt on modify, as it is already handled with
+        specialized ZAPI calls.
+      - na_ontap_volume - use ``time_out`` value when creating/modifying/deleting
+        volumes with REST rathar than hardcoded value.
+      minor_changes:
+      - na_ontap_cifs - Added ``unix_symlink`` option in REST.
+      - na_ontap_cifs_server - Added ``force`` option for create, delete and rename
+        cifs server when using REST.
+      - na_ontap_cifs_server - Added ``from_name`` option to rename cifs server when
+        using REST.
+      - na_ontap_igroup_initiator - Added REST support.
+      - na_ontap_interface - use REST when ``use_rest`` is set to ``auto``.
+      - na_ontap_iscsi - Added REST support.
+      - na_ontap_nvme - Added REST support.
+      - na_ontap_qos_adaptive_policy_group - warn about deprecation, fall back to
+        ZAPI or fail when REST is desired.
+      - na_ontap_qos_policy_group - Added REST only supported option ``adaptive_qos_options``
+        for configuring adaptive policy.
+      - na_ontap_qos_policy_group - Added REST only supported option ``fixed_qos_options``
+        for configuring max/min throughput policy.
+      - na_ontap_qos_policy_group - Added REST support.
+      - na_ontap_quotas - support TB as a unit, update doc with size format description.
+      - na_ontap_rest_info - new option ``owning_resource`` for REST info that requires
+        an owning resource. For instance volume for a snapshot
+      - na_ontap_rest_info - support added for protocols/nfs/export-policies/rules
+        (Requires owning_resource to be set)
+      - na_ontap_rest_info - support added for storage/volumes/snapshots (Requires
+        owning_resource to be set)
+      - na_ontap_rest_info REST API's with hyphens in the name will now be converted
+        to underscores when ``use_python_keys`` is set to ``True`` so that YAML parsing
+        works correctly.
+      - na_ontap_rest_info support added for application/consistency-groups
+      - na_ontap_rest_info support added for cluster/fireware/history
+      - na_ontap_rest_info support added for cluster/mediators
+      - na_ontap_rest_info support added for cluster/metrocluster/dr-groups
+      - na_ontap_rest_info support added for cluster/metrocluster/interconnects
+      - na_ontap_rest_info support added for cluster/metrocluster/operations
+      - na_ontap_rest_info support added for cluster/ntp/keys
+      - na_ontap_rest_info support added for cluster/web
+      - na_ontap_rest_info support added for name-services/local-hosts
+      - na_ontap_rest_info support added for name-services/unix-groups
+      - na_ontap_rest_info support added for name-services/unix-users
+      - na_ontap_rest_info support added for network/ethernet/switch/ports
+      - na_ontap_rest_info support added for network/fc/ports
+      - na_ontap_rest_info support added for network/http-proxy
+      - na_ontap_rest_info support added for network/ip/bgp/peer-groups
+      - na_ontap_rest_info support added for protocols/audit
+      - na_ontap_rest_info support added for protocols/cifs/domains
+      - na_ontap_rest_info support added for protocols/cifs/local-groups
+      - na_ontap_rest_info support added for protocols/cifs/local-users
+      - na_ontap_rest_info support added for protocols/cifs/sessions
+      - na_ontap_rest_info support added for protocols/cifs/unix-symlink-mapping
+      - na_ontap_rest_info support added for protocols/cifs/users-and-groups/privilege
+      - na_ontap_rest_info support added for protocols/file-access-tracing/events
+      - na_ontap_rest_info support added for protocols/file-access-tracing/filters
+      - na_ontap_rest_info support added for protocols/fpolicy
+      - na_ontap_rest_info support added for protocols/locks
+      - na_ontap_rest_info support added for protocols/ndmp
+      - na_ontap_rest_info support added for protocols/ndmp/nodes
+      - na_ontap_rest_info support added for protocols/ndmp/sessions
+      - na_ontap_rest_info support added for protocols/ndmp/svms
+      - na_ontap_rest_info support added for protocols/nfs/connected-clients
+      - na_ontap_rest_info support added for protocols/nfs/kerberos/interfaces
+      - na_ontap_rest_info support added for protocols/nvme/subsystem-controllers
+      - na_ontap_rest_info support added for protocols/nvme/subsystem-maps
+      - na_ontap_rest_info support added for protocols/s3/buckets
+      - na_ontap_rest_info support added for protocols/s3/services
+      - na_ontap_rest_info support added for protocols/san/iscsi/sessions
+      - na_ontap_rest_info support added for protocols/san/portsets
+      - na_ontap_rest_info support added for protocols/san/vvol-bindings
+      - na_ontap_rest_info support added for security/anti-ransomware/suspects
+      - na_ontap_rest_info support added for security/audit
+      - na_ontap_rest_info support added for security/audit/messages
+      - na_ontap_rest_info support added for security/authentication/cluster/ad-proxy
+      - na_ontap_rest_info support added for security/authentication/cluster/ldap
+      - na_ontap_rest_info support added for security/authentication/cluster/nis
+      - na_ontap_rest_info support added for security/authentication/cluster/saml-sp
+      - na_ontap_rest_info support added for security/authentication/publickeys
+      - na_ontap_rest_info support added for security/azure-key-vaults
+      - na_ontap_rest_info support added for security/certificates
+      - na_ontap_rest_info support added for security/gcp-kms
+      - na_ontap_rest_info support added for security/ipsec
+      - na_ontap_rest_info support added for security/ipsec/ca-certificates
+      - na_ontap_rest_info support added for security/ipsec/policies
+      - na_ontap_rest_info support added for security/ipsec/security-associations
+      - na_ontap_rest_info support added for security/key-manager-configs
+      - na_ontap_rest_info support added for security/key-managers
+      - na_ontap_rest_info support added for security/key-stores
+      - na_ontap_rest_info support added for security/login/messages
+      - na_ontap_rest_info support added for security/ssh
+      - na_ontap_rest_info support added for security/ssh/svms
+      - na_ontap_rest_info support added for storage/cluster
+      - na_ontap_rest_info support added for storage/file/clone/split-loads
+      - na_ontap_rest_info support added for storage/file/clone/split-status
+      - na_ontap_rest_info support added for storage/file/clone/tokens
+      - na_ontap_rest_info support added for storage/monitored-files
+      - na_ontap_rest_info support added for storage/qos/workloads
+      - na_ontap_rest_info support added for storage/snaplock/audit-logs
+      - na_ontap_rest_info support added for storage/snaplock/compliance-clocks
+      - na_ontap_rest_info support added for storage/snaplock/event-retention/operations
+      - na_ontap_rest_info support added for storage/snaplock/event-retention/policies
+      - na_ontap_rest_info support added for storage/snaplock/file-fingerprints
+      - na_ontap_rest_info support added for storage/snaplock/litigations
+      - na_ontap_rest_info support added for storage/switches
+      - na_ontap_rest_info support added for storage/tape-devices
+      - na_ontap_rest_info support added for support/auto-update
+      - na_ontap_rest_info support added for support/auto-update/configurations
+      - na_ontap_rest_info support added for support/auto-update/updates
+      - na_ontap_rest_info support added for support/configuration-backup
+      - na_ontap_rest_info support added for support/configuration-backup/backups
+      - na_ontap_rest_info support added for support/coredump/coredumps
+      - na_ontap_rest_info support added for support/ems/messages
+      - na_ontap_rest_info support added for support/snmp
+      - na_ontap_rest_info support added for support/snmp/users
+      - na_ontap_rest_info support added for svm/migrations
+      - na_ontap_volume_autosize - improve error reporting.
+    fragments:
+    - DEVOPS-4415.yaml
+    - DEVOPS-4735.yaml
+    - DEVOPS-4769.yaml
+    - DEVOPS-4770.yaml
+    - DEVOPS-4779.yaml
+    - DEVOPS-4785.yaml
+    - DEVOPS-4786.yaml
+    - DEVOPS-4830.yaml
+    - DEVOPS-4898.yaml
+    - DEVOPS-4981.yaml
+    - DEVOPS-4984.yaml
+    - DEVOPS-4998.yaml
+    - DEVOPS-5015.yml
+    - DEVOPS-5016.yaml
+    - DEVOPS-5019.yaml
+    - DEVOPS-5026.yaml
+    - DEVOPS-5034.yaml
+    - DEVOPS-5047.yaml
+    modules:
+    - description: NetApp ONTAP S3 Buckets
+      name: na_ontap_s3_buckets
+      namespace: ''
+    release_date: '2022-05-04'
   21.2.0:
     changes:
       bugfixes:
