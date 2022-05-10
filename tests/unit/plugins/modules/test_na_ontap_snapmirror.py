@@ -4,11 +4,14 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    expect_and_capture_ansible_exception, create_module, create_and_apply, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror \
     import NetAppONTAPSnapmirror as my_module
@@ -17,239 +20,84 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-def get_args_rest():
-    """ set args for rest """
-    args = {
-        "hostname": "10.193.189.206",
-        "username": "admin",
-        "password": "netapp123",
-        "https": "yes",
-        "validate_certs": "no",
-        "use_rest": "always",
-        "state": "present",
-        "initialize": "True",
-        "relationship_state": "active",
-        "source_path": "svmsrc3:volsrc1",
-        "destination_path": "svmdst3:voldst1",
-        "relationship_type": "extended_data_protection"
+DEFAULT_ARGS = {
+    "hostname": "10.193.189.206",
+    "username": "admin",
+    "password": "netapp123",
+    "https": "yes",
+    "validate_certs": "no",
+    "state": "present",
+    "initialize": "True",
+    "relationship_state": "active",
+    "source_path": "svmsrc3:volsrc1",
+    "destination_path": "svmdst3:voldst1",
+    "relationship_type": "extended_data_protection"
+}
+
+
+def sm_rest_info(state, healthy, transfer_state=None, destination_path=DEFAULT_ARGS['destination_path']):
+    record = {
+        'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
+        'destination': {
+            'path': destination_path
+        },
+        'policy': {
+            'name': 'MirrorAndVault'
+        },
+        'state': state,
+        'healthy': healthy,
     }
-    return args
+    if transfer_state:
+        record['transfer'] = {'state': transfer_state}
+        if transfer_state == 'transferring':
+            record['transfer']['uuid'] = 'xfer_uuid'
+    if healthy is False:
+        record['unhealthy_reason'] = 'this is why the relationship is not healthy.'
 
-
-def get_args_restore_rest():
-    """ set args for rest """
-    args = {
-        "hostname": "10.193.177.97",
-        "username": "admin",
-        "password": "netapp123",
-        "https": "yes",
-        "validate_certs": "no",
-        "use_rest": "always",
-        "state": "present",
-        "initialize": "True",
-        "relationship_state": "active",
-        "source_vserver": "svmdst3",
-        "source_volume": "voldst1",
-        "source_hostname": "10.193.189.206",
-        "source_username": "admin",
-        "source_password": "netapp123",
-        "destination_vserver": "svmsrc3",
-        "destination_volume": "volsrc1",
-        "relationship_type": "restore"
+    return {
+        'records': [record],
+        'num_records': 1
     }
-    return args
 
+
+sm_policies = {
+    # We query only on the policy name, as it can be at the vserver or cluster scope.
+    # So we can have ghost records from other SVMs.
+    'records': [
+        {
+            'type': 'sync',
+            'svm': {'name': 'other'}
+        },
+        {
+            'type': 'async',
+            'svm': {'name': 'svmdst3'}
+        },
+        {
+            'type': 'svm_invalid',
+            'svm': {'name': 'bad_type'}
+        },
+        {
+            'type': 'system_invalid',
+        },
+    ],
+    'num_records': 4,
+}
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_rest_9_7_0': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
-    'snapmirror_policy': (200, dict(num_records=1, records=[dict(type='async')]), None),
-    'snapmirror_policy_unexpected_type': (200, dict(num_records=1, records=[dict(type='ohlala')]), None),
-    'sm_get_empty': (200, {
-        'records': [],
-        'num_records': 0
-    }, None),
-    'snapmirror_post_responses': (200, {
-        'uuid': '3a23a60e-542c-11ec-9779-005056b39a06',
-        'state': 'success',
-        '_links': {
-            'self': {
-                'href': '/api/cluster/jobs/3a23a60e-542c-11ec-9779-005056b39a06'
-            }
-        }
-    }, None),
-    'snapmirror_patch_responses': (200, {
-        'uuid': '3a23a60e-542c-11ec-9779-005056b39a06',
-        'state': 'success',
-    }, None),
-    'sm_get_uninitialized': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'uninitialized',
-            'healthy': True,
-        }],
-        'num_records': 1,
-    }, None),
-    'sm_get_mirrored': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'snapmirrored',
-            'transfer': {
-                'state': 'success'
-            },
-            'healthy': True,
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/'
-                }
-            }
-        }],
-        'num_records': 1,
-    }, None),
-    'sm_get_restore': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmsrc3:volsrc1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'snapmirrored',
-            'transfer': {
-                'state': 'success'
-            },
-            'healthy': True,
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/'
-                }
-            }
-        }],
-        'num_records': 1,
-    }, None),
-    'sm_get_paused': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'paused',
-            'transfer': {
-                'state': 'success'
-            },
-            'healthy': True,
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/'
-                }
-            }
-        }],
-        'num_records': 1
-    }, None),
-    'sm_get_broken': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'broken_off',
-            'transfer': {
-                'state': 'success'
-            },
-            'healthy': True,
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/'
-                }
-            }
-        }],
-        'num_records': 1
-    }, None),
-    'sm_get_data_transferring': (200, {
-        'records': [{
-            'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'paused',
-            'transfer': {
-                'state': 'transferring',
-                'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06'
-            },
-            'healthy': True,
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/'
-                }
-            }
-        }],
-        'num_records': 1
-    }, None),
+SRR = rest_responses({
+    'sm_get_uninitialized': (200, sm_rest_info('uninitialized', True), None),
+    'sm_get_mirrored': (200, sm_rest_info('snapmirrored', True, 'success'), None),
+    'sm_get_restore': (200, sm_rest_info('snapmirrored', True, 'success', destination_path=DEFAULT_ARGS['source_path']), None),
+    'sm_get_paused': (200, sm_rest_info('paused', True, 'success'), None),
+    'sm_get_broken': (200, sm_rest_info('broken_off', True, 'success'), None),
+    'sm_get_data_transferring': (200, sm_rest_info('transferring', True, 'transferring'), None),
+    'sm_get_abort': (200, sm_rest_info('sm_get_abort', False, 'failed'), None),
     'sm_get_resync': (200, {
         'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
         'description': 'PATCH /api/snapmirror/relationships/1c4467ca-5434-11ec-9779-005056b39a06',
         'state': 'success',
         'message': 'success',
         'code': 0,
-        '_links': {
-            'self': {
-                'href': '/api/cluster/jobs/6cd7ce6f-5434-11ec-9779-005056b39a06'
-            }
-        }
-    }, None),
-    'sm_get_abort': (200, {
-        'records': [{
-            'uuid': '7ddb18a6-542c-11ec-9779-005056b39a06',
-            'destination': {
-                'path': 'svmdst3:voldst1'
-            },
-            'policy': {
-                'name': 'MirrorAndVault'
-            },
-            'state': 'snapmirrored',
-            'transfer': {
-                'state': 'failed'
-            },
-            'healthy': False,
-            'unhealthy_reason': [{
-                'message': 'Transfer aborted.'
-            }],
-            '_links': {
-                'self': {
-                    'href': '/api/snapmirror/relationships/7ddb18a6/'
-                }
-            }
-        }],
-        'num_records': 1
     }, None),
     'job_status': (201, {
         'job': {
@@ -260,961 +108,979 @@ SRR = {
                 }
             }
         }
-    }, None)
+    }, None),
+    'sm_policies': (200, sm_policies, None)
+})
+
+
+def sm_info(mirror_state, status, quiesce_status):
+    return {
+        'num-records': 1,
+        'status': quiesce_status,
+        'attributes-list': {
+            'snapmirror-info': {
+                'mirror-state': mirror_state,
+                'schedule': None,
+                'source-location': 'ansible:ansible',
+                'relationship-status': status,
+                'policy': 'ansible_policy',
+                'relationship-type': 'data_protection',
+                'max-transfer-rate': 1000,
+                'identity-preserve': 'true'
+            },
+            'snapmirror-destination-info': {
+                'destination-location': 'ansible'
+            }
+        }
+    }
+
+
+# we only test for existence, contents do not matter
+volume_info = {
+    'num-records': 1,
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, parm=None, status=None, quiesce_status='passed'):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-        self.parm = parm
-        self.status = status
-        self.quiesce_status = quiesce_status
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'snapmirror':
-            xml = self.build_snapmirror_info(
-                self.parm, self.status, self.quiesce_status)
-        elif self.type == 'snapmirror_fail':
-            raise netapp_utils.zapi.NaApiError(
-                code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_snapmirror_info(mirror_state, status, quiesce_status):
-        ''' build xml data for snapmirror-entry '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {
-            'num-records': 1,
-            'status': quiesce_status,
-            'attributes-list': {
-                'snapmirror-info': {
-                    'mirror-state': mirror_state,
-                    'schedule': None,
-                    'source-location': 'ansible:ansible',
-                    'relationship-status': status,
-                    'policy': 'ansible_policy',
-                    'relationship-type': 'data_protection',
-                    'max-transfer-rate': 1000,
-                    'identity-preserve': 'true'
-                },
-                'snapmirror-destination-info': {
-                    'destination-location': 'ansible'
-                }
-            }
-        }
-        xml.translate_struct(data)
-        return xml
+ZRR = zapi_responses({
+    'sm_info': build_zapi_response(sm_info(None, 'idle', 'passed')),
+    'sm_info_broken_off': build_zapi_response(sm_info('broken_off', 'idle', 'passed')),
+    'sm_info_snapmirrored': build_zapi_response(sm_info('snapmirrored', 'idle', 'passed')),
+    'sm_info_snapmirrored_quiesced': build_zapi_response(sm_info('snapmirrored', 'quiesced', 'passed')),
+    'sm_info_uninitialized': build_zapi_response(sm_info('uninitialized', 'idle', 'passed')),
+    'volume_info': build_zapi_response(volume_info)
+})
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    msg = "missing required arguments: hostname"
+    assert create_module(my_module, {}, fail=True)['msg'] == msg
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.source_server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self):
-        policy = 'ansible' if self.onbox else 'ansible_policy'
-        use_rest = 'never'
-        source_password = 'password'
-        hostname = '10.10.10.10'
-        update = True
-        schedule = None
-        username = 'admin'
-        source_vserver = 'ansible'
-        source_path = 'ansible:ansible'
-        destination_path = 'ansible:ansible'
-        relationship_state = 'active'
-        destination_vserver = 'ansible'
-        password = 'password'
-        source_username = 'admin'
-        relationship_type = 'data_protection'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'source_path': source_path,
-            'destination_path': destination_path,
-            'policy': policy,
-            'source_vserver': source_vserver,
-            'destination_vserver': destination_vserver,
-            'relationship_type': relationship_type,
-            'schedule': schedule,
-            'source_username': source_username,
-            'source_password': source_password,
-            'relationship_state': relationship_state,
-            'update': update,
-            'use_rest': use_rest
-        })
+def test_successful_create():
+    ''' creating snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # ONTAP to ONTAP
+        ('ZAPI', 'snapmirror-create', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to ONTAP
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to ONTAP, check for update
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "schedule": "abc",
+        "identity_preserve": True,
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args.pop('schedule')
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_get_called(self):
-        ''' test snapmirror_get for non-existent snapmirror'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = self.server
-        assert my_obj.snapmirror_get is not None
+@patch('time.sleep')
+def test_negative_break(dont_sleep):
+    ''' breaking snapmirror to test quiesce time-delay failure '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # 5 retries
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "relationship_state": "broken",
+        "relationship_type": "data_protection",
+    }
+    msg = "Taking a long time to quiesce SnapMirror relationship, try again later"
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
-    def test_ensure_get_called_existing(self):
-        ''' test snapmirror_get for existing snapmirror'''
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.server = MockONTAPConnection(kind='snapmirror', status='idle')
-        assert my_obj.snapmirror_get()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
-    def test_successful_create(self, snapmirror_create):
-        ''' creating snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['schedule'] = 'abc'
-        data['identity_preserve'] = True
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_create.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
-        data['update'] = False
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', 'snapmirrored', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+@patch('time.sleep')
+def test_successful_break(dont_sleep):
+    ''' breaking snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_broken_off']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "relationship_state": "broken",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_failure_break(self):
-        ''' breaking snapmirror to test quiesce time-delay failure '''
-        data = self.set_default_args()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', 'snapmirrored', status='idle', quiesce_status='InProgress')
-        with pytest.raises(AnsibleFailJson) as exc:
-            # replace time.sleep with a noop
-            with patch('time.sleep', lambda a: None):
-                my_obj.apply()
-        assert 'Taking a long time to Quiescing SnapMirror, try again later' in exc.value.args[
-            0]['msg']
 
-    def test_successful_break(self):
-        ''' breaking snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', 'snapmirrored', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(self.set_default_args())
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', 'broken-off', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+def test_successful_create_without_initialize():
+    ''' creating snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # ONTAP to ONTAP
+        ('ZAPI', 'snapmirror-create', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to ONTAP
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to ONTAP, check for update
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "schedule": "abc",
+        "relationship_type": "data_protection",
+        "initialize": False,
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args.pop('schedule')
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_successful_create_without_initialize(self):
-        ''' creating snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['schedule'] = 'abc'
-        data['identity_preserve'] = True
-        data['initialize'] = False
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        my_obj.server = MockONTAPConnection(
-            'snapmirror', 'Uninitialized', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.check_elementsw_parameters')
-    def test_successful_element_ontap_create(self, check_param, snapmirror_create):
-        ''' creating ElementSW to ONTAP snapmirror '''
-        data = self.set_default_args()
-        data['schedule'] = 'abc'
-        data['connection_type'] = 'elementsw_ontap'
-        data['source_hostname'] = '10.10.10.10'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_create.assert_called_with()
-        check_param.assert_called_with()
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
+def test_successful_element_ontap_create(connection):
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # element to ONTAP
+        ('ZAPI', 'snapmirror-create', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # element to ONTAP
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # element to ONTAP, check for update
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+    ])
+    mock_elem, mock_helper = Mock(), Mock()
+    connection.return_value = mock_helper, mock_elem
+    mock_elem.get_cluster_info.return_value.cluster_info.svip = '10.10.10.11'
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "connection_type": "elementsw_ontap",
+        "schedule": "abc",
+        "source_path": "10.10.10.11:/lun/1000",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args.pop('schedule')
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_create')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.check_elementsw_parameters')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_get')
-    def test_successful_ontap_element_create(self, snapmirror_get, check_param, snapmirror_create):
-        ''' creating ONTAP to ElementSW snapmirror '''
-        data = self.set_default_args()
-        data['schedule'] = 'abc'
-        data['connection_type'] = 'ontap_elementsw'
-        data['source_hostname'] = '10.10.10.10'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        snapmirror_get.side_effect = [
-            Mock(),
-            None
-        ]
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_create.assert_called_with()
-        check_param.assert_called_with('destination')
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.delete_snapmirror')
-    def test_successful_delete(self, delete_snapmirror):
-        ''' deleting snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        data['source_hostname'] = '10.10.10.10'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        my_obj.get_destination = Mock(return_value=True)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        delete_snapmirror.assert_called_with(False, 'data_protection', None)
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
+def test_successful_ontap_element_create(connection):
+    ''' check elementsw parameters for source '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # an existing relationship is required element to ONTAP
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # ONTAP to element
+        ('ZAPI', 'snapmirror-create', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # an existing relationship is required element to ONTAP
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to element
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to element, check for update
+    ])
+    mock_elem, mock_helper = Mock(), Mock()
+    connection.return_value = mock_helper, mock_elem
+    mock_elem.get_cluster_info.return_value.cluster_info.svip = '10.10.10.11'
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "10.10.10.10",
+        "connection_type": "ontap_elementsw",
+        "schedule": "abc",
+        "destination_path": "10.10.10.11:/lun/1000",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args.pop('schedule')
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_successful_delete_without_source_hostname_check(self):
-        ''' source cluster hostname is optional when source is unknown'''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    def test_successful_delete_with_source_path_state_absent_check(self):
-        ''' with source cluster hostname but with state=present'''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        data.pop('destination_path')
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        assert 'Missing parameters: Source path or Destination path' in exc.value.args[
-            0]['msg']
+@patch('time.sleep')
+def test_successful_delete(dont_sleep):
+    ''' deleting snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-destination-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-release', ZRR['success']),
+        ('ZAPI', 'snapmirror-destroy', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+        "source_hostname": "10.10.10.10",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_successful_delete_check_get_destination(self):
-        ''' check parameter source cluster hostname deleting snapmirror on both source & dest'''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        data['source_hostname'] = '10.10.10.10'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-            my_obj.source_server = MockONTAPConnection(
-                'snapmirror', status='idle')
-        res = my_obj.get_destination()
-        assert res is True
 
-    def test_snapmirror_release(self):
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.source_server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        my_obj.snapmirror_release()
-        assert my_obj.source_server.xml_in['destination-location'] == data['destination_path']
+@patch('time.sleep')
+def test_successful_delete_without_source_hostname_check(dont_sleep):
+    ''' source cluster hostname is optional when source is unknown'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['success']),
+        ('ZAPI', 'snapmirror-destroy', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_resume')
-    def test_snapmirror_resume(self, snapmirror_resume):
-        ''' resuming snapmirror '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='quiesced', parm='snapmirrored')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_resume.assert_called_with()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_restore')
-    def test_snapmirror_restore(self, snapmirror_restore):
-        ''' restore snapmirror '''
-        data = self.set_default_args()
-        data['relationship_type'] = 'restore'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_restore.assert_called_with()
+def test_negative_delete_with_destination_path_missing():
+    ''' with misisng destination_path'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+        "source_hostname": "source_host",
+    }
+    msg = "Missing parameters: Source path or Destination path"
+    assert create_and_apply(my_module, args, module_args, fail=True)['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.delete_snapmirror')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.wait_for_status')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_abort')
-    def test_successful_abort(self, snapmirror_abort, wait_for_status, delete_snapmirror):
-        ''' deleting snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        data['source_hostname'] = '10.10.10.10'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='transferring')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_abort.assert_called_with()
-        wait_for_status.assert_called_with()
-        delete_snapmirror.assert_called_with(False, 'data_protection', None)
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_modify')
-    def test_successful_modify(self, snapmirror_modify):
-        ''' modifying snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['policy'] = 'ansible2'
-        data['schedule'] = 'abc2'
-        data['max_transfer_rate'] = 2000
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_modify.assert_called_with(
-            {'policy': 'ansible2', 'schedule': 'abc2', 'max_transfer_rate': 2000})
-        # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
-        data['update'] = False
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_delete_check_get_destination():
+    register_responses([
+        ('ZAPI', 'snapmirror-get-destination-iter', ZRR['sm_info']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+        "source_hostname": "source_host",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.set_source_cluster_connection() is None
+    assert my_obj.get_destination()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.snapmirror_initialize')
-    def test_successful_initialize(self, snapmirror_initialize):
-        ''' initialize snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='uninitialized')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        snapmirror_initialize.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        data = self.set_default_args()
-        data['update'] = False
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    def test_successful_update(self):
-        ''' update snapmirror and testing idempotency '''
-        data = self.set_default_args()
-        data['policy'] = 'ansible2'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror', status='idle')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+def test_snapmirror_release():
+    register_responses([
+        ('ZAPI', 'snapmirror-release', ZRR['success']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "destination_vserver",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.set_source_cluster_connection() is None
+    assert my_obj.snapmirror_release() is None
 
-    def test_elementsw_volume_exists(self):
-        ''' elementsw_volume_exists '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        mock_helper = Mock()
-        mock_helper.volume_id_exists.side_effect = [1000, None]
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        my_obj.check_if_elementsw_volume_exists(
-            '10.10.10.10:/lun/1000', mock_helper)
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.check_if_elementsw_volume_exists(
-                '10.10.10.10:/lun/1000', mock_helper)
-        assert 'Error: Source volume does not exist in the ElementSW cluster' in exc.value.args[
-            0]['msg']
 
-    def test_elementsw_svip_exists(self):
-        ''' svip_exists '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        mock_helper = Mock()
-        mock_helper.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        my_obj.validate_elementsw_svip('10.10.10.10:/lun/1000', mock_helper)
+def test_snapmirror_resume():
+    ''' resuming snapmirror '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-resume', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+        # idempotency test
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_elementsw_svip_exists_negative(self):
-        ''' svip_exists negative testing'''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        mock_helper = Mock()
-        mock_helper.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.validate_elementsw_svip(
-                '10.10.10.11:/lun/1000', mock_helper)
-        assert 'Error: Invalid SVIP' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.validate_elementsw_svip')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.check_if_elementsw_volume_exists')
-    def test_check_elementsw_params_source(self, validate_volume, validate_svip, connection):
-        ''' check elementsw parameters for source '''
-        data = self.set_default_args()
-        data['source_path'] = '10.10.10.10:/lun/1000'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        mock_elem, mock_helper = Mock(), Mock()
-        connection.return_value = mock_helper, mock_elem
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        my_obj.check_elementsw_parameters('source')
-        connection.called_once_with('source')
-        validate_svip.called_once_with(data['source_path'], mock_elem)
-        validate_volume.called_once_with(data['source_path'], mock_helper)
+def test_snapmirror_restore():
+    ''' restore snapmirror '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        # ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-restore', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+        # idempotency test - TODO
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-restore', ZRR['success']),
+        # ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "restore",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    # TODO: should be idempotent!   But we don't read the current state!
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_check_elementsw_params_negative(self):
-        ''' check elementsw parameters for source negative testing '''
-        data = self.set_default_args()
-        del data['source_path']
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.check_elementsw_parameters('source')
-        assert 'Error: Missing required parameter source_path' in exc.value.args[0]['msg']
 
-    def test_check_elementsw_params_invalid(self):
-        ''' check elementsw parameters for source invalid testing '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.check_elementsw_parameters('source')
-        assert 'Error: invalid source_path' in exc.value.args[0]['msg']
+@patch('time.sleep')
+def test_successful_abort(dont_sleep):
+    ''' aborting snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['success']),
+        ('ZAPI', 'snapmirror-destroy', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+        # idempotency test
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_elementsw_source_path_format(self):
-        ''' test element_source_path_format_matches '''
-        data = self.set_default_args()
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        match = my_obj.element_source_path_format_matches('1.1.1.1:dummy')
-        assert match is None
-        match = my_obj.element_source_path_format_matches(
-            '10.10.10.10:/lun/10')
-        assert match is not None
 
-    def test_remote_volume_exists(self):
-        ''' test check_if_remote_volume_exists '''
-        data = self.set_default_args()
-        data['source_volume'] = 'test_vol'
-        data['destination_volume'] = 'test_vol2'
-        set_module_args(data)
-        my_obj = my_module()
-        my_obj.set_source_cluster_connection = Mock(return_value=None)
-        my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-            my_obj.source_server = MockONTAPConnection(
-                'snapmirror', status='idle', parm='snapmirrored')
-        res = my_obj.check_if_remote_volume_exists()
-        assert res
+def test_successful_modify():
+    ''' modifying snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-modify', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+        # idempotency test
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+        "policy": "ansible2",
+        "schedule": "abc2",
+        "max_transfer_rate": 2000,
 
-    def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args()
-        data['source_hostname'] = '10.10.10.10'
-        data['source_volume'] = 'ansible'
-        data['destination_volume'] = 'ansible2'
-        set_module_args(data)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('snapmirror_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_get()
-        assert 'Error fetching snapmirror info: ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_abort()
-        assert 'Error aborting SnapMirror relationship :' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_quiesce = Mock(return_value=None)
-            my_obj.snapmirror_break()
-        assert 'Error breaking SnapMirror relationship :' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_get = Mock(
-                return_value={'mirror_state': 'transferring'})
-            my_obj.snapmirror_initialize()
-        assert 'Error initializing SnapMirror :' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_update('data_protection')
-        assert 'Error updating SnapMirror :' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.set_source_cluster_connection = Mock(return_value=True)
-            my_obj.source_server = MockONTAPConnection('snapmirror_fail')
-            my_obj.check_if_remote_volume_exists()
-        assert 'Error fetching source volume details' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.check_if_remote_volume_exists = Mock(return_value=True)
-            my_obj.source_server = MockONTAPConnection()
-            my_obj.snapmirror_create()
-        assert 'Error creating SnapMirror ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_quiesce = Mock(return_value=None)
-            my_obj.get_destination = Mock(return_value=None)
-            my_obj.snapmirror_break = Mock(return_value=None)
-            my_obj.delete_snapmirror(False, 'data_protection', None)
-        assert 'Error deleting SnapMirror :' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.snapmirror_modify({'policy': 'ansible2', 'schedule': 'abc2'})
-        assert 'Error modifying SnapMirror schedule or policy :' in exc.value.args[0]['msg']
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_rest_create(self, mock_request):
-        ''' creating snapmirror and testing idempotency '''
-        set_module_args(get_args_rest())
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_empty'],
-            SRR['job_status'],
-            SRR['snapmirror_post_responses'],
-            SRR['sm_get_uninitialized'],  # SM get while SM init
-            SRR['sm_get_uninitialized'],  # SM get inside SM init
-            SRR['job_status'],
-            SRR['snapmirror_patch_responses'],
-            SRR['sm_get_mirrored'],
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    def test_negative_rest_create(self):
-        ''' creating snapmirror with unsupported REST options '''
-        data = self.set_default_args()
-        data['schedule'] = 'abc'
-        data['identity_preserve'] = True
-        data['use_rest'] = 'always'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_module()
-        msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"
-        assert msg in exc.value.args[0]['msg']
+def test_successful_initialize():
+    ''' initialize snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_uninitialized']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_initialize(self, mock_request):
-        ''' snapmirror initialize testing '''
-        set_module_args(get_args_rest())
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_uninitialized'],  # first snapmirror_initialize calls sm_get
-            SRR['sm_get_uninitialized'],  # Inside SM init calls sm_get
-            SRR['sm_get_uninitialized'],
-            SRR['snapmirror_patch_responses'],  # Inside SM init patch response
-            SRR['job_status'],
-            SRR['sm_get_uninitialized'],   # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_update(self, mock_request):
-        ''' snapmirror initialize testing '''
-        set_module_args(get_args_rest())
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_mirrored'],  # first sm_get
-            SRR['sm_get_mirrored'],  # appy update calls again sm_get
-            SRR['sm_get_mirrored'],  # sm update fn calls again sm_get
-            SRR['snapmirror_patch_responses'],  # sm update
-            SRR['job_status'],
-            SRR['sm_get_mirrored'],   # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+def test_successful_update():
+    ''' update snapmirror and testing idempotency '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored']),   # update reads mirror_state
+        ('ZAPI', 'snapmirror-update', ZRR['success']),                  # check health
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('time.sleep')
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_sm_break_success_no_data_transfer(self, mock_request, dont_sleep):
-        ''' testing snapmirror break when no_data are transferring '''
-        data = get_args_rest()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
-            SRR['sm_get_mirrored'],  # sm break calls again sm_get
-            SRR['sm_get_mirrored'],  # sm quiesce api fn calls again sm_get
-            SRR['snapmirror_patch_responses'],  # SM quiesce response
-            SRR['job_status'],
-            # sm quiesce validate the state which calls sm_get
-            SRR['sm_get_mirrored'],
-            # sm quiesce validate the state which calls sm_get after wait
-            SRR['sm_get_paused'],
-            SRR['sm_get_paused'],   # sm break calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm break response
-            SRR['job_status'],
-            SRR['sm_get_paused'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_sm_break_success_no_data_transfer_idempotency(self, mock_request):
-        ''' testing snapmirror break when no_data are transferring idempotency '''
-        data = get_args_rest()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_broken'],  # apply first sm_get with no data transfer
-            SRR['sm_get_broken'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_elementsw_volume_exists():
+    ''' elementsw_volume_exists '''
+    mock_helper = Mock()
+    mock_helper.volume_id_exists.side_effect = [1000, None]
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_username": "source_user",
+        # "source_password": "source_password",
+        "source_path": "10.10.10.10:/lun/1000",
+        # "source_volume": "source_volume",
+        # "source_vserver": "source_vserver",
+        # "destination_volume": "destination_volume",
+        # "destination_vserver": "destination_vserver",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.check_if_elementsw_volume_exists('10.10.10.10:/lun/1000', mock_helper) is None
+    expect_and_capture_ansible_exception(my_obj.check_if_elementsw_volume_exists, 'fail', '10.10.10.11:/lun/1000', mock_helper)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_sm_break_fails_if_uninit(self, mock_request):
-        ''' testing snapmirror break fails if sm state uninitialized '''
-        data = get_args_rest()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            # apply first sm_get with state uninitialized
-            SRR['sm_get_uninitialized'],
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        msg = "SnapMirror relationship cannot be broken if mirror state is uninitialized"
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('time.sleep')
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_quiesce_fail_when_state_not_paused(self, mock_request, dont_sleep):
-        ''' testing snapmirror break when no_data are transferring '''
-        data = get_args_rest()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
-            SRR['sm_get_mirrored'],  # sm break calls again sm_get
-            SRR['sm_get_mirrored'],  # sm quiesce api fn calls again sm_get
-            SRR['job_status'],
-            SRR['snapmirror_patch_responses'],  # SM quiesce response
-            # SM quiesce validate the state which calls sm_get after wait
-            SRR['sm_get_mirrored'],
-            SRR['sm_get_mirrored'],   # first fail
-            SRR['sm_get_mirrored'],   # second fail
-            SRR['sm_get_mirrored'],   # third fail
-            SRR['sm_get_mirrored'],   # fourth fail
-            SRR['end_of_sequence']   # fifth fail
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        msg = "Taking a long time to Quiescing SnapMirror, try again later"
-        assert exc.value.args[0]['msg'] == msg
+def test_elementsw_svip_exists():
+    ''' svip_exists '''
+    mock_elem = Mock()
+    mock_elem.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_username": "source_user",
+        # "source_password": "source_password",
+        "source_path": "10.10.10.10:/lun/1000",
+        # "source_volume": "source_volume",
+        # "source_vserver": "source_vserver",
+        # "destination_volume": "destination_volume",
+        # "destination_vserver": "destination_vserver",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.validate_elementsw_svip('10.10.10.10:/lun/1000', mock_elem) is None
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_break_fails_if_data_is_transferring(self, mock_request):
-        ''' testing snapmirror break when no_data are transferring '''
-        data = get_args_rest()
-        data['relationship_state'] = 'broken'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            # apply first sm_get with data transfer
-            SRR['sm_get_data_transferring'],
-            SRR['sm_get_data_transferring'],  # sm break calls again sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        msg = "snapmirror data are transferring"
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_resync_when_state_is_broken(self, mock_request):
-        ''' resync when snapmirror state is broken and relationship_state active  '''
-        set_module_args(get_args_rest())
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_broken'],  # apply first sm_get with state broken_off
-            SRR['sm_get_broken'],  # sm resync api calls again sm_get
-            SRR['job_status'],
-            SRR['snapmirror_patch_responses'],  # sm resync response
-            SRR['sm_get_mirrored'],  # check_health calls sm_get
-            SRR['end_of_sequence'],
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+def test_elementsw_svip_exists_negative():
+    ''' svip_exists negative testing'''
+    mock_elem = Mock()
+    mock_elem.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_username": "source_user",
+        "source_path": "10.10.10.10:/lun/1000",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    expect_and_capture_ansible_exception(my_obj.validate_elementsw_svip, 'fail', '10.10.10.11:/lun/1000', mock_elem)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_resume_when_state_quiesced(self, mock_request):
-        ''' resync when snapmirror state is broken and relationship_state active  '''
-        set_module_args(get_args_rest())
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_paused'],  # apply first sm_get with state quiesced
-            SRR['sm_get_paused'],  # sm resync api calls again sm_get
-            SRR['snapmirror_patch_responses'],  # sm resync response
-            SRR['job_status'],
-            SRR['sm_get_mirrored'],  # sm update calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm update response
-            SRR['job_status'],
-            SRR['sm_get_mirrored'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('time.sleep')
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_delete(self, mock_request, dont_sleep):
-        ''' snapmirror delete '''
-        data = get_args_rest()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_mirrored'],  # apply first sm_get with no data transfer
-            SRR['sm_get_mirrored'],  # sm break calls again sm_get
-            SRR['sm_get_mirrored'],  # sm quiesce api fn calls again sm_get
-            SRR['snapmirror_patch_responses'],  # sm quiesce response
-            SRR['job_status'],
-            # sm quiesce validate the state which calls sm_get
-            SRR['sm_get_paused'],
-            # sm quiesce validate the state which calls sm_get after wait with 0 iter
-            SRR['sm_get_paused'],
-            SRR['sm_get_paused'],   # sm break calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm break response
-            SRR['job_status'],
-            SRR['sm_get_broken'],   # sm delete call sm_get
-            SRR['snapmirror_patch_responses'],  # sm delete response
-            SRR['job_status'],
-            SRR['sm_get_empty'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
+def test_check_elementsw_params_source(connection):
+    ''' check elementsw parameters for source '''
+    mock_elem, mock_helper = Mock(), Mock()
+    connection.return_value = mock_helper, mock_elem
+    mock_elem.get_cluster_info.return_value.cluster_info.svip = '10.10.10.10'
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_username": "source_user",
+        "source_path": "10.10.10.10:/lun/1000",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.check_elementsw_parameters('source') is None
 
-    @patch('time.sleep')
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_delete_calls_abort(self, mock_request, dont_sleep):
-        ''' snapmirror delete calls abort when transfer state is in transferring'''
-        data = get_args_rest()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            # apply first sm_get with data transfer
-            SRR['sm_get_data_transferring'],
-            SRR['empty_good'],  # sm abort response
-            SRR['job_status'],
-            SRR['sm_get_abort'],  # sm break calls again sm_get
-            SRR['sm_get_mirrored'],  # sm quiesce api fn calls again sm_get
-            SRR['snapmirror_patch_responses'],  # sm quiesce response
-            SRR['job_status'],
-            # sm quiesce validate the state which calls sm_get
-            SRR['sm_get_paused'],
-            # sm quiesce validate the state which calls sm_get after wait with 0 iter
-            SRR['sm_get_paused'],
-            SRR['sm_get_paused'],   # sm break calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm break response
-            SRR['job_status'],
-            SRR['sm_get_broken'],   # sm delete call sm_get
-            SRR['snapmirror_patch_responses'],  # sm delete response
-            SRR['job_status'],
-            SRR['sm_get_empty'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_modify(self, mock_request):
-        ''' snapmirror modify'''
-        data = get_args_rest()
-        data['policy'] = 'Asynchronous'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['sm_get_mirrored'],  # apply first sm_get
-            SRR['sm_get_mirrored'],  # sm modify calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm modify response
-            SRR['job_status'],
-            SRR['sm_get_mirrored'],  # sm update calls sm_get
-            SRR['snapmirror_patch_responses'],  # sm update response
-            SRR['job_status'],
-            SRR['sm_get_empty'],  # check_health calls sm_get
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+def test_check_elementsw_params_negative():
+    ''' check elementsw parameters for source negative testing '''
+    args = dict(DEFAULT_ARGS)
+    del args['source_path']
+    module_args = {
+        "use_rest": "never",
+    }
+    msg = 'Error: Missing required parameter source_path'
+    my_obj = create_module(my_module, args, module_args)
+    assert msg in expect_and_capture_ansible_exception(my_obj.check_elementsw_parameters, 'fail', 'source')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_snapmirror_restore(self, mock_request):
-        ''' snapmirror restore '''
-        data = get_args_restore_rest()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            # SRR['sm_get_mirrored'],  # apply first sm_get
-            SRR['job_status'],  # first post job response
-            SRR['snapmirror_post_responses'],  # first post response
-            SRR['sm_get_mirrored'],  # After first post call to get relationship uuid
-            SRR['job_status'],  # second post job response
-            SRR['snapmirror_post_responses'],  # second post response
-            SRR['sm_get_mirrored'],  # check_health calls sm_get
-            SRR['end_of_sequence'],
-        ]
-        my_obj = my_module()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
+
+def test_check_elementsw_params_invalid():
+    ''' check elementsw parameters for source invalid testing '''
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "destination_vserver",
+    }
+    msg = 'Error: invalid source_path'
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert msg in expect_and_capture_ansible_exception(my_obj.check_elementsw_parameters, 'fail', 'source')['msg']
+
+
+def test_elementsw_source_path_format():
+    ''' test element_source_path_format_matches '''
+    register_responses([
+        ('ZAPI', 'volume-get-iter', ZRR['volume_info']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "destination_vserver",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.check_if_remote_volume_exists()
+    assert my_obj.element_source_path_format_matches('1.1.1.1:dummy') is None
+    assert my_obj.element_source_path_format_matches('10.10.10.10:/lun/10') is not None
+
+
+def test_remote_volume_exists():
+    ''' test check_if_remote_volume_exists '''
+    register_responses([
+        ('ZAPI', 'volume-get-iter', ZRR['volume_info']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "destination_vserver",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.check_if_remote_volume_exists()
+
+
+@patch('time.sleep')
+def test_if_all_methods_catch_exception(dont_sleep):
+    module_args = {
+        "use_rest": "never",
+        "source_hostname": "source_host",
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "destination_vserver",
+    }
+    ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    tests = [
+        (my_obj.snapmirror_abort, [('snapmirror-abort', 'error')], 'Error aborting SnapMirror relationship :'),
+        (my_obj.snapmirror_break, [('snapmirror-quiesce', 'success'), ('snapmirror-get-iter', 'sm_info_snapmirrored_quiesced'), ('snapmirror-break', 'error')],
+         'Error breaking SnapMirror relationship :'),
+        (my_obj.snapmirror_get, [('snapmirror-get-iter', 'error')], 'Error fetching snapmirror info:'),
+        (my_obj.snapmirror_initialize, [('snapmirror-get-iter', 'sm_info'), ('snapmirror-initialize', 'error')], 'Error initializing SnapMirror :'),
+        (my_obj.snapmirror_update, [('snapmirror-update', 'error')], 'Error updating SnapMirror :'),
+        (my_obj.check_if_remote_volume_exists, [('volume-get-iter', 'error')], 'Error fetching source volume details source_volume :'),
+        (my_obj.snapmirror_create, [('volume-get-iter', 'success')], 'Source volume does not exist. Please specify a volume that exists'),
+        (my_obj.snapmirror_create, [('volume-get-iter', 'volume_info'), ('snapmirror-create', 'error')], 'Error creating SnapMirror '),
+        (my_obj.snapmirror_delete, [('snapmirror-destroy', 'error')], 'Error deleting SnapMirror :'),
+        (my_obj.snapmirror_modify, [('snapmirror-modify', 'error')], 'Error modifying SnapMirror schedule or policy :'),
+
+    ]
+    for (function, zapis, error) in tests:
+        calls = [('ZAPI', zapi[0], ZRR[zapi[1]]) for zapi in zapis]
+        register_responses(calls)
+        if function in (my_obj.snapmirror_update, my_obj.snapmirror_modify):
+            assert error in expect_and_capture_ansible_exception(function, 'fail', {})['msg']
+        else:
+            assert error in expect_and_capture_ansible_exception(function, 'fail')['msg']
+
+
+def test_successful_rest_create():
+    ''' creating snapmirror and testing idempotency '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),
+        ('POST', 'snapmirror/relationships', SRR['success']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_negative_rest_create():
+    ''' creating snapmirror with unsupported REST options '''
+    module_args = {
+        "use_rest": "always",
+        "identity_preserve": True,
+        "schedule": "abc",
+        "relationship_type": "data_protection",
+    }
+    msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"
+    assert create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_negative_rest_get_error():
+    ''' creating snapmirror with API error '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['generic_error']),
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    msg = "Error getting SnapMirror svmdst3:voldst1: calling: snapmirror/relationships: got Expected error."
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_negative_rest_create_error():
+    ''' creating snapmirror with API error '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),
+        ('POST', 'snapmirror/relationships', SRR['generic_error']),
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    msg = "Error Creating Snapmirror: calling: snapmirror/relationships: got Expected error."
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_snapmirror_initialize():
+    ''' snapmirror initialize testing '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # Inside SM init patch response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),   # get to check if update is needed
+        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),   # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_snapmirror_update():
+    ''' snapmirror initialize testing '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # first sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply update calls again sm_get
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_sm_break_success_no_data_transfer(dont_sleep):
+    ''' testing snapmirror break when no_data are transferring '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get with no data transfer
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # SM quiesce response to pause
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm quiesce api fn calls again sm_get
+        # sm quiesce validate the state which calls sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        # sm quiesce validate the state which calls sm_get after wait
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm break response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_state": "broken",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_sm_break_success_no_data_transfer_idempotency():
+    ''' testing snapmirror break when no_data are transferring idempotency '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_broken']),  # apply first sm_get with no data transfer
+        ('GET', 'snapmirror/relationships', SRR['sm_get_broken']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_state": "broken",
+    }
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_sm_break_fails_if_uninit():
+    ''' testing snapmirror break fails if sm state uninitialized '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        # apply first sm_get with state uninitialized
+        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_state": "broken",
+    }
+    msg = "SnapMirror relationship cannot be broken if mirror state is uninitialized"
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+@patch('time.sleep')
+def test_rest_snapmirror_quiesce_fail_when_state_not_paused(dont_sleep):
+    ''' testing snapmirror break when no_data are transferring '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get with no data transfer
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # SM quiesce response
+        # SM quiesce validate the state which calls sm_get after wait
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # first fail
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # second fail
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # third fail
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # fourth fail
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_state": "broken",
+    }
+    msg = "Taking a long time to quiesce SnapMirror relationship, try again later"
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_snapmirror_break_fails_if_data_is_transferring():
+    ''' testing snapmirror break when no_data are transferring '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        # apply first sm_get with data transfer
+        ('GET', 'snapmirror/relationships', SRR['sm_get_data_transferring']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_state": "broken",
+    }
+    msg = "snapmirror data are transferring"
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_resync_when_state_is_broken():
+    ''' resync when snapmirror state is broken and relationship_state active  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_broken']),  # apply first sm_get with state broken_off
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm resync response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_resume_when_state_quiesced():
+    ''' resync when snapmirror state is broken and relationship_state active  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),  # apply first sm_get with state quiesced
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm resync response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_snapmirror_delete(dont_sleep):
+    ''' snapmirror delete '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get with no data transfer
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm quiesce response
+        # sm quiesce validate the state which calls sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        # sm quiesce validate the state which calls sm_get after wait with 0 iter
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm break response
+        ('DELETE', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm delete response
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_snapmirror_delete_calls_abort(dont_sleep):
+    ''' snapmirror delete calls abort when transfer state is in transferring'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        # apply first sm_get with data transfer
+        ('GET', 'snapmirror/relationships', SRR['sm_get_data_transferring']),
+        # abort
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers/xfer_uuid', SRR['empty_good']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_abort']),       # wait_for_status calls again sm_get
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm quiesce response
+        # sm quiesce validate the state which calls sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        # sm quiesce validate the state which calls sm_get after wait with 0 iter
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm break response
+        ('DELETE', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm delete response
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),       # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_snapmirror_modify():
+    ''' snapmirror modify'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm modify response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get to check mirror state
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update response
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "policy": "Asynchronous",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_snapmirror_restore():
+    ''' snapmirror restore '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        # ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get
+        ('POST', 'snapmirror/relationships', SRR['success']),  # first post response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # After first post call to get relationship uuid
+        ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),  # second post response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "relationship_type": "restore"
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_snapmirror_create_and_initialize_not_found():
+    ''' snapmirror restore '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),   # apply first sm_get
+        ('GET', 'snapmirror/policies', SRR['zero_records']),        # policy not found
+    ])
+    module_args = {
+        "use_rest": "always",
+        "create_destination": {"enabled": True},
+        "policy": "sm_policy"
+    }
+    error = 'Error: cannot find policy sm_policy for vserver svmdst3'
+    assert error == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_error_snapmirror_create_and_initialize_bad_type():
+    ''' snapmirror restore '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),   # apply first sm_get
+        ('GET', 'snapmirror/policies', SRR['sm_policies']),         # policy
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),   # apply first sm_get
+        ('GET', 'snapmirror/policies', SRR['sm_policies']),         # policy
+    ])
+    module_args = {
+        "use_rest": "always",
+        "create_destination": {"enabled": True},
+        "policy": "sm_policy",
+        "destination_vserver": "bad_type",
+        "source_vserver": "any"
+    }
+    error = 'Error: unexpected type: svm_invalid for policy sm_policy for vserver bad_type'
+    assert error == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['destination_vserver'] = 'cluster_scope_only'
+    error = 'Error: unexpected type: system_invalid for policy sm_policy for vserver cluster_scope_only'
+    assert error == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_snapmirror_create_and_initialize():
+    ''' snapmirror restore '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),       # apply first sm_get
+        ('GET', 'snapmirror/policies', SRR['sm_policies']),             # policy
+        ('POST', 'snapmirror/relationships', SRR['success']),           # first post response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "create_destination": {"enabled": True},
+        "policy": "sm_policy"
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']

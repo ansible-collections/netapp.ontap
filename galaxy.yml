@@ -1,6 +1,6 @@
 namespace: "netapp"
 name: "ontap"
-version: "21.19.0"
+version: "21.19.1"
 authors:
     - "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
 readme: README.md

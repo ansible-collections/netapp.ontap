@@ -35,6 +35,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.19.1
+
+### Bug Fixes
+  - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced before breaking.
+  - na_ontap_snapmirror - when using REST with a policy, fix AttributeError - 'str' object has no attribute 'get'.
+
 ## 21.19.0
 
 ### Minor Changes
