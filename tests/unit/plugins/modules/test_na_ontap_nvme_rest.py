@@ -12,8 +12,8 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible, \
+    create_and_apply, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -48,8 +48,7 @@ def test_get_nvme_none():
         ('GET', 'cluster', SRR['is_rest_96']),
         ('GET', 'protocols/nvme/services', SRR['empty_records'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     assert my_obj.get_nvme_rest() is None
 
 

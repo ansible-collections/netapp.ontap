@@ -38,6 +38,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.19.1
 
 ### Bug Fixes
+  - na_ontap_nvme - fixed invalid boolean value error for `status_admin` when creating nvme service in ZAPI.
+  - na_ontap_nvme - fixed `status_admin` option is ignored if set to False when creating nvme service in REST.
   - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced before breaking.
   - na_ontap_snapmirror - when using REST with a policy, fix AttributeError - 'str' object has no attribute 'get'.
 

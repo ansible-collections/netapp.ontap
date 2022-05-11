@@ -35,7 +35,7 @@ version_added: 2.8.0
 EXAMPLES = """
 
     - name: Create NVMe
-      na_ontap_nvme:
+      netapp.ontap.na_ontap_nvme:
         state: present
         status_admin: False
         vserver: "{{ vserver }}"
@@ -44,7 +44,7 @@ EXAMPLES = """
         password: "{{ password }}"
 
     - name: Modify NVMe
-      na_ontap_nvme:
+      netapp.ontap.na_ontap_nvme:
         state: present
         status_admin: True
         vserver: "{{ vserver }}"
@@ -53,7 +53,7 @@ EXAMPLES = """
         password: "{{ password }}"
 
     - name: Delete NVMe
-      na_ontap_nvme:
+      netapp.ontap.na_ontap_nvme:
         state: absent
         vserver: "{{ vserver }}"
         hostname: "{{ hostname }}"
@@ -71,8 +71,6 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppONTAPNVMe:
@@ -100,8 +98,8 @@ class NetAppONTAPNVMe:
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
-            if not HAS_NETAPP_LIB:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_nvme(self):
@@ -139,7 +137,7 @@ class NetAppONTAPNVMe:
             return self.create_nvme_rest()
         nvme_create = netapp_utils.zapi.NaElement('nvme-create')
         if self.parameters.get('status_admin') is not None:
-            options = {'is-available': self.parameters['status_admin']}
+            options = {'is-available': self.na_helper.get_value_for_bool(False, self.parameters['status_admin'])}
             nvme_create.translate_struct(options)
         try:
             self.server.invoke_successfully(nvme_create, enable_tunneling=True)
@@ -195,7 +193,7 @@ class NetAppONTAPNVMe:
     def create_nvme_rest(self):
         api = 'protocols/nvme/services'
         body = {'svm.name': self.parameters['vserver']}
-        if self.parameters.get('status_admin'):
+        if self.parameters.get('status_admin') is not None:
             body['enabled'] = self.parameters['status_admin']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
