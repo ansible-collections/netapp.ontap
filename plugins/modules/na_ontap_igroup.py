@@ -210,9 +210,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapIgroup:
@@ -297,11 +295,9 @@ class NetAppOntapIgroup:
                 self.parameters['igroups'] = list()
 
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(
-                    msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def fail_on_error(self, error, stack=False):
         if error is None:
@@ -318,30 +314,29 @@ class NetAppOntapIgroup:
             fields += ',igroups'
         query = dict(name=name, fields=fields)
         query['svm.name'] = self.parameters['vserver']
-        response, error = self.rest_api.get(api, query)
-        igroup, error = rrh.check_for_0_or_1_records(api, response, error)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         self.fail_on_error(error)
-        if igroup:
+        if record:
             try:
                 igroup_details = dict(
-                    name=igroup['name'],
-                    uuid=igroup['uuid'],
-                    vserver=igroup['svm']['name'],
-                    os_type=igroup['os_type'],
-                    initiator_group_type=igroup['protocol'],
+                    name=record['name'],
+                    uuid=record['uuid'],
+                    vserver=record['svm']['name'],
+                    os_type=record['os_type'],
+                    initiator_group_type=record['protocol'],
                     name_to_uuid=dict()
                 )
             except KeyError as exc:
-                self.module.fail_json(msg='Error: unexpected igroup body: %s, KeyError on %s' % (str(igroup), str(exc)))
+                self.module.fail_json(msg='Error: unexpected igroup body: %s, KeyError on %s' % (str(record), str(exc)))
             igroup_details['name_to_key'] = {}
             for attr in ('igroups', 'initiators'):
                 option = 'initiator_names' if attr == 'initiators' else attr
-                if attr in igroup:
-                    igroup_details[option] = [item['name'] for item in igroup[attr]]
+                if attr in record:
+                    igroup_details[option] = [item['name'] for item in record[attr]]
                     if attr == 'initiators':
-                        igroup_details['initiator_objects'] = [dict(name=item['name'], comment=item.get('comment')) for item in igroup[attr]]
+                        igroup_details['initiator_objects'] = [dict(name=item['name'], comment=item.get('comment')) for item in record[attr]]
                     # for initiators, there is no uuid, so we're using name as the key
-                    igroup_details['name_to_uuid'][option] = dict((item['name'], item.get('uuid', item['name'])) for item in igroup[attr])
+                    igroup_details['name_to_uuid'][option] = dict((item['name'], item.get('uuid', item['name'])) for item in record[attr])
                 else:
                     igroup_details[option] = []
                     igroup_details['name_to_uuid'][option] = {}
@@ -422,15 +417,15 @@ class NetAppOntapIgroup:
         else:
             records = [dict(name=name) for name in names]
         body = dict(records=records)
-        dummy, error = self.rest_api.post(api, body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         self.fail_on_error(error)
 
     def modify_initiators_rest(self, uuid, initiator_objects):
         for initiator in initiator_objects:
             if 'comment' in initiator:
-                api = "protocols/san/igroups/%s/initiators/%s" % (uuid, initiator['name'])
+                api = "protocols/san/igroups/%s/initiators" % uuid
                 body = dict(comment=initiator['comment'])
-                dummy, error = self.rest_api.patch(api, body)
+                dummy, error = rest_generic.patch_async(self.rest_api, api, initiator['name'], body)
                 self.fail_on_error(error)
 
     def add_initiators_or_igroups(self, uuid, option, current_names):
@@ -451,9 +446,9 @@ class NetAppOntapIgroup:
 
     def delete_initiator_or_igroup_rest(self, uuid, option, name_or_uuid):
         self.check_option_is_valid(option)
-        api = "protocols/san/igroups/%s/%s/%s" % (uuid, self.get_rest_name_for_option(option), name_or_uuid)
+        api = "protocols/san/igroups/%s/%s" % (uuid, self.get_rest_name_for_option(option))
         query = {'allow_delete_while_mapped': True} if self.parameters['force_remove_initiator'] else None
-        dummy, error = self.rest_api.delete(api, params=query)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, name_or_uuid, query=query)
         self.fail_on_error(error)
 
     def remove_initiators_or_igroups(self, uuid, option, current_names, mapping):
@@ -510,7 +505,7 @@ class NetAppOntapIgroup:
                         value = [dict(name=name) for name in value] if value else None
                 if value is not None:
                     body[mapping[option]] = value
-        dummy, error = self.rest_api.post(api, body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         self.fail_on_error(error)
 
     def create_igroup(self):
@@ -518,8 +513,7 @@ class NetAppOntapIgroup:
         Create the igroup.
         """
         if self.use_rest:
-            self.create_igroup_rest()
-            return
+            return self.create_igroup_rest()
 
         options = {'initiator-group-name': self.parameters['name']}
         if self.parameters.get('os_type') is not None:
@@ -555,20 +549,20 @@ class NetAppOntapIgroup:
         return [item for item in modify['initiator_objects'] if has_changed_comment(item)]
 
     def modify_igroup_rest(self, uuid, modify):
-        api = "protocols/san/igroups/%s" % uuid
+        api = "protocols/san/igroups"
         body = dict()
         for option in modify:
             if option not in self.rest_modify_zapi_to_rest:
                 self.module.fail_json(msg='Error: modifying %s is not supported in REST' % option)
             body[self.rest_modify_zapi_to_rest[option]] = modify[option]
         if body:
-            dummy, error = self.rest_api.patch(api, body)
+            dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
             self.fail_on_error(error)
 
     def delete_igroup_rest(self, uuid):
-        api = "protocols/san/igroups/%s" % uuid
+        api = "protocols/san/igroups"
         query = {'allow_delete_while_mapped': True} if self.parameters['force_remove_initiator'] else None
-        dummy, error = self.rest_api.delete(api, params=query)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, uuid, query=query)
         self.fail_on_error(error)
 
     def delete_igroup(self, uuid):
@@ -576,8 +570,7 @@ class NetAppOntapIgroup:
         Delete the igroup.
         """
         if self.use_rest:
-            self.delete_igroup_rest(uuid)
-            return
+            return self.delete_igroup_rest(uuid)
 
         igroup_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'igroup-destroy', **{'initiator-group-name': self.parameters['name'],
