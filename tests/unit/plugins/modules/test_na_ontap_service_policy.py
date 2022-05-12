@@ -52,6 +52,7 @@ SRR = {
             'svm': dict(name='vserver'),
             'services': ['data_core'],
             'scope': 'svm',
+            'ipspace': dict(name='ipspace')
         }],
         'num_records': 1
     }, None),
@@ -498,7 +499,7 @@ def test_negative_create_called(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
-    msg = 'Error in create_service_policy: Expected error'
+    msg = 'Error in create_service_policy: calling: network/ip/service-policies: got Expected error.'
     assert msg in exc.value.args[0]['msg']
     assert not WARNINGS
 
@@ -520,7 +521,7 @@ def test_negative_delete_called(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
-    msg = 'Error in delete_service_policy: Expected error'
+    msg = 'Error in delete_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
     assert msg in exc.value.args[0]['msg']
     assert not WARNINGS
 
@@ -542,6 +543,6 @@ def test_negative_modify_called(mock_request, patch_ansible):
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
-    msg = 'Error in modify_service_policy: Expected error'
+    msg = 'Error in modify_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
     assert msg in exc.value.args[0]['msg']
     assert not WARNINGS

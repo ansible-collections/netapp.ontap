@@ -140,7 +140,7 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -206,7 +206,7 @@ class NetAppOntapServicePolicy:
         api = 'network/ip/service-policies'
         query = {
             'name': self.parameters['name'],
-            'fields': 'name,uuid,ipspace,services,svm'
+            'fields': 'name,uuid,ipspace,services,svm,scope'
         }
         if self.parameters.get('vserver') is None:
             # vserser is empty for cluster
@@ -216,13 +216,20 @@ class NetAppOntapServicePolicy:
 
         if self.parameters.get('ipspace') is not None:
             query['ipspace.name'] = self.parameters['ipspace']
-
-        response, error = self.rest_api.get(api, query)
-        record, error = rrh.check_for_0_or_1_records(api, response, error)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             msg = "Error in get_service_policy: %s" % error
             self.module.fail_json(msg=msg)
-        return record
+        if record:
+            return {
+                'uuid': record['uuid'],
+                'name': record['name'],
+                'ipspace': record['ipspace']['name'],
+                'scope': record['scope'],
+                'vserver': self.na_helper.safe_get(record, ['svm', 'name']),
+                'services': record['services']
+            }
+        return None
 
     def create_service_policy(self):
         api = 'network/ip/service-policies'
@@ -237,7 +244,7 @@ class NetAppOntapServicePolicy:
             if value is not None:
                 body[attr] = value
 
-        dummy, error = self.rest_api.post(api, body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             msg = "Error in create_service_policy: %s" % error
             self.module.fail_json(msg=msg)
@@ -257,7 +264,7 @@ class NetAppOntapServicePolicy:
             msg = 'Error: nothing to change - modify called with: %s' % modify
             self.module.fail_json(msg=msg)
 
-        dummy, error = self.rest_api.patch(api, body)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
         if error:
             msg = "Error in modify_service_policy: %s" % error
             self.module.fail_json(msg=msg)
@@ -265,7 +272,7 @@ class NetAppOntapServicePolicy:
     def delete_service_policy(self, current):
         api = 'network/ip/service-policies/%s' % current['uuid']
 
-        dummy, error = self.rest_api.delete(api)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, None, None)
         if error:
             msg = "Error in delete_service_policy: %s" % error
             self.module.fail_json(msg=msg)
