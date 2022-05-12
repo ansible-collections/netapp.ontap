@@ -501,6 +501,27 @@ def test_rest_create_ip_with_svm():
     assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_rest_create_ip_with_cluster_svm():
+    ''' create cluster '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),       # get IP
+        ('GET', 'cluster/nodes', SRR['nodes']),                     # get nodes
+        ('POST', 'network/ip/interfaces', SRR['success']),          # post
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'cluster',
+        'vserver': 'vserver',
+        'address': '10.12.12.13',
+        'netmask': '255.255.192.0',
+        'role': 'intercluster'
+    }
+    assert create_and_apply(interface_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised('Ignoring vserver with REST for non data SVM.')
+
+
 def test_rest_negative_create_ip():
     ''' create cluster '''
     register_responses([

@@ -38,6 +38,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.19.1
 
 ### Bug Fixes
+  - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs with REST (ipspace is required).
+  - na_ontap_interface - ignore ``vserver`` when using REST if role is one of 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
   - na_ontap_nvme - fixed invalid boolean value error for `status_admin` when creating nvme service in ZAPI.
   - na_ontap_nvme - fixed `status_admin` option is ignored if set to False when creating nvme service in REST. 
   - na_ontap_service_policy - fixed error in modify by changing resulting json of an existing record in REST.

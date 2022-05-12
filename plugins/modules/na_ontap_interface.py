@@ -98,6 +98,8 @@ options:
     - Required with ZAPI.
     - Required with REST for SVM-scoped interfaces.
     - Invalid with REST for cluster-scoped interfaces.
+    - To help with transition from ZAPI to REST, vserver is ignored when the role is set to 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+    - Remove this option to suppress the warning.
     required: false
     type: str
 
@@ -899,6 +901,10 @@ class NetAppOntapInterface():
             'failover_scope': 'failover',
             'is_auto_revert': 'auto_revert',
         }
+        if parameters.get('role') in ['cluster', 'intercluster', 'node-mgmt', 'cluster-mgmt']:
+            # REST only supports DATA SVMs
+            mapping_params_to_rest.pop('vserver')
+            self.module.warn('Ignoring vserver with REST for non data SVM.')
         ip_keys = ('address', 'netmask')
         location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert')
 

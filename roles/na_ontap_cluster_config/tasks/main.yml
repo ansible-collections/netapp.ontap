@@ -152,6 +152,7 @@
   with_items:
     "{{ ifgrps }}"
   when: ifgrps != None
+
 - name: Create VLAN
   na_ontap_net_vlan:
     state: present
@@ -166,6 +167,7 @@
   with_items:
     "{{ vlans }}"
   when: vlans != None
+
 - name: create broadcast domain
   na_ontap_broadcast_domain:
     state: present
@@ -181,6 +183,7 @@
   with_items:
     "{{ bcasts }}"
   when: bcasts != None
+
 - name: Create Intercluster Lif
   na_ontap_interface:
     state: present
@@ -194,6 +197,7 @@
     address: "{{ item.address }}"
     netmask: "{{ item.netmask }}"
     vserver: "{{ cluster }}"
+    ipspace: "{{ item.ipspace | default(omit) }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
