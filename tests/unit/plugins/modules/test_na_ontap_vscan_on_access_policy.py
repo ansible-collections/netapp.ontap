@@ -54,8 +54,11 @@ ZRR = zapi_responses({
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    msg = "missing required arguments: hostname, policy_name, vserver"
-    assert msg in create_module(policy_module, {}, fail=True)['msg']
+    # with python 2.6, dictionaries are not ordered
+    fragments = ["missing required arguments:", "hostname", "policy_name", "vserver"]
+    error = create_module(policy_module, {}, fail=True)['msg']
+    for fragment in fragments:
+        assert fragment in error
 
 
 def test_get_nonexistent_policy():
