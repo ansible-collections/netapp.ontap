@@ -37,6 +37,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.20.0
 
+### Added REST support to existing modules
+  - na_ontap_nvme_namespace - Added REST support.
+
 ## 21.19.1
 
 ### Bug Fixes

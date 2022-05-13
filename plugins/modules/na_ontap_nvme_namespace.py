@@ -1,14 +1,9 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -63,7 +58,7 @@ version_added: 2.8.0
 EXAMPLES = """
 
     - name: Create NVME Namespace
-      na_ontap_nvme_namespace:
+      netapp.ontap.na_ontap_nvme_namespace:
         state: present
         ostype: linux
         path: /vol/ansible/test
@@ -75,7 +70,7 @@ EXAMPLES = """
         password: "{{ password }}"
 
     - name: Create NVME Namespace (Idempotency)
-      na_ontap_nvme_namespace:
+      netapp.ontap.na_ontap_nvme_namespace:
         state: present
         ostype: linux
         path: /vol/ansible/test
@@ -95,17 +90,18 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPNVMENamespace(object):
+class NetAppONTAPNVMENamespace:
     """
     Class with NVME namespace methods
     """
 
     def __init__(self):
 
+        self.namespace_uuid = None
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
@@ -125,14 +121,16 @@ class NetAppONTAPNVMENamespace(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
         if self.parameters.get('size'):
             self.parameters['size'] = self.parameters['size'] * \
                 netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_namespace(self):
@@ -140,6 +138,8 @@ class NetAppONTAPNVMENamespace(object):
         Get current namespace details
         :return: dict if namespace exists, None otherwise
         """
+        if self.use_rest:
+            return self.get_namespace_rest()
         namespace_get = netapp_utils.zapi.NaElement('nvme-namespace-get-iter')
         query = {
             'query': {
@@ -163,6 +163,8 @@ class NetAppONTAPNVMENamespace(object):
         """
         Create a NVME Namespace
         """
+        if self.use_rest:
+            return self.create_namespace_rest()
         options = {'path': self.parameters['path'],
                    'ostype': self.parameters['ostype'],
                    'size': self.parameters['size']
@@ -182,6 +184,8 @@ class NetAppONTAPNVMENamespace(object):
         """
         Delete a NVME Namespace
         """
+        if self.use_rest:
+            return self.delete_namespace_rest()
         options = {'path': self.parameters['path']
                    }
         namespace_delete = netapp_utils.zapi.NaElement.create_node_with_children('nvme-namespace-delete', **options)
@@ -192,21 +196,50 @@ class NetAppONTAPNVMENamespace(object):
                                       % (self.parameters.get('path'), to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_namespace_rest(self):
+        api = 'storage/namespaces'
+        params = {'svm.name': self.parameters['vserver'], 'fields': 'enabled'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching namespace info for vserver: %s' % self.parameters['vserver'])
+        if record:
+            self.namespace_uuid = record['uuid']
+            return record
+        return None
+
+    def create_namespace_rest(self):
+        api = 'storage/namespaces'
+        body = {'svm.name': self.parameters['vserver'],
+                'os_type': self.parameters['ostype'],
+                'name': self.parameters['path'],
+                'space.size': self.parameters['size']}
+        if self.parameters.get('block_size') is not None:
+            body['space.block_size'] = self.parameters['block_size']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error creating namespace for vserver %s: %s' % (self.parameters['vserver'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def delete_namespace_rest(self):
+        api = 'storage/namespaces'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.namespace_uuid)
+        if error:
+            self.module.fail_json(msg='Error deleting namespace for vserver %s: %s' % (self.parameters['vserver'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def apply(self):
         """
         Apply action to NVME Namespace
         """
-        netapp_utils.ems_log_event("na_ontap_nvme_namespace", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_nvme_namespace", self.server)
         current = self.get_namespace()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_namespace()
-                elif cd_action == 'delete':
-                    self.delete_namespace()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_namespace()
+            elif cd_action == 'delete':
+                self.delete_namespace()
 
         self.module.exit_json(changed=self.na_helper.changed)
 
