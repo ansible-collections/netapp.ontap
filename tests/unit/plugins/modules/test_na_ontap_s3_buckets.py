@@ -167,25 +167,6 @@ SRR = rest_responses({
             "uuid": "1cd8a442-86d1-11e0-abcd-123478563412",
         }
     }, None),
-    's3_bucket_9_7': (200, {
-        "logical_used_size": 0,
-        "uuid": "414b29a1-3b26-11e9-bd58-0050568ea055",
-        "size": 1677721600,
-        "protection_status": {
-            "destination": {}
-        },
-        "constituents_per_aggregate": 4,
-        "storage_service_level": "value",
-        "name": "bucket1",
-        "comment": "S3 bucket.",
-        "svm": {
-            "name": "svm1",
-            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
-        },
-        "volume": {
-            "uuid": "1cd8a442-86d1-11e0-abcd-123478563412",
-        }
-    }, None),
     'volume_info': (200, {
         "aggregates": [{
             "name": "aggr1",
@@ -344,11 +325,11 @@ MODIFY_AUDIT_EVENT = {
 
 def test_low_version():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_96'])
+        ('GET', 'cluster', SRR['is_rest_97'])
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     print('Info: %s' % error)
-    msg = 'ONTAP version must be 9.7 or higher'
+    msg = 'ONTAP version must be 9.8 or higher'
     assert msg in error
 
 
@@ -372,16 +353,6 @@ def test_get_s3_bucket_error():
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_s3_bucket, 'fail')['msg']
 
 
-def test_get_s3_bucket_9_7():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
-        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_7'])
-    ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
-    assert my_obj.get_s3_bucket() is not None
-
-
 def test_get_s3_bucket_9_8():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
@@ -400,19 +371,6 @@ def test_get_s3_bucket_9_10():
     set_module_args(DEFAULT_ARGS)
     my_obj = my_module()
     assert my_obj.get_s3_bucket() is not None
-
-
-def test_create_s3_bucket_9_7():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
-        ('GET', 'protocols/s3/buckets', SRR['empty_records']),
-        ('POST', 'protocols/s3/buckets', SRR['empty_good'])
-    ])
-    module_args = {'comment': 'carchi8py was here',
-                   'aggregates': ['aggr1'],
-                   'constituents_per_aggregate': 4,
-                   'size': 838860800}
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_create_s3_bucket_9_8():
@@ -464,7 +422,7 @@ def test_create_with_real_policy_s3_bucket_9_10():
 
 def test_create_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('POST', 'protocols/s3/buckets', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -490,7 +448,7 @@ def test_delete_s3_bucket():
 
 def test_delete_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['generic_error'])
     ])
@@ -502,19 +460,6 @@ def test_delete_s3_bucket_error():
     print('Info: %s' % error)
     assert 'Error deleting S3 bucket bucket1: calling: ' \
            'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055: got Expected error.' == error
-
-
-def test_modify_s3_bucket_9_7():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
-        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_7']),
-        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
-        ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
-         SRR['empty_good'])
-    ])
-    module_args = {'comment': 'carchi8py was here',
-                   'size': 943718400}
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_s3_bucket_9_8():
@@ -550,7 +495,7 @@ def test_modify_s3_bucket_9_10():
 
 def test_modify_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['generic_error'])
     ])
@@ -568,8 +513,8 @@ def test_modify_s3_bucket_error():
 
 def test_new_aggr_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
-        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_7']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
     ])
     module_args = {'aggregates': ['aggr2']}
@@ -579,8 +524,8 @@ def test_new_aggr_error():
 
 def test_volume_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
-        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_7']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['generic_error']),
     ])
     module_args = {'aggregates': ['aggr2']}

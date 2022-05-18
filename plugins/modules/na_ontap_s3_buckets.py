@@ -199,28 +199,70 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create S3 bucket in ONTAP 9.6 and 9.7
-      na_ontap_s3_buckets:
+    - name: Create S3 bucket
+      netapp.ontap.na_ontap_s3_buckets:
         state: present
         name: carchi-test-bucket
         comment: carchi8py was here
         size: 838860800
         vserver: ansibleSVM
-        hostname: 10.193.180.108
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
+        validate_certs: false
+        use_rest: always
+
+    - name: Create S3 bucket with a policy
+      netapp.ontap.na_ontap_s3_buckets:
+        state: present
+        name: carchi-test-bucket
+        comment: carchi8py was here
+        size: 838860800
+        policy:
+          statements:
+            - sid: FullAccessToUser1
+              resources:
+                - bucket1
+                - bucket1/*
+              actions:
+                - GetObject
+                - PutObject
+                - DeleteObject
+                - ListBucket
+              effect: allow
+              conditions:
+                - operator: ip_address
+                  max_keys:
+                    - 1000
+                  delimiters:
+                    - "/"
+                  source_ips:
+                    - 1.1.1.1
+                    - 1.2.2.0/24
+                  prefixes:
+                    - prex
+                  usernames:
+                    - user1
+              principals:
+                - user1
+                - group/grp1
+        vserver: ansibleSVM
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         use_rest: always
 
     - name: Delete S3 bucket
-      na_ontap_s3_buckets:
+      netapp.ontap.na_ontap_s3_buckets:
         state: absent
         name: carchi-test-bucket
         vserver: ansibleSVM
-        hostname: 10.193.180.108
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         use_rest: always
@@ -300,22 +342,20 @@ class NetAppOntapS3Buckets():
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
 
         self.rest_api = OntapRestAPI(self.module)
-        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['qos_policy', (9, 8)], ['policy', (9, 8)]]
+        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
                                               parameters=self.parameters)
         if not self.use_rest:
             self.module.fail_json(msg='na_ontap_S3_buckets is only supported with REST API')
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7):
-            self.module.fail_json(msg="ONTAP version must be 9.7 or higher")
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
+            self.module.fail_json(msg="ONTAP version must be 9.8 or higher")
 
     def get_s3_bucket(self):
         api = 'protocols/s3/buckets'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             fields = 'name,svm.name,size,comment,volume.uuid,policy,qos_policy,audit_event_selector'
-        elif self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
-            fields = 'name,svm.name,size,comment,volume.uuid,policy,qos_policy'
         else:
-            fields = 'name,svm.name,size,comment,volume.uuid'
+            fields = 'name,svm.name,size,comment,volume.uuid,policy,qos_policy'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
                   'fields': fields}
