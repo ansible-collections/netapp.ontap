@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -103,11 +103,23 @@ options:
     - Determine whether to use start_tls for AD LDAP connections.
     type: bool
 
+  encryption_required_for_dc_connections:
+    description:
+    - Specifies whether encryption is required for domain controller connections.
+    type: bool
+    version_added: 21.20.0
+
+  use_ldaps_for_ad_ldap:
+    description:
+    - Determine whether to use LDAPS for secure Active Directory LDAP connections.
+    type: bool
+    version_added: 21.20.0
+
 '''
 
 EXAMPLES = '''
     - name: modify cifs security
-      na_ontap_vserver_cifs_security:
+      netapp.ontap.na_ontap_vserver_cifs_security:
         hostname: "{{ hostname }}"
         username: username
         password: password
@@ -121,9 +133,11 @@ EXAMPLES = '''
         session_security_for_ad_ldap: none
         is_signing_required: false
         is_password_complexity_required: false
+        encryption_required_for_dc_connections: false
+        use_ldaps_for_ad_ldap: false
 
     - name: modify cifs security is_smb_encryption_required
-      na_ontap_vserver_cifs_security:
+      netapp.ontap.na_ontap_vserver_cifs_security:
         hostname: "{{ hostname }}"
         username: username
         password: password
@@ -131,7 +145,7 @@ EXAMPLES = '''
         is_smb_encryption_required: false
 
     - name: modify cifs security int options
-      na_ontap_vserver_cifs_security:
+      netapp.ontap.na_ontap_vserver_cifs_security:
         hostname: "{{ hostname }}"
         username: username
         password: password
@@ -150,8 +164,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppONTAPCifsSecurity(object):
@@ -176,7 +188,9 @@ class NetAppONTAPCifsSecurity(object):
             session_security_for_ad_ldap=dict(required=False, choices=['none', 'sign', 'seal']),
             smb1_enabled_for_dc_connections=dict(required=False, choices=['false', 'true', 'system_default']),
             smb2_enabled_for_dc_connections=dict(required=False, choices=['false', 'true', 'system_default']),
-            use_start_tls_for_ad_ldap=dict(required=False, type='bool')
+            use_start_tls_for_ad_ldap=dict(required=False, type='bool'),
+            encryption_required_for_dc_connections=dict(required=False, type='bool'),
+            use_ldaps_for_ad_ldap=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -186,9 +200,16 @@ class NetAppONTAPCifsSecurity(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.set_playbook_zapi_key_map()
 
-        if HAS_NETAPP_LIB is False:
+        if self.parameters['use_rest'].lower() == 'always':
+            self.module.fail_json(msg='Error: na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.')
+
+        if self.parameters['use_rest'].lower() == 'auto':
+            self.module.warn(
+                'Falling back to ZAPI as na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.')
+
+        self.set_playbook_zapi_key_map()
+        if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg="the python NetApp-Lib module is required")
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -207,7 +228,9 @@ class NetAppONTAPCifsSecurity(object):
             'is_aes_encryption_enabled': 'is-aes-encryption-enabled',
             'is_smb_encryption_required': 'is-smb-encryption-required',
             'referral_enabled_for_ad_ldap': 'referral-enabled-for-ad-ldap',
-            'use_start_tls_for_ad_ldap': 'use-start-tls-for-ad-ldap'
+            'use_start_tls_for_ad_ldap': 'use-start-tls-for-ad-ldap',
+            'encryption_required_for_dc_connections': 'encryption-required-for-dc-connections',
+            'use_ldaps_for_ad_ldap': 'use-ldaps-for-ad-ldap'
         }
         self.na_helper.zapi_str_keys = {
             'lm_compatibility_level': 'lm-compatibility-level',
@@ -269,7 +292,7 @@ class NetAppONTAPCifsSecurity(object):
 
     def apply(self):
         """Call modify operations."""
-        self.asup_log_for_cserver("na_ontap_vserver_cifs_security")
+        netapp_utils.ems_log_event("na_ontap_vserver_cifs_security", self.server)
         current = self.cifs_security_get_iter()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed:
@@ -279,17 +302,6 @@ class NetAppONTAPCifsSecurity(object):
                 if modify:
                     self.cifs_security_modify(modify)
         self.module.exit_json(changed=self.na_helper.changed)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
 
 
 def main():

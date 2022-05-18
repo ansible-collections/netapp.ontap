@@ -37,6 +37,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.20.0
 
+### Minor Changes
+  - na_ontap_vserver_cifs_security - Added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
+  - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
+
 ### Added REST support to existing modules
   - na_ontap_nvme_namespace - Added REST support.
 
