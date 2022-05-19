@@ -110,7 +110,7 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'test',
             'username': 'test_user',
             'password': 'test_pass!',
-            'use_rest': 'never'
+            'use_rest': 'never',
         }
 
     def get_mock_object(self, kind=None):
@@ -137,7 +137,7 @@ class TestMyModule(unittest.TestCase):
     def test_get_nonexistent_rule(self):
         ''' Test if get_export_policy_rule returns None for non-existent policy '''
         set_module_args(self.mock_rule_args())
-        result = self.get_mock_object().get_export_policy_rule()
+        result = self.get_mock_object().get_export_policy_rule(3)
         assert result is None
 
     def test_get_nonexistent_policy(self):
@@ -150,7 +150,7 @@ class TestMyModule(unittest.TestCase):
         ''' Test if get_export_policy_rule returns rule details for existing policy '''
         data = self.mock_rule_args()
         set_module_args(data)
-        result = self.get_mock_object('rule').get_export_policy_rule()
+        result = self.get_mock_object('rule').get_export_policy_rule(data['rule_index'])
         assert result['name'] == data['name']
         assert result['client_match'] == data['client_match']
         assert result['ro_rule'] == ['any']   # from build_rule()
@@ -196,16 +196,6 @@ class TestMyModule(unittest.TestCase):
             self.get_mock_object('rule').apply()
         assert not exc.value.args[0]['changed']
 
-    def test_successful_delete_without_rule_index(self):
-        ''' Test delete existing job '''
-        data = self.mock_rule_args()
-        data['state'] = 'absent'
-        del data['rule_index']
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_mock_object('rule').apply()
-        assert exc.value.args[0]['changed']
-
     def test_delete_idempotency(self):
         ''' Test delete idempotency '''
         data = self.mock_rule_args()
@@ -243,7 +233,7 @@ class TestMyModule(unittest.TestCase):
         ''' Test helper method set_query_parameters() '''
         data = self.mock_rule_args()
         set_module_args(data)
-        result = self.get_mock_object('rule').set_query_parameters()
+        result = self.get_mock_object('rule').set_query_parameters(10)
         print(str(result))
         assert 'query' in result
         assert 'export-rule-info' in result['query']

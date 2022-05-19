@@ -93,7 +93,14 @@ options:
   rule_index:
     description:
       - index of the export policy rule
+    required: true
     type: int
+
+  from_rule_index:
+    description:
+      - index of the export policy rule to be re-indexed
+    type: int
+    version_added: 21.20.0
 
   vserver:
     description:
@@ -132,6 +139,23 @@ EXAMPLES = """
       netapp.ontap.na_ontap_export_policy_rule:
         state: present
         name: default123
+        rule_index: 100
+        client_match: 0.0.0.0/0
+        anonymous_user_id: 65521
+        ro_rule: ntlm
+        rw_rule: any
+        protocol: any
+        allow_suid: false
+        ntfs_unix_security: fail
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: rename ExportPolicyRule
+      netapp.ontap.na_ontap_export_policy_rule:
+        state: present
+        name: default123
+        from_rule_index: 99
         rule_index: 100
         client_match: 0.0.0.0/0
         anonymous_user_id: 65521
@@ -193,7 +217,8 @@ class NetAppontapExportRule:
                                      type='list', elements='str', default=None,
                                      choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             allow_suid=dict(required=False, type='bool'),
-            rule_index=dict(required=False, type='int'),
+            from_rule_index=dict(required=False, type='int'),
+            rule_index=dict(required=True, type='int'),
             anonymous_user_id=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
             ntfs_unix_security=dict(required=False, type='str', choices=['fail', 'ignore'])
@@ -237,7 +262,7 @@ class NetAppontapExportRule:
             'rule_index': 'rule-index'
         }
 
-    def set_query_parameters(self):
+    def set_query_parameters(self, rule_index):
         """
         Return dictionary of query parameters and
         :return:
@@ -246,22 +271,14 @@ class NetAppontapExportRule:
             'policy-name': self.parameters['name'],
             'vserver': self.parameters['vserver']
         }
-
-        if self.parameters.get('rule_index'):
-            query['rule-index'] = self.parameters['rule_index']
-        elif self.parameters.get('client_match'):
-            query['client-match'] = self.parameters['client_match']
-        else:
-            self.module.fail_json(
-                msg="Need to specify at least one of the rule_index and client_match option.")
-
+        query['rule-index'] = rule_index
         return {
             'query': {
                 'export-rule-info': query
             }
         }
 
-    def get_export_policy_rule(self):
+    def get_export_policy_rule(self, rule_index):
         """
         Return details about the export policy rule
         :param:
@@ -270,10 +287,10 @@ class NetAppontapExportRule:
         :rtype: dict
         """
         if self.use_rest:
-            return self.get_export_policy_rule_rest()
+            return self.get_export_policy_rule_rest(rule_index)
         current, result = None, None
         rule_iter = netapp_utils.zapi.NaElement('export-rule-get-iter')
-        rule_iter.translate_struct(self.set_query_parameters())
+        rule_iter.translate_struct(self.set_query_parameters(rule_index))
         try:
             result = self.server.invoke_successfully(rule_iter, True)
         except netapp_utils.zapi.NaApiError as error:
@@ -297,8 +314,6 @@ class NetAppontapExportRule:
                 current[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
                                                                       zapi_parent=rule_info.get_child_by_name(parent))
             current['num_records'] = int(result.get_child_content('num-records'))
-            if not self.parameters.get('rule_index'):
-                self.parameters['rule_index'] = current['rule_index']
         return current
 
     def get_export_policy(self):
@@ -412,24 +427,35 @@ class NetAppontapExportRule:
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_export_policy_rule(self, params, policy_id=None, rule_index=None):
+    def modify_export_policy_rule(self, params, policy_id=None, rule_index=None, rename=False):
         '''
         Modify an existing export policy rule
         :param params: dict() of attributes with desired values
         :return: None
         '''
         if self.use_rest:
-            return self.modify_export_policy_rule_rest(params, policy_id['id'], rule_index)
+            return self.modify_export_policy_rule_rest(params, policy_id['id'], rule_index, rename)
         export_rule_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'export-rule-modify', **{'policy-name': self.parameters['name'],
-                                     'rule-index': str(self.parameters['rule_index'])})
+                                     'rule-index': str(rule_index)})
         self.add_parameters_for_create_or_modify(export_rule_modify, params)
         try:
             self.server.invoke_successfully(export_rule_modify, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error modifying allow_suid %s: %s'
-                                  % (self.parameters['allow_suid'], to_native(error)),
+            self.module.fail_json(msg='Error modifying rule index %s: %s'
+                                  % (rule_index, to_native(error)),
                                   exception=traceback.format_exc())
+        if rename:
+            export_rule_set_index = netapp_utils.zapi.NaElement.create_node_with_children(
+                'export-rule-set-index', **{'policy-name': self.parameters['name'],
+                                            'rule-index': str(self.parameters['from_rule_index']),
+                                            'new-rule-index': str(self.parameters['rule_index'])})
+            try:
+                self.server.invoke_successfully(export_rule_set_index, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg='Error reindex rule index %s: %s'
+                                          % (self.parameters['from_rule_index'], to_native(error)),
+                                      exception=traceback.format_exc())
 
     def autosupport_log(self):
         netapp_utils.ems_log_event("na_ontap_export_policy_rules", self.server)
@@ -444,16 +470,26 @@ class NetAppontapExportRule:
             self.module.fail_json(msg="Error on fetching export policy: %s" % error)
         return record
 
-    def get_export_policy_rule_rest(self):
+    def get_export_policy_rules_rest(self):
         policy = self.get_export_policy_rest()
         if not policy:
             return None
-        if self.parameters.get('rule_index') is None:
-            return self.get_export_policy_rule_without_index(policy)
+        api = 'protocols/nfs/export-policies/%s/rules' % (policy['id'])
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api)
+        if error:
+            self.module.fail_json(msg="Error on fetching export policy rule: %s" % error)
+        if not records:
+            return None
+        return self.filter_get_results(records['records'])
+
+    def get_export_policy_rule_rest(self, rule_index):
+        policy = self.get_export_policy_rest()
+        if not policy:
+            return None
         options = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
         if 'ntfs_unix_security' in self.parameters:
             options['fields'] += ',ntfs_unix_security'
-        api = 'protocols/nfs/export-policies/%s/rules/%s' % (policy['id'], self.parameters['rule_index'])
+        api = 'protocols/nfs/export-policies/%s/rules/%s' % (policy['id'], rule_index)
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
             # If rule index passed in doesn't exist, return None
@@ -463,30 +499,6 @@ class NetAppontapExportRule:
         if not record:
             return None
         return self.filter_get_results(record)
-
-    def get_export_policy_rule_without_index(self, policy):
-        options = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
-        if 'ntfs_unix_security' in self.parameters:
-            options['fields'] += ',ntfs_unix_security'
-        api = 'protocols/nfs/export-policies/%s/rules' % policy['id']
-        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, options)
-        if error:
-            self.module.fail_json(msg="Error on fetching export policy rule: %s" % error)
-        if not records:
-            return None
-        return_records = {}
-        for record in records:
-            for match in record.get('clients', []):
-                if match['match'] in self.parameters['client_match']:
-                    return_records[record['index']] = record
-        if not return_records:
-            return None
-        if len(return_records) > 1:
-            self.module.fail_json(msg="More than one export policy rule match client match: %s found the following %s" %
-                                      (self.parameters['client_match'],
-                                       str(return_records)))
-        record = self.filter_get_results(list(return_records.values())[0])
-        return record
 
     def filter_get_results(self, record):
         record['rule_index'] = record.pop('index')
@@ -516,10 +528,15 @@ class NetAppontapExportRule:
             body['superuser'] = self.parameters['super_user_security']
         if self.parameters.get('ntfs_unix_security'):
             body['ntfs_unix_security'] = self.parameters['ntfs_unix_security']
-        api = 'protocols/nfs/export-policies/%s/rules' % str(policy_id)
-        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        api = 'protocols/nfs/export-policies/%s/rules?return_records=true' % str(policy_id)
+        response, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg="Error on creating export policy Rule: %s" % error)
+        if response['num_records'] == 1:
+            rule_index = response['records'][0]['index']
+        else:
+            self.module.fail_json(msg="Error on creating export policy Rule, returned response is invalid: %s" % response)
+        self.modify_export_policy_rule_rest({}, policy_id, rule_index, True)
 
     def client_match_format(self, client_match):
         client_match = client_match.split(',')
@@ -531,7 +548,7 @@ class NetAppontapExportRule:
         if error:
             self.module.fail_json(msg="Error on deleting export policy Rule: %s" % error)
 
-    def modify_export_policy_rule_rest(self, params, policy_id, rule_index):
+    def modify_export_policy_rule_rest(self, params, policy_id, rule_index, rename=False):
         body = {}
         if params.get('anonymous_user_id'):
             body['anonymous_user'] = self.parameters['anonymous_user_id']
@@ -548,7 +565,10 @@ class NetAppontapExportRule:
         if params.get('ntfs_unix_security'):
             body['ntfs_unix_security'] = self.parameters['ntfs_unix_security']
         api = 'protocols/nfs/export-policies/%s/rules' % str(policy_id)
-        dummy, error = rest_generic. patch_async(self.rest_api, api, rule_index, body)
+        query = None
+        if rename:
+            query = {'new_index': self.parameters['rule_index']}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, rule_index, body, query)
         if error:
             self.module.fail_json(msg="Error on modifying export policy Rule: %s" % error)
 
@@ -560,26 +580,33 @@ class NetAppontapExportRule:
         if self.parameters.get('client_match') is not None:
             self.parameters['client_match'] = ','.join(self.parameters['client_match'])
             self.parameters['client_match'] = self.parameters['client_match'].replace(' ', '')
-        current, modify = self.get_export_policy_rule(), None
+        current = self.get_export_policy_rule(self.parameters['rule_index'])
         current_policy = self.get_export_policy()
-        # rule_index can be modified in Zapi, but can't be modified in REST
-        if current and self.use_rest:
-            current_filters = current.copy()
-            current_filters.pop('rule_index')
+        cd_action, rename, modify = None, None, None
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_rule_index'):
+            from_current = self.get_export_policy_rule(self.parameters['from_rule_index'])
+            rename = self.na_helper.is_rename_action(from_current, current)
+            if rename is None:
+                self.module.fail_json(
+                    msg="Error renaming: export policy rule %s does not exist" % self.parameters['from_rule_index'])
+            if rename:
+                current = from_current
+                modify = self.na_helper.get_modified_attributes(current, self.parameters)
         else:
-            current_filters = current
-        action = self.na_helper.get_cd_action(current_filters, self.parameters)
-        if action is None and self.parameters['state'] == 'present':
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if cd_action is None and self.parameters['state'] == 'present':
+                modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed and not self.module.check_mode:
             # create export policy (if policy doesn't exist) only when changed=True
-            if action == 'create':
+            if rename:
+                self.modify_export_policy_rule(modify, current_policy, self.parameters['from_rule_index'], rename=True)
+            elif cd_action == 'create':
                 if not current_policy:
                     self.create_export_policy()
                     current_policy = self.get_export_policy()
                 self.create_export_policy_rule(current_policy)
-            elif action == 'delete':
+            elif cd_action == 'delete':
                 if self.use_rest:
                     self.delete_export_policy_rule(current['rule_index'], current_policy)
                 elif current['num_records'] > 1:

@@ -47,6 +47,21 @@ SRR = rest_responses({
             "clients": [{"match": "0.0.0.0/0"}],
             "ntfs_unix_security": "fail",
             "allow_device_creation": True
+        }], "num_records": 1}, None),
+    'create_export_policy_rules': (200, {"records": [
+        {
+            "rw_rule": ["any"],
+            "_links": {"self": {"href": "/api/resourcelink"}},
+            "ro_rule": ["any"],
+            "allow_suid": True,
+            "chown_mode": "restricted",
+            "index": 1,
+            "superuser": ["any"],
+            "protocols": ["any"],
+            "anonymous_user": "string",
+            "clients": [{"match": "0.0.0.0/0"}],
+            "ntfs_unix_security": "fail",
+            "allow_device_creation": True
         }], "num_records": 1}, None)
 })
 
@@ -64,7 +79,9 @@ DEFAULT_ARGS = {
     'hostname': 'test',
     'username': 'test_user',
     'password': 'test_pass!',
-    'use_rest': 'always'
+    'use_rest': 'always',
+    'rule_index': 10
+
 }
 
 
@@ -75,7 +92,8 @@ def test_rest_successful_create_rule():
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['empty_good'])
+        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     assert create_and_apply(policy_rule, DEFAULT_ARGS, {'rule_index': 10})['changed']
 
@@ -88,7 +106,7 @@ def test_rest_error_get_policy():
     ])
     my_module_object = create_module(policy_rule, DEFAULT_ARGS)
     msg = 'Error on fetching export policy: calling: protocols/nfs/export-policies: got Expected error.'
-    assert msg in expect_and_capture_ansible_exception(my_module_object.get_export_policy_rule, 'fail')['msg']
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_export_policy_rule_rest, 'fail', 1)['msg']
 
 
 def test_rest_error_get_rule():
@@ -100,7 +118,7 @@ def test_rest_error_get_rule():
     ])
     my_module_object = create_module(policy_rule, DEFAULT_ARGS, {'rule_index': 10})
     msg = 'Error on fetching export policy rule: calling: protocols/nfs/export-policies/123/rules/10: got Expected error.'
-    assert msg in expect_and_capture_ansible_exception(my_module_object.get_export_policy_rule, 'fail')['msg']
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_export_policy_rule, 'fail', 10)['msg']
 
 
 def test_rest_error_create():
@@ -110,10 +128,10 @@ def test_rest_error_create():
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['generic_error'])
+        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['generic_error'])
     ])
     my_module_object = create_module(policy_rule, DEFAULT_ARGS, {'rule_index': 10})
-    msg = 'Error on creating export policy Rule: calling: protocols/nfs/export-policies/123/rules: got Expected error.'
+    msg = 'Error on creating export policy Rule: calling: protocols/nfs/export-policies/123/rules?return_records=true: got Expected error.'
     assert msg in expect_and_capture_ansible_exception(my_module_object.apply, 'fail')['msg']
 
 
@@ -151,7 +169,8 @@ def test_rest_successful_create_policy_and_rule():
         ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies', SRR['empty_good']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['empty_good'])
+        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     assert create_and_apply(policy_rule, DEFAULT_ARGS, {'rule_index': 10})['changed']
 
@@ -210,25 +229,25 @@ def test_rest_error_modify():
     assert msg in expect_and_capture_ansible_exception(my_module_object.apply, 'fail')['msg']
 
 
-def test_rest_successful_get_rule_with_no_index():
-    '''Test successful rest create'''
+def test_rest_successful_rename():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', copy.deepcopy(SRR['get_export_policy_rules'])),
+        ('GET', 'protocols/nfs/export-policies/123/rules/2', SRR['empty_records']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('PATCH', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_good'])
-    ])
-    assert create_and_apply(policy_rule, DEFAULT_ARGS)['changed']
-
-
-def test_rest_error_get_rule_with_no_index():
-    '''Test error rest create'''
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', SRR['generic_error']),
+        ('GET', 'protocols/nfs/export-policies/123/rules/10', copy.deepcopy(SRR['get_export_policy_rules'])),
+        ('PATCH', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records'])
     ])
-    my_module_object = create_module(policy_rule, DEFAULT_ARGS)
-    msg = 'Error on fetching export policy rule: calling: protocols/nfs/export-policies/123/rules: got Expected error.'
-    assert msg in expect_and_capture_ansible_exception(my_module_object.apply, 'fail')['msg']
+    data = {
+        'anonymous_user_id': '1234',
+        'protocol': 'nfs4',
+        'super_user_security': 'krb5i',
+        'client_match': ['1.1.1.3', '1.1.0.3'],
+        'ntfs_unix_security': 'ignore',
+        'ro_rule': ['never'],
+        'rw_rule': ['never'],
+        'rule_index': 2,
+        'from_rule_index': 10
+    }
+    assert create_and_apply(policy_rule, DEFAULT_ARGS, data)['changed']

@@ -49,9 +49,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
   - na_ontap_vserver_cifs_security - Added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
+  - na_ontap_export_policy_rule: Add reindex for both REST and ZAPI. Change `rule_index` to required.
 
 ### Added REST support to existing modules
   - na_ontap_nvme_namespace - Added REST support.
+
 
 ## 21.19.1
 
