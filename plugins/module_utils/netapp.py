@@ -191,17 +191,32 @@ def get_feature(module, feature_name):
     module.fail_json(msg="Internal error: unexpected feature flag: %s" % feature_name)
 
 
-def create_sf_connection(module, port=None):
-    hostname = module.params['hostname']
-    username = module.params['username']
-    password = module.params['password']
+def create_sf_connection(module, port=None, host_options=None):
+    if not HAS_SF_SDK:
+        module.fail_json(msg="the python SolidFire SDK module is required")
 
-    if HAS_SF_SDK and hostname and username and password:
-        try:
-            return ElementFactory.create(hostname, username, password, port=port)
-        except Exception as exc:
-            raise Exception("Unable to create SF connection: %s" % exc)
-    module.fail_json(msg="the python SolidFire SDK module is required")
+    if host_options is None:
+        host_options = module.params
+    msg, msg2 = None, None
+    missing_options = [option for option in ('hostname', 'username', 'password') if not host_options.get(option)]
+    if missing_options:
+        verb = 'are' if len(missing_options) > 1 else 'is'
+        msg = "%s %s required for ElementSW connection." % (', '.join(missing_options), verb)
+    extra_options = [option for option in ('cert_filepath', 'key_filepath') if host_options.get(option)]
+    if extra_options:
+        verb = 'are' if len(extra_options) > 1 else 'is'
+        msg2 = "%s %s not supported for ElementSW connection." % (', '.join(extra_options), verb)
+    msg = ("%s  %s") % (msg, msg2) if msg and msg2 else msg or msg2
+    if msg:
+        module.fail_json(msg=msg)
+    hostname = host_options.get('hostname')
+    username = host_options.get('username')
+    password = host_options.get('password')
+
+    try:
+        return ElementFactory.create(hostname, username, password, port=port)
+    except Exception as exc:
+        raise Exception("Unable to create SF connection: %s" % exc)
 
 
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
@@ -831,7 +846,7 @@ class OntapRestAPI(object):
 
     def get(self, api, params=None, headers=None):
         method = 'GET'
-        dummy, message, error = self.send_request(method, api, params, headers=headers)
+        dummy, message, error = self.send_request(method, api, params, json=None, headers=headers)
         return message, error
 
     def post(self, api, body, params=None, headers=None):
@@ -851,7 +866,7 @@ class OntapRestAPI(object):
 
     def options(self, api, params=None, headers=None):
         method = 'OPTIONS'
-        dummy, message, error = self.send_request(method, api, params, headers=headers)
+        dummy, message, error = self.send_request(method, api, params, json=None, headers=headers)
         return message, error
 
     def set_version(self, message):
@@ -961,7 +976,7 @@ class OntapRestAPI(object):
     def is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):
         ''' only return error if there is a reason to '''
         use_rest, error = self._is_rest(used_unsupported_rest_properties, partially_supported_rest_properties, parameters)
-        if used_unsupported_rest_properties is None:
+        if used_unsupported_rest_properties is None and partially_supported_rest_properties is None:
             return use_rest
         return use_rest, error
 

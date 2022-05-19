@@ -45,6 +45,7 @@ _DEFAULT_RESPONSES = {
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'empty_records': (200, {'records': []}, None),
     'zero_records': (200, {'num_records': 0}, None),
+    'one_record': (200, {'num_records': 1}, None),
     'generic_error': (400, None, "Expected error"),
 }
 

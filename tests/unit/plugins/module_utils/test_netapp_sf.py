@@ -56,3 +56,30 @@ def test_negative_create_sf_connection_exception(mock_sf_create):
 def test_negative_create_sf_connection_no_sdk():
     module = create_ontap_module(DEFAULT_ARGS)
     assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module)['msg'] == 'the python SolidFire SDK module is required'
+
+
+def test_negative_create_sf_connection_no_options():
+    module = create_ontap_module(DEFAULT_ARGS)
+    peer_options = {}
+    assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module, host_options=peer_options)['msg'] ==\
+        'hostname, username, password are required for ElementSW connection.'
+
+
+def test_negative_create_sf_connection_missing_and_extra_options():
+    module = create_ontap_module(DEFAULT_ARGS)
+    peer_options = {'hostname': 'host', 'username': 'user'}
+    assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module, host_options=peer_options)['msg'] ==\
+        'password is required for ElementSW connection.'
+    peer_options = {'hostname': 'host', 'username': 'user', 'cert_filepath': 'cert'}
+    assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module, host_options=peer_options)['msg'] ==\
+        'password is required for ElementSW connection.  cert_filepath is not supported for ElementSW connection.'
+
+
+def test_negative_create_sf_connection_extra_options():
+    module = create_ontap_module(DEFAULT_ARGS)
+    peer_options = {'hostname': 'host', 'username': 'user'}
+    assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module, host_options=peer_options)['msg'] ==\
+        'password is required for ElementSW connection.'
+    peer_options = {'hostname': 'host', 'username': 'user', 'password': 'pass', 'cert_filepath': 'cert', 'key_filepath': 'key'}
+    assert expect_and_capture_ansible_exception(netapp_utils.create_sf_connection, 'fail', module, host_options=peer_options)['msg'] ==\
+        'cert_filepath, key_filepath are not supported for ElementSW connection.'

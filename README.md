@@ -37,7 +37,16 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.20.0
 
+### Bug Fixes
+  - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
+  - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
+  - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
+
 ### Minor Changes
+  - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
+  - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
+  - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
+  - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
   - na_ontap_vserver_cifs_security - Added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
 

@@ -7,7 +7,7 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
-    expect_and_capture_ansible_exception, create_module, create_and_apply, patch_ansible
+    assert_warning_was_raised, expect_and_capture_ansible_exception, create_module, create_and_apply, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -157,16 +157,27 @@ def test_module_fail_when_required_args_missing():
     assert create_module(my_module, {}, fail=True)['msg'] == msg
 
 
-def test_successful_create():
-    ''' creating snapmirror and testing idempotency '''
-    register_responses([
+if netapp_utils.has_netapp_lib():
+    zapi_create_responses = [
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # ONTAP to ONTAP
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check status
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
+    ]
+else:
+    zapi_create_responses = []
+
+
+@patch('time.sleep')
+def test_successful_create_with_source(dont_sleep):
+    ''' creating snapmirror and testing idempotency '''
+    # earlier versions of pythons don't support *zapi_create_responses
+    responses = list(zapi_create_responses)
+    responses.extend([
         # idempotency
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
@@ -174,6 +185,7 @@ def test_successful_create():
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # ONTAP to ONTAP, check for update
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
     ])
+    register_responses(responses)
     module_args = {
         "use_rest": "never",
         "source_hostname": "10.10.10.10",
@@ -184,6 +196,20 @@ def test_successful_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
     module_args.pop('schedule')
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_successful_create_with_peer(dont_sleep):
+    ''' creating snapmirror and testing idempotency '''
+    register_responses(zapi_create_responses)
+    module_args = {
+        "use_rest": "never",
+        "peer_options": {"hostname": "10.10.10.10"},
+        "schedule": "abc",
+        "identity_preserve": True,
+        "relationship_type": "data_protection",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 @patch('time.sleep')
@@ -264,8 +290,9 @@ def test_successful_create_without_initialize():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@patch('time.sleep')
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
-def test_successful_element_ontap_create(connection):
+def test_successful_element_ontap_create(connection, dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
@@ -273,6 +300,7 @@ def test_successful_element_ontap_create(connection):
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check status
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check health
         # idempotency
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
@@ -297,8 +325,9 @@ def test_successful_element_ontap_create(connection):
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@patch('time.sleep')
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
-def test_successful_ontap_element_create(connection):
+def test_successful_ontap_element_create(connection, dont_sleep):
     ''' check elementsw parameters for source '''
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
@@ -308,6 +337,7 @@ def test_successful_ontap_element_create(connection):
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),        # check status
         # idempotency
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
@@ -378,6 +408,49 @@ def test_successful_delete_without_source_hostname_check(dont_sleep):
         "state": "absent",
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_successful_delete_with_error_on_break(dont_sleep):
+    ''' source cluster hostname is optional when source is unknown'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['error']),
+        ('ZAPI', 'snapmirror-destroy', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised('Ignored error(s): Error breaking SnapMirror relationship: NetApp API failed. Reason - 12345:synthetic error for UT purpose')
+
+
+@patch('time.sleep')
+def test_negative_delete_error_with_error_on_break(dont_sleep):
+    ''' source cluster hostname is optional when source is unknown'''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
+        ('ZAPI', 'snapmirror-break', ZRR['error']),
+        ('ZAPI', 'snapmirror-destroy', ZRR['error']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Previous error(s): Error breaking SnapMirror relationship: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+    assert 'Error deleting SnapMirror:' in error
 
 
 def test_negative_delete_with_destination_path_missing():
@@ -542,14 +615,15 @@ def test_successful_modify():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_successful_initialize():
+@patch('time.sleep')
+def test_successful_initialize(dont_sleep):
     ''' initialize snapmirror and testing idempotency '''
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_uninitialized']),
-        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check status
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
     ])
@@ -722,17 +796,18 @@ def test_if_all_methods_catch_exception(dont_sleep):
     ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     tests = [
-        (my_obj.snapmirror_abort, [('snapmirror-abort', 'error')], 'Error aborting SnapMirror relationship :'),
+        (my_obj.snapmirror_abort, [('snapmirror-abort', 'error')], 'Error aborting SnapMirror relationship:'),
         (my_obj.snapmirror_break, [('snapmirror-quiesce', 'success'), ('snapmirror-get-iter', 'sm_info_snapmirrored_quiesced'), ('snapmirror-break', 'error')],
-         'Error breaking SnapMirror relationship :'),
+         'Error breaking SnapMirror relationship:'),
         (my_obj.snapmirror_get, [('snapmirror-get-iter', 'error')], 'Error fetching snapmirror info:'),
-        (my_obj.snapmirror_initialize, [('snapmirror-get-iter', 'sm_info'), ('snapmirror-initialize', 'error')], 'Error initializing SnapMirror :'),
-        (my_obj.snapmirror_update, [('snapmirror-update', 'error')], 'Error updating SnapMirror :'),
-        (my_obj.check_if_remote_volume_exists, [('volume-get-iter', 'error')], 'Error fetching source volume details source_volume :'),
+        (my_obj.snapmirror_initialize, [('snapmirror-get-iter', 'sm_info'), ('snapmirror-initialize', 'error')], 'Error initializing SnapMirror:'),
+        (my_obj.snapmirror_update, [('snapmirror-update', 'error')], 'Error updating SnapMirror:'),
+        (my_obj.check_if_remote_volume_exists, [('volume-get-iter', 'error')], 'Error fetching source volume details source_volume:'),
         (my_obj.snapmirror_create, [('volume-get-iter', 'success')], 'Source volume does not exist. Please specify a volume that exists'),
-        (my_obj.snapmirror_create, [('volume-get-iter', 'volume_info'), ('snapmirror-create', 'error')], 'Error creating SnapMirror '),
-        (my_obj.snapmirror_delete, [('snapmirror-destroy', 'error')], 'Error deleting SnapMirror :'),
-        (my_obj.snapmirror_modify, [('snapmirror-modify', 'error')], 'Error modifying SnapMirror schedule or policy :'),
+        (my_obj.snapmirror_create, [('volume-get-iter', 'volume_info'), ('snapmirror-create', 'error')], 'Error creating SnapMirror'),
+        (my_obj.snapmirror_delete, [('snapmirror-destroy', 'error')], 'Error deleting SnapMirror:'),
+        (my_obj.snapmirror_modify, [('snapmirror-modify', 'error')], 'Error modifying SnapMirror schedule or policy:'),
+        (my_obj.snapmirror_release, [('snapmirror-release', 'error')], 'Error releasing SnapMirror relationship:'),
 
     ]
     for (function, zapis, error) in tests:
@@ -744,7 +819,8 @@ def test_if_all_methods_catch_exception(dont_sleep):
             assert error in expect_and_capture_ansible_exception(function, 'fail')['msg']
 
 
-def test_successful_rest_create():
+@patch('time.sleep')
+def test_successful_rest_create(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
@@ -752,7 +828,8 @@ def test_successful_rest_create():
         ('POST', 'snapmirror/relationships', SRR['success']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
         ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),
-        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check initialized
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check health
     ])
     module_args = {
         "use_rest": "always",
@@ -795,17 +872,21 @@ def test_negative_rest_create_error():
     module_args = {
         "use_rest": "always",
     }
-    msg = "Error Creating Snapmirror: calling: snapmirror/relationships: got Expected error."
+    msg = "Error creating SnapMirror: calling: snapmirror/relationships: got Expected error."
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
-def test_rest_snapmirror_initialize():
+@patch('time.sleep')
+def test_rest_snapmirror_initialize(dont_sleep):
     ''' snapmirror initialize testing '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # Inside SM init patch response
-        ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),   # get to check if update is needed
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # Inside SM init patch response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_data_transferring']),                                   # get to check status after initialize
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),                                            # get to check status after initialize
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),                                            # check for update
+        ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),    # update
         ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),   # check_health calls sm_get
     ])
     module_args = {
@@ -820,7 +901,7 @@ def test_rest_snapmirror_update():
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # first sm_get
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply update calls again sm_get
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update
+        ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),  # sm update
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # check_health calls sm_get
     ])
     module_args = {
@@ -936,9 +1017,9 @@ def test_rest_resume_when_state_quiesced():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),  # apply first sm_get with state quiesced
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm resync response
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm resync response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update response
+        ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),   # sm update response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # check_health calls sm_get
     ])
     module_args = {
@@ -967,6 +1048,55 @@ def test_rest_snapmirror_delete(dont_sleep):
         "state": "absent",
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_snapmirror_delete_with_error_on_break(dont_sleep):
+    ''' snapmirror delete '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get with no data transfer
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),         # sm quiesce response
+        # sm quiesce validate the state which calls sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        # sm quiesce validate the state which calls sm_get after wait with 0 iter
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['generic_error']),   # sm break response
+        ('DELETE', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),        # sm delete response
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "state": "absent",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Ignored error(s): Error patching SnapMirror: {'state': 'broken_off'} - "
+                              "calling: snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06: got Expected error.")
+
+
+@patch('time.sleep')
+def test_rest_snapmirror_delete_with_error_on_break_and_delete(dont_sleep):
+    ''' snapmirror delete '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get with no data transfer
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),         # sm quiesce response
+        # sm quiesce validate the state which calls sm_get
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        # sm quiesce validate the state which calls sm_get after wait with 0 iter
+        ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['generic_error']),   # sm break response
+        ('DELETE', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['generic_error']),  # sm delete response
+    ])
+    module_args = {
+        "use_rest": "always",
+        "state": "absent",
+    }
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    print_warnings()
+    assert "Previous error(s): Error patching SnapMirror: {'state': 'broken_off'}" in error
+    assert "Error deleting SnapMirror: calling: snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06: got Expected error" in error
 
 
 @patch('time.sleep')
@@ -1000,9 +1130,9 @@ def test_rest_snapmirror_modify():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm modify response
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm modify response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get to check mirror state
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm update response
+        ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),    # sm update response
         ('GET', 'snapmirror/relationships', SRR['zero_records']),  # check_health calls sm_get
     ])
     module_args = {
@@ -1069,18 +1199,223 @@ def test_rest_error_snapmirror_create_and_initialize_bad_type():
     assert error == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-def test_rest_snapmirror_create_and_initialize():
+@patch('time.sleep')
+def test_rest_snapmirror_create_and_initialize(dont_sleep):
     ''' snapmirror restore '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['zero_records']),       # apply first sm_get
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'storage/volumes', SRR['one_record']),
         ('GET', 'snapmirror/policies', SRR['sm_policies']),             # policy
         ('POST', 'snapmirror/relationships', SRR['success']),           # first post response
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check status
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check_health calls sm_get
     ])
     module_args = {
         "use_rest": "always",
         "create_destination": {"enabled": True},
-        "policy": "sm_policy"
+        "policy": "sm_policy",
+        # force a call to check_if_remote_volume_exists
+        "peer_options": {"hostname": "10.10.10.10"},
+        "source_volume": "source_volume",
+        "source_vserver": "source_vserver",
+        "destination_volume": "destination_volume",
+        "destination_vserver": "svmdst3"
+
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_set_new_style():
+    # validate the old options are set properly using new endpoints
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('source_path')
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "always",
+        "source_endpoint": {
+            "cluster": "source_cluster",
+            "consistency_group_volumes": "source_consistency_group_volumes",
+            "path": "source_path",
+            "svm": "source_svm",
+        },
+        "destination_endpoint": {
+            "cluster": "destination_cluster",
+            "consistency_group_volumes": "destination_consistency_group_volumes",
+            "path": "destination_path",
+            "svm": "destination_svm",
+        },
+    }
+    my_obj = create_module(my_module, args, module_args)
+    assert my_obj.set_new_style() is None
+    assert my_obj.new_style
+    assert my_obj.parameters['destination_vserver'] == 'destination_svm'
+
+
+def test_negative_set_new_style():
+    # validate the old options are set properly using new endpoints
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_97']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('source_path')
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "always",
+        "source_endpoint": {
+            "cluster": "source_cluster",
+            "consistency_group_volumes": "source_consistency_group_volumes",
+            "path": "source_path",
+            "svm": "source_svm",
+        },
+        "destination_endpoint": {
+            "cluster": "destination_cluster",
+            "consistency_group_volumes": "destination_consistency_group_volumes",
+            "path": "destination_path",
+            "svm": "destination_svm",
+        },
+    }
+    # errors on source_endpoint
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.set_new_style, 'fail')['msg']
+    assert "Error: using any of ['cluster', 'ipspace'] requires ONTAP 9.7 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.6.0 - using REST" in error
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.set_new_style, 'fail')['msg']
+    assert "Error: using consistency_group_volumes requires ONTAP 9.8 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.7.0 - using REST" in error
+    # errors on destination_endpoint
+    module_args['source_endpoint'].pop('cluster')
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.set_new_style, 'fail')['msg']
+    assert "Error: using any of ['cluster', 'ipspace'] requires ONTAP 9.7 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.6.0 - using REST" in error
+    module_args['source_endpoint'].pop('consistency_group_volumes')
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.set_new_style, 'fail')['msg']
+    assert "Error: using consistency_group_volumes requires ONTAP 9.8 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.7.0 - using REST" in error
+    module_args.pop('source_endpoint')
+    module_args.pop('destination_endpoint')
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.set_new_style, 'fail')['msg']
+    assert error == 'Missing parameters: Source endpoint or Destination endpoint'
+
+
+def test_check_parameters_new_style():
+    # validate the old options are set properly using new endpoints
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('source_path')
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "always",
+        "source_endpoint": {
+            "cluster": "source_cluster",
+            "consistency_group_volumes": "source_consistency_group_volumes",
+            "path": "source_path",
+            "svm": "source_svm",
+        },
+        "destination_endpoint": {
+            "cluster": "destination_cluster",
+            "consistency_group_volumes": "destination_consistency_group_volumes",
+            "path": "destination_path",
+            "svm": "destination_svm",
+        },
+    }
+    my_obj = create_module(my_module, args, module_args)
+    assert my_obj.check_parameters() is None
+    assert my_obj.new_style
+    assert my_obj.parameters['destination_vserver'] == 'destination_svm'
+
+
+def test_negative_check_parameters_new_style():
+    # validate version checks
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_97']),
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('source_path')
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "always",
+        "source_endpoint": {
+            "cluster": "source_cluster",
+            "consistency_group_volumes": "source_consistency_group_volumes",
+            "path": "source_path",
+            "svm": "source_svm",
+        },
+        "destination_endpoint": {
+            "cluster": "destination_cluster",
+            "consistency_group_volumes": "destination_consistency_group_volumes",
+            "path": "destination_path",
+            "svm": "destination_svm",
+        },
+        "create_destination": {"enabled": True}
+    }
+    # errors on source_endpoint
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.check_parameters, 'fail')['msg']
+    assert "Error: using create_destination requires ONTAP 9.7 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.6.0 - using REST" in error
+    my_obj = create_module(my_module, args, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.check_parameters, 'fail')['msg']
+    assert "Error: using consistency_group_volumes requires ONTAP 9.8 or later and REST must be enabled" in error
+    assert "ONTAP version: 9.7.0 - using REST" in error
+    module_args['destination_endpoint'].pop('path')
+    error = create_module(my_module, args, module_args, fail=True)['msg']
+    assert "missing required arguments: path found in destination_endpoint" in error
+
+
+def test_check_parameters_old_style():
+    # validate the old options are set properly using new endpoints
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
+    # using paths
+    module_args = {
+        "use_rest": "always",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.check_parameters() is None
+    assert not my_obj.new_style
+    # using volume and vserver, paths are constructed
+    args = dict(DEFAULT_ARGS)
+    args.pop('source_path')
+    args.pop('destination_path')
+    module_args = {
+        "use_rest": "always",
+        "source_volume": "source_vol",
+        "source_vserver": "source_svm",
+        "destination_volume": "dest_vol",
+        "destination_vserver": "dest_svm",
+    }
+    my_obj = create_module(my_module, args, module_args)
+    assert my_obj.check_parameters() is None
+    assert not my_obj.new_style
+    assert my_obj.parameters['source_path'] == "source_svm:source_vol"
+    assert my_obj.parameters['destination_path'] == "dest_svm:dest_vol"
+    # vserver DR
+    module_args = {
+        "use_rest": "always",
+        "source_vserver": "source_svm",
+        "destination_vserver": "dest_svm",
+    }
+    my_obj = create_module(my_module, args, module_args)
+    assert my_obj.check_parameters() is None
+    assert not my_obj.new_style
+    assert my_obj.parameters['source_path'] == "source_svm:"
+    assert my_obj.parameters['destination_path'] == "dest_svm:"

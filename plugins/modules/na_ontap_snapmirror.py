@@ -25,6 +25,7 @@ description:
   - Performs restore if the C(relationship_type=restore) and all other operations will not be performed during this task
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_peer
 module: na_ontap_snapmirror
 options:
   state:
@@ -87,19 +88,22 @@ options:
     type: str
   source_hostname:
     description:
-     - Source hostname or management IP address for ONTAP or ElementSW cluster.
-     - If present, when state is absent, the relationship is released at the source before being deleted at destination.
-     - It is recommended to always release before deleting, so make sure this parameter is present if the source hostname is known.
+      - DEPRECATED - please use C(peer_options).
+      - Source hostname or management IP address for ONTAP or ElementSW cluster.
+      - If present, when state is absent, the relationship is released at the source before being deleted at destination.
+      - It is recommended to always release before deleting, so make sure this parameter is present if the source hostname is known.
     type: str
   source_username:
     description:
-     - Source username for ONTAP or ElementSW cluster.
-     - Optional if this is same as destination username.
+      - DEPRECATED - please use C(peer_options).
+      - Source username for ONTAP or ElementSW cluster.
+      - Optional if this is same as destination username.
     type: str
   source_password:
     description:
-     - Source password for ONTAP or ElementSW cluster.
-     - Optional if this is same as destination password.
+      - DEPRECATED - please use C(peer_options).
+      - Source password for ONTAP or ElementSW cluster.
+      - Optional if this is same as destination password.
     type: str
   connection_type:
     description:
@@ -281,9 +285,22 @@ options:
         description:
           - The name of the SVM.  Not sure when this is needed.
         type: str
+  transferring_time_out:
+    description:
+      - How long to wait when a transfer is in progress (after initializing for instance).  Unit is seconds.
+    default: 300
+    type: int
+    version_added: 21.20.0
 
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
+notes:
+  - supports REST and ZAPI.
+  - supports check_mode.
+  - restore is not idempotent.
+  - snapmirror runs on the destination for most operations, peer_options identify the source cluster.
+  - ONTAP supports either username/password or a SSL certificate for authentication.
+  - ElementSW only supports username/password for authentication.
 '''
 
 EXAMPLES = """
@@ -395,7 +412,7 @@ EXAMPLES = """
         source_username: "{{ netapp_username }}"
         source_password: "{{ netapp_password }}"
 
-    - name: Create Snapmirror relationship (create destination volume)
+    - name: Create SnapMirror relationship (create destination volume)
       tags: create
       netapp.ontap.na_ontap_snapmirror:
         state: present
@@ -492,10 +509,11 @@ class NetAppONTAPSnapmirror(object):
                                             'transition_data_protection',
                                             'extended_data_protection']
                                    ),
-            source_hostname=dict(required=False, type='str'),
             connection_type=dict(required=False, type='str',
                                  choices=['ontap_ontap', 'elementsw_ontap', 'ontap_elementsw'],
                                  default='ontap_ontap'),
+            peer_options=dict(type='dict', options=netapp_utils.na_ontap_host_argument_spec_peer()),
+            source_hostname=dict(required=False, type='str'),
             source_username=dict(required=False, type='str'),
             source_password=dict(required=False, type='str', no_log=True),
             max_transfer_rate=dict(required=False, type='int'),
@@ -519,6 +537,7 @@ class NetAppONTAPSnapmirror(object):
             )),
             source_cluster=dict(required=False, type='str'),
             destination_cluster=dict(required=False, type='str'),
+            transferring_time_out=dict(required=False, type='int', default=300),
         ))
 
         self.module = AnsibleModule(
@@ -532,6 +551,9 @@ class NetAppONTAPSnapmirror(object):
                 ('destination_endpoint', 'destination_path'),
                 ('destination_endpoint', 'destination_volume'),
                 ('destination_endpoint', 'destination_vserver'),
+                ('peer_options', 'source_hostname'),
+                ('peer_options', 'source_username'),
+                ('peer_options', 'source_password')
             ],
             required_together=(['source_volume', 'destination_volume'],
                                ['source_vserver', 'destination_vserver'],
@@ -543,48 +565,69 @@ class NetAppONTAPSnapmirror(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.new_style = False
+        # when deleting, ignore previous errors, but report them if delete fails
+        self.previous_errors = []
         # setup later if required
         self.source_server = None
         # only for ElementSW -> ONTAP snapmirroring, validate if ElementSW SDK is available
         if self.parameters.get('connection_type') in ['elementsw_ontap', 'ontap_elementsw'] and HAS_SF_SDK is False:
             self.module.fail_json(msg="Unable to import the SolidFire Python SDK")
 
+        self.set_source_peer()
+        self.rest_api, self.use_rest = self.setup_rest()
+        if not self.use_rest:
+            self.server = self.setup_zapi()
+
+    def set_source_peer(self):
+        if self.parameters.get('source_hostname') is None and self.parameters.get('peer_options') is None:
+            if self.parameters.get('connection_type') == 'ontap_elementsw':
+                return self.module.fail_json(msg='Error: peer_options are required to identify ONTAP cluster with connection_type: ontap_elementsw')
+            if self.parameters.get('connection_type') == 'elementsw_ontap':
+                return self.module.fail_json(msg='Error: peer_options are required to identify SolidFire cluster with connection_type: elementsw_ontap')
+        if self.parameters.get('source_hostname') is not None:
+            # if source_hostname is present, peer_options is absent
+            self.parameters['peer_options'] = dict(
+                hostname=self.parameters.get('source_hostname'),
+                username=self.parameters.get('source_username'),
+                password=self.parameters.get('source_password'),
+            )
+        elif self.na_helper.safe_get(self.parameters, ['peer_options', 'hostname']):
+            self.parameters['source_hostname'] = self.parameters['peer_options']['hostname']
+        if 'peer_options' in self.parameters:
+            netapp_utils.setup_host_options_from_module_params(
+                self.parameters['peer_options'], self.module,
+                netapp_utils.na_ontap_host_argument_spec_peer().keys())
+
+    def setup_rest(self):
         unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate', 'schedule']
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        host_options = self.parameters['peer_options'] if self.parameters.get('connection_type') == 'ontap_elementsw' else None
+        rest_api = netapp_utils.OntapRestAPI(self.module, host_options=host_options)
         rtype = self.parameters.get('relationship_type')
         if rtype not in (None, 'extended_data_protection', 'restore'):
             unsupported_rest_properties.append('relationship_type')
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
-        self.use_rest, error = self.rest_api.is_rest(used_unsupported_rest_properties)
+        use_rest, error = rest_api.is_rest(used_unsupported_rest_properties)
         if error is not None:
             if 'relationship_type' in error:
                 error = error.replace('relationship_type', 'relationship_type: %s' % rtype)
             self.module.fail_json(msg=error)
 
         ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
-        if not self.use_rest and any(x in self.parameters for x in ontap_97_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=self.use_rest))
-        if not self.use_rest:
-            if not netapp_utils.has_netapp_lib():
-                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            if self.parameters.get('connection_type') == 'ontap_elementsw':
-                if self.parameters.get('source_username'):
-                    self.module.params['username'] = self.parameters['source_username']
-                if self.parameters.get('source_password'):
-                    self.module.params['password'] = self.parameters['source_password']
-                self.module.params['hostname'] = self.parameters['source_hostname']
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if not use_rest and any(x in self.parameters for x in ontap_97_options):
+            self.module.fail_json(msg='Error: %s' % rest_api.options_require_ontap_version(ontap_97_options, version='9.7', use_rest=use_rest))
+        return rest_api, use_rest
+
+    def setup_zapi(self):
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        host_options = self.parameters['peer_options'] if self.parameters.get('connection_type') == 'ontap_elementsw' else None
+        return netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=host_options)
 
     def set_element_connection(self, kind):
         if kind == 'source':
-            self.module.params['hostname'] = self.parameters['source_hostname']
-            self.module.params['username'] = self.parameters['source_username']
-            self.module.params['password'] = self.parameters['source_password']
+            elem = netapp_utils.create_sf_connection(module=self.module, host_options=self.parameters['peer_options'])
         elif kind == 'destination':
-            self.module.params['hostname'] = self.parameters['hostname']
-            self.module.params['username'] = self.parameters['username']
-            self.module.params['password'] = self.parameters['password']
-        elem = netapp_utils.create_sf_connection(module=self.module)
+            elem = netapp_utils.create_sf_connection(module=self.module, host_options=self.parameters)
         elementsw_helper = NaElementSWModule(elem)
         return elementsw_helper, elem
 
@@ -643,13 +686,18 @@ class NetAppONTAPSnapmirror(object):
         return None
 
     def wait_for_idle_status(self):
-        # sleep for a maximum of 5 minutes, in 30 seconds increments
-        for __ in range(10):
-            time.sleep(30)
+        # sleep for a maximum of X seconds (with a default of 5 minutes), in 30 seconds increments
+        transferring_time_out = self.parameters['transferring_time_out']
+        increment = 30
+        if transferring_time_out <= 0:
+            return self.snapmirror_get()
+        for __ in range(0, transferring_time_out, increment):
+            time.sleep(increment)
             current = self.snapmirror_get()
             if current['status'] != 'transferring':
-                return True
-        return False
+                return current
+        self.module.warn('SnapMirror relationship is still transferring after %d seconds.' % transferring_time_out)
+        return current
 
     def wait_for_quiesced_status(self):
         # sleep for a maximum of 25 seconds, in 5 seconds increments
@@ -684,7 +732,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             result = self.source_server.invoke_successfully(volume_info, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching source volume details %s : %s'
+            self.module.fail_json(msg='Error fetching source volume details %s: %s'
                                   % (self.parameters['source_volume'], to_native(error)),
                                   exception=traceback.format_exc())
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
@@ -748,7 +796,7 @@ class NetAppONTAPSnapmirror(object):
         """
         Create a SnapMirror relationship
         """
-        if self.parameters.get('source_hostname') and self.parameters.get('source_volume') and not self.check_if_remote_volume_exists():
+        if self.parameters.get('peer_options') and self.parameters.get('source_volume') and not self.check_if_remote_volume_exists():
             self.module.fail_json(msg='Source volume does not exist. Please specify a volume that exists')
         if self.use_rest:
             return self.snapmirror_rest_create()
@@ -779,15 +827,10 @@ class NetAppONTAPSnapmirror(object):
         Setup ontap ZAPI server connection for source hostname
         :return: None
         """
-        if self.parameters.get('source_username'):
-            self.module.params['username'] = self.parameters['source_username']
-        if self.parameters.get('source_password'):
-            self.module.params['password'] = self.parameters['source_password']
-        self.module.params['hostname'] = self.parameters['source_hostname']
         if not self.use_rest:
-            self.source_server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            self.source_server = netapp_utils.setup_na_ontap_zapi(module=self.module, host_options=self.parameters['peer_options'])
         else:
-            self.src_rest_api = netapp_utils.OntapRestAPI(self.module)
+            self.src_rest_api = netapp_utils.OntapRestAPI(self.module, host_options=self.parameters['peer_options'])
             unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate', 'schedule']
             rtype = self.parameters.get('relationship_type')
             if rtype not in (None, 'extended_data_protection', 'restore'):
@@ -799,7 +842,7 @@ class NetAppONTAPSnapmirror(object):
                     error = error.replace('relationship_type', 'relationship_type: %s' % rtype)
                 self.module.fail_json(msg=error)
 
-    def delete_snapmirror(self, is_hci, relationship_type, mirror_state):
+    def delete_snapmirror(self, relationship_type, mirror_state):
         """
         Delete a SnapMirror relationship
         #1. Quiesce the SnapMirror relationship at destination
@@ -809,14 +852,14 @@ class NetAppONTAPSnapmirror(object):
         """
         # Quiesce and Break at destination
         if relationship_type not in ['load_sharing', 'vault'] and mirror_state not in ['uninitialized', 'broken-off', 'broken_off']:
-            self.snapmirror_break()
+            self.snapmirror_break(before_delete=True)
         # if source is ONTAP, release the destination at source cluster
         # if the source_hostname is unknown, do not run snapmirror_release
-        if self.parameters.get('source_hostname') is not None and not is_hci and not self.use_rest:
+        if self.parameters.get('peer_options') is not None and self.parameters.get('connection_type') != 'elementsw_ontap' and not self.use_rest:
             self.set_source_cluster_connection()
             if self.get_destination():
                 # Release at source
-                # Note: REST remove the source from destination , so not required to release from source for REST
+                # Note: REST remove the source from destination, so not required to release from source for REST
                 self.snapmirror_release()
         # Delete at destination
         self.snapmirror_delete()
@@ -836,7 +879,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             result = self.server.invoke_successfully(snapmirror_quiesce, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error Quiescing SnapMirror : %s'
+            self.module.fail_json(msg='Error quiescing SnapMirror: %s'
                                   % (to_native(error)), exception=traceback.format_exc())
         # checking if quiesce was passed successfully
         self.wait_for_quiesced_status()
@@ -855,11 +898,12 @@ class NetAppONTAPSnapmirror(object):
             self.server.invoke_successfully(snapmirror_delete,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error deleting SnapMirror : %s'
-                                  % (to_native(error)),
-                                  exception=traceback.format_exc())
+            msg = 'Error deleting SnapMirror: %s' % to_native(error)
+            if self.previous_errors:
+                msg += '.  Previous error(s): %s' % ' -- '.join(self.previous_errors)
+            self.module.fail_json(msg=msg, exception=traceback.format_exc())
 
-    def snapmirror_break(self, destination=None):
+    def snapmirror_break(self, destination=None, before_delete=False):
         """
         Break SnapMirror relationship at destination cluster
         #1. Quiesce the SnapMirror relationship at destination
@@ -871,7 +915,7 @@ class NetAppONTAPSnapmirror(object):
             if self.parameters['current_mirror_state'] == 'broken_off' or self.parameters['current_transfer_status'] == 'transferring':
                 self.na_helper.changed = False
                 self.module.fail_json(msg="snapmirror data are transferring")
-            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="broken_off")
+            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="broken_off", before_delete=before_delete)
         if destination is None:
             destination = self.parameters['destination_path']
         options = {'destination-location': destination}
@@ -881,9 +925,12 @@ class NetAppONTAPSnapmirror(object):
             self.server.invoke_successfully(snapmirror_break,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error breaking SnapMirror relationship : %s'
-                                  % (to_native(error)),
-                                  exception=traceback.format_exc())
+            msg = 'Error breaking SnapMirror relationship: %s' % to_native(error)
+            if before_delete:
+                # record error but proceed with deletion
+                self.previous_errors.append(msg)
+            else:
+                self.module.fail_json(msg=msg, exception=traceback.format_exc())
 
     def snapmirror_release(self):
         """
@@ -900,7 +947,7 @@ class NetAppONTAPSnapmirror(object):
             self.source_server.invoke_successfully(snapmirror_release,
                                                    enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error releasing SnapMirror relationship : %s'
+            self.module.fail_json(msg='Error releasing SnapMirror relationship: %s'
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -918,17 +965,24 @@ class NetAppONTAPSnapmirror(object):
             self.server.invoke_successfully(snapmirror_abort,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error aborting SnapMirror relationship : %s'
+            self.module.fail_json(msg='Error aborting SnapMirror relationship: %s'
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
-    def snapmirror_initialize(self):
+    def snapmirror_initialize(self, current=None):
         """
         Initialize SnapMirror based on relationship state
         """
+        if current and current['status'] == 'transferring' or self.parameters.get('current_transfer_status') == 'transferring':
+            # Operation already in progress, let's wait for it to end
+            current = self.wait_for_idle_status()
+        if not current:
+            current = self.snapmirror_get()
         if self.use_rest:
-            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="snapmirrored")
-        current = self.snapmirror_get()
+            if current['mirror_state'] == 'uninitialized' and current['status'] != 'transferring':
+                self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="snapmirrored")
+                self.wait_for_idle_status()
+            return
         if current['mirror_state'] != 'snapmirrored':
             initialize_zapi = 'snapmirror-initialize'
             if self.parameters.get('relationship_type') and self.parameters['relationship_type'] == 'load_sharing':
@@ -942,9 +996,10 @@ class NetAppONTAPSnapmirror(object):
                 self.server.invoke_successfully(snapmirror_init,
                                                 enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error initializing SnapMirror : %s'
+                self.module.fail_json(msg='Error initializing SnapMirror: %s'
                                       % (to_native(error)),
                                       exception=traceback.format_exc())
+            self.wait_for_idle_status()
 
     def snapmirror_resync(self):
         """
@@ -958,7 +1013,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             self.server.invoke_successfully(snapmirror_resync, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error resyncing SnapMirror : %s'
+            self.module.fail_json(msg='Error resyncing SnapMirror: %s'
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -974,7 +1029,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             self.server.invoke_successfully(snapmirror_resume, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error resume SnapMirror : %s' % (to_native(error)), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error resume SnapMirror: %s' % (to_native(error)), exception=traceback.format_exc())
 
     def snapmirror_restore(self):
         """
@@ -993,7 +1048,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             self.server.invoke_successfully(snapmirror_restore, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error restore SnapMirror : %s' % (to_native(error)), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error restore SnapMirror: %s' % (to_native(error)), exception=traceback.format_exc())
 
     def snapmirror_modify(self, modify):
         """
@@ -1016,7 +1071,7 @@ class NetAppONTAPSnapmirror(object):
             self.server.invoke_successfully(snapmirror_modify,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error modifying SnapMirror schedule or policy : %s'
+            self.module.fail_json(msg='Error modifying SnapMirror schedule or policy: %s'
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -1025,7 +1080,7 @@ class NetAppONTAPSnapmirror(object):
         Update data in destination endpoint
         """
         if self.use_rest:
-            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(smupdate=True)
+            return self.snapmirror_update_rest()
 
         zapi = 'snapmirror-update'
         options = {'destination-location': self.parameters['destination_path']}
@@ -1038,7 +1093,7 @@ class NetAppONTAPSnapmirror(object):
         try:
             self.server.invoke_successfully(snapmirror_update, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error updating SnapMirror : %s'
+            self.module.fail_json(msg='Error updating SnapMirror: %s'
                                   % (to_native(error)),
                                   exception=traceback.format_exc())
 
@@ -1139,14 +1194,14 @@ class NetAppONTAPSnapmirror(object):
         # Note: REST module to get_destination is not required as it's used in only ZAPI.
         """
         result = None
-        release_get = netapp_utils.zapi.NaElement('snapmirror-get-destination-iter')
+        get_dest_iter = netapp_utils.zapi.NaElement('snapmirror-get-destination-iter')
         query = netapp_utils.zapi.NaElement('query')
         snapmirror_dest_info = netapp_utils.zapi.NaElement('snapmirror-destination-info')
         snapmirror_dest_info.add_new_child('destination-location', self.parameters['destination_path'])
         query.add_child_elem(snapmirror_dest_info)
-        release_get.add_child_elem(query)
+        get_dest_iter.add_child_elem(query)
         try:
-            result = self.source_server.invoke_successfully(release_get, enable_tunneling=True)
+            result = self.source_server.invoke_successfully(get_dest_iter, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error fetching snapmirror destinations info: %s' % to_native(error),
                                   exception=traceback.format_exc())
@@ -1273,22 +1328,21 @@ class NetAppONTAPSnapmirror(object):
         # Use the POST /api/snapmirror/relationships/{relationship.uuid}/transfers REST API call to start the restore transfer on the SnapMirror relationship
         # run this API calls on Source cluster
         # if the source_hostname is unknown, do not run snapmirror_restore
-        body_restore = {}
         body = {'destination.path': self.parameters['destination_path'], 'source.path': self.parameters['source_path'], 'restore': 'true'}
-        if self.parameters.get('source_snapshot'):
-            body_restore['source_snapshot'] = self.parameters['source_snapshot']
         api = 'snapmirror/relationships'
         dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=120)
         if error:
-            self.module.fail_json(msg='Error Restoring Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error restoring SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
         relationship_uuid = self.get_relationship_uuid()
         # REST API call to start the restore transfer on the SnapMirror relationship
         if relationship_uuid is None:
-            self.module.fail_json(msg="Error Restoring Snapmirror: unable to get UUID for the SnapMirror relationship.")
+            self.module.fail_json(msg="Error restoring SnapMirror: unable to get UUID for the SnapMirror relationship.")
+
+        body = {'source_snapshot': self.parameters['source_snapshot']} if self.parameters.get('source_snapshot') else {}
         api = 'snapmirror/relationships/%s/transfers' % relationship_uuid
-        dummy, error = rest_generic.post_async(self.rest_api, api, body_restore, timeout=60, job_timeout=120)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=60, job_timeout=120)
         if error:
-            self.module.fail_json(msg='Error Restoring Snapmirror Transfer: %s' % to_native(error), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error restoring SnapMirror Transfer: %s' % to_native(error), exception=traceback.format_exc())
 
     def get_relationship_uuid(self, after_create=True):
         # this may be called after a create including restore, so we may need to fetch the data
@@ -1296,7 +1350,7 @@ class NetAppONTAPSnapmirror(object):
             self.snapmirror_get()
         return self.parameters.get('uuid')
 
-    def snapmirror_mod_init_resync_break_quiesce_resume_rest(self, state=None, policy=None, smupdate=False):
+    def snapmirror_mod_init_resync_break_quiesce_resume_rest(self, state=None, policy=None, before_delete=False):
         """
         To perform SnapMirror modify, init, resume, resync and break.
         1. Modify only update SnapMirror policy which passes the policy in body.
@@ -1311,17 +1365,34 @@ class NetAppONTAPSnapmirror(object):
         if uuid is None:
             self.module.fail_json(msg="Error in updating SnapMirror relationship: unable to get UUID for the SnapMirror relationship.")
 
+        api = 'snapmirror/relationships'
         if state is not None:
             body["state"] = state
         elif policy is not None:
             body["policy"] = {"name": policy["policy"]}
-        elif not smupdate:
+        else:
             self.na_helper.changed = False
             return
-        api = 'snapmirror/relationships'
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
         if error:
-            self.module.fail_json(msg='Error patching Snapmirror: %s:' % to_native(error), exception=traceback.format_exc())
+            msg = 'Error patching SnapMirror: %s - %s' % (body, to_native(error))
+            if before_delete:
+                self.previous_errors.append(msg)
+            else:
+                self.module.fail_json(msg=msg, exception=traceback.format_exc())
+
+    def snapmirror_update_rest(self):
+        """
+        Perform an update on the relationship using POST on /snapmirror/relationships/{relationship.uuid}/transfers
+        """
+        uuid = self.get_relationship_uuid()
+        if uuid is None:
+            self.module.fail_json(msg="Error in updating SnapMirror relationship: unable to get UUID for the SnapMirror relationship.")
+        api = 'snapmirror/relationships/%s/transfers' % uuid
+        body = {}
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error updating SnapMirror relationship: %s:' % to_native(error), exception=traceback.format_exc())
 
     def snapmirror_abort_rest(self):
         """
@@ -1335,7 +1406,7 @@ class NetAppONTAPSnapmirror(object):
         body = {"state": "aborted"}
         dummy, error = rest_generic.patch_async(self.rest_api, api, transfer_uuid, body)
         if error:
-            self.module.fail_json(msg='Error Aborting Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
+            self.module.fail_json(msg='Error aborting SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
 
     def snapmirror_quiesce_rest(self):
         """
@@ -1354,11 +1425,14 @@ class NetAppONTAPSnapmirror(object):
         """
         uuid = self.get_relationship_uuid(after_create=False)
         if uuid is None:
-            self.module.fail_json(msg='Error in Deleting SnapMirror: %s, unable to get UUID for the SnapMirror relationship.' % uuid)
+            self.module.fail_json(msg='Error in deleting SnapMirror: %s, unable to get UUID for the SnapMirror relationship.' % uuid)
         api = 'snapmirror/relationships'
         dummy, error = rest_generic.delete_async(self.rest_api, api, uuid)
         if error:
-            self.module.fail_json(msg='Error Deleting Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
+            msg = 'Error deleting SnapMirror: %s' % to_native(error)
+            if self.previous_errors:
+                msg += '.  Previous error(s): %s' % ' -- '.join(self.previous_errors)
+            self.module.fail_json(msg=msg, exception=traceback.format_exc())
 
     def snapmirror_rest_create(self):
         """
@@ -1368,9 +1442,12 @@ class NetAppONTAPSnapmirror(object):
         api = 'snapmirror/relationships'
         dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=60)
         if error:
-            self.module.fail_json(msg='Error Creating Snapmirror: %s' % to_native(error), exception=traceback.format_exc())
-        if self.parameters['initialize'] and not initialized:
-            self.snapmirror_initialize()
+            self.module.fail_json(msg='Error creating SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
+        if self.parameters['initialize']:
+            if initialized:
+                self.wait_for_idle_status()
+            else:
+                self.snapmirror_initialize()
 
     def snapmirror_get_rest(self, destination=None):
         """ Get the current snapmirror info """
@@ -1433,6 +1510,93 @@ class NetAppONTAPSnapmirror(object):
             policy_type = system_policy_type
         return policy_type, error
 
+    def add_break_action(self, actions, current):
+        # If current is not None, it means the state is present otherwise we would take a delete action
+        if current and self.parameters['relationship_state'] == 'broken':
+            if current['mirror_state'] == 'uninitialized':
+                self.module.fail_json(msg='SnapMirror relationship cannot be broken if mirror state is uninitialized')
+            elif current['relationship_type'] in ['load_sharing', 'vault']:
+                self.module.fail_json(msg='SnapMirror break is not allowed in a load_sharing or vault relationship')
+            elif current['mirror_state'] not in ['broken-off', 'broken_off']:
+                actions.append('break')
+                self.na_helper.changed = True
+
+    def add_active_actions(self, actions, current):
+        # add initialize or resume action as needed
+        # add resync or check_for_update action as needed
+        # If current is not None, it means the state is present otherwise we would take a delete action
+        if current and self.parameters['relationship_state'] == 'active':
+            # check for initialize
+            if self.parameters['initialize'] and current['mirror_state'] == 'uninitialized' and current['current_transfer_type'] != 'initialize':
+                actions.append('initialize')
+                # set changed explicitly for initialize
+                self.na_helper.changed = True
+            # resume when state is quiesced
+            if current['status'] == 'quiesced' or current['mirror_state'] == 'paused':
+                actions.append('resume')
+                # set changed explicitly for resume
+                self.na_helper.changed = True
+            # resync when state is broken-off
+            if current['mirror_state'] in ['broken-off', 'broken_off']:
+                actions.append('resync')
+                # set changed explicitly for resync
+                self.na_helper.changed = True
+            # Update when create is called again, or modify is being called
+            elif self.parameters['update']:
+                actions.append('check_for_update')
+
+    def get_actions(self):
+        restore = self.parameters.get('relationship_type', '') == 'restore'
+        current = None if restore else self.snapmirror_get()
+        # ONTAP automatically convert DP to XDP
+        if current and current['relationship_type'] == 'extended_data_protection' and self.parameters.get('relationship_type') == 'data_protection':
+            self.parameters['relationship_type'] = 'extended_data_protection'
+        cd_action = None if restore else self.na_helper.get_cd_action(current, self.parameters)
+        modify = None
+        if cd_action is None and self.parameters['state'] == 'present' and not restore:
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if modify and 'relationship_type' in modify:
+                self.module.fail_json(msg='Error: cannot modify relationship_type from %s to %s.' %
+                                      (current['relationship_type'], modify['relationship_type']))
+        actions = []
+        if self.parameters['state'] == 'present' and restore:
+            actions.append('restore')
+            self.na_helper.changed = True
+        elif cd_action == 'create':
+            actions.append('create')
+        elif cd_action == 'delete':
+            if current['status'] == 'transferring' or self.parameters.get('current_transfer_status') == 'transferring':
+                actions.append('abort')
+            actions.append('delete')
+        else:
+            if modify:
+                actions.append('modify')
+            # If current is not None, it means the state is present otherwise we would take a delete action
+            self.add_break_action(actions, current)
+            self.add_active_actions(actions, current)
+        return actions, current, modify
+
+    def take_actions(self, actions, current, modify):
+        if 'restore' in actions:
+            self.snapmirror_restore()
+        if 'create' in actions:
+            self.snapmirror_create()
+        if 'abort' in actions:
+            self.snapmirror_abort()
+            self.wait_for_idle_status()
+        if 'delete' in actions:
+            self.delete_snapmirror(current['relationship_type'], current['mirror_state'])
+        if 'modify' in actions:
+            self.snapmirror_modify(modify)
+        if 'break' in actions:
+            self.snapmirror_break()
+        if 'initialize' in actions:
+            self.snapmirror_initialize(current)
+        if 'resume' in actions:
+            self.snapmirror_resume()
+        if 'resync' in actions:
+            self.snapmirror_resync()
+
     def apply(self):
         """
         Apply action to SnapMirror
@@ -1451,88 +1615,22 @@ class NetAppONTAPSnapmirror(object):
             if current_elementsw_ontap is None:
                 self.module.fail_json(msg='Error: creating an ONTAP to ElementSW snapmirror relationship requires an '
                                           'established SnapMirror relation from ElementSW to ONTAP cluster')
-        restore = self.parameters.get('relationship_type', '') == 'restore'
-        current = None if restore else self.snapmirror_get()
-        # ONTAP automatically convert DP to XDP
-        if current and current['relationship_type'] == 'extended_data_protection' and self.parameters.get('relationship_type') == 'data_protection':
-            self.parameters['relationship_type'] = 'extended_data_protection'
-        cd_action = None if restore else self.na_helper.get_cd_action(current, self.parameters)
 
-        modify = None
-        if cd_action is None and self.parameters['state'] == 'present' and not restore:
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if modify and 'relationship_type' in modify:
-            self.module.fail_json(msg='Error: cannot modify relationship_type from %s to %s.' %
-                                  (current['relationship_type'], modify['relationship_type']))
-        actions = []
-        element_snapmirror = False
-        if self.parameters['state'] == 'present' and restore:
-            self.na_helper.changed = True
-            actions.append('restore')
-            if not self.module.check_mode:
-                self.snapmirror_restore()
-        elif cd_action == 'create':
-            actions.append('create')
-            if not self.module.check_mode:
-                self.snapmirror_create()
-        elif cd_action == 'delete':
-            if current['status'] == 'transferring' or self.parameters.get('current_transfer_status') == 'transferring':
-                actions.append('abort')
+        actions, current, modify = self.get_actions()
+        if self.na_helper.changed and not self.module.check_mode:
+            self.take_actions(actions, current, modify)
+        if 'check_for_update' in actions:
+            current = self.snapmirror_get()
+            if current['mirror_state'] == 'snapmirrored':
+                actions.append('update')
                 if not self.module.check_mode:
-                    self.snapmirror_abort()
-                    self.wait_for_idle_status()
-            actions.append('delete')
-            if not self.module.check_mode:
-                element_snapmirror = self.parameters.get('connection_type') == 'elementsw_ontap'
-                self.delete_snapmirror(element_snapmirror, current['relationship_type'], current['mirror_state'])
-        else:
-            if modify:
-                actions.append('modify')
-                if not self.module.check_mode:
-                    self.snapmirror_modify(modify)
-            # break relationship when 'relationship_state' is 'broken'
-            if current and self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'broken':
-                if current['mirror_state'] == 'uninitialized':
-                    self.module.fail_json(msg='SnapMirror relationship cannot be broken if mirror state is uninitialized')
-                elif current['relationship_type'] in ['load_sharing', 'vault']:
-                    self.module.fail_json(msg='SnapMirror break is not allowed in a load_sharing or vault relationship')
-                elif current['mirror_state'] not in ['broken-off', 'broken_off']:
-                    actions.append('break')
-                    if not self.module.check_mode:
-                        self.snapmirror_break()
-                    self.na_helper.changed = True
-            # check for initialize
-            elif current and self.parameters['initialize'] and self.parameters['relationship_state'] == 'active'\
-                    and current['mirror_state'] == 'uninitialized' and current['current_transfer_type'] != 'initialize':
-                actions.append('initialize')
-                if not self.module.check_mode:
-                    self.snapmirror_initialize()
-                # set changed explicitly for initialize
+                    self.snapmirror_update(current['relationship_type'])
                 self.na_helper.changed = True
-            if self.parameters['state'] == 'present' and self.parameters['relationship_state'] == 'active':
-                # resume when state is quiesced
-                if current['status'] == 'quiesced' or current['mirror_state'] == 'paused':
-                    actions.append('resume')
-                    if not self.module.check_mode:
-                        self.snapmirror_resume()
-                    # set changed explicitly for resume
-                    self.na_helper.changed = True
-                # resync when state is broken-off
-                if current['mirror_state'] in ['broken-off', 'broken_off']:
-                    actions.append('resync')
-                    if not self.module.check_mode:
-                        self.snapmirror_resync()
-                    # set changed explicitly for resync
-                    self.na_helper.changed = True
-                # Update when create is called again, or modify is being called
-                elif self.parameters['update']:
-                    current = self.snapmirror_get()
-                    if current['mirror_state'] == 'snapmirrored':
-                        actions.append('update')
-                        if not self.module.check_mode:
-                            self.snapmirror_update(current['relationship_type'])
-                        self.na_helper.changed = True
+
         self.check_health()
+        if self.previous_errors:
+            self.module.warn('Ignored error(s): %s' % ' -- '.join(self.previous_errors))
+
         results = dict(changed=self.na_helper.changed)
         if actions:
             results['actions'] = actions

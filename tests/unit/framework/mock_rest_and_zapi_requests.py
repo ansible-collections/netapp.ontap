@@ -33,14 +33,16 @@ def patch_request_and_invoke(request):
         print('entering patch_request_and_invoke fixture for', request.function)
     function_name = request.function.__name__
 
-    with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request') as mock_send_request:
-        mock_send_request.side_effect = partial(_mock_netapp_send_request, function_name)
-        if netapp_utils.has_netapp_lib():
-            with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapZAPICx.invoke_elem') as mock_invoke_elem:
-                mock_invoke_elem.side_effect = partial(_mock_netapp_invoke_elem, function_name)
-                yield mock_send_request, mock_invoke_elem
-        else:
-            yield mock_send_request
+    with patch('time.sleep') as mock_time_sleep:
+        mock_time_sleep.side_effect = partial(_mock_time_sleep, function_name)
+        with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request') as mock_send_request:
+            mock_send_request.side_effect = partial(_mock_netapp_send_request, function_name)
+            if netapp_utils.has_netapp_lib():
+                with patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapZAPICx.invoke_elem') as mock_invoke_elem:
+                    mock_invoke_elem.side_effect = partial(_mock_netapp_invoke_elem, function_name)
+                    yield mock_send_request, mock_invoke_elem
+            else:
+                yield mock_send_request
 
     # This part is executed after the test completes
     _patch_request_and_invoke_exit_checks(function_name)
@@ -230,7 +232,7 @@ def _get_or_create_mock_record(function_name):
 
 def _mock_netapp_send_request(function_name, method, api, params, json=None, headers=None):
     if DEBUG:
-        print('Inside mock_netapp_send_request')
+        print('Inside _mock_netapp_send_request')
     mock_calls = _get_or_create_mock_record(function_name)
     mock_calls._record_rest_request(method, api, params, json, headers)
     return mock_calls._get_response(method, api)
@@ -238,11 +240,17 @@ def _mock_netapp_send_request(function_name, method, api, params, json=None, hea
 
 def _mock_netapp_invoke_elem(function_name, na_element, enable_tunneling=False):
     if DEBUG:
-        print('Inside mock_netapp_invoke_elem')
+        print('Inside _mock_netapp_invoke_elem')
     zapi = na_element.get_name()
     mock_calls = _get_or_create_mock_record(function_name)
     mock_calls._record_zapi_request(zapi, na_element, enable_tunneling)
     return mock_calls._get_response('ZAPI', zapi)
+
+
+def _mock_time_sleep(function_name, duration):
+    if DEBUG:
+        print('Inside _mock_time_sleep for %s' % function_name)
+    raise KeyError("time.sleep(%s) was called - add: @patch('time.sleep')" % duration)
 
 
 def _patch_request_and_invoke_exit_checks(function_name):
