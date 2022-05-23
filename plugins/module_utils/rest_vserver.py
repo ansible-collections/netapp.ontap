@@ -45,3 +45,14 @@ def get_vserver(rest_api, name, fields=None):
     response, error = rest_api.get(api, query)
     vserver, error = rrh.check_for_0_or_1_records(api, response, error, query)
     return vserver, error
+
+
+def get_vserver_uuid(rest_api, name, module, error_on_none=None):
+    record, error = get_vserver(rest_api, name, 'uuid')
+    if error:
+        module.fail_json(msg=error)
+    if record is None and error_on_none:
+        return record, True
+    if record:
+        return record['uuid'], error
+    return record, error

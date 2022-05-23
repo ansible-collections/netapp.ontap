@@ -41,6 +41,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
   - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
   - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
+  - na_ontap_vscan_on_access_policy - fixed options `filters`, `file_ext_to_exclude` and `paths_to_exclude` cannot be reset to empty values in ZAPI.
+
+### New Options
+  - na_ontap_vscan_on_access_policy - new REST options `scan_readonly_volumes` and `only_execute_access` added.
 
 ### Minor Changes
   - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
@@ -53,6 +57,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Added REST support to existing modules
   - na_ontap_nvme_namespace - Added REST support.
+  - na_ontap_vscan_on_access_policy - Added REST support.
 
 
 ## 21.19.1
