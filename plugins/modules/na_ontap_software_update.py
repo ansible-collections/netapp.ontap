@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -127,7 +127,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPSoftwareUpdate():
+class NetAppONTAPSoftwareUpdate:
     """
     Class with ONTAP software update methods
     """
@@ -156,10 +156,9 @@ class NetAppONTAPSoftwareUpdate():
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.validation_reports_after_download = ['only available if validate_after_download is true']
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if netapp_utils.has_netapp_lib() is False:
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     @staticmethod
     def cluster_image_get_iter():
@@ -186,13 +185,9 @@ class NetAppONTAPSoftwareUpdate():
             self.module.fail_json(msg='Error fetching cluster image details: %s: %s'
                                   % (self.parameters['package_version'], to_native(error)),
                                   exception=traceback.format_exc())
-        # return cluster image details
-        node_versions = []
-        if result.get_child_by_name('num-records') and \
-                int(result.get_child_content('num-records')) > 0:
-            for image_info in result.get_child_by_name('attributes-list').get_children():
-                node_versions.append((image_info.get_child_content('node-id'), image_info.get_child_content('current-version')))
-        return node_versions
+        return ([(image_info.get_child_content('node-id'), image_info.get_child_content('current-version'))
+                 for image_info in result.get_child_by_name('attributes-list').get_children()]
+                if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0 else [])
 
     def cluster_image_get_for_node(self, node_name):
         """
@@ -207,10 +202,9 @@ class NetAppONTAPSoftwareUpdate():
                                   % (node_name, to_native(error)),
                                   exception=traceback.format_exc())
         # return cluster image version
-        if result.get_child_by_name('attributes').get_child_by_name('cluster-image-info'):
-            image_info = result.get_child_by_name('attributes').get_child_by_name('cluster-image-info')
-            if image_info:
-                return image_info.get_child_content('node-id'), image_info.get_child_content('current-version')
+        image_info = self.na_helper.safe_get(result, ['attributes', 'cluster-image-info'])
+        if image_info:
+            return image_info.get_child_content('node-id'), image_info.get_child_content('current-version')
         return None, None
 
     @staticmethod
@@ -391,8 +385,8 @@ class NetAppONTAPSoftwareUpdate():
         package_exists = self.cluster_image_package_download()
         if package_exists is False:
             cluster_download_progress = self.cluster_image_package_download_progress()
-            while cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
-                time.sleep(5)
+            while cluster_download_progress is None or cluster_download_progress.get('progress_status') == 'async_pkg_get_phase_running':
+                time.sleep(10)
                 cluster_download_progress = self.cluster_image_package_download_progress()
             if cluster_download_progress.get('progress_status') != 'async_pkg_get_phase_complete':
                 self.module.fail_json(msg='Error downloading package: %s'
@@ -441,7 +435,7 @@ class NetAppONTAPSoftwareUpdate():
         # TODO: cluster image update only works for HA configurations.
         # check if node image update can be used for other cases.
         if self.parameters.get('https') is not True:
-            self.module.fail_json(msg='https parameter must be True')
+            self.module.fail_json(msg='Error: https parameter must be True')
         self.autosupport_log()
         changed = self.parameters['force_update'] or self.is_update_required()
         validation_reports_after_update = ['only available after update']

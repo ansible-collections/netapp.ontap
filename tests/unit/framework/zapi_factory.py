@@ -62,6 +62,10 @@ _DEFAULT_ERRORS = {
 }
 
 
+def zapi_error_message(error):
+    return "%s: NetApp API failed. Reason - 12345:synthetic error for UT purpose" % error
+
+
 def build_raw_xml_response(contents, num_records=None, force_dummy=False):
     top_contents = {'results': contents}
     xml, valid = build_zapi_response(top_contents)
