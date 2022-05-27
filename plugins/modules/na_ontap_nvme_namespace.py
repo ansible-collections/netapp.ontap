@@ -198,7 +198,11 @@ class NetAppONTAPNVMENamespace:
 
     def get_namespace_rest(self):
         api = 'storage/namespaces'
-        params = {'svm.name': self.parameters['vserver'], 'fields': 'enabled'}
+        params = {
+            'svm.name': self.parameters['vserver'],
+            'name': self.parameters['path'],
+            'fields': 'enabled'
+        }
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg='Error fetching namespace info for vserver: %s' % self.parameters['vserver'])

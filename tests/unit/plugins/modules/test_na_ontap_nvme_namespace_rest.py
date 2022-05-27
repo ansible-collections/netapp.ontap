@@ -49,6 +49,15 @@ DEFAULT_ARGS = {
 }
 
 
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    # with python 2.6, dictionaries are not ordered
+    fragments = ["missing required arguments:", "hostname", "path", "vserver"]
+    error = create_module(my_module, {}, fail=True)['msg']
+    for fragment in fragments:
+        assert fragment in error
+
+
 def test_get_namespace_none():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
