@@ -58,7 +58,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ### Added REST support to existing modules
   - na_ontap_nvme_namespace - Added REST support.
   - na_ontap_vscan_on_access_policy - Added REST support.
+  - na_ontap_vscan_on_demand_task - Added REST support.
 
+>>>>>>> master
 
 ## 21.19.1
 
