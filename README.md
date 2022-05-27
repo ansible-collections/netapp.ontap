@@ -47,6 +47,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_vscan_on_access_policy - new REST options `scan_readonly_volumes` and `only_execute_access` added.
 
 ### Minor Changes
+  - na_ontap_cifs_server - Added `security` options in REST.
   - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
   - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
   - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
@@ -59,8 +60,6 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_nvme_namespace - Added REST support.
   - na_ontap_vscan_on_access_policy - Added REST support.
   - na_ontap_vscan_on_demand_task - Added REST support.
-
->>>>>>> master
 
 ## 21.19.1
 

@@ -35,6 +35,19 @@ SRR = rest_responses({
                         "name": "ansibleSVM"
                     },
                     "enabled": True,
+                    "security": {
+                        "encrypt_dc_connection": False,
+                        "smb_encryption": False,
+                        "kdc_encryption": False,
+                        "smb_signing": False,
+                        "restrict_anonymous": "no_enumeration",
+                        "aes_netlogon_enabled": False,
+                        "ldap_referral_enabled": False,
+                        "session_security": "none",
+                        "try_ldap_channel_binding": True,
+                        "use_ldaps": False,
+                        "use_start_tls": False
+                    },
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
@@ -54,6 +67,19 @@ SRR = rest_responses({
                         "name": "ansibleSVM"
                     },
                     "enabled": False,
+                    "security": {
+                        "encrypt_dc_connection": False,
+                        "smb_encryption": False,
+                        "kdc_encryption": False,
+                        "smb_signing": False,
+                        "restrict_anonymous": "no_enumeration",
+                        "aes_netlogon_enabled": False,
+                        "ldap_referral_enabled": False,
+                        "session_security": "none",
+                        "try_ldap_channel_binding": True,
+                        "use_ldaps": False,
+                        "use_start_tls": False
+                    },
                     "target": {
                         "nam,e": "20:05:00:50:56:b3:0c:fa"
                     },
@@ -73,8 +99,21 @@ SRR = rest_responses({
                         "name": "ansibleSVM"
                     },
                     "enabled": True,
+                    "security": {
+                        "encrypt_dc_connection": False,
+                        "smb_encryption": False,
+                        "kdc_encryption": False,
+                        "smb_signing": False,
+                        "restrict_anonymous": "no_enumeration",
+                        "aes_netlogon_enabled": False,
+                        "ldap_referral_enabled": False,
+                        "session_security": "none",
+                        "try_ldap_channel_binding": True,
+                        "use_ldaps": False,
+                        "use_start_tls": False
+                    },
                     "target": {
-                        "nam,e": "20:05:00:50:56:b3:0c:fa"
+                        "name": "20:05:00:50:56:b3:0c:fa"
                     },
                     "name": "cifs"
                 }
@@ -150,6 +189,20 @@ def test_error_create():
     }
     error = create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert 'Error Creating cifs_server' in error
+
+
+def test_create_unsupport_zapi():
+    """ check for zapi unsupported options """
+    module_args = {
+        "use_rest": "never",
+        "encrypt_dc_connection": "false",
+        "smb_encryption": "false",
+        "kdc_encryption": "false",
+        "smb_signing": "false"
+    }
+    msg = 'Error: smb_signing ,encrypt_dc_connection ,kdc_encryption ,smb_encryption ,restrict_anonymous ,' + \
+          'aes_netlogon_enabled ,ldap_referral_enabled ,try_ldap_channel_binding ,session_security ,use_ldaps ,use_start_tls options supported only with REST.'
+    assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_create():
@@ -295,7 +348,7 @@ ARGS_REST = {
     'password': 'test_pass!',
     'use_rest': 'always',
     'vserver': 'test_vserver',
-    'name': 'cifs_server_name'
+    'name': 'cifs_server_name',
 }
 
 
@@ -344,7 +397,7 @@ def test_rest_successful_create_with_force():
 def test_rest_successful_create_with_user():
     '''Test successful rest create'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('POST', 'protocols/cifs/services', SRR['empty_good']),
     ])
@@ -358,7 +411,7 @@ def test_rest_successful_create_with_user():
 def test_rest_successful_create_with_ou():
     '''Test successful rest create'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('POST', 'protocols/cifs/services', SRR['empty_good']),
     ])
@@ -371,7 +424,7 @@ def test_rest_successful_create_with_ou():
 def test_rest_successful_create_with_domain():
     '''Test successful rest create'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('POST', 'protocols/cifs/services', SRR['empty_good']),
     ])
@@ -379,6 +432,46 @@ def test_rest_successful_create_with_domain():
         'domain': 'domain'
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_create_with_security():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'smb_encryption': True,
+        'smb_signing': True,
+        'kdc_encryption': True,
+        'encrypt_dc_connection': True,
+        'restrict_anonymous': 'no_enumeration'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_version_error_with_security_encryption():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'encrypt_dc_connection': True,
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for encrypt_dc_connection is (9, 8)' in error
+
+
+def test_module_error_ontap_version_security():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0'])
+    ])
+    module_args = {
+        "aes_netlogon_enabled": False
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for aes_netlogon_enabled is (9, 10, 1)' in error
 
 
 def test_rest_error_create():
@@ -459,6 +552,68 @@ def test_rest_successful_enable():
     ])
     module_args = {
         'service_state': 'started'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_security_modify():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'smb_encryption': True,
+        'smb_signing': True,
+        'kdc_encryption': True,
+        'restrict_anonymous': "no_enumeration"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_successful_security_modify():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'encrypt_dc_connection': True
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_rest_negative_security_options_modify():
+    '''Test error rest enable'''
+    register_responses([
+    ])
+    module_args = {
+        "aes_netlogon_enabled": True,
+        "ldap_referral_enabled": True,
+        "session_security": "seal",
+        "try_ldap_channel_binding": False,
+        "use_ldaps": True,
+        "use_start_tls": True
+    }
+    msg = 'parameters are mutually exclusive: use_ldaps|use_start_tls'
+    assert msg in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_successful_security_options_modify():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        "aes_netlogon_enabled": True,
+        "ldap_referral_enabled": True,
+        "session_security": "seal",
+        "try_ldap_channel_binding": False,
+        "use_ldaps": True
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
