@@ -30,7 +30,7 @@ def test_build_zapi_response_empty():
     empty, valid = uut.build_zapi_response({})
     assert valid == 'valid'
     print(empty.to_string())
-    assert empty.to_string() == b'<xml status="passed"/>'
+    assert empty.to_string() == b'<results status="passed"/>'
 
 
 def test_build_zapi_response_dict():
@@ -40,7 +40,7 @@ def test_build_zapi_response_dict():
     aggr_str = aggr_info.to_string()
     assert b'<aggregate-name>aggr_name</aggregate-name>' in aggr_str
     assert b'<aggr-snaplock-attributes><snaplock-type>snap_t</snaplock-type></aggr-snaplock-attributes>' in aggr_str
-    assert b'<xml status="passed">' in aggr_str
+    assert b'<results status="passed">' in aggr_str
     assert b'<num-records>3</num-records>' in aggr_str
 
 
@@ -51,7 +51,7 @@ def test_build_zapi_error():
     assert valid == 'valid'
     assert zapi1.to_string() == zapi2.to_string()
     print(zapi1.to_string())
-    assert zapi1.to_string() == b'<xml errno="54321" reason="error_text"/>'
+    assert zapi1.to_string() == b'<results errno="54321" reason="error_text"/>'
 
 
 def test_default_responses():

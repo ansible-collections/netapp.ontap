@@ -220,6 +220,8 @@ def _get_response(function, method, api):
         print_requests(function)
         raise KeyError('function %s received an unexpected call %s %s, expecting %s %s' % (function, method, api, expected_method, expected_api))
     _RESPONSES[function].pop(0)
+    if isinstance(response, Exception):
+        raise response
     # some modules modify the record in place - keep the original intact
     return deepcopy(response)
 

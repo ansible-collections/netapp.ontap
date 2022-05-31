@@ -84,7 +84,7 @@ def build_zapi_response(contents, num_records=None):
         return('build_zapi_response: netapp-lib is missing', 'invalid')
     if num_records is not None:
         contents['num-records'] = str(num_records)
-    response = netapp_utils.zapi.NaElement('xml')
+    response = netapp_utils.zapi.NaElement('results')
     response.translate_struct(contents)
     response.add_attr('status', 'passed')
     return (response, 'valid')
@@ -97,7 +97,7 @@ def build_zapi_error(errno, reason):
     '''
     if not netapp_utils.has_netapp_lib():
         return('build_zapi_error: netapp-lib is missing', 'invalid')
-    response = netapp_utils.zapi.NaElement('xml')
+    response = netapp_utils.zapi.NaElement('results')
     response.add_attr('errno', str(errno))
     response.add_attr('reason', reason)
     return (response, 'valid')

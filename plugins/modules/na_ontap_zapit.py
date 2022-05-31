@@ -1,15 +1,11 @@
 #!/usr/bin/python
 '''
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -65,7 +61,7 @@ EXAMPLES = """
 
   tasks:
     - name: run ontap ZAPI command as cluster admin
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           system-get-version:
@@ -73,7 +69,7 @@ EXAMPLES = """
     - debug: var=output
 
     - name: run ontap ZAPI command as cluster admin
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           vserver-get-iter:
@@ -81,7 +77,7 @@ EXAMPLES = """
     - debug: var=output
 
     - name: run ontap ZAPI command as cluster admin
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           vserver-get-iter:
@@ -101,7 +97,7 @@ EXAMPLES = """
     - debug: var=output
 
     - name: run ontap ZAPI command as vsadmin
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *svm_login
         zapi:
           vserver-get-iter:
@@ -112,7 +108,7 @@ EXAMPLES = """
     - debug: var=output
 
     - name: run ontap ZAPI command as vserver tunneling
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         vserver: trident_svm
         zapi:
@@ -124,7 +120,7 @@ EXAMPLES = """
     - debug: var=output
 
     - name: run ontap active-directory ZAPI command
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         vserver: trident_svm
         zapi:
@@ -185,10 +181,8 @@ try:
 except ImportError:
     HAS_JSON = False
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPZapi(object):
+class NetAppONTAPZapi:
     ''' calls a ZAPI command '''
 
     def __init__(self):
@@ -208,8 +202,8 @@ class NetAppONTAPZapi(object):
 
         if not HAS_JSON:
             self.module.fail_json(msg="the python json module is required")
-        if not HAS_NETAPP_LIB:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         if not HAS_XMLTODICT:
             self.module.fail_json(msg="the python xmltodict module is required")
 
@@ -218,29 +212,20 @@ class NetAppONTAPZapi(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        try:
-            netapp_utils.ems_log_event(event_name, cserver)
-        except netapp_utils.zapi.NaApiError:
-            pass
-
     def jsonify_and_parse_output(self, xml_data):
         ''' convert from XML to JSON
             extract status and error fields is present
         '''
         try:
-            as_dict = xmltodict.parse(xml_data.to_string(), xml_attribs=True)
+            as_str = xml_data.to_string()
+        except Exception as exc:
+            self.module.fail_json(msg='Error running zapi in to_string: %s' %
+                                  str(exc))
+        try:
+            as_dict = xmltodict.parse(as_str, xml_attribs=True)
         except Exception as exc:
             self.module.fail_json(msg='Error running zapi in xmltodict: %s: %s' %
-                                  (xml_data.to_string(), str(exc)))
+                                  (as_str, str(exc)))
         try:
             as_json = json.loads(json.dumps(as_dict))
         except Exception as exc:
@@ -249,7 +234,7 @@ class NetAppONTAPZapi(object):
 
         if 'results' not in as_json:
             self.module.fail_json(msg='Error running zapi, no results field: %s: %s' %
-                                  (xml_data.to_string(), repr(as_json)))
+                                  (as_str, repr(as_json)))
 
         # set status, and if applicable errno/reason, and remove attribute fields
         errno = None
@@ -312,16 +297,17 @@ class NetAppONTAPZapi(object):
 
     def ems(self, zapi):
         """
-        Error out if Cluster Admin username is used with Vserver, or Vserver admin used with out vserver being set
+        Log EMS event, but ignore any error.
         :return:
         """
-        if self.vserver:
-            try:
-                netapp_utils.ems_log_event("na_ontap_zapi" + str(zapi), self.server)
-            except netapp_utils.zapi.NaApiError:
-                pass
-        else:
-            self.asup_log_for_cserver("na_ontap_zapi: " + str(zapi))
+        event = "na_ontap_zapi: " + str(zapi)
+        try:
+            if self.vserver:
+                netapp_utils.ems_log_event(event, self.server)
+            else:
+                netapp_utils.ems_log_event_cserver(event, self.server, self.module)
+        except netapp_utils.zapi.NaApiError:
+            pass
 
     def apply(self):
         ''' calls the zapi and returns json output '''

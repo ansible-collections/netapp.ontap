@@ -686,8 +686,8 @@ def test_zapi_get_attrs():
     }
     # the contents of to_string() may be in a different sequence depending on the pytohn version
     assert expect_and_capture_ansible_exception(my_obj.na_helper.zapi_get_attrs, 'fail', naelement, attr_dict, result)['msg'].startswith((
-        "Error reading ['a', 'z'] from b'<xml status=\"passed\"><a>",   # python 3.x
-        "Error reading ['a', 'z'] from <xml status=\"passed\"><a>"      # python 2.7
+        "Error reading ['a', 'z'] from b'<results status=\"passed\"><a>",   # python 3.x
+        "Error reading ['a', 'z'] from <results status=\"passed\"><a>"      # python 2.7
     ))
 
 

@@ -1645,7 +1645,7 @@ def test_error_snaplock_not_supported_with_zapi():
 
 def test_wait_for_task_completion_no_records():
     register_responses([
-        ('ZAPI', 'xml', ZRR['no_records']),
+        ('ZAPI', 'results', ZRR['no_records']),
     ])
     # using response to build a request
     zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
@@ -1655,7 +1655,7 @@ def test_wait_for_task_completion_no_records():
 
 def test_wait_for_task_completion_no_records():
     register_responses([
-        ('ZAPI', 'xml', ZRR['no_records']),
+        ('ZAPI', 'results', ZRR['no_records']),
     ])
     # using response to build a request
     zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
@@ -1665,7 +1665,7 @@ def test_wait_for_task_completion_no_records():
 
 def test_wait_for_task_completion_one_response():
     register_responses([
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
     ])
     # using response to build a request
     zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
@@ -1676,9 +1676,9 @@ def test_wait_for_task_completion_one_response():
 @patch('time.sleep')
 def test_wait_for_task_completion_loop(skip_sleep):
     register_responses([
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
     ])
 
     def check_state(x):
@@ -1698,15 +1698,15 @@ def test_wait_for_task_completion_loop(skip_sleep):
 @patch('time.sleep')
 def test_wait_for_task_completion_loop_with_recoverable_error(skip_sleep):
     register_responses([
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
     ])
 
     def check_state(x):
@@ -1724,15 +1724,15 @@ def test_wait_for_task_completion_loop_with_recoverable_error(skip_sleep):
 @patch('time.sleep')
 def test_wait_for_task_completion_loop_with_non_recoverable_error(skip_sleep):
     register_responses([
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['one_record_no_data']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
-        ('ZAPI', 'xml', ZRR['error']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['one_record_no_data']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
+        ('ZAPI', 'results', ZRR['error']),
     ])
 
     # using response to build a request
