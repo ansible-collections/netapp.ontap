@@ -195,18 +195,14 @@ class NetAppONTAPCifsSecurity(object):
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            mutually_exclusive=[('use_ldaps_for_ad_ldap', 'use_start_tls_for_ad_ldap')]
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if self.parameters['use_rest'].lower() == 'always':
-            self.module.fail_json(msg='Error: na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.')
-
-        if self.parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.')
+        msg = 'Error: na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.'
+        self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
         self.set_playbook_zapi_key_map()
         if not netapp_utils.has_netapp_lib():

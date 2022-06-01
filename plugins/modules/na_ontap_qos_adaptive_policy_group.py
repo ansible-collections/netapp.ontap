@@ -162,14 +162,8 @@ class NetAppOntapAdaptiveQosPolicyGroup:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if self.parameters['use_rest'].lower() == 'always':
-            msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.'
-            self.module.fail_json(msg='Error: %s' % msg)
-
-        if self.parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as the module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.')
+        msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.'
+        self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())

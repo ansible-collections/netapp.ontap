@@ -24,6 +24,19 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+
+JOB_GET_API = ' cluster/jobs/94b6e6a7-d426-11eb-ac81-00505690980f'
+
+
+def _build_job(state):
+    return (200, {
+        "uuid": "f03ccbb6-d8bb-11eb-ac81-00505690980f",
+        "description": "job results with state: %s" % state,
+        "state": state,
+        "message": "job reported %s" % state
+    }, None)
+
+
 # name: (html_code, dict, None or error string)
 # dict is translated into an xml structure, num_records is None or an integer >= 0
 _DEFAULT_RESPONSES = {
@@ -42,12 +55,25 @@ _DEFAULT_RESPONSES = {
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'success': (200, {}, None),
+    'success_with_job_uuid': (200, {'job': {'_links': {'self': {'href': '/api/%s' % JOB_GET_API}}}}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'empty_records': (200, {'records': []}, None),
     'zero_records': (200, {'num_records': 0}, None),
     'one_record': (200, {'num_records': 1}, None),
     'generic_error': (400, None, "Expected error"),
+    'job_generic_response_success': _build_job('success'),
+    'job_generic_response_running': _build_job('running'),
+    'job_generic_response_failure': _build_job('failure'),
 }
+
+
+def rest_error_message(error, api=None, extra=''):
+    if api is None:
+        msg = "%s: got Expected error." % error
+    else:
+        msg = "%s: calling: %s: got Expected error." % (error, api)
+    msg += extra
+    return msg
 
 
 class rest_responses:

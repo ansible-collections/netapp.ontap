@@ -190,11 +190,7 @@ class NetAppOntapSnapshotPolicy(object):
         self.use_rest = self.rest_api.is_rest()
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
             msg = 'REST requires ONTAP 9.8 or later for snapshot schedules.'
-            if self.parameters['use_rest'].lower() == 'always':
-                self.module.fail_json(msg='Error: %s' % msg)
-            if self.parameters['use_rest'].lower() == 'auto':
-                self.module.warn('Falling back to ZAPI: %s' % msg)
-                self.use_rest = False
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")

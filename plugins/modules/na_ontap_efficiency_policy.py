@@ -164,11 +164,7 @@ class NetAppOntapEfficiencyPolicy(object):
 
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
             msg = 'REST requires ONTAP 9.8 or later for efficiency_policy APIs.'
-            if self.parameters['use_rest'].lower() == 'always':
-                self.module.fail_json(msg='Error: %s' % msg)
-            if self.parameters['use_rest'].lower() == 'auto':
-                self.module.warn('Falling back to ZAPI: %s' % msg)
-                self.use_rest = False
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
         if self.parameters.get('policy_type') and self.parameters['state'] == 'present':
             if self.parameters['policy_type'] == 'threshold':

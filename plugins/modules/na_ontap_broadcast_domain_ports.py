@@ -72,6 +72,8 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -97,14 +99,9 @@ class NetAppOntapBroadcastDomainPorts(object):
             supports_check_mode=True
         )
         parameters = self.module.params
-
-        if parameters['use_rest'].lower() == 'always':
-            msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.'
-            self.module.fail_json(msg='Error: %s' % msg)
-
-        if parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as the module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.')
+        self.na_helper = NetAppModule(self.module)
+        msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.'
+        self.na_helper.fall_back_to_zapi(self.module, msg, parameters)
 
         # set up state variables
         self.state = parameters['state']

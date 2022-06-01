@@ -837,7 +837,7 @@ def test_negative_error_on_wait_after_post(sleep_mock):
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
-    assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == 'Expected error'
+    assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == ' - '.join(['Expected error'] * 4)
 
 
 def test_owning_resource_snapshot():

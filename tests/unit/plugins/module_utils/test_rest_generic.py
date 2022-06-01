@@ -360,7 +360,7 @@ def test_error_post_async_with_job(dont_sleep):
     ])
     rest_api = create_restapi_object(DEFAULT_ARGS)
     response, error = rest_generic.post_async(rest_api, 'cluster', {})
-    assert 'job reported error: Expected error, received' in error
+    assert 'job reported error: Expected error - Expected error - Expected error - Expected error, received' in error
     assert response == SRR['accepted_response'][1]
 
 
@@ -424,7 +424,7 @@ def test_error_patch_async_with_job(dont_sleep):
     ])
     rest_api = create_restapi_object(DEFAULT_ARGS)
     response, error = rest_generic.patch_async(rest_api, 'cluster', 'uuid', {})
-    assert 'job reported error: Expected error, received' in error
+    assert 'job reported error: Expected error - Expected error - Expected error - Expected error, received' in error
     assert response == SRR['accepted_response'][1]
 
 
@@ -488,5 +488,5 @@ def test_error_delete_async_with_job(dont_sleep):
     ])
     rest_api = create_restapi_object(DEFAULT_ARGS)
     response, error = rest_generic.delete_async(rest_api, 'cluster', 'uuid')
-    assert 'job reported error: Expected error, received' in error
+    assert 'job reported error: Expected error - Expected error - Expected error - Expected error, received' in error
     assert response == SRR['accepted_response'][1]

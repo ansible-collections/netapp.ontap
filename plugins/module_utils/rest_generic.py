@@ -77,7 +77,8 @@ def get_0_or_more_records(rest_api, api, query=None, fields=None):
 def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
     # see delete_async for async and sync operations and status codes
     response, error = rest_api.post(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
-    increment = max(job_timeout / 6, 5)
+    # limit the polling interval to something between 5 seconds and 60 seconds
+    increment = min(max(job_timeout / 6, 5), 60)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error
 

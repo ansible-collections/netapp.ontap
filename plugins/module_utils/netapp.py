@@ -790,6 +790,7 @@ class OntapRestAPI(object):
         #     }
         # }
         error = None
+        errors = []
         message = None
         runtime = 0
         retries = 0
@@ -800,9 +801,10 @@ class OntapRestAPI(object):
             job_state = job_json.get('state', None) if job_json else None
             # ignore error if status is provided in the job
             if job_error and job_state is None:
-                error = job_error
+                errors.append(str(job_error))
                 retries += 1
                 if retries > max_retries:
+                    error = " - ".join(errors)
                     self.log_error(0, 'Job error: Reach max retries.')
                     break
             else:

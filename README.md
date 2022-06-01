@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
   - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
   - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
+  - na_ontap_software_update - now reports changed=False when the package is already present.
   - na_ontap_vscan_on_access_policy - fixed options `filters`, `file_ext_to_exclude` and `paths_to_exclude` cannot be reset to empty values in ZAPI.
   - na_ontap_zapit - fix failure in precluster mode.
 
@@ -53,12 +54,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
   - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
-  - na_ontap_vserver_cifs_security - Added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
+  - na_ontap_vserver_cifs_security - added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
   - na_ontap_export_policy_rule: Add reindex for both REST and ZAPI. Change `rule_index` to required.
+  - na_ontap_vserver_cifs_security - Added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
 
 ### Added REST support to existing modules
-  - na_ontap_nvme_namespace - Added REST support.
+  - na_ontap_nvme_namespace - added REST support.
+  - na_ontap_software_update - added REST support.
   - na_ontap_vscan_on_access_policy - Added REST support.
   - na_ontap_vscan_on_demand_task - Added REST support.
 

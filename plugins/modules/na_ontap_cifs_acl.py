@@ -247,9 +247,9 @@ class NetAppONTAPCifsAcl:
         if not self.use_rest:
             return self.get_cifs_acl()
         query = {'user_or_group': self.parameters.get('user_or_group')}
-        type = self.parameters.get('type')
-        if type:
-            query['type'] = type
+        ug_type = self.parameters.get('type')
+        if ug_type:
+            query['type'] = ug_type
         api = 'protocols/cifs/shares/%s/%s/acls' % (svm_uuid['uuid'], self.parameters.get('share_name'))
         fields = 'svm.uuid,user_or_group,type,permission'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
@@ -275,9 +275,9 @@ class NetAppONTAPCifsAcl:
             'user_or_group': self.parameters.get('user_or_group'),
             'permission': self.parameters.get('permission')
         }
-        type = self.parameters.get('type')
-        if type:
-            body['type'] = type
+        ug_type = self.parameters.get('type')
+        if ug_type:
+            body['type'] = ug_type
         api = 'protocols/cifs/shares/%s/%s/acls' % (svm_uuid['uuid'], self.parameters.get('share_name'))
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:

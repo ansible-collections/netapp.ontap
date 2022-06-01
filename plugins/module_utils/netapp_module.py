@@ -85,6 +85,13 @@ class NetAppModule(object):
                 self.parameters[param] = ansible_params[param]
         return self.parameters
 
+    def fall_back_to_zapi(self, module, msg, parameters):
+        if parameters['use_rest'].lower() == 'always':
+            module.fail_json(msg='Error: %s' % msg)
+        if parameters['use_rest'].lower() == 'auto':
+            module.warn('Falling back to ZAPI: %s' % msg)
+            return False
+
     def check_and_set_parameters(self, module):
         self.parameters = {}
         check_for_none = netapp_utils.has_feature(module, 'check_required_params_for_none')
