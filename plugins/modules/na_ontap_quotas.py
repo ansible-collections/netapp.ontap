@@ -92,6 +92,7 @@ options:
   threshold:
     description:
       - The amount of disk space the target would have to exceed before a message is logged.
+      - See C(disk_limit) for format description.
     type: str
   activate_quota_on_change:
     description:
@@ -240,6 +241,8 @@ class NetAppONTAPQuotas:
             self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
         if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-' and not self.convert_to_kb('soft_disk_limit'):
             self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
+        if self.parameters.get('threshold') and self.parameters['threshold'] != '-' and not self.convert_to_kb('threshold'):
+            self.module.fail_json(msg='threshold %s' % size_format_error_message)
 
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())

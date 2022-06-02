@@ -41,6 +41,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_autosupport - TypeError on `support` field with ONTAP 9.11.
   - na_ontap_portset - fixed idempotency issue when `ports` has identical values.
   - na_ontap_portset - fixed error when trying to remove partial ports from portset if igroups are bound to it.
+  - na_ontap_quotas - fix idempotency issue on `threshold` option.
   - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
   - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
   - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
