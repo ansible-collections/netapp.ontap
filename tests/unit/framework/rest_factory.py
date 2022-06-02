@@ -68,10 +68,9 @@ _DEFAULT_RESPONSES = {
 
 
 def rest_error_message(error, api=None, extra=''):
-    if api is None:
-        msg = "%s: got Expected error." % error
-    else:
-        msg = "%s: calling: %s: got Expected error." % (error, api)
+    msg = ('%s: ' % error) if error else ''
+    msg += ('calling: %s: ' % api) if api else ''
+    msg += 'got Expected error.'
     msg += extra
     return msg
 

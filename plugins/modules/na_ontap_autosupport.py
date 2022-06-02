@@ -3,7 +3,7 @@
 create Autosupport module to enable, disable or modify
 """
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -184,7 +184,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppONTAPasup():
@@ -274,49 +274,45 @@ class NetAppONTAPasup():
         get current autosupport details
         :return: dict()
         """
+        asup_info = {}
         if self.use_rest:
-            api = "/private/cli/system/node/autosupport"
+            api = "private/cli/system/node/autosupport"
             query = {
                 'node': self.parameters['node_name'],
                 'fields': 'state,node,transport,noteto,url,support,mail-hosts,from,partner-address,to,proxy-url,hostname-subj,nht,perf,retry-count,\
 reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,support,reminder,ondemand-state,local-collection,validate-digital-certificate'
             }
-            message, error = self.rest_api.get(api, query)
-            records, error = rrh.check_for_0_or_more_records(api, message, error)
+            record, error = rest_generic.get_one_record(self.rest_api, api, query)
 
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error fetching info: %s' % error)
 
-            asup_info = {}
             for param in ('transport', 'mail_hosts', 'proxy_url', 'retry_count',
                           'max_http_size', 'max_smtp_size', 'noteto', 'validate_digital_certificate'):
-                if param in records[0]:
-                    asup_info[param] = records[0][param]
+                if param in record:
+                    asup_info[param] = record[param]
 
-            asup_info['support'] = records[0]['support'] in ['enable', True]
-            asup_info['node_name'] = records[0]['node'] if 'node' in records[0] else ""
-            asup_info['post_url'] = records[0]['url'] if 'url' in records[0] else ""
-            asup_info['from_address'] = records[0]['from'] if 'from' in records[0] else ""
-            asup_info['to_addresses'] = records[0]['to'] if 'to' in records[0] else list()
-            asup_info['hostname_in_subject'] = records[0]['hostname_subj'] if 'hostname_subj' in records[0] else False
-            asup_info['nht_data_enabled'] = records[0]['nht'] if 'nht' in records[0] else False
-            asup_info['perf_data_enabled'] = records[0]['perf'] if 'perf' in records[0] else False
-            asup_info['reminder_enabled'] = records[0]['reminder'] if 'reminder' in records[0] else False
-            asup_info['private_data_removed'] = records[0]['remove_private_data'] if 'remove_private_data' in records[0] else False
-            asup_info['local_collection_enabled'] = records[0]['local_collection'] if 'local_collection' in records[0] else False
-            asup_info['ondemand_enabled'] = records[0]['ondemand_state'] if 'ondemand_state' in records[0] else False
-            asup_info['service_state'] = 'started' if records[0]['state'] else 'stopped'
-            asup_info['partner_addresses'] = records[0]['partner_address'] if 'partner_address' in records[0] else list()
-            return asup_info
-
+            asup_info['support'] = record['support'] in ['enable', True]
+            asup_info['node_name'] = record['node'] if 'node' in record else ""
+            asup_info['post_url'] = record['url'] if 'url' in record else ""
+            asup_info['from_address'] = record['from'] if 'from' in record else ""
+            asup_info['to_addresses'] = record['to'] if 'to' in record else list()
+            asup_info['hostname_in_subject'] = record['hostname_subj'] if 'hostname_subj' in record else False
+            asup_info['nht_data_enabled'] = record['nht'] if 'nht' in record else False
+            asup_info['perf_data_enabled'] = record['perf'] if 'perf' in record else False
+            asup_info['reminder_enabled'] = record['reminder'] if 'reminder' in record else False
+            asup_info['private_data_removed'] = record['remove_private_data'] if 'remove_private_data' in record else False
+            asup_info['local_collection_enabled'] = record['local_collection'] if 'local_collection' in record else False
+            asup_info['ondemand_enabled'] = record['ondemand_state'] if 'ondemand_state' in record else False
+            asup_info['service_state'] = 'started' if record['state'] else 'stopped'
+            asup_info['partner_addresses'] = record['partner_address'] if 'partner_address' in record else list()
         else:
             asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
             asup_details.add_new_child('node-name', self.parameters['node_name'])
-            asup_info = dict()
             try:
                 result = self.server.invoke_successfully(asup_details, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='%s' % to_native(error), exception=traceback.format_exc())
+                self.module.fail_json(msg='Error fetching info: %s' % to_native(error), exception=traceback.format_exc())
             # zapi invoke successful
             asup_attr_info = result.get_child_by_name('attributes').get_child_by_name('autosupport-config-info')
             asup_info['service_state'] = 'started' if asup_attr_info['is-enabled'] == 'true' else 'stopped'
@@ -335,7 +331,7 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 parent, dummy = zapi_key
                 asup_info[item_key] = self.na_helper.get_value_for_list(from_zapi=True, zapi_parent=asup_attr_info.get_child_by_name(parent))
 
-            return asup_info
+        return asup_info
 
     def modify_autosupport_config(self, modify):
         """
@@ -344,12 +340,12 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
         """
 
         if self.use_rest:
-            api = "/private/cli/system/node/autosupport"
+            api = "private/cli/system/node/autosupport"
             query = {
                 'node': self.parameters['node_name']
             }
             if 'service_state' in modify:
-                modify['state'] = True if modify['service_state'] == 'started' else False
+                modify['state'] = modify['service_state'] == 'started'
                 del modify['service_state']
 
             if 'post_url' in modify:
@@ -374,10 +370,10 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 modify['ondemand_state'] = modify.pop('ondemand_enabled')
             if 'partner_addresses' in modify:
                 modify['partner_address'] = modify.pop('partner_addresses')
-            dummy, error = self.rest_api.patch(api, modify, query)
+            dummy, error = rest_generic.patch_async(self.rest_api, api, None, modify, query)
 
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error modifying asup: %s' % error)
         else:
             asup_details = {'node-name': self.parameters['node_name']}
             if modify.get('service_state'):
