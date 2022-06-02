@@ -63,8 +63,8 @@ options:
     description:
       - Type of disk to use to build aggregate.
       - Not supported with REST - see C(disk_class).
-      - SSD-NVM was added with ONTAP 9.6.
-      - SSD-CAP, VMLUN, VMLUN-SSD were added with ONTAP 9.8.
+      - SSD-NVM, SSD-CAP were added with ONTAP 9.6.
+      - VMLUN was added with ONTAP 9.9.
     choices: ['ATA', 'BSAS', 'FCAL', 'FSAS', 'LUN', 'MSATA', 'SAS', 'SSD', 'SSD-CAP', 'SSD-NVM', 'VMDISK', 'VMLUN', 'VMLUN-SSD']
     type: str
     version_added: 2.7.0

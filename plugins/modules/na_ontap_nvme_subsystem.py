@@ -1,14 +1,9 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 
 DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
@@ -70,7 +65,7 @@ version_added: 2.8.0
 EXAMPLES = """
 
     - name: Create NVME Subsystem
-      na_ontap_nvme_subsystem:
+      netapp.ontap.na_ontap_nvme_subsystem:
         state: present
         subsystem: test_sub
         vserver: test_dest
@@ -80,7 +75,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete NVME Subsystem
-      na_ontap_nvme_subsystem:
+      netapp.ontap.na_ontap_nvme_subsystem:
         state: absent
         subsystem: test_sub
         vserver: test_dest
@@ -91,7 +86,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Associate NVME Subsystem host/map
-      na_ontap_nvme_subsystem:
+      netapp.ontap.na_ontap_nvme_subsystem:
         state: present
         subsystem: "{{ subsystem }}"
         ostype: linux
@@ -103,7 +98,7 @@ EXAMPLES = """
         password: "{{ password }}"
 
     - name: Modify NVME subsystem map
-      na_ontap_nvme_subsystem:
+      netapp.ontap.na_ontap_nvme_subsystem:
         state: present
         subsystem: test_sub
         vserver: test_dest
@@ -124,17 +119,19 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPNVMESubsystem(object):
+class NetAppONTAPNVMESubsystem:
     """
     Class with NVME subsytem methods
     """
 
     def __init__(self):
 
+        self.subsystem_uuid = None
+        self.namespace_list = []
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
@@ -154,10 +151,12 @@ class NetAppONTAPNVMESubsystem(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_subsystem(self):
@@ -165,6 +164,8 @@ class NetAppONTAPNVMESubsystem(object):
         Get current subsystem details
         :return: dict if subsystem exists, None otherwise
         """
+        if self.use_rest:
+            return self.get_subsystem_rest()
         subsystem_get = netapp_utils.zapi.NaElement('nvme-subsystem-get-iter')
         query = {
             'query': {
@@ -190,6 +191,8 @@ class NetAppONTAPNVMESubsystem(object):
         """
         if self.parameters.get('ostype') is None:
             self.module.fail_json(msg="Error: Missing required parameter 'os_type' for creating subsystem")
+        if self.use_rest:
+            return self.create_subsystem_rest()
         options = {'subsystem': self.parameters['subsystem'],
                    'ostype': self.parameters['ostype']
                    }
@@ -206,6 +209,8 @@ class NetAppONTAPNVMESubsystem(object):
         """
         Delete a NVME subsystem
         """
+        if self.use_rest:
+            return self.delete_subsystem_rest()
         options = {'subsystem': self.parameters['subsystem'],
                    'skip-host-check': 'true' if self.parameters.get('skip_host_check') else 'false',
                    'skip-mapped-check': 'true' if self.parameters.get('skip_mapped_check') else 'false',
@@ -304,8 +309,13 @@ class NetAppONTAPNVMESubsystem(object):
         action_add_dict = {}
         action_remove_dict = {}
         for type in types:
+            current = None
             if self.parameters.get(type):
-                current = self.get_subsystem_host_map(type)
+                if self.use_rest:
+                    if self.subsystem_uuid:
+                        current = self.get_subsystem_host_map_rest(type)
+                else:
+                    current = self.get_subsystem_host_map(type)
                 if current:
                     add_items = self.na_helper.\
                         get_modified_attributes(current, self.parameters, get_list_diff=True).get(type)
@@ -323,32 +333,137 @@ class NetAppONTAPNVMESubsystem(object):
 
     def modify_host_map(self, add_host_map, remove_host_map):
         for type, data in add_host_map.items():
-            self.add_subsystem_host_map(data, type)
+            if self.use_rest:
+                self.add_subsystem_host_map_rest(data, type)
+            else:
+                self.add_subsystem_host_map(data, type)
         for type, data in remove_host_map.items():
-            self.remove_subsystem_host_map(data, type)
+            if self.use_rest:
+                self.remove_subsystem_host_map_rest(data, type)
+            else:
+                self.remove_subsystem_host_map(data, type)
+
+    def get_subsystem_rest(self):
+        api = 'protocols/nvme/subsystems'
+        params = {'svm.name': self.parameters['vserver'], 'name': self.parameters['subsystem']}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
+        if record:
+            self.subsystem_uuid = record['uuid']
+            return record
+        return None
+
+    def get_subsystem_host_map_rest(self, type):
+        if type == 'hosts':
+            api = 'protocols/nvme/subsystems/%s/hosts' % self.subsystem_uuid
+            records, error = rest_generic.get_0_or_more_records(self.rest_api, api)
+            if error:
+                self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
+            if records is not None:
+                return {type: [record['nqn'] for record in records]}
+            return None
+        if type == 'paths':
+            api = 'protocols/nvme/subsystem-maps'
+            query = {'svm.name': self.parameters['vserver'], 'subsystem.name': self.parameters['subsystem']}
+            records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
+            if error:
+                self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
+            if records is not None:
+                return_list = []
+                for each in records:
+                    return_list.append(each['namespace']['name'])
+                    self.namespace_list.append(each['namespace'])
+                return {type: return_list}
+            return None
+
+    def add_subsystem_host_map_rest(self, data, type):
+        if type == 'hosts':
+            records = []
+            for item in data:
+                records.append({'nqn': item})
+            api = 'protocols/nvme/subsystems/%s/hosts' % self.subsystem_uuid
+            body = {'records': records}
+            dummy, error = rest_generic.post_async(self.rest_api, api, body)
+            if error:
+                self.module.fail_json(
+                    msg='Error adding %s for subsystem %s: %s' % (records, self.parameters['subsystem'], to_native(error)), exception=traceback.format_exc())
+        elif type == 'paths':
+            for item in data:
+                api = 'protocols/nvme/subsystem-maps'
+                body = {'subsystem.name': self.parameters['subsystem'],
+                        'svm.name': self.parameters['vserver'],
+                        'namespace.name': item
+                        }
+                dummy, error = rest_generic.post_async(self.rest_api, api, body)
+                if error:
+                    self.module.fail_json(
+                        msg='Error adding %s for subsystem %s: %s' % (item, self.parameters['subsystem'], to_native(error)), exception=traceback.format_exc())
+
+    def remove_subsystem_host_map_rest(self, data, type):
+        if type == 'hosts':
+            for item in data:
+                api = 'protocols/nvme/subsystems/%s/hosts/%s' % (self.subsystem_uuid, item)
+                dummy, error = rest_generic.delete_async(self.rest_api, api, None)
+                if error:
+                    self.module.fail_json(msg='Error removing %s for subsystem %s: %s'
+                                              % (item, self.parameters['subsystem'], to_native(error)), exception=traceback.format_exc())
+        elif type == 'paths':
+            for item in data:
+                namespace_uuid = None
+                for each in self.namespace_list:
+                    if each['name'] == item:
+                        namespace_uuid = each['uuid']
+                api = 'protocols/nvme/subsystem-maps/%s/%s' % (self.subsystem_uuid, namespace_uuid)
+                body = {'subsystem.name': self.parameters['subsystem'],
+                        'svm.name': self.parameters['vserver'],
+                        'namespace.name': item
+                        }
+                dummy, error = rest_generic.delete_async(self.rest_api, api, None, body=body)
+                if error:
+                    self.module.fail_json(msg='Error removing %s for subsystem %s: %s'
+                                              % (item, self.parameters['subsystem'], to_native(error)), exception=traceback.format_exc())
+
+    def create_subsystem_rest(self):
+        api = 'protocols/nvme/subsystems'
+        body = {'svm.name': self.parameters['vserver'],
+                'os_type': self.parameters['ostype'],
+                'name': self.parameters['subsystem']}
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error creating subsystem for vserver %s: %s' % (self.parameters['vserver'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def delete_subsystem_rest(self):
+        api = 'protocols/nvme/subsystems'
+        body = {'allow_delete_while_mapped': 'true' if self.parameters.get('skip_mapped_check') else 'false',
+                'allow_delete_with_hosts': 'true' if self.parameters.get('skip_host_check') else 'false'}
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.subsystem_uuid, body=body)
+        if error:
+            self.module.fail_json(msg='Error deleting subsystem for vserver %s: %s' % (self.parameters['vserver'], to_native(error)),
+                                  exception=traceback.format_exc())
 
     def apply(self):
         """
         Apply action to NVME subsystem
         """
-        netapp_utils.ems_log_event("na_ontap_nvme_subsystem", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_nvme_subsystem", self.server)
         types = ['hosts', 'paths']
         current = self.get_subsystem()
         add_host_map, remove_host_map = dict(), dict()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action != 'delete' and self.parameters['state'] == 'present':
             add_host_map, remove_host_map = self.associate_host_map(types)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_subsystem()
-                    self.modify_host_map(add_host_map, remove_host_map)
-                elif cd_action == 'delete':
-                    self.delete_subsystem()
-                elif cd_action is None:
-                    self.modify_host_map(add_host_map, remove_host_map)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_subsystem()
+                self.get_subsystem()
+                self.modify_host_map(add_host_map, remove_host_map)
+            elif cd_action == 'delete':
+                self.delete_subsystem()
+            elif cd_action is None:
+                self.modify_host_map(add_host_map, remove_host_map)
 
         self.module.exit_json(changed=self.na_helper.changed)
 
