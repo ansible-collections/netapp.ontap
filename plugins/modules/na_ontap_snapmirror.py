@@ -291,6 +291,14 @@ options:
     default: 300
     type: int
     version_added: 21.20.0
+  clean_up_failure:
+    description:
+      - An optional parameter to recover from an aborted or failed restore operation.
+      - Any temporary RST relationship is removed from the destination Vserver.
+      - Only supported with ZAPI.
+    default: False
+    type: bool
+    version_added: 21.20.0
 
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
@@ -538,6 +546,7 @@ class NetAppONTAPSnapmirror(object):
             source_cluster=dict(required=False, type='str'),
             destination_cluster=dict(required=False, type='str'),
             transferring_time_out=dict(required=False, type='int', default=300),
+            clean_up_failure=dict(required=False, type='bool', default=False)
         ))
 
         self.module = AnsibleModule(
@@ -1042,8 +1051,8 @@ class NetAppONTAPSnapmirror(object):
                    'source-location': self.parameters['source_path']}
         if self.parameters.get('source_snapshot'):
             options['source-snapshot'] = self.parameters['source_snapshot']
-        options['clean-up-failure'] = "true"
-
+        if self.parameters.get('clean_up_failure'):
+            options['clean-up-failure'] = str(self.parameters['clean_up_failure'])
         snapmirror_restore = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-restore', **options)
         try:
             self.server.invoke_successfully(snapmirror_restore, enable_tunneling=True)

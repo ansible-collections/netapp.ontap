@@ -195,7 +195,6 @@ options:
           - allow-only
           - deny-only
           - all
-
 '''
 
 EXAMPLES = """

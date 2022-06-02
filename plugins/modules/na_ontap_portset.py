@@ -1,15 +1,12 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 DOCUMENTATION = '''
 short_description: NetApp ONTAP Create/Delete portset
@@ -38,7 +35,8 @@ options:
     type: str
   type:
     description:
-      - Required for create.
+      - Required for create in ZAPI.
+      - Default value is mixed if not specified at the time of creation in REST.
       - Protocols accepted for this portset.
     choices: ['fcp', 'iscsi', 'mixed']
     type: str
@@ -50,10 +48,10 @@ options:
     default: False
   ports:
     description:
-    - Specify the ports associated with this portset. Should be comma separated.
-    - It represents the expected state of a list of ports at any time, and replaces the current value of ports.
-    - Adds a port if it is specified in expected state but not in current state.
-    - Deletes a port if it is in current state but not in expected state.
+      - Specify the ports associated with this portset. Should be comma separated.
+      - It represents the expected state of a list of ports at any time, and replaces the current value of ports.
+      - Adds a port if it is specified in expected state but not in current state.
+      - Deletes a port if it is in current state but not in expected state.
     type: list
     elements: str
 version_added: 2.8.0
@@ -62,7 +60,7 @@ version_added: 2.8.0
 
 EXAMPLES = """
     - name: Create Portset
-      na_ontap_portset:
+      netapp.ontap.na_ontap_portset:
         state: present
         vserver: vserver_name
         name: portset_name
@@ -73,7 +71,7 @@ EXAMPLES = """
         hostname: "{{ netapp hostname }}"
 
     - name: Modify ports in portset
-      na_ontap_portset:
+      netapp.ontap.na_ontap_portset:
         state: present
         vserver: vserver_name
         name: portset_name
@@ -83,7 +81,7 @@ EXAMPLES = """
         hostname: "{{ netapp hostname }}"
 
     - name: Delete Portset
-      na_ontap_portset:
+      netapp.ontap.na_ontap_portset:
         state: absent
         vserver: vserver_name
         name: portset_name
@@ -103,11 +101,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppONTAPPortset(object):
+class NetAppONTAPPortset:
     """
     Methods to create or delete portset
     """
@@ -131,13 +129,27 @@ class NetAppONTAPPortset(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        if 'ports' in self.parameters:
+            self.parameters['ports'] = list(set([port.strip() for port in self.parameters['ports']]))
+            if '' in self.parameters['ports'] and self.parameters['state'] == 'present':
+                self.module.fail_json(msg="Error: invalid value specified for ports")
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(
-                module=self.module, vserver=self.parameters['vserver'])
+        # Setup REST API.
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.uuid, self.lifs_info = None, {}
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            msg = 'REST requires ONTAP 9.9.1 or later for portset APIs.'
+            if self.parameters['use_rest'].lower() == 'always':
+                self.module.fail_json(msg='Error: %s' % msg)
+            if self.parameters['use_rest'].lower() == 'auto':
+                self.module.warn('Falling back to ZAPI: %s' % msg)
+                self.use_rest = False
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def portset_get_iter(self):
         """
@@ -158,6 +170,8 @@ class NetAppONTAPPortset(object):
         Get current portset info
         :return: Dictionary of current portset details if query successful, else return None
         """
+        if self.use_rest:
+            return self.portset_get_rest()
         portset_get_iter = self.portset_get_iter()
         result, portset_info = None, dict()
         try:
@@ -182,6 +196,8 @@ class NetAppONTAPPortset(object):
         """
         Create a portset
         """
+        if self.use_rest:
+            return self.create_portset_rest()
         if self.parameters.get('type') is None:
             self.module.fail_json(msg='Error: Missing required parameter for create (type)')
         portset_info = netapp_utils.zapi.NaElement("portset-create")
@@ -199,6 +215,8 @@ class NetAppONTAPPortset(object):
         """
         Delete a portset
         """
+        if self.use_rest:
+            return self.delete_portset_rest()
         portset_info = netapp_utils.zapi.NaElement("portset-destroy")
         portset_info.add_new_child("portset-name", self.parameters['name'])
         if self.parameters.get('force'):
@@ -219,22 +237,23 @@ class NetAppONTAPPortset(object):
         for port in ports:
             self.modify_port(port, 'portset-remove', 'removing')
 
-    def add_ports(self):
+    def add_ports(self, ports=None):
         """
         Add the list of ports to portset
         :return: None
         """
-        # don't add if ports is empty string
-        if self.parameters.get('ports') == [''] or self.parameters.get('ports') is None:
+        if ports is None:
+            ports = self.parameters.get('ports')
+        # don't add if ports is None
+        if ports is None:
             return
-        for port in self.parameters['ports']:
+        for port in ports:
             self.modify_port(port, 'portset-add', 'adding')
 
     def modify_port(self, port, zapi, action):
         """
         Add or remove an port to/from a portset
         """
-        port.strip()  # remove leading spaces if any (eg: if user types a space after comma in initiators list)
         options = {'portset-name': self.parameters['name'],
                    'portset-port-name': port}
 
@@ -247,31 +266,149 @@ class NetAppONTAPPortset(object):
                                                                            to_native(error)),
                                   exception=traceback.format_exc())
 
+    def portset_get_rest(self):
+        api = "protocols/san/portsets"
+        query = {'name': self.parameters['name'], 'svm.name': self.parameters['vserver']}
+        fields = 'uuid,protocol,interfaces'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg='Error fetching portset %s: %s'
+                                      % (self.parameters['name'], to_native(error)))
+        portset_info = None
+        if record:
+            portset_info = self.form_portset_info(record)
+        return portset_info
+
+    def form_portset_info(self, record):
+        self.uuid = record['uuid']
+        # if type is not set, assign current type
+        # for avoiding incompatible network interface error in modify portset.
+        if self.parameters.get('type') is None:
+            self.parameters['type'] = record['protocol']
+        portset_info = {
+            'type': record['protocol'],
+            'ports': []
+        }
+        if 'interfaces' in record:
+            for lif in record['interfaces']:
+                for key, value in lif.items():
+                    if key in ['fc', 'ip']:
+                        # add current lifs type and uuid to self.lifs for modify and delete purpose.
+                        self.lifs_info[value['name']] = {'lif_type': key, 'uuid': value['uuid']}
+                        # This will form ports list for fcp, iscsi and mixed protocols.
+                        portset_info['ports'].append(value['name'])
+        return portset_info
+
+    def create_portset_rest(self):
+        api = "protocols/san/portsets"
+        body = {'name': self.parameters['name'], 'svm.name': self.parameters['vserver']}
+        if 'type' in self.parameters:
+            body['protocol'] = self.parameters['type']
+        if self.lifs_info:
+            body['interfaces'] = [{self.lifs_info[lif]['lif_type']: {'name': lif}} for lif in self.lifs_info]
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg="Error creating portset %s: %s" %
+                                      (self.parameters['name'], to_native(error)))
+
+    def delete_portset_rest(self):
+        api = "protocols/san/portsets"
+        # Default value is False if 'force' not in parameters.
+        query = {'allow_delete_while_bound': self.parameters.get('force', False)}
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid, query)
+        if error:
+            self.module.fail_json(msg="Error deleting portset %s: %s" %
+                                      (self.parameters['name'], to_native(error)))
+
+    def modify_portset_rest(self, ports_to_add, ports_to_remove):
+        if ports_to_add:
+            self.add_ports_to_portset(ports_to_add)
+        for port in ports_to_remove:
+            self.remove_port_from_portset(port)
+
+    def add_ports_to_portset(self, ports_to_add):
+        api = 'protocols/san/portsets/%s/interfaces' % self.uuid
+        body = {'records': [{self.lifs_info[port]['lif_type']: {'name': port}} for port in ports_to_add]}
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error adding port in portset %s: %s' % (self.parameters['name'],
+                                                                               to_native(error)))
+
+    def remove_port_from_portset(self, port_to_remove):
+        api = 'protocols/san/portsets/%s/interfaces' % self.uuid
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.lifs_info[port_to_remove]['uuid'])
+        if error:
+            self.module.fail_json(msg='Error removing port in portset %s: %s' % (self.parameters['name'],
+                                                                                 to_native(error)))
+
+    def get_san_lifs_rest(self, san_lifs):
+        # list of lifs not present in the vserver
+        missing_lifs = []
+        record, record2, error, error2 = None, None, None, None
+        for lif in san_lifs:
+            if self.parameters.get('type') in [None, 'mixed', 'iscsi']:
+                record, error = self.get_san_lif_type_uuid(lif, 'ip')
+            if self.parameters.get('type') in [None, 'mixed', 'fcp']:
+                record2, error2 = self.get_san_lif_type_uuid(lif, 'fc')
+            if error is None and error2 is not None and record:
+                # ignore error on fc if ip interface is found
+                error2 = None
+            if error2 is None and error is not None and record2:
+                # ignore error on ip if fc interface is found
+                error = None
+            if error or error2:
+                errors = [to_native(err) for err in (error, error2) if err]
+                self.module.fail_json(msg='Error fetching lifs details for %s: %s' % (lif, ' - '.join(errors)),
+                                      exception=traceback.format_exc())
+            if record:
+                self.lifs_info[lif] = {'lif_type': 'ip', 'uuid': record['uuid']}
+            if record2:
+                self.lifs_info[lif] = {'lif_type': 'fc', 'uuid': record2['uuid']}
+            if record is None and record2 is None:
+                missing_lifs.append(lif)
+        if missing_lifs and self.parameters['state'] == 'present':
+            error_msg = 'Error: lifs: %s of type %s not found in vserver %s' % \
+                        (', '.join(missing_lifs), self.parameters.get('type', 'fcp or iscsi'), self.parameters['vserver'])
+            self.module.fail_json(msg=error_msg)
+
+    def get_san_lif_type_uuid(self, lif, portset_type):
+        api = 'network/%s/interfaces' % portset_type
+        query = {'name': lif, 'svm.name': self.parameters['vserver']}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        return record, error
+
     def apply(self):
         """
         Applies action from playbook
         """
-        netapp_utils.ems_log_event("na_ontap_autosupport", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_autosupport", self.server)
         current, modify = self.portset_get(), None
+        # get lifs type and uuid which is not present in current.
+        if self.use_rest and self.parameters['state'] == 'present':
+            self.get_san_lifs_rest([port for port in self.parameters['ports'] if port not in self.lifs_info])
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
             if self.parameters.get('type') and self.parameters['type'] != current['type']:
                 self.module.fail_json(msg="modify protocol(type) not supported and %s already exists in vserver %s under different type" %
                                           (self.parameters['name'], self.parameters['vserver']))
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_portset()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_portset()
+                # REST handles create and add ports in create api call itself.
+                if not self.use_rest:
                     self.add_ports()
-                elif cd_action == 'delete':
-                    self.delete_portset()
-                elif modify:
-                    self.remove_ports(current['ports'])
-                    self.add_ports()
+            elif cd_action == 'delete':
+                self.delete_portset()
+            elif modify:
+                add_ports = set(self.parameters['ports']) - set(current['ports'])
+                remove_ports = set(current['ports']) - set(self.parameters['ports'])
+                if self.use_rest:
+                    self.modify_portset_rest(add_ports, remove_ports)
+                else:
+                    self.add_ports(add_ports)
+                    self.remove_ports(remove_ports)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

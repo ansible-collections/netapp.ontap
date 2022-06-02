@@ -92,6 +92,7 @@ action_groups:
     - na_ontap_rest_info
     - na_ontap_restit
     - na_ontap_s3_buckets
+    - na_ontap_s3_services
     - na_ontap_security_certificates
     - na_ontap_security_config
     - na_ontap_security_key_manager

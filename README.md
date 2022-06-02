@@ -38,15 +38,21 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.20.0
 
 ### Bug Fixes
+  - na_ontap_portset - fixed idempotency issue when `ports` has identical values.
+  - na_ontap_portset - fixed error when trying to remove partial ports from portset if igroups are bound to it.
   - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
   - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
   - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
+  - na_ontap_snapmirror - fix error in snapmirror restore by changing option `clean_up_failure` as optional when using ZAPI.
   - na_ontap_software_update - now reports changed=False when the package is already present.
   - na_ontap_vscan_on_access_policy - fixed options `filters`, `file_ext_to_exclude` and `paths_to_exclude` cannot be reset to empty values in ZAPI.
   - na_ontap_zapit - fix failure in precluster mode.
 
 ### New Options
   - na_ontap_vscan_on_access_policy - new REST options `scan_readonly_volumes` and `only_execute_access` added.
+
+### New Module
+  - na_ontap_s3_service - Manage S3 services.
 
 ### Minor Changes
   - na_ontap_cifs_server - Added `security` options in REST.
@@ -56,12 +62,13 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
   - na_ontap_vserver_cifs_security - added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
-  - na_ontap_export_policy_rule: Add reindex for both REST and ZAPI. Change `rule_index` to required.
+  - na_ontap_export_policy_rule - Add reindex for both REST and ZAPI. Change `rule_index` to required.
   - na_ontap_vserver_cifs_security - Added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
 
 ### Added REST support to existing modules
-  - na_ontap_nvme_namespace - added REST support.
-  - na_ontap_software_update - added REST support.
+  - na_ontap_nvme_namespace - Added REST support.
+  - na_ontap_portset - Added REST support.
+  - na_ontap_software_update - Added REST support.
   - na_ontap_vscan_on_access_policy - Added REST support.
   - na_ontap_vscan_on_demand_task - Added REST support.
 
