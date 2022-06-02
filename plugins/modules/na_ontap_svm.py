@@ -91,6 +91,8 @@ options:
       - When part of vserver-modify,
         this field should include the existing list
         along with new protocol list to be added to prevent data disruptions.
+      - ndmp is default in creation and can't be modified when using REST API.
+        Specify ndmp in task to maintain idempotency.
       - Possible values
       - nfs   NFS protocol,
       - cifs  CIFS protocol,

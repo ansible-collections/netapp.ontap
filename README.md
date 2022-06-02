@@ -51,28 +51,29 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_zapit - fix failure in precluster mode.
 
 ### New Options
+  - na_ontap_cifs_server - Added `security` options in REST.
+  - na_ontap_export_policy_rule - added `from_index` for both REST and ZAPI. Change `rule_index` to required.
+  - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
+  - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
   - na_ontap_vscan_on_access_policy - new REST options `scan_readonly_volumes` and `only_execute_access` added.
+  - na_ontap_vserver_cifs_security - added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
 
 ### New Module
   - na_ontap_s3_service - Manage S3 services.
 
 ### Minor Changes
-  - na_ontap_cifs_server - Added `security` options in REST.
-  - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
-  - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
+  - na_ontap_aggregate - updated `disk_types` in documentation.
   - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
-  - na_ontap_vserver_cifs_security - added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
+  - na_ontap_svm - Added documentation for `allowed_protocol`, ndmp is default in REST.
+  - na_ontap_vserver_cifs_security - added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
-  - na_ontap_export_policy_rule - Add reindex for both REST and ZAPI. Change `rule_index` to required.
-  - na_ontap_vserver_cifs_security - Added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
-  - na_ontap_aggregate - updated `disk_types` in documentation.
 
 ### Added REST support to existing modules
   - na_ontap_nvme_namespace - Added REST support.
   - na_ontap_nvme_subsystem - Added REST support.
-  - na_ontap_software_update - added REST support.
   - na_ontap_portset - Added REST support.
+  - na_ontap_software_update - added REST support.
   - na_ontap_vscan_on_access_policy - Added REST support.
   - na_ontap_vscan_on_demand_task - Added REST support.
 

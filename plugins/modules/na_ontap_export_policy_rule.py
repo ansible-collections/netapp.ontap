@@ -42,10 +42,7 @@ options:
 
   client_match:
     description:
-      - List of Client Match host names, IP Addresses, Netgroups, or Domains
-      - If rule_index is not provided, client_match is used as a key to fetch current rule to determine create,delete,modify actions.
-        If a rule with provided client_match exists, a new rule will not be created, but the existing rule will be modified or deleted.
-        If a rule with provided client_match doesn't exist, a new rule will be created if state is present.
+      - List of Client Match host names, IP Addresses, Netgroups, or Domains.
     type: list
     elements: str
 
@@ -122,6 +119,7 @@ EXAMPLES = """
       netapp.ontap.na_ontap_export_policy_rule:
         state: present
         name: default123
+        rule_index: 100
         vserver: ci_dev
         client_match: 0.0.0.0/0,1.1.1.0/24
         ro_rule: krb5,krb5i
@@ -151,12 +149,12 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: rename ExportPolicyRule
+    - name: rename ExportPolicyRule index
       netapp.ontap.na_ontap_export_policy_rule:
         state: present
         name: default123
-        from_rule_index: 99
-        rule_index: 100
+        from_rule_index: 100
+        rule_index: 99
         client_match: 0.0.0.0/0
         anonymous_user_id: 65521
         ro_rule: ntlm
@@ -172,7 +170,7 @@ EXAMPLES = """
       netapp.ontap.na_ontap_export_policy_rule:
         state: absent
         name: default123
-        rule_index: 100
+        rule_index: 99
         vserver: ci_dev
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
