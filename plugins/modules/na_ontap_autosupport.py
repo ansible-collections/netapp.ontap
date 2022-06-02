@@ -288,11 +288,12 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 self.module.fail_json(msg=error)
 
             asup_info = {}
-            for param in ('transport', 'support', 'mail_hosts', 'proxy_url', 'retry_count',
+            for param in ('transport', 'mail_hosts', 'proxy_url', 'retry_count',
                           'max_http_size', 'max_smtp_size', 'noteto', 'validate_digital_certificate'):
                 if param in records[0]:
                     asup_info[param] = records[0][param]
 
+            asup_info['support'] = records[0]['support'] in ['enable', True]
             asup_info['node_name'] = records[0]['node'] if 'node' in records[0] else ""
             asup_info['post_url'] = records[0]['url'] if 'url' in records[0] else ""
             asup_info['from_address'] = records[0]['from'] if 'from' in records[0] else ""
