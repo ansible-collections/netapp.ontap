@@ -293,24 +293,35 @@ class NetAppModule(object):
             target = self.get_object(target_name)
             action = is_rename_action(source, target)
             :return: None for error, True for rename action, False otherwise
+
+            I'm not sure we need this function any more.
+            I think a better way to do it is to:
+            1. look if a create is required (eg the target resource does not exist and state==present)
+            2. consider that a create can be fullfilled by different actions: rename, create from scratch, move, ...
+            So for rename:
+            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+            if cd_action == 'create' and self.parameters.get('from_name'):
+                # creating new subnet by renaming
+                current = self.get_subnet(self.parameters['from_name'])
+                if current is None:
+                    self.module.fail_json(msg="Error renaming: subnet %s does not exist" %
+                                          self.parameters['from_name'])
+                rename = True
+                cd_action = None
         '''
         if source is None and target is None:
             # error, do nothing
-            # cannot rename an non existent resource
-            # alternatively we could create B
+            # cannot rename a non existent resource
             return None
-        if source is not None and target is not None:
-            # error, do nothing
-            # idempotency (or) new_name_is_already_in_use
-            # alternatively we could delete B and rename A to B
-            return False
-        if source is None:
-            # do nothing, maybe the rename was already done
-            return False
-        # source is not None and target is None:
-        # rename is in order
-        self.changed = True
-        return True
+        if target is None:
+            # source is not None and target is None:
+            # rename is in order
+            self.changed = True
+            return True
+        # target is not None, so do nothing as the destination exists
+        # if source is None, maybe we already renamed
+        # if source is not None, maybe a new resource was created after being renamed
+        return False
 
     @staticmethod
     def sanitize_wwn(initiator):

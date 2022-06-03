@@ -39,6 +39,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### Bug Fixes
   - na_ontap_autosupport - TypeError on `support` field with ONTAP 9.11.
+  - na_ontap_net_subnet - delete fails if ipspace is different than Default.
   - na_ontap_portset - fixed idempotency issue when `ports` has identical values.
   - na_ontap_portset - fixed error when trying to remove partial ports from portset if igroups are bound to it.
   - na_ontap_quotas - fix idempotency issue on `threshold` option.
@@ -51,7 +52,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_zapit - fix failure in precluster mode.
 
 ### New Options
-  - na_ontap_cifs_server - Added `security` options in REST.
+  - na_ontap_cifs_server - added `security` options in REST.
   - na_ontap_export_policy_rule - added `from_index` for both REST and ZAPI. Change `rule_index` to required.
   - na_ontap_snapmirror - new option `peer_options` to define source connection parameters.
   - na_ontap_snapmirror - new option `transferring_time_out` to define how long to wait for transfer to complete on create or initialize.
@@ -65,17 +66,17 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_aggregate - updated `disk_types` in documentation.
   - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
-  - na_ontap_svm - Added documentation for `allowed_protocol`, ndmp is default in REST.
+  - na_ontap_svm - added documentation for `allowed_protocol`, ndmp is default in REST.
   - na_ontap_vserver_cifs_security - added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
 
 ### Added REST support to existing modules
-  - na_ontap_nvme_namespace - Added REST support.
-  - na_ontap_nvme_subsystem - Added REST support.
-  - na_ontap_portset - Added REST support.
+  - na_ontap_nvme_namespace - added REST support.
+  - na_ontap_nvme_subsystem - added REST support.
+  - na_ontap_portset - added REST support.
   - na_ontap_software_update - added REST support.
-  - na_ontap_vscan_on_access_policy - Added REST support.
-  - na_ontap_vscan_on_demand_task - Added REST support.
+  - na_ontap_vscan_on_access_policy - added REST support.
+  - na_ontap_vscan_on_demand_task - added REST support.
 
 ## 21.19.1
 

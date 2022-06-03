@@ -5,11 +5,6 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = """
 module: na_ontap_net_subnet
 short_description: NetApp ONTAP Create, delete, modify network subnets.
@@ -69,7 +64,7 @@ options:
 
 EXAMPLES = """
     - name: create subnet
-      na_ontap_net_subnet:
+      netapp.ontap.na_ontap_net_subnet:
         state: present
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -81,7 +76,7 @@ EXAMPLES = """
         ipspace: Default
         broadcast_domain: Default
     - name: delete subnet
-      na_ontap_net_subnet:
+      netapp.ontap.na_ontap_net_subnet:
         state: absent
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -89,7 +84,7 @@ EXAMPLES = """
         name: subnet-adm
         ipspace: Default
     - name: rename subnet
-      na_ontap_net_subnet:
+      netapp.ontap.na_ontap_net_subnet:
         state: present
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -110,10 +105,8 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapSubnet(object):
+class NetAppOntapSubnet:
     """
     Create, Modifies and Destroys a subnet
     """
@@ -140,10 +133,9 @@ class NetAppOntapSubnet(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
         return
 
     def get_subnet(self, name=None):
@@ -182,8 +174,7 @@ class NetAppOntapSubnet(object):
             ip_ranges = []
             if subnet_attributes.get_child_by_name('ip-ranges'):
                 range_obj = subnet_attributes.get_child_by_name('ip-ranges').get_children()
-                for elem in range_obj:
-                    ip_ranges.append(elem.get_content())
+                ip_ranges = [elem.get_content() for elem in range_obj]
 
             return_value = {
                 'name': name,
@@ -200,22 +191,7 @@ class NetAppOntapSubnet(object):
         """
         Creates a new subnet
         """
-        options = {'subnet-name': self.parameters.get('name'),
-                   'broadcast-domain': self.parameters.get('broadcast_domain'),
-                   'subnet': self.parameters.get('subnet')}
-        subnet_create = netapp_utils.zapi.NaElement.create_node_with_children(
-            'net-subnet-create', **options)
-
-        if self.parameters.get('gateway'):
-            subnet_create.add_new_child('gateway', self.parameters.get('gateway'))
-        if self.parameters.get('ip_ranges'):
-            subnet_ips = netapp_utils.zapi.NaElement('ip-ranges')
-            subnet_create.add_child_elem(subnet_ips)
-            for ip_range in self.parameters.get('ip_ranges'):
-                subnet_ips.add_new_child('ip-range', ip_range)
-        if self.parameters.get('ipspace'):
-            subnet_create.add_new_child('ipspace', self.parameters.get('ipspace'))
-
+        subnet_create = self.build_zapi_request_for_create_or_modify('net-subnet-create')
         try:
             self.server.invoke_successfully(subnet_create, True)
         except netapp_utils.zapi.NaApiError as error:
@@ -228,6 +204,8 @@ class NetAppOntapSubnet(object):
         """
         subnet_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'net-subnet-destroy', **{'subnet-name': self.parameters.get('name')})
+        if self.parameters.get('ipspace'):
+            subnet_delete.add_new_child('ipspace', self.parameters.get('ipspace'))
 
         try:
             self.server.invoke_successfully(subnet_delete, True)
@@ -239,28 +217,37 @@ class NetAppOntapSubnet(object):
         """
         Modifies a subnet
         """
-        options = {'subnet-name': self.parameters.get('name')}
-
-        subnet_modify = netapp_utils.zapi.NaElement.create_node_with_children(
-            'net-subnet-modify', **options)
-
-        if self.parameters.get('gateway'):
-            subnet_modify.add_new_child('gateway', self.parameters.get('gateway'))
-        if self.parameters.get('ip_ranges'):
-            subnet_ips = netapp_utils.zapi.NaElement('ip-ranges')
-            subnet_modify.add_child_elem(subnet_ips)
-            for ip_range in self.parameters.get('ip_ranges'):
-                subnet_ips.add_new_child('ip-range', ip_range)
-        if self.parameters.get('ipspace'):
-            subnet_modify.add_new_child('ipspace', self.parameters.get('ipspace'))
-        if self.parameters.get('subnet'):
-            subnet_modify.add_new_child('subnet', self.parameters.get('subnet'))
-
+        subnet_modify = self.build_zapi_request_for_create_or_modify('net-subnet-modify')
         try:
             self.server.invoke_successfully(subnet_modify, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying subnet %s: %s' % (self.parameters.get('name'), to_native(error)),
                                   exception=traceback.format_exc())
+
+    def build_zapi_request_for_create_or_modify(self, zapi):
+        simple_keys = ['gateway', 'ipspace', 'subnet']
+
+        # required parameters
+        options = {'subnet-name': self.parameters.get('name')}
+        if zapi == 'net-subnet-create':
+            options['broadcast-domain'] = self.parameters.get('broadcast_domain')
+            options['subnet'] = self.parameters.get('subnet')
+            simple_keys.remove('subnet')
+
+        # optional parameters
+        for key in simple_keys:
+            value = self.parameters.get(key)
+            if value is not None:
+                options[key] = value
+
+        result = netapp_utils.zapi.NaElement.create_node_with_children(zapi, **options)
+        if self.parameters.get('ip_ranges'):
+            subnet_ips = netapp_utils.zapi.NaElement('ip-ranges')
+            for ip_range in self.parameters.get('ip_ranges'):
+                subnet_ips.add_new_child('ip-range', ip_range)
+            result.add_child_elem(subnet_ips)
+
+        return result
 
     def rename_subnet(self):
         """
@@ -287,36 +274,40 @@ class NetAppOntapSubnet(object):
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_net_subnet", cserver)
         current = self.get_subnet()
-        cd_action, rename = None, None
+        rename, modify = None, None
 
-        if self.parameters.get('from_name'):
-            rename = self.na_helper.is_rename_action(self.get_subnet(self.parameters.get('from_name')), current)
-            if rename is None:
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            # creating new subnet by renaming
+            current = self.get_subnet(self.parameters.get('from_name'))
+            if current is None:
                 self.module.fail_json(msg="Error renaming: subnet %s does not exist" %
                                       self.parameters.get('from_name'))
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        for attribute in modify:
-            if attribute in ['broadcast_domain']:
-                self.module.fail_json(msg='Error modifying subnet %s: cannot modify broadcast_domain parameter.' % self.parameters.get('name'))
+            rename = True
+            cd_action = None
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if rename:
-                    self.rename_subnet()
-                # If rename is True, cd_action is NOne but modify could be true
-                if cd_action == 'create':
-                    for attribute in ['subnet', 'broadcast_domain']:
-                        if not self.parameters.get(attribute):
-                            self.module.fail_json(msg='Error - missing required arguments: %s.' % attribute)
-                    self.create_subnet()
-                elif cd_action == 'delete':
-                    self.delete_subnet()
-                elif modify:
-                    self.modify_subnet()
+        if self.parameters['state'] == 'present' and current:
+            current.pop('name', None)       # handled in rename
+            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if 'broadcast_domain' in modify:
+                self.module.fail_json(msg='Error modifying subnet %s: cannot modify broadcast_domain parameter, desired "%s", currrent "%s"'
+                                      % (self.parameters.get('name'), self.parameters.get('broadcast_domain'), current.get('broadcast_domain')))
+
+        if cd_action == 'create':
+            for attribute in ['subnet', 'broadcast_domain']:
+                if not self.parameters.get(attribute):
+                    self.module.fail_json(msg='Error - missing required arguments: %s.' % attribute)
+
+        if self.na_helper.changed and not self.module.check_mode:
+            if rename:
+                self.rename_subnet()
+            # If rename is True, cd_action is None but modify could be true
+            if cd_action == 'create':
+                self.create_subnet()
+            elif cd_action == 'delete':
+                self.delete_subnet()
+            elif modify:
+                self.modify_subnet()
         self.module.exit_json(changed=self.na_helper.changed)
 
 
