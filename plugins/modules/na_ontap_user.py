@@ -71,10 +71,10 @@ options:
         choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
         required: true
       authentication_methods:
-        description: list of authentication methods for the application.
+        description: list of authentication methods for the application (see C(authentication_method)).
         type: list
         elements: str
-        choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']
+        choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']
         required: true
       second_authentication_method:
         description: when using ssh, optional additional authentication method for MFA.
@@ -86,8 +86,9 @@ options:
     - Not all authentication methods are valid for an application.
     - Valid authentication methods for each application are as denoted in I(authentication_choices_description).
     - Password for console application
-    - Password, domain, nsswitch, cert for http application.
-    - Password, domain, nsswitch, cert for ontapi application.
+    - Password, domain, nsswitch, cert, saml for http application.
+    - Password, domain, nsswitch, cert, saml for ontapi application.
+    - SAML is only supported with REST, but seems to work with ZAPI as well.
     - Community for snmp application (when creating SNMPv1 and SNMPv2 users).
     - The usm and community for snmp application (when creating SNMPv3 users).
     - Password for sp application.
@@ -96,7 +97,7 @@ options:
     - Password, publickey, domain, nsswitch for ssh application.
     - Required when C(application_strs) is present.
     type: str
-    choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']
+    choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']
   set_password:
     description:
     - Password for the user account.
@@ -284,10 +285,10 @@ class NetAppOntapUser():
                                                         choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
                                                                  'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
                                        authentication_methods=dict(required=True, type='list', elements='str',
-                                                                   choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']),
+                                                                   choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
                                        second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch']))),
             authentication_method=dict(type='str',
-                                       choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert']),
+                                       choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
             set_password=dict(type='str', no_log=True),
             role_name=dict(type='str'),
             lock_user=dict(type='bool'),
@@ -444,7 +445,7 @@ class NetAppOntapUser():
                           or (application in desired_applications and auth_method == desired_method)):
                         # with 'auto' we ignore existing apps that were not asked for
                         # with auto, only a single method is supported
-                        applications[application] = ([auth_method], None)
+                        applications[application] = ([auth_method], sec_method if sec_method != 'none' else None)
 
                 apps = [dict(application=application, authentication_methods=sorted(methods), second_authentication_method=sec_method)
                         for application, (methods, sec_method) in applications.items()]

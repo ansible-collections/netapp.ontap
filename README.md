@@ -48,6 +48,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - fix issue where there was no wait on the relationship to end transferring.
   - na_ontap_snapmirror - fix error in snapmirror restore by changing option `clean_up_failure` as optional when using ZAPI.
   - na_ontap_software_update - now reports changed=False when the package is already present.
+  - na_ontap_user - fix idempotency issue with SSH with second_authentication_method.
   - na_ontap_vscan_on_access_policy - fixed options `filters`, `file_ext_to_exclude` and `paths_to_exclude` cannot be reset to empty values in ZAPI.
   - na_ontap_zapit - fix failure in precluster mode.
 
@@ -67,6 +68,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship cannot be broken.
   - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
   - na_ontap_svm - added documentation for `allowed_protocol`, ndmp is default in REST.
+  - na_ontap_user - add support for SAML authentication_method.
   - na_ontap_vserver_cifs_security - added `use_ldaps_for_ad_ldap` and `use_start_tls_for_ad_ldap` as mutually exclusive in ZAPI.
   - na_ontap_vserver_cifs_security - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
 
