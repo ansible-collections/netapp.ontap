@@ -52,7 +52,7 @@ def get_vserver_uuid(rest_api, name, module, error_on_none=None):
     if error:
         module.fail_json(msg=error)
     if record is None and error_on_none:
-        return record, True
+        module.fail_json(msg="Error: Specified vserver %s not found" % name)
     if record:
         return record['uuid'], error
     return record, error

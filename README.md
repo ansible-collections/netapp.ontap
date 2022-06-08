@@ -38,10 +38,12 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 ## 21.20.0
 
 ### Bug Fixes
-  - na_ontap_autosupport - TypeError on `support` field with ONTAP 9.11.
+  - na_ontap_autosupport - fix idempotency issue on `state` field with ONTAP 9.11.
+  - na_ontap_autosupport - TypeError on `support` and `ondemand_enabled` field with ONTAP 9.11.
   - na_ontap_net_subnet - delete fails if ipspace is different than Default.
   - na_ontap_portset - fixed idempotency issue when `ports` has identical values.
   - na_ontap_portset - fixed error when trying to remove partial ports from portset if igroups are bound to it.
+  - na_ontap_quotas - fix another quota operation is currently in progress issue.
   - na_ontap_quotas - fix idempotency issue on `threshold` option.
   - na_ontap_snapmirror - support for SSL certificate authentication for both sides when using ONTAP.
   - na_ontap_snapmirror - fix issue where there was no wait on quiesce before aborting.
@@ -62,6 +64,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Module
   - na_ontap_s3_service - Manage S3 services.
+  - na_ontap_s3_users - Manage S3 users.
 
 ### Minor Changes
   - na_ontap_aggregate - updated `disk_types` in documentation.

@@ -488,8 +488,11 @@ class NetAppONTAPQuotas:
                 modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
         quota_status = self.get_quota_status()
         if 'set_quota_status' in self.parameters and quota_status is not None:
-            quota_status_action = self.na_helper.get_modified_attributes({'set_quota_status': quota_status == 'on'}, self.parameters)
-
+            # if 'set_quota_status' == True in create, sometimes there is delay in status update from 'initializing' -> 'on'.
+            # if quota_status == 'on' and options(set_quota_status == True and activate_quota_on_change == 'resize'),
+            # sometimes there is delay in status update from 'resizing' -> 'on'
+            set_quota_status = True if quota_status in ('on', 'resizing', 'initializing') else False
+            quota_status_action = self.na_helper.get_modified_attributes({'set_quota_status': set_quota_status}, self.parameters)
             if quota_status_action:
                 modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
         if (self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']
