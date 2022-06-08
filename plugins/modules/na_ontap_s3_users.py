@@ -13,7 +13,7 @@ module: na_ontap_s3_users
 short_description: NetApp ONTAP S3 users
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: 21.19.0
+version_added: 21.20.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Create, delete, or modify S3 users on NetApp ONTAP.

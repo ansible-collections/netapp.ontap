@@ -1626,6 +1626,29 @@ releases:
       name: na_ontap_s3_buckets
       namespace: ''
     release_date: '2022-05-04'
+  21.19.1:
+    changes:
+      bugfixes:
+      - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs
+        with REST (ipspace is required).
+      - na_ontap_interface - ignore ``vserver`` when using REST if role is one of 'cluster',
+        'node-mgmt', 'intercluster', 'cluster-mgmt'.
+      - na_ontap_nvme - fixed ``status_admin`` option is ignored if set to False when
+        creating nvme service in REST.
+      - na_ontap_nvme - fixed invalid boolean value error for ``status_admin`` when
+        creating nvme service in ZAPI.
+      - na_ontap_service_policy - fixed error in modify by changing resulting json of
+        an existing record in REST.
+      - na_ontap_snapmirror - when using REST with a policy, fix AttributeError - 'str'
+        object has no attribute 'get'.
+      - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced
+        before breaking.
+    fragments:
+    - DEVOPS-5062.yaml
+    - DEVOPS-5063.yaml
+    - DEVOPS-5065.yaml
+    - DEVOPS-5068.yaml
+    release_date: '2022-05-11'
   21.2.0:
     changes:
       bugfixes:
@@ -1690,6 +1713,107 @@ releases:
       name: na_ontap_volume_efficiency
       namespace: ''
     release_date: '2021-02-04'
+  21.20.0:
+    changes:
+      bugfixes:
+      - na_ontap_autosupport - TypeError on ``ondemand_enabled`` field with ONTAP
+        9.11.
+      - na_ontap_autosupport - TypeError on ``support`` field with ONTAP 9.11.
+      - na_ontap_autosupport - fix idempotency issue on ``state`` field with ONTAP
+        9.11.
+      - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs
+        with REST (ipspace is required).
+      - na_ontap_interface - ignore ``vserver`` when using REST if role is one of
+        'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+      - na_ontap_net_subnet - delete fails if ipspace is different than Default.
+      - na_ontap_nvme - fixed ``status_admin`` option is ignored if set to False when
+        creating nvme service in REST.
+      - na_ontap_nvme - fixed invalid boolean value error for ``status_admin`` when
+        creating nvme service in ZAPI.
+      - na_ontap_portset - fixed error when trying to remove partial ports from portset
+        if igroups are bound to it.
+      - na_ontap_portset - fixed idempotency issue when ``ports`` has identical values.
+      - na_ontap_quotas - fix another quota operation is currently in progress issue.
+      - na_ontap_quotas - fix idempotency issue on ``threshold`` option.
+      - na_ontap_service_policy - fixed error in modify by changing resulting json
+        of an existing record in REST.
+      - na_ontap_snapmirror - fix error in snapmirror restore by changing option ``clean_up_failure``
+        as optional when using ZAPI.
+      - na_ontap_snapmirror - fix issues where there was no wait on quiesce before
+        aborting.
+      - na_ontap_snapmirror - fix issues where there was no wait on the relationship
+        to end transferring.
+      - na_ontap_snapmirror - support for SSL certificate authentication for both
+        sides when using ONTAP.
+      - na_ontap_snapmirror - when using REST with a policy, fix AttributeError -
+        'str' object has no attribute 'get'.
+      - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced
+        before breaking.
+      - na_ontap_software_update - now reports changed=False when the package is already
+        present.
+      - na_ontap_user - fix idempotency issue with SSH with second_authentication_method.
+      - na_ontap_vscan_on_access_policy - fixed options ``filters``, ``file_ext_to_exclude``
+        and ``paths_to_exclude`` cannot be reset to empty values in ZAPI.
+      - na_ontap_zapit - fix failure in precluster mode.
+      minor_changes:
+      - na_ontap_aggregate - updated ``disk_types`` in documentation.
+      - na_ontap_cifs_server - Added ``security`` options in REST.
+      - na_ontap_export_policy_rule - Add ``from_rule_index`` for both REST and ZAPI.
+        Change ``rule_index`` to required.
+      - na_ontap_nvme_namespace - Added REST support.
+      - na_ontap_nvme_subsystem - Added REST support.
+      - na_ontap_portset - Added REST support.
+      - na_ontap_snapmirror - new option ``peer_options`` to define source connection
+        parameters.
+      - na_ontap_snapmirror - new option ``transferring_time_out`` to define how long
+        to wait for transfer to complete on create or initialize.
+      - na_ontap_snapmirror - rewrite update for REST using POST to initiate transfer.
+      - na_ontap_snapmirror - when deleting, attempt to delete even when the relationship
+        cannot be broken.
+      - na_ontap_software_update - added REST support.
+      - na_ontap_svm - Added documentation for ``allowed_protocol``, ndmp is default
+        in REST.
+      - na_ontap_user - add support for SAML authentication_method.
+      - na_ontap_vscan_on_access_policy - Added REST support.
+      - na_ontap_vscan_on_access_policy - new REST options ``scan_readonly_volumes``
+        and ``only_execute_access`` added.
+      - na_ontap_vscan_on_demand_task - Added REST support.
+      - na_ontap_vserver_cifs_security - Added ``use_ldaps_for_ad_ldap`` and ``use_start_tls_for_ad_ldap``
+        as mutually exclusive in ZAPI.
+      - na_ontap_vserver_cifs_security - Added option ``encryption_required_for_dc_connections``
+        and ``use_ldaps_for_ad_ldap`` in ZAPI.
+      - na_ontap_vserver_cifs_security - fall back to ZAPI when ``use_rest`` is set
+        to ``auto`` or fail when REST is desired.
+    fragments:
+    - DEVOPS-4048.yaml
+    - DEVOPS-4449.yaml
+    - DEVOPS-4606.yaml
+    - DEVOPS-4780.yaml
+    - DEVOPS-4781.yaml
+    - DEVOPS-4784.yaml
+    - DEVOPS-4794.yaml
+    - DEVOPS-4801.yaml
+    - DEVOPS-4802.yaml
+    - DEVOPS-4803.yaml
+    - DEVOPS-4985.yaml
+    - DEVOPS-5079.yml
+    - DEVOPS-5082.yaml
+    - DEVOPS-5090.yaml
+    - DEVOPS-5109.yaml
+    - DEVOPS-5121.yaml
+    - DEVOPS-5127.yaml
+    - DEVOPS-5136.yaml
+    - DEVOPS-5137.yaml
+    - DEVOPS-5138.yaml
+    - DEVOPS-5161.yaml
+    modules:
+    - description: NetApp ONTAP S3 services
+      name: na_ontap_s3_services
+      namespace: ''
+    - description: NetApp ONTAP S3 users
+      name: na_ontap_s3_users
+      namespace: ''
+    release_date: '2022-06-08'
   21.3.0:
     changes:
       bugfixes:
