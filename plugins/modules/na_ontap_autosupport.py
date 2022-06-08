@@ -304,7 +304,7 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             asup_info['private_data_removed'] = record['remove_private_data'] if 'remove_private_data' in record else False
             asup_info['local_collection_enabled'] = record['local_collection'] if 'local_collection' in record else False
             asup_info['ondemand_enabled'] = record['ondemand_state'] if 'ondemand_state' in record else False
-            asup_info['service_state'] = 'started' if record['state'] else 'stopped'
+            asup_info['service_state'] = 'started' if record['state'] in ['enable', True] else 'stopped'
             asup_info['partner_addresses'] = record['partner_address'] if 'partner_address' in record else list()
         else:
             asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
