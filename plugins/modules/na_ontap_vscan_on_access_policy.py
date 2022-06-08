@@ -434,8 +434,6 @@ class NetAppOntapVscanOnAccessPolicy:
 
     def get_svm_uuid(self):
         uuid, error = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['vserver'], self.module, True)
-        if error:
-            self.module.fail_json(msg="Error: Specified vserver %s not found" % self.parameters['vserver'])
         return uuid
 
     def create_on_access_policy_rest(self):
