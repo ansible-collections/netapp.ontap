@@ -20,116 +20,116 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 options:
   state:
     description:
-    - Specifies whether the AutoSupport daemon is present or absent.
-    - When this setting is absent, delivery of all AutoSupport messages is turned off.
+      - Specifies whether the AutoSupport daemon is present or absent.
+      - When this setting is absent, delivery of all AutoSupport messages is turned off.
     choices: ['present', 'absent']
     type: str
     default: present
   node_name:
     description:
-    - The name of the filer that owns the AutoSupport Configuration.
+      - The name of the filer that owns the AutoSupport Configuration.
     required: true
     type: str
   transport:
     description:
-    - The name of the transport protocol used to deliver AutoSupport messages
+      - The name of the transport protocol used to deliver AutoSupport messages.
     choices: ['http', 'https', 'smtp']
     type: str
   noteto:
     description:
-    - Specifies up to five recipients of short AutoSupport e-mail messages.
+      - Specifies up to five recipients of short AutoSupport e-mail messages.
     type: list
     elements: str
   post_url:
     description:
-    - The URL used to deliver AutoSupport messages via HTTP POST
+      - The URL used to deliver AutoSupport messages via HTTP POST.
     type: str
   mail_hosts:
     description:
-    - List of mail server(s) used to deliver AutoSupport messages via SMTP.
-    - Both host names and IP addresses may be used as valid input.
+      - List of mail server(s) used to deliver AutoSupport messages via SMTP.
+      - Both host names and IP addresses may be used as valid input.
     type: list
     elements: str
   support:
     description:
-    - Specifies whether AutoSupport notification to technical support is enabled.
+      - Specifies whether AutoSupport notification to technical support is enabled.
     type: bool
   from_address:
     description:
-    - specify the e-mail address from which the node sends AutoSupport messages
+      - specify the e-mail address from which the node sends AutoSupport messages.
     version_added: 2.8.0
     type: str
   partner_addresses:
     description:
-    - Specifies up to five partner vendor recipients of full AutoSupport e-mail messages.
+      - Specifies up to five partner vendor recipients of full AutoSupport e-mail messages.
     version_added: 2.8.0
     type: list
     elements: str
   to_addresses:
     description:
-    - Specifies up to five recipients of full AutoSupport e-mail messages.
+      - Specifies up to five recipients of full AutoSupport e-mail messages.
     version_added: 2.8.0
     type: list
     elements: str
   proxy_url:
     description:
-    - specify an HTTP or HTTPS proxy if the 'transport' parameter is set to HTTP or HTTPS and your organization uses a proxy.
-    - If authentication is required, use the format "username:password@host:port".
+      - specify an HTTP or HTTPS proxy if the 'transport' parameter is set to HTTP or HTTPS and your organization uses a proxy.
+      - If authentication is required, use the format "username:password@host:port".
     version_added: 2.8.0
     type: str
   hostname_in_subject:
     description:
-    - Specify whether the hostname of the node is included in the subject line of the AutoSupport message.
+      - Specify whether the hostname of the node is included in the subject line of the AutoSupport message.
     type: bool
     version_added: 2.8.0
   nht_data_enabled:
     description:
-    - Specify whether the disk health data is collected as part of the AutoSupport data.
+      - Specify whether the disk health data is collected as part of the AutoSupport data.
     type: bool
     version_added: '21.5.0'
   perf_data_enabled:
     description:
-    - Specify whether the performance data is collected as part of the AutoSupport data.
+      - Specify whether the performance data is collected as part of the AutoSupport data.
     type: bool
     version_added: '21.5.0'
   retry_count:
     description:
-    - Specify the maximum number of delivery attempts for an AutoSupport message.
+      - Specify the maximum number of delivery attempts for an AutoSupport message.
     type: int
     version_added: '21.5.0'
   reminder_enabled:
     description:
-    - Specify whether AutoSupport reminders are enabled or disabled.
+      - Specify whether AutoSupport reminders are enabled or disabled.
     type: bool
     version_added: '21.5.0'
   max_http_size:
     description:
-    - Specify delivery size limit for the HTTP transport protocol (in bytes).
+      - Specify delivery size limit for the HTTP transport protocol (in bytes).
     type: int
     version_added: '21.5.0'
   max_smtp_size:
     description:
-    - Specify delivery size limit for the SMTP transport protocol (in bytes).
+      - Specify delivery size limit for the SMTP transport protocol (in bytes).
     type: int
     version_added: '21.5.0'
   private_data_removed:
     description:
-    - Specify the removal of customer-supplied data.
+      - Specify the removal of customer-supplied data.
     type: bool
     version_added: '21.5.0'
   local_collection_enabled:
     description:
-    - Specify whether collection of AutoSupport data when the AutoSupport daemon is disabled.
+      - Specify whether collection of AutoSupport data when the AutoSupport daemon is disabled.
     type: bool
     version_added: '21.5.0'
   ondemand_enabled:
     description:
-    - Specify whether the AutoSupport OnDemand Download feature is enabled.
+      - Specify whether the AutoSupport OnDemand Download feature is enabled.
     type: bool
     version_added: '21.5.0'
   validate_digital_certificate:
     description:
-    - When set to true each node will validate the digital certificates that it receives.
+      - When set to true each node will validate the digital certificates that it receives.
     type: bool
     version_added: '21.5.0'
     """
@@ -187,7 +187,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppONTAPasup():
+class NetAppONTAPasup:
     """Class with autosupport methods"""
 
     def __init__(self):
@@ -303,8 +303,8 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             asup_info['reminder_enabled'] = record['reminder'] if 'reminder' in record else False
             asup_info['private_data_removed'] = record['remove_private_data'] if 'remove_private_data' in record else False
             asup_info['local_collection_enabled'] = record['local_collection'] if 'local_collection' in record else False
-            asup_info['ondemand_enabled'] = record['ondemand_state'] if 'ondemand_state' in record else False
-            asup_info['service_state'] = 'started' if record['state'] else 'stopped'
+            asup_info['ondemand_enabled'] = record['ondemand_state'] in ['enable', True] if 'ondemand_state' in record else False
+            asup_info['service_state'] = 'started' if record['state'] in ['enable', True] else 'stopped'
             asup_info['partner_addresses'] = record['partner_address'] if 'partner_address' in record else list()
         else:
             asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
@@ -370,6 +370,7 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 modify['ondemand_state'] = modify.pop('ondemand_enabled')
             if 'partner_addresses' in modify:
                 modify['partner_address'] = modify.pop('partner_addresses')
+
             dummy, error = rest_generic.patch_async(self.rest_api, api, None, modify, query)
 
             if error:
@@ -425,17 +426,12 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
                 sanitized_modify['proxy_url'] = "%s:XXXXXXXX@%s" % user_url_m
         return sanitized_modify
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_autosupport", cserver)
-
     def apply(self):
         """
         Apply action to autosupport
         """
         if not self.use_rest:
-            self.ems_log_event()
+            netapp_utils.ems_log_event_cserver("na_ontap_autosupport", self.server, self.module)
         current = self.get_autosupport_config()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         sanitized_modify = self.idempotency_check(current, modify)
