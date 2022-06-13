@@ -6,29 +6,24 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
-import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user \
-    import NetAppOntapUser as my_module, main as my_main  # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user import NetAppOntapUser as my_module, main as my_main   # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'zero_records': (200, {'num_records': 0}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     'repeated_password': (400, None, {'message': "New password must be different than the old password."}),
     'get_uuid': (200, {'owner': {'uuid': 'ansible'}}, None),
     'get_user_rest': (200,
@@ -48,845 +43,681 @@ SRR = {
                                      {'role': {'name': 'vsadmin'},
                                       'applications': [{'application': 'http'}],
                                       }, None)
+}, True)
+
+
+def login_info(locked, role_name, apps):
+    attributes_list = []
+    for app in apps:
+        if app in ('console', 'service-processor'):
+            attributes_list.append(
+                {'security-login-account-info': {
+                 'is-locked': locked, 'role-name': role_name, 'application': app, 'authentication-method': 'password'}}
+            )
+        if app in ('ssh',):
+            attributes_list.append(
+                {'security-login-account-info': {
+                 'is-locked': locked, 'role-name': role_name, 'application': 'ssh', 'authentication-method': 'publickey',
+                 'second-authentication-method': 'password'}},
+            )
+        if app in ('http',):
+            attributes_list.extend([
+                {'security-login-account-info': {
+                 'is-locked': locked, 'role-name': role_name, 'application': 'http', 'authentication-method': 'password'}},
+            ])
+    return {
+        'num-records': len(attributes_list),
+        'attributes-list': attributes_list
+    }
+
+
+ZRR = zapi_responses({
+    'login_locked_user': build_zapi_response(login_info("true", 'user', ['console', 'ssh'])),
+    'login_unlocked_user': build_zapi_response(login_info("False", 'user', ['console', 'ssh'])),
+    'login_unlocked_user_http': build_zapi_response(login_info("False", 'user', ['http'])),
+    'login_unlocked_user_service_processor': build_zapi_response(login_info("False", 'user', ['service-processor'])),
+    'user_not_found': build_zapi_error('16034', "This exception should not be seen"),
+    'internal_error': build_zapi_error('13114', "Forcing an internal error"),
+    'reused_password': build_zapi_error('13214', "New password must be different than last 6 passwords."),
+}, True)
+
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'name': 'user_name',
+    'vserver': 'vserver',
 }
 
 
-def set_default_args_rest_zapi():
-    return dict({
-        'hostname': 'hostname',
-        'username': 'username',
-        'password': 'password',
-        'name': 'user_name',
-        'vserver': 'vserver',
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    print('Info: %s' % call_main(my_main, {}, module_args, fail=True)['msg'])
+
+
+def test_ensure_user_get_called():
+    ''' a more interesting test '''
+    register_responses([
+        ('ZAPI', 'security-login-get-iter', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'role_name': 'test',
         'applications': 'http',
         'authentication_method': 'password',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # app = dict(application='testapp', authentication_methods=['testam'])
+    user_info = my_obj.get_user()
+    print('Info: test_user_get: %s' % repr(user_info))
+    assert user_info is None
+
+
+def test_ensure_user_get_called_not_found():
+    ''' a more interesting test '''
+    register_responses([
+        ('ZAPI', 'security-login-get-iter', ZRR['user_not_found']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'role_name': 'test',
+        'applications': 'http',
+        'authentication_method': 'password',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # app = dict(application='testapp', authentication_methods=['testam'])
+    user_info = my_obj.get_user()
+    print('Info: test_user_get: %s' % repr(user_info))
+    assert user_info is None
+
+
+def test_ensure_user_apply_called():
+    ''' creating user and checking idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['success']),
+        ('ZAPI', 'security-login-create', ZRR['success']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_http']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'http',
+        'authentication_method': 'password',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_sp_apply_called():
+    ''' creating user with service_processor application and idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
+        ('ZAPI', 'security-login-create', ZRR['success']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_service_processor']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
+        ('ZAPI', 'security-login-create', ZRR['success']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_service_processor']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'service-processor',
+        'authentication_method': 'password',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['applications'] = 'service_processor'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_apply_for_delete_called():
+    ''' deleting user and checking idempotency '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'security-login-delete', ZRR['success']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_lock_called():
+    ''' changing user_lock to True and checking idempotency'''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'security-login-lock', ZRR['success']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "lock_user": False,
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['lock_user'] = 'true'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_unlock_called():
+    ''' changing user_lock to False and checking idempotency'''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_locked_user']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_locked_user']),
+        ('ZAPI', 'security-login-unlock', ZRR['success']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "lock_user": True,
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['lock_user'] = 'false'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_set_password_called():
+    ''' set password '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'security-login-modify-password', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+        'set_password': '123456',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_set_password_internal_error():
+    ''' set password '''
+    register_responses([
+        ('ZAPI', 'security-login-modify-password', ZRR['internal_error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+        'set_password': '123456',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert not my_obj.change_password()
+
+
+def test_set_password_reused():
+    ''' set password '''
+    register_responses([
+        ('ZAPI', 'security-login-modify-password', ZRR['reused_password'])
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'user',
+        'applications': 'console',
+        'authentication_method': 'password',
+        'set_password': '123456',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert not my_obj.change_password()
+
+
+def test_ensure_user_role_update_called():
+    ''' set password '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'security-login-modify', ZRR['success']),
+        ('ZAPI', 'security-login-modify-password', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'test123',
+        'applications': 'console',
+        'authentication_method': 'password',
+        'set_password': '123456',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_user_role_update_additional_application_called():
+    ''' set password '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
+        ('ZAPI', 'security-login-create', ZRR['success']),
+        ('ZAPI', 'security-login-delete', ZRR['success']),
+        ('ZAPI', 'security-login-delete', ZRR['success']),
+        ('ZAPI', 'security-login-modify-password', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'create',
+        'role_name': 'test123',
+        'applications': 'http',
+        'authentication_method': 'password',
+        'set_password': '123456',
+        'replace_existing_apps_and_methods': 'always'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('ZAPI', 'security-login-get-iter', ZRR['error']),
+        ('ZAPI', 'security-login-create', ZRR['error']),
+        ('ZAPI', 'security-login-lock', ZRR['error']),
+        ('ZAPI', 'security-login-unlock', ZRR['error']),
+        ('ZAPI', 'security-login-delete', ZRR['error']),
+        ('ZAPI', 'security-login-modify-password', ZRR['error']),
+        ('ZAPI', 'security-login-modify', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'role_name': 'test',
+        'applications': 'console',
+        'authentication_method': 'password',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    app = dict(application='console', authentication_methods=['password'])
+    assert zapi_error_message('Error getting user user_name') in expect_and_capture_ansible_exception(my_obj.get_user, 'fail')['msg']
+    assert zapi_error_message('Error creating user user_name') in expect_and_capture_ansible_exception(my_obj.create_user, 'fail', app)['msg']
+    assert zapi_error_message('Error locking user user_name') in expect_and_capture_ansible_exception(my_obj.lock_given_user, 'fail')['msg']
+    assert zapi_error_message('Error unlocking user user_name') in expect_and_capture_ansible_exception(my_obj.unlock_given_user, 'fail')['msg']
+    assert zapi_error_message('Error removing user user_name') in expect_and_capture_ansible_exception(my_obj.delete_user, 'fail', app)['msg']
+    assert zapi_error_message('Error setting password for user user_name') in expect_and_capture_ansible_exception(my_obj.change_password, 'fail')['msg']
+    assert zapi_error_message('Error modifying user user_name') in expect_and_capture_ansible_exception(my_obj.modify_user, 'fail', app, ['password'])['msg']
+
+
+def test_create_user_with_usm_auth():
+    ''' switching back to ZAPI '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
+        ('ZAPI', 'security-login-create', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'auto',
+        'applications': 'snmp',
+        'authentication_method': 'usm',
+        'name': 'create',
+        'role_name': 'test123',
+        'set_password': '123456',
+        'remote_switch_ipaddress': '12.34.56.78',
+        'authentication_password': 'auth_pwd',
+        'authentication_protocol': 'md5',
+        'privacy_password': 'auth_pwd',
+        'privacy_protocol': 'des',
+        'engine_id': 'engine_123',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_applications_snmp():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'applications': 'snmp',
+        'authentication_method': 'usm',
+        'name': 'create',
+        'role_name': 'test123',
+        'set_password': '123456',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == "snmp as application is not supported in REST."
+
+
+def test_ensure_user_get_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+    ])
+    module_args = {
+        "use_rest": "always",
         'role_name': 'vsadmin',
-        'lock_user': True,
-    })
-
-
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, parm1=None, parm2=None):
-        ''' save arguments '''
-        self.type = kind
-        self.parm1 = parm1
-        self.parm2 = parm2
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'user':
-            xml = self.build_user_info(self.parm1, self.parm2)
-        elif self.type == 'user_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        elif self.type == 'user_not_found':
-            raise netapp_utils.zapi.NaApiError(code='16034', message="This exception should not be seen")
-        elif self.type == 'internal_error':
-            raise netapp_utils.zapi.NaApiError(code='13114', message="Forcing an internal error")
-        elif self.type == 'repeated_password':
-            # python3.9/site-packages/netapp_lib/api/zapi/errors.py
-            raise netapp_utils.zapi.NaApiError(code='13214', message="New password must be different than last 6 passwords.")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def set_vserver(vserver):
-        '''mock set vserver'''
-
-    @staticmethod
-    def build_user_info(locked, role_name):
-        ''' build xml data for user-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'num-records': 1,
-                'attributes-list': {
-                    'security-login-account-info': {
-                        'is-locked': locked, 'role-name': role_name, 'application': 'console', 'authentication-method': 'password'}}}
-
-        xml.translate_struct(data)
-        print(xml.to_string())
-        return xml
-
-
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
-
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
-
-    def set_default_args(self, rest=False):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            user_name = 'test'
-            vserver = 'ansible_test'
-        else:
-            hostname = 'hostname'
-            user_name = 'name'
-            vserver = 'vserver'
-        password = 'password'
-        username = 'username'
-        application = 'console'
-        authentication_method = 'password'
-        use_rest = 'auto' if rest else 'never'
-        return dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'use_rest': use_rest,
-            'name': user_name,
-            'vserver': vserver,
-            'applications': application,
-            'authentication_method': authentication_method
-        })
-
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
-
-    def test_ensure_user_get_called(self):
-        ''' a more interesting test '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['role_name'] = 'test'
-        set_module_args(module_args)
-        my_obj = my_module()
-        my_obj.server = self.server
-        # app = dict(application='testapp', authentication_methods=['testam'])
-        user_info = my_obj.get_user()
-        print('Info: test_user_get: %s' % repr(user_info))
-        assert user_info is None
-
-    def test_ensure_user_get_called_not_found(self):
-        ''' a more interesting test '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['role_name'] = 'test'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user_not_found', 'false')
-        # app = dict(application='testapp', authentication_methods=['testam'])
-        user_info = my_obj.get_user()
-        print('Info: test_user_get: %s' % repr(user_info))
-        assert user_info is None
-
-    def test_ensure_user_apply_called(self):
-        ''' creating user and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_sp_apply_called(self):
-        ''' creating user with service_processor application and idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['application'] = 'service-processor'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_sp: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_sp: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        module_args['application'] = 'service_processor'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_sp: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_sp: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_apply_for_delete_called(self):
-        ''' deleting user and checking idempotency '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false', 'test')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['state'] = 'absent'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false', 'test')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_delete: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_lock_called(self):
-        ''' changing user_lock to True and checking idempotency'''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['lock_user'] = 'false'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false', 'test')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['lock_user'] = 'true'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_lock: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_unlock_called(self):
-        ''' changing user_lock to False and checking idempotency'''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['lock_user'] = 'false'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'false', 'test')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert not exc.value.args[0]['changed']
-        module_args['lock_user'] = 'false'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'true', 'test')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_unlock: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_set_password_called(self):
-        ''' set password '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['set_password'] = '123456'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'true')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_set_password_internal_error(self):
-        ''' set password '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['set_password'] = '123456'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('internal_error', 'true')
-        assert not my_obj.change_password()
-
-    def test_set_password_reused(self):
-        ''' set password '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test'
-        module_args['set_password'] = '123456'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('repeated_password', 'true')
-        assert not my_obj.change_password()
-
-    def test_ensure_user_role_update_called(self):
-        ''' set password '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test123'
-        module_args['set_password'] = '123456'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'true')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_ensure_user_role_update_additional_application_called(self):
-        ''' set password '''
-        module_args = {}
-        module_args.update(self.set_default_args())
-        module_args['name'] = 'create'
-        module_args['role_name'] = 'test123'
-        module_args['application'] = 'http'
-        module_args['set_password'] = '123456'
-        set_module_args(module_args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user', 'true')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Info: test_user_apply: %s' % repr(exc.value))
-        assert exc.value.args[0]['changed']
-
-    def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args()
-        data.update({'role_name': 'test'})
-        set_module_args(data)
-        my_obj = my_module()
-        app = dict(application='console', authentication_methods=['password'])
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('user_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.get_user()
-        assert 'Error getting user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.create_user(app)
-        assert 'Error creating user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.lock_given_user()
-        assert 'Error locking user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.unlock_given_user()
-        assert 'Error unlocking user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.delete_user(app)
-        assert 'Error removing user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.change_password()
-        assert 'Error setting password for user ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.modify_user(app, ['password'])
-        assert 'Error modifying user ' in exc.value.args[0]['msg']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_create_user_with_usm_auth(self, mock_request):
-        data = self.set_default_args(rest=True)
-        data.update({'applications': 'snmp'})
-        data.update({'authentication_method': 'usm'})
-        data.update({'name': 'create'})
-        data.update({'role_name': 'test123'})
-        data.update({'set_password': '123456'})
-        data.update({'remote_switch_ipaddress': '12.34.56.78'})
-        data.update({'authentication_password': 'auth_pwd'})
-        data.update({'authentication_protocol': 'md5'})
-        data.update({'privacy_password': 'auth_pwd'})
-        data.update({'privacy_protocol': 'des'})
-        data.update({'engine_id': 'engine_123'})
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_zapi'],
-            SRR['end_of_sequence']
-        ]
-        my_obj = my_module()
-        my_obj.server = MockONTAPConnection('user', 'true')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error_applications_snmp(self, mock_request):
-        data = self.set_default_args(rest=True)
-        data.update({'applications': 'snmp'})
-        data.update({'name': 'create'})
-        data.update({'role_name': 'test123'})
-        data.update({'set_password': '123456'})
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_module()
-        assert exc.value.args[0]['msg'] == "snmp as application is not supported in REST."
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_user_get_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['end_of_sequence']
-    ]
-    set_module_args(set_default_args_rest_zapi())
-    my_obj = my_module()
+        'applications': ['http', 'ontapi'],
+        'authentication_method': 'password',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     assert my_obj.get_user_rest() is not None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_user_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_records'],            # get
-        SRR['empty_good'],              # create
-        SRR['end_of_sequence']
-    ]
-    data = {'set_password': 'xfjjttjwll`1'}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
+def test_ensure_create_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['zero_records']),
+        ('POST', 'security/accounts', SRR['empty_good']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        'role_name': 'vsadmin',
+        'applications': ['http', 'ontapi'],
+        'authentication_method': 'password',
+        'set_password': 'xfjjttjwll`1',
+        'lock_user': True
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_user_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['get_user_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_ensure_delete_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('DELETE', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
+    ])
+    module_args = {
+        "use_rest": "always",
         'state': 'absent',
+        'role_name': 'vsadmin',
+        'applications': ['http', 'ontapi'],
+        'authentication_method': 'password',
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_modify_user_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['get_user_rest'],
-        SRR['empty_good'],
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_ensure_modify_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        'role_name': 'vsadmin',
         'application': 'ssh',
+        'authentication_method': 'password',
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_lock_unlock_user_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['empty_good'],      # modify
-        SRR['empty_good'],      # lock
-        SRR['end_of_sequence']
-    ]
-    data = {
-        'lock_user': 'newvalue',
+def test_ensure_lock_unlock_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        'role_name': 'vsadmin',
+        'applications': 'http',
+        'authentication_method': 'password',
+        'lock_user': True,
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
-    print(mock_request.mock_calls)
-    # kwargs requires 2.7 or >= 3.8
-    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
-        print(mock_request.mock_calls[4].kwargs)
-        assert 'json' in mock_request.mock_calls[4].kwargs
-        assert 'locked' in mock_request.mock_calls[4].kwargs['json']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_change_password_user_rest_called(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['empty_good'],  # password
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_ensure_change_password_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
+    ])
+    module_args = {
         'set_password': 'newvalue',
+        'use_rest': 'always',
     }
-    data.update(set_default_args_rest_zapi())
-    data.pop('applications')
-    data.pop('authentication_method')
-    data['lock_user'] = False
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
-    print(mock_request.mock_calls)
-    # kwargs requires 2.7 or >= 3.8
-    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
-        print(mock_request.mock_calls[3].kwargs)
-        assert 'json' in mock_request.mock_calls[3].kwargs
-        assert 'password' in mock_request.mock_calls[3].kwargs['json']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_change_password_user_rest_check_mode(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_change_password_user_rest_check_mode():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+    ])
+    module_args = {
         'set_password': 'newvalue',
+        'use_rest': 'always',
     }
-    data.update(set_default_args_rest_zapi())
-    data.pop('applications')
-    data.pop('authentication_method')
-    data['lock_user'] = False
-    set_module_args(data)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     my_obj.module.check_mode = True
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed']
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    assert expect_and_capture_ansible_exception(my_obj.apply, 'exit')['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_existing_password(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['repeated_password'],  # password
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_existing_password():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['repeated_password']),  # password
+    ])
+    module_args = {
         'set_password': 'newvalue',
+        'use_rest': 'always',
     }
-    data.update(set_default_args_rest_zapi())
-    data.pop('applications')
-    data.pop('authentication_method')
-    data['lock_user'] = False
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print(mock_request.mock_calls)
-    # kwargs requires 2.7 or >= 3.8
-    if sys.version_info == (2, 7) or sys.version_info >= (3, 8):
-        print(mock_request.mock_calls[3].kwargs)
-        assert 'json' in mock_request.mock_calls[3].kwargs
-        assert 'password' in mock_request.mock_calls[3].kwargs['json']
-    assert not exc.value.args[0]['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_unsupported_property(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['end_of_sequence']
-    ]
-    data = {
+def test_negative_rest_unsupported_property():
+    register_responses([
+    ])
+    module_args = {
         'privacy_password': 'value',
         'use_rest': 'always',
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_module()
     msg = "REST API currently does not support 'privacy_password'"
-    assert msg == exc.value.args[0]['msg']
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-def test_negative_zapi_missing_netapp_lib(mock_has, mock_request):
-    mock_request.side_effect = [
-        SRR['is_zapi'],
-        SRR['end_of_sequence']
-    ]
+def test_negative_zapi_missing_netapp_lib(mock_has):
+    register_responses([
+    ])
     mock_has.return_value = False
-    data = {
+    module_args = {
+        'use_rest': 'never',
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_module()
     msg = "Error: the python NetApp-Lib module is required.  Import error: None"
-    assert msg == exc.value.args[0]['msg']
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_zapi_missing_apps(mock_request):
-    mock_request.side_effect = [
-        SRR['is_zapi'],
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    data.pop('applications')
-    data.pop('authentication_method')
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_module()
-    msg = "application_dicts or application_strs is a required parameter with ZAPI"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while fetching user info: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user_multiple(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest_multiple'],
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while fetching user info, found multiple entries:"
-    assert msg in exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_get_user_details(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while fetching user details: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_delete(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['generic_error'],
-        SRR['end_of_sequence']
-    ]
-    data = {'state': 'absent'}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while deleting user: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_unlocking(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['empty_good'],              # modify
-        SRR['generic_error'],           # unlock
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    print(mock_request.mock_calls)
-    msg = "Error while locking/unlocking user: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_unlocking_no_password(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest_no_pwd'],
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error: cannot modify lock state if password is not set."
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_changing_password(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['empty_good'],              # modify
-        SRR['generic_error'],           # password
-        SRR['end_of_sequence']
-    ]
-    data = {'set_password': '12345'}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while updating user password: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_rest_error_on_modify(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest'],
-        SRR['generic_error'],           # modify
-        SRR['end_of_sequence']
-    ]
-    data = {'set_password': '12345'}
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_main()
-    msg = "Error while modifying user details: Expected error"
-    assert msg == exc.value.args[0]['msg']
-
-
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_unlocking_with_password(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['get_user_rest'],
-        SRR['get_user_details_rest_no_pwd'],
-        SRR['empty_good'],              # modify
-        SRR['empty_good'],              # password
-        SRR['empty_good'],              # lock
-        SRR['end_of_sequence']
-    ]
-    data = {
-        'set_password': 'ansnssnajj12%'
+def test_negative_zapi_missing_apps():
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never',
     }
-    data.update(set_default_args_rest_zapi())
-    set_module_args(data)
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_main()
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed']
-    assert len(mock_request.mock_calls) == 6
+    msg = "application_dicts or application_strs is a required parameter with ZAPI"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_create_validations(mock_request):
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_records'],            # get
-        SRR['is_rest'],
-        SRR['zero_records'],            # get
-        SRR['is_rest'],
-        SRR['zero_records'],            # get
-        SRR['end_of_sequence']
-    ]
-    data = {}
-    data.update(set_default_args_rest_zapi())
-    data.pop('role_name')
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    msg = 'Error: missing required parameter for create: role_name.'
-    assert msg == exc.value.args[0]['msg']
-    data.pop('applications')
-    data.pop('authentication_method')
-    data['role_name'] = 'role'
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    msg = 'Error: missing required parameter for create: application_dicts or application_strs.'
-    assert msg == exc.value.args[0]['msg']
-    data.pop('role_name')
-    set_module_args(data)
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
+def test_negative_rest_error_on_get_user():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    msg = "Error while fetching user info: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_get_user_multiple():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest_multiple']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    msg = "Error while fetching user info, found multiple entries:"
+    assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_get_user_details():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    msg = "Error while fetching user details: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('DELETE', 'security/accounts/ansible_vserver/abcd', SRR['generic_error']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        'state': 'absent',
+        'role_name': 'vsadmin',
+    }
+    msg = "Error while deleting user: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_unlocking():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'lock_user': True
+    }
+    msg = "Error while locking/unlocking user: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_unlocking_no_password():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest_no_pwd']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'lock_user': True
+    }
+    msg = "Error: cannot modify lock state if password is not set."
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_changing_password():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['generic_error']),
+    ])
+    module_args = {
+        'set_password': '12345',
+        'use_rest': 'always',
+    }
+    msg = "Error while updating user password: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_negative_rest_error_on_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['generic_error']),
+    ])
+    module_args = {
+        'role_name': 'vsadmin2',
+        'use_rest': 'always',
+        'applications': ['http', 'ontapi'],
+        'authentication_method': 'password',
+    }
+    msg = "Error while modifying user details: Expected error"
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_unlocking_with_password():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['get_user_rest']),
+        ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest_no_pwd']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['success']),
+        ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['success']),
+    ])
+    module_args = {
+        'set_password': 'ansnssnajj12%',
+        'use_rest': 'always',
+        'lock_user': True
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_negative_create_validations():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['zero_records']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['zero_records']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['zero_records']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
     msg = 'Error: missing required parameters for create: role_name and: application_dicts or application_strs.'
-    assert msg == exc.value.args[0]['msg']
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['role_name'] = 'role'
+    msg = 'Error: missing required parameter for create: application_dicts or application_strs.'
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args.pop('role_name')
+    module_args['applications'] = 'http'
+    module_args['authentication_method'] = 'password'
+    msg = 'Error: missing required parameter for create: role_name.'
+    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

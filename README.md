@@ -35,6 +35,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Release Notes
 
+## 21.21.0
+
+### Minor Changes
+  - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.
+
 ## 21.20.0
 
 ### Bug Fixes
