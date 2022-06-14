@@ -93,15 +93,17 @@ options:
 
 
 requirements:
-  - Ansible 2.9
-  - Python3 netapp-lib (2018.11.13) or later. Install using 'pip install netapp-lib'
-  - netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
-  - A physical or virtual clustered Data ONTAP system. The modules support Data ONTAP 9.1 and onward.
-  - REST support requires ONTAP 9.6 or later.
-  - To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
+  - Ansible 2.9 or later
+  - Python3
+  - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
+    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues
+  - a physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
+    REST support requires ONTAP 9.6 or later
 
 notes:
   - The modules prefixed with na_ontap are built to support the ONTAP storage platform.
+  - https is enabled by default and recommended.
+    To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
 
 '''
     # Documentation fragment for ONTAP (na_ontap) peer options
