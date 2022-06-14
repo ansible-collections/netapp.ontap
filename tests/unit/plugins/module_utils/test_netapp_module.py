@@ -12,7 +12,8 @@ from ansible.module_utils import basic
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule as na_helper, cmp as na_cmp
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible, create_module, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_no_warnings, assert_warning_was_raised, clear_warnings, patch_ansible, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response
 
 
@@ -762,3 +763,20 @@ def test_cmp():
     assert na_cmp(['ABD', 'abc'], ['abc', 'abd']) == 0
     # but not duplicates
     assert na_cmp(['ABD', 'ABD', 'abc'], ['abc', 'abd']) == 1
+
+
+def test_fall_back_to_zapi():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    parameters = {'use_rest': 'never'}
+    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.module, 'some message', parameters) is None
+    assert_no_warnings()
+
+    parameters = {'use_rest': 'auto'}
+    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.module, 'some message', parameters) is False
+    assert_warning_was_raised('Falling back to ZAPI: some message')
+
+    parameters = {'use_rest': 'always'}
+    clear_warnings()
+    assert expect_and_capture_ansible_exception(my_obj.na_helper.fall_back_to_zapi, 'fail', my_obj.na_helper.module, 'some message', parameters)['msg'] ==\
+        'Error: some message'
+    assert_no_warnings()

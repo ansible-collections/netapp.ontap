@@ -37,7 +37,11 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.21.0
 
+### Bug Fixes
+  - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
+
 ### Minor Changes
+  - na_ontap_login_messages - support cluster scope when using REST.
   - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.
 
 ## 21.20.0

@@ -34,25 +34,28 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils.rest_generic import get_one_record
 
 
 def get_vserver(rest_api, name, fields=None):
     api = 'svm/svms'
-    query = dict(name=name)
+    query = {'name': name}
     if fields is not None:
         query['fields'] = fields
-    response, error = rest_api.get(api, query)
-    vserver, error = rrh.check_for_0_or_1_records(api, response, error, query)
+    vserver, error = get_one_record(rest_api, api, query)
     return vserver, error
 
 
-def get_vserver_uuid(rest_api, name, module, error_on_none=None):
+def get_vserver_uuid(rest_api, name, module=None, error_on_none=False):
+    """ returns a tuple (uuid, error)
+        when module is set and an error is found, fails the module and exit
+        when error_on_none IS SET, force an error if vserver is not found
+    """
     record, error = get_vserver(rest_api, name, 'uuid')
-    if error:
-        module.fail_json(msg=error)
-    if record is None and error_on_none:
-        module.fail_json(msg="Error: Specified vserver %s not found" % name)
-    if record:
-        return record['uuid'], error
-    return record, error
+    if error and module:
+        module.fail_json(msg="Error fetching vserver %s: %s" % (name, error))
+    if not error and record is None and error_on_none:
+        error = "vserver %s not found." % name
+        if module:
+            module.fail_json(msg="Error %s" % error)
+    return record['uuid'] if not error and record else None, error

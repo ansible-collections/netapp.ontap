@@ -506,19 +506,21 @@ class NetAppOntapSVM():
             }
 
         services = {}
-        allowed_protocols = ([] if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1)
-                             else vserver_details.get('allowed_protocols', []))
+        # REST returns allowed: True/False with recent versions, and a list of protocols in allowed_protocols for older versions
+        allowed_protocols = (None if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1)
+                             else vserver_details.get('allowed_protocols'))
 
         for protocol in self.allowable_protocols_rest:
             # protocols are not present when the vserver is stopped
             allowed = self.na_helper.safe_get(vserver_details, [protocol, 'allowed'])
+            if allowed is None and allowed_protocols is not None:
+                # earlier ONTAP versions
+                allowed = protocol in allowed_protocols
             enabled = self.na_helper.safe_get(vserver_details, [protocol, 'enabled'])
             if allowed is not None or enabled is not None:
                 services[protocol] = {}
             if allowed is not None:
                 services[protocol]['allowed'] = allowed
-            elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
-                services[protocol] = {'allowed': protocol in allowed_protocols}
             if enabled is not None:
                 services[protocol]['enabled'] = enabled
 
