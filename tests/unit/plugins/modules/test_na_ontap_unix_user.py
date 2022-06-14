@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -7,11 +7,13 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user \
     import NetAppOntapUnixUser as user_module  # module under test
@@ -19,230 +21,454 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user \
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
+# REST API canned responses when mocking send_request
+SRR = rest_responses({
+    # module specific responses
+    'user_record': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "vserver"
+                    },
+                    "name": "user",
+                    "primary_gid": 2,
+                    "id": 1,
+                    "full_name": "test_user",
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    }
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+})
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
+unix_user_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'unix-user-info': {
+            'name': 'user',
+            'user-id': '1',
+            'group-id': 2,
+            'full-name': 'test_user'}
+    }
+}
 
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
+ZRR = zapi_responses({
+    'unix_user_info': build_zapi_response(unix_user_info)
+})
 
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.kind == 'user':
-            xml = self.build_user_info(self.params)
-        elif self.kind == 'user-fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_user_info(data):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = \
-            {'attributes-list': {'unix-user-info': {'user-id': data['id'],
-                                                    'group-id': data['group_id'], 'full-name': data['full_name']}},
-             'num-records': 1}
-        xml.translate_struct(attributes)
-        return xml
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'vserver',
+    'name': 'user',
+    'group_id': 2,
+    'id': '1',
+    'full_name': 'test_user',
+    'use_rest': 'never',
+}
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+DEFAULT_NO_USER = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'vserver',
+    'name': 'no_user',
+    'group_id': '2',
+    'id': '1',
+    'full_name': 'test_user',
+    'use_rest': 'never',
+}
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.mock_user = {
-            'name': 'test',
-            'id': '11',
-            'group_id': '12',
-            'vserver': 'something',
-            'full_name': 'Test User'
-        }
 
-    def mock_args(self):
-        return {
-            'name': self.mock_user['name'],
-            'group_id': self.mock_user['group_id'],
-            'id': self.mock_user['id'],
-            'vserver': self.mock_user['vserver'],
-            'full_name': self.mock_user['full_name'],
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!'
-        }
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args({})
+        user_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
 
-    def get_user_mock_object(self, kind=None, data=None):
-        """
-        Helper method to return an na_ontap_unix_user object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_unix_user object
-        """
-        obj = user_module()
-        obj.autosupport_log = Mock(return_value=None)
-        if data is None:
-            data = self.mock_user
-        obj.server = MockONTAPConnection(kind=kind, data=data)
-        return obj
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            user_module()
+def test_get_nonexistent_user():
+    ''' Test if get_unix_user returns None for non-existent user '''
+    register_responses([
+        ('name-mapping-unix-user-get-iter', ZRR['empty'])
+    ])
+    user_obj = create_module(user_module, DEFAULT_NO_USER)
+    result = user_obj.get_unix_user()
+    assert result is None
 
-    def test_get_nonexistent_user(self):
-        ''' Test if get_unix_user returns None for non-existent user '''
-        set_module_args(self.mock_args())
-        result = self.get_user_mock_object().get_unix_user()
-        assert result is None
 
-    def test_get_existing_user(self):
-        ''' Test if get_unix_user returns details for existing user '''
-        set_module_args(self.mock_args())
-        result = self.get_user_mock_object('user').get_unix_user()
-        assert result['full_name'] == self.mock_user['full_name']
+def test_get_existent_user():
+    ''' Test if get_unix_user returns existent user '''
+    register_responses([
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info'])
+    ])
+    user_obj = create_module(user_module, DEFAULT_ARGS)
+    result = user_obj.get_unix_user()
+    assert result
 
-    def test_get_xml(self):
-        set_module_args(self.mock_args())
-        obj = self.get_user_mock_object('user')
-        result = obj.get_unix_user()
-        assert obj.server.xml_in['query']
-        assert obj.server.xml_in['query']['unix-user-info']
-        user_info = obj.server.xml_in['query']['unix-user-info']
-        assert user_info['user-name'] == self.mock_user['name']
-        assert user_info['vserver'] == self.mock_user['vserver']
 
-    def test_create_error_missing_params(self):
-        data = self.mock_args()
-        del data['group_id']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_user_mock_object('user').create_unix_user()
-        assert 'Error: Missing one or more required parameters for create: (group_id, id)' == exc.value.args[0]['msg']
+def test_get_error_existent_user():
+    ''' Test if get_unix_user returns existent user '''
+    register_responses([
+        ('name-mapping-unix-user-get-iter', ZRR['error'])
+    ])
+    user_module_object = create_module(user_module, DEFAULT_ARGS)
+    msg = "Error getting UNIX user"
+    assert msg in expect_and_capture_ansible_exception(user_module_object.get_unix_user, 'fail')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.create_unix_user')
-    def test_create_called(self, create_user):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_user_mock_object().apply()
-        assert exc.value.args[0]['changed']
-        create_user.assert_called_with()
 
-    def test_create_xml(self):
-        '''Test create ZAPI element'''
-        set_module_args(self.mock_args())
-        create = self.get_user_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            create.apply()
-        mock_key = {
-            'user-name': 'name',
-            'group-id': 'group_id',
-            'user-id': 'id',
-            'full-name': 'full_name'
-        }
-        for key in ['user-name', 'user-id', 'group-id', 'full-name']:
-            assert create.server.xml_in[key] == self.mock_user[mock_key[key]]
+def test_create_unix_user_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['empty']),
+        ('name-mapping-unix-user-create', ZRR['success']),
+    ])
+    module_args = {
+        'name': 'user',
+        'group_id': '2',
+        'id': '1',
+        'full_name': 'test_user',
+    }
+    assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_create_wihtout_full_name(self):
-        '''Test create ZAPI element'''
-        data = self.mock_args()
-        del data['full_name']
-        set_module_args(data)
-        create = self.get_user_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            create.apply()
-        with pytest.raises(KeyError):
-            create.server.xml_in['full-name']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.modify_unix_user')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.delete_unix_user')
-    def test_delete_called(self, delete_user, modify_user):
-        ''' Test delete existing user '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_user_mock_object('user').apply()
-        assert exc.value.args[0]['changed']
-        delete_user.assert_called_with()
-        assert modify_user.call_count == 0
+def test_error_create_unix_user_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['empty']),
+        ('name-mapping-unix-user-create', ZRR['error']),
+    ])
+    module_args = {
+        'name': 'user4',
+        'group_id': '4',
+        'id': '4',
+        'full_name': 'test_user4',
+    }
+    error = create_and_apply(user_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error creating UNIX user"
+    assert msg in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.get_unix_user')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.modify_unix_user')
-    def test_modify_called(self, modify_user, get_user):
-        ''' Test modify user group_id '''
-        data = self.mock_args()
-        data['group_id'] = 20
-        set_module_args(data)
-        get_user.return_value = {'group_id': 10}
-        obj = self.get_user_mock_object('user')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        get_user.assert_called_with()
-        modify_user.assert_called_with({'group_id': 20})
 
-    def test_modify_only_id(self):
-        ''' Test modify user id '''
-        set_module_args(self.mock_args())
-        modify = self.get_user_mock_object('user')
-        modify.modify_unix_user({'id': 123})
-        assert modify.server.xml_in['user-id'] == '123'
-        with pytest.raises(KeyError):
-            modify.server.xml_in['group-id']
-        with pytest.raises(KeyError):
-            modify.server.xml_in['full-name']
+def test_delete_unix_user_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
+        ('name-mapping-unix-user-destroy', ZRR['success']),
+    ])
+    module_args = {
+        'name': 'user',
+        'group_id': '2',
+        'id': '1',
+        'full_name': 'test_user',
+        'state': 'absent'
+    }
+    assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_modify_xml(self):
-        ''' Test modify user full_name '''
-        set_module_args(self.mock_args())
-        modify = self.get_user_mock_object('user')
-        modify.modify_unix_user({'full_name': 'New Name',
-                                 'group_id': '25'})
-        assert modify.server.xml_in['user-name'] == self.mock_user['name']
-        assert modify.server.xml_in['full-name'] == 'New Name'
-        assert modify.server.xml_in['group-id'] == '25'
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.create_unix_user')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.delete_unix_user')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_unix_user.NetAppOntapUnixUser.modify_unix_user')
-    def test_do_nothing(self, modify, delete, create):
-        ''' changed is False and none of the opetaion methods are called'''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        obj = self.get_user_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        create.assert_not_called()
-        delete.assert_not_called()
-        modify.assert_not_called()
+def test_error_remove_unix_user_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
+        ('name-mapping-unix-user-destroy', ZRR['error']),
+    ])
+    module_args = {
+        'name': 'user',
+        'group_id': '2',
+        'id': '1',
+        'full_name': 'test_user',
+        'state': 'absent'
+    }
+    error = create_and_apply(user_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error removing UNIX user"
+    assert msg in error
 
-    def test_get_exception(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_user_mock_object('user-fail').get_unix_user()
-        assert 'Error getting UNIX user' in exc.value.args[0]['msg']
 
-    def test_create_exception(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_user_mock_object('user-fail').create_unix_user()
-        assert 'Error creating UNIX user' in exc.value.args[0]['msg']
+def test_modify_unix_user_id_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
+        ('name-mapping-unix-user-modify', ZRR['success']),
+    ])
+    module_args = {
+        'group_id': '3',
+        'id': '2'
+    }
+    assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
 
-    def test_modify_exception(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_user_mock_object('user-fail').modify_unix_user({'id': '123'})
-        assert 'Error modifying UNIX user' in exc.value.args[0]['msg']
 
-    def test_delete_exception(self):
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_user_mock_object('user-fail').delete_unix_user()
-        assert 'Error removing UNIX user' in exc.value.args[0]['msg']
+def test_modify_unix_user_full_name_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
+        ('name-mapping-unix-user-modify', ZRR['success']),
+    ])
+    module_args = {
+        'full_name': 'test_user1'
+    }
+    assert create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_modify_unix_user_full_name_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
+        ('name-mapping-unix-user-modify', ZRR['error']),
+    ])
+    module_args = {
+        'full_name': 'test_user1'
+    }
+    error = create_and_apply(user_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error modifying UNIX user"
+    assert msg in error
+
+
+def test_create_idempotent():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['unix_user_info'])
+    ])
+    module_args = {
+        'state': 'present',
+        'name': 'user',
+        'group_id': 2,
+        'id': '1',
+        'full_name': 'test_user',
+    }
+    assert not create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_idempotent():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('name-mapping-unix-user-get-iter', ZRR['empty'])
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not create_and_apply(user_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('name-mapping-unix-user-get-iter', ZRR['error']),
+        ('name-mapping-unix-user-create', ZRR['error']),
+        ('name-mapping-unix-user-destroy', ZRR['error']),
+        ('name-mapping-unix-user-modify', ZRR['error'])
+    ])
+    module_args = {'id': 5}
+    my_obj = create_module(user_module, DEFAULT_ARGS, module_args)
+
+    error = expect_and_capture_ansible_exception(my_obj.get_unix_user, 'fail')['msg']
+    assert 'Error getting UNIX user user: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.create_unix_user, 'fail')['msg']
+    assert 'Error creating UNIX user user: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.delete_unix_user, 'fail')['msg']
+    assert 'Error removing UNIX user user: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+    error = expect_and_capture_ansible_exception(my_obj.modify_unix_user, 'fail', 'name-mapping-unix-user-modify')['msg']
+    assert 'Error modifying UNIX user user: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+
+
+ARGS_REST = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'vserver': 'vserver',
+    'name': 'user',
+    'primary_gid': 2,
+    'id': 1,
+    'full_name': 'test_user'
+}
+
+REST_NO_USER = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'vserver': 'vserver',
+    'name': 'user5',
+    'primary_gid': 2,
+    'id': 1,
+    'full_name': 'test_user'
+}
+
+
+def test_get_nonexistent_user_rest_rest():
+    ''' Test if get_unix_user returns None for non-existent user '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['empty_records']),
+    ])
+    user_obj = create_module(user_module, REST_NO_USER)
+    result = user_obj.get_unix_user_rest()
+    assert result is None
+
+
+def test_get_existent_user_rest():
+    ''' Test if get_unix_user returns existent user '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+    ])
+    user_obj = create_module(user_module, ARGS_REST)
+    result = user_obj.get_unix_user_rest()
+    assert result
+
+
+def test_get_error_existent_user_rest():
+    ''' Test if get_unix_user returns existent user '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['generic_error']),
+    ])
+    error = create_and_apply(user_module, ARGS_REST, fail=True)['msg']
+    msg = "Error on getting unix-user info:"
+    assert msg in error
+
+
+def test_create_unix_user_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['empty_records']),
+        ('POST', 'name-services/unix-users', SRR['empty_good']),
+    ])
+    module_args = {
+        'name': 'user',
+        'primary_gid': 2,
+        'id': 1,
+        'full_name': 'test_user',
+    }
+    assert create_and_apply(user_module, ARGS_REST, module_args)['changed']
+
+
+def test_error_create_unix_user_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['empty_records']),
+        ('POST', 'name-services/unix-users', SRR['generic_error']),
+    ])
+    module_args = {
+        'name': 'user4',
+        'primary_gid': 4,
+        'id': 4,
+        'full_name': 'test_user4',
+    }
+    error = create_and_apply(user_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = "Error on creating unix-user:"
+    assert msg in error
+
+
+def test_delete_unix_user_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+        ('DELETE', 'name-services/unix-users/671aa46e-11ad-11ec-a267-005056b30cfa/user', SRR['empty_good']),
+    ])
+    module_args = {
+        'name': 'user',
+        'group_id': '2',
+        'id': '1',
+        'full_name': 'test_user',
+        'state': 'absent'
+    }
+    assert create_and_apply(user_module, ARGS_REST, module_args)['changed']
+
+
+def test_error_remove_unix_user_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+        ('DELETE', 'name-services/unix-users/671aa46e-11ad-11ec-a267-005056b30cfa/user', SRR['generic_error'])
+    ])
+    module_args = {
+        'name': 'user',
+        'id': '1',
+        'state': 'absent'
+    }
+    error = create_and_apply(user_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = "Error on deleting unix-user"
+    assert msg in error
+
+
+def test_modify_unix_user_id_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+        ('PATCH', 'name-services/unix-users/671aa46e-11ad-11ec-a267-005056b30cfa/user', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'user',
+        'group_id': '3',
+        'id': '2'
+    }
+    assert create_and_apply(user_module, ARGS_REST, module_args)['changed']
+
+
+def test_modify_unix_user_full_name_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+        ('PATCH', 'name-services/unix-users/671aa46e-11ad-11ec-a267-005056b30cfa/user', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'user',
+        'full_name': 'test_user1'
+    }
+    assert create_and_apply(user_module, ARGS_REST, module_args)['changed']
+
+
+def test_error_modify_unix_user_full_name_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+        ('PATCH', 'name-services/unix-users/671aa46e-11ad-11ec-a267-005056b30cfa/user', SRR['generic_error'])
+    ])
+    module_args = {
+        'name': 'user',
+        'full_name': 'test_user1'
+    }
+    error = create_and_apply(user_module, ARGS_REST, module_args, fail=True)['msg']
+    msg = "Error on modifying unix-user:"
+    assert msg in error
+
+
+def test_create_idempotent_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['user_record']),
+    ])
+    module_args = {
+        'state': 'present',
+        'name': 'user',
+        'group_id': 2,
+        'id': '1',
+        'full_name': 'test_user',
+    }
+    assert not create_and_apply(user_module, ARGS_REST, module_args)['changed']
+
+
+def test_delete_idempotent_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'name-services/unix-users', SRR['empty_records']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not create_and_apply(user_module, ARGS_REST, module_args)['changed']

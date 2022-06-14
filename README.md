@@ -37,7 +37,14 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ## 21.21.0
 
+### Added REST support to existing modules
+  - na_ontap_unix_user - Added REST support.
+
+### New Options
+  - na_ontap_unix_user - Added new option `primary_gid` aliased to `group_id`.
+
 ### Bug Fixes
+  - na_ontap_net_subnet - fixed `ipspace` option ignored in getting net subnet.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
 
 ### Minor Changes
