@@ -48,6 +48,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
 
 ### Minor Changes
+  - na_ontap_info - add quota-policy-info.
   - na_ontap_login_messages - support cluster scope when using REST.
   - na_ontap_motd - deprecated in favor of `na_ontap_login_messages`.  Fail when use_rest is set to `always` as REST is not supported.
   - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.

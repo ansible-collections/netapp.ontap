@@ -11,10 +11,6 @@ na_ontap_info
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
-
 DOCUMENTATION = '''
 module: na_ontap_info
 author: Piotr Olczak (@dprts) <polczak@redhat.com>
@@ -105,6 +101,7 @@ options:
             - "qos_adaptive_policy_info"
             - "qos_policy_info"
             - "qtree_info"
+            - "quota_policy_info"
             - "quota_report_info"
             - "role_info"
             - "security_key_manager_key_info"
@@ -225,7 +222,7 @@ options:
 
 EXAMPLES = '''
 - name: Get NetApp info as Cluster Admin (Password Authentication)
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -234,14 +231,14 @@ EXAMPLES = '''
     msg: "{{ ontap_info.ontap_info }}"
 
 - name: Get NetApp version as Vserver admin
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "vsadmin"
     vserver: trident_svm
     password: "vsadmins_password"
 
 - name: run ontap info module using vserver tunneling and ignoring errors
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -252,7 +249,7 @@ EXAMPLES = '''
       - rpc_error
 
 - name: Limit Info Gathering to Aggregate Information as Cluster Admin
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -260,7 +257,7 @@ EXAMPLES = '''
   register: ontap_info
 
 - name: Limit Info Gathering to Volume and Lun Information as Cluster Admin
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -270,7 +267,7 @@ EXAMPLES = '''
   register: ontap_info
 
 - name: Gather all info except for volume and lun information as Cluster Admin
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -280,7 +277,7 @@ EXAMPLES = '''
   register: ontap_info
 
 - name: Gather Volume move information for a specific volume
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     hostname: "na-vsim"
     username: "admin"
     password: "admins_password"
@@ -290,7 +287,7 @@ EXAMPLES = '''
       vserver: ansible
 
 - name: run ontap info module for aggregate module, requesting specific fields
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     # <<: *login
     gather_subset: aggregate_info
     desired_attributes:
@@ -304,7 +301,7 @@ EXAMPLES = '''
 - debug: var=ontap
 
 - name: run ontap info to get offline volumes with dp in the name
-  na_ontap_info:
+  netapp.ontap.na_ontap_info:
     # <<: *cert_login
     gather_subset: volume_info
     query:
@@ -354,6 +351,7 @@ ontap_info:
             "qos_policy_info": {...},
             "qos_adaptive_policy_info": {...},
             "qtree_info": {...},
+            "quota_policy_info": {..},
             "quota_report_info": {...},
             "security_key_manager_key_info": {...},
             "security_login_account_info": {...},
@@ -397,7 +395,7 @@ except ImportError as exc:
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppONTAPGatherInfo(object):
+class NetAppONTAPGatherInfo:
     '''Class with gather info methods'''
 
     def __init__(self, module, max_records):
@@ -741,6 +739,16 @@ class NetAppONTAPGatherInfo(object):
                     'call': 'qtree-list-iter',
                     'attribute': 'qtree-info',
                     'key_fields': ('vserver', 'volume', 'id'),
+                    'query': {'max-records': self.max_records},
+                },
+                'min_version': '0',
+            },
+            'quota_policy_info': {
+                'method': self.get_generic_get_iter,
+                'kwargs': {
+                    'call': 'quota-policy-get-iter',
+                    'attribute': 'quota-policy-info',
+                    'key_fields': ('vserver', 'policy-name'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
