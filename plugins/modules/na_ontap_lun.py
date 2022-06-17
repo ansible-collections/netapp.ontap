@@ -17,137 +17,139 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Create, destroy, resize LUNs on NetApp ONTAP.
+  - Create, destroy, resize LUNs on NetApp ONTAP.
 
 options:
 
   state:
     description:
-    - Whether the specified LUN should exist or not.
+      - Whether the specified LUN should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
 
   name:
     description:
-    - The name of the LUN to manage.
-    - Or LUN group name (volume name) when san_application_template is used.
+      - The name of the LUN to manage.
+      - Or LUN group name (volume name) when san_application_template is used.
     required: true
     type: str
 
   from_name:
     description:
-    - The name of the LUN to be renamed.
+      - The name of the LUN to be renamed.
     type: str
     version_added: 20.12.0
 
   flexvol_name:
     description:
-    - The name of the FlexVol the LUN should exist on.
-    - Required if san_application_template is not present.
-    - Not allowed if san_application_template is present.
+      - The name of the FlexVol the LUN should exist on.
+      - Required if san_application_template is not present.
+      - Not allowed if san_application_template is present.
     type: str
 
   size:
     description:
-    - The size of the LUN in C(size_unit).
-    - Required when creating a single LUN if application template is not used.
+      - The size of the LUN in C(size_unit).
+      - Required when creating a single LUN if application template is not used.
     type: int
 
   size_unit:
     description:
-    - The unit used to interpret the size parameter.
+      - The unit used to interpret the size parameter.
     choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
     default: 'gb'
     type: str
 
   comment:
     description:
-    - Optional descriptive comment for the LUN.
+      - Optional descriptive comment for the LUN.
     type: str
     version_added: 21.2.0
 
   force_resize:
     description:
-      Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
-      reducing the LUN size.
+      - Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
+        reducing the LUN size.
     type: bool
 
   force_remove:
     description:
-    - If "true", override checks that prevent a LUN from being destroyed if it is online and mapped.
-    - If "false", destroying an online and mapped LUN will fail.
+      - If "true", override checks that prevent a LUN from being destroyed if it is online and mapped.
+      - If "false", destroying an online and mapped LUN will fail.
     type: bool
-    default: False
+    default: false
 
   force_remove_fenced:
     description:
-    - If "true", override checks that prevent a LUN from being destroyed while it is fenced.
-    - If "false", attempting to destroy a fenced LUN will fail.
-    - The default if not specified is "false". This field is available in Data ONTAP 8.2 and later.
+      - If "true", override checks that prevent a LUN from being destroyed while it is fenced.
+      - If "false", attempting to destroy a fenced LUN will fail.
+      - The default if not specified is "false". This field is available in Data ONTAP 8.2 and later.
     type: bool
 
   vserver:
     required: true
     description:
-    - The name of the vserver to use.
+      - The name of the vserver to use.
     type: str
 
   os_type:
     description:
-    - The os type for the LUN.
+      - The os type for the LUN.
     type: str
     aliases: ['ostype']
 
   qos_policy_group:
     description:
-    - The QoS policy group to be set on the LUN.
+      - The QoS policy group to be set on the LUN.
+      - With REST, qos_policy_group and qos_adaptive_policy_group are handled as QOS policy.
     type: str
     version_added: 20.12.0
 
   qos_adaptive_policy_group:
     description:
-    - The adaptive QoS policy group to be set on the LUN.
-    - Defines measurable service level objectives (SLOs) and service level agreements (SLAs) that adjust based on the LUN's allocated space or used space.
-    - Requires ONTAP 9.4 or later.
+      - The adaptive QoS policy group to be set on the LUN.
+      - Defines measurable service level objectives (SLOs) and service level agreements (SLAs) that adjust based on the LUN's allocated space or used space.
+      - Requires ONTAP 9.4 or later.
+      - With REST, qos_policy_group and qos_adaptive_policy_group are handled as QOS policy.
     type: str
     version_added: 21.2.0
 
   space_reserve:
     description:
-    - This can be set to "false" which will create a LUN without any space being reserved.
+      - This can be set to "false" which will create a LUN without any space being reserved.
     type: bool
-    default: True
+    default: true
 
   space_allocation:
     description:
-    - This enables support for the SCSI Thin Provisioning features.  If the Host and file system do
-      not support this do not enable it.
+      - This enables support for the SCSI Thin Provisioning features.  If the Host and file system do
+        not support this do not enable it.
     type: bool
     version_added: 2.7.0
 
   use_exact_size:
     description:
-    - This can be set to "False" which will round the LUN >= 450g.
+    - This can be set to "false" which will round the LUN >= 450g.
     type: bool
-    default: True
+    default: true
     version_added: 20.11.0
 
   san_application_template:
     description:
-      - additional options when using the application/applications REST API to create LUNs.
-      - the module is using ZAPI by default, and switches to REST if san_application_template is present.
-      - create one or more LUNs (and the associated volume as needed).
-      - operations at the LUN level are supported, they require to know the LUN short name.
-      - this requires ONTAP 9.8 or higher.
-      - The module partially supports ONTAP 9.7 for create and delete operations, but not for modify (API limitations).
+        - additional options when using the application/applications REST API to create LUNs.
+        - the module is using ZAPI by default, and switches to REST if san_application_template is present.
+        - create one or more LUNs (and the associated volume as needed).
+        - operations at the LUN level are supported, they require to know the LUN short name.
+        - this requires ONTAP 9.8 or higher.
+        - The module partially supports ONTAP 9.7 for create and delete operations, but not for modify (API limitations).
     type: dict
     version_added: 20.12.0
     suboptions:
       name:
         description: name of the SAN application.
         type: str
-        required: True
+        required: true
       igroup_name:
         description: name of the initiator group through which the contents of this application will be accessed.
         type: str
@@ -229,7 +231,7 @@ options:
 
 EXAMPLES = """
 - name: Create LUN
-  na_ontap_lun:
+  netapp.ontap.na_ontap_lun:
     state: present
     name: ansibleLUN
     flexvol_name: ansibleVolume
@@ -237,16 +239,16 @@ EXAMPLES = """
     size: 5
     size_unit: mb
     os_type: linux
-    space_reserve: True
+    space_reserve: true
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
 - name: Resize LUN
-  na_ontap_lun:
+  netapp.ontap.na_ontap_lun:
     state: present
     name: ansibleLUN
-    force_resize: True
+    force_resize: true
     flexvol_name: ansibleVolume
     vserver: ansibleVServer
     size: 5
@@ -257,7 +259,7 @@ EXAMPLES = """
 
 - name: Create LUNs using SAN application
   tags: create
-  na_ontap_lun:
+  netapp.ontap.na_ontap_lun:
     state: present
     name: ansibleLUN
     size: 15
@@ -277,7 +279,7 @@ EXAMPLES = """
 
 - name: Convert existing volume to SAN application
   tags: create
-  na_ontap_lun:
+  netapp.ontap.na_ontap_lun:
     state: present
     name: someVolume
     size: 22
@@ -315,7 +317,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapLUN(object):
+class NetAppOntapLUN:
     ''' create, modify, delete LUN '''
 
     def __init__(self):
@@ -387,13 +389,15 @@ class NetAppOntapLUN(object):
 
         self.rest_api = OntapRestAPI(self.module)
         # use_exact_size is defaulted to true, but not supported with REST. To get around this we will ignore the variable in rest.
-        unsupported_rest_properties = ['force_resize', 'force_remove_fenced', 'qos_adaptive_policy_group']
+        unsupported_rest_properties = ['force_resize', 'force_remove_fenced']
         partially_supported_rest_properties = [['san_application_template', (9, 7)],
                                                ['space_allocation', (9, 10)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties,
                                                                    partially_supported_rest_properties)
         if self.use_rest:
             self.parameters.pop('use_exact_size')
+            if self.parameters.get('qos_adaptive_policy_group') is not None:
+                self.parameters['qos_policy_group'] = self.parameters.pop('qos_adaptive_policy_group')
         else:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
@@ -418,8 +422,11 @@ class NetAppOntapLUN(object):
                 rest_app = RestApplication(self.rest_api, self.parameters['vserver'], name)
             elif self.parameters.get('flexvol_name') is None:
                 self.module.fail_json(msg="flexvol_name option is required when san_application_template is not present")
-        if use_application_template and not self.use_rest:
-            self.module.fail_json(msg="Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled.")
+        else:
+            if use_application_template:
+                self.module.fail_json(msg="Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled.")
+            if self.parameters.get('flexvol_name') is None:
+                self.module.fail_json(msg="Error: 'flexvol_name' option is required when using ZAPI.")
         return rest_app
 
     def get_luns(self, lun_path=None):
@@ -433,8 +440,6 @@ class NetAppOntapLUN(object):
             return self.get_luns_rest(lun_path)
         luns = []
         tag = None
-        if lun_path is None and self.parameters.get('flexvol_name') is None:
-            return luns
 
         query_details = netapp_utils.zapi.NaElement('lun-info')
         query_details.add_new_child('vserver', self.parameters['vserver'])
@@ -451,7 +456,13 @@ class NetAppOntapLUN(object):
             if tag:
                 lun_info.add_new_child('tag', tag, True)
 
-            result = self.server.invoke_successfully(lun_info, True)
+            try:
+                result = self.server.invoke_successfully(lun_info, enable_tunneling=True)
+            except netapp_utils.zapi.NaApiError as exc:
+                self.module.fail_json(msg="Error fetching luns for %s: %s" %
+                                      (self.parameters['flexvol_name'] if lun_path is None else lun_path, to_native(exc)),
+                                      exception=traceback.format_exc())
+
             if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
                 attr_list = result.get_child_by_name('attributes-list')
                 luns.extend(attr_list.get_children())
@@ -493,26 +504,6 @@ class NetAppOntapLUN(object):
             if value is not None:
                 return_value[str_attr_map[attr]] = value
 
-        # Find out if the lun is attached
-        attached_to = None
-        lun_id = None
-        if lun.get_child_content('mapped') == 'true':
-            lun_map_list = netapp_utils.zapi.NaElement.create_node_with_children(
-                'lun-map-list-info', **{'path': lun.get_child_content('path')})
-            result = self.server.invoke_successfully(
-                lun_map_list, enable_tunneling=True)
-            igroups = result.get_child_by_name('initiator-groups')
-            if igroups:
-                for igroup_info in igroups.get_children():
-                    igroup = igroup_info.get_child_content(
-                        'initiator-group-name')
-                    attached_to = igroup
-                    lun_id = igroup_info.get_child_content('lun-id')
-
-        return_value.update({
-            'attached_to': attached_to,
-            'lun_id': lun_id
-        })
         return return_value
 
     def find_lun(self, luns, name, lun_path=None):
@@ -520,20 +511,19 @@ class NetAppOntapLUN(object):
         Return lun record matching name or path
 
         :return: lun record
-        :rtype: XML or None if not found
+        :rtype: XML for ZAPI, dict for REST, or None if not found
         """
-        if self.use_rest:
-            return self.find_lun_rest(luns, name, lun_path)
-        for lun in luns:
-            path = lun.get_child_content('path')
-            if lun_path is None:
-                if name == path:
+        if luns:
+            for lun in luns:
+                path = lun['path']
+                if lun_path is None:
+                    if name == path:
+                        return lun
+                    _rest, _splitter, found_name = path.rpartition('/')
+                    if found_name == name:
+                        return lun
+                elif lun_path == path:
                     return lun
-                _rest, _splitter, found_name = path.rpartition('/')
-                if found_name == name:
-                    return lun
-            elif lun_path == path:
-                return lun
         return None
 
     def get_lun(self, name, lun_path=None):
@@ -571,10 +561,7 @@ class NetAppOntapLUN(object):
         """
         lun_paths = self.get_lun_paths_from_app()
         match = "/%s" % name
-        for path in lun_paths:
-            if path.endswith(match):
-                return path
-        return None
+        return next((path for path in lun_paths if path.endswith(match)), None)
 
     def create_san_app_component(self, modify):
         '''Create SAN application component'''
@@ -811,8 +798,8 @@ class NetAppOntapLUN(object):
         """
         if self.use_rest:
             return self.modify_lun_rest(modify)
-        for key, value in modify.items():
-            self.set_lun_value(path, key, value)
+        for key in sorted(modify):
+            self.set_lun_value(path, key, modify[key])
 
     def rename_lun(self, path, new_path):
         """
@@ -920,13 +907,9 @@ class NetAppOntapLUN(object):
         if lun_path is None and self.parameters.get('flexvol_name') is None:
             return []
         api = 'storage/luns'
-        query = {'svm.name': self.parameters['vserver']}
-        query['fields'] = "space," \
-                          "comment," \
-                          "os_type," \
-                          "name," \
-                          "qos_policy.name," \
-                          "lun_maps"
+        query = {
+            'svm.name': self.parameters['vserver'],
+            'fields': "comment,lun_maps,name,os_type,qos_policy.name,space"}
         if lun_path is not None:
             query['name'] = lun_path
         else:
@@ -964,20 +947,6 @@ class NetAppOntapLUN(object):
             luns.append(lun)
         return luns
 
-    def find_lun_rest(self, luns, name, lun_path=None):
-        if luns is None:
-            return None
-        for lun in luns:
-            if lun_path is None:
-                if name == lun['name']:
-                    return lun
-                _rest, _splitter, found_name = lun['name'].rpartition('/')
-                if found_name == name:
-                    return lun
-            elif lun_path == lun['name']:
-                return lun
-        return None
-
     def create_lun_rest(self):
         name = self.create_lun_path_rest()
         api = 'storage/luns'
@@ -1005,14 +974,12 @@ class NetAppOntapLUN(object):
                                   exception=traceback.format_exc())
 
     def create_lun_path_rest(self):
-        # Zapi module accepts just a name, while Rest excepts a path. We need to convert a name in to a path for backward compatibility
-        if self.parameters['name'].startswith('/'):
-            # If the name start with a slash we will assume it a path and use it as the name
-            return self.parameters['name']
-        if self.parameters.get('flexvol_name') is not None:
+        """ ZAPI accepts just a name, while REST expects a path. We need to convert a name in to a path for backward compatibility
+            If the name start with a slash we will assume it a path and use it as the name
+        """
+        if not self.parameters['name'].startswith('/') and self.parameters.get('flexvol_name') is not None:
             # if it dosn't start with a slash and we have a flexvol name we will use it to build the path
             return '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
-        # This case is not possible as the error in setup_rest_application will prevent it
         return self.parameters['name']
 
     def delete_lun_rest(self):
@@ -1042,6 +1009,8 @@ class NetAppOntapLUN(object):
         body = {'space.size': self.parameters['size']}
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
         if error:
+            if 'New LUN size is the same as the old LUN size' in error:
+                return False
             self.module.fail_json(msg="Error resizing LUN %s: %s" % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         return True
@@ -1068,13 +1037,17 @@ class NetAppOntapLUN(object):
             self.module.fail_json(msg="Error modifying LUN %s: %s" % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def check_rest_errors(self, lun_cd_action):
+    def check_for_errors(self, lun_cd_action, current, modify):
         errors = []
         if lun_cd_action == 'create':
             if self.parameters.get('flexvol_name') is None:
                 errors.append("The flexvol_name parameter is required for creating a LUN.")
-            if self.parameters.get('os_type') is None:
-                errors.append("The os_type parameter is required for creating a LUN.")
+            if self.use_rest and self.parameters.get('os_type') is None:
+                errors.append("The os_type parameter is required for creating a LUN with REST.")
+            if self.parameters.get('size') is None:
+                self.module.fail_json(msg="size is a required parameter for create.")
+        elif modify and 'os_type' in modify:
+            self.module.fail_json(msg="os_type cannot be modified: current: %s, desired: %s" % (current['os_type'], modify['os_type']))
         if errors:
             self.module.fail_json(msg=' '.join(errors))
 
@@ -1132,7 +1105,8 @@ class NetAppOntapLUN(object):
                                        scope))
         return scope, app_current
 
-    def app_actions(self, app_current, scope, actions, results, app_modify):
+    def app_actions(self, app_current, scope, actions, results):
+        app_modify, app_modify_warning = None, None
         app_cd_action = self.na_helper.get_cd_action(app_current, self.parameters)
         if app_cd_action == 'create':
             # check if target volume already exists
@@ -1159,10 +1133,11 @@ class NetAppOntapLUN(object):
             if app_modify:
                 actions.append('app_modify')
                 results['app_modify'] = dict(app_modify)
-        return app_cd_action, actions, results, app_modify
+        return app_cd_action, app_modify, app_modify_warning
 
-    def lun_actions(self, app_current, actions, results, scope, app_modify, lun_rename, lun_modify, lun_cd_action):
+    def lun_actions(self, app_current, actions, results, scope, app_modify, app_modify_warning):
         # actions at LUN level
+        lun_cd_action, lun_modify, lun_rename = None, None, None
         lun_path, from_lun_path = None, None
         from_name = self.parameters.get('from_name')
         if self.rest_app and app_current:
@@ -1176,7 +1151,7 @@ class NetAppOntapLUN(object):
             lun_path = current['path']
         lun_cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if lun_cd_action == 'create' and from_name is not None:
-            # create by renaming existing LUN, if it really exists
+            # create by renaming existing LUN, if it exists
             old_lun = self.get_lun(from_name, from_lun_path)
             lun_rename = self.na_helper.is_rename_action(old_lun, current)
             if lun_rename is None:
@@ -1215,9 +1190,8 @@ class NetAppOntapLUN(object):
             elif scope == 'lun':
                 self.module.fail_json(msg=msg + ".  scope=%s." % scope)
             lun_cd_action = None
-        if lun_cd_action == 'create' and self.parameters.get('size') is None:
-            self.module.fail_json(msg="size is a required parameter for create.")
-        return lun_path, from_lun_path, lun_cd_action, lun_rename, actions, lun_modify, results
+        self.check_for_errors(lun_cd_action, current, lun_modify)
+        return lun_path, from_lun_path, lun_cd_action, lun_rename, lun_modify, app_modify_warning
 
     def apply(self):
         results = {}
@@ -1232,12 +1206,10 @@ class NetAppOntapLUN(object):
             # no application template, fall back to LUN only
             scope = 'lun'
         if self.rest_app and scope != 'lun':
-            app_cd_action, actions, results, app_modify = self.app_actions(app_current, scope, actions, results, app_modify)
+            app_cd_action, app_modify, app_modify_warning = self.app_actions(app_current, scope, actions, results)
         if app_cd_action is None and scope != 'application':
-            lun_path, from_lun_path, lun_cd_action, lun_rename, actions, lun_modify, results = \
-                self.lun_actions(app_current, actions, results, scope, app_modify, lun_rename, lun_modify, lun_cd_action)
-        if self.use_rest:
-            self.check_rest_errors(lun_cd_action)
+            lun_path, from_lun_path, lun_cd_action, lun_rename, lun_modify, app_modify_warning = \
+                self.lun_actions(app_current, actions, results, scope, app_modify, app_modify_warning)
         if self.na_helper.changed and not self.module.check_mode:
             if app_cd_action == 'create':
                 self.create_san_application()

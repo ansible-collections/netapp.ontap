@@ -41,11 +41,16 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_unix_user - Added REST support.
 
 ### New Options
+  - na_ontap_lun - support ``qos_adaptive_policy_group`` with REST.
   - na_ontap_unix_user - Added new option `primary_gid` aliased to `group_id`.
 
 ### Bug Fixes
+  - na_ontap_lun - catch ZAPI error on get LUN.
+  - na_ontap_lun - ignore resize error if no change was required.
+  - na_ontap_lun - report error if flexvol_name is missing when using ZAPI.
   - na_ontap_net_subnet - fixed `ipspace` option ignored in getting net subnet.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
+  - na_ontap_vserver_create role - add rule index as it is now required.
 
 ### Minor Changes
   - na_ontap_info - add quota-policy-info.

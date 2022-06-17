@@ -2694,7 +2694,10 @@ class NetAppOntapVolume:
     def apply(self):
         '''Call create/modify/delete operations'''
         if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume", self.server)
+            try:
+                netapp_utils.ems_log_event("na_ontap_volume", self.server)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg="Error on vserver: %s: %s" % (self.parameters['vserver'], error))
         actions, current, modify = self.set_actions()
 
         response = None

@@ -9,8 +9,8 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -139,7 +139,8 @@ SRR = rest_responses({
                 },
             }
         ],
-    }, None)
+    }, None),
+    'error_same_size': (400, None, 'New LUN size is the same as the old LUN size - this mau happen ...')
 })
 
 DEFAULT_ARGS = {
@@ -161,14 +162,21 @@ DEFAULT_ARGS_NO_VOL = {
     'use_rest': 'always',
 }
 
+DEFAULT_ARGS_MIN = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'svm1',
+    'use_rest': 'always',
+}
+
 
 def test_get_lun_none():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['empty_records'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     assert my_obj.get_luns_rest() is None
 
 
@@ -177,8 +185,22 @@ def test_get_lun_one():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['one_lun'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    get_results = my_obj.get_luns_rest()
+    assert len(get_results) == 1
+    assert get_results[0]['name'] == '/vol/volume1/qtree1/lun1'
+
+
+def test_get_lun_one_no_path():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['one_lun'])
+    ])
+    module_args = {
+        'name': 'lun1',
+        'flexvol_name': 'volume1',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS_MIN, module_args)
     get_results = my_obj.get_luns_rest()
     assert len(get_results) == 1
     assert get_results[0]['name'] == '/vol/volume1/qtree1/lun1'
@@ -189,8 +211,7 @@ def test_get_lun_more():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['two_luns'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     get_results = my_obj.get_luns_rest()
     assert len(get_results) == 2
     assert get_results[0]['name'] == '/vol/volume1/qtree1/lun1'
@@ -202,8 +223,7 @@ def test_error_get_lun_with_flexvol():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['generic_error'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     error = expect_and_capture_ansible_exception(my_obj.get_luns_rest, 'fail')['msg']
     print('Info: %s' % error)
     assert "Error getting LUN's for flexvol volume1: calling: storage/luns: got Expected error." == error
@@ -258,13 +278,12 @@ def test_error_create_lun_missing_os_type():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['empty_records']),
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['size'] = 1073741824
     my_obj.parameters['size_unit'] = 'bytes'
     error = expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
     print('Info: %s' % error)
-    assert "The os_type parameter is required for creating a LUN." == error
+    assert "The os_type parameter is required for creating a LUN with REST." == error
 
 
 def test_error_create_lun_missing_size():
@@ -272,8 +291,7 @@ def test_error_create_lun_missing_size():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['empty_records']),
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['os_type'] = 'linux'
     error = expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
     print('Info: %s' % error)
@@ -287,8 +305,7 @@ def test_error_create_lun_missing_name():
         # same path (unless we don't do a get with flexvol_name isn't set)
         # ('GET', 'storage/luns', SRR['empty_records']),
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
+    my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters.pop('flexvol_name')
     my_obj.parameters['os_type'] = 'linux'
     my_obj.parameters['size'] = 1073741824
@@ -417,7 +434,7 @@ def test_error_rename_lun_missing_uuid():
     assert "Error renaming LUN /vol/volume1/qtree12/lun1: UUID not found" == error
 
 
-def test_successfully_rsize_lun():
+def test_successfully_resize_lun():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/luns', SRR['one_lun']),
@@ -430,10 +447,16 @@ def test_successfully_rsize_lun():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_error_rsize_lun():
+def test_error_resize_lun():
+    ''' assert that
+        resize fails on error, except for a same size issue because of rounding errors
+        resize correctly return True/False to indicate that the size was changed or not
+    '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['error_same_size']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['success'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['size'] = 2147483648
@@ -442,9 +465,11 @@ def test_error_rsize_lun():
     error = expect_and_capture_ansible_exception(my_obj.resize_lun_rest, 'fail')['msg']
     print('Info: %s' % error)
     assert "Error resizing LUN /vol/volume1/qtree1/lun1: calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+    assert not my_obj.resize_lun_rest()
+    assert my_obj.resize_lun_rest()
 
 
-def test_error_rsize_lun_missing_uuid():
+def test_error_resize_lun_missing_uuid():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
     ])

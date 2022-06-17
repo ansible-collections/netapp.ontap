@@ -4,7 +4,7 @@
 # still belong to the author of the module, and may assign their own license
 # to the complete work.
 #
-# Copyright (c) 2020, Laurent Nicolas <laurentn@netapp.com>
+# Copyright (c) 2020-2022, Laurent Nicolas <laurentn@netapp.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
@@ -34,7 +34,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class RestApplication():
@@ -48,9 +48,8 @@ class RestApplication():
     def _set_application_uuid(self):
         """Use REST application/applications to get application uuid"""
         api = 'application/applications'
-        query = {'return_timeout': 30, 'return_records': 'true', 'svm.name': self.svm_name, 'name': self.app_name}
-        response, error = self.rest_api.get(api, query)
-        record, error = rrh.check_for_0_or_1_records(api, response, error, query)
+        query = {'svm.name': self.svm_name, 'name': self.app_name}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error is None and record is not None:
             self.app_uuid = record['uuid']
         return None, error
@@ -69,13 +68,9 @@ class RestApplication():
             return uuid, error
         if uuid is None:    # not found
             return None, None
-        if template:
-            query = dict(fields='name,%s,statistics' % template)
-        else:
-            query = None
+        query = dict(fields='name,%s,statistics' % template) if template else None
         api = 'application/applications/%s' % uuid
-        response, error = self.rest_api.get(api, query)
-        return response, rrh.api_error(api, error)
+        return rest_generic.get_one_record(self.rest_api, api, query)
 
     def create_application(self, body):
         """Use REST application/applications san template to create one or more LUNs"""
@@ -83,9 +78,8 @@ class RestApplication():
         if error is not None:
             return dummy, error
         api = 'application/applications'
-        query = {'return_timeout': 30, 'return_records': 'true'}
-        response, error = self.rest_api.post(api, body, params=query)
-        response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+        query = {'return_records': 'true'}
+        response, error = rest_generic.post_async(self.rest_api, api, body, query)
         if error and 'Unexpected argument' in error and 'exclude_aggregates' in error:
             error += '  "exclude_aggregates" requires ONTAP 9.9.1 GA or later.'
         return response, error
@@ -95,13 +89,9 @@ class RestApplication():
         dummy, error = self.fail_if_no_uuid()
         if error is not None:
             return dummy, error
-        uuid, error = self.get_application_uuid()
-        if error is not None:
-            return dummy, error
-        api = 'application/applications/%s' % uuid
-        query = {'return_timeout': 30, 'return_records': 'true'}
-        response, error = self.rest_api.patch(api, body, params=query)
-        return rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+        api = 'application/applications'
+        query = {'return_records': 'true'}
+        return rest_generic.patch_async(self.rest_api, api, self.app_uuid, body, query)
 
     def create_application_body(self, template_name, template_body, smart_container=True):
         if not isinstance(smart_container, bool):
@@ -120,10 +110,8 @@ class RestApplication():
         dummy, error = self.fail_if_no_uuid()
         if error is not None:
             return dummy, error
-        api = 'application/applications/%s' % self.app_uuid
-        query = {'return_timeout': 30}
-        response, error = self.rest_api.delete(api, params=query)
-        response, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
+        api = 'application/applications'
+        response, error = rest_generic.delete_async(self.rest_api, api, self.app_uuid)
         self.app_uuid = None
         return response, error
 
@@ -133,8 +121,7 @@ class RestApplication():
         if error is not None:
             return dummy, error
         api = 'application/applications/%s/components' % self.app_uuid
-        response, error = self.rest_api.get(api)
-        return response, rrh.api_error(api, error)
+        return rest_generic.get_0_or_more_records(self.rest_api, api)
 
     def get_application_component_uuid(self):
         """Use REST application/applications to get component uuid
@@ -143,8 +130,8 @@ class RestApplication():
         dummy, error = self.fail_if_no_uuid()
         if error is not None:
             return dummy, error
-        response, error = self.get_application_components()
-        record, error = rrh.check_for_0_or_1_records(None, response, error, None)
+        api = 'application/applications/%s/components' % self.app_uuid
+        record, error = rest_generic.get_one_record(self.rest_api, api, fields='uuid')
         if error is None and record is not None:
             return record['uuid'], None
         return None, error
@@ -159,12 +146,11 @@ class RestApplication():
             comp_uuid, error = self.get_application_component_uuid()
             if error:
                 return comp_uuid, error
-            if comp_uuid is None:
-                error = 'no component for application %s' % self.app_name
-                return None, error
+        if comp_uuid is None:
+            error = 'no component for application %s' % self.app_name
+            return None, error
         api = 'application/applications/%s/components/%s' % (self.app_uuid, comp_uuid)
-        response, error = self.rest_api.get(api)
-        return response, rrh.api_error(api, error)
+        return rest_generic.get_one_record(self.rest_api, api)
 
     def get_application_component_backing_storage(self):
         """Use REST application/applications to get component uuid.
