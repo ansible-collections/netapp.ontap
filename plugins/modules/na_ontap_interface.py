@@ -24,90 +24,90 @@ description:
 options:
   state:
     description:
-    - Whether the specified interface should exist or not.
+      - Whether the specified interface should exist or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   interface_name:
     description:
-    - Specifies the logical interface (LIF) name.
+      - Specifies the logical interface (LIF) name.
     required: true
     type: str
 
   home_node:
     description:
-    - Specifies the LIF's home node.
-    - By default, the first node from the cluster is considered as home node
+      - Specifies the LIF's home node.
+      - By default, the first node from the cluster is considered as home node
     type: str
 
   current_node:
     description:
-    - Specifies the LIF's current node.
-    - By default, this is home_node
+      - Specifies the LIF's current node.
+      - By default, this is home_node
     type: str
 
   home_port:
     description:
-    - Specifies the LIF's home port.
-    - Required when C(state=present)
+      - Specifies the LIF's home port.
+      - Required when C(state=present)
     type: str
 
   current_port:
     description:
-    - Specifies the LIF's current port.
+      - Specifies the LIF's current port.
     type: str
 
   role:
     description:
-    - Specifies the role of the LIF.
-    - When setting role as "intercluster" or "cluster", setting protocol is not supported.
-    - When creating a "cluster" role, the node name will appear as the prefix in the name of LIF.
-    - For example, if the specified name is clif and node name is node1, the LIF name appears in the ONTAP as node1_clif.
-    - Possible values are 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
-    - Required when C(state=present) unless service_policy is present and ONTAP version is 9.8 or better.
-    - This option is deprecated in REST.
-    - With REST, the module tries to derive a service_policy and may error out.
+      - Specifies the role of the LIF.
+      - When setting role as "intercluster" or "cluster", setting protocol is not supported.
+      - When creating a "cluster" role, the node name will appear as the prefix in the name of LIF.
+      - For example, if the specified name is clif and node name is node1, the LIF name appears in the ONTAP as node1_clif.
+      - Possible values are 'undef', 'cluster', 'data', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+      - Required when C(state=present) unless service_policy is present and ONTAP version is 9.8 or better.
+      - This option is deprecated in REST.
+      - With REST, the module tries to derive a service_policy and may error out.
     type: str
 
   address:
     description:
-    - Specifies the LIF's IP address.
-    - ZAPI - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
-    - REST - Required when C(state=present) and C(interface_type) is IP.
+      - Specifies the LIF's IP address.
+      - ZAPI - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
+      - REST - Required when C(state=present) and C(interface_type) is IP.
     type: str
 
   netmask:
     description:
-    - Specifies the LIF's netmask.
-    - ZAPI - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
-    - REST - Required when C(state=present) and C(interface_type) is IP.
+      - Specifies the LIF's netmask.
+      - ZAPI - Required when C(state=present) and is_ipv4_link_local if false and subnet_name is not set.
+      - REST - Required when C(state=present) and C(interface_type) is IP.
     type: str
 
   is_ipv4_link_local:
     description:
-    - Specifies the LIF's are to acquire a ipv4 link local address.
-    - Use case for this is when creating Cluster LIFs to allow for auto assignment of ipv4 link local address.
-    - Not supported in REST
+      - Specifies the LIF's are to acquire a ipv4 link local address.
+      - Use case for this is when creating Cluster LIFs to allow for auto assignment of ipv4 link local address.
+      - Not supported in REST
     version_added: '20.1.0'
     type: bool
 
   vserver:
     description:
-    - The name of the vserver to use.
-    - Required with ZAPI.
-    - Required with REST for SVM-scoped interfaces.
-    - Invalid with REST for cluster-scoped interfaces.
-    - To help with transition from ZAPI to REST, vserver is ignored when the role is set to 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
-    - Remove this option to suppress the warning.
+      - The name of the vserver to use.
+      - Required with ZAPI.
+      - Required with REST for SVM-scoped interfaces.
+      - Invalid with REST for cluster-scoped interfaces.
+      - To help with transition from ZAPI to REST, vserver is ignored when the role is set to 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+      - Remove this option to suppress the warning.
     required: false
     type: str
 
   firewall_policy:
     description:
-    - Specifies the firewall policy for the LIF.
-    - This option is deprecated in REST.
-    - With REST, the module tries to derive a service_policy and may error out.
+      - Specifies the firewall policy for the LIF.
+      - This option is deprecated in REST.
+      - With REST, the module tries to derive a service_policy and may error out.
     type: str
 
   failover_policy:
@@ -134,53 +134,53 @@ options:
 
   subnet_name:
     description:
-    - Subnet where the interface address is allocated from.
-    - If the option is not used, the IP address will need to be provided by the administrator during configuration.
-    - Not supported in REST.
+      - Subnet where the interface address is allocated from.
+      - If the option is not used, the IP address will need to be provided by the administrator during configuration.
+      - Not supported in REST.
     version_added: 2.8.0
     type: str
 
   admin_status:
     choices: ['up', 'down']
     description:
-    - Specifies the administrative status of the LIF.
+      - Specifies the administrative status of the LIF.
     type: str
 
   is_auto_revert:
     description:
-    - If true, data LIF will revert to its home node under certain circumstances such as startup,
-    - and load balancing migration capability is disabled automatically
+      - If true, data LIF will revert to its home node under certain circumstances such as startup,
+      - and load balancing migration capability is disabled automatically
     type: bool
 
   force_subnet_association:
     description:
-    - Set this to true to acquire the address from the named subnet and assign the subnet to the LIF.
-    - not supported with REST.
+      - Set this to true to acquire the address from the named subnet and assign the subnet to the LIF.
+      - not supported with REST.
     version_added: 2.9.0
     type: bool
 
   protocols:
     description:
-    - Specifies the list of data protocols configured on the LIF. By default, the values in this element are nfs, cifs and fcache.
-    - Other supported protocols are iscsi and fcp. A LIF can be configured to not support any data protocols by specifying 'none'.
-    - Protocol values of none, iscsi, fc-nvme or fcp can't be combined with any other data protocol(s).
-    - address, netmask and firewall_policy parameters are not supported for 'fc-nvme' option.
-    - This option is ignored with REST, though it can be used to derive C(interface_type) or C(data_protocol).
+      - Specifies the list of data protocols configured on the LIF. By default, the values in this element are nfs, cifs and fcache.
+      - Other supported protocols are iscsi and fcp. A LIF can be configured to not support any data protocols by specifying 'none'.
+      - Protocol values of none, iscsi, fc-nvme or fcp can't be combined with any other data protocol(s).
+      - address, netmask and firewall_policy parameters are not supported for 'fc-nvme' option.
+      - This option is ignored with REST, though it can be used to derive C(interface_type) or C(data_protocol).
     type: list
     elements: str
 
   data_protocol:
     description:
-    - The data protocol for which the FC interface is configured.
-    - Ignored with ZAPI or for IP interfaces.
-    - Required for create on for a FC type interface.
+      - The data protocol for which the FC interface is configured.
+      - Ignored with ZAPI or for IP interfaces.
+      - Required for create on for a FC type interface.
     type: str
     choices: ['fcp', 'fc_nvme']
 
   dns_domain_name:
     description:
-    - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
-    - not supported with REST.
+      - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
+      - not supported with REST.
     version_added: 2.9.0
     type: str
 
@@ -193,19 +193,19 @@ options:
 
   is_dns_update_enabled:
     description:
-    - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
-    - Not supported with REST.
+      - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
+      - Not supported with REST.
     version_added: 2.9.0
     type: bool
 
   service_policy:
     description:
-    - Starting with ONTAP 9.5, you can configure LIF service policies to identify a single service or a list of services that will use a LIF.
-    - In ONTAP 9.5, you can assign service policies only for LIFs in the admin SVM.
-    - In ONTAP 9.6, you can additionally assign service policies for LIFs in the data SVMs.
-    - When you specify a service policy for a LIF, you need not specify the data protocol and role for the LIF.
-    - NOTE that role is still required because of a ZAPI issue.  This limitation is removed in ONTAP 9.8.
-    - Creating LIFs by specifying the role and data protocols is also supported.
+      - Starting with ONTAP 9.5, you can configure LIF service policies to identify a single service or a list of services that will use a LIF.
+      - In ONTAP 9.5, you can assign service policies only for LIFs in the admin SVM.
+      - In ONTAP 9.6, you can additionally assign service policies for LIFs in the data SVMs.
+      - When you specify a service policy for a LIF, you need not specify the data protocol and role for the LIF.
+      - NOTE that role is still required because of a ZAPI issue.  This limitation is removed in ONTAP 9.8.
+      - Creating LIFs by specifying the role and data protocols is also supported.
     version_added: '20.4.0'
     type: str
 
@@ -479,7 +479,7 @@ class NetAppOntapInterface():
         if self.use_rest:
             self.cluster_nodes = None       # cached value to limit number of API calls.
             self.map_failover_policy()
-            self.validate_input_parameters()
+            self.validate_rest_input_parameters()
         elif netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
@@ -568,8 +568,6 @@ class NetAppOntapInterface():
     def get_interface_records_rest(self, if_type, query, fields):
         if 'ipspace' in self.parameters:
             query['ipspace.name'] = self.parameters['ipspace']
-        if 'vserver' in self.parameters:
-            query['svm.name'] = self.parameters['vserver']
         records, error = rest_generic.get_0_or_more_records(self.rest_api, self.get_net_int_api(if_type), query, fields)
         if error and 'are available in precluster.' in error:
             # in precluster mode, network APIs are not available!
@@ -581,7 +579,7 @@ class NetAppOntapInterface():
         if if_type is None:
             if_type = self.parameters.get('interface_type')
         if if_type is None:
-            self.module.fail_json('Error: missing option "interface_type (or could not be derived)')
+            self.module.fail_json(msg='Error: missing option "interface_type (or could not be derived)')
         return 'network/%s/interfaces' % if_type
 
     def find_interface_record(self, records, home_node, name):
@@ -642,9 +640,17 @@ class NetAppOntapInterface():
         """
         self.derive_interface_type()
         if_type = self.parameters.get('interface_type')
-        # ONTAP renames cluster interfaces, use a * to find them
-        qname = '*%s' % name if 'vserver' not in self.parameters else name
-        query = {'name': qname}
+        if 'vserver' in self.parameters:
+            query = {
+                'name': name,
+                'svm.name': self.parameters['vserver']
+            }
+        else:
+            query = {
+                # ONTAP renames cluster interfaces, use a * to find them
+                'name': '*%s' % name,
+                'scope': 'cluster'
+            }
         fields = 'name,location,uuid,enabled,svm.name'
         fields_fc = fields + ',data_protocol'
         fields_ip = fields + ',ip,service_policy'
@@ -654,11 +660,9 @@ class NetAppOntapInterface():
         if if_type is None or if_type == 'fc':
             records2, error2 = self.get_interface_records_rest('fc', query, fields_fc)
         if records and records2:
-            msg = 'Error fetching interface %s - found duplicate entries, please indicate interface_type.'
-            if error:
-                msg += ' - error ip: %s' % error
-            if error2:
-                msg += ' - error fc: %s' % error2
+            msg = 'Error fetching interface %s - found duplicate entries, please indicate interface_type.' % name
+            msg += ' - ip interfaces: %s' % records
+            msg += ' - fc interfaces: %s' % records2
             self.module.fail_json(msg=msg)
         if error is None and error2 is not None and records:
             # ignore error on fc if ip interface is found
@@ -677,7 +681,7 @@ class NetAppOntapInterface():
             records = records2
 
         record = self.find_exact_match(records, name) if records else None
-        return self.dict_from_record(record) if record else None
+        return self.dict_from_record(record)
 
     def dict_from_record(self, record):
         if not record:
@@ -770,7 +774,7 @@ class NetAppOntapInterface():
                 return_value['netmask'] = interface_attributes['netmask']
             if interface_attributes.get_child_by_name('firewall-policy'):
                 return_value['firewall_policy'] = interface_attributes['firewall-policy']
-            if interface_attributes.get_child_by_name('dns-domain-name') != 'none':
+            if interface_attributes.get_child_by_name('dns-domain-name') not in ('none', None):
                 return_value['dns_domain_name'] = interface_attributes['dns-domain-name']
             else:
                 return_value['dns_domain_name'] = None
@@ -780,6 +784,9 @@ class NetAppOntapInterface():
             if interface_attributes.get_child_by_name('is-dns-update-enabled'):
                 return_value['is_dns_update_enabled'] = self.na_helper.get_value_for_bool(True, interface_attributes[
                     'is-dns-update-enabled'])
+            if interface_attributes.get_child_by_name('is-ipv4-link-local'):
+                return_value['is_ipv4_link_local'] = self.na_helper.get_value_for_bool(True, interface_attributes[
+                    'is-ipv4-link-local'])
             if interface_attributes.get_child_by_name('service-policy'):
                 return_value['service_policy'] = interface_attributes['service-policy']
             if interface_attributes.get_child_by_name('current-node'):
@@ -810,7 +817,7 @@ class NetAppOntapInterface():
         if parameters.get('firewall_policy') is not None:
             options['firewall-policy'] = parameters['firewall_policy']
         if parameters.get('is_auto_revert') is not None:
-            options['is-auto-revert'] = 'true' if parameters['is_auto_revert'] is True else 'false'
+            options['is-auto-revert'] = 'true' if parameters['is_auto_revert'] else 'false'
         if parameters.get('admin_status') is not None:
             options['administrative-status'] = parameters['admin_status']
         if parameters.get('force_subnet_association') is not None:
@@ -818,9 +825,9 @@ class NetAppOntapInterface():
         if parameters.get('dns_domain_name') is not None:
             options['dns-domain-name'] = parameters['dns_domain_name']
         if parameters.get('listen_for_dns_query') is not None:
-            options['listen-for-dns-query'] = str(parameters['listen_for_dns_query'])
+            options['listen-for-dns-query'] = 'true' if parameters['listen_for_dns_query'] else 'false'
         if parameters.get('is_dns_update_enabled') is not None:
-            options['is-dns-update-enabled'] = str(parameters['is_dns_update_enabled'])
+            options['is-dns-update-enabled'] = 'true' if parameters['is_dns_update_enabled'] else 'false'
         if parameters.get('is_ipv4_link_local') is not None:
             options['is-ipv4-link-local'] = 'true' if parameters['is_ipv4_link_local'] else 'false'
         if parameters.get('service_policy') is not None:
@@ -873,7 +880,7 @@ class NetAppOntapInterface():
 
         def get_node_for_port(parameters, pkey):
             if pkey == 'current_port':
-                return parameters.get('current_port', parameters.get('home_node'))
+                return parameters.get('current_node', parameters.get('home_node'))
             elif pkey == 'home_port':
                 return parameters.get('home_node')
             else:
@@ -901,10 +908,6 @@ class NetAppOntapInterface():
             'failover_scope': 'failover',
             'is_auto_revert': 'auto_revert',
         }
-        if parameters.get('role') in ['cluster', 'intercluster', 'node-mgmt', 'cluster-mgmt']:
-            # REST only supports DATA SVMs
-            mapping_params_to_rest.pop('vserver')
-            self.module.warn('Ignoring vserver with REST for non data SVM.')
         ip_keys = ('address', 'netmask')
         location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert')
 
@@ -990,9 +993,13 @@ class NetAppOntapInterface():
             return attributes.get_child_by_name('cluster-node-info').get_child_content('node-name')
         return None
 
-    def validate_input_parameters(self, action=None):
+    def validate_rest_input_parameters(self, action=None):
+        if 'vserver' in self.parameters and self.parameters.get('role') in ['cluster', 'intercluster', 'node-mgmt', 'cluster-mgmt']:
+            # REST only supports DATA SVMs
+            del self.parameters['vserver']
+            self.module.warn('Ignoring vserver with REST for non data SVM.')
         if action == 'create' and 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
-            self.module.fail_json(msg='ipspace name must be provided if scope is cluster, or vserver for svm scope.')
+            self.module.fail_json(msg='Error: ipspace name must be provided if scope is cluster, or vserver for svm scope.')
         ignored_keys = []
         for key in self.parameters.get('ignore_zapi_options', []):
             if key in self.parameters:
@@ -1039,7 +1046,7 @@ class NetAppOntapInterface():
         required_keys = set(['interface_type'])     # python 2.6 syntax
         # running validation twice, as interface_type dictates the second set of requirements
         self.validate_required_parameters(required_keys)
-        self.validate_input_parameters(action='modify' if modify else 'create')
+        self.validate_rest_input_parameters(action='modify' if modify else 'create')
         if self.parameters['interface_type'] == 'fc' and not modify:
             self.derive_fc_data_protocol()
             required_keys = set(['interface_name', 'home_port', 'data_protocol'])
@@ -1057,10 +1064,12 @@ class NetAppOntapInterface():
 
     def create_interface_rest(self, body):
         ''' calling REST to create interface '''
-        dummy, error = rest_generic.post_async(self.rest_api, self.get_net_int_api(), body)
+        query = {'return_records': 'true'}
+        records, error = rest_generic.post_async(self.rest_api, self.get_net_int_api(), body, query)
         if error:
             self.module.fail_json(msg='Error creating interface %s: %s' % (self.parameters['interface_name'], to_native(error)),
                                   exception=traceback.format_exc())
+        return records
 
     def create_interface(self, body):
         ''' calling zapi to create interface '''
@@ -1068,12 +1077,7 @@ class NetAppOntapInterface():
             return self.create_interface_rest(body)
 
         required_keys = set(['role', 'home_port'])
-        data_protocols_obj = None
-        if (
-            self.parameters.get('subnet_name') is None
-            and self.parameters.get('is_ipv4_link_local') is not None
-            and not self.parameters.get('is_ipv4_link_local')
-        ):
+        if self.parameters.get('subnet_name') is None and self.parameters.get('is_ipv4_link_local') is None:
             required_keys.add('address')
             required_keys.add('netmask')
         if self.parameters.get('service_policy') is not None:
@@ -1098,18 +1102,18 @@ class NetAppOntapInterface():
                                       (self.parameters['interface_name'], to_native(exc)),
                                       exception=traceback.format_exc())
 
-    def delete_interface_rest(self, current_status, uuid):
+    def delete_interface_rest(self, uuid):
         ''' calling zapi to delete interface '''
 
         dummy, error = rest_generic.delete_async(self.rest_api, self.get_net_int_api(), uuid)
         if error:
-            self.module.fail_json(msg='Error Deleting interface %s: %s' % (self.parameters['interface_name'], to_native(error)),
+            self.module.fail_json(msg='Error deleting interface %s: %s' % (self.parameters['interface_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def delete_interface(self, current_status, uuid):
         ''' calling zapi to delete interface '''
         if self.use_rest:
-            return self.delete_interface_rest(current_status, uuid)
+            return self.delete_interface_rest(uuid)
 
         if current_status == 'up':
             self.parameters['admin_status'] = 'down'
@@ -1139,9 +1143,9 @@ class NetAppOntapInterface():
         errors = []
         desired_node = self.na_helper.safe_get(body, ['location', 'node', 'name'])
         desired_port = self.na_helper.safe_get(body, ['location', 'port', 'name'])
-        for __ in range(10):
+        for __ in range(12):
             self.modify_interface_rest(uuid, body)
-            time.sleep(5)
+            time.sleep(10)
             node, port, error = self.get_node_port(uuid)
             if error is None and desired_node in [None, node] and desired_port in [None, port]:
                 return
@@ -1225,16 +1229,11 @@ class NetAppOntapInterface():
         if self.use_rest:
             return
         try:
-            # Checking to see if autosupport_log() can be ran as this is a post cluster setup request.
-            results = netapp_utils.get_cserver(self.server)
-            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-            netapp_utils.ems_log_event("na_ontap_interface", cserver)
+            netapp_utils.ems_log_event_cserver("na_ontap_interface", self.server, self.module)
         except netapp_utils.zapi.NaApiError as error:
             # Error 13003 denotes cluster does not exist. It happens when running operations on a node not in cluster.
-            if to_native(error.code) != '13003':
-                self.module.fail_json(
-                    msg='Error calling autosupport_log(): %s' % to_native(error),
-                    exception=traceback.format_exc())
+            # Ignore other errors as well.
+            pass
 
     def get_action(self):
         modify, rename, new_name = None, None, None
@@ -1291,7 +1290,10 @@ class NetAppOntapInterface():
                 self.rename_interface()
                 modify.pop('interface_name')
             if cd_action == 'create':
-                self.create_interface(body)
+                records = self.create_interface(body)
+                if records:
+                    # needed for migrate after creation
+                    uuid = records['records'][0]['uuid']
             elif cd_action == 'delete':
                 self.delete_interface(current['admin_status'], uuid)
             elif modify:

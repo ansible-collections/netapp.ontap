@@ -512,3 +512,46 @@ class NetAppModule(object):
         if getattr(self, 'module', None) is not None:
             self.module.fail_json(**results)
         raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))
+
+    def compare_chmod_value(self, current_permissions, desired_permissions):
+        """
+        compare current unix_permissions to desired unix_permissions.
+        :return: True if the same, False it not the same or desired unix_permissions is not valid.
+        """
+        if current_permissions is None:
+            return False
+        if desired_permissions.isdigit():
+            return int(current_permissions) == int(desired_permissions)
+        # ONTAP will throw error as invalid field if the length is not 9 or 12.
+        if len(desired_permissions) not in [12, 9]:
+            return False
+        desired_octal_value = ''
+        # if the length is 12, first three character sets userid('s'), groupid('s') and sticky('t') attributes
+        if len(desired_permissions) == 12:
+            if desired_permissions[0] not in ['s', '-'] or desired_permissions[1] not in ['s', '-']\
+                    or desired_permissions[2] not in ['t', '-']:
+                return False
+            desired_octal_value += str(self.char_to_octal(desired_permissions[0:3]))
+        # if the len is 9, start from 0 else start from 3.
+        start_range = len(desired_permissions) - 9
+        for i in range(start_range, len(desired_permissions), 3):
+            if desired_permissions[i] not in ['r', '-'] or desired_permissions[i + 1] not in ['w', '-']\
+                    or desired_permissions[i + 2] not in ['x', '-']:
+                return False
+            group_permission = self.char_to_octal(desired_permissions[i:i + 3])
+            desired_octal_value += str(group_permission)
+        return int(current_permissions) == int(desired_octal_value)
+
+    def char_to_octal(self, chars):
+        """
+        :param chars: Characters to be converted into octal values.
+        :return: octal value of the individual group permission.
+        """
+        total = 0
+        if chars[0] in ['r', 's']:
+            total += 4
+        if chars[1] in ['w', 's']:
+            total += 2
+        if chars[2] in ['x', 't']:
+            total += 1
+        return total

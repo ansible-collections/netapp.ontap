@@ -1834,44 +1834,6 @@ class NetAppOntapVolume:
         elif 'encrypt' in attributes:
             self.start_encryption_conversion(self.parameters['encrypt'])
 
-    def compare_chmod_value(self, current):
-        """
-        compare current unix_permissions to desire unix_permissions.
-        :return: True if the same, False it not the same or desire unix_permissions is not valid.
-        """
-        desire = self.parameters
-        if current is None or 'unix_permissions' not in current:
-            return False
-        unix_permissions = desire['unix_permissions']
-        if unix_permissions.isdigit():
-            return int(current['unix_permissions']) == int(unix_permissions)
-        if len(unix_permissions) != 12:
-            return False
-        if unix_permissions[:3] != '---':
-            return False
-        octal_value = ''
-        for i in range(3, len(unix_permissions), 3):
-            if unix_permissions[i] not in ['r', '-'] or unix_permissions[i + 1] not in ['w', '-']\
-                    or unix_permissions[i + 2] not in ['x', '-']:
-                return False
-            group_permission = self.char_to_octal(unix_permissions[i:i + 3])
-            octal_value += str(group_permission)
-        return int(current['unix_permissions']) == int(octal_value)
-
-    def char_to_octal(self, chars):
-        """
-        :param chars: Characters to be converted into octal values.
-        :return: octal value of the individual group permission.
-        """
-        total = 0
-        if chars[0] == 'r':
-            total += 4
-        if chars[1] == 'w':
-            total += 2
-        if chars[2] == 'x':
-            total += 1
-        return total
-
     def get_volume_style(self, current):
         '''Get volume style, infinite or standard flexvol'''
         if current is not None:
@@ -2158,8 +2120,9 @@ class NetAppOntapVolume:
 
     def set_modify_dict(self, current, after_create=False):
         '''Fill modify dict with changes'''
+        octal_value = current.get('unix_permissions') if current else None
         if self.parameters.get('unix_permissions') is not None and (
-            self.compare_chmod_value(current) or not self.parameters['is_online']
+            self.na_helper.compare_chmod_value(octal_value, self.parameters['unix_permissions']) or not self.parameters['is_online']
         ):
             # don't change if the values are the same
             # can't change permissions if not online

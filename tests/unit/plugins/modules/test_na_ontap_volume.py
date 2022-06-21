@@ -903,102 +903,92 @@ def test_modify_helper():
     assert create_module(vol_module, DEFAULT_ARGS, module_args).modify_volume(modify, True) is None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_1(get_volume):
+def test_compare_chmod_value_true_1():
     module_args = {'unix_permissions': '------------'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_2(get_volume):
+def test_compare_chmod_value_true_2():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = {
         'unix_permissions': '777'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_3(get_volume):
+def test_compare_chmod_value_true_3():
     module_args = {'unix_permissions': '---rwxr-xr-x'}
     current = {
         'unix_permissions': '755'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_4(get_volume):
+def test_compare_chmod_value_true_4():
     module_args = {'unix_permissions': '755'}
     current = {
         'unix_permissions': '755'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_false_1(get_volume):
+def test_compare_chmod_value_false_1():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_false_2(get_volume):
+def test_compare_chmod_value_false_2():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = None
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current, module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_1(get_volume):
+def test_compare_chmod_value_invalid_input_1():
     module_args = {'unix_permissions': '---xwrxwrxwr'}
     current = {
         'unix_permissions': '777'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_2(get_volume):
+def test_compare_chmod_value_invalid_input_2():
     module_args = {'unix_permissions': '---rwx-wx--a'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_3(get_volume):
+def test_compare_chmod_value_invalid_input_3():
     module_args = {'unix_permissions': '---'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_4(get_volume):
+def test_compare_chmod_value_invalid_input_4():
     module_args = {'unix_permissions': 'rwx---rwxrwx'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
 def test_successful_create_flex_group_manually():

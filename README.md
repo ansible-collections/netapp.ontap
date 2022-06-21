@@ -42,15 +42,24 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 ### New Options
   - na_ontap_lun - support ``qos_adaptive_policy_group`` with REST.
+  - na_ontap_qtree - Added `unix_user` and `unix_group` options in REST.
   - na_ontap_unix_user - Added new option `primary_gid` aliased to `group_id`.
 
 ### Bug Fixes
+  - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.
+  - na_ontap_interface - fix idempotency issue for cluster scoped interfaces when using REST.
+  - na_ontap_interface - fix potential node and uuid issues with LIF migration.
   - na_ontap_lun - catch ZAPI error on get LUN.
   - na_ontap_lun - ignore resize error if no change was required.
   - na_ontap_lun - report error if flexvol_name is missing when using ZAPI.
-  - na_ontap_net_subnet - fixed `ipspace` option ignored in getting net subnet.
+  - na_ontap_net_subnet - fix `ipspace` option ignored in getting net subnet.
+  - na_ontap_qtree - fix idempotency issue on `unix_permissions` option.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
+  - na_ontap_volume - fix idempotency issue on `unix_permissions` option.
   - na_ontap_vserver_create role - add rule index as it is now required.
+
+### New Module
+  - na_ontap_s3_policies - Manage S3 policies.
 
 ### Minor Changes
   - na_ontap_info - add quota-policy-info.
@@ -85,7 +94,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_vscan_on_access_policy - new REST options `scan_readonly_volumes` and `only_execute_access` added.
   - na_ontap_vserver_cifs_security - added option `encryption_required_for_dc_connections` and `use_ldaps_for_ad_ldap` in ZAPI.
 
-### New Module
+### New Modules
   - na_ontap_s3_service - Manage S3 services.
   - na_ontap_s3_users - Manage S3 users.
 

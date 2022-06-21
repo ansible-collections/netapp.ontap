@@ -780,3 +780,15 @@ def test_fall_back_to_zapi():
     assert expect_and_capture_ansible_exception(my_obj.na_helper.fall_back_to_zapi, 'fail', my_obj.na_helper.module, 'some message', parameters)['msg'] ==\
         'Error: some message'
     assert_no_warnings()
+
+
+def test_compare_chmod_value():
+    myobj = na_helper()
+    assert myobj.compare_chmod_value("0777", "---rwxrwxrwx") is True
+    assert myobj.compare_chmod_value("777", "---rwxrwxrwx") is True
+    assert myobj.compare_chmod_value("7777", "sstrwxrwxrwx") is True
+    assert myobj.compare_chmod_value("4555", "s--r-xr-xr-x") is True
+    assert myobj.compare_chmod_value(None, "---rwxrwxrwx") is False
+    assert myobj.compare_chmod_value("755", "rwxrwxrwxrwxr") is False
+    assert myobj.compare_chmod_value("777", "---ssxrwxrwx") is False
+    assert myobj.compare_chmod_value("7777", "rwxrwxrwxrwx") is False
