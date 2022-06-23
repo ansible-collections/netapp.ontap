@@ -75,6 +75,7 @@ action_groups:
     - na_ontap_ntfs_dacl
     - na_ontap_ntfs_sd
     - na_ontap_ntp
+    - na_ontap_ntp_key
     - na_ontap_nvme_namespace
     - na_ontap_nvme
     - na_ontap_nvme_subsystem

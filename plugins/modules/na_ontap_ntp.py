@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -19,21 +19,26 @@ description:
 options:
   state:
     description:
-    - Whether the specified NTP server should exist or not.
+      - Whether the specified NTP server should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
   server_name:
     description:
-    - The name of the NTP server to manage.
+      - The name of the NTP server to manage.
     required: True
     type: str
   version:
     description:
-    - give version for NTP server
+      - give version for NTP server
     choices: ['auto', '3', '4']
     default: 'auto'
     type: str
+  key_id:
+    description:
+      - The symmetric authentication key ID being used for this time server.
+    type: int
+    version_added: 21.21.0
 """
 
 EXAMPLES = """
@@ -41,6 +46,7 @@ EXAMPLES = """
       na_ontap_ntp:
         state: present
         version: auto
+        key_id: 1
         server_name: "{{ server_name }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -77,6 +83,7 @@ class NetAppOntapNTPServer(object):
             server_name=dict(required=True, type='str'),
             version=dict(required=False, type='str', default='auto',
                          choices=['auto', '3', '4']),
+            key_id=dict(required=False, type='int'),
         ))
 
         self.module = AnsibleModule(
@@ -152,6 +159,8 @@ class NetAppOntapNTPServer(object):
             'ntp-server-create', **{'server-name': self.parameters['server_name'],
                                     'version': self.parameters['version']
                                     })
+        if self.parameters.get('key_id'):
+            ntp_server_create.add_new_child("key-id", self.parameters['key_id'])
 
         try:
             self.server.invoke_successfully(ntp_server_create,
@@ -167,6 +176,8 @@ class NetAppOntapNTPServer(object):
             'server': self.parameters['server_name'],
             'version': self.parameters['version']
         }
+        if self.parameters.get('key_id'):
+            params['key'] = {'id': self.parameters['key_id']}
         dummy, error = rest_generic.post_async(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg=error)
@@ -193,25 +204,29 @@ class NetAppOntapNTPServer(object):
         if error:
             self.module.fail_json(msg=error)
 
-    def modify_version(self):
+    def modify_ntp_server(self, modify):
         """
-        modify the version.
+        modify the ntp server
         """
         if self.use_rest:
-            return self.modify_version_rest()
-        ntp_modify_version = netapp_utils.zapi.NaElement.create_node_with_children(
+            return self.modify_ntp_server_rest(modify)
+        ntp_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'ntp-server-modify',
             **{'server-name': self.parameters['server_name'], 'version': self.parameters['version']})
+        if modify.get('key_id'):
+            ntp_modify.add_new_child("key-id", self.parameters['key_id'])
         try:
-            self.server.invoke_successfully(ntp_modify_version,
+            self.server.invoke_successfully(ntp_modify,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying version for ntp server %s: %s'
                                   % (self.parameters['server_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_version_rest(self):
+    def modify_ntp_server_rest(self, modify):
         body = {'version': self.parameters['version']}
+        if modify.get('key_id'):
+            body['key'] = {'id': self.parameters['key_id']}
         dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/ntp/servers', self.parameters['server_name'], body)
         if error:
             self.module.fail_json(msg=error)
@@ -232,7 +247,7 @@ class NetAppOntapNTPServer(object):
             elif cd_action == 'delete':
                 self.delete_ntp_server()
             elif modify:
-                self.modify_version()
+                self.modify_ntp_server(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

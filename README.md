@@ -36,6 +36,9 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 # Release Notes
 
 ## 21.21.0
+  
+### New Module
+  - na_ontap_ntp_key - Manage NTP keys.
 
 ### Added REST support to existing modules
   - na_ontap_unix_user - Added REST support.
@@ -44,6 +47,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - support ``qos_adaptive_policy_group`` with REST.
   - na_ontap_qtree - Added `unix_user` and `unix_group` options in REST.
   - na_ontap_unix_user - Added new option `primary_gid` aliased to `group_id`.
+  - na_ontap_ntp - add `key_id` for both REST and ZAPI
 
 ### Bug Fixes
   - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.
