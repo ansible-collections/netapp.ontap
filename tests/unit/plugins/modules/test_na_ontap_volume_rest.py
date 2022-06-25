@@ -725,7 +725,7 @@ def test_rest_error_modify_volume_efficiency_policy_with_ontap_96():
         ('GET', 'cluster', SRR['is_rest_96']),
     ])
     module_args = {'efficiency_policy': 'test'}
-    msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)\n"
+    msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)."
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -734,7 +734,7 @@ def test_rest_error_modify_volume_tiering_minimum_cooling_days_98():
         ('GET', 'cluster', SRR['is_rest_96']),
     ])
     module_args = {'tiering_minimum_cooling_days': 2}
-    msg = "Minimum version of ONTAP for tiering_minimum_cooling_days is (9, 8)\n"
+    msg = "Minimum version of ONTAP for tiering_minimum_cooling_days is (9, 8)."
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 

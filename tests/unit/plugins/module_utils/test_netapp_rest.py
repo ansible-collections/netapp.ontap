@@ -446,7 +446,7 @@ def test__is_rest():
     ])
     # testing always unconditionnally and with partially_supported_rest_properties
     rest_api.use_rest = 'always'
-    msg = 'Minimum version of ONTAP for xyz is (9, 7)\n'
+    msg = 'Minimum version of ONTAP for xyz is (9, 7).'
     assert rest_api._is_rest(partially_supported_rest_properties=[('xyz', (9, 7))], parameters=['xyz']) == (True, msg)
     # No error when version requirement is matched
     assert rest_api._is_rest(partially_supported_rest_properties=[('xyz', (9, 6))], parameters=['xyz']) == (True, None)

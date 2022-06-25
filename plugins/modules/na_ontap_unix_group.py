@@ -1,17 +1,12 @@
 #!/usr/bin/python
 """
-create Autosupport module to enable, disable or modify
+na_ontap_unix_group
 """
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 
 DOCUMENTATION = """
@@ -24,44 +19,44 @@ module: na_ontap_unix_group
 options:
   state:
     description:
-    - Whether the specified group should exist or not.
+      - Whether the specified group should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
 
   name:
     description:
-    - Specifies UNIX group's name, unique for each group.
-    - Non-modifiable.
+      - Specifies UNIX group's name, unique for each group.
+      - Non-modifiable.
     required: true
     type: str
 
   id:
     description:
-    - Specifies an identification number for the UNIX group.
-    - Group ID is unique for each UNIX group.
-    - Required for create, modifiable.
+      - Specifies an identification number for the UNIX group.
+      - Group ID is unique for each UNIX group.
+      - Required for create, modifiable.
     type: int
 
   vserver:
     description:
-    - Specifies the Vserver for the UNIX group.
-    - Non-modifiable.
+      - Specifies the Vserver for the UNIX group.
+      - Non-modifiable.
     required: true
     type: str
 
   skip_name_validation:
     description:
-    - Specifies if group name validation is skipped.
+      - Specifies if group name validation is skipped.
     type: bool
 
   users:
     description:
-    - Specifies the users associated with this group. Should be comma separated.
-    - It represents the expected state of a list of users at any time.
-    - Add a user into group if it is specified in expected state but not in current state.
-    - Delete a user from group if it is specified in current state but not in expected state.
-    - To delete all current users, use '' as value.
+      - Specifies the users associated with this group. Should be comma separated.
+      - It represents the expected state of a list of users at any time.
+      - Add a user into group if it is specified in expected state but not in current state.
+      - Delete a user from group if it is specified in current state but not in expected state.
+      - To delete all current users, use '' as value.
     type: list
     elements: str
     version_added: 2.9.0
@@ -112,11 +107,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapUnixGroup(object):
+class NetAppOntapUnixGroup:
     """
     Common operations to manage UNIX groups
     """
@@ -139,12 +134,25 @@ class NetAppOntapUnixGroup(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.set_playbook_zapi_key_map()
+        # Set up Rest API
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        if self.use_rest:
+            self.parameters['users'] = self.safe_strip(self.parameters.get('users')) if self.parameters.get('users') is not None else None
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            msg = 'REST requires ONTAP 9.9.1 or later for UNIX group APIs.'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+
+        if not self.use_rest:
+            if netapp_utils.has_netapp_lib() is False:
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.set_playbook_zapi_key_map()
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+    def safe_strip(self, users):
+        """ strip the given user """
+        return [user.strip() for user in users if len(user.strip())]
 
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
@@ -285,10 +293,8 @@ class NetAppOntapUnixGroup(object):
             current_users = []
         if expect_users[0] == '' and len(expect_users) == 1:
             expect_users = []
-
         users_to_remove = list(set(current_users) - set(expect_users))
         users_to_add = list(set(expect_users) - set(current_users))
-
         if len(users_to_add) > 0:
             for user in users_to_add:
                 add_user = netapp_utils.zapi.NaElement('name-mapping-unix-group-add-user')
@@ -313,12 +319,113 @@ class NetAppOntapUnixGroup(object):
                         msg='Error deleting user %s from UNIX group %s: %s' % (user, self.parameters['name'], to_native(error)),
                         exception=traceback.format_exc())
 
-    def autosupport_log(self):
+    def get_unix_group_rest(self):
         """
-          Autosupport log for unix_group
-          :return: None
-          """
-        netapp_utils.ems_log_event("na_ontap_unix_group", self.server)
+        Retrieves the UNIX groups for all of the SVMs.
+        UNIX users who are the members of the group are also displayed.
+        """
+        if not self.use_rest:
+            return self.get_unix_group()
+        query = {'svm.name': self.parameters.get('vserver'),
+                 'name': self.parameters.get('name')}
+        api = 'name-services/unix-groups'
+        fields = 'svm.uuid,id,name,users.name'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg="Error getting UNIX group: %s" % error)
+        if record:
+            if 'users' in record:
+                record['users'] = [user['name'] for user in record['users']]
+            return {
+                'svm': {'uuid': self.na_helper.safe_get(record, ['svm', 'uuid'])},
+                'name': self.na_helper.safe_get(record, ['name']),
+                'id': self.na_helper.safe_get(record, ['id']),
+                'users': self.na_helper.safe_get(record, ['users'])
+            }
+        return None
+
+    def create_unix_group_rest(self):
+        """
+        Creates the local UNIX group configuration for the specified SVM.
+        Group name and group ID are mandatory parameters.
+        """
+        if not self.use_rest:
+            return self.create_unix_group()
+
+        body = {'svm.name': self.parameters.get('vserver')}
+        if 'name' in self.parameters:
+            body['name'] = self.parameters['name']
+        if 'id' in self.parameters:
+            body['id'] = self.parameters['id']
+        if 'skip_name_validation' in self.parameters:
+            body['skip_name_validation'] = self.parameters['skip_name_validation']
+        api = 'name-services/unix-groups'
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error is not None:
+            self.module.fail_json(msg="Error creating UNIX group: %s" % error)
+        if self.parameters.get('users') is not None:
+            self.modify_users_in_group_rest()
+
+    def modify_users_in_group_rest(self, current=None):
+        """
+        Add/delete one or many users in a UNIX group
+        """
+        body = {'records': []}
+        # current is to add user when creating a group
+        if not current:
+            current = self.get_unix_group_rest()
+        current_users = current['users'] or []
+        expect_users = self.parameters.get('users')
+        users_to_remove = list(set(current_users) - set(expect_users))
+        users_to_add = list(set(expect_users) - set(current_users))
+        if len(users_to_add) > 0:
+            body['records'] = [{'name': user} for user in users_to_add]
+            if 'skip_name_validation' in self.parameters:
+                body['skip_name_validation'] = self.parameters['skip_name_validation']
+            api = 'name-services/unix-groups/%s/%s/users' % (current['svm']['uuid'], current['name'])
+            dummy, error = rest_generic.post_async(self.rest_api, api, body)
+            if error is not None:
+                self.module.fail_json(msg="Error Adding user to UNIX group: %s" % error)
+
+        if len(users_to_remove) > 0:
+            for user in users_to_remove:
+                api = 'name-services/unix-groups/%s/%s/users' % (current['svm']['uuid'], current['name'])
+                dummy, error = rest_generic.delete_async(self.rest_api, api, user, body=None)
+                if error is not None:
+                    self.module.fail_json(msg="Error removing user from UNIX group: %s" % error)
+
+    def delete_unix_group_rest(self, current):
+        """
+        Deletes a UNIX user configuration for the specified SVM with rest API.
+        """
+        if not self.use_rest:
+            return self.delete_unix_group()
+
+        api = 'name-services/unix-groups/%s' % current['svm']['uuid']
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.parameters['name'])
+        if error is not None:
+            self.module.fail_json(msg="Error deleting UNIX group: %s" % error)
+
+    def modify_unix_group_rest(self, modify, current=None):
+        """
+        Updates UNIX group information for the specified user and SVM with rest API.
+        """
+        if not self.use_rest:
+            return self.modify_unix_group(modify)
+
+        if 'users' in modify:
+            self.modify_users_in_group_rest(current)
+            if len(modify) == 1:
+                return
+
+        api = 'name-services/unix-groups/%s' % current['svm']['uuid']
+        body = {}
+        if 'id' in modify:
+            body['id'] = modify['id']
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body)
+            if error is not None:
+                self.module.fail_json(msg="Error on modifying UNIX group: %s" % error)
 
     def apply(self):
         """
@@ -326,21 +433,21 @@ class NetAppOntapUnixGroup(object):
 
         :return: None
         """
-        self.autosupport_log()
-        current = self.get_unix_group()
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_unix_user_group", self.server)
+        cd_action = None
+        current = self.get_unix_group_rest()
+        if current and current['users'] is None:
+            current['users'] = []
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.parameters['state'] == 'present' and cd_action is None:
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_unix_group_rest()
+            elif cd_action == 'delete':
+                self.delete_unix_group_rest(current)
             else:
-                if cd_action == 'create':
-                    self.create_unix_group()
-                elif cd_action == 'delete':
-                    self.delete_unix_group()
-                else:
-                    self.modify_unix_group(modify)
+                self.modify_unix_group_rest(modify, current)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

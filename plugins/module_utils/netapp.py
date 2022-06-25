@@ -607,12 +607,13 @@ class OntapRestAPI(object):
     def __init__(self, module, timeout=60, host_options=None):
         self.host_options = module.params if host_options is None else host_options
         self.module = module
-        self.username = self.host_options['username']
-        self.password = self.host_options['password']
+        # either username/password or a certifcate with/without a key are used for authentication
+        self.username = self.host_options.get('username')
+        self.password = self.host_options.get('password')
         self.hostname = self.host_options['hostname']
         self.use_rest = self.host_options['use_rest'].lower()
-        self.cert_filepath = self.host_options['cert_filepath']
-        self.key_filepath = self.host_options['key_filepath']
+        self.cert_filepath = self.host_options.get('cert_filepath')
+        self.key_filepath = self.host_options.get('key_filepath')
         self.verify = self.host_options['validate_certs']
         self.timeout = timeout
         port = self.host_options['http_port']
@@ -935,8 +936,8 @@ class OntapRestAPI(object):
             return False, None
         status_code = self.get_ontap_version_using_rest()
         if self.use_rest == "always" and partially_supported_rest_properties:
-            error = ''.join(
-                "Minimum version of ONTAP for %s is %s\n"
+            error = '\n'.join(
+                "Minimum version of ONTAP for %s is %s."
                 % (property[0], str(property[1]))
                 for property in partially_supported_rest_properties
                 if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters
@@ -966,11 +967,13 @@ class OntapRestAPI(object):
             return True, None
         return False, None
 
-    def is_rest_supported_properties(self, parameters, unsupported_rest_properties=None, partially_supported_rest_properties=None):
+    def is_rest_supported_properties(self, parameters, unsupported_rest_properties=None, partially_supported_rest_properties=None, report_error=False):
         used_unsupported_rest_properties = None
         if unsupported_rest_properties:
             used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in parameters]
         use_rest, error = self.is_rest(used_unsupported_rest_properties, partially_supported_rest_properties, parameters)
+        if report_error:
+            return use_rest, error
         if error:
             self.module.fail_json(msg=error)
         return use_rest

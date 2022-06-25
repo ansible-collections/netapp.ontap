@@ -88,7 +88,8 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'test',
             'username': 'test_user',
             'password': 'test_pass!',
-            'feature_flags': {'no_cserver_ems': True}
+            'feature_flags': {'no_cserver_ems': True},
+            'use_rest': 'never'
         }
 
     def get_port_mock_object(self, kind=None, data=None):
@@ -241,7 +242,7 @@ class TestMyModule(unittest.TestCase):
 
 
 def default_args():
-    args = {
+    return {
         'state': 'present',
         'hostname': '10.10.10.10',
         'username': 'admin',
@@ -250,7 +251,6 @@ def default_args():
         'password': 'password',
         'use_rest': 'always'
     }
-    return args
 
 
 # REST API canned responses when mocking send_request

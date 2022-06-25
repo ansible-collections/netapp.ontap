@@ -41,13 +41,15 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_ntp_key - Manage NTP keys.
 
 ### Added REST support to existing modules
+  - na_ontap_unix_group - added REST support.
   - na_ontap_unix_user - Added REST support.
 
 ### New Options
-  - na_ontap_lun - support ``qos_adaptive_policy_group`` with REST.
-  - na_ontap_qtree - Added `unix_user` and `unix_group` options in REST.
-  - na_ontap_unix_user - Added new option `primary_gid` aliased to `group_id`.
-  - na_ontap_ntp - add `key_id` for both REST and ZAPI
+  - na_ontap_lun - support `qos_adaptive_policy_group` with REST.
+  - na_ontap_ntp - added `key_id` for both REST and ZAPI
+  - na_ontap_qtree - added `unix_user` and `unix_group` options in REST.
+  - na_ontap_snapmirror - new option `validate_source_path` to disable this validation.
+  - na_ontap_unix_user - added new option `primary_gid` aliased to `group_id`.
 
 ### Bug Fixes
   - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.
@@ -61,14 +63,19 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
   - na_ontap_volume - fix idempotency issue on `unix_permissions` option.
   - na_ontap_vserver_create role - add rule index as it is now required.
+  - na_ontap_snapmirror - relax check for source when using REST.
+  - na_ontap_snapmirror - fix potential issue when destination is using REST but source is using ZAPI.
 
 ### New Module
-  - na_ontap_s3_policies - Manage S3 policies.
+  - na_ontap_s3_policies - manage S3 policies.
 
 ### Minor Changes
   - na_ontap_info - add quota-policy-info.
   - na_ontap_login_messages - support cluster scope when using REST.
   - na_ontap_motd - deprecated in favor of `na_ontap_login_messages`.  Fail when use_rest is set to `always` as REST is not supported.
+  - na_ontap_snapmirror - validate source endpoint for ZAPI and REST, accounting for vserver local name.
+  - na_ontap_snapmirror - improve errror messages to be more specific and consistent.
+  - na_ontap_snapmirror - wait for the relationship to come back to idle after a resync.
   - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.
 
 ## 21.20.0

@@ -211,16 +211,17 @@ class NetAppOntapLoginMessages:
         api = 'security/login/messages'
         body = {
         }
-        if modify.get('banner'):
+        if 'banner' in modify:
             body['banner'] = modify['banner']
-        if modify.get('motd_message'):
+        if 'motd_message' in modify:
             body['message'] = modify['motd_message']
         if modify.get('show_cluster_motd') is not None:
             body['show_cluster_message'] = modify['show_cluster_motd']
-        dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
-        if error:
-            keys = list(body.keys())
-            self.module.fail_json(msg='Error modifying %s: %s' % (', '.join(keys), error))
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
+            if error:
+                keys = list(body.keys())
+                self.module.fail_json(msg='Error modifying %s: %s' % (', '.join(keys), error))
 
     def modify_banner(self, modify):
         login_banner_modify = netapp_utils.zapi.NaElement('vserver-login-banner-modify-iter')
