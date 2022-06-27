@@ -82,23 +82,16 @@ options:
   allowed_protocols:
     description:
       - Allowed Protocols.
-      - When specified as part of a vserver-create,
-        this field represent the list of protocols allowed on the Vserver.
-      - When part of vserver-get-iter call,
-        this will return the list of Vservers
-        which have any of the protocols specified
-        as part of the allowed-protocols.
-      - When part of vserver-modify,
+      - This field represent the list of protocols allowed on the Vserver.
+      - When part of modify,
         this field should include the existing list
         along with new protocol list to be added to prevent data disruptions.
-      - ndmp is default in creation and can't be modified when using REST API.
-        Specify ndmp in task to maintain idempotency.
       - Possible values
       - nfs   NFS protocol,
       - cifs  CIFS protocol,
       - fcp   FCP protocol,
       - iscsi iSCSI protocol,
-      - ndmp  NDMP protocol - ZAPI only,
+      - ndmp  NDMP protocol,
       - http  HTTP protocol - ZAPI only,
       - nvme  NVMe protocol
     type: list
@@ -445,7 +438,7 @@ class NetAppOntapSVM():
         if use_rest and 'aggr_list' in self.parameters and self.parameters['aggr_list'] == ['*']:
             self.module.warn("Using REST and ignoring aggr_list: '*'")
             del self.parameters['aggr_list']
-        if use_rest and self.parameters.get('allowed_protocols'):
+        if use_rest and self.parameters.get('allowed_protocols') is not None:
             # python 2.6 does not support dict comprehension with k: v
             self.parameters['services'] = dict(
                 # using old semantics, anything not present is disallowed
@@ -887,9 +880,6 @@ class NetAppOntapSVM():
                 current = old_svm
                 cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        self.rest_api.log_debug('parameters', self.parameters)
-        self.rest_api.log_debug('current', current)
-        self.rest_api.log_debug('modify', modify)
 
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']
         msgs = ['%s - current: %s - desired: %s' % (attribute, current[attribute], self.parameters[attribute])
