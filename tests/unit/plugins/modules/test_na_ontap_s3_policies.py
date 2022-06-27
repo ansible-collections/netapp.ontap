@@ -103,16 +103,18 @@ STATEMENT2 = {
 
 def test_low_version():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97'])
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     print('Info: %s' % error)
-    msg = 'ONTAP version must be 9.8 or higher'
+    msg = 'Error: na_ontap_s3_policies only supports REST, and requires ONTAP 9.8.0 or later.  Found: 9.7.0.'
     assert msg in error
 
 
 def test_get_s3_policies_none():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['empty_records'])
@@ -125,6 +127,7 @@ def test_get_s3_policies_none():
 def test_get_s3_policies_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['generic_error'])
     ])
@@ -135,6 +138,7 @@ def test_get_s3_policies_error():
 
 def test_create_s3_policies():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['empty_records']),
@@ -150,6 +154,7 @@ def test_create_s3_policies():
 def test_create_s3_policies_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('POST', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -164,6 +169,7 @@ def test_create_s3_policies_error():
 def test_delete_s3_policies():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['s3_policy']),
         ('DELETE', 'protocols/s3/services/e3cb5c7f-cd20/policies/policy_name', SRR['empty_good'])
@@ -174,6 +180,7 @@ def test_delete_s3_policies():
 
 def test_delete_s3_policies_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'protocols/s3/services/e3cb5c7f-cd20/policies/policy_name', SRR['generic_error'])
     ])
@@ -188,6 +195,7 @@ def test_delete_s3_policies_error():
 def test_modify_s3_policies():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/policies', SRR['s3_policy']),
         ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/policies/policy_name', SRR['empty_good'])
@@ -198,6 +206,7 @@ def test_modify_s3_policies():
 
 def test_modify_s3_policies_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/policies/policy_name', SRR['generic_error'])
     ])

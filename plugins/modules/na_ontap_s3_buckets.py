@@ -344,10 +344,7 @@ class NetAppOntapS3Buckets():
         partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
                                               parameters=self.parameters)
-        if not self.use_rest:
-            self.module.fail_json(msg='na_ontap_S3_buckets is only supported with REST API')
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
-            self.module.fail_json(msg="ONTAP version must be 9.8 or higher")
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_bucket', 9, 8)
 
     def get_s3_bucket(self):
         api = 'protocols/s3/buckets'
@@ -363,8 +360,16 @@ class NetAppOntapS3Buckets():
             self.module.fail_json(msg='Error fetching S3 bucket %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         if record:
+            record = self.fix_sid(record)
             return self.set_uuids(record)
         return None
+
+    def fix_sid(self, record):
+        # So we treat SID as a String as it can accept Words, or Numbers. ONTAP will return it as a String, unless it is just
+        # numbers then it is returned as an INT.
+        for each in self.na_helper.safe_get(record, ['policy', 'statements']):
+            each['sid'] = str(each['sid'])
+        return record
 
     def create_s3_bucket(self):
         api = 'protocols/s3/buckets'

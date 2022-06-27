@@ -164,10 +164,7 @@ class NetAppOntapS3Policies:
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
-        if not self.use_rest:
-            self.module.fail_json(msg='na_ontap_S3_policies is only supported with REST API')
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
-            self.module.fail_json(msg="ONTAP version must be 9.8 or higher")
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_policies', 9, 8)
 
     def get_s3_policies(self):
         self.get_svm_uuid()

@@ -60,6 +60,8 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_lun - report error if flexvol_name is missing when using ZAPI.
   - na_ontap_net_subnet - fix `ipspace` option ignored in getting net subnet.
   - na_ontap_qtree - fix idempotency issue on `unix_permissions` option.
+  - na_ontap_s3_buckets - accept `sid` as a number or a string.
+  - na_ontap_s3_buckets - Module will set `enabled` during create.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
   - na_ontap_volume - fix idempotency issue on `unix_permissions` option.
   - na_ontap_vserver_create role - add rule index as it is now required.
