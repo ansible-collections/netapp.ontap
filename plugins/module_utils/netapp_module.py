@@ -78,6 +78,14 @@ class NetAppModule(object):
         self.zapi_required = {}
         self.params_to_rest_api_keys = {}
 
+    def module_deprecated(self, module):
+        module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
+                    'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+
+    def module_replaces(self, new_module, module):
+        self.module_deprecated(module)
+        module.warn('netapp.ontap.%s should be used instead.' % new_module)
+
     def set_parameters(self, ansible_params):
         self.parameters = {}
         for param in ansible_params:

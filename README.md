@@ -33,16 +33,35 @@ https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 # Need help
 Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
+# Deprecation warning
+The 2022-Q4 will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
+This change will effect the modules listed below.
+
+### Replaced Modules
+These are modules user will need to migrate from their playbook to use the REST version of the module. Do note because REST
+return values differently than ZAPI you will need to update your playbooks to work with the new module.
+  - na_ontap_broadcast_domain_ports -> na_ontap_ports
+  - na_ontap_command -> na_ontap_rest_cli
+  - na_ontap_firewall_policy -> na_ontap_service_policy
+  - na_ontap_info -> na_ontap_rest_info
+  - na_ontap_motd -> na_ontap_login_messages
+  - na_ontap_qos_adaptive_policy_group -> na_ontap_qos_policy_group
+  - na_ontap_volume_snaplock -> na_ontap_volume
+  - na_ontap_vserver_cifs_security -> na_ontap_cifs_server
+  - na_ontap_zapit -> na_ontap_restit
+
+### Deprecated Modules
+The following modules do not have REST equivalent APIs. They will stop working on any ONTAP release after CY22-Q4 release.
+  - na_ontap_active_directory
+  - na_ontap_cg_snapshot
+  - na_ontap_file_directory_policy
+  - na_ontap_net_subnet
+  - na_ontap_svm_options
+
+
 # Release Notes
 
 ## 21.21.0
-  
-### New Module
-  - na_ontap_ntp_key - Manage NTP keys.
-
-### Added REST support to existing modules
-  - na_ontap_unix_group - added REST support.
-  - na_ontap_unix_user - Added REST support.
 
 ### New Options
   - na_ontap_lun - support `qos_adaptive_policy_group` with REST.
@@ -69,6 +88,7 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - fix potential issue when destination is using REST but source is using ZAPI.
 
 ### New Module
+  - na_ontap_ntp_key - Manage NTP keys.
   - na_ontap_s3_policies - manage S3 policies.
 
 ### Minor Changes
@@ -79,6 +99,10 @@ Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
   - na_ontap_snapmirror - improve errror messages to be more specific and consistent.
   - na_ontap_snapmirror - wait for the relationship to come back to idle after a resync.
   - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.
+
+### Added REST support to existing modules
+  - na_ontap_unix_group - added REST support.
+  - na_ontap_unix_user - Added REST support.
 
 ## 21.20.0
 

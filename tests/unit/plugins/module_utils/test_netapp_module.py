@@ -782,6 +782,20 @@ def test_fall_back_to_zapi():
     assert_no_warnings()
 
 
+def test_module_deprecated():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    assert my_obj.na_helper.module_deprecated(my_obj.na_helper.module) is None
+    assert_warning_was_raised('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
+                              'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+
+
+def test_module_replaces():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    new_module = 'na_ontap_new_modules'
+    assert my_obj.na_helper.module_replaces(new_module, my_obj.na_helper.module) is None
+    assert_warning_was_raised('netapp.ontap.%s should be used instead.' % new_module)
+
+
 def test_compare_chmod_value():
     myobj = na_helper()
     assert myobj.compare_chmod_value("0777", "---rwxrwxrwx") is True

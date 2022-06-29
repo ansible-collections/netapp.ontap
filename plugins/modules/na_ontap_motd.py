@@ -112,6 +112,7 @@ class NetAppONTAPMotd:
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.na_helper.module_replaces('na_ontap_login_messages', self.module)
 
         msg = 'netapp.ontap.na_ontap_motd is deprecated and only supports ZAPI.  Please use netapp.ontap.na_ontap_login_messages.'
         if self.parameters['use_rest'].lower() == 'never':
