@@ -58,12 +58,20 @@ _DEFAULT_RESPONSES = {
 # name: (errno, reason)
 # errno as int, reason as str
 _DEFAULT_ERRORS = {
-    'error': (12345, 'synthetic error for UT purpose')
+    'error': (12345, 'synthetic error for UT purpose'),
+    'error_missing_api': (13005, 'Unable to find API: xxxx on data vserver')
 }
 
 
-def zapi_error_message(error):
-    return "%s: NetApp API failed. Reason - 12345:synthetic error for UT purpose" % error
+def get_error_desc(error_code):
+    for err_num, err_desc in _DEFAULT_ERRORS.values():
+        if err_num == error_code:
+            return err_desc
+    return 'no registered error for %d' % error_code
+
+
+def zapi_error_message(error, error_code=12345):
+    return "%s: NetApp API failed. Reason - %s:%s" % (error, error_code, get_error_desc(error_code))
 
 
 def build_raw_xml_response(contents, num_records=None, force_dummy=False):

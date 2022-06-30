@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ NetApp ONTAP Info using REST APIs """
@@ -172,7 +172,7 @@ options:
             - storage/file/clone/tokens
             - storage/flexcache/flexcaches or storage_flexcaches_info
             - storage/flexcache/origins or storage_flexcaches_origin_info
-            - storage/luns or storage_luns_info or lun_info
+            - storage/luns or storage_luns_info or lun_info (if serial_number is present, serial_hex and naa_id are computed)
             - storage/monitored-files
             - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
             - storage/ports or storage_ports_info
@@ -376,7 +376,9 @@ EXAMPLES = '''
     use_python_keys: true
 '''
 
+import codecs
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_text, to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -691,6 +693,26 @@ class NetAppONTAPGatherInfo(object):
                 subsets.append(subset)
         return subsets
 
+    def add_naa_id(self, info):
+        ''' https://kb.netapp.com/Advice_and_Troubleshooting/Data_Storage_Systems/FlexPod_with_Infrastructure_Automation/
+            How_to_match__LUNs_NAA_number_to_its_serial_number
+        '''
+        if info and 'records' in info:
+            for lun in info['records']:
+                if 'serial_number' in lun:
+                    hexlify = codecs.getencoder('hex')
+                    lun['serial_hex'] = to_text(hexlify(to_bytes(lun['serial_number']))[0])
+                    lun['naa_id'] = 'naa.600a0980' + lun['serial_hex']
+
+    def augment_subset_info(self, subset, subset_info):
+        if subset == 'private/cli/vserver/security/file-directory':
+            # creates a new list of dicts
+            subset_info = self.strip_dacls(subset_info)
+        if subset == 'storage/luns':
+            # mutates the existing dicts
+            self.add_naa_id(subset_info)
+        return subset_info
+
     def get_ontap_subset_info_all(self, subset, default_fields, get_ontap_subset_info):
         """ Iteratively get all records for a subset """
         try:
@@ -717,10 +739,8 @@ class NetAppONTAPGatherInfo(object):
             if subset_info.get('records') is not None:
                 # Getting total number of records
                 subset_info['num_records'] = len(subset_info['records'])
-        if subset == 'private/cli/vserver/security/file-directory':
-            subset_info = self.strip_dacls(subset_info)
 
-        return subset_info
+        return self.augment_subset_info(subset, subset_info)
 
     def apply(self):
         """
@@ -968,9 +988,7 @@ class NetAppONTAPGatherInfo(object):
             self.module.fail_json(
                 msg='Could not find volume %s on SVM %s' % (self.parameters['owning_resource']['volume_name'],
                                                             self.parameters['owning_resource']['svm_name']))
-        if record:
-            return record
-        return None
+        return record
 
     def get_export_policy_id(self):
         api = 'protocols/nfs/export-policies'
@@ -981,9 +999,7 @@ class NetAppONTAPGatherInfo(object):
             self.module.fail_json(
                 msg='Could not find export policy %s on SVM %s' % (self.parameters['owning_resource']['policy_name'],
                                                                    self.parameters['owning_resource']['svm_name']))
-        if record:
-            return record
-        return None
+        return record
 
     def check_error_values(self, api, params, items):
         error = not params or sorted(list(params.keys())) != sorted(items)

@@ -81,6 +81,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_qtree - fix idempotency issue on `unix_permissions` option.
   - na_ontap_s3_buckets - accept `sid` as a number or a string.
   - na_ontap_s3_buckets - Module will set `enabled` during create.
+  - na_ontap_s3_buckets - Module will not fail on create if no `policy` is given.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
   - na_ontap_volume - fix idempotency issue on `unix_permissions` option.
   - na_ontap_vserver_create role - add rule index as it is now required.
@@ -93,8 +94,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_info - add quota-policy-info.
+  - na_ontap_info - add computed serial_hex and naa_id for lun_info.
   - na_ontap_login_messages - support cluster scope when using REST.
   - na_ontap_motd - deprecated in favor of `na_ontap_login_messages`.  Fail when use_rest is set to `always` as REST is not supported.
+  - na_ontap_rest_info - add computed serial_hex and naa_id for storage/luns when serial_number is present.
   - na_ontap_snapmirror - validate source endpoint for ZAPI and REST, accounting for vserver local name.
   - na_ontap_snapmirror - improve errror messages to be more specific and consistent.
   - na_ontap_snapmirror - wait for the relationship to come back to idle after a resync.

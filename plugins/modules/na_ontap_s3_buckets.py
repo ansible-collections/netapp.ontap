@@ -367,8 +367,9 @@ class NetAppOntapS3Buckets():
     def fix_sid(self, record):
         # So we treat SID as a String as it can accept Words, or Numbers. ONTAP will return it as a String, unless it is just
         # numbers then it is returned as an INT.
-        for each in self.na_helper.safe_get(record, ['policy', 'statements']):
-            each['sid'] = str(each['sid'])
+        if self.na_helper.safe_get(record, ['policy', 'statements']):
+            for each in self.na_helper.safe_get(record, ['policy', 'statements']):
+                each['sid'] = str(each['sid'])
         return record
 
     def create_s3_bucket(self):

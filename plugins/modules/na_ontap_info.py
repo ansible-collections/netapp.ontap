@@ -139,6 +139,7 @@ options:
             - Values can also be used with an initial C(!) to specify that a specific subset should not be collected.
             - nvme is supported with ONTAP 9.4 onwards.
             - use "help" to get a list of supported information for your system.
+            - with lun_info, serial_hex and naa_id are computed when serial_number is present.
         default: "all"
     max_records:
         type: int
@@ -371,10 +372,11 @@ ontap_info:
     }'
 '''
 
+import codecs
 import copy
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
+from ansible.module_utils._text import to_bytes, to_native, to_text
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 IMPORT_ERRORS = []
@@ -398,16 +400,49 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 class NetAppONTAPGatherInfo:
     '''Class with gather info methods'''
 
-    def __init__(self, module, max_records):
-        self.module = module
-        self.max_records = str(max_records)
-        volume_move_target_aggr_info = module.params.get('volume_move_target_aggr_info', dict())
+    def __init__(self):
+        ''' create module, set up context'''
+        argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        argument_spec.update(dict(
+            state=dict(type='str'),
+            gather_subset=dict(default=['all'], type='list', elements='str'),
+            vserver=dict(type='str', required=False),
+            max_records=dict(type='int', default=1024, required=False),
+            summary=dict(type='bool', default=False, required=False),
+            volume_move_target_aggr_info=dict(
+                type="dict",
+                required=False,
+                options=dict(
+                    volume_name=dict(type='str', required=True),
+                    vserver=dict(type='str', required=True)
+                )
+            ),
+            desired_attributes=dict(type='dict', required=False),
+            use_native_zapi_tags=dict(type='bool', required=False, default=False),
+            continue_on_error=dict(type='list', required=False, elements='str', default=['never']),
+            query=dict(type='dict', required=False),
+        ))
+
+        self.module = AnsibleModule(
+            argument_spec=argument_spec,
+            supports_check_mode=True
+        )
+
+        if not HAS_NETAPP_LIB:
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        if not HAS_XMLTODICT:
+            self.module.fail_json(msg="the python xmltodict module is required.  Import error: %s" % str(IMPORT_ERRORS))
+        if not HAS_JSON:
+            self.module.fail_json(msg="the python json module is required.  Import error: %s" % str(IMPORT_ERRORS))
+
+        self.max_records = str(self.module.params['max_records'])
+        volume_move_target_aggr_info = self.module.params.get('volume_move_target_aggr_info', dict())
         if volume_move_target_aggr_info is None:
             volume_move_target_aggr_info = {}
         self.netapp_info = {}
-        self.desired_attributes = module.params['desired_attributes']
-        self.query = module.params['query']
-        self.translate_keys = not module.params['use_native_zapi_tags']
+        self.desired_attributes = self.module.params['desired_attributes']
+        self.query = self.module.params['query']
+        self.translate_keys = not self.module.params['use_native_zapi_tags']
         self.warnings = []  # warnings will be added to the info results, if any
         self.set_error_flags()
         self.module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
@@ -1392,7 +1427,7 @@ class NetAppONTAPGatherInfo:
         }
 
         # use vserver tunneling if vserver is present (not None)
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=module.params['vserver'])
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.module.params['vserver'])
 
     def ontapi(self):
         '''Method to get ontapi version'''
@@ -1520,7 +1555,11 @@ class NetAppONTAPGatherInfo:
             dic = xmltodict.parse(child.to_string(), xml_attribs=False)
 
             if attribute is not None:
-                dic = dic[attribute]
+                try:
+                    dic = dic[attribute]
+                except KeyError as exc:
+                    error_message = 'Error: attribute %s not found for %s, got: %s' % (str(exc), call, dic)
+                    self.module.fail_json(msg=error_message, exception=traceback.format_exc())
 
             info = json.loads(json.dumps(dic))
             if self.translate_keys:
@@ -1560,7 +1599,7 @@ class NetAppONTAPGatherInfo:
                 key_count = 0
                 for item in out:
                     if not isinstance(item, dict):
-                        # abort if we don't see a dict
+                        # abort if we don't see a dict - not sure this can happen with ZAPI
                         key_count = -1
                         break
                     dic.update(item)
@@ -1583,6 +1622,18 @@ class NetAppONTAPGatherInfo:
             else:
                 server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
         netapp_utils.ems_log_event("na_ontap_info", server)
+
+    def augment_subset(self, subset, info):
+        if subset == 'lun_info' and info:
+            for lun_info in info.values():
+                # the keys may have been converted, or not
+                serial = lun_info.get('serial_number') or lun_info.get('serial-number')
+                if serial:
+                    hexlify = codecs.getencoder('hex')
+                    # dictionaries are mutable
+                    lun_info['serial_hex'] = to_text(hexlify(to_bytes(lun_info['serial_number']))[0])
+                    lun_info['naa_id'] = 'naa.600a0980' + lun_info['serial_hex']
+        return info
 
     def get_all(self, gather_subset):
         '''Method to get all subsets'''
@@ -1610,6 +1661,7 @@ class NetAppONTAPGatherInfo:
             for subset in run_subset:
                 call = self.info_subsets[subset]
                 self.netapp_info[subset] = call['method'](**call['kwargs'])
+                self.augment_subset(subset, self.netapp_info[subset])
 
         if self.warnings:
             self.netapp_info['module_warnings'] = self.warnings
@@ -1713,6 +1765,20 @@ class NetAppONTAPGatherInfo:
                 if key == 'always' or key == flag:
                     self.error_flags[flag] = False
 
+    def apply(self):
+        gather_subset = self.module.params['gather_subset']
+        if gather_subset is None:
+            gather_subset = ['all']
+        gf_all = self.get_all(gather_subset)
+        if self.module.params['summary']:
+            gf_all = self.get_summary(gf_all)
+        results = {'changed': False, 'ontap_info': gf_all}
+        if self.module.params['state'] is not None:
+            results['state'] = self.module.params['state']
+            results['warnings'] = "option 'state' is deprecated."
+            self.module.warn("option 'state' is deprecated.")
+        self.module.exit_json(**results)
+
 
 # https://stackoverflow.com/questions/14962485/finding-a-key-recursively-in-a-dictionary
 def __finditem(obj, key):
@@ -1766,54 +1832,8 @@ def convert_keys(d_param):
 
 def main():
     '''Execute action'''
-
-    argument_spec = netapp_utils.na_ontap_host_argument_spec()
-    argument_spec.update(dict(
-        state=dict(type='str'),
-        gather_subset=dict(default=['all'], type='list', elements='str'),
-        vserver=dict(type='str', required=False),
-        max_records=dict(type='int', default=1024, required=False),
-        summary=dict(type='bool', default=False, required=False),
-        volume_move_target_aggr_info=dict(
-            type="dict",
-            required=False,
-            options=dict(
-                volume_name=dict(type='str', required=True),
-                vserver=dict(type='str', required=True)
-            )
-        ),
-        desired_attributes=dict(type='dict', required=False),
-        use_native_zapi_tags=dict(type='bool', required=False, default=False),
-        continue_on_error=dict(type='list', required=False, elements='str', default=['never']),
-        query=dict(type='dict', required=False),
-    ))
-
-    module = AnsibleModule(
-        argument_spec=argument_spec,
-        supports_check_mode=True
-    )
-
-    if not HAS_NETAPP_LIB:
-        module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-    if not HAS_XMLTODICT:
-        module.fail_json(msg="the python xmltodict module is required.  Import error: %s" % str(IMPORT_ERRORS))
-    if not HAS_JSON:
-        module.fail_json(msg="the python json module is required.  Import error: %s" % str(IMPORT_ERRORS))
-
-    gather_subset = module.params['gather_subset']
-    summary = module.params['summary']
-    if gather_subset is None:
-        gather_subset = ['all']
-    max_records = module.params['max_records']
-    gf_obj = NetAppONTAPGatherInfo(module, max_records)
-    gf_all = gf_obj.get_all(gather_subset)
-    if summary:
-        gf_all = gf_obj.get_summary(gf_all)
-    results = {'changed': False}
-    if module.params['state'] is not None:
-        results['state'] = module.params['state']
-        results['warnings'] = "option 'state' is deprecated."
-    module.exit_json(ontap_info=gf_all, **results)
+    gf_obj = NetAppONTAPGatherInfo()
+    gf_obj.apply()
 
 
 if __name__ == '__main__':

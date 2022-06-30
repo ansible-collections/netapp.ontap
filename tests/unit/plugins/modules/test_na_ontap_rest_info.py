@@ -104,6 +104,7 @@ SRR = rest_responses({
                 {'node': 'node1', 'check_type': 'type'},
                 {'node': 'node1', 'check_type': 'type'}],
             "num_records": 3}, None),
+    'lun_info': (200, {'records': [{"serial_number": "z6CcD+SK5mPb"}]}, None),
     'volume_info': (200, {"uuid": "7882901a-1aef-11ec-a267-005056b30cfa"}, None),
     'get_uuid_policy_id_export_policy': (
         200,
@@ -928,3 +929,23 @@ def test_owning_resource_export_policies_rules_policy_not_found():
     ])
     msg = 'Could not find export policy policy_name on SVM svm1'
     assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_lun_info_with_serial():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/luns'
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/luns', SRR['lun_info']),
+    ])
+    info = create_and_apply(ontap_rest_info_module, args)
+    assert 'ontap_info' in info
+    assert 'storage/luns' in info['ontap_info']
+    assert 'records' in info['ontap_info']['storage/luns']
+    records = info['ontap_info']['storage/luns']['records']
+    assert records
+    lun_info = records[0]
+    print('INFO', lun_info)
+    assert lun_info['serial_number'] == 'z6CcD+SK5mPb'
+    assert lun_info['serial_hex'] == '7a364363442b534b356d5062'
+    assert lun_info['naa_id'] == 'naa.600a0980' + '7a364363442b534b356d5062'
