@@ -68,7 +68,7 @@ vlans:
 bcasts:
   - { name: Backup, mtu: 9000, ipspace: default, ports: 'cluster-01:e0c,vsim-02:e0c' }
 
-# with REST, ipspace is required.  It is ignored with ZAPI.
+# with REST, ipspace is required.  It is ignored with ZAPI.  broadcast_domain and service_policy are also supported with REST.
 inters:
   - { name: intercluster_1, address: 172.32.0.187, netmask: 255.255.255.0, node: cluster-01, port: e0c, ipspace: Default }
   - { name: intercluster_2, address: 172.32.0.188, netmask: 255.255.255.0, node: cluster-02, port: e0c, ipspace: Default }

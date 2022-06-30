@@ -64,11 +64,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 21.21.0
 
 ### New Options
+  - na_ontap_cluster_config role - support `broadcast_domain` and `service_policy` with REST.
+  - na_ontap_interface - support `broadcast_domain` with REST.
   - na_ontap_lun - support `qos_adaptive_policy_group` with REST.
   - na_ontap_ntp - added `key_id` for both REST and ZAPI
   - na_ontap_qtree - added `unix_user` and `unix_group` options in REST.
   - na_ontap_snapmirror - new option `validate_source_path` to disable this validation.
   - na_ontap_unix_user - added new option `primary_gid` aliased to `group_id`.
+  - na_ontap_vserver_create role - support `broadcast_domain`, `ipspace`, and `service_policy` with REST.
 
 ### Bug Fixes
   - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.

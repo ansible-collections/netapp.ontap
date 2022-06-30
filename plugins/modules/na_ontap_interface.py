@@ -232,6 +232,17 @@ options:
     type: str
     version_added: 21.13.0
 
+  broadcast_domain:
+    description:
+      - broadcast_domain name can be used to specify the location on an IP interface with REST, as an alternative to node or port.
+      - only used when creating an IP interface to select a node, ignored if the interface already exists.
+      - if the broadcast domain is not found, make sure to check the ipspace value.
+      - home_port and broadcast_domain are mutually exclusive.  home_node may or may not be present.
+      - not supported for FC interface.
+      - ignored with ZAPI.
+    type: str
+    version_added: 21.21.0
+
   ignore_zapi_options:
     description:
       - ignore unsupported options that should not be relevant.
@@ -415,6 +426,7 @@ class NetAppOntapInterface():
             interface_name=dict(required=True, type='str'),
             interface_type=dict(type='str', choices=['fc', 'ip']),
             ipspace=dict(type='str'),
+            broadcast_domain=dict(type='str'),
             home_node=dict(required=False, type='str', default=None),
             current_node=dict(required=False, type='str'),
             home_port=dict(required=False, type='str'),
@@ -686,6 +698,7 @@ class NetAppOntapInterface():
     def dict_from_record(self, record):
         if not record:
             return None
+        # Note: broadcast_domain is CreateOnly
         return_value = {
             'interface_name': record['name'],
             'interface_type': self.parameters['interface_type'],
@@ -869,7 +882,8 @@ class NetAppOntapInterface():
         def add_location(options, key, value, node=None):
             if 'location' not in options:
                 options['location'] = {}
-            if key in ['home_node', 'home_port', 'node', 'port']:
+            # Note: broadcast_domain is CreateOnly
+            if key in ['home_node', 'home_port', 'node', 'port', 'broadcast_domain']:
                 options['location'][key] = {'name': value}
             else:
                 options['location'][key] = value
@@ -901,15 +915,16 @@ class NetAppOntapInterface():
             'address': 'address',
             'netmask': 'netmask',
             # LOCATION
-            'home_port': 'home_port',
-            'home_node': 'home_node',
-            'current_port': 'port',
+            'broadcast_domain': 'broadcast_domain',
             'current_node': 'node',
+            'current_port': 'port',
             'failover_scope': 'failover',
             'is_auto_revert': 'auto_revert',
+            'home_node': 'home_node',
+            'home_port': 'home_port',
         }
         ip_keys = ('address', 'netmask')
-        location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert')
+        location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert', 'broadcast_domain')
 
         for pkey, rkey in mapping_params_to_rest.items():
             if pkey in parameters:
@@ -1047,12 +1062,24 @@ class NetAppOntapInterface():
         # running validation twice, as interface_type dictates the second set of requirements
         self.validate_required_parameters(required_keys)
         self.validate_rest_input_parameters(action='modify' if modify else 'create')
-        if self.parameters['interface_type'] == 'fc' and not modify:
-            self.derive_fc_data_protocol()
-            required_keys = set(['interface_name', 'home_port', 'data_protocol'])
-        elif self.parameters['interface_type'] == 'ip' and not modify:
-            required_keys = set(['interface_name', 'home_port', 'address', 'netmask'])
-        self.validate_required_parameters(required_keys)
+        if not modify:
+            if self.parameters.get('broadcast_domain') and self.parameters['interface_type'] == 'fc':
+                self.module.fail_json(msg='Error broadcast_domain is only supported for IP interfaces: %s, interface_type: %s'
+                                      % (self.parameters.get('interface_name'), self.parameters['interface_type']))
+            if self.parameters.get('home_port') and self.parameters.get('broadcast_domain'):
+                self.module.fail_json(msg='Error home_port and broadcast_domain are mutually exclusive for creating: %s'
+                                      % self.parameters.get('interface_name'))
+            required_keys = set()
+            required_keys.add('interface_name')
+            if self.parameters['interface_type'] == 'fc':
+                self.derive_fc_data_protocol()
+                required_keys.add('data_protocol')
+                required_keys.add('home_port')
+            if self.parameters['interface_type'] == 'ip':
+                required_keys.add('address')
+                required_keys.add('netmask')
+                required_keys.add('broadcast_domain' if self.parameters.get('broadcast_domain') else 'home_port')
+            self.validate_required_parameters(required_keys)
         body, migrate_body, errors = self.set_options_rest(modify)
         self.fix_errors(body, errors)
         if errors:

@@ -55,7 +55,7 @@ def interface_info(dns=True):
         }
     }
     if dns:
-        info['attributes-list']['dns-domain-name'] = 'test.com'
+        info['attributes-list']['net-interface-info']['dns-domain-name'] = 'test.com'
     return info
 
 
@@ -1439,3 +1439,11 @@ def test_error_messages_build_rest_body_and_validations():
     modify = {'ipspace': 'ipspace', 'data_protocol': 'fc'}
     error = "The following options cannot be modified:"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', modify)['msg']
+    my_obj.parameters['broadcast_domain'] = 'BDD1'
+    my_obj.parameters['home_port'] = 'port1'
+    del my_obj.parameters['failover_group']
+    error = "Error broadcast_domain is only supported for IP interfaces: abc_if, interface_type: fc"
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
+    my_obj.parameters['interface_type'] = 'ip'
+    error = "Error home_port and broadcast_domain are mutually exclusive for creating: abc_if"
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']

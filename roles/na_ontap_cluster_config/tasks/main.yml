@@ -198,6 +198,8 @@
     netmask: "{{ item.netmask }}"
     vserver: "{{ cluster }}"
     ipspace: "{{ item.ipspace | default(omit) }}"
+    broadcast_domain: "{{ item.broadcast_domain | default(omit) }}"
+    service_policy: "{{ item.service_policy | default(omit) }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"

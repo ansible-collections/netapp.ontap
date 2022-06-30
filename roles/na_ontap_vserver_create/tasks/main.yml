@@ -71,6 +71,9 @@
     failover_policy: "{{ omit if item.protocol.lower() is search('iscsi') else 'system-defined' }}"
     firewall_policy: data
     is_auto_revert: "{{ 'true' if item.protocol.lower() is not search('iscsi') else omit }}"
+    ipspace: "{{ item.ipspace | default(omit) }}"
+    broadcast_domain: "{{ item.broadcast_domain | default(omit) }}"
+    service_policy: "{{ item.service_policy | default(omit) }}"
     address: "{{ item.address }}"
     netmask: "{{ item.netmask }}"
     vserver: "{{ item.vserver }}"
