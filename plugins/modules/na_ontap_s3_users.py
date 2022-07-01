@@ -72,6 +72,14 @@ EXAMPLES = """
 """
 
 RETURN = """
+secret_key:
+  description: secret_key generated for the user
+  returned: on creation of user
+  type: str
+access_key:
+  description: access_key generated for the user
+  returned: on creation of user
+  type: str
 """
 
 import traceback
@@ -126,10 +134,13 @@ class NetAppOntapS3Users:
         body = {'name': self.parameters['name']}
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']
-        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        response, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating S3 user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        if response.get('num_records') == 1:
+            return response.get('records')[0]
+        self.module.fail_json(msg='Error creating S3 user %s' % self.parameters['name'], exception=traceback.format_exc())
 
     def delete_s3_user(self):
         api = 'protocols/s3/services/%s/users' % self.svm_uuid
@@ -148,20 +159,26 @@ class NetAppOntapS3Users:
             self.module.fail_json(msg='Error modifying S3 user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def parse_response(self, response):
+        if response is not None:
+            return response.get('secret_key'), response.get('access_key')
+        return None, None
+
     def apply(self):
         current = self.get_s3_user()
-        cd_action, modify = None, None
+        cd_action, modify, response = None, None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.create_s3_user()
+                response = self.create_s3_user()
             if cd_action == 'delete':
                 self.delete_s3_user()
             if modify:
                 self.modify_s3_user(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        secret_key, access_key = self.parse_response(response)
+        self.module.exit_json(changed=self.na_helper.changed, secret_key=secret_key, access_key=access_key)
 
 
 def main():

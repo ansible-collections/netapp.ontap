@@ -36,6 +36,15 @@ SRR = rest_responses({
         ],
         "num_records": 1
     }, None),
+    's3_user_created': (200, {
+        "records": [
+            {
+                'access_key': 'random_access_key',
+                'secret_key': 'random_secret_key'
+            }
+        ],
+        "num_records": 1
+    }, None),
     'svm_uuid': (200, {"records": [
         {
             'uuid': 'e3cb5c7f-cd20'
@@ -92,12 +101,30 @@ def test_create_s3_users():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records']),
+        ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user_created'])
+    ])
+    module_args = {
+        'comment': 'this is a s3 user',
+    }
+    result = create_and_apply(my_module, DEFAULT_ARGS, module_args)
+    assert result['changed']
+    assert result['secret_key'] == 'random_secret_key'
+    assert result['access_key'] == 'random_access_key'
+
+
+def test_create_s3_users_fail_randomly():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records']),
         ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_good'])
     ])
     module_args = {
         'comment': 'this is a s3 user',
     }
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, 'fail')['msg']
+    assert 'Error creating S3 user carchi8py' == error
 
 
 def test_create_s3_user_error():

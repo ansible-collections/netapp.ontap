@@ -101,6 +101,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_login_messages - support cluster scope when using REST.
   - na_ontap_motd - deprecated in favor of `na_ontap_login_messages`.  Fail when use_rest is set to `always` as REST is not supported.
   - na_ontap_rest_info - add computed serial_hex and naa_id for storage/luns when serial_number is present.
+  - na_ontap_s3_users - `secret_key` and `access_token` are now returned when creating a user.
   - na_ontap_snapmirror - validate source endpoint for ZAPI and REST, accounting for vserver local name.
   - na_ontap_snapmirror - improve errror messages to be more specific and consistent.
   - na_ontap_snapmirror - wait for the relationship to come back to idle after a resync.
