@@ -986,17 +986,13 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
-        if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')
-            self.use_rest = False
 
         if not self.use_rest:
             self.setup_zapi()
         if self.use_rest:
             self.rest_errors()
 
-        # REST API for application/applications if needed
+        # REST API for application/applications if needed - will report an error when REST is not supported
         self.rest_app = self.setup_rest_application()
 
     def setup_zapi(self):
@@ -1005,8 +1001,11 @@ class NetAppOntapVolume:
 
         for unsupported_zapi_property in self.unsupported_zapi_properties:
             if self.parameters.get(unsupported_zapi_property) is not None:
-                self.module.fail_json(
-                    msg="%s option is not supported with ZAPI. It can only be used with REST." % unsupported_zapi_property)
+                msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                msg += '  use_rest: %s.' % self.parameters['use_rest']
+                if self.rest_api.fallback_to_zapi_reason:
+                    msg += '  Conflict %s.' % self.rest_api.fallback_to_zapi_reason
+                self.module.fail_json(msg=msg)
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
@@ -1018,9 +1017,14 @@ class NetAppOntapVolume:
                     self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
 
     def setup_rest_application(self):
-        use_application_template = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application'])
         rest_app = None
-        if use_application_template:
+        if self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application']):
+            if not self.use_rest:
+                msg = 'Error: nas_application_template requires REST support.'
+                msg += '  use_rest: %s.' % self.parameters['use_rest']
+                if self.rest_api.fallback_to_zapi_reason:
+                    msg += '  Conflict %s.' % self.rest_api.fallback_to_zapi_reason
+                self.module.fail_json(msg=msg)
             # consistency checks
             # tiering policy is duplicated, make sure values are matching
             tiering_policy_nas = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering', 'policy'])
@@ -1657,7 +1661,9 @@ class NetAppOntapVolume:
             parent_attribute.add_new_child(attribute, value)
             return
         if isinstance(zapi_object, str):
-            zapi_object = netapp_utils.zapi.NaElement(zapi_object)
+            # retrieve existing in parent, or create a new one
+            element = parent_attribute.get_child_by_name(zapi_object)
+            zapi_object = netapp_utils.zapi.NaElement(zapi_object) if element is None else element
         zapi_object.add_new_child(attribute, value)
         parent_attribute.add_child_elem(zapi_object)
 
@@ -2077,7 +2083,7 @@ class NetAppOntapVolume:
             if change < threshold:
                 self.parameters[attribute] = current[attribute]
                 if change > 0.1:
-                    self.module.warn('resize request for %s ignored: %.1f%% is below the threshold: %d%%' % (attribute, change, threshold))
+                    self.module.warn('resize request for %s ignored: %.1f%% is below the threshold: %.1f%%' % (attribute, change, threshold))
 
     def adjust_sizes(self, current, after_create):
         """

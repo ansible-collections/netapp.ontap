@@ -15,7 +15,7 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
     assert_warning_was_raised, call_main, create_module, create_and_apply, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     get_mock_record, patch_request_and_invoke, print_requests, register_responses
-from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
     import NetAppOntapVolume as vol_module, main as my_main  # module under test
@@ -101,7 +101,8 @@ def volume_info(style, vol_details=None, remove_keys=None):
                         'permissions': vol_details['unix_permissions'],
                         'group-id': vol_details['group_id'],
                         'user-id': vol_details['user_id']
-                    }
+                    },
+                    'style': 'unix',
                 },
                 'volume-vserver-dr-protection-attributes': {
                     'vserver-dr-protection': vol_details['vserver_dr_protection'],
@@ -155,7 +156,7 @@ def job_info(state, error):
         'attributes': {
             'job-info': {
                 'job-state': state,
-                'job-progress': 'dummy',
+                'job-progress': 'progress',
                 'job-completion': error,
             }
         }
@@ -206,6 +207,7 @@ ZRR = zapi_responses({
     'job_running': build_zapi_response(job_info('running', None)),
     'job_success': build_zapi_response(job_info('success', None)),
     'job_time_out': build_zapi_response(job_info('running', 'time_out')),
+    'job_no_completion': build_zapi_response(job_info('failure', None)),
     'async_results': build_zapi_response(results_info('1')),
     'modify_async_result_success': build_zapi_response(modify_async_results_info('in_progress')),
     'modify_async_result_failure': build_zapi_response(modify_async_results_info('failure', 'error_in_modify')),
@@ -217,7 +219,8 @@ ZRR = zapi_responses({
     'vol_move_status_error': build_zapi_response(vol_move_status('failed')),
     'insufficient_privileges': build_zapi_error(12346, 'Insufficient privileges: user USERID does not have read access to this resource'),
     'get_sis_info': build_zapi_response(sis_info()),
-    'error_15661': build_zapi_error(15661, 'force job not found error')
+    'error_15661': build_zapi_error(15661, 'force job not found error'),
+    'error_tiering_94': build_zapi_error(94, 'volume-comp-aggr-attributes')
 })
 
 
@@ -587,6 +590,22 @@ def test_successful_modify_unix_permissions():
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
     print_requests()
     assert get_mock_record().is_text_in_zapi_request('<permissions>---rw-r-xr-x', 3)
+
+
+def test_successful_modify_volume_security_style():
+    ''' Test successful modify volume_security_style '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'volume_security_style': 'mixed',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<style>mixed</style>', 3)
 
 
 def test_successful_modify_max_files_and_encrypt():
@@ -1413,6 +1432,9 @@ def test_check_job_status_failure(skip_sleep):
         ('ZAPI', 'job-get', ZRR['job_running']),
         ('ZAPI', 'job-get', ZRR['job_running']),
         ('ZAPI', 'job-get', ZRR['job_failure']),
+        ('ZAPI', 'job-get', ZRR['job_running']),
+        ('ZAPI', 'job-get', ZRR['job_running']),
+        ('ZAPI', 'job-get', ZRR['job_no_completion']),
     ])
     module_args = {
         'aggr_list': 'aggr_0,aggr_1',
@@ -1420,6 +1442,8 @@ def test_check_job_status_failure(skip_sleep):
         'time_out': 20
     }
     msg = 'failure'
+    assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
+    msg = 'progress'
     assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
 
 
@@ -1464,6 +1488,25 @@ def test_successful_modify_tiering_policy():
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
     print_requests()
     assert get_mock_record().is_text_in_zapi_request('<tiering-policy>auto</tiering-policy>', 3)
+
+
+def test_error_modify_tiering_policy():
+    ''' Test successful modify tiering policy '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['error']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['error_tiering_94']),
+    ])
+    module_args = {'tiering_policy': 'auto'}
+    error = zapi_error_message('Error modifying volume test_vol')
+    assert error in create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = zapi_error_message('Error modifying volume test_vol', 94, 'volume-comp-aggr-attributes', '. Added info: tiering option requires 9.4 or later.')
+    assert error in create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_successful_modify_vserver_dr_protection():
@@ -1629,7 +1672,7 @@ def test_error_modify_flexgroup_to_flexvol():
 def test_error_snaplock_not_supported_with_zapi():
     ''' Test successful modify vserver_dr_protection '''
     module_args = {'snaplock': {'retention': {'default': 'P30TM'}}}
-    msg = 'snaplock option is not supported with ZAPI. It can only be used with REST.'
+    msg = 'Error: snaplock option is not supported with ZAPI.  It can only be used with REST.  use_rest: never.'
     assert msg == create_module(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
@@ -1912,7 +1955,7 @@ def test_create_volume_from_main():
         'space_guarantee': 'file',
         'tiering_policy': 'snapshot-only',
         'volume_security_style': 'unix',
-        'vserver_dr_protection': 'unprotected'
+        'vserver_dr_protection': 'unprotected',
     }
     assert call_main(my_main, args, module_args)['changed']
 
@@ -1932,3 +1975,37 @@ def test_error_create_volume_change_in_type():
     }
     error = 'Error: volume type was not set properly at creation time.  Current: rw, desired: dp.'
     assert call_main(my_main, args, module_args, fail=True)['msg'] == error
+
+
+def test_create_volume_attribute():
+    obj = create_module(vol_module, DEFAULT_ARGS)
+    # str
+    obj.parameters['option_name'] = 'my_option'
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name')
+    print(parent.to_string())
+    assert parent['zapi_name'] == 'my_option'
+    # int - fail, unless converted
+    obj.parameters['option_name'] = 123
+    expect_and_capture_ansible_exception(obj.create_volume_attribute, TypeError, None, parent, 'zapi_name', 'option_name')
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', int)
+    assert parent['zapi_name'] == '123'
+    # bool
+    obj.parameters['option_name'] = False
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', bool)
+    assert parent['zapi_name'] == 'false'
+    # parent->attrs->attr
+    # create child
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute('child', parent, 'zapi_name', 'option_name', bool)
+    assert parent['child']['zapi_name'] == 'false'
+    # use existing child in parent
+    obj.create_volume_attribute('child', parent, 'zapi_name2', 'option_name', bool)
+    assert parent['child']['zapi_name2'] == 'false'
+    # pass child
+    parent = netapp_utils.zapi.NaElement('results')
+    child = netapp_utils.zapi.NaElement('child')
+    obj.create_volume_attribute(child, parent, 'zapi_name', 'option_name', bool)
+    assert parent['child']['zapi_name'] == 'false'

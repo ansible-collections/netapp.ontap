@@ -70,8 +70,13 @@ def get_error_desc(error_code):
     return 'no registered error for %d' % error_code
 
 
-def zapi_error_message(error, error_code=12345):
-    return "%s: NetApp API failed. Reason - %s:%s" % (error, error_code, get_error_desc(error_code))
+def zapi_error_message(error, error_code=12345, reason=None, addal=None):
+    if reason is None:
+        reason = get_error_desc(error_code)
+    msg = "%s: NetApp API failed. Reason - %s:%s" % (error, error_code, reason)
+    if addal:
+        msg += addal
+    return msg
 
 
 def build_raw_xml_response(contents, num_records=None, force_dummy=False):

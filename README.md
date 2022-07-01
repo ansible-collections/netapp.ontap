@@ -87,6 +87,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_s3_buckets - Module will not fail on create if no `policy` is given.
   - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
   - na_ontap_volume - fix idempotency issue on `unix_permissions` option.
+  - na_ontap_volume - `volume_security_style` was not modified if other security options were present with ZAPI.
   - na_ontap_vserver_create role - add rule index as it is now required.
   - na_ontap_snapmirror - relax check for source when using REST.
   - na_ontap_snapmirror - fix potential issue when destination is using REST but source is using ZAPI.
@@ -113,7 +114,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Added REST support to existing modules
   - na_ontap_service_processor_network - Added REST support.
   - na_ontap_unix_group - added REST support.
-  - na_ontap_unix_user - Added REST support.
+  - na_ontap_unix_user - added REST support.
+  - na_ontap_volume - now defaults to REST with `use_rest: auto`, like every other module.  ZAPI can be forced with `use_rest: never`.
+
 
 ## 21.20.0
 

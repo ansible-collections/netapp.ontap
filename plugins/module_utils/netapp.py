@@ -622,6 +622,7 @@ class OntapRestAPI(object):
         else:
             self.url = 'https://%s:%d/api/' % (self.hostname, port)
         self.is_rest_error = None
+        self.fallback_to_zapi_reason = None
         self.ontap_version = dict(
             full='unknown',
             generation=-1,
@@ -951,14 +952,17 @@ class OntapRestAPI(object):
         if used_unsupported_rest_properties:
             # force ZAPI if some parameter requires it
             if self.get_ontap_version()[:2] > (9, 5):
-                self.module.warn('Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties)
+                self.fallback_to_zapi_reason =\
+                    'because of unsupported option(s) or option value(s) in REST: %s' % used_unsupported_rest_properties
+                self.module.warn('Falling back to ZAPI %s' % self.fallback_to_zapi_reason)
             return False, None
         if partially_supported_rest_properties:
             # if ontap version is lower than partially_supported_rest_properties version, force ZAPI, only if the paramater is used
             for property in partially_supported_rest_properties:
                 if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters:
-                    self.module.warn(
-                        'Falling back to ZAPI because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1])))
+                    self.fallback_to_zapi_reason =\
+                        'because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1]))
+                    self.module.warn('Falling back to ZAPI %s' % self.fallback_to_zapi_reason)
                     return False, None
         if self.get_ontap_version()[:2] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
