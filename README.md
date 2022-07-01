@@ -106,7 +106,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapmirror - wait for the relationship to come back to idle after a resync.
   - na_ontap_user - accept `service_processor` as an alias for `service-processor` with ZAPI, to be consistent with REST.
 
+### Known Issues:
+  - na_ontap_snapshot - added documentation to use UTC format for `expiry_time`.
+
 ### Added REST support to existing modules
+  - na_ontap_service_processor_network - Added REST support.
   - na_ontap_unix_group - added REST support.
   - na_ontap_unix_user - Added REST support.
 

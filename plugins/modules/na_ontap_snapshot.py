@@ -76,6 +76,7 @@ options:
   expiry_time:
     description:
     - Snapshot expire time, only available with REST.
+    - format should be in the timezone configured with cluster.
     type: str
     version_added: 21.8.0
 '''
