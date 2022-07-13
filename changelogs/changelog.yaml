@@ -26,14 +26,13 @@ releases:
       - na_ontap_vserver_cifs_security - fix int and boolean options when modifying
         vserver cifs security.
       minor_changes:
-      - "Added REST support to existing modules.\n  By default, the module will use\
-        \ REST if the target system supports it, and the options are supported.  Otherwise,\
-        \ it will switch back to ZAPI.\n  This behavior can be controlled with the\
-        \ ``use_rest`` option.\n  Always - to force REST.  The module fails and reports\
-        \ an error if REST cannot be used.\n  Never - to force ZAPI.  This could be\
-        \ useful if you find some incompatibility with REST, or want to confirm the\
-        \ behavior is identical between REST and ZAPI.\n  Auto - the default, as described\
-        \ above.\n"
+      - "Added REST support to existing modules.\n  By default, the module will use
+        REST if the target system supports it, and the options are supported.  Otherwise,
+        it will switch back to ZAPI.\n  This behavior can be controlled with the ``use_rest``
+        option.\n  Always - to force REST.  The module fails and reports an error
+        if REST cannot be used.\n  Never - to force ZAPI.  This could be useful if
+        you find some incompatibility with REST, or want to confirm the behavior is
+        identical between REST and ZAPI.\n  Auto - the default, as described above.\n"
       - na_ontap_cluster_config - role updated to support a cleaner playbook
       - na_ontap_command - ``vserver`` - to allow command to run as either cluster
         admin or vserver admin.  To run as vserver admin you must use the vserver
@@ -1631,16 +1630,16 @@ releases:
       bugfixes:
       - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs
         with REST (ipspace is required).
-      - na_ontap_interface - ignore ``vserver`` when using REST if role is one of 'cluster',
-        'node-mgmt', 'intercluster', 'cluster-mgmt'.
+      - na_ontap_interface - ignore ``vserver`` when using REST if role is one of
+        'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
       - na_ontap_nvme - fixed ``status_admin`` option is ignored if set to False when
         creating nvme service in REST.
       - na_ontap_nvme - fixed invalid boolean value error for ``status_admin`` when
         creating nvme service in ZAPI.
-      - na_ontap_service_policy - fixed error in modify by changing resulting json of
-        an existing record in REST.
-      - na_ontap_snapmirror - when using REST with a policy, fix AttributeError - 'str'
-        object has no attribute 'get'.
+      - na_ontap_service_policy - fixed error in modify by changing resulting json
+        of an existing record in REST.
+      - na_ontap_snapmirror - when using REST with a policy, fix AttributeError -
+        'str' object has no attribute 'get'.
       - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced
         before breaking.
     fragments:
@@ -1814,6 +1813,106 @@ releases:
       name: na_ontap_s3_users
       namespace: ''
     release_date: '2022-06-08'
+  21.21.0:
+    changes:
+      bugfixes:
+      - na_ontap_interface - FC interfaces - home_node should not be sent as location.home_node.
+      - na_ontap_interface - FC interfaces - home_port is not supported for ONTAP
+        9.7 or earlier.
+      - na_ontap_interface - FC interfaces - scope is not supported.
+      - na_ontap_interface - FC interfaces - service_policy is not supported.
+      - na_ontap_interface - enforce requirement for address/netmask for interfaces
+        other than FC.
+      - na_ontap_interface - fix idempotency issue for cluster scoped interfaces when
+        using REST.
+      - na_ontap_interface - fix potential node and uuid issues with LIF migration.
+      - na_ontap_interface - ignore 'none' when using REST rather than reporting unexpected
+        protocol.
+      - na_ontap_lun - catch ZAPI error on get LUN.
+      - na_ontap_lun - ignore resize error if no change was required.
+      - na_ontap_lun - report error if flexvol_name is missing when using ZAPI.
+      - na_ontap_net_subnet - fixed ``ipspace`` option ignored in getting net subnet.
+      - na_ontap_qtree - fix idempotency issue on ``unix_permissions`` option.
+      - na_ontap_s3_buckets - Module will not fail on create if no ``policy`` is given.
+      - na_ontap_s3_buckets - Module will set ``enabled`` during create.
+      - na_ontap_s3_buckets - Module work currently when ``sid`` is a number.
+      - na_ontap_snapmirror - fix potential issue when destination is using REST but
+        source is using ZAPI.
+      - na_ontap_snapmirror - relax check for source when using REST.
+      - na_ontap_svm - KeyError on CIFS when using REST with ONTAP 9.8 or lower.
+      - na_ontap_volume - ``volume_security_style`` was not modified if other security
+        options were present with ZAPI.
+      - na_ontap_volume - fix idempotency issue on ``unix_permissions`` option.
+      - na_ontap_vserver_create role - add rule index as it is now required.
+      known_issues:
+      - na_ontap_snapshot - added documentation to use UTC format for ``expiry_time``.
+      minor_changes:
+      - na_ontap_cluster_config role - support ``broadcast_domain`` and ``service_policy``
+        with REST.
+      - na_ontap_info - add computed serial_hex and naa_id for lun_info.
+      - na_ontap_info - add quota-policy-info.
+      - na_ontap_interface - support ``broadcast_domain`` with REST.
+      - na_ontap_login_messages - support cluster scope when using REST.
+      - na_ontap_lun - support ``qos_adaptive_policy_group`` with REST.
+      - na_ontap_motd - deprecated in favor of ``na_ontap_login_messages``.  Fail
+        when use_rest is set to ``always`` as REST is not supported.
+      - na_ontap_ntp - new option ``key_id`` added.
+      - na_ontap_qtree - Added ``unix_user`` and ``unix_group`` options in REST.
+      - na_ontap_rest_info - add computed serial_hex and naa_id for storage/luns when
+        serial_number is present.
+      - na_ontap_s3_users - ``secret_key`` and ``access_token`` are now returned when
+        creating a user.
+      - na_ontap_service_processor_network - Added REST support.
+      - na_ontap_snapmirror - improve errror messages to be more specific and consistent.
+      - na_ontap_snapmirror - new option ``validate_source_path`` to disable this
+        validation.
+      - na_ontap_snapmirror - validate source endpoint for ZAPI and REST, accounting
+        for vserver local name.
+      - na_ontap_snapmirror - wait for the relationship to come back to idle after
+        a resync.
+      - na_ontap_unix_group - added REST support.
+      - na_ontap_unix_user - Added REST support.
+      - na_ontap_unix_user - Added new option ``primary_gid`` aliased to ``group_id``.
+      - na_ontap_user - accept ``service_processor`` as an alias for ``service-processor``
+        with ZAPI, to be consistent with REST.
+      - na_ontap_volume - now defaults to REST with ``use_rest`` set to ``auto``,
+        like every other module.  ZAPI can be forced with ``use_rest`` set to ``never``.
+      - na_ontap_vserver_create role - support ``broadcast_domain``, ``ipspace``,
+        and ``service_policy`` with REST.
+    fragments:
+    - DEVOPS-3632.yaml
+    - DEVOPS-4157.yaml
+    - DEVOPS-4336.yaml
+    - DEVOPS-4417.yaml
+    - DEVOPS-4790.yaml
+    - DEVOPS-4798.yaml
+    - DEVOPS-4799.yaml
+    - DEVOPS-4863.yaml
+    - DEVOPS-5084.yaml
+    - DEVOPS-5092.yaml
+    - DEVOPS-5152.yaml
+    - DEVOPS-5168.yaml
+    - DEVOPS-5174.yaml
+    - DEVOPS-5179.yaml
+    - DEVOPS-5188.yaml
+    - DEVOPS-5190.yaml
+    - DEVOPS-5215.yaml
+    - DEVOPS-5216.yaml
+    - DEVOPS-5220.yaml
+    - DEVOPS-5228.yaml
+    - DEVOPS-5229.yaml
+    - no-story-1.yaml
+    modules:
+    - description: NetApp ONTAP NTP key
+      name: na_ontap_ntp_key
+      namespace: ''
+    - description: NetApp ONTAP S3 groups
+      name: na_ontap_s3_groups
+      namespace: ''
+    - description: NetApp ONTAP S3 Policies
+      name: na_ontap_s3_policies
+      namespace: ''
+    release_date: '2022-07-12'
   21.3.0:
     changes:
       bugfixes:
