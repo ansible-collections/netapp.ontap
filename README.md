@@ -77,6 +77,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.
   - na_ontap_interface - fix idempotency issue for cluster scoped interfaces when using REST.
   - na_ontap_interface - fix potential node and uuid issues with LIF migration.
+  - na_ontap_interface - FC interfaces - scope is not supported.
+  - na_ontap_interface - FC interfaces - home_port is not supported for ONTAP 9.7 or earlier.
+  - na_ontap_interface - FC interfaces - home_node should not be sent as location.home_node.
+  - na_ontap_interface - FC interfaces - service_policy is not supported.
+  - na_ontap_interface - ignore 'none' when using REST rather than reporting unexpected protocol.
   - na_ontap_lun - catch ZAPI error on get LUN.
   - na_ontap_lun - ignore resize error if no change was required.
   - na_ontap_lun - report error if flexvol_name is missing when using ZAPI.
@@ -94,7 +99,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Module
   - na_ontap_ntp_key - Manage NTP keys.
-  - na_ontap_s3_policies - manage S3 policies.
+  - na_ontap_s3_groups - Manage s3 groups.
+  - na_ontap_s3_policies - Manage S3 policies.
 
 ### Minor Changes
   - na_ontap_info - add quota-policy-info.

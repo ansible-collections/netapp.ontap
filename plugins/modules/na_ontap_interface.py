@@ -38,7 +38,7 @@ options:
   home_node:
     description:
       - Specifies the LIF's home node.
-      - By default, the first node from the cluster is considered as home node
+      - By default, the first node from the cluster is considered as home node.
     type: str
 
   current_node:
@@ -50,7 +50,11 @@ options:
   home_port:
     description:
       - Specifies the LIF's home port.
-      - Required when C(state=present)
+      - Requires ONTAP 9.8 or later with FC interfaces when using REST.
+      - With REST, at least one of home_port, home_node, or broadcast_domain is required to create IP interfaces.
+      - With REST, either home_port or current_port is required to create FC interfaces.
+      - With ZAPI, home_port is required to create IP and FC interfaces.
+      - home_port and broadcast_domain are mutually exclusive (REST and IP interfaces).
     type: str
 
   current_port:
@@ -173,7 +177,7 @@ options:
     description:
       - The data protocol for which the FC interface is configured.
       - Ignored with ZAPI or for IP interfaces.
-      - Required for create on for a FC type interface.
+      - Required to create a FC type interface.
     type: str
     choices: ['fcp', 'fc_nvme']
 
@@ -490,6 +494,7 @@ class NetAppOntapInterface():
             self.use_rest = False
         if self.use_rest:
             self.cluster_nodes = None       # cached value to limit number of API calls.
+            self.home_node = None           # cached value to limit number of API calls.
             self.map_failover_policy()
             self.validate_rest_input_parameters()
         elif netapp_utils.has_netapp_lib() is False:
@@ -534,7 +539,7 @@ class NetAppOntapInterface():
                 self.set_interface_type('ip')
             if 'address' in self.parameters or 'netmask' in self.parameters:
                 self.set_interface_type('ip')
-            return False, False
+            return
         protocol_types = set()
         unknown_protocols = []
         for protocol in protocols:
@@ -542,33 +547,37 @@ class NetAppOntapInterface():
                 protocol_types.add('fc')
             elif protocol.lower() in ['nfs', 'cifs', 'iscsi']:
                 protocol_types.add('ip')
-            else:
+            elif protocol.lower() != 'none':
+                # none is an allowed value with ZAPI
                 unknown_protocols.append(protocol)
         errors = []
-        if unknown_protocols or not protocol_types:
+        if unknown_protocols:
             errors.append('Unexpected value(s) for protocols: %s' % unknown_protocols)
         if len(protocol_types) > 1:
             errors.append('Incompatible value(s) for protocols: %s' % protocols)
         if errors:
             self.module.fail_json(msg='Error: ' + (' - '.join(errors)))
-        self.set_interface_type(protocol_types.pop())
-        return None
+        if protocol_types:
+            self.set_interface_type(protocol_types.pop())
+        return
 
     def derive_block_file_type(self, protocols):
-        block_p, file_p = False, False
+        block_p, file_p, fcp = False, False, False
         if protocols is None:
-            return block_p, file_p
+            return block_p, file_p, fcp
         block_values, file_values = [], []
         for protocol in protocols:
             if protocol.lower() in ['fc-nvme', 'fcp', 'iscsi']:
                 block_p = True
                 block_values.append(protocol)
+                if protocol.lower() in ['fc-nvme', 'fcp']:
+                    fcp = True
             elif protocol.lower() in ['nfs', 'cifs']:
                 file_p = True
                 file_values.append(protocol)
         if block_p and file_p:
             self.module.fail_json(msg="Cannot use any of %s with %s" % (block_values, file_values))
-        return block_p, file_p
+        return block_p, file_p, fcp
 
     def get_interface_record_rest(self, if_type, query, fields):
         if 'ipspace' in self.parameters:
@@ -607,7 +616,7 @@ class NetAppOntapInterface():
         """
         if 'vserver' in self.parameters:
             if len(records) > 1:
-                self.module.fail_json(msg='Error: unexpected records for name: %s, vserser: %s - %s'
+                self.module.fail_json(msg='Error: unexpected records for name: %s, vserver: %s - %s'
                                       % (name, self.parameters['vserver'], records))
             return records[0] if records else None
         # since our queries included a '*', we expect multiple records
@@ -653,24 +662,26 @@ class NetAppOntapInterface():
         self.derive_interface_type()
         if_type = self.parameters.get('interface_type')
         if 'vserver' in self.parameters:
-            query = {
+            query_ip = {
                 'name': name,
                 'svm.name': self.parameters['vserver']
             }
+            query_fc = query_ip
         else:
-            query = {
+            query_ip = {
                 # ONTAP renames cluster interfaces, use a * to find them
                 'name': '*%s' % name,
                 'scope': 'cluster'
             }
+            query_fc = None
         fields = 'name,location,uuid,enabled,svm.name'
         fields_fc = fields + ',data_protocol'
         fields_ip = fields + ',ip,service_policy'
         records, error, records2, error2 = None, None, None, None
-        if if_type is None or if_type == 'ip':
-            records, error = self.get_interface_records_rest('ip', query, fields_ip)
-        if if_type is None or if_type == 'fc':
-            records2, error2 = self.get_interface_records_rest('fc', query, fields_fc)
+        if if_type in [None, 'ip']:
+            records, error = self.get_interface_records_rest('ip', query_ip, fields_ip)
+        if if_type in [None, 'fc'] and query_fc:
+            records2, error2 = self.get_interface_records_rest('fc', query_fc, fields_fc)
         if records and records2:
             msg = 'Error fetching interface %s - found duplicate entries, please indicate interface_type.' % name
             msg += ' - ip interfaces: %s' % records
@@ -704,9 +715,12 @@ class NetAppOntapInterface():
             'interface_type': self.parameters['interface_type'],
             'uuid': record['uuid'],
             'admin_status': 'up' if record['enabled'] else 'down',
-            'home_port': record['location']['home_port']['name'],
-            'home_node': record['location']['home_node']['name'],
         }
+        # home_node/home_port not present for FC on ONTAP 9.7.
+        if self.na_helper.safe_get(record, ['location', 'home_node', 'name']):
+            return_value['home_node'] = record['location']['home_node']['name']
+        if self.na_helper.safe_get(record, ['location', 'home_port', 'name']):
+            return_value['home_port'] = record['location']['home_port']['name']
         if self.na_helper.safe_get(record, ['svm', 'name']):
             return_value['vserver'] = record['svm']['name']
         if 'data_protocol' in record:
@@ -848,11 +862,14 @@ class NetAppOntapInterface():
 
     def fix_errors(self, options, errors):
         '''ignore role and firewall_policy if a service_policy can be safely derived'''
-        block_p, file_p = self.derive_block_file_type(self.parameters.get('protocols'))
+        block_p, file_p, fcp = self.derive_block_file_type(self.parameters.get('protocols'))
         if 'role' in errors:
             fixed = False
             if errors['role'] == 'data' and errors.get('firewall_policy', 'data') == 'data':
-                if file_p and self.parameters.get('service_policy', 'default-data-files') == 'default-data-files':
+                if fcp:
+                    # service_policy is not supported for FC interfaces
+                    fixed = True
+                elif file_p and self.parameters.get('service_policy', 'default-data-files') == 'default-data-files':
                     options['service_policy'] = 'default-data-files'
                     fixed = True
                 elif block_p and self.parameters.get('service_policy', 'default-data-blocks') == 'default-data-blocks':
@@ -888,43 +905,61 @@ class NetAppOntapInterface():
             else:
                 options['location'][key] = value
             if key in ['home_port', 'port']:
-                if node is None:
-                    node = self.parameters['home_node']
                 options['location'][key]['node'] = {'name': node}
 
         def get_node_for_port(parameters, pkey):
             if pkey == 'current_port':
-                return parameters.get('current_node', parameters.get('home_node'))
+                return parameters.get('current_node') or self.parameters.get('home_node') or self.get_home_node_for_cluster()
             elif pkey == 'home_port':
-                return parameters.get('home_node')
+                return self.parameters.get('home_node') or self.get_home_node_for_cluster()
             else:
                 return None
 
         options, migrate_options, errors = {}, {}, {}
+
+        # We normally create using home_port, and migrate to current.
+        # But for FC, home_port is not supported on 9.7 or earlier!
+        create_with_current = False
         if parameters is None:
             parameters = self.parameters
+            if self.parameters['interface_type'] == 'fc' and 'home_port' not in self.parameters:
+                create_with_current = True
 
         mapping_params_to_rest = {
-            'data_protocol': 'data_protocol',
             'admin_status': 'enabled',
-            'ipspace': 'ipspace.name',
             'interface_name': 'name',
             'vserver': 'svm.name',
-            'service_policy': 'service_policy',
-            # IP
-            'address': 'address',
-            'netmask': 'netmask',
             # LOCATION
-            'broadcast_domain': 'broadcast_domain',
             'current_node': 'node',
             'current_port': 'port',
-            'failover_scope': 'failover',
-            'is_auto_revert': 'auto_revert',
             'home_node': 'home_node',
             'home_port': 'home_port',
         }
+        if self.parameters['interface_type'] == 'ip':
+            mapping_params_to_rest.update({
+                'ipspace': 'ipspace.name',
+                'service_policy': 'service_policy',
+                # IP
+                'address': 'address',
+                'netmask': 'netmask',
+                # LOCATION
+                'broadcast_domain': 'broadcast_domain',
+                'failover_scope': 'failover',
+                'is_auto_revert': 'auto_revert',
+            })
+        if self.parameters['interface_type'] == 'fc':
+            mapping_params_to_rest.update({
+                'data_protocol': 'data_protocol',
+            })
         ip_keys = ('address', 'netmask')
         location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert', 'broadcast_domain')
+
+        # don't add node location when port structure is already present
+        has_home_port, has_current_port = False, False
+        if 'home_port' in parameters:
+            has_home_port = True
+        if 'current_port' in parameters:
+            has_current_port = True
 
         for pkey, rkey in mapping_params_to_rest.items():
             if pkey in parameters:
@@ -933,7 +968,11 @@ class NetAppOntapInterface():
                 elif pkey in ip_keys:
                     add_ip(options, rkey, parameters[pkey])
                 elif pkey in location_keys:
-                    dest = migrate_options if rkey in ('node', 'port') else options
+                    if has_home_port and pkey == 'home_node':
+                        continue
+                    if has_current_port and pkey == 'current_node':
+                        continue
+                    dest = migrate_options if rkey in ('node', 'port') and not create_with_current else options
                     add_location(dest, rkey, parameters[pkey], get_node_for_port(parameters, pkey))
                 else:
                     options[rkey] = parameters[pkey]
@@ -983,10 +1022,11 @@ class NetAppOntapInterface():
     def get_home_node_for_cluster(self):
         ''' get the first node name from this cluster '''
         if self.use_rest:
-            nodes = self.get_cluster_node_names_rest()
-            if nodes:
-                return nodes[0]
-            return None
+            if not self.home_node:
+                nodes = self.get_cluster_node_names_rest()
+                if nodes:
+                    self.home_node = nodes[0]
+            return self.home_node
 
         get_node = netapp_utils.zapi.NaElement('cluster-node-get-iter')
         attributes = {
@@ -1029,21 +1069,28 @@ class NetAppOntapInterface():
             Parameter requirement might vary based on given data-protocol.
             :return: None
         '''
-        if self.parameters.get('home_node') is None:
-            node = self.get_home_node_for_cluster()
-            if node is not None:
-                self.parameters['home_node'] = node
+        home_node = self.parameters.get('home_node') or self.get_home_node_for_cluster()
         # validate if mandatory parameters are present for create or modify
         error = None
-        if self.use_rest and self.parameters.get('home_node') is None and self.parameters.get('home_port') is not None:
+        if self.use_rest and home_node is None and self.parameters.get('home_port') is not None:
             error = 'Cannot guess home_node, home_node is required when home_port is present with REST.'
+        if 'broadcast_domain_home_port_or_home_node' in keys:
+            if all(x not in self.parameters for x in ['broadcast_domain', 'home_port', 'home_node']):
+                error = "At least one of 'broadcast_domain', 'home_port', 'home_node' is required to create an IP interface."
+            keys.remove('broadcast_domain_home_port_or_home_node')
         if not error and not keys.issubset(set(self.parameters.keys())) and self.parameters.get('subnet_name') is None:
             error = 'Missing one or more required parameters for creating interface: %s.' % ', '.join(keys)
         # if role is intercluster, protocol cannot be specified
         if not error and self.parameters.get('role') == "intercluster" and self.parameters.get('protocols') is not None:
             error = 'Protocol cannot be specified for intercluster role, failed to create interface.'
-        if not error and 'interface_type' in keys and self.parameters['interface_type'] not in ['fc', 'ip']:
-            error = 'unexpected value for interface_type: %s.' % self.parameters['interface_type']
+        if not error and 'interface_type' in keys:
+            if self.parameters['interface_type'] not in ['fc', 'ip']:
+                error = 'unexpected value for interface_type: %s.' % self.parameters['interface_type']
+            if self.parameters['interface_type'] == 'fc' and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
+                if 'home_port' in self.parameters:
+                    error = "'home_port' is not suported for FC interfaces with 9.7, use 'current_port', avoid home_node."
+                if 'home_node' in self.parameters:
+                    self.module.warn("Avoid 'home_node' with FC interfaces with 9.7, use 'current_node'.")
         if error:
             self.module.fail_json(msg='Error: %s' % error)
 
@@ -1057,7 +1104,6 @@ class NetAppOntapInterface():
             self.module.fail_json(msg='The following option%s cannot be modified: %s' % (plural, ', '.join(bad_keys)))
 
     def build_rest_body(self, modify=None):
-        # if self.parameters.get('vserver') is not None:
         required_keys = set(['interface_type'])     # python 2.6 syntax
         # running validation twice, as interface_type dictates the second set of requirements
         self.validate_required_parameters(required_keys)
@@ -1074,11 +1120,13 @@ class NetAppOntapInterface():
             if self.parameters['interface_type'] == 'fc':
                 self.derive_fc_data_protocol()
                 required_keys.add('data_protocol')
-                required_keys.add('home_port')
+                if 'home_port' not in self.parameters:
+                    # home_port is not supported with 9.7
+                    required_keys.add('current_port')
             if self.parameters['interface_type'] == 'ip':
                 required_keys.add('address')
                 required_keys.add('netmask')
-                required_keys.add('broadcast_domain' if self.parameters.get('broadcast_domain') else 'home_port')
+                required_keys.add('broadcast_domain_home_port_or_home_node')
             self.validate_required_parameters(required_keys)
         body, migrate_body, errors = self.set_options_rest(modify)
         self.fix_errors(body, errors)
