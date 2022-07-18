@@ -61,6 +61,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 21.22.0
+
+### Added REST support to existing modules
+  - na_ontap_wait_for_condition - added REST support.
+
 ## 21.21.0
 
 ### New Options
