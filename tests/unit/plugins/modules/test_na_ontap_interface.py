@@ -974,6 +974,26 @@ def test_rest_delete_ip_no_svm():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_rest_disable_delete_fc():
+    ''' create cluster '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'network/fc/interfaces', SRR['one_record_vserver']),    # get IP
+        ('PATCH', 'network/fc/interfaces/54321', SRR['success']),       # disable fc before delete
+        ('DELETE', 'network/fc/interfaces/54321', SRR['success']),      # delete
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent',
+        "admin_status": "up",
+        "protocols": "fc-nvme",
+        "role": "data",
+        "vserver": "svm3",
+        "current_port": "1a"
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_rest_delete_idempotent_ip_no_svm():
     ''' create cluster '''
     register_responses([

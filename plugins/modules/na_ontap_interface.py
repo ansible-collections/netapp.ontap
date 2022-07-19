@@ -1185,14 +1185,19 @@ class NetAppOntapInterface():
             self.module.fail_json(msg='Error deleting interface %s: %s' % (self.parameters['interface_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def delete_interface(self, current_status, uuid):
+    def delete_interface(self, current_status, current_interface, uuid):
         ''' calling zapi to delete interface '''
-        if self.use_rest:
-            return self.delete_interface_rest(uuid)
-
         if current_status == 'up':
             self.parameters['admin_status'] = 'down'
-            self.modify_interface({'admin_status': 'down'})
+            if self.use_rest:
+                # only for fc interfaces disable is required before delete.
+                if current_interface == 'fc':
+                    self.modify_interface_rest(uuid, {'enabled': False})
+            else:
+                self.modify_interface({'admin_status': 'down'})
+
+        if self.use_rest:
+            return self.delete_interface_rest(uuid)
 
         interface_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'net-interface-delete', **{'interface-name': self.parameters['interface_name'],
@@ -1370,7 +1375,9 @@ class NetAppOntapInterface():
                     # needed for migrate after creation
                     uuid = records['records'][0]['uuid']
             elif cd_action == 'delete':
-                self.delete_interface(current['admin_status'], uuid)
+                # interface type returned in REST but not in ZAPI.
+                interface_type = current['interface_type'] if self.use_rest else None
+                self.delete_interface(current['admin_status'], interface_type, uuid)
             elif modify:
                 self.modify_interface(modify, uuid, body)
             if migrate_body:

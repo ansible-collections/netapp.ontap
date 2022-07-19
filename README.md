@@ -63,6 +63,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 21.22.0
 
+### Bug Fixes
+  - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
+
 ### Added REST support to existing modules
   - na_ontap_wait_for_condition - added REST support.
 
