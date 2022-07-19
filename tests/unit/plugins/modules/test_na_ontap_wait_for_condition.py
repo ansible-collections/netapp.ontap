@@ -109,7 +109,6 @@ DEFAULT_ARGS = {
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     module_args = {
-        'vserver': 'vserver',
         'use_rest': 'never'
     }
     error = create_module(my_module, module_args, fail=True)['msg']
