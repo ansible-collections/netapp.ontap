@@ -21,7 +21,8 @@ options:
     name:
         description:
           - The name of the event to check for.
-        choices: ['sp_upgrade', 'sp_version']
+          - snapmirror_relationship was added in 21.22.0.
+        choices: ['snapmirror_relationship', 'sp_upgrade', 'sp_version']
         type: str
         required: true
     state:
@@ -35,7 +36,9 @@ options:
     conditions:
         description:
           - one or more conditions to match
-          - for instance C(is_in_progress) for C(sp_upgrade), C(firmware_version) for C(sp_version).
+          - C(state) and/or C(transfer_state) for C(snapmirror_relationship),
+          - C(is_in_progress) for C(sp_upgrade),
+          - C(firmware_version) for C(sp_version).
         type: list
         elements: str
         required: true
@@ -51,9 +54,10 @@ options:
         type: int
     attributes:
         description:
-          - a dictionary of custom attributes for the event.
-          - for instance, C(sp_upgrade), C(sp_version) require C(node).
-          - C(sp_version) requires C(expectd_version).
+          - a dictionary of custom attributes for the condition.
+          - C(sp_upgrade), C(sp_version) require C(node).
+          - C(sp_version) requires C(expected_version).
+          - C(snapmirror_relationship) requires C(destination_path) and C(expected_state) or C(expected_transfer_state) to match the condition(s).
         type: dict
 '''
 
@@ -132,7 +136,7 @@ class NetAppONTAPWFC:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            name=dict(required=True, type='str', choices=['sp_upgrade', 'sp_version']),
+            name=dict(required=True, type='str', choices=['snapmirror_relationship', 'sp_upgrade', 'sp_version']),
             conditions=dict(required=True, type='list', elements='str'),
             polling_interval=dict(required=False, type='int', default=5),
             timeout=dict(required=False, type='int', default=180),
@@ -158,6 +162,13 @@ class NetAppONTAPWFC:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
 
         self.resource_configuration = {
+            'snapmirror_relationship': {
+                'required_attributes': ['destination_path'],
+                'conditions': {
+                    'state': ('state' if self.use_rest else 'not_supported', None),
+                    'transfer_state': ('transfer.state' if self.use_rest else 'not_supported', None)
+                }
+            },
             'sp_upgrade': {
                 'required_attributes': ['node'],
                 'conditions': {
@@ -167,17 +178,34 @@ class NetAppONTAPWFC:
             'sp_version': {
                 'required_attributes': ['node', 'expected_version'],
                 'conditions': {
-                    'firmware_version': ('service_processor.firmware_version' if self.use_rest
-                                         else 'firmware-version', self.parameters['attributes'].get('expected_version'))
+                    'firmware_version': ('service_processor.firmware_version' if self.use_rest else 'firmware-version',
+                                         self.parameters['attributes'].get('expected_version'))
                 }
             }
         }
 
+        name = 'snapmirror_relationship'
+        if self.parameters['name'] == name:
+            for condition in self.resource_configuration[name]['conditions']:
+                if condition in self.parameters['conditions']:
+                    self.update_condition_value(name, condition)
+
+    def update_condition_value(self, name, condition):
+        '''requires an expected value for a condition and sets it'''
+        expected_value = 'expected_%s' % condition
+        self.resource_configuration[name]['required_attributes'].append(expected_value)
+        # we can't update a tuple value, so rebuild the tuple
+        self.resource_configuration[name]['conditions'][condition] = (
+            self.resource_configuration[name]['conditions'][condition][0],
+            self.parameters['attributes'].get(expected_value))
+
+    def get_fields(self, name):
+        return ','.join([field for (field, dummy) in self.resource_configuration[name]['conditions'].values()])
+
     def get_key_value(self, record, key):
         if self.use_rest:
             # with REST, we can have nested dictionaries
-            if '.' in key:
-                key = key.split('.')
+            key = key.split('.')
             return self.na_helper.safe_get(record, key)
         return self.get_key_value_zapi(record, key)
 
@@ -201,6 +229,8 @@ class NetAppONTAPWFC:
             zapi_obj = netapp_utils.zapi.NaElement("service-processor-get")
             zapi_obj.add_new_child('node', self.parameters['attributes']['node'])
             return zapi_obj
+        if name in self.resource_configuration:
+            self.module.fail_json(msg='Error: event %s is not supported with ZAPI.  It requires REST.' % name)
         raise KeyError(name)
 
     def build_rest_api_kwargs(self, name):
@@ -208,7 +238,13 @@ class NetAppONTAPWFC:
             return {
                 'api': 'cluster/nodes',
                 'query': {'name': self.parameters['attributes']['node']},
-                'fields': 'service_processor.firmware_version,service_processor.state'
+                'fields': self.get_fields(name)
+            }
+        if name == 'snapmirror_relationship':
+            return {
+                'api': 'snapmirror/relationships',
+                'query': {'destination.path': self.parameters['attributes']['destination_path']},
+                'fields': self.get_fields(name)
             }
         raise KeyError(name)
 
@@ -221,11 +257,14 @@ class NetAppONTAPWFC:
         '''
         for condition, (key, value) in self.resource_configuration[name]['conditions'].items():
             status = self.get_key_value(results, key)
+            if status is None and name == 'snapmirror_relationship' and results and condition == 'transfer_state':
+                # key is absent when not transferring.  We convert this to 'idle'
+                status = 'idle'
             self.states.append(str(status))
             if status == str(value):
                 return condition, None
             if status is None:
-                return None, 'Cannot find element with name: %s in results: %s' % (key, results.to_string())
+                return None, 'Cannot find element with name: %s in results: %s' % (key, results if self.use_rest else results.to_string())
         # not found, or no match
         return None, None
 
@@ -304,9 +343,10 @@ class NetAppONTAPWFC:
             time.sleep(self.parameters['polling_interval'])
             time_left -= self.parameters['polling_interval']
 
+        conditions = ["%s==%s" % (condition, self.resource_configuration[name]['conditions'][condition][1]) for condition in self.parameters['conditions']]
         error = 'Error: timeout waiting for condition%s: %s.' %\
-                ('s' if len(self.parameters['conditions']) > 1 else '',
-                 ', '.join(self.parameters['conditions']))
+                ('s' if len(conditions) > 1 else '',
+                 ', '.join(conditions))
         states, last_state = self.summarize_states()
         self.module.fail_json(msg=error, states=states, last_state=last_state)
 

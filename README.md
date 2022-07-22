@@ -66,6 +66,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug Fixes
   - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
 
+### Minor Changes
+  - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
+
 ### Added REST support to existing modules
   - na_ontap_wait_for_condition - added REST support.
 

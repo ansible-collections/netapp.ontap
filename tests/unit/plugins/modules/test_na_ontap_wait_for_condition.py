@@ -93,6 +93,9 @@ SRR = rest_responses({
     'node_310_online': (200, {'records': [
         {'service_processor': {'firmware_version': '3.10', 'state': 'online'}}
     ]}, None),
+    'snapmirror_relationship': (200, {'records': [
+        {'state': 'snapmirrored'}
+    ]}, None),
 }, False)
 
 DEFAULT_ARGS = {
@@ -135,6 +138,29 @@ def test_rest_successful_wait_for_sp_upgrade(dont_sleep):
     assert results['msg'] == 'matched condition: is_in_progress'
     assert results['states'] == 'online*2,updating'
     assert results['last_state'] == 'updating'
+
+
+@patch('time.sleep')
+def test_rest_successful_wait_for_snapmirror_relationship(dont_sleep):
+    ''' Test successful snapmirror_relationship check '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'snapmirror/relationships', SRR['snapmirror_relationship']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'name': 'snapmirror_relationship',
+        'conditions': 'transfer_state',
+        'attributes': {
+            'destination_path': 'path',
+            'expected_transfer_state': 'idle'
+        }
+    }
+    results = call_main(my_main, DEFAULT_ARGS, module_args)
+    assert results['msg'] == 'matched condition: transfer_state'
+    # these are generated from dictionaries keys, and sequence is not guaranteed with python 3.5
+    assert results['states'] in ['snapmirrored,idle', 'idle']
+    assert results['last_state'] == 'idle'
 
 
 @patch('time.sleep')
@@ -225,7 +251,7 @@ def test_rest_negative_wait_for_sp_version_timeout(dont_sleep):
         'timeout': 40,
         'polling_interval': 12,
     }
-    error = 'Error: timeout waiting for condition: firmware_version.'
+    error = 'Error: timeout waiting for condition: firmware_version==3.10.'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
@@ -272,6 +298,25 @@ def test_zapi_successful_wait_for_sp_version(dont_sleep):
     assert results['last_state'] == '3.10'
 
 
+def test_zapi_negative_wait_for_snapmirror_relationship_error():
+    ''' Test negative snapmirror_relationship check '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'name': 'snapmirror_relationship',
+        'conditions': 'state',
+        'attributes': {
+            'destination_path': 'path',
+            'expected_state': 'snapmirrored'
+        }
+    }
+    error = 'Error: event snapmirror_relationship is not supported with ZAPI.  It requires REST.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
 @patch('time.sleep')
 def test_zapi_negative_wait_for_sp_version_error(dont_sleep):
     ''' Test negative sp_version check '''
@@ -309,7 +354,7 @@ def test_zapi_negative_wait_for_sp_version_timeout(dont_sleep):
         'timeout': 30,
         'polling_interval': 9,
     }
-    error = 'Error: timeout waiting for condition: firmware_version.'
+    error = 'Error: timeout waiting for condition: firmware_version==3.10.'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
