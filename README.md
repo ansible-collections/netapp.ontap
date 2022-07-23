@@ -65,11 +65,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
+  - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
+  - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
 
 ### Minor Changes
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
 
 ### Added REST support to existing modules
+  - na_ontap_name_service_switch - added REST support.
   - na_ontap_wait_for_condition - added REST support.
 
 ## 21.21.0
