@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          # 2.13 requires 3.9
+          # Ansible 2.14 requires 3.9 as a minimum
           python-version: 3.9
 
       - name: Install ansible (${{ matrix.ansible }})
