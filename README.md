@@ -63,6 +63,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 21.22.0
 
+### New Options
+  - na_ontap_job_schedule - new option `cluster` added.
+
 ### Bug Fixes
   - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.

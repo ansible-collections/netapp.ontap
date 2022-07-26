@@ -6,695 +6,463 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
-
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+import sys
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible,\
+    create_module, create_and_apply, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
+    register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_job_schedule \
     import NetAppONTAPJob as job_module, main as uut_main   # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
-# REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
-    'get_schedule': (
-        200,
-        {
-            "records": [
-                {
-                    "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
-                    "name": "test_job",
-                    "cron": {
-                        "minutes": [
-                            25
-                        ],
-                        "hours": [
-                            0
-                        ],
-                        "weekdays": [
-                            0
-                        ],
-                        "months": [5, 6]
-                    }
-                }
-            ],
-            "num_records": 1
-        }, None),
-    'get_all_minutes': (
-        200,
-        {
-            "records": [
-                {
-                    "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
-                    "name": "test_job",
-                    "cron": {
-                        "minutes": range(60),
-                        "hours": [
-                            0
-                        ],
-                        "weekdays": [
-                            0
-                        ],
-                        "months": [5, 6]
-                    }
-                }
-            ],
-            "num_records": 1
-        }, None),
-    "no_record": (
-        200,
-        {"num_records": 0},
-        None)
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
+
+
+DEFAULT_ARGS = {
+    'name': 'test_job',
+    'job_minutes': [25],
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'never'
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
+cron_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'job-schedule-cron-info': {
+            'job-schedule-cluster': 'cluster1',
+            'job-schedule-name': 'test_job',
+            'job-schedule-cron-minute': {'cron-minute': 25}
+        }
+    }
+}
 
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        if kind == 'get_all_minutes':
-            data = {
-                'name': 'test_job',
-                'minutes': range(60),
-                'job_hours': [0],
-                'weekdays': [0]
-            }
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-        self.call_log = []
 
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        # print('IN:', xml.to_string())
-        self.call_log.append(xml.to_string())
-        if self.kind == 'job':
-            xml = self.build_job_schedule_cron_info(self.params)
-        elif self.kind == 'job_multiple':
-            xml = self.build_job_schedule_multiple_cron_info(self.params)
-        elif self.kind == 'get_all_minutes':
-            xml = self.build_job_schedule_multiple_cron_minutes_info(self.params)
-        elif self.kind == 'no_job':
-            xml = self.build_job_schedule_None_info(self.params)
-        elif self.kind == 'error':
-            raise netapp_utils.zapi.NaApiError('forced exception')
-        elif self.kind == 'error_after_empty_get_job':
-            xml = self.build_job_schedule_None_info(self.params)
-            self.kind = 'error'
-        elif self.kind == 'error_after_get_job':
-            xml = self.build_job_schedule_cron_info(self.params)
-            self.kind = 'error'
-        self.xml_out = xml
-        return xml
+multiple_cron_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'job-schedule-cron-info': {
+            'job-schedule-cluster': 'cluster1',
+            'job-schedule-name': 'test_job',
+            'job-schedule-cron-minute': [
+                {'cron-minute': '25'},
+                {'cron-minute': '35'}
+            ],
+            'job-schedule-cron-month': [
+                {'cron-month': '5'},
+                {'cron-month': '10'}
+            ]
+        }
+    }
+}
 
-    @staticmethod
-    def build_job_schedule_cron_info(job_details):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'job-schedule-cron-info': {
-                    'job-schedule-name': job_details['name'],
-                    'job-schedule-cron-minute': {
-                        'cron-minute': job_details['minutes']
-                    }
-                }
+
+multiple_cron_minutes_info = {
+    'num-records': 1,
+    'attributes-list': {
+        'job-schedule-cron-info': {
+            'job-schedule-cluster': 'cluster1',
+            'job-schedule-name': 'test_job',
+            'job-schedule-cron-minute': [{'cron-minute': str(x)} for x in range(60)],
+            'job-schedule-cron-month': [
+                {'cron-month': '5'},
+                {'cron-month': '10'}
+            ]
+        }
+    }
+}
+
+
+ZRR = zapi_responses({
+    'cron_info': build_zapi_response(cron_info),
+    'multiple_cron_info': build_zapi_response(multiple_cron_info),
+    'multiple_cron_minutes_info': build_zapi_response(multiple_cron_minutes_info)
+})
+
+
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors
+        with python 2.6, dictionaries are not ordered
+    '''
+    fragments = ["missing required arguments:", "hostname", "name"]
+    error = create_module(job_module, {}, fail=True)['msg']
+    for fragment in fragments:
+        assert fragment in error
+
+
+def test_get_nonexistent_job():
+    ''' Test if get_job_schedule returns None for non-existent job '''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['no_records'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS)
+    assert job_obj.get_job_schedule() is None
+
+
+def test_get_existing_job():
+    ''' Test if get_job_schedule retuns job details for existing job '''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['cron_info'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS)
+    result = job_obj.get_job_schedule()
+    assert result['name'] == DEFAULT_ARGS['name']
+    assert result['job_minutes'] == DEFAULT_ARGS['job_minutes']
+
+
+def test_get_existing_job_multiple_minutes():
+    # sourcery skip: class-extract-method
+    ''' Test if get_job_schedule retuns job details for existing job '''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['multiple_cron_info'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS)
+    result = job_obj.get_job_schedule()
+    assert result['name'] == DEFAULT_ARGS['name']
+    assert result['job_minutes'] == [25, 35]
+    assert result['job_months'] == [5, 10]
+
+
+def test_get_existing_job_multiple_minutes_0_offset():
+    ''' Test if get_job_schedule retuns job details for existing job '''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['multiple_cron_info'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS, {'month_offset': 0})
+    result = job_obj.get_job_schedule()
+    assert result['name'] == DEFAULT_ARGS['name']
+    assert result['job_minutes'] == [25, 35]
+    assert result['job_months'] == [5, 10]
+
+
+def test_get_existing_job_multiple_minutes_1_offset():
+    ''' Test if get_job_schedule retuns job details for existing job '''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['multiple_cron_info'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS, {'month_offset': 1})
+    result = job_obj.get_job_schedule()
+    assert result['name'] == DEFAULT_ARGS['name']
+    assert result['job_minutes'] == [25, 35]
+    assert result['job_months'] == [5 + 1, 10 + 1]
+
+
+def test_create_error_missing_param():
+    ''' Test if create throws an error if job_minutes is not specified'''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['no_records'])
+    ])
+    args = DEFAULT_ARGS.copy()
+    del args['job_minutes']
+    error = 'Error: missing required parameter job_minutes for create'
+    assert error in create_and_apply(job_module, args, fail=True)['msg']
+
+
+def test_successful_create():
+    ''' Test successful create '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['no_records']),
+        ('job-schedule-cron-create', ZRR['success'])
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS)['changed']
+
+
+def test_successful_create_0_offset():
+    ''' Test successful create '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['no_records']),
+        ('job-schedule-cron-create', ZRR['success'])
+    ])
+    args = {'month_offset': 0, 'job_months': [0, 8]}
+    assert create_and_apply(job_module, DEFAULT_ARGS, args)['changed']
+
+
+def test_successful_create_1_offset():
+    ''' Test successful create '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['no_records']),
+        ('job-schedule-cron-create', ZRR['success'])
+    ])
+    args = {'month_offset': 1, 'job_months': [1, 9], 'cluster': 'cluster1'}
+    assert create_and_apply(job_module, DEFAULT_ARGS, args)['changed']
+
+
+def test_create_idempotency():
+    ''' Test create idempotency '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['cron_info'])
+    ])
+    assert not create_and_apply(job_module, DEFAULT_ARGS)['changed']
+
+
+def test_successful_delete():
+    ''' Test delete existing job '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['cron_info']),
+        ('job-schedule-cron-destroy', ZRR['success'])
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+
+
+def test_delete_idempotency():
+    ''' Test delete idempotency '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['no_records'])
+    ])
+    assert not create_and_apply(job_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+
+
+def test_successful_modify():
+    ''' Test successful modify job_minutes '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['cron_info']),
+        ('job-schedule-cron-modify', ZRR['success'])
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS, {'job_minutes': '20'})['changed']
+
+
+def test_modify_idempotency():
+    ''' Test modify idempotency '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('job-schedule-cron-get-iter', ZRR['cron_info'])
+    ])
+    assert not create_and_apply(job_module, DEFAULT_ARGS)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_negative_no_netapp_lib(mock_has):
+    mock_has.return_value = False
+    error = 'the python NetApp-Lib module is required'
+    assert error in create_module(job_module, DEFAULT_ARGS, fail=True)['msg']
+
+
+def test_zapi_get_all_minutes():
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['multiple_cron_minutes_info'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS)
+    schedule = job_obj.get_job_schedule()
+    assert schedule
+    assert 'job_minutes' in schedule
+    assert schedule['job_minutes'] == [-1]
+
+
+def test_if_all_methods_catch_exception_zapi():
+    ''' test error zapi - get/create/modify/delete'''
+    register_responses([
+        ('job-schedule-cron-get-iter', ZRR['error']),
+        ('job-schedule-cron-create', ZRR['error']),
+        ('job-schedule-cron-modify', ZRR['error']),
+        ('job-schedule-cron-destroy', ZRR['error'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS)
+
+    assert 'Error fetching job schedule' in expect_and_capture_ansible_exception(job_obj.get_job_schedule, 'fail')['msg']
+    assert 'Error creating job schedule' in expect_and_capture_ansible_exception(job_obj.create_job_schedule, 'fail')['msg']
+    assert 'Error modifying job schedule' in expect_and_capture_ansible_exception(job_obj.modify_job_schedule, 'fail', {}, {})['msg']
+    assert 'Error deleting job schedule' in expect_and_capture_ansible_exception(job_obj.delete_job_schedule, 'fail')['msg']
+
+
+SRR = rest_responses({
+    'get_schedule': (200, {"records": [
+        {
+            "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
+            "name": "test_job",
+            "cron": {
+                "minutes": [25],
+                "hours": [0],
+                "weekdays": [0],
+                "months": [5, 6]
             }
         }
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_job_schedule_None_info(job_details):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': '0'
-        }
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_job_schedule_multiple_cron_info(job_details):
-        ''' build xml data for vserser-info '''
-        print("CALLED MULTIPLE BUILD")
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'job-schedule-cron-info': {
-                    'job-schedule-name': job_details['name'],
-                    'job-schedule-cron-minute': [
-                        {'cron-minute': '25'},
-                        {'cron-minute': '35'}
-                    ],
-                    'job-schedule-cron-month': [
-                        {'cron-month': '5'},
-                        {'cron-month': '10'}
-                    ]
-                }
+    ], "num_records": 1}, None),
+    'get_all_minutes': (200, {"records": [
+        {
+            "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
+            "name": "test_job",
+            "cron": {
+                "minutes": range(60),
+                "hours": [0],
+                "weekdays": [0],
+                "months": [5, 6]
             }
         }
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_job_schedule_multiple_cron_minutes_info(job_details):
-        ''' build xml data for vserser-info '''
-        print("CALLED MULTIPLE BUILD")
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'job-schedule-cron-info': {
-                    'job-schedule-name': job_details['name'],
-                    'job-schedule-cron-minute': [{'cron-minute': str(x)} for x in job_details['minutes']],
-                    'job-schedule-cron-month': [
-                        {'cron-month': '5'},
-                        {'cron-month': '10'}
-                    ]
-                }
-            }
-        }
-        xml.translate_struct(attributes)
-        return xml
+    ], "num_records": 1}, None)
+})
 
 
-class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_job_schedule '''
+DEFAULT_ARGS_REST = {
+    'name': 'test_job',
+    'job_minutes': [25],
+    'job_hours': [0],
+    'job_days_of_week': [0],
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always'
+}
 
-    def setUp(self):
-        self.mock_job = {
-            'name': 'test_job',
-            'minutes': 25,
-            'job_hours': [0],
-            'weekdays': [0]
-        }
 
-    def mock_args(self, rest=False):
-        if rest:
-            return {
-                'name': self.mock_job['name'],
-                'job_minutes': [self.mock_job['minutes']],
-                'job_hours': self.mock_job['job_hours'],
-                'job_days_of_week': self.mock_job['weekdays'],
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!'
-            }
-        else:
-            return {
-                'name': self.mock_job['name'],
-                'job_minutes': [self.mock_job['minutes']],
-                'hostname': 'test',
-                'username': 'test_user',
-                'password': 'test_pass!',
-                'use_rest': 'never'
-            }
+def test_rest_successful_create():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success']),
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST)['changed']
 
-    def get_job_mock_object(self, kind=None, call_type='zapi'):
-        """
-        Helper method to return an na_ontap_job_schedule object
-        :param kind: passes this param to MockONTAPConnection()
-        :param call_type:
-        :return: na_ontap_job_schedule object
-        """
-        job_obj = job_module()
-        if call_type == 'zapi':
-            if kind is None:
-                job_obj.server = MockONTAPConnection()
-            else:
-                job_obj.server = MockONTAPConnection(kind=kind, data=self.mock_job)
-        return job_obj
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            job_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_rest_create_idempotency():
+    '''Test rest create idempotency'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule'])
+    ])
+    assert not create_and_apply(job_module, DEFAULT_ARGS_REST)['changed']
 
-    def test_get_nonexistent_job(self):
-        ''' Test if get_job_schedule returns None for non-existent job '''
-        set_module_args(self.mock_args())
-        result = self.get_job_mock_object().get_job_schedule()
-        assert result is None
 
-    def test_get_existing_job(self):
-        ''' Test if get_job_schedule retuns job details for existing job '''
-        data = self.mock_args()
-        set_module_args(data)
-        result = self.get_job_mock_object('job').get_job_schedule()
-        assert result['name'] == self.mock_job['name']
-        assert result['job_minutes'] == data['job_minutes']
+def test_rest_get_0_offset():
+    '''Test rest get using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS_REST, {'month_offset': 0})
+    record = job_obj.get_job_schedule_rest()
+    assert record
+    assert record['job_months'] == [x - 1 for x in SRR['get_schedule'][1]['records'][0]['cron']['months']]
 
-    def test_get_existing_job_multiple_minutes(self):
-        # sourcery skip: class-extract-method
-        ''' Test if get_job_schedule retuns job details for existing job '''
-        set_module_args(self.mock_args())
-        result = self.get_job_mock_object('job_multiple').get_job_schedule()
-        print(str(result))
-        assert result['name'] == self.mock_job['name']
-        assert result['job_minutes'] == [25, 35]
-        assert result['job_months'] == [5, 10]
 
-    def test_get_existing_job_multiple_minutes_0_offset(self):
-        ''' Test if get_job_schedule retuns job details for existing job '''
-        data = self.mock_args()
-        data['month_offset'] = 0
-        set_module_args(data)
-        result = self.get_job_mock_object('job_multiple').get_job_schedule()
-        print(str(result))
-        assert result['name'] == self.mock_job['name']
-        assert result['job_minutes'] == [25, 35]
-        assert result['job_months'] == [5, 10]
+def test_rest_get_1_offset():
+    '''Test rest get using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS_REST, {'month_offset': 1})
+    record = job_obj.get_job_schedule_rest()
+    assert record
+    assert record['job_months'] == SRR['get_schedule'][1]['records'][0]['cron']['months']
 
-    def test_get_existing_job_multiple_minutes_1_offset(self):
-        ''' Test if get_job_schedule retuns job details for existing job '''
-        data = self.mock_args()
-        data['month_offset'] = 1
-        set_module_args(data)
-        result = self.get_job_mock_object('job_multiple').get_job_schedule()
-        print(str(result))
-        assert result['name'] == self.mock_job['name']
-        assert result['job_minutes'] == [25, 35]
-        assert result['job_months'] == [5 + 1, 10 + 1]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_create_error_missing_param(self, mock_ems_log):
-        ''' Test if create throws an error if job_minutes is not specified'''
-        data = self.mock_args()
-        del data['job_minutes']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object('no_job').apply()
-        msg = 'Error: missing required parameter job_minutes for create'
-        assert exc.value.args[0]['msg'] == msg
+def test_rest_create_all_minutes():
+    '''Test rest create using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success'])
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, {'job_minutes': [-1]})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_successful_create(self, mock_ems_log):
-        ''' Test successful create '''
-        set_module_args(self.mock_args())
-        uut = self.get_job_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            uut.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_successful_create_0_offset(self, mock_ems_log):
-        ''' Test successful create '''
-        data = self.mock_args()
-        data['month_offset'] = 0
-        data['job_months'] = [0, 8]
-        set_module_args(data)
-        uut = self.get_job_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            uut.apply()
-        assert exc.value.args[0]['changed']
-        print(uut.server.call_log)
-        assert b"<cron-month>0</cron-month>" in uut.server.call_log[1]
-        assert b"<cron-month>8</cron-month>" in uut.server.call_log[1]
+def test_rest_create_0_offset():
+    '''Test rest create using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success'])
+    ])
+    args = {'month_offset': 0, 'job_months': [0, 8]}
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_successful_create_1_offset(self, mock_ems_log):
-        ''' Test successful create '''
-        data = self.mock_args()
-        data['month_offset'] = 1
-        data['job_months'] = [1, 9]
-        set_module_args(data)
-        uut = self.get_job_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            uut.apply()
-        assert exc.value.args[0]['changed']
-        print(uut.server.call_log)
-        assert b"<cron-month>0</cron-month>" in uut.server.call_log[1]
-        assert b"<cron-month>8</cron-month>" in uut.server.call_log[1]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_create_idempotency(self, mock_ems_log):
-        ''' Test create idempotency '''
-        set_module_args(self.mock_args())
-        mock_ems_log.return_value = None
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object('job').apply()
-        assert not exc.value.args[0]['changed']
+def test_rest_create_1_offset():
+    '''Test rest create using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success'])
+    ])
+    args = {'month_offset': 1, 'job_months': [1, 9]}
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_negative_create(self, mock_ems_log):
-        ''' Test create error '''
-        set_module_args(self.mock_args())
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object('error_after_empty_get_job').apply()
-        msg = 'Error creating job schedule test_job:'
-        assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_successful_delete(self, mock_ems_log):
-        ''' Test delete existing job '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object('job').apply()
-        assert exc.value.args[0]['changed']
+def test_rest_modify_0_offset():
+    '''Test rest modify using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule']),
+        ('PATCH', 'cluster/schedules/010df156-e0a9-11e9-9f70-005056b3df08', SRR['success'])
+    ])
+    args = {'month_offset': 0, 'job_months': [0, 8]}
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_delete_idempotency(self, mock_ems_log):
-        ''' Test delete idempotency '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object().apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_negative_delete(self, mock_ems_log):
-        ''' Test delete existing job  with error '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object('error_after_get_job').apply()
-        msg = 'Error deleting job schedule test_job:'
-        assert msg in exc.value.args[0]['msg']
+def test_rest_modify_1_offset():
+    '''Test rest modify using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule']),
+        ('PATCH', 'cluster/schedules/010df156-e0a9-11e9-9f70-005056b3df08', SRR['success'])
+    ])
+    args = {'month_offset': 1, 'job_months': [1, 9], 'cluster': 'cluster1'}
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_successful_modify(self, mock_ems_log):
-        ''' Test successful modify job_minutes '''
-        data = self.mock_args()
-        data['job_minutes'] = ['20']
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object('job').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_modify_idempotency(self, mock_ems_log):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object('job').apply()
-        assert not exc.value.args[0]['changed']
+def test_negative_month_of_0():
+    '''Test rest modify using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0'])
+    ])
+    args = {'month_offset': 1, 'job_months': [0, 9]}
+    error = 'Error: 0 is not a valid value in months if month_offset is set to 1'
+    assert error in create_module(job_module, DEFAULT_ARGS_REST, args, fail=True)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_negative_modify(self, mock_ems_log):
-        ''' Test modify error '''
-        data = self.mock_args()
-        data['job_minutes'] = ['20']
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object('error_after_get_job').apply()
-        msg = 'Error modifying job schedule test_job:'
-        assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successful_create(self, mock_request):
-        '''Test successful rest create'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object(call_type='rest').apply()
-        assert exc.value.args[0]['changed']
-        print(mock_request.mock_calls)
-        print(mock_request.call_args[1]['json']['cron'])
+def test_rest_get_all_minutes():
+    '''Test rest modify using month offset'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_all_minutes'])
+    ])
+    args = {'month_offset': 1, 'job_months': [1, 9]}
+    job_obj = create_module(job_module, DEFAULT_ARGS_REST, args)
+    schedule = job_obj.get_job_schedule()
+    assert schedule
+    assert 'job_minutes' in schedule
+    assert schedule['job_minutes'] == [-1]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_create_idempotency(self, mock_request):
-        '''Test rest create idempotency'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_job_mock_object(call_type='rest').apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        '''Test rest create idempotency'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['generic_error'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object(call_type='rest').apply()
-        assert 'Error on creating job schedule: Expected error' in exc.value.args[0]['msg']
-
-        data = self.mock_args(rest=True)
-        data['job_minutes'] = ['20']
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['generic_error'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object(call_type='rest').apply()
-        assert 'Error on modifying job schedule: Expected error' in exc.value.args[0]['msg']
-
-        data = self.mock_args(rest=True)
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['generic_error'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object(call_type='rest').apply()
-        assert 'Error on deleting job schedule: Expected error' in exc.value.args[0]['msg']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_get_0_offset(self, mock_request):
-        '''Test rest get using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 0
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['end_of_sequence']
-        ]
-        record = self.get_job_mock_object(call_type='rest').get_job_schedule()
-        print('RECORD', record)
-        assert record
-        assert record['job_months'] == [x - 1 for x in SRR['get_schedule'][1]['records'][0]['cron']['months']]
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_get_1_offset(self, mock_request):
-        '''Test rest get using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 1
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['end_of_sequence']
-        ]
-        record = self.get_job_mock_object(call_type='rest').get_job_schedule()
-        print('RECORD', record)
-        assert record
-        assert record['job_months'] == SRR['get_schedule'][1]['records'][0]['cron']['months']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_create_all_minutes(self, mock_request):
-        '''Test rest create using month offset'''
-        data = self.mock_args(rest=True)
-        data['job_minutes'] = [-1]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['end_of_sequence']
-        ]
-        self.get_job_mock_object(call_type='rest').create_job_schedule()
-        assert mock_request.call_args
-        assert mock_request.call_args[1]['json']['cron']['minutes'] == []
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_create_0_offset(self, mock_request):
-        '''Test rest create using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 0
-        data['job_months'] = [0, 8]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['end_of_sequence']
-        ]
-        self.get_job_mock_object(call_type='rest').create_job_schedule()
-        assert mock_request.call_args
-        assert mock_request.call_args[1]['json']['cron']['months'] == [x + 1 for x in data['job_months']]
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_create_1_offset(self, mock_request):
-        '''Test rest create using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 1
-        data['job_months'] = [1, 9]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['end_of_sequence']
-        ]
-        self.get_job_mock_object(call_type='rest').create_job_schedule()
-        assert mock_request.call_args
-        assert mock_request.call_args[1]['json']['cron']['months'] == data['job_months']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_modify_0_offset(self, mock_request):
-        '''Test rest modify using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 0
-        data['job_months'] = [0, 8]
-        current, modify = dict(), dict()
-        modify['job_months'] = [0, 8]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_schedule'],
-            SRR['end_of_sequence']
-        ]
-        uut = self.get_job_mock_object(call_type='rest')
-        uut.uuid = 'testuuid'
-        uut.modify_job_schedule(modify, current)
-        assert mock_request.call_args
-        assert mock_request.call_args[1]['json']['cron']['months'] == [x + 1 for x in data['job_months']]
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_modify_1_offset(self, mock_request):
-        '''Test rest modify using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 1
-        data['job_months'] = [1, 9]
-        current, modify = dict(), dict()
-        modify['job_months'] = [1, 9]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['no_record'],
-            SRR['end_of_sequence']
-        ]
-        uut = self.get_job_mock_object(call_type='rest')
-        uut.uuid = 'testuuid'
-        uut.modify_job_schedule(modify, current)
-        assert mock_request.call_args
-        assert mock_request.call_args[1]['json']['cron']['months'] == data['job_months']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_month_of_0(self, mock_request):
-        '''Test rest modify using month offset'''
-        data = self.mock_args(rest=True)
-        data['month_offset'] = 1
-        data['job_months'] = [0, 9]
-        current, modify = dict(), dict()
-        modify['job_months'] = [1, 9]
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object(call_type='rest')
-        msg = 'Error: 0 is not a valid value in months if month_offset is set to 1'
-        assert msg in exc.value.args[0]['msg']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-    def test_negative_no_netapp_lib(self, mock_has):
-        mock_has.return_value = False
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_job_mock_object()
-        msg = 'the python NetApp-Lib module is required'
-        assert msg in exc.value.args[0]['msg']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_negative_zapi_get_error(self, mock_ems_log):
-        data = self.mock_args()
-        set_module_args(data)
-        uut = self.get_job_mock_object(kind='error')
-        with pytest.raises(AnsibleFailJson) as exc:
-            uut.apply()
-        msg = 'Error fetching job schedule test_job:'
-        assert msg in exc.value.args[0]['msg']
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_rest_get_error(self, mock_request):
-        '''Test rest modify using month offset'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            uut_main()
-        msg = 'Error on fetching job schedule:'
-        assert msg in exc.value.args[0]['msg']
-
-    def test_zapi_get_all_minutes(self):
-        data = self.mock_args()
-        set_module_args(data)
-        uut = self.get_job_mock_object(kind='get_all_minutes')
-        schedule = uut.get_job_schedule()
-        print('SCHED', schedule)
-        assert schedule
-        assert 'job_minutes' in schedule
-        assert schedule['job_minutes'] == [-1]
-
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_get_all_minutes(self, mock_request):
-        '''Test rest modify using month offset'''
-        data = self.mock_args(rest=True)
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['get_all_minutes'],
-            SRR['end_of_sequence']
-        ]
-        uut = self.get_job_mock_object(call_type='rest')
-        schedule = uut.get_job_schedule()
-        print('SCHED:', schedule)
-        assert schedule
-        assert 'job_minutes' in schedule
-        assert schedule['job_minutes'] == [-1]
+def test_if_all_methods_catch_exception_rest():
+    ''' test error zapi - get/create/modify/delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['generic_error']),
+        ('POST', 'cluster/schedules', SRR['generic_error']),
+        ('PATCH', 'cluster/schedules/abcd', SRR['generic_error']),
+        ('DELETE', 'cluster/schedules/abcd', SRR['generic_error'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS_REST)
+    job_obj.uuid = 'abcd'
+    assert 'Error fetching job schedule' in expect_and_capture_ansible_exception(job_obj.get_job_schedule, 'fail')['msg']
+    assert 'Error creating job schedule' in expect_and_capture_ansible_exception(job_obj.create_job_schedule, 'fail')['msg']
+    assert 'Error modifying job schedule' in expect_and_capture_ansible_exception(job_obj.modify_job_schedule, 'fail', {}, {})['msg']
+    assert 'Error deleting job schedule' in expect_and_capture_ansible_exception(job_obj.delete_job_schedule, 'fail')['msg']
