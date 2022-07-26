@@ -44,7 +44,7 @@ sp_enabled_info = {
     'num-records': 1,
     'attributes-list': {
         'service-processor-network-info': {
-            'node-name': 'test-vsim1',
+            'node': 'test-vsim1',
             'is-enabled': 'true',
             'address-type': 'ipv4',
             'dhcp': 'v4',
@@ -107,6 +107,17 @@ def test_modify_error_on_disabled_sp():
     assert error in create_and_apply(sp_module, mock_args(), {'ip_address': '1.1.1.1'}, 'error')['msg']
 
 
+def test_modify_error_on_disabe_dhcp_without_ip():
+    ''' a more interesting test '''
+    register_responses([
+        ('vserver-get-iter', ZRR['empty']),
+        ('ems-autosupport-log', ZRR['empty']),
+        ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
+    ])
+    error = 'Error: To disable dhcp, configure ip-address, netmask and gateway details manually.'
+    assert error in create_and_apply(sp_module, mock_args(enable=True), None, fail=True)['msg']
+
+
 def test_modify_error_of_params_disabled_false():
     ''' a more interesting test '''
     register_responses([
@@ -115,7 +126,7 @@ def test_modify_error_of_params_disabled_false():
         ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
     ])
     error = 'Error: Cannot modify any other parameter for a service processor network if option "is_enabled" is set to false.'
-    assert error in create_and_apply(sp_module, mock_args(), {'ip_address': '1.1.1.1'}, 'error')['msg']
+    assert error in create_and_apply(sp_module, mock_args(), {'ip_address': '2.1.1.1'}, 'error')['msg']
 
 
 def test_modify_sp():
@@ -129,7 +140,8 @@ def test_modify_sp():
     assert create_and_apply(sp_module, mock_args(enable=True), {'ip_address': '3.3.3.3'})['changed']
 
 
-def test_modify_sp_wait():
+@patch('time.sleep')
+def test_modify_sp_wait(sleep):
     ''' a more interesting test '''
     register_responses([
         ('vserver-get-iter', ZRR['empty']),

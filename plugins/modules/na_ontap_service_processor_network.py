@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
 # (c) 2018-2022, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 
@@ -46,6 +45,7 @@ options:
   dhcp:
     description:
       - Specify dhcp type.
+      - Setting C(dhcp=none) requires all of C(ip_address), C(netmask), C(gateway_ip_address) and at least one of its value different from current.
     type: str
     choices: ['v4', 'none']
   gateway_ip_address:
@@ -75,7 +75,7 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Modify Service Processor Network
+    - name: Modify Service Processor Network, enable dhcp.
       netapp.ontap.na_ontap_service_processor_network:
         state: present
         address_type: ipv4
@@ -95,7 +95,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 import time
 
@@ -132,7 +131,7 @@ class NetAppOntapServiceProcessorNetwork:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # Set up Rest API
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         self.uuid, self.ipv4_or_ipv6 = None, None
         dhcp_mutual_options = ['ip_address', 'gateway_ip_address', 'netmask']
@@ -231,6 +230,9 @@ class NetAppOntapServiceProcessorNetwork:
             sp_attr_info = result['attributes-list']['service-processor-network-info']
             for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
                 sp_details[item_key] = sp_attr_info.get_child_content(zapi_key)
+                # set dhcp: 'none' if current dhcp set as None to avoid idempotent issue.
+                if item_key == 'dhcp' and sp_details[item_key] is None:
+                    sp_details[item_key] = 'none'
             for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
                 sp_details[item_key] = self.na_helper.get_value_for_bool(from_zapi=True,
                                                                          value=sp_attr_info.get_child_content(zapi_key))
@@ -247,15 +249,8 @@ class NetAppOntapServiceProcessorNetwork:
         """
         if self.use_rest:
             return self.modify_service_processor_network_rest(params)
-        if self.parameters['is_enabled'] is False:
-            if 'is_enabled' in params and len(params) > 1:
-                self.module.fail_json(msg='Error: Cannot modify any other parameter for a service processor network if option "is_enabled" is set to false.')
-            elif params.get('is_enabled') is None and len(params) > 0:
-                self.module.fail_json(msg='Error: Cannot modify a service processor network if it is disabled in ZAPI.')
 
         sp_modify = netapp_utils.zapi.NaElement('service-processor-network-modify')
-        sp_modify.add_new_child("node", self.parameters['node'])
-        sp_modify.add_new_child("address-type", self.parameters['address_type'])
         sp_attributes = dict()
         for item_key in self.parameters:
             if item_key in self.na_helper.zapi_string_keys:
@@ -275,6 +270,8 @@ class NetAppOntapServiceProcessorNetwork:
                 while self.get_sp_network_status() == 'in_progress' and retries > 0:
                     time.sleep(10)
                     retries -= 1
+                # In ZAPI, once the status is 'succeeded', it takes few more seconds for ip details take effect..
+                time.sleep(10)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error modifying service processor network: %s' % (to_native(error)),
                                   exception=traceback.format_exc())
@@ -348,6 +345,13 @@ class NetAppOntapServiceProcessorNetwork:
             error = "Error: enable service processor network requires dhcp or ip_address,netmask,gateway details in REST."
             self.module.fail_json(msg=error)
 
+    def validate_zapi(self, modify):
+        if self.parameters['is_enabled'] is False:
+            if len(modify) > 1 and 'is_enabled' in modify:
+                self.module.fail_json(msg='Error: Cannot modify any other parameter for a service processor network if option "is_enabled" is set to false.')
+            elif modify and 'is_enabled' not in modify:
+                self.module.fail_json(msg='Error: Cannot modify a service processor network if it is disabled in ZAPI.')
+
     def apply(self):
         """
         Run Module based on play book
@@ -358,8 +362,12 @@ class NetAppOntapServiceProcessorNetwork:
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if not current:
             self.module.fail_json(msg='Error No Service Processor for node: %s' % self.parameters['node'])
-        if self.use_rest:
-            self.validate_rest(modify)
+        if modify:
+            # disable dhcp requires configuring one of ip-address, netmask and gateway different from current.
+            if modify.get('dhcp') == 'none' and not any(x in modify for x in ['ip_address', 'gateway_ip_address', 'netmask']):
+                error = "Error: To disable dhcp, configure ip-address, netmask and gateway details manually."
+                self.module.fail_json(msg=error)
+            self.validate_rest(modify) if self.use_rest else self.validate_zapi(modify)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_service_processor_network(modify)
         self.module.exit_json(changed=self.na_helper.changed)

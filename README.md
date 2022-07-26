@@ -67,6 +67,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
   - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
+  - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
+  - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
 
 ### Minor Changes
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
