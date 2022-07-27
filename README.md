@@ -64,6 +64,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 21.22.0
 
 ### New Options
+  - na_ontap_ldap_client - Added `ldaps_enabled` option in ZAPI.
   - na_ontap_job_schedule - new option `cluster` added.
 
 ### Bug Fixes
@@ -77,6 +78,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
 
 ### Added REST support to existing modules
+  - na_ontap_ldap_client - added REST support.
   - na_ontap_name_service_switch - added REST support.
   - na_ontap_wait_for_condition - added REST support.
 

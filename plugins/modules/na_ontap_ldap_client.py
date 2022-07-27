@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-(c) 2018-2021, NetApp, Inc
+(c) 2018-2022, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
@@ -40,15 +40,16 @@ options:
   name:
     description:
       - The name of LDAP client configuration.
-    required: true
+      - Supported only in ZAPI.
     type: str
 
-  ldap_servers:
+  servers:
     description:
       - Comma separated list of LDAP servers. FQDN's or IP addreses.
       - Required if I(state=present).
     type: list
     elements: str
+    aliases: ['ldap_servers']
 
   schema:
     description:
@@ -85,10 +86,11 @@ options:
     type: list
     elements: str
 
-  tcp_port:
+  port:
     description:
       - LDAP server TCP port.
     type: int
+    aliases: ['tcp_port']
     version_added: 21.3.0
 
   query_timeout:
@@ -127,6 +129,17 @@ options:
       - Client Session Security.
     choices: ['none', 'sign', 'seal']
     type: str
+
+  ldaps_enabled:
+    description:
+      - Specifies whether or not LDAPS is enabled.
+    type: bool
+    version_added: 21.22.0
+
+notes:
+  - LDAP client created using ZAPI should be deleted using ZAPI.
+  - LDAP client created using REST should be deleted using REST.
+
 '''
 
 EXAMPLES = '''
@@ -142,21 +155,41 @@ EXAMPLES = '''
         username:      "{{ netapp_username }}"
         password:      "{{ netapp_password }}"
 
+    - name: modify LDAP client
+      netapp.ontap.na_ontap_ldap_client:
+        state:         present
+        name:          'example_ldap'
+        vserver:       'vserver1'
+        ldap_servers:  'ldap1.example.company.com'
+        base_dn:       'dc=example,dc=company,dc=com'
+        hostname:      "{{ netapp_hostname }}"
+        username:      "{{ netapp_username }}"
+        password:      "{{ netapp_password }}"
+
+    - name: Delete LDAP client
+      netapp.ontap.na_ontap_ldap_client:
+        state:         absent
+        name:          'example_ldap'
+        vserver:       'vserver1'
+        ldap_servers:  'ldap1.example.company.com,ldap2.example.company.com'
+        hostname:      "{{ netapp_hostname }}"
+        username:      "{{ netapp_username }}"
+        password:      "{{ netapp_password }}"
 '''
 
 RETURN = '''
 '''
-
 import traceback
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapLDAPClient():
+class NetAppOntapLDAPClient:
     '''
     LDAP Client definition class
     '''
@@ -170,18 +203,19 @@ class NetAppOntapLDAPClient():
             bind_as_cifs_server=dict(required=False, type='bool'),
             bind_dn=dict(required=False, default=None, type='str'),
             bind_password=dict(type='str', required=False, default=None, no_log=True),
-            name=dict(required=True, type='str'),
-            ldap_servers=dict(required=False, type='list', elements='str'),
+            name=dict(required=False, type='str'),
+            servers=dict(required=False, type='list', elements='str', aliases=['ldap_servers']),
             min_bind_level=dict(required=False, default=None, choices=['anonymous', 'simple', 'sasl']),
             preferred_ad_servers=dict(required=False, type='list', elements='str'),
-            tcp_port=dict(required=False, default=None, type='int'),
+            port=dict(required=False, type='int', aliases=['tcp_port']),
             query_timeout=dict(required=False, default=None, type='int'),
             referral_enabled=dict(required=False, type='bool'),
-            schema=dict(required=False, default=None),
+            schema=dict(required=False, type='str'),
             session_security=dict(required=False, default=None, choices=['none', 'sign', 'seal']),
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             use_start_tls=dict(required=False, type='bool'),
-            vserver=dict(required=True, type='str')
+            vserver=dict(required=True, type='str'),
+            ldaps_enabled=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -191,17 +225,21 @@ class NetAppOntapLDAPClient():
                 ('state', 'present', ['schema']),
             ],
             mutually_exclusive=[
-                ['ldap_servers', 'ad_domain'],
-                ['ldap_servers', 'preferred_ad_servers']
+                ['servers', 'ad_domain'],
+                ['servers', 'preferred_ad_servers']
             ],
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
+        # Set up Rest API
+        self.rest_api = OntapRestAPI(self.module)
+        unsupported_rest_properties = ['name']
+        partially_supported_rest_properties = [['bind_as_cifs_server', (9, 9, 0)], ['query_timeout', (9, 9, 0)], ['referral_enabled', (9, 9, 0)],
+                                               ['ldaps_enabled', (9, 9, 0)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
         self.simple_attributes = [
@@ -216,7 +254,8 @@ class NetAppOntapLDAPClient():
             'query_timeout',
             'referral_enabled',
             'session_security',
-            'use_start_tls'
+            'use_start_tls',
+            'ldaps_enabled'
         ]
 
     def get_ldap_client(self, client_config_name=None, vserver_name=None):
@@ -277,7 +316,9 @@ class NetAppOntapLDAPClient():
                 'schema': client_config_info.get_child_content('schema'),
                 'session_security': client_config_info.get_child_content('session-security'),
                 'use_start_tls': self.na_helper.get_value_for_bool(from_zapi=True,
-                                                                   value=client_config_info.get_child_content('use-start-tls'))
+                                                                   value=client_config_info.get_child_content('use-start-tls')),
+                'ldaps_enabled': self.na_helper.get_value_for_bool(from_zapi=True,
+                                                                   value=client_config_info.get_child_content('ldaps-enabled')),
             }
         return client_config_details
 
@@ -371,40 +412,130 @@ class NetAppOntapLDAPClient():
                 msg='Error modifying LDAP client %s: %s' % (self.parameters['name'], to_native(errcatch)),
                 exception=traceback.format_exc())
 
+    def get_ldap_client_rest(self):
+        """
+        Retrives ldap client config with rest API.
+        """
+        if not self.use_rest:
+            return self.get_ldap_client()
+        query = {'svm.name': self.parameters.get('vserver'),
+                 'fields': 'svm.uuid,'
+                           'ad_domain,'
+                           'servers,'
+                           'preferred_ad_servers,'
+                           'bind_dn,'
+                           'schema,'
+                           'port,'
+                           'base_dn,'
+                           'base_scope,'
+                           'min_bind_level,'
+                           'session_security,'
+                           'use_start_tls,'}
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 0):
+            query['fields'] += 'bind_as_cifs_server,query_timeout,referral_enabled,ldaps_enabled'
+        record, error = rest_generic.get_one_record(self.rest_api, 'name-services/ldap', query)
+        if error:
+            self.module.fail_json(msg="Error on getting idap client info: %s" % error)
+        if record:
+            return {
+                'svm': {'uuid': self.na_helper.safe_get(record, ['svm', 'uuid'])},
+                'ad_domain': self.na_helper.safe_get(record, ['ad_domain']),
+                'preferred_ad_servers': self.na_helper.safe_get(record, ['preferred_ad_servers']),
+                'servers': self.na_helper.safe_get(record, ['servers']),
+                'schema': self.na_helper.safe_get(record, ['schema']),
+                'port': self.na_helper.safe_get(record, ['port']),
+                'ldaps_enabled': self.na_helper.safe_get(record, ['ldaps_enabled']),
+                'min_bind_level': self.na_helper.safe_get(record, ['min_bind_level']),
+                'bind_dn': self.na_helper.safe_get(record, ['bind_dn']),
+                'base_dn': self.na_helper.safe_get(record, ['base_dn']),
+                'base_scope': self.na_helper.safe_get(record, ['base_scope']),
+                'use_start_tls': self.na_helper.safe_get(record, ['use_start_tls']),
+                'session_security': self.na_helper.safe_get(record, ['session_security']),
+                'referral_enabled': self.na_helper.safe_get(record, ['referral_enabled']),
+                'bind_as_cifs_server': self.na_helper.safe_get(record, ['bind_as_cifs_server']),
+                'query_timeout': self.na_helper.safe_get(record, ['query_timeout'])
+            }
+        return None
+
+    def create_ldap_client_body_rest(self, modify=None):
+        """
+        ldap client config body for create and modify with rest API.
+        """
+        config_options = ['ad_domain', 'servers', 'preferred_ad_servers', 'bind_dn', 'schema', 'port', 'base_dn', 'referral_enabled', 'ldaps_enabled',
+                          'base_scope', 'bind_as_cifs_server', 'bind_password', 'min_bind_level', 'query_timeout', 'session_security', 'use_start_tls']
+        body = {}
+        for key in config_options:
+            if not modify and key in self.parameters:
+                body[key] = self.parameters[key]
+            elif modify and key in modify:
+                body[key] = modify[key]
+        return body
+
+    def create_ldap_client_rest(self):
+        """
+        create ldap client config with rest API.
+        """
+        if not self.use_rest:
+            return self.create_ldap_client()
+        body = self.create_ldap_client_body_rest()
+        if 'vserver' in self.parameters:
+            body['svm.name'] = self.parameters.get('vserver')
+        api = 'name-services/ldap'
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error is not None:
+            self.module.fail_json(msg="Error on creating ldap client: %s" % error)
+
+    def delete_ldap_client_rest(self, current):
+        """
+        delete ldap client config with rest API.
+        """
+        if not self.use_rest:
+            return self.delete_ldap_client()
+        api = 'name-services/ldap'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, current['svm']['uuid'], body=None)
+        if error is not None:
+            self.module.fail_json(msg="Error on deleting ldap client rest: %s" % error)
+
+    def modify_ldap_client_rest(self, current, modify):
+        """
+        modif ldap client config with rest API.
+        """
+        if not self.use_rest:
+            return self.modify_ldap_client(modify)
+        api = 'name-services/ldap'
+        body = self.create_ldap_client_body_rest(modify)
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, api, current['svm']['uuid'], body)
+            if error is not None:
+                self.module.fail_json(msg="Error on modifying ldap client config: %s" % error)
+
     def apply(self):
         '''Call create/modify/delete operations.'''
-        current = self.get_ldap_client()
+        if not self.use_rest:
+            # create an ems log event for users with auto support turned on
+            try:
+                netapp_utils.ems_log_event("na_ontap_ldap_client", self.server)
+            except netapp_utils.zapi.NaApiError as errcatch:
+                self.module.fail_json(
+                    msg='Error connecting to %s: %s' % (self.parameters['hostname'], to_native(errcatch)),
+                    exception=traceback.format_exc())
+        current = self.get_ldap_client_rest()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
-        # state is present, either ldap_servers or ad_domain is required
-        if self.parameters['state'] == 'present' and not self.parameters.get('ldap_servers') \
+        # state is present, either servers or ad_domain is required
+        if self.parameters['state'] == 'present' and not self.parameters.get('servers') \
                 and self.parameters.get('ad_domain') is None:
-            self.module.fail_json(msg='Required one of ldap_servers or ad_domain')
-
-        if self.parameters['state'] == 'present' and cd_action is None:
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
-
-        # create an ems log event for users with auto support turned on
-        try:
-            netapp_utils.ems_log_event("na_ontap_ldap_client", self.server)
-        except netapp_utils.zapi.NaApiError as errcatch:
-            self.module.fail_json(
-                msg='Error connecting to %s: %s' % (self.parameters['hostname'], to_native(errcatch)),
-                exception=traceback.format_exc())
-
+            self.module.fail_json(msg='Required one of servers or ad_domain')
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.create_ldap_client()
+                self.create_ldap_client_rest()
             elif cd_action == 'delete':
-                self.delete_ldap_client()
+                self.delete_ldap_client_rest(current)
             elif modify:
-                self.modify_ldap_client(modify)
+                self.modify_ldap_client_rest(current, modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
-#
-# MAIN
-#
 def main():
     '''ONTAP LDAP client configuration'''
     ldapclient = NetAppOntapLDAPClient()
