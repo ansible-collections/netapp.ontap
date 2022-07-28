@@ -31,7 +31,9 @@ collections:
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 
 # Need help
-Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
+Join us on our #ansible channel at [NetApp Discord](https://discord.gg/NetApp).
+
+Our Slack Channel at [Netapp.io](http://netapp.io/slack) will be discontinued end of August 2022.
 
 # Deprecation warning
 The 2022-Q4 will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
