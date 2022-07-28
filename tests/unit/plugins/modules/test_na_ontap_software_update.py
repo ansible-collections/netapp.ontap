@@ -106,6 +106,20 @@ cluster_image_validation_report_list = {
 }
 
 
+cluster_image_package_local_info = {
+    'attributes-list': [
+        {'cluster-image-package-local-info': {
+            'package-version': 'Fattire__9.3.0',
+
+        }},
+        {'cluster-image-package-local-info': {
+            'package-version': 'Fattire__9.3.1',
+
+        }},
+    ],
+}
+
+
 ZRR = zapi_responses({
     'cluster_image_info': build_zapi_response(cluster_image_info()),
     'cluster_image_info_mixed': build_zapi_response(cluster_image_info(True)),
@@ -113,6 +127,7 @@ ZRR = zapi_responses({
     'software_update_info_complete': build_zapi_response(software_update_info('async_pkg_get_phase_complete')),
     'software_update_info_error': build_zapi_response(software_update_info('error')),
     'cluster_image_validation_report_list': build_zapi_response(cluster_image_validation_report_list),
+    'cluster_image_package_local_info': build_zapi_response(cluster_image_package_local_info, 2),
     'error_18408': build_zapi_error(18408, 'pkg exists!')
 })
 
@@ -149,6 +164,13 @@ cluster_software_validation_results = {
 }
 
 
+def cluster_software_download_info(state):
+    return {
+        "message": "message",
+        "state": state,
+    }
+
+
 SRR = rest_responses({
     'cluster_software_node_info': (200, cluster_software_node_info(), None),
     'cluster_software_node_info_mixed': (200, cluster_software_node_info(True), None),
@@ -156,7 +178,12 @@ SRR = rest_responses({
     'cluster_software_state_completed': (200, cluster_software_state_info('completed'), None),
     'cluster_software_state_in_progress': (200, cluster_software_state_info('in_progress'), None),
     'cluster_software_state_in_error': (200, cluster_software_state_info('in_error'), None),
-    'error_image_already_exists': (200, {}, 'Package image with the same name already exists')
+    'cluster_software_download_state_success': (200, cluster_software_download_info('success'), None),
+    'cluster_software_download_state_running': (200, cluster_software_download_info('running'), None),
+    'cluster_software_package_info_ft': (200, {'records': [{'version': 'Fattire__9.3.0'}]}, None),
+    'cluster_software_package_info_pte': (200, {'records': [{'version': 'PlinyTheElder'}]}, None),
+    'error_image_already_exists': (200, {}, 'Package image with the same name already exists'),
+    'error_download_in_progress': (200, {}, 'Software get operation already in progress'),
 })
 
 
@@ -176,6 +203,7 @@ def test_ensure_apply_for_update_called(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -197,6 +225,7 @@ def test_ensure_apply_for_update_called_node(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -220,6 +249,7 @@ def test_ensure_apply_for_update_called_idempotent(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
 
     ])
@@ -235,6 +265,7 @@ def test_ensure_apply_for_update_called_idempotent_node(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get', ZRR['cluster_image_info']),
 
     ])
@@ -251,6 +282,7 @@ def test_ensure_apply_for_update_called_with_validation(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -275,6 +307,7 @@ def test_negative_download_error(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['error']),
     ])
@@ -292,6 +325,7 @@ def test_negative_download_progress_error(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -312,6 +346,7 @@ def test_negative_download_progress_error_no_status(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -335,6 +370,7 @@ def test_negative_download_progress_error_fetching_status(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -355,6 +391,7 @@ def test_negative_update_error_zapi(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -378,6 +415,7 @@ def test_negative_update_error(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -391,7 +429,7 @@ def test_negative_update_error(dont_sleep):
         "use_rest": "never",
         "package_version": "PlinyTheElder",
     }
-    error = 'Error updating image: overall_status: error.'
+    error = 'Error updating image using ZAPI: overall_status: error.'
     assert error in create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
@@ -401,6 +439,7 @@ def test_negative_update_error_timeout(dont_sleep):
     register_responses([
         ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
         ('ZAPI', 'cluster-image-get-download-progress', ZRR['software_update_info_running']),
@@ -414,7 +453,7 @@ def test_negative_update_error_timeout(dont_sleep):
         "use_rest": "never",
         "package_version": "PlinyTheElder",
     }
-    error = 'Timeout error updating image: overall_status: in_progress.  Should the timeout value be increased?'\
+    error = 'Timeout error updating image using ZAPI: overall_status: in_progress.  Should the timeout value be increased?'\
             '  Current value is 1800 seconds.  The software update continues in background.'
     assert error in create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
@@ -477,6 +516,7 @@ def test_cluster_image_zapi_errors():
         ('ZAPI', 'cluster-image-get-iter', ZRR['error']),
         ('ZAPI', 'cluster-image-get', ZRR['error']),
         ('ZAPI', 'cluster-image-package-delete', ZRR['error']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['error']),
     ])
     module_args = {
         "use_rest": "never"
@@ -488,6 +528,8 @@ def test_cluster_image_zapi_errors():
         zapi_error_message('Error fetching cluster image details for node')
     assert expect_and_capture_ansible_exception(my_obj.cluster_image_package_delete, 'fail')['msg'] ==\
         zapi_error_message('Error deleting cluster image package for Fattire__9.3.0')
+    assert expect_and_capture_ansible_exception(my_obj.cluster_image_packages_get_zapi, 'fail')['msg'] ==\
+        zapi_error_message('Error getting list of local packages')
 
 
 def test_cluster_image_get_for_node_none_none():
@@ -503,10 +545,11 @@ def test_cluster_image_get_for_node_none_none():
 
 
 def test_cluster_image_package_download():
-    ''' ZAPI error on download '''
+    ''' ZAPI error on download - package already exists'''
     register_responses([
         ('ZAPI', 'cluster-image-package-download', ZRR['error']),
         ('ZAPI', 'cluster-image-package-download', ZRR['error_18408']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['cluster_image_package_local_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
     ])
     module_args = {
@@ -536,19 +579,43 @@ def test_cluster_image_update_progress_get_error():
     assert my_obj.cluster_image_update_progress_get(ignore_connection_error=True) == {}
 
 
+def test_delete_package_zapi():
+    # deleting a package
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['cluster_image_package_local_info']),
+        ('ZAPI', 'cluster-image-package-delete', ZRR['success']),
+        # idempotency
+        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        "use_rest": "never",
+        "state": "absent",
+        "package_version": "Fattire__9.3.0",
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 # REST tests
 
 @patch('time.sleep')
 def test_rest_ensure_apply_for_update_called(dont_sleep):
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['success_with_job_uuid']),
         ('GET', JOB_GET_API, SRR['job_generic_response_running']),
         ('GET', JOB_GET_API, SRR['job_generic_response_running']),
+        ('GET', JOB_GET_API, SRR['generic_error']),
         ('GET', JOB_GET_API, SRR['job_generic_response_success']),
         ('PATCH', 'cluster/software', SRR['success_with_job_uuid']),
         ('GET', JOB_GET_API, SRR['job_generic_response_running']),
+        ('GET', JOB_GET_API, SRR['generic_error']),
         ('GET', JOB_GET_API, SRR['job_generic_response_running']),
         ('GET', JOB_GET_API, SRR['job_generic_response_success']),
         ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
@@ -573,6 +640,7 @@ def test_rest_ensure_apply_for_update_called_idempotent(dont_sleep):
     # image already installed
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
 
     ])
@@ -587,6 +655,7 @@ def test_rest_ensure_apply_for_update_called_with_validation(dont_sleep):
     # for validation before update
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['success']),
         ('PATCH', 'cluster/software', SRR['success']),
@@ -594,7 +663,10 @@ def test_rest_ensure_apply_for_update_called_with_validation(dont_sleep):
         ('PATCH', 'cluster/software', SRR['success']),
         ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
         ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
+        ('GET', 'cluster/software', SRR['generic_error']),
         ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
         ('GET', 'cluster/software', SRR['cluster_software_state_completed']),
         ('GET', 'cluster/software', SRR['cluster_software_validation_results']),
         ('DELETE', 'cluster/software/packages/PlinyTheElder', SRR['success']),
@@ -608,12 +680,12 @@ def test_rest_ensure_apply_for_update_called_with_validation(dont_sleep):
 
 
 @patch('time.sleep')
-def test_rest_download_idempotent_package_already_exist(dont_sleep):
-    ''' downloading software - error while downloading the image - first request '''
+def test_rest_download_idempotent_package_already_exist_pre(dont_sleep):
+    ''' downloading software - package already present before attempting download '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_pte']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
-        ('POST', 'cluster/software/download', SRR['error_image_already_exists']),
     ])
     module_args = {
         "use_rest": "always",
@@ -624,10 +696,70 @@ def test_rest_download_idempotent_package_already_exist(dont_sleep):
 
 
 @patch('time.sleep')
+def test_rest_download_idempotent_package_already_exist_post(dont_sleep):
+    ''' downloading software - package already present when attempting download '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['error_image_already_exists']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_pte']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "download_only": True,
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_download_already_in_progress(dont_sleep):
+    ''' downloading software - package already present when attempting download '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['error_download_in_progress']),
+        ('GET', 'cluster/software/download', SRR['cluster_software_download_state_running']),
+        ('GET', 'cluster/software/download', SRR['generic_error']),
+        ('GET', 'cluster/software/download', SRR['generic_error']),
+        ('GET', 'cluster/software/download', SRR['cluster_software_download_state_running']),
+        ('GET', 'cluster/software/download', SRR['cluster_software_download_state_success']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "download_only": True,
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('time.sleep')
+def test_rest_negative_download_package_already_exist(dont_sleep):
+    ''' downloading software - error while downloading the image - first request '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['error_image_already_exists']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_ft']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "download_only": True,
+    }
+    error = 'Error: another package with the same file name exists: found: Fattire__9.3.0'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+@patch('time.sleep')
 def test_rest_negative_download_error(dont_sleep):
     ''' downloading software - error while downloading the image - first request '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['generic_error']),
     ])
@@ -644,6 +776,7 @@ def test_rest_negative_download_progress_error(dont_sleep):
     ''' downloading software - error while downloading the image - progress error '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['success_with_job_uuid']),
         ('GET', JOB_GET_API, SRR['job_generic_response_running']),
@@ -663,12 +796,113 @@ def test_rest_negative_update_error_sync(dont_sleep):
     ''' updating software - error while updating the image '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['success']),
         ('PATCH', 'cluster/software', SRR['generic_error']),
         ('GET', 'cluster/software', SRR['cluster_software_validation_results']),
         # second error on validate results
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['success']),
+        ('PATCH', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+    }
+    error = rest_error_message('Error updating software', 'cluster/software')
+    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    assert 'validation results:' in msg
+    assert "'issue': {'message': 'Cluster HA is not configured in the cluster.'}" in msg
+    # seconnd error on validate results
+    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    assert 'validation results:' in msg
+    assert 'validation results: Error fetching software information for validation_results:' in msg
+
+
+@patch('time.sleep')
+def test_rest_negative_update_error_waiting_for_state(dont_sleep):
+    ''' updating software - error while updating the image '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['success']),
+        ('PATCH', 'cluster/software', SRR['success']),
+        ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        # over 20 consecutive errors
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['success']),
+        ('PATCH', 'cluster/software', SRR['success']),
+        ('GET', 'cluster/software', SRR['cluster_software_state_in_progress']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['generic_error']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "timeout": 240
+    }
+    error = rest_error_message('Error: unable to read image update state, using timeout 240.  '
+                               'Last error: Error fetching software information for state', 'cluster/software')
+    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    assert 'All errors:' in msg
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "timeout": 1800
+    }
+    # stop after 20 errors
+    error = rest_error_message('Error: unable to read image update state, using timeout 1800.  '
+                               'Last error: Error fetching software information for state', 'cluster/software')
+    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    assert 'All errors:' in msg
+
+
+@patch('time.sleep')
+def test_rest_negative_update_error_job_errors(dont_sleep):
+    ''' updating software - error while updating the image '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+        ('GET', 'cluster/software', SRR['cluster_software_node_info']),
+        ('POST', 'cluster/software/download', SRR['success']),
+        ('PATCH', 'cluster/software', SRR['generic_error']),
+        ('GET', 'cluster/software', SRR['cluster_software_validation_results']),
+        # second error on validate results
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('GET', 'cluster/software', SRR['cluster_software_node_info']),
         ('POST', 'cluster/software/download', SRR['success']),
         ('PATCH', 'cluster/software', SRR['generic_error']),
@@ -798,15 +1032,17 @@ def test_rest_cluster_image_package_download():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('POST', 'cluster/software/download', SRR['generic_error']),
         ('POST', 'cluster/software/download', SRR['error_image_already_exists']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
         ('POST', 'cluster/software/download', SRR['success']),
     ])
     module_args = {
         "use_rest": "always"
     }
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    assert expect_and_capture_ansible_exception(my_obj.download_software_rest, 'fail')['msg'] ==\
-        rest_error_message('Error downloading software', 'cluster/software/download', " - current versions: ['not available with force_update']")
-    assert my_obj.download_software_rest()
+    error = rest_error_message('Error downloading software', 'cluster/software/download', " - current versions: ['not available with force_update']")
+    assert error in expect_and_capture_ansible_exception(my_obj.download_software_rest, 'fail')['msg']
+    error = 'Error: ONTAP reported package already exists, but no package found: '
+    assert error in expect_and_capture_ansible_exception(my_obj.download_software_rest, 'fail')['msg']
     assert not my_obj.download_software_rest()
 
 
@@ -825,11 +1061,51 @@ def test_rest_post_update_tasks():
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     assert my_obj.post_update_tasks_rest('completed') == cluster_software_validation_results['validation_results']
     # time out
-    error = 'Timeout error updating image: state: in_progress.'
+    error = 'Timeout error updating image using REST: state: in_progress.'
     assert error in expect_and_capture_ansible_exception(my_obj.post_update_tasks_rest, 'fail', 'in_progress')['msg']
     # other state
-    error = 'Error updating image: state: error_state.'
+    error = 'Error updating image using REST: state: error_state.'
     assert error in expect_and_capture_ansible_exception(my_obj.post_update_tasks_rest, 'fail', 'error_state')['msg']
+
+
+def test_rest_delete_package():
+    ''' deleting package '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_pte']),
+        ('DELETE', 'cluster/software/packages/PlinyTheElder', SRR['success']),
+        # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_ft']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "state": "absent",
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_negative_delete_package():
+    ''' deleting package '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['generic_error']),
+        # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/software/packages', SRR['cluster_software_package_info_pte']),
+        ('DELETE', 'cluster/software/packages/PlinyTheElder', SRR['generic_error'])
+    ])
+    module_args = {
+        "use_rest": "always",
+        "package_version": "PlinyTheElder",
+        "state": "absent",
+    }
+    error = rest_error_message('Error: unable to fetch local package list', 'cluster/software/packages')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = rest_error_message('Error deleting cluster software package for PlinyTheElder', 'cluster/software/packages/PlinyTheElder')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_partially_supported_options():
@@ -859,3 +1135,17 @@ def test_rest_partially_supported_options():
     assert create_module(my_module, DEFAULT_ARGS, module_args)
     print_warnings
     assert_warning_was_raised('Falling back to ZAPI because of unsupported option(s) or option value(s) "nodes" in REST require (9, 9)')
+
+
+def test_missing_arg():
+    args = dict(DEFAULT_ARGS)
+    args.pop('package_url')
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/software/packages', SRR['zero_records']),
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    error = 'Error: packague_url is a required parameter to download the software package.'
+    assert error in call_main(my_main, args, module_args, fail=True)['msg']

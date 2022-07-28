@@ -68,15 +68,19 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_job_schedule - new option `cluster` added.
 
 ### Bug Fixes
-  - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
   - na_ontap_cluster_peer - report an error if there is an attempt to use the already peered clusters.
+  - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
+  - na_ontap_lun - Added `lun_modify` after `app_modify` to fix idempotency issue.
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
   - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
   - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
   - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
-  - na_ontap_lun - Added `lun_modify` after `app_modify` to fix idempotency issue.
+  - na_ontap_software_update - improve error handling if image file is already present.
+  - na_ontap_software_update - improve error handling when node is rebooting with REST.
+  - na_ontap_software_update - when using REST with ONTAP 9.9 or later, timeout value is properly set.
 
 ### Minor Changes
+  - na_ontap_software_update - deleting a software package is now supported with ZAPI and REST.
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
 
 ### Added REST support to existing modules

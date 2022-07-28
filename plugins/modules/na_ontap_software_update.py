@@ -21,9 +21,12 @@ extends_documentation_fragment:
 module: na_ontap_software_update
 options:
   state:
-    choices: ['present']
+    choices: ['present', 'absent']
     description:
-      - This module can only download and optionally install the software.
+      - This module downloads and optionally installs ONTAP software on a cluster.
+      - The software package is deleted after a successful installation.
+      - If the software package is already present, it is not downloaded and not replaced.
+      - When state is absent, the package is deleted from disk.
     default: present
     type: str
   nodes:
@@ -38,13 +41,13 @@ options:
   package_version:
     required: true
     description:
-      - Specifies the package version to update software.
+      - Specifies the package version to update ONTAP software to, or to be deleted.
     type: str
   package_url:
-    required: true
     type: str
     description:
       - Specifies the package URL to download the package.
+      - Required when state is present unless the package is already present on disk.
   ignore_validation_warning:
     description:
       - Allows the update to continue if warnings are encountered during the validation phase.
@@ -144,10 +147,10 @@ class NetAppONTAPSoftwareUpdate:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-            state=dict(required=False, type='str', choices=['present'], default='present'),
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             nodes=dict(required=False, type='list', elements='str', aliases=["node", "nodes_to_update"]),
             package_version=dict(required=True, type='str'),
-            package_url=dict(required=True, type='str'),
+            package_url=dict(required=False, type='str'),
             ignore_validation_warning=dict(required=False, type='bool', default=False, aliases=["skip_warnings"]),
             download_only=dict(required=False, type='bool', default=False),
             stabilize_minutes=dict(required=False, type='int'),
@@ -302,8 +305,7 @@ class NetAppONTAPSoftwareUpdate:
         except netapp_utils.zapi.NaApiError as error:
             # Error 18408 denotes Package image with the same name already exists
             if to_native(error.code) == "18408":
-                # TODO: if another package is using the same image name, we're stuck
-                return True
+                return self.check_for_existing_package(error)
             else:
                 self.module.fail_json(msg='Error downloading cluster image package for %s: %s'
                                       % (self.parameters['package_url'], to_native(error)),
@@ -436,7 +438,7 @@ class NetAppONTAPSoftwareUpdate:
         else:
             msg = 'Error'
             action = ''
-        msg += ' updating image: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
+        msg += ' updating image using ZAPI: overall_status: %s.' % (cluster_update_progress.get('overall_status', 'cannot get status'))
         msg += action
         self.module.fail_json(
             msg=msg,
@@ -479,6 +481,27 @@ class NetAppONTAPSoftwareUpdate:
             self.module.fail_json(msg=error_msg)
         return info if fail_on_error else (info, error_msg)
 
+    def check_for_existing_package(self, error):
+        ''' ONTAP returns 'Package image with the same name already exists'
+            if a file with the same name already exists.
+            We need to confirm the version: if the version matches, we're good,
+            otherwise we need to error out.
+        '''
+        versions, error2 = self.cluster_image_packages_get_rest()
+        if self.parameters['package_version'] in versions:
+            return True
+        if versions:
+            self.module.fail_json(msg='Error: another package with the same file name exists: found: %s' % ', '.join(versions))
+        self.module.fail_json(msg='Error: ONTAP reported package already exists, but no package found: %s, getting versions: %s' % (error, error2))
+
+    def cluster_image_download_get_rest(self):
+        api = 'cluster/software/download'
+        field = 'message,state'
+        record, error = rest_generic.get_one_record(self.rest_api, api, fields=field)
+        if record:
+            return record.get('state'), record.get('message'), error
+        return None, None, error
+
     def download_software_rest(self):
         api = 'cluster/software/download'
         body = {
@@ -487,9 +510,18 @@ class NetAppONTAPSoftwareUpdate:
         dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=0, job_timeout=self.parameters['timeout'])
         if error:
             if 'Package image with the same name already exists' in error:
-                return True
+                return self.check_for_existing_package(error)
+            if 'Software get operation already in progress' in error:
+                self.module.warn("A download is already in progress.  Resuming existing download.")
+                return self.wait_for_condition(self.is_download_complete_rest, 'image download state')
             self.module.fail_json(msg="Error downloading software: %s - current versions: %s" % (error, self.versions))
         return False
+
+    def is_download_complete_rest(self):
+        state, dummy, error = self.cluster_image_download_get_rest()
+        if error:
+            return None, None, error
+        return state in ['success', 'failure'], state, error
 
     def cluster_image_validate_rest(self):
         api = 'cluster/software'
@@ -537,12 +569,23 @@ class NetAppONTAPSoftwareUpdate:
         else:
             msg = 'Error'
             action = ''
-        msg += ' updating image: state: %s.' % state
+        msg += ' updating image using REST: state: %s.' % state
         msg += action
         self.module.fail_json(
             msg=msg,
             validation_reports_after_download=self.validation_reports_after_download,
             validation_reports_after_update=(error or validation_reports))
+
+    def error_is_fatal(self, error):
+        ''' a node may not be available during reboot, or the job may be lost '''
+        if not error:
+            return False
+        self.rest_api.log_debug('transient_error', error)
+        error_messages = [
+            "entry doesn't exist",                                  # job not found
+            "Max retries exceeded with url: /api/cluster/jobs"      # connection errors
+        ]
+        return all(error_message not in error for error_message in error_messages)
 
     def cluster_image_update_rest(self):
         api = 'cluster/software'
@@ -560,25 +603,72 @@ class NetAppONTAPSoftwareUpdate:
             value = self.parameters.get(param_key)
             if value is not None:
                 query[rest_key] = ','.join(value) if rest_key == 'nodes_to_update' else value
+        # With ONTAP 9.8, the job persists until the node is rebooted
+        # With ONTAP 9.9, the job returns quickly
         dummy, error = rest_generic.patch_async(self.rest_api, api, None, body, query=query or None, timeout=0, job_timeout=self.parameters['timeout'])
-        if error:
+        if self.error_is_fatal(error):
             validation_results, v_error = self.cluster_image_get_rest('validation_results', fail_on_error=False)
             self.module.fail_json(msg="Error updating software: %s - validation results: %s" % (error, v_error or validation_results))
 
-        # wait for completion
-        for __ in range(30):
-            time.sleep(10)
-            state = self.cluster_image_get_rest('state')
-            if state in ['paused_by_user', 'paused_on_error', 'completed', 'canceled', 'failed']:
+        return self.wait_for_condition(self.is_update_complete_rest, 'image update state')
+
+    def is_update_complete_rest(self):
+        state, error = self.cluster_image_get_rest('state', fail_on_error=False)
+        if error:
+            return None, None, error
+        return state in ['paused_by_user', 'paused_on_error', 'completed', 'canceled', 'failed'], state, error
+
+    def wait_for_condition(self, is_task_complete, description):
+        ''' loop until a condition is met
+            is_task_complete is a function that returns (is_complete, state, error)
+            if is_complete is True, the condition is met and state is returned
+            if is complete is False, the task is called until a timeout is reached
+            errors are ignored unless there are too many or a timeout is reached
+        '''
+        errors = []
+        for __ in range(1 + self.parameters['timeout'] // 60):      # floor division
+            time.sleep(60)
+            is_complete, state, error = is_task_complete()
+            if error:
+                self.rest_api.log_debug('transient_error', error)
+                errors.append(error)
+                if len(errors) < 20:
+                    continue
                 break
+            errors = []
+            if is_complete:
+                break
+        if errors:
+            msg = "Error: unable to read %s, using timeout %s." % (description, self.parameters['timeout'])
+            msg += "  Last error: %s" % error
+            msg += "  All errors: %s" % ' -- '.join(errors)
+            self.module.fail_json(msg=msg)
         return state
+
+    def cluster_image_packages_get_zapi(self):
+        versions = []
+        packages_obj = netapp_utils.zapi.NaElement('cluster-image-package-local-get-iter')
+        try:
+            result = self.server.invoke_successfully(packages_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error getting list of local packages: %s' % to_native(error), exception=traceback.format_exc())
+        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
+            packages_info = result.get_child_by_name('attributes-list')
+            versions = [packages_details.get_child_content('package-version') for packages_details in packages_info.get_children()]
+        return versions, None
+
+    def cluster_image_packages_get_rest(self):
+        if not self.use_rest:
+            return self.cluster_image_packages_get_zapi()
+        api = 'cluster/software/packages'
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, fields='version')
+        return [record.get('version') for record in records] if records else [], error
 
     def cluster_image_package_delete_rest(self):
         api = 'cluster/software/packages'
         dummy, error = rest_generic.delete_async(self.rest_api, api, self.parameters['package_version'])
         if error:
-            self.module.fail_json(msg='Error deleting cluster software package for %s: %s'
-                                  % (self.parameters['package_version'], error))
+            self.module.fail_json(msg='Error deleting cluster software package for %s: %s' % (self.parameters['package_version'], error))
 
     def apply(self):
         """
@@ -588,28 +678,46 @@ class NetAppONTAPSoftwareUpdate:
         # check if node image update can be used for other cases.
         if not self.use_rest:
             netapp_utils.ems_log_event_cserver('na_ontap_software_update', self.server, self.module)
-        changed = self.parameters['force_update'] or self.is_update_required()
-        validation_reports_after_update = ['only available after update']
-        if not self.module.check_mode and changed:
-            already_exists = self.download_software()
-            if self.parameters['validate_after_download']:
-                self.validation_reports_after_download = self.cluster_image_validate()
-            if self.parameters['download_only']:
-                changed = not already_exists
-            else:
-                validation_reports_after_update = self.update_software()
+        versions, error = self.cluster_image_packages_get_rest()
+        already_downloaded = not error and self.parameters['package_version'] in versions
+        if self.parameters['state'] == 'absent':
+            if error:
+                self.module.fail_json(msg='Error: unable to fetch local package list: %s' % error)
+            changed = already_downloaded
+        else:
+            if already_downloaded:
+                self.module.warn('Package %s is already present, skipping download.' % self.parameters['package_version'])
+            elif not self.parameters.get('package_url'):
+                self.module.fail_json(msg='Error: packague_url is a required parameter to download the software package.')
+            changed = self.parameters['force_update'] or self.is_update_required()
+            validation_reports_after_update = ['only available after update']
 
-        self.module.exit_json(
-            changed=changed,
-            validation_reports=str(validation_reports_after_update),
-            validation_reports_after_download=self.validation_reports_after_download,
-            validation_reports_after_update=validation_reports_after_update,)
+        results = {}
+        if not self.module.check_mode and changed:
+            if self.parameters['state'] == 'absent':
+                self.cluster_image_package_delete()
+            else:
+                if not already_downloaded:
+                    already_downloaded = self.download_software()
+                if self.parameters['validate_after_download']:
+                    self.validation_reports_after_download = self.cluster_image_validate()
+                if self.parameters['download_only']:
+                    changed = not already_downloaded
+                else:
+                    validation_reports_after_update = self.update_software()
+                results = {
+                    'validation_reports': str(validation_reports_after_update),
+                    'validation_reports_after_download': self.validation_reports_after_download,
+                    'validation_reports_after_update': validation_reports_after_update
+                }
+
+        self.module.exit_json(changed=changed, **results)
 
 
 def main():
     """Execute action"""
-    community_obj = NetAppONTAPSoftwareUpdate()
-    community_obj.apply()
+    package_obj = NetAppONTAPSoftwareUpdate()
+    package_obj.apply()
 
 
 if __name__ == '__main__':
