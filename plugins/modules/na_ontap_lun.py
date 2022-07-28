@@ -1193,6 +1193,20 @@ class NetAppOntapLUN:
         self.check_for_errors(lun_cd_action, current, lun_modify)
         return lun_path, from_lun_path, lun_cd_action, lun_rename, lun_modify, app_modify_warning
 
+    def lun_modify_after_app_update(self, lun_path, results):
+        # modify at LUN level, as app modify does not set some LUN level options (eg space_reserve)
+        if lun_path is None:
+            lun_path = self.get_lun_path_from_backend(self.parameters['name'])
+        current = self.get_lun(self.parameters['name'], lun_path)
+        self.set_uuid(current)
+        # we already handled rename if required
+        current.pop('name', None)
+        lun_modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if lun_modify:
+            results['lun_modify_after_app_update'] = dict(lun_modify)
+        self.check_for_errors(None, current, lun_modify)
+        return lun_modify
+
     def apply(self):
         results = {}
         if not self.use_rest:
@@ -1226,6 +1240,10 @@ class NetAppOntapLUN:
                     self.modify_san_application(app_modify)
                 if lun_rename:
                     self.rename_lun(from_lun_path, lun_path)
+                if app_modify:
+                    # space_reserve will be set to True
+                    # To match input parameters, lun_modify is recomputed.
+                    lun_modify = self.lun_modify_after_app_update(lun_path, results)
                 size_changed = False
                 if lun_modify and 'size' in lun_modify:
                     # Ensure that size was actually changed. Please
