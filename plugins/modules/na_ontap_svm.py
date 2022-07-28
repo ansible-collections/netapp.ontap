@@ -37,8 +37,11 @@ options:
   name:
     description:
       - The name of the SVM to manage.
+      - vserver is a convenient alias when using module_defaults.
     type: str
     required: true
+    aliases:
+      - vserver
 
   from_name:
     description:
@@ -347,7 +350,7 @@ class NetAppOntapSVM():
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            name=dict(required=True, type='str'),
+            name=dict(required=True, type='str', aliases=['vserver']),
             from_name=dict(required=False, type='str'),
             admin_state=dict(required=False, type='str', choices=['running', 'stopped']),
             root_volume=dict(type='str'),

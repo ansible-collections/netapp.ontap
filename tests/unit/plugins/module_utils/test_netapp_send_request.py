@@ -129,8 +129,9 @@ def test_wait_on_job_job_error(mock_request, sleep_mock):
     assert msg in error
 
 
+@patch('time.sleep')
 @patch('requests.request')
-def test_wait_on_job_job_failure(mock_request):
+def test_wait_on_job_job_failure(mock_request, dont_sleep):
     ''' get with no data '''
     mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='failure', message='failure message'), status_code=200)
     rest_api = create_restapi_object(DEFAULT_ARGS)
@@ -156,8 +157,9 @@ def test_wait_on_job_timeout_running(mock_request, sleep_mock):
     assert message == 'any message'
 
 
+@patch('time.sleep')
 @patch('requests.request')
-def test_wait_on_job(mock_request):
+def test_wait_on_job(mock_request, dont_sleep):
     ''' get with no data '''
     mock_request.return_value = mockResponse(json_data=dict(error='Job error message', state='other', message='any message'), status_code=200)
     rest_api = create_restapi_object(DEFAULT_ARGS)

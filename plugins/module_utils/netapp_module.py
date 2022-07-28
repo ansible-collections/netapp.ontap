@@ -539,7 +539,7 @@ class NetAppModule(object):
             if desired_permissions[0] not in ['s', '-'] or desired_permissions[1] not in ['s', '-']\
                     or desired_permissions[2] not in ['t', '-']:
                 return False
-            desired_octal_value += str(self.char_to_octal(desired_permissions[0:3]))
+            desired_octal_value += str(self.char_to_octal(desired_permissions[:3]))
         # if the len is 9, start from 0 else start from 3.
         start_range = len(desired_permissions) - 9
         for i in range(start_range, len(desired_permissions), 3):
@@ -563,3 +563,25 @@ class NetAppModule(object):
         if chars[2] in ['x', 't']:
             total += 1
         return total
+
+    def ignore_missing_vserver_on_delete(self, error, vserver_name=None):
+        """ When a resource is expected to be absent, it's OK if the containing vserver is also absent.
+            This function expects self.parameters('vserver') to be set or the vserver_name argument to be passed.
+            error is an error returned by rest_generic.get_xxxx.
+        """
+        if self.parameters.get('state') != 'absent':
+            return False
+        if vserver_name is None:
+            if self.parameters.get('vserver') is None:
+                self.module.fail_json(msg='Internal error, vserver name is required, when processing error: %s' % error, exception=traceback.format_exc())
+            vserver_name = self.parameters['vserver']
+        if isinstance(error, str):
+            pass
+        elif isinstance(error, dict):
+            if 'message' in error:
+                error = error['message']
+            else:
+                self.module.fail_json(msg='Internal error, error should contain "message" key, found: %s' % error, exception=traceback.format_exc())
+        else:
+            self.module.fail_json(msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
+        return 'SVM "%s" does not exist.' % self.parameters['vserver'] in error

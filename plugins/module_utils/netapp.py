@@ -359,7 +359,7 @@ def is_zapi_write_access_error(message):
 def is_zapi_missing_vserver_error(message):
     ''' return True if it is a missing vserver error '''
     # netapp-lib message may contain a tuple or a str!
-    return isinstance(message, str) and message == 'Vserver API missing vserver parameter.'
+    return isinstance(message, str) and message in ('Vserver API missing vserver parameter.', 'Specified vserver not found')
 
 
 def ems_log_event_cserver(source, server, module):
@@ -393,7 +393,8 @@ def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECT
         # Do not fail if we can't connect to the server.
         # The module will report a better error when trying to get some data from ONTAP.
         # Do not fail if we don't have write privileges.
-        # Do not fail if there is no cserver, as on FSx.
+        # Do not fail if there is no cserver, as for FSx.
+        # Do not fail if the vserver does not exists - as it's not required when state==absent for some modules.
         if not is_zapi_connection_error(exc.message) \
            and not is_zapi_write_access_error(exc.message) \
            and not is_zapi_missing_vserver_error(exc.message):
@@ -776,6 +777,45 @@ class OntapRestAPI(object):
             json_dict['Allow'] = response.headers.get('Allow')
         return status_code, json_dict, error_details
 
+    def _is_job_done(self, job_json, job_state, job_error, timed_out):
+        """ return (done, message, error)
+            done is True to indicate that the job is complete, or failed, or timed out
+            done is False when the job is still running
+        """
+        # a job looks like this
+        # {
+        #   "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
+        #   "description": "POST /api/cluster/metrocluster",
+        #   "state": "failure",
+        #   "message": "There are not enough disks in Pool1.",   **OPTIONAL**
+        #   "code": 2432836,
+        #   "start_time": "2020-02-26T10:35:44-08:00",
+        #   "end_time": "2020-02-26T10:47:38-08:00",
+        #   "_links": {
+        #     "self": {
+        #       "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
+        #     }
+        #   }
+        # }
+        done, error = False, None
+        message = job_json.get('message', '') if job_json else None
+        if job_state == 'failure':
+            # if the job has failed, return message as error
+            error = message
+            message = None
+            done = True
+        elif job_state not in ('queued', 'running', None):
+            error = job_error
+            done = True
+        elif timed_out:
+            # Would like to post a message to user (not sure how)
+            self.log_error(0, 'Timeout error: Process still running')
+            error = 'Timeout error: Process still running'
+            if job_error is not None:
+                error += ' - %s' % job_error
+            done = True
+        return done, message, error
+
     def wait_on_job(self, job, timeout=600, increment=60):
         try:
             url = job['_links']['self']['href'].split('api/')[1]
@@ -797,8 +837,9 @@ class OntapRestAPI(object):
         runtime = 0
         retries = 0
         max_retries = 3
-        while True:
-            # Will run every every <increment> seconds for <timeout> seconds
+        done = False
+        while not done:
+            # Will run every <increment> seconds for <timeout> seconds
             job_json, job_error = self.get(url, None)
             job_state = job_json.get('state', None) if job_json else None
             # ignore error if status is provided in the job
@@ -807,45 +848,14 @@ class OntapRestAPI(object):
                 retries += 1
                 if retries > max_retries:
                     error = " - ".join(errors)
-                    self.log_error(0, 'Job error: Reach max retries.')
-                    break
+                    self.log_error(0, 'Job error: Reached max retries.')
+                    done = True
             else:
                 retries = 0
-                # a job looks like this
-                # {
-                #   "uuid": "cca3d070-58c6-11ea-8c0c-005056826c14",
-                #   "description": "POST /api/cluster/metrocluster",
-                #   "state": "failure",
-                #   "message": "There are not enough disks in Pool1.",   **OPTIONAL**
-                #   "code": 2432836,
-                #   "start_time": "2020-02-26T10:35:44-08:00",
-                #   "end_time": "2020-02-26T10:47:38-08:00",
-                #   "_links": {
-                #     "self": {
-                #       "href": "/api/cluster/jobs/cca3d070-58c6-11ea-8c0c-005056826c14"
-                #     }
-                #   }
-                # }
-
-                message = job_json.get('message', '') if job_json else None
-                if job_state == 'failure':
-                    # if the job has failed, return message as error
-                    return None, message
-                if job_state not in ('queued', 'running', None):
-                    if error is None:
-                        error = job_error
-                    break
-                elif runtime >= timeout:
-                    # Would like to post a message to user (not sure how)
-                    if job_state != 'success':
-                        self.log_error(0, 'Timeout error: Process still running')
-                        if error is None:
-                            error = 'Timeout error: Process still running'
-                            if job_error is not None:
-                                error += ' - %s' % job_error
-                    break
-            time.sleep(increment)
-            runtime += increment
+                done, message, error = self._is_job_done(job_json, job_state, job_error, runtime >= timeout)
+            if not done:
+                time.sleep(increment)
+                runtime += increment
         return message, error
 
     def get(self, api, params=None, headers=None):
@@ -938,10 +948,9 @@ class OntapRestAPI(object):
         status_code = self.get_ontap_version_using_rest()
         if self.use_rest == "always" and partially_supported_rest_properties:
             error = '\n'.join(
-                "Minimum version of ONTAP for %s is %s."
-                % (property[0], str(property[1]))
+                "Minimum version of ONTAP for %s is %s." % (property[0], str(property[1]))
                 for property in partially_supported_rest_properties
-                if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters
+                if self.get_ontap_version()[:3] < property[1] and property[0] in parameters
             )
             if error != '':
                 return True, error
@@ -959,7 +968,7 @@ class OntapRestAPI(object):
         if partially_supported_rest_properties:
             # if ontap version is lower than partially_supported_rest_properties version, force ZAPI, only if the paramater is used
             for property in partially_supported_rest_properties:
-                if self.get_ontap_version()[0:3] < property[1] and property[0] in parameters:
+                if self.get_ontap_version()[:3] < property[1] and property[0] in parameters:
                     self.fallback_to_zapi_reason =\
                         'because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1]))
                     self.module.warn('Falling back to ZAPI %s' % self.fallback_to_zapi_reason)

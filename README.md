@@ -64,8 +64,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 21.22.0
 
 ### New Options
-  - na_ontap_ldap_client - Added `ldaps_enabled` option in ZAPI.
   - na_ontap_job_schedule - new option `cluster` added.
+  - na_ontap_ldap_client - Added `ldaps_enabled` option in ZAPI.
 
 ### Bug Fixes
   - na_ontap_cluster_peer - report an error if there is an attempt to use the already peered clusters.
@@ -80,8 +80,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_software_update - when using REST with ONTAP 9.9 or later, timeout value is properly set.
 
 ### Minor Changes
+  - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be found when attempting a delete.
+  - na_ontap_svm - added vserver as a convenient alias for name when using module_defaults.
   - na_ontap_software_update - deleting a software package is now supported with ZAPI and REST.
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
+  - all modules - do not fail on ZAPI EMS log when vserver does not exist.
 
 ### Added REST support to existing modules
   - na_ontap_ldap_client - added REST support.

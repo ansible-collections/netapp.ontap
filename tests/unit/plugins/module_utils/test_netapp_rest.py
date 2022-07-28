@@ -400,6 +400,20 @@ def test_post_method():
     assert create_restapi_object(DEFAULT_ARGS).post('cluster', None) == (SRR['is_rest_96'][1], None)
 
 
+def test_patch_method():
+    register_responses([
+        ('PATCH', 'cluster', SRR['is_rest_96']),
+    ])
+    assert create_restapi_object(DEFAULT_ARGS).patch('cluster', None) == (SRR['is_rest_96'][1], None)
+
+
+def test_delete_method():
+    register_responses([
+        ('DELETE', 'cluster', SRR['is_rest_96']),
+    ])
+    assert create_restapi_object(DEFAULT_ARGS).delete('cluster', None) == (SRR['is_rest_96'][1], None)
+
+
 def test_options_method():
     register_responses([
         ('OPTIONS', 'cluster', SRR['is_rest_96']),
@@ -465,8 +479,10 @@ def test_is_rest_supported_properties():
         "REST API currently does not support 'xyz'"
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'cluster', SRR['is_rest_96']),
     ])
     assert rest_api.is_rest_supported_properties(['abc'], ['xyz'])
+    assert rest_api.is_rest_supported_properties(['abc'], ['xyz'], report_error=True) == (True, None)
 
 
 def test_is_rest_partially_supported_properties():

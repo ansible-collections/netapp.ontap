@@ -21,6 +21,7 @@ class MockONTAPModule(object):
     def __init__(self):
         self.module = basic.AnsibleModule(netapp_utils.na_ontap_host_argument_spec())
         self.na_helper = na_helper(self.module)
+        self.na_helper.set_parameters(self.module.params)
 
 
 def create_ontap_module(args=None):
@@ -806,3 +807,19 @@ def test_compare_chmod_value():
     assert myobj.compare_chmod_value("755", "rwxrwxrwxrwxr") is False
     assert myobj.compare_chmod_value("777", "---ssxrwxrwx") is False
     assert myobj.compare_chmod_value("7777", "rwxrwxrwxrwx") is False
+    assert myobj.compare_chmod_value("7777", "7777") is True
+
+
+def test_ignore_missing_vserver_on_delete():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    assert not my_obj.na_helper.ignore_missing_vserver_on_delete('error')
+    my_obj.na_helper.parameters['state'] = 'absent'
+    error = 'Internal error, vserver name is required, when processing error: error_msg'
+    assert error in expect_and_capture_ansible_exception(my_obj.na_helper.ignore_missing_vserver_on_delete, 'fail', 'error_msg')['msg']
+    my_obj.na_helper.parameters['vserver'] = 'svm'
+    error = 'Internal error, error should contain "message" key, found:'
+    assert error in expect_and_capture_ansible_exception(my_obj.na_helper.ignore_missing_vserver_on_delete, 'fail', {'error_msg': 'error'})['msg']
+    error = 'Internal error, error should be str or dict, found:'
+    assert error in expect_and_capture_ansible_exception(my_obj.na_helper.ignore_missing_vserver_on_delete, 'fail', ['error_msg'])['msg']
+    assert not my_obj.na_helper.ignore_missing_vserver_on_delete('error')
+    assert my_obj.na_helper.ignore_missing_vserver_on_delete({'message': 'SVM "svm" does not exist.'})
