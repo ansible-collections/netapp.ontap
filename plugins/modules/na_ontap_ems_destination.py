@@ -15,44 +15,39 @@ module: na_ontap_ems_destination
 short_description: NetApp ONTAP configuration for EMS event destinations.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: ?
+version_added: 21.22.0
 author: Bartosz Bielawski (@bielawb) <bartek.bielawski@live.com>
 description:
-- Configure EMS destinations. Currently certificate authentication for REST is not supported.
+  - Configure EMS destinations. Currently certificate authentication for REST is not supported.
 options:
   state:
     description:
-    - Whether the destination should be present or not.
+      - Whether the destination should be present or not.
     choices: ['present', 'absent']
     type: str
     default: present
-
   name:
     description:
-    - Name of the EMS destination
+      - Name of the EMS destination
     required: true
     type: str
-
   type:
     description:
-    - Type of the EMS destination.
+      - Type of the EMS destination.
     choices: ['email', 'syslog', 'rest_api']
     required: true
     type: str
-
   destination:
     description:
-    - Destination - content depends on the type
+      - Destination - content depends on the type
     required: true
     type: str
-
   filters:
     description:
-    - List of filters that destination is linked to
+      - List of filters that destination is linked to
     required: true
     type: list
     elements: str
-
 '''
 
 EXAMPLES = """
@@ -74,7 +69,6 @@ RETURN = """
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
@@ -86,11 +80,11 @@ class NetAppOntapEmsDestination:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
-                state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-                name=dict(required=True, type='str'),
-                type=dict(required=True, type='str', choices=['email', 'syslog', 'rest_api']),
-                destination=dict(required=True, type='str'),
-                filters=dict(required=True, type='list', elements='str')
+            state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
+            name=dict(required=True, type='str'),
+            type=dict(required=True, type='str', choices=['email', 'syslog', 'rest_api']),
+            destination=dict(required=True, type='str'),
+            filters=dict(required=True, type='list', elements='str')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -135,10 +129,9 @@ class NetAppOntapEmsDestination:
                 }
             except KeyError as exc:
                 self.module.fail_json(msg='Error: unexpected ems destination body: %s, KeyError on %s' % (str(record), str(exc)))
-            self.module.fail_json(msg=str(current))
             return current
         return None
-    
+
     def create_ems_destination(self):
         api = 'support/ems/destinations'
         body = {
@@ -147,14 +140,14 @@ class NetAppOntapEmsDestination:
             'destination': self.parameters['destination'],
             'filters': self.generate_filters_list(self.parameters['filters'])
         }
-        _, error = rest_generic.post_async(self.rest_api, api, body)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
         self.fail_on_error(error)
 
     def delete_ems_destination(self, name):
         api = 'support/ems/destinations'
-        _, error = rest_generic.delete_async(self.rest_api, api, name)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, name)
         self.fail_on_error(error)
-    
+
     def modify_ems_destination(self, name, modify):
         if 'type' in modify:
             # changing type is not supported
@@ -169,7 +162,7 @@ class NetAppOntapEmsDestination:
                 else:
                     body[option] = modify[option]
             if body:
-                _, error = rest_generic.patch_async(self.rest_api, api, name, body)
+                dummy, error = rest_generic.patch_async(self.rest_api, api, name, body)
                 self.fail_on_error(error)
 
     def apply(self):
