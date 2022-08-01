@@ -106,8 +106,6 @@ options:
             - protocols/cifs/shares or cifs_share_info
             - protocols/cifs/users-and-groups/privileges
             - protocols/cifs/unix-symlink-mapping
-            - protocols/file-access-tracing/events
-            - protocols/file-access-tracing/filters
             - protocols/fpolicy
             - protocols/locks
             - protocols/ndmp
@@ -173,7 +171,6 @@ options:
             - storage/flexcache/flexcaches or storage_flexcaches_info
             - storage/flexcache/origins or storage_flexcaches_origin_info
             - storage/luns or storage_luns_info or lun_info (if serial_number is present, serial_hex and naa_id are computed)
-            - storage/monitored-files
             - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
             - storage/ports or storage_ports_info
             - storage/qos/policies or storage_qos_policies or qos_policy_info or qos_adaptive_policy_info
@@ -259,8 +256,9 @@ options:
         description:
         - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snaphot.
         - The following subsets require an owning resource, and the following suboptions when uuid is not present.
-        - <snapshot>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
-        - <export policy rule> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy, B(rule_index) is the rule index.
+        - <storage/volumes/snapshots>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
+        - <protocols/nfs/export-policies/rules> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy,
+        - B(rule_index) is the rule index.
         type: dict
         version_added: '21.19.0'
 '''
@@ -747,176 +745,174 @@ class NetAppONTAPGatherInfo(object):
         Perform pre-checks, call functions and exit
         """
         # Validating ONTAP version
-        self.validate_ontap_version()
+        ontap_version = self.validate_ontap_version()
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
             'application/applications': {},
-            'application/consistency-groups': {},
+            'application/consistency-groups': {'version': (9, 10, 1)},
             'application/templates': {},
             'cloud/targets': {},
             'cluster': {},
             'cluster/chassis': {},
-            'cluster/fireware/history': {},
+            'cluster/fireware/history': {'version': (9, 8)},
             'cluster/jobs': {},
             'cluster/licensing/licenses': {},
-            'cluster/mediators': {},
-            'cluster/metrocluster': {},
+            'cluster/mediators': {'version': (9, 8)},
+            'cluster/metrocluster': {'version': (9, 8)},
             'cluster/metrocluster/diagnostics': {
+                'version': (9, 8),
                 'post': True
             },
-            'cluster/metrocluster/dr-groups': {},
-            'cluster/metrocluster/interconnects': {},
-            'cluster/metrocluster/nodes': {},
-            'cluster/metrocluster/operations': {},
+            'cluster/metrocluster/dr-groups': {'version': (9, 8)},
+            'cluster/metrocluster/interconnects': {'version': (9, 8)},
+            'cluster/metrocluster/nodes': {'version': (9, 8)},
+            'cluster/metrocluster/operations': {'version': (9, 8)},
             'cluster/metrics': {},
             'cluster/nodes': {},
-            'cluster/ntp/keys': {},
-            'cluster/ntp/servers': {},
+            'cluster/ntp/keys': {'version': (9, 7)},
+            'cluster/ntp/servers': {'version': (9, 7)},
             'cluster/peers': {},
             'cluster/schedules': {},
             'cluster/software': {},
-            'cluster/software/download': {},
+            'cluster/software/download': {'version': (9, 7)},
             'cluster/software/history': {},
             'cluster/software/packages': {},
-            'cluster/web': {},
+            'cluster/web': {'version': (9, 10, 1)},
             'name-services/dns': {},
             'name-services/ldap': {},
-            'name-services/local-hosts': {},
+            'name-services/local-hosts': {'version': (9, 10, 1)},
             'name-services/name-mappings': {},
             'name-services/nis': {},
-            'name-services/unix-groups': {},
-            'name-services/unix-users': {},
+            'name-services/unix-groups': {'version': (9, 9)},
+            'name-services/unix-users': {'version': (9, 9)},
             'network/ethernet/broadcast-domains': {},
             'network/ethernet/ports': {},
-            'network/ethernet/switch/ports': {},
+            'network/ethernet/switch/ports': {'version': (9, 8)},
             'network/fc/logins': {},
             'network/fc/ports': {},
             'network/fc/wwpn-aliases': {},
-            'network/http-proxy': {},
-            'network/ip/bgp/peer-groups': {},
+            'network/http-proxy': {'version': (9, 7)},
+            'network/ip/bgp/peer-groups': {'version': (9, 7)},
             'network/ip/interfaces': {},
             'network/ip/routes': {},
             'network/ip/service-policies': {},
             'network/ipspaces': {},
-            'network/ethernet/switches': {},
+            'network/ethernet/switches': {'version': (9, 8)},
             'private/support/alerts': {},
             'protocols/audit': {},
-            'protocols/cifs/domains': {},
+            'protocols/cifs/domains': {'version': (9, 10, 1)},
             'protocols/cifs/home-directory/search-paths': {},
-            'protocols/cifs/local-groups': {},
-            'protocols/cifs/local-users': {},
+            'protocols/cifs/local-groups': {'version': (9, 9)},
+            'protocols/cifs/local-users': {'version': (9, 9)},
             'protocols/cifs/services': {},
-            'protocols/cifs/sessions': {},
+            'protocols/cifs/sessions': {'version': (9, 8)},
             'protocols/cifs/shares': {},
-            'protocols/cifs/users-and-groups/privileges': {},
             'protocols/cifs/unix-symlink-mapping': {},
-            'protocols/file-access-tracing/events': {},
-            'protocols/file-access-tracing/filters': {},
+            'protocols/cifs/users-and-groups/privileges': {'version': (9, 9)},
             'protocols/fpolicy': {},
-            'protocols/locks': {},
-            'protocols/ndmp': {},
-            'protocols/ndmp/nodes': {},
-            'protocols/ndmp/sessions': {},
-            'protocols/ndmp/svms': {},
-            'protocols/nfs/connected-clients': {},
+            'protocols/locks': {'version': (9, 10, 1)},
+            'protocols/ndmp': {'version': (9, 7)},
+            'protocols/ndmp/nodes': {'version': (9, 7)},
+            'protocols/ndmp/sessions': {'version': (9, 7)},
+            'protocols/ndmp/svms': {'version': (9, 7)},
+            'protocols/nfs/connected-clients': {'version': (9, 7)},
             'protocols/nfs/export-policies': {},
             'protocols/nfs/kerberos/interfaces': {},
             'protocols/nfs/kerberos/realms': {},
             'protocols/nfs/services': {},
             'protocols/nvme/interfaces': {},
             'protocols/nvme/services': {},
-            'protocols/nvme/subsystems': {},
             'protocols/nvme/subsystem-controllers': {},
             'protocols/nvme/subsystem-maps': {},
-            'protocols/s3/buckets': {},
-            'protocols/s3/services': {},
+            'protocols/nvme/subsystems': {},
+            'protocols/s3/buckets': {'version': (9, 7)},
+            'protocols/s3/services': {'version': (9, 7)},
             'protocols/san/fcp/services': {},
             'protocols/san/igroups': {},
             'protocols/san/iscsi/credentials': {},
             'protocols/san/iscsi/services': {},
             'protocols/san/iscsi/sessions': {},
             'protocols/san/lun-maps': {},
-            'protocols/san/portsets': {},
-            'protocols/san/vvol-bindings': {},
+            'protocols/san/portsets': {'version': (9, 9)},
+            'protocols/san/vvol-bindings': {'version': (9, 10, 1)},
             'protocols/vscan/server-status': {},
             'protocols/vscan': {},
             'security/accounts': {},
-            'security/anti-ransomware/suspects': {},
+            'security/anti-ransomware/suspects': {'version': (9, 10, 1)},
             'security/audit': {},
             'security/audit/destinations': {},
             'security/audit/messages': {},
-            'security/authentication/cluster/ad-proxy': {},
+            'security/authentication/cluster/ad-proxy': {'version': (9, 7)},
             'security/authentication/cluster/ldap': {},
             'security/authentication/cluster/nis': {},
             'security/authentication/cluster/saml-sp': {},
-            'security/authentication/publickeys': {},
-            'security/azure-key-vaults': {},
+            'security/authentication/publickeys': {'version': (9, 7)},
+            'security/azure-key-vaults': {'version': (9, 8)},
             'security/certificates': {},
-            'security/gcp-kms': {},
-            'security/ipsec': {},
-            'security/ipsec/ca-certificates': {},
-            'security/ipsec/policies': {},
-            'security/ipsec/security-associations': {},
-            'security/key-manager-configs': {},
+            'security/gcp-kms': {'version': (9, 9)},
+            'security/ipsec': {'version': (9, 8)},
+            'security/ipsec/ca-certificates': {'version': (9, 10, 1)},
+            'security/ipsec/policies': {'version': (9, 8)},
+            'security/ipsec/security-associations': {'version': (9, 8)},
+            'security/key-manager-configs': {'version': (9, 10, 1)},
             'security/key-managers': {},
-            'security/key-stores': {},
+            'security/key-stores': {'version': (9, 10, 1)},
             'security/login/messages': {},
             'security/roles': {},
-            'security/ssh': {},
-            'security/ssh/svms': {},
+            'security/ssh': {'version': (9, 7)},
+            'security/ssh/svms': {'version': (9, 10, 1)},
             'snapmirror/policies': {},
             'snapmirror/relationships': {},
             'storage/aggregates': {},
-            'storage/bridges': {},
+            'storage/bridges': {'version': (9, 9)},
             'storage/cluster': {},
             'storage/disks': {},
-            'storage/file/clone/split-loads': {},
-            'storage/file/clone/split-status': {},
-            'storage/file/clone/tokens': {},
+            'storage/file/clone/split-loads': {'version': (9, 10, 1)},
+            'storage/file/clone/split-status': {'version': (9, 10, 1)},
+            'storage/file/clone/tokens': {'version': (9, 10, 1)},
             'storage/flexcache/flexcaches': {},
             'storage/flexcache/origins': {},
             'storage/luns': {},
-            'storage/monitored-files': {},
             'storage/namespaces': {},
             'storage/ports': {},
             'storage/qos/policies': {},
-            'storage/qos/workloads': {},
+            'storage/qos/workloads': {'version': (9, 10, 1)},
             'storage/qtrees': {},
             'storage/quota/reports': {},
             'storage/quota/rules': {},
             'storage/shelves': {},
-            'storage/snaplock/audit-logs': {},
-            'storage/snaplock/compliance-clocks': {},
-            'storage/snaplock/event-retention/operations': {},
-            'storage/snaplock/event-retention/policies': {},
-            'storage/snaplock/file-fingerprints': {},
-            'storage/snaplock/litigations': {},
+            'storage/snaplock/audit-logs': {'version': (9, 7)},
+            'storage/snaplock/compliance-clocks': {'version': (9, 7)},
+            'storage/snaplock/event-retention/operations': {'version': (9, 7)},
+            'storage/snaplock/event-retention/policies': {'version': (9, 7)},
+            'storage/snaplock/file-fingerprints': {'version': (9, 7)},
+            'storage/snaplock/litigations': {'version': (9, 7)},
             'storage/snapshot-policies': {},
-            'storage/switches': {},
-            'storage/tape-devices': {},
+            'storage/switches': {'version': (9, 9)},
+            'storage/tape-devices': {'version': (9, 9)},
             'storage/volumes': {},
-            'storage/volume-efficiency-policies': {},
+            'storage/volume-efficiency-policies': {'version': (9, 8)},
             'support/autosupport': {},
             'support/autosupport/check': {
                 'api_call': '/private/cli/system/node/autosupport/check/details' + self.private_cli_fields('support/autosupport/check'),
             },
             'support/autosupport/messages': {},
-            'support/auto-update': {},
-            'support/auto-update/configurations': {},
-            'support/auto-update/updates': {},
+            'support/auto-update': {'version': (9, 10, 1)},
+            'support/auto-update/configurations': {'version': (9, 10, 1)},
+            'support/auto-update/updates': {'version': (9, 10, 1)},
             'support/configuration-backup': {},
-            'support/configuration-backup/backups': {},
-            'support/coredump/coredumps': {},
+            'support/configuration-backup/backups': {'version': (9, 7)},
+            'support/coredump/coredumps': {'version': (9, 10, 1)},
             'support/ems': {},
             'support/ems/destinations': {},
             'support/ems/events': {},
             'support/ems/filters': {},
             'support/ems/messages': {},
-            'support/snmp': {},
-            'support/snmp/traphosts': {},
-            'support/snmp/users': {},
-            'svm/migrations': {},
+            'support/snmp': {'version': (9, 7)},
+            'support/snmp/traphosts': {'version': (9, 7)},
+            'support/snmp/users': {'version': (9, 7)},
+            'svm/migrations': {'version': (9, 10, 1)},
             'svm/peers': {},
             'svm/peer-permissions': {},
             'svm/svms': {}
@@ -935,6 +931,7 @@ class NetAppONTAPGatherInfo(object):
         get_ontap_subset_info = self.add_uuid_subsets(get_ontap_subset_info)
 
         length_of_subsets = len(self.parameters['gather_subset'])
+        unsupported_subsets = self.subset_version_warning(get_ontap_subset_info, ontap_version)
 
         if self.parameters.get('fields') is not None:
             # If multiple fields specified to return, convert list to string
@@ -949,6 +946,8 @@ class NetAppONTAPGatherInfo(object):
         for subset in converted_subsets:
             subset, default_fields = subset if isinstance(subset, list) else (subset, None)
             result_message[subset] = self.get_ontap_subset_info_all(subset, default_fields, get_ontap_subset_info)
+        for subset in unsupported_subsets:
+            result_message[subset] = '%s requires ONTAP %s' % (subset, get_ontap_subset_info[subset]['version'])
 
         results = {'changed': False}
         if self.parameters.get('state') is not None:
@@ -959,6 +958,22 @@ class NetAppONTAPGatherInfo(object):
             new_dict = dict((key.replace('-', '_'), value) for (key, value) in new_dict.items())
             result_message = new_dict
         self.module.exit_json(ontap_info=result_message, **results)
+
+    def subset_version_warning(self, get_ontap_subset_info, ontap_version):
+        # If a user requests a subset that their version of ONTAP does not support give them a warning (but don't fail)
+        unsupported_subset = []
+        warn_message = ''
+        user_version = ontap_version['version']['generation'], ontap_version['version']['major'], ontap_version['version']['minor']
+        for subset in self.parameters['gather_subset']:
+            if subset in get_ontap_subset_info and 'version' in get_ontap_subset_info[subset]:
+                if get_ontap_subset_info[subset]['version'] > user_version:
+                    warn_message += '%s requires %s, ' % (subset, get_ontap_subset_info[subset]['version'])
+                    # remove subset so info dosn't fail for a bad subset
+                    unsupported_subset.append(subset)
+                    self.parameters['gather_subset'].remove(subset)
+        if warn_message != '':
+            self.module.warn('The following subset have been removed from your query as they are not supported on your version of ONTAP %s' % warn_message)
+        return unsupported_subset
 
     def add_uuid_subsets(self, get_ontap_subset_info):
         params = self.parameters.get('owning_resource')

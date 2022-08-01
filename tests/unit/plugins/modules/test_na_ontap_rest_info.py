@@ -12,7 +12,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception, \
-    patch_ansible, create_and_apply
+    patch_ansible, create_and_apply, assert_warning_was_raised
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -28,7 +28,7 @@ if sys.version_info < (2, 7):
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
     # common responses
-    'validate_ontap_version_pass': (200, {'version': 'ontap_version'}, None),
+    'validate_ontap_version_pass': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
     'validate_ontap_version_fail': (200, None, 'API not found error'),
     'error_invalid_api': (500, None, {'code': 3, 'message': 'Invalid API'}),
     'error_user_is_not_authorized': (500, None, {'code': 6, 'message': 'user is not authorized'}),
@@ -177,8 +177,6 @@ ALL_SUBSETS = ['application/applications',
                'protocols/cifs/shares',
                'protocols/cifs/users-and-groups/privileges',
                'protocols/cifs/unix-symlink-mapping',
-               'protocols/file-access-tracing/events',
-               'protocols/file-access-tracing/filters',
                'protocols/fpolicy',
                'protocols/locks',
                'protocols/ndmp',
@@ -243,7 +241,6 @@ ALL_SUBSETS = ['application/applications',
                'storage/flexcache/flexcaches',
                'storage/flexcache/origins',
                'storage/luns',
-               'storage/monitored-files',
                'storage/namespaces',
                'storage/ports',
                'storage/qos/policies',
@@ -314,9 +311,6 @@ ALL_RESPONSES = [
     ('GET', 'cluster/nodes', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/ntp/servers', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
@@ -607,11 +601,21 @@ def test_run_ontap_version_check_for_9_2_fail():
     assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check(), fail=True)['msg'] == SRR['validate_ontap_version_fail'][2]
 
 
+def test_version_warning_message():
+    gather_subset = ['cluster/metrocluster/diagnostics']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
+    create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())
+    assert_warning_was_raised('The following subset have been removed from your query as they are not supported on ' +
+                              'your version of ONTAP cluster/metrocluster/diagnostics requires (9, 8), ')
+
+
 # metrocluster/diagnostics doesn't call get_subset_info and has 3 api calls instead of 1
 def test_run_metrocluster_pass():
     gather_subset = ['cluster/metrocluster/diagnostics']
     register_responses([
-        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'cluster/metrocluster/diagnostics', SRR['metrocluster_post']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['job']),
         ('GET', 'cluster/metrocluster/diagnostics', SRR['metrocluster_return']),

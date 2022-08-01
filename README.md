@@ -31,9 +31,7 @@ collections:
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 
 # Need help
-Join us on our #ansible channel at [NetApp Discord](https://discord.gg/NetApp).
-
-Our Slack Channel at [Netapp.io](http://netapp.io/slack) will be discontinued end of August 2022.
+Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
 
 # Deprecation warning
 The 2022-Q4 will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
@@ -83,6 +81,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be found when attempting a delete.
+  - na_ontap_rest_info - Will now warn you if a `gather_subset` is not supported by your version of ONTAP.
+  - na_ontap_rest_info - Will now include a message in return output about `gather_subset` not supported by your version of ONTAP.
   - na_ontap_svm - added vserver as a convenient alias for name when using module_defaults.
   - na_ontap_software_update - deleting a software package is now supported with ZAPI and REST.
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
