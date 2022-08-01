@@ -1,6 +1,7 @@
 [![Documentation](https://img.shields.io/badge/docs-brightgreen.svg)](https://docs.ansible.com/ansible/devel/collections/netapp/ontap/index.html)
 ![example workflow](https://github.com/ansible-collections/netapp.ontap/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/ansible-collections/netapp.ontap/branch/main/graph/badge.svg?token=weBYkksxSi)](https://codecov.io/gh/ansible-collections/netapp.ontap)
+[![Discord](https://img.shields.io/discord/855068651522490400)](https://discord.gg/NetApp)
 
 =============================================================
 
@@ -31,7 +32,7 @@ collections:
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 
 # Need help
-Join our Slack Channel at [Netapp.io](http://netapp.io/slack)
+Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
 # Deprecation warning
 The 2022-Q4 will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
