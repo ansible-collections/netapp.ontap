@@ -74,6 +74,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_lun - Added `lun_modify` after `app_modify` to fix idempotency issue.
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
   - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
+  - na_ontap_security_key_manager - fix KeyError on `node`.
   - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
   - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
   - na_ontap_software_update - improve error handling if image file is already present.
@@ -84,9 +85,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be found when attempting a delete.
   - na_ontap_rest_info - Will now warn you if a `gather_subset` is not supported by your version of ONTAP.
   - na_ontap_rest_info - Will now include a message in return output about `gather_subset` not supported by your version of ONTAP.
-  - na_ontap_svm - added vserver as a convenient alias for name when using module_defaults.
+  - na_ontap_security_key_manager - indicate that `node` is not used and is deprecated.
   - na_ontap_software_update - deleting a software package is now supported with ZAPI and REST.
+  - na_ontap_svm - added vserver as a convenient alias for name when using module_defaults.
   - na_ontap_wait_for_condition - added `snapmirror_relationship` to wait on `state` or `transfer_state` (REST only).
+  - na_ontap_ldap - fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
   - all modules - do not fail on ZAPI EMS log when vserver does not exist.
 
 ### Added REST support to existing modules

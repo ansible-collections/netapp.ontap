@@ -76,7 +76,8 @@ class TestMyModule(unittest.TestCase):
             'scan_paths': self.mock_onDemand['scan_paths'],
             'hostname': 'test',
             'username': 'test_user',
-            'password': 'test_pass!'
+            'password': 'test_pass!',
+            'use_rest': 'never'
         }
 
     def get_demand_mock_object(self, kind=None):

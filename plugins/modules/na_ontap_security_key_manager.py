@@ -1,16 +1,11 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2022, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
-
 
 DOCUMENTATION = '''
 
@@ -29,28 +24,34 @@ options:
 
   state:
     description:
-    - Whether the specified key manager should exist or not.
+      - Whether the specified key manager should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
 
   ip_address:
     description:
-    - The IP address of the key management server.
+      - The IP address of the key management server.
     required: true
     type: str
 
   tcp_port:
     description:
-    - The TCP port on which the key management server listens for incoming connections.
+      - The TCP port on which the key management server listens for incoming connections.
     default: 5696
     type: int
 
   node:
     description:
-    - The node which key management server runs on.
+      - The node which key management server runs on.
+      - Ignored, a warning is raised if present.
+      - Deprecated as of 21.22.0, as it was never used.
     type: str
 
+notes:
+  - Though C(node) is accepted as a parameter, it is not used in the module.
+  - Supports check_mode.
+  - Only supported at cluster level.
 '''
 
 EXAMPLES = """
@@ -58,9 +59,8 @@ EXAMPLES = """
     - name: Delete Key Manager
       tags:
       - delete
-      na_ontap_security_key_manager:
+      netapp.ontap.na_ontap_security_key_manager:
         state: absent
-        node: swenjun-vsim1
         hostname: "{{ hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -70,9 +70,8 @@ EXAMPLES = """
     - name: Add Key Manager
       tags:
       - add
-      na_ontap_security_key_manager:
+      netapp.ontap.na_ontap_security_key_manager:
         state: present
-        node: swenjun-vsim1
         hostname: "{{ hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -89,8 +88,6 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapSecurityKeyManager(object):
@@ -111,13 +108,12 @@ class NetAppOntapSecurityKeyManager(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        if 'node' in self.parameters:
+            self.module.warn('The option "node" is deprecated and should not be used.')
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required"
-            )
-        else:
-            self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_key_manager(self):
         """
@@ -134,8 +130,7 @@ class NetAppOntapSecurityKeyManager(object):
         try:
             result = self.cluster.invoke_successfully(key_manager_info, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching key manager %s : %s'
-                                  % (self.parameters['node'], to_native(error)),
+            self.module.fail_json(msg='Error fetching key manager: %s' % to_native(error),
                                   exception=traceback.format_exc())
 
         return_value = None
@@ -148,8 +143,6 @@ class NetAppOntapSecurityKeyManager(object):
                 return_value['server_status'] = key_manager.get_child_content('key-manager-server-status')
             if key_manager.get_child_by_name('key-manager-tcp-port'):
                 return_value['tcp_port'] = key_manager.get_child_content('key-manager-tcp-port')
-            if key_manager.get_child_by_name('node-name'):
-                return_value['node'] = key_manager.get_child_content('node-name')
 
         return return_value
 
@@ -163,8 +156,7 @@ class NetAppOntapSecurityKeyManager(object):
         try:
             self.cluster.invoke_successfully(key_manager_setup, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error setting up key manager %s : %s'
-                                  % (self.parameters['node'], to_native(error)),
+            self.module.fail_json(msg='Error setting up key manager: %s' % to_native(error),
                                   exception=traceback.format_exc())
 
     def create_key_manager(self):
@@ -178,8 +170,7 @@ class NetAppOntapSecurityKeyManager(object):
         try:
             self.cluster.invoke_successfully(key_manager_create, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error creating key manager %s : %s'
-                                  % (self.parameters['node'], to_native(error)),
+            self.module.fail_json(msg='Error creating key manager: %s' % to_native(error),
                                   exception=traceback.format_exc())
 
     def delete_key_manager(self):
@@ -191,36 +182,20 @@ class NetAppOntapSecurityKeyManager(object):
         try:
             self.cluster.invoke_successfully(key_manager_delete, True)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error deleting key manager %s : %s'
-                                  % (self.parameters['node'], to_native(error)),
+            self.module.fail_json(msg='Error deleting key manager: %s' % to_native(error),
                                   exception=traceback.format_exc())
 
     def apply(self):
-        self.asup_log_for_cserver("na_ontap_security_key_manager")
+        netapp_utils.ems_log_event_cserver("na_ontap_security_key_manager", self.cluster, self.module)
         self.key_manager_setup()
         current = self.get_key_manager()
-        cd_action = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_key_manager()
-                elif cd_action == 'delete':
-                    self.delete_key_manager()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_key_manager()
+            elif cd_action == 'delete':
+                self.delete_key_manager()
         self.module.exit_json(changed=self.na_helper.changed)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.cluster)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
 
 
 def main():

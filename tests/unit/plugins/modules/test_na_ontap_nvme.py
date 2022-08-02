@@ -75,7 +75,8 @@ class TestMyModule(unittest.TestCase):
             'username': username,
             'password': password,
             'vserver': vserver,
-            'status_admin': status_admin
+            'status_admin': status_admin,
+            'use_rest': 'never',
         })
 
     def test_module_fail_when_required_args_missing(self):
