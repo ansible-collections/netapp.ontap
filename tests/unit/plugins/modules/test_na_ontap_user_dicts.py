@@ -93,6 +93,20 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'])
 
 
+def test_module_fail_when_application_name_is_repeated():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        "use_rest": "never",
+        "application_dicts": [
+            {'application': 'ssh', 'authentication_methods': ['cert']},
+            {'application': 'ssh', 'authentication_methods': ['password']}]
+    }
+    error = 'Error: repeated application name: ssh.  Group all authentication methods under a single entry.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
 def test_ensure_user_get_called():
     ''' a more interesting test '''
     register_responses([

@@ -77,9 +77,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_key_manager - fix KeyError on `node`.
   - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
   - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
+  - na_ontap_service_processor_network - allow manually configuring network if all of `ip_address`, `netmask`, `gateway_ip_address` set and `dhcp` not present in REST.
+  - na_ontap_service_processor_network - fix setting ``dhcp`` v4 takes more than ``wait_for_completion`` retries.
+  - na_ontap_service_processor_network - fix ``wait_for_completion`` ignored when trying to enable service processor network interface in ZAPI.
   - na_ontap_software_update - improve error handling if image file is already present.
   - na_ontap_software_update - improve error handling when node is rebooting with REST.
   - na_ontap_software_update - when using REST with ONTAP 9.9 or later, timeout value is properly set.
+  - na_ontap_user - enforce that all methods are under a single application.
+  - na_ontap_user - is_locked was not properly read with ZAPI, making the module not idempotent.
 
 ### Minor Changes
   - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be found when attempting a delete.
