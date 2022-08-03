@@ -13,46 +13,50 @@ DOCUMENTATION = '''
 
 module: na_ontap_license
 
-short_description: NetApp ONTAP protocol and feature licenses
+short_description: NetApp ONTAP protocol and feature license packages
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-  - Add or remove licenses on NetApp ONTAP.
+  - Add or remove license packages on NetApp ONTAP.
+  - Note that the module is asymmetrical.
+  - It requires license codes to add packages and the package name is not visible.
+  - It requires package names and as serial number to remove packages.
 
 options:
   state:
     description:
-      - Whether the specified license should exist or not.
+      - Whether the specified license packages should be installed or removed.
     choices: ['present', 'absent']
     type: str
     default: present
 
   remove_unused:
     description:
-      - Remove licenses that have no controller affiliation in the cluster.
+      - Remove license packages that have no controller affiliation in the cluster.
       - Not supported with REST.
     type: bool
 
   remove_expired:
     description:
-      - Remove licenses that have expired in the cluster.
+      - Remove license packages that have expired in the cluster.
       - Not supported with REST.
     type: bool
 
   serial_number:
     description:
-      Serial number of the node associated with the license.
-      This parameter is used primarily when removing license for a specific service.
+      - Serial number of the node or cluster associated with the license package.
+      - This parameter is required when removing a license package.
+      - With REST, '*' is accepted and matches any serial number.
     type: str
 
   license_names:
     type: list
     elements: str
     description:
-      - List of license-names to delete.
+      - List of license package names to remove.
     suboptions:
       base:
         description:
@@ -99,7 +103,7 @@ options:
 
   license_codes:
     description:
-      - List of license codes to be added.
+      - List of license codes to be installed.
     type: list
     elements: str
 
@@ -129,8 +133,14 @@ EXAMPLES = """
 """
 
 RETURN = """
-
+updated_licenses:
+    description: return list of updated package names
+    returned: always
+    type: dict
+    sample: "['nfs']"
 """
+
+import time
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -148,8 +158,7 @@ def local_cmp(a, b):
         :param b: dict 2
         :return: difference of values in both dicts
         """
-    diff = [key for key in a if a[key] != b[key]]
-    return len(diff)
+    return [key for key in a if a[key] != b[key]]
 
 
 class NetAppOntapLicense:
@@ -310,9 +319,28 @@ class NetAppOntapLicense:
         if error:
             self.module.fail_json(msg=error)
 
+    def compare_license_status(self, previous_license_status):
+        changed_keys = []
+        for __ in range(5):
+            error = None
+            new_license_status = self.get_licensing_status()
+            try:
+                changed_keys = local_cmp(previous_license_status, new_license_status)
+                break
+            except KeyError as exc:
+                # when a new license is added, it seems REST may not report all licenses
+                # wait for things to stabilize
+                error = exc
+                time.sleep(5)
+        if error:
+            self.module.fail_json(msg='Error: mismatch in license package names: %s.  Expected: %s, found: %s.'
+                                  % (error, previous_license_status.keys(), new_license_status.keys()))
+        return changed_keys
+
     def apply(self):
         '''Call add, delete or modify methods'''
         changed = False
+        changed_keys = None
         create_license = False
         remove_license = False
         if not self.use_rest:
@@ -341,17 +369,15 @@ class NetAppOntapLicense:
                     self.remove_expired_licenses()
                 # not able to detect that a new license is required until we try to install it.
                 if create_license or remove_license:
-                    new_license_status = self.get_licensing_status()
-                    if local_cmp(license_status, new_license_status) == 0:
-                        changed = False
+                    changed_keys = self.compare_license_status(license_status)
             else:  # execute delete
                 license_deleted = False
                 # not able to detect which license is required to delete until we try it.
-                for package in self.parameters['license_names']:
-                    license_deleted |= self.remove_licenses(package)
-                    changed = license_deleted
+                changed_keys = [package for package in self.parameters['license_names'] if self.remove_licenses(package)]
+            if not changed_keys:
+                changed = False
 
-        self.module.exit_json(changed=changed)
+        self.module.exit_json(changed=changed, updated_licenses=changed_keys)
 
 
 def main():

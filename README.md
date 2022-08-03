@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug Fixes
   - na_ontap_cluster_peer - report an error if there is an attempt to use the already peered clusters.
   - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
+  - na_ontap_license - fix intermittent KeyError when adding licenses with REST.
   - na_ontap_lun - Added `lun_modify` after `app_modify` to fix idempotency issue.
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
   - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
@@ -87,6 +88,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_user - is_locked was not properly read with ZAPI, making the module not idempotent.
 
 ### Minor Changes
+  - na_ontap_license - return list of updated package names.
   - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be found when attempting a delete.
   - na_ontap_rest_info - Will now warn you if a `gather_subset` is not supported by your version of ONTAP.
   - na_ontap_rest_info - Will now include a message in return output about `gather_subset` not supported by your version of ONTAP.

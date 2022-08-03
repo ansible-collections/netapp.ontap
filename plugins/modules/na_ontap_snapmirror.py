@@ -591,7 +591,7 @@ class NetAppONTAPSnapmirror(object):
         if self.parameters.get('connection_type') in ['elementsw_ontap', 'ontap_elementsw'] and HAS_SF_SDK is False:
             self.module.fail_json(msg="Unable to import the SolidFire Python SDK")
 
-        self.src_reat_api = None
+        self.src_rest_api = None
         self.src_use_rest = None
         self.set_source_peer()
         self.rest_api, self.use_rest = self.setup_rest()
