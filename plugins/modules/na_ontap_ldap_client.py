@@ -226,7 +226,8 @@ class NetAppOntapLDAPClient:
             ],
             mutually_exclusive=[
                 ['servers', 'ad_domain'],
-                ['servers', 'preferred_ad_servers']
+                ['servers', 'preferred_ad_servers'],
+                ['use_start_tls', 'ldaps_enabled']
             ],
         )
         self.na_helper = NetAppModule()
