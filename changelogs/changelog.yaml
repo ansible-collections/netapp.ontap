@@ -1913,6 +1913,82 @@ releases:
       name: na_ontap_s3_policies
       namespace: ''
     release_date: '2022-07-12'
+  21.22.0:
+    changes:
+      bugfixes:
+      - na_ontap_cluster_peer - report an error if there is an attempt to use the
+        already peered clusters.
+      - na_ontap_interface - fix error deleting fc interface if it is enabled in REST.
+      - na_ontap_license - fix intermittent KeyError when adding licenses with REST.
+      - na_ontap_lun - Added ``lun_modify`` after ``app_modify`` to fix idempotency
+        issue.
+      - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no
+        attribute 'get_children' if ``sources`` is '-' in current.
+      - na_ontap_name_service_switch - fix idempotency issue on ``sources`` option.
+      - na_ontap_security_key_manager - fix KeyError on ``node``.
+      - na_ontap_service_processor_network - allow manually configuring network if
+        all of ``ip_address``, ``netmask``, ''gateway_ip_address`` set and ``dhcp``
+        not present in REST.
+      - na_ontap_service_processor_network - fail module when trying to disable ``dhcp``
+        and not settting one of ``ip_address``, ``netmask``, ``gateway_ip_address``
+        different than current.
+      - na_ontap_service_processor_network - fix ``wait_for_completion`` ignored when
+        trying to enable service processor network interface in ZAPI.
+      - na_ontap_service_processor_network - fix idempotency issue on ``dhcp`` option
+        in ZAPI.
+      - na_ontap_service_processor_network - fix setting ``dhcp`` v4 takes more than
+        ``wait_for_completion`` retries.
+      - na_ontap_software_update - improve error handling if image file is already
+        present.
+      - na_ontap_software_update - improve error handling when node is rebooting with
+        REST.
+      - na_ontap_software_update - when using REST with ONTAP 9.9 or later, timeout
+        value is properly set.
+      - na_ontap_user - enforce that all methods are under a single application.
+      - na_ontap_user - is_locked was not properly read with ZAPI, making the module
+        not idempotent.
+      minor_changes:
+      - all modules - do not fail on ZAPI EMS log when vserver does not exist.
+      - na_ontap_job_schedule - new option ``cluster`` added.
+      - na_ontap_ldap - fall back to ZAPI when ``use_rest`` is set to ``auto`` or
+        fail when REST is desired.
+      - na_ontap_ldap_client - Added REST support.
+      - na_ontap_ldap_client - Added ``ldaps_enabled`` option in ZAPI.
+      - na_ontap_license - return list of updated package names.
+      - na_ontap_name_service_switch - added REST support.
+      - na_ontap_nvme_subsystem - report subsystem as absent if vserver cannot be
+        found when attempting a delete.
+      - na_ontap_rest_info -- Will now include a message in return output about ``gather_subset``
+        not supported by your version of ONTAP.
+      - na_ontap_rest_info -- Will now warn you if a ``gather_subset`` is not supported
+        by your version of ONTAP.
+      - na_ontap_security_key_manager - indicate that ``node`` is not used and is
+        deprecated.
+      - na_ontap_software_update - deleting a software package is now supported with
+        ZAPI and REST.
+      - na_ontap_svm - added vserver as a convenient alias for name when using module_defaults.
+      - na_ontap_wait_for_condition - added REST support.
+      - na_ontap_wait_for_condition - added ``snapmirror_relationship`` to wait on
+        ``state`` or ``transfer_state`` (REST only).
+    fragments:
+    - DEVOPS-1926.yaml
+    - DEVOPS-4691.yaml
+    - DEVOPS-4773.yaml
+    - DEVOPS-4776.yaml
+    - DEVOPS-4857.yaml
+    - DEVOPS-4882.yaml
+    - DEVOPS-5241.yaml
+    - DEVOPS-5243.yaml
+    - DEVOPS-5246.yaml
+    - DEVOPS-5263.yaml
+    - DEVOPS-5268.yaml
+    - DEVOPS-5270.yaml
+    - DEVOPS-5271.yaml
+    - DEVOPS-5287.yaml
+    - DEVOPS-5297.yaml
+    - DEVOPS-5299.yaml
+    - DEVOPS-5304.yaml
+    release_date: '2022-08-03'
   21.3.0:
     changes:
       bugfixes:
