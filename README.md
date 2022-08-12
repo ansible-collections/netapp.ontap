@@ -62,6 +62,13 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 21.23.0
+
+## Bug Fixes
+  - na_ontap_s3_buckets - fix options that cannot be modified if not set in creating s3 buckets.
+  - na_ontap_s3_buckets - fix TypeError if `conditions` not present in policy statements.
+  - na_ontap_s3_buckets - updated correct choices in options `audit_event_selector.access` and `audit_event_selector.permission`.
+
 ## 21.22.0
 
 ### New Options

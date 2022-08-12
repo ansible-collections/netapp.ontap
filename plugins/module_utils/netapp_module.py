@@ -440,48 +440,50 @@ class NetAppModule(object):
             if value is not None or not omitnone:
                 result[key] = value
 
-    def _filter_out_none_entries_from_dict(self, adict):
+    def _filter_out_none_entries_from_dict(self, adict, allow_empty_list_or_dict):
         """take a dict as input and return a dict without keys whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
         result = {}
         for key, value in adict.items():
             if isinstance(value, (list, dict)):
-                sub = self.filter_out_none_entries(value)
-                if sub:
-                    # skip empty dict or list
+                sub = self.filter_out_none_entries(value, allow_empty_list_or_dict)
+                if sub or allow_empty_list_or_dict:
+                    # allow empty dict or list if allow_empty_list_or_dict is set.
+                    # skip empty dict or list otherwise
                     result[key] = sub
             elif value is not None:
                 # skip None value
                 result[key] = value
         return result
 
-    def _filter_out_none_entries_from_list(self, alist):
+    def _filter_out_none_entries_from_list(self, alist, allow_empty_list_or_dict):
         """take a list as input and return a list without elements whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
         result = []
         for item in alist:
             if isinstance(item, (list, dict)):
-                sub = self.filter_out_none_entries(item)
-                if sub:
-                    # skip empty dict or list
+                sub = self.filter_out_none_entries(item, allow_empty_list_or_dict)
+                if sub or allow_empty_list_or_dict:
+                    # allow empty dict or list if allow_empty_list_or_dict is set.
+                    # skip empty dict or list otherwise
                     result.append(sub)
             elif item is not None:
                 # skip None value
                 result.append(item)
         return result
 
-    def filter_out_none_entries(self, list_or_dict):
+    def filter_out_none_entries(self, list_or_dict, allow_empty_list_or_dict=False):
         """take a dict or list as input and return a dict/list without keys/elements whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
 
         if isinstance(list_or_dict, dict):
-            return self._filter_out_none_entries_from_dict(list_or_dict)
+            return self._filter_out_none_entries_from_dict(list_or_dict, allow_empty_list_or_dict)
 
         if isinstance(list_or_dict, list):
-            return self._filter_out_none_entries_from_list(list_or_dict)
+            return self._filter_out_none_entries_from_list(list_or_dict, allow_empty_list_or_dict)
 
         raise TypeError('unexpected type %s' % type(list_or_dict))
 

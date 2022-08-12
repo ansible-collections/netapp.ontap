@@ -347,8 +347,8 @@ AUDIT_EVENT = {
 }
 
 MODIFY_AUDIT_EVENT = {
-    "access": "read-only",
-    "permission": "allow-only"
+    "access": "read",
+    "permission": "allow"
 }
 
 
