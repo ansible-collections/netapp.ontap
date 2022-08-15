@@ -206,7 +206,7 @@ def create_sf_connection(module, port=None, host_options=None):
     if extra_options:
         verb = 'are' if len(extra_options) > 1 else 'is'
         msg2 = "%s %s not supported for ElementSW connection." % (', '.join(extra_options), verb)
-    msg = ("%s  %s") % (msg, msg2) if msg and msg2 else msg or msg2
+    msg = "%s  %s" % (msg, msg2) if msg and msg2 else msg or msg2
     if msg:
         module.fail_json(msg=msg)
     hostname = host_options.get('hostname')
@@ -939,8 +939,7 @@ class OntapRestAPI(object):
             error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
             return False, error
         if self.use_rest == "always" and used_unsupported_rest_properties:
-            error = "REST API currently does not support '%s'" % \
-                    ', '.join(used_unsupported_rest_properties)
+            error = "REST API currently does not support '%s'" % ', '.join(used_unsupported_rest_properties)
             return True, error
         if self.use_rest == 'never':
             # force ZAPI if requested
@@ -976,9 +975,7 @@ class OntapRestAPI(object):
         if self.get_ontap_version()[:2] in ((9, 4), (9, 5)):
             # we can't trust REST support on 9.5, and not at all on 9.4
             return False, None
-        if status_code == 200:
-            return True, None
-        return False, None
+        return (True, None) if status_code == 200 else (False, None)
 
     def is_rest_supported_properties(self, parameters, unsupported_rest_properties=None, partially_supported_rest_properties=None, report_error=False):
         used_unsupported_rest_properties = None

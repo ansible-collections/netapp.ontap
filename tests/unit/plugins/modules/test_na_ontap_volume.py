@@ -165,7 +165,7 @@ def job_info(state, error):
 
 def results_info(status):
     return {
-        'result-status': 'in_progress',
+        'result-status': status,
         'result-jobid': 'job12345',
     }
 
@@ -208,7 +208,7 @@ ZRR = zapi_responses({
     'job_success': build_zapi_response(job_info('success', None)),
     'job_time_out': build_zapi_response(job_info('running', 'time_out')),
     'job_no_completion': build_zapi_response(job_info('failure', None)),
-    'async_results': build_zapi_response(results_info('1')),
+    'async_results': build_zapi_response(results_info('in_progress')),
     'modify_async_result_success': build_zapi_response(modify_async_results_info('in_progress')),
     'modify_async_result_failure': build_zapi_response(modify_async_results_info('failure', 'error_in_modify')),
     'vol_encryption_conversion_status_running': build_zapi_response(vol_encryption_conversion_status('running')),

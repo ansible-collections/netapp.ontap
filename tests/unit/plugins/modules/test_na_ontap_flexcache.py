@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP FlexCache Ansible module '''
@@ -11,521 +11,542 @@ from ansible.module_utils import basic
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, build_zapi_error, zapi_error_message, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_warning_was_raised, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_flexcache \
-    import NetAppONTAPFlexCache as my_module  # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_flexcache import NetAppONTAPFlexCache as my_module, main as my_main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
+flexcache_info = {
+    'vserver': 'vserver',
+    'origin-vserver': 'ovserver',
+    'origin-volume': 'ovolume',
+    'origin-cluster': 'ocluster',
+    'volume': 'flexcache_volume',
+}
 
-    def __init__(self, kind=None, parm1=None, api_error=None, job_error=None):
-        ''' save arguments '''
-        self.type = kind
-        self.parm1 = parm1
-        self.api_error = api_error
-        self.job_error = job_error
-        self.xml_in = None
-        self.xml_out = None
+flexcache_get_info = {
+    'attributes-list': [{
+        'flexcache-info': flexcache_info
+    }]
+}
 
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        tag = xml.get_name()
-        if tag == 'flexcache-get-iter' and self.type == 'vserver':
-            xml = self.build_flexcache_info(self.parm1)
-        elif tag == 'flexcache-create-async':
-            xml = self.build_flexcache_create_destroy_rsp()
-        elif tag == 'flexcache-destroy-async':
-            if self.api_error:
-                code, message = self.api_error.split(':', 2)
-                raise netapp_utils.zapi.NaApiError(code, message)
-            xml = self.build_flexcache_create_destroy_rsp()
-        elif tag == 'job-get':
-            xml = self.build_job_info(self.job_error)
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_flexcache_info(vserver):
-        ''' build xml data for vserser-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('attributes-list')
-        count = 2 if vserver == 'repeats' else 1
-        for dummy in range(count):
-            attributes.add_node_with_children('flexcache-info', **{
-                'vserver': vserver,
-                'origin-vserver': 'ovserver',
-                'origin-volume': 'ovolume',
-                'origin-cluster': 'ocluster',
-                'volume': 'volume',
-            })
-        xml.add_child_elem(attributes)
-        xml.add_new_child('num-records', str(count))
-        return xml
-
-    @staticmethod
-    def build_flexcache_create_destroy_rsp():
-        ''' build xml data for a create or destroy response '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        xml.add_new_child('result-status', 'in_progress')
-        xml.add_new_child('result-jobid', '1234')
-        return xml
-
-    @staticmethod
-    def build_job_info(error):
-        ''' build xml data for a job '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = netapp_utils.zapi.NaElement('attributes')
-        if error is None:
-            state = 'success'
-        elif error == 'time_out':
-            state = 'running'
-        else:
-            state = 'failure'
-        attributes.add_node_with_children('job-info', **{
-            'job-state': state,
-            'job-progress': 'dummy',
-            'job-completion': error,
-        })
-        xml.add_child_elem(attributes)
-        xml.add_new_child('result-status', 'in_progress')
-        xml.add_new_child('result-jobid', '1234')
-        return xml
+flexcache_get_info_double = {
+    'attributes-list': [
+        {
+            'flexcache-info': flexcache_info
+        },
+        {
+            'flexcache-info': flexcache_info
+        }
+    ]
+}
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def results_info(status):
+    return {
+        'result-status': status,
+        'result-jobid': 'job12345',
+    }
 
-    def setUp(self):
-        # make sure to change this to False before submitting
-        self.onbox = False
-        self.dummy_args = dict()
-        for arg in ('hostname', 'username', 'password'):
-            self.dummy_args[arg] = arg
-            self.dummy_args['use_rest'] = 'never'
-        if self.onbox:
-            self.args = {
-                'hostname': '10.193.78.219',
-                'username': 'admin',
-                'password': 'netapp1!',
+
+def job_info(state, error):
+    return {
+        'num-records': 1,
+        'attributes': {
+            'job-info': {
+                'job-state': state,
+                'job-progress': 'progress',
+                'job-completion': error,
             }
-        else:
-            self.args = self.dummy_args
-        self.server = MockONTAPConnection()
-
-    def create_flexcache(self, vserver, volume, junction_path):
-        ''' create flexcache '''
-        if not self.onbox:
-            return
-        args = {
-            'state': 'present',
-            'volume': volume,
-            'size': '90',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': vserver,
-            'aggr_list': 'aggr1',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-            'junction_path': junction_path,
         }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        try:
-            my_obj.apply()
-        except AnsibleExitJson as exc:
-            print('Create util: ' + repr(exc))
-        except AnsibleFailJson as exc:
-            print('Create util: ' + repr(exc))
-
-    def delete_flexcache(self, vserver, volume):
-        ''' delete flexcache '''
-        if not self.onbox:
-            return
-        args = {'volume': volume, 'vserver': vserver, 'state': 'absent', 'force_offline': 'true'}
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        try:
-            my_obj.apply()
-        except AnsibleExitJson as exc:
-            print('Delete util: ' + repr(exc))
-        except AnsibleFailJson as exc:
-            print('Delete util: ' + repr(exc))
-
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            my_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
-
-    def test_missing_parameters(self):
-        ''' fail if origin volume and origin verser are missing '''
-        args = {
-            'vserver': 'vserver',
-            'volume': 'volume'
-        }
-        args.update(self.dummy_args)
-        set_module_args(args)
-        my_obj = my_module()
-        my_obj.server = self.server
-        with pytest.raises(AnsibleFailJson) as exc:
-            # It may not be a good idea to start with apply
-            # More atomic methods can be easier to mock
-            # Hint: start with get methods, as they are called first
-            my_obj.apply()
-        msg = 'Missing parameters: origin_volume, origin_vserver'
-        assert exc.value.args[0]['msg'] == msg
-
-    def test_missing_parameter(self):
-        ''' fail if origin verser parameter is missing '''
-        args = {
-            'vserver': 'vserver',
-            'origin_volume': 'origin_volume',
-            'volume': 'volume',
-        }
-        args.update(self.dummy_args)
-        set_module_args(args)
-        my_obj = my_module()
-        my_obj.server = self.server
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.apply()
-        msg = 'Missing parameter: origin_vserver'
-        assert exc.value.args[0]['msg'] == msg
-
-    def test_get_flexcache(self):
-        ''' get flexcache info '''
-        args = {
-            'vserver': 'ansibleSVM',
-            'origin_volume': 'origin_volume',
-            'volume': 'volume'
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver')
-        info = my_obj.flexcache_get()
-        print('info: ' + repr(info))
-
-    def test_get_flexcache_double(self):
-        ''' get flexcache info returns 2 entries! '''
-        args = {
-            'vserver': 'ansibleSVM',
-            'origin_volume': 'origin_volume',
-            'volume': 'volume'
-        }
-        args.update(self.dummy_args)
-        set_module_args(args)
-        my_obj = my_module()
-        my_obj.server = MockONTAPConnection('vserver', 'repeats')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.flexcache_get()
-        msg = 'Error fetching FlexCache info: Multiple records found for %s:' % args['volume']
-        assert exc.value.args[0]['msg'] == msg
-
-    def test_create_flexcache(self):
-        ''' create flexcache '''
-        args = {
-            'volume': 'volume',
-            'size': '90',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-        }
-        self.delete_flexcache(args['vserver'], args['volume'])
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection()
-        with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            # with patch('__main__.my_module.flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
-            print('Create: ' + repr(exc.value))
-            assert exc.value.args[0]['changed']
-            mock_create.assert_called_with()
-
-    def test_create_flexcache_idempotent(self):
-        ''' create flexcache - already exists '''
-        args = {
-            'volume': 'volume',
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'ovolume',
-            'origin_vserver': 'ovserver',
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'ansibleSVM')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Create: ' + repr(exc.value))
-        assert exc.value.args[0]['changed'] is False
-
-    def test_create_flexcache_autoprovision(self):
-        ''' create flexcache with autoprovision'''
-        args = {
-            'volume': 'volume',
-            'size': '90',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': 'ansibleSVM',
-            'auto_provision_as': 'flexgroup',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-        }
-        self.delete_flexcache(args['vserver'], args['volume'])
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection()
-        with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
-            print('Create: ' + repr(exc.value))
-            assert exc.value.args[0]['changed']
-            mock_create.assert_called_with()
-
-    def test_create_flexcache_autoprovision_idempotent(self):
-        ''' create flexcache with autoprovision - already exists '''
-        args = {
-            'volume': 'volume',
-            'vserver': 'ansibleSVM',
-            'origin_volume': 'ovolume',
-            'origin_vserver': 'ovserver',
-            'auto_provision_as': 'flexgroup',
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'ansibleSVM')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Create: ' + repr(exc.value))
-        assert exc.value.args[0]['changed'] is False
-
-    def test_create_flexcache_multiplier(self):
-        ''' create flexcache with aggregate multiplier'''
-        args = {
-            'volume': 'volume',
-            'size': '90',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-            'aggr_list_multiplier': 2,
-        }
-        self.delete_flexcache(args['vserver'], args['volume'])
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection()
-        with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
-            print('Create: ' + repr(exc.value))
-            assert exc.value.args[0]['changed']
-            mock_create.assert_called_with()
-
-    def test_create_flexcache_multiplier_idempotent(self):
-        ''' create flexcache with aggregate multiplier - already exists '''
-        args = {
-            'volume': 'volume',
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'ovolume',
-            'origin_vserver': 'ovserver',
-            'aggr_list_multiplier': 2,
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'ansibleSVM')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Create: ' + repr(exc.value))
-        assert exc.value.args[0]['changed'] is False
-
-    def test_delete_flexcache_exists_no_force(self):
-        ''' delete flexcache '''
-        args = {'volume': 'volume', 'vserver': 'ansibleSVM', 'state': 'absent'}
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        error = '13001:Volume volume in Vserver ansibleSVM must be offline to be deleted. ' \
-                'Use "volume offline -vserver ansibleSVM -volume volume" command to offline ' \
-                'the volume'
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'flex', api_error=error)
-        with patch.object(my_module, 'flexcache_delete', wraps=my_obj.flexcache_delete) as mock_delete:
-            with pytest.raises(AnsibleFailJson) as exc:
-                my_obj.apply()
-            print('Delete: ' + repr(exc.value))
-            msg = 'Error deleting FlexCache : NetApp API failed. Reason - %s' % error
-            assert exc.value.args[0]['msg'] == msg
-            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
-                       'size': None, 'name': 'volume', 'vserver': 'flex'}
-            mock_delete.assert_called_with(current)
-
-    def test_delete_flexcache_exists_with_force(self):
-        ''' delete flexcache '''
-        args = {'volume': 'volume', 'vserver': 'ansibleSVM', 'state': 'absent', 'force_offline': 'true'}
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'flex')
-        with patch.object(my_module, 'flexcache_delete', wraps=my_obj.flexcache_delete) as mock_delete:
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
-            print('Delete: ' + repr(exc.value))
-            assert exc.value.args[0]['changed']
-            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
-                       'size': None, 'name': 'volume', 'vserver': 'flex'}
-            mock_delete.assert_called_with(current)
-
-    def test_delete_flexcache_exists_junctionpath_no_force(self):
-        ''' delete flexcache '''
-        args = {'volume': 'volume', 'vserver': 'ansibleSVM', 'junction_path': 'jpath', 'state': 'absent', 'force_offline': 'true'}
-        self.create_flexcache(args['vserver'], args['volume'], args['junction_path'])
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        error = '160:Volume volume on Vserver ansibleSVM must be unmounted before being taken offline or restricted.'
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'flex', api_error=error)
-        with patch.object(my_module, 'flexcache_delete', wraps=my_obj.flexcache_delete) as mock_delete:
-            with pytest.raises(AnsibleFailJson) as exc:
-                my_obj.apply()
-            print('Delete: ' + repr(exc.value))
-            msg = 'Error deleting FlexCache : NetApp API failed. Reason - %s' % error
-            assert exc.value.args[0]['msg'] == msg
-            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
-                       'size': None, 'name': 'volume', 'vserver': 'flex'}
-            mock_delete.assert_called_with(current)
-
-    def test_delete_flexcache_exists_junctionpath_with_force(self):
-        ''' delete flexcache '''
-        args = {'volume': 'volume', 'vserver': 'ansibleSVM', 'junction_path': 'jpath', 'state': 'absent', 'force_offline': 'true', 'force_unmount': 'true'}
-        self.create_flexcache(args['vserver'], args['volume'], args['junction_path'])
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('vserver', 'flex')
-        with patch.object(my_module, 'flexcache_delete', wraps=my_obj.flexcache_delete) as mock_delete:
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
-            print('Delete: ' + repr(exc.value))
-            assert exc.value.args[0]['changed']
-            current = {'origin_cluster': 'ocluster', 'origin_volume': 'ovolume', 'origin_vserver': 'ovserver',
-                       'size': None, 'name': 'volume', 'vserver': 'flex'}
-            mock_delete.assert_called_with(current)
-
-    def test_delete_flexcache_not_exist(self):
-        ''' delete flexcache '''
-        args = {'volume': 'volume', 'vserver': 'ansibleSVM', 'state': 'absent'}
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection()
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        print('Delete: ' + repr(exc.value))
-        assert exc.value.args[0]['changed'] is False
-
-    def test_create_flexcache_size_error(self):
-        ''' create flexcache '''
-        args = {
-            'volume': 'volume_err',
-            'size': '50',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        error = 'Size "50MB" ("52428800B") is too small.  Minimum size is "80MB" ("83886080B"). '
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(job_error=error)
-        with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            with pytest.raises(AnsibleFailJson) as exc:
-                my_obj.apply()
-            print('Create: ' + repr(exc.value))
-            msg = 'Error when creating flexcache: %s' % error
-            assert exc.value.args[0]['msg'] == msg
-            mock_create.assert_called_with()
-
-    def test_create_flexcache_time_out(self):
-        ''' create flexcache '''
-        args = {
-            'volume': 'volume_err',
-            'size': '50',       # 80MB minimum
-            'size_unit': 'mb',  # 80MB minimum
-            'vserver': 'ansibleSVM',
-            'aggr_list': 'aggr1',
-            'origin_volume': 'fc_vol_origin',
-            'origin_vserver': 'ansibleSVM',
-            'time_out': '2',
-        }
-        args.update(self.args)
-        set_module_args(args)
-        my_obj = my_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection(job_error='time_out')
-        with patch.object(my_module, 'flexcache_create', wraps=my_obj.flexcache_create) as mock_create:
-            # replace time.sleep with a noop
-            with patch('time.sleep', lambda a: None):
-                with pytest.raises(AnsibleFailJson) as exc:
-                    my_obj.apply()
-            print('Create: ' + repr(exc.value))
-            msg = 'Error when creating flexcache: job completion exceeded expected timer of: %s seconds' \
-                % args['time_out']
-            assert exc.value.args[0]['msg'] == msg
-            mock_create.assert_called_with()
+    }
 
 
-def default_args():
-    args = {
-        'volume': 'flexcache_volume',
+ZRR = zapi_responses({
+    'flexcache_get_info': build_zapi_response(flexcache_get_info, 1),
+    'flexcache_get_info_double': build_zapi_response(flexcache_get_info_double, 2),
+    'job_running': build_zapi_response(job_info('running', None)),
+    'job_success': build_zapi_response(job_info('success', None)),
+    'job_error': build_zapi_response(job_info('failure', 'failure')),
+    'job_error_no_completion': build_zapi_response(job_info('failure', None)),
+    'job_other': build_zapi_response(job_info('other', 'other')),
+    'result_async': build_zapi_response(results_info('in_progress')),
+    'result_error': build_zapi_response(results_info('whatever')),
+    'error_160': build_zapi_error(160, 'Volume volume on Vserver ansibleSVM must be unmounted before being taken offline or restricted'),
+    'error_13001': build_zapi_error(13001, 'Volume volume in Vserver ansibleSVM must be offline to be deleted'),
+    'error_15661': build_zapi_error(15661, 'Job not found'),
+    'error_size': build_zapi_error('size', 'Size "50MB" ("52428800B") is too small.  Minimum size is "80MB" ("83886080B")'),
+})
+
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'volume': 'flexcache_volume',
+    'vserver': 'vserver',
+}
+
+
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never'
+    }
+    error = 'missing required arguments:'
+    assert error in call_main(my_main, {}, module_args, fail=True)['msg']
+
+
+def test_missing_parameters():
+    ''' fail if origin volume and origin verser are missing '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    error = 'Missing parameters:'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_missing_parameter():
+    ''' fail if origin verser parameter is missing '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'origin_volume': 'origin_volume',
+    }
+    error = 'Missing parameter: origin_vserver'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_get_flexcache():
+    ''' get flexcache info '''
+    register_responses([
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'origin_volume': 'origin_volume',
+        'origin_cluster': 'origin_cluster',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    info = my_obj.flexcache_get()
+    assert info
+    assert 'origin_cluster' in info
+
+
+def test_get_flexcache_double():
+    ''' get flexcache info returns 2 entries! '''
+    register_responses([
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info_double']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'origin_volume': 'origin_volume',
+
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = 'Error fetching FlexCache info: Multiple records found for %s:' % DEFAULT_ARGS['volume']
+    assert error in expect_and_capture_ansible_exception(my_obj.flexcache_get, 'fail')['msg']
+
+
+def test_create_flexcache():
+    ''' create flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '90',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_flexcach_no_wait():
+    ''' create flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '90',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'time_out': 0
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_create_flexcache():
+    ''' create flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_error']),
+        # 2nd run
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['error']),
+        # 3rd run
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '90',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    error = 'Unexpected error when creating flexcache: results is:'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = zapi_error_message('Error fetching job info')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = 'Error when creating flexcache'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_create_flexcache_idempotent():
+    ''' create flexcache - already exists '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'ovolume',
+        'origin_vserver': 'ovserver',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_flexcache_autoprovision():
+    ''' create flexcache with autoprovision'''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '90',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'auto_provision_as': 'flexgroup',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_flexcache_autoprovision_idempotent():
+    ''' create flexcache with autoprovision - already exists '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'origin_volume': 'ovolume',
+        'origin_vserver': 'ovserver',
+        'auto_provision_as': 'flexgroup',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_flexcache_multiplier():
+    ''' create flexcache with aggregate multiplier'''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '90',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'aggr_list_multiplier': 2,
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_flexcache_multiplier_idempotent():
+    ''' create flexcache with aggregate multiplier - already exists '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'ovolume',
+        'origin_vserver': 'ovserver',
+        'aggr_list_multiplier': 2,
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_flexcache_exists_no_force():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['error_13001']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'state': 'absent'
+    }
+    error = zapi_error_message('Error deleting FlexCache', 13001, 'Volume volume in Vserver ansibleSVM must be offline to be deleted')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_delete_flexcache_exists_with_force():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'force_offline': 'true',
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_flexcache_exists_with_force_no_wait():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'force_offline': 'true',
+        'time_out': 0,
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_flexcache_exists_junctionpath_no_force():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['error_160']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'force_offline': 'true',
+        'junction_path': 'jpath',
+        'state': 'absent'
+    }
+    error = zapi_error_message('Error deleting FlexCache', 160,
+                               'Volume volume on Vserver ansibleSVM must be unmounted before being taken offline or restricted')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_delete_flexcache_exists_junctionpath_with_force():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'force_offline': 'true',
+        'junction_path': 'jpath',
+        'force_unmount': 'true',
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_flexcache_not_exist():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'state': 'absent'
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_delete_flexcache_exists_with_force():
+    ''' delete flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_error']),
+        # 2nd run
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['error']),
+        # 3rd run
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
+        ('ZAPI', 'volume-offline', ZRR['success']),
+        ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'force_offline': 'true',
+        'state': 'absent'
+    }
+    error = 'Unexpected error when deleting flexcache: results is:'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = zapi_error_message('Error fetching job info')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = 'Error when deleting flexcache'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_create_flexcache_size_error():
+    ''' create flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['error_size']),
+    ])
+    module_args = {
+        'use_rest': 'never',
         'size': '50',       # 80MB minimum
         'size_unit': 'mb',  # 80MB minimum
-        'vserver': 'ansibleSVM',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    error = zapi_error_message('Error creating FlexCache', 'size', 'Size "50MB" ("52428800B") is too small.  Minimum size is "80MB" ("83886080B")')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+@patch('time.sleep')
+def test_create_flexcache_time_out(dont_sleep):
+    ''' create flexcache '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
+        ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
+        ('ZAPI', 'job-get', ZRR['job_running']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'size': '50',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
         'aggr_list': 'aggr1',
         'origin_volume': 'fc_vol_origin',
         'origin_vserver': 'ansibleSVM',
         'time_out': '2',
-        'hostname': '10.10.10.10',
-        'username': 'username',
-        'password': 'password',
-        'use_rest': 'always'
     }
-    return args
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = 'Error when creating flexcache: job completion exceeded expected timer of: 2 seconds'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_error_zapi():
+    ''' error in ZAPI calls '''
+    register_responses([
+        ('ZAPI', 'flexcache-get-iter', ZRR['error']),
+        ('ZAPI', 'volume-offline', ZRR['error']),
+        ('ZAPI', 'volume-unmount', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = zapi_error_message('Error fetching FlexCache info')
+    assert error in expect_and_capture_ansible_exception(my_obj.flexcache_get, 'fail')['msg']
+    error = zapi_error_message('Error offlining FlexCache volume')
+    assert error in expect_and_capture_ansible_exception(my_obj.volume_offline, 'fail', None)['msg']
+    error = zapi_error_message('Error unmounting FlexCache volume')
+    assert error in expect_and_capture_ansible_exception(my_obj.volume_unmount, 'fail', None)['msg']
+
+
+def test_check_job_status():
+    ''' check_job_status '''
+    register_responses([
+        # job not found
+        ('ZAPI', 'job-get', ZRR['error_15661']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'job-get', ZRR['error_15661']),
+        # cserver job not found
+        ('ZAPI', 'job-get', ZRR['error_15661']),
+        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
+        ('ZAPI', 'job-get', ZRR['error_15661']),
+        # missing job-completion
+        ('ZAPI', 'job-get', ZRR['job_error_no_completion']),
+        # bad status
+        ('ZAPI', 'job-get', ZRR['job_other']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # error = zapi_error_message('Error fetching FlexCache info')
+    error = 'cannot locate job with id: 1'
+    assert error in my_obj.check_job_status('1')
+    assert error in my_obj.check_job_status('1')
+    assert 'progress' in my_obj.check_job_status('1')
+    error = 'Unexpected job status in:'
+    assert error in expect_and_capture_ansible_exception(my_obj.check_job_status, 'fail', '1')['msg']
 
 
 # REST API canned responses when mocking send_request
-SRR = {
+SRR = rest_responses({
     # common responses
     'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
     'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
@@ -538,259 +559,304 @@ SRR = {
     'one_flexcache_record': (200, dict(records=[
         dict(uuid='a1b2c3',
              name='flexcache_volume',
-             svm=dict(name='ansibleSVM'),
+             svm=dict(name='vserver'),
              )
     ], num_records=1), None),
     'one_flexcache_record_with_path': (200, dict(records=[
         dict(uuid='a1b2c3',
-             name='test',
+             name='flexcache_volume',
              svm=dict(name='vserver'),
              path='path'
              )
     ], num_records=1), None),
-}
+})
 
 
-def test_rest_missing_arguments(patch_ansible):     # pylint: disable=redefined-outer-name,unused-argument
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_fail_netapp_lib_error(mock_has_netapp_lib):
+    mock_has_netapp_lib.return_value = False
+    module_args = {
+        "use_rest": "never"
+    }
+    assert 'Error: the python NetApp-Lib module is required.  Import error: None' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_missing_arguments():
     ''' create flexcache '''
-    args = dict(default_args())
+    register_responses([
+
+    ])
+    args = dict(DEFAULT_ARGS)
     del args['hostname']
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_module()
-    msg = 'missing required arguments: hostname'
-    assert exc.value.args[0]['msg'] == msg
+    module_args = {
+        'use_rest': 'always',
+    }
+    error = 'missing required arguments: hostname'
+    assert error in call_main(my_main, args, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_create():
     ''' create flexcache '''
-    args = dict(default_args())
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],     # get
-        SRR['empty_good'],      # post
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['zero_record']),
+        ('POST', 'storage/flexcache/flexcaches', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'size': '50',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'origin_cluster': 'ocluster',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_create_no_action(mock_request, patch_ansible):        # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_create_no_action():
     ''' create flexcache idempotent '''
-    args = dict(default_args())
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],     # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is False
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 2
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_no_action(mock_request, patch_ansible):    # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_delete_no_action():
     ''' delete flexcache '''
-    args = dict(default_args())
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['zero_record'],             # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is False
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 2
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['zero_record']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent'
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_delete():
     ''' delete flexcache '''
-    args = dict(default_args())
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],    # get
-        SRR['empty_good'],              # post
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('DELETE', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_with_force(mock_request, patch_ansible):     # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_delete_with_force():
     ''' delete flexcache, since there is no path, unmount is not called '''
-    args = dict(default_args())
-    args['state'] = 'absent'
-    args['force_unmount'] = True
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],    # get
-        SRR['empty_good'],              # post
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('DELETE', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'force_unmount': True,
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_with_force_and_path(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_delete_with_force_and_path():
     ''' delete flexcache with unmount '''
-    args = dict(default_args())
-    args['state'] = 'absent'
-    args['force_unmount'] = True
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record_with_path'],      # get
-        SRR['empty_good'],                          # post - unmount
-        SRR['empty_good'],                          # post - delete
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 4
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record_with_path']),
+        ('PATCH', 'storage/volumes/a1b2c3', SRR['empty_good']),
+        ('DELETE', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'force_unmount': True,
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_delete_with_force2_and_path(mock_request, patch_ansible):     # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_delete_with_force2_and_path():
     ''' delete flexcache  with unmount and offline'''
-    args = dict(default_args())
-    args['state'] = 'absent'
-    args['force_offline'] = True
-    args['force_unmount'] = True
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record_with_path'],      # get
-        SRR['empty_good'],                          # post - unmount
-        SRR['empty_good'],                          # post - offline
-        SRR['empty_good'],                          # post - delete
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 5
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record_with_path']),
+        ('PATCH', 'storage/volumes/a1b2c3', SRR['empty_good']),
+        ('PATCH', 'storage/volumes/a1b2c3', SRR['empty_good']),
+        ('DELETE', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'force_offline': True,
+        'force_unmount': True,
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_prepopulate_no_action(mock_request, patch_ansible):        # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_modify_prepopulate_no_action():
     ''' modify flexcache '''
-    args = dict(default_args())
-    args['prepopulate'] = dict(
-        dir_paths=['/'],
-        force_prepopulate_if_already_created=False
-    )
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],     # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is False
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 2
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'prepopulate': {
+            'dir_paths': ['/'],
+            'force_prepopulate_if_already_created': False
+        }
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_prepopulate(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_modify_prepopulate():
     ''' modify flexcache '''
-    args = dict(default_args())
-    args['prepopulate'] = dict(
-        dir_paths=['/'],
-        force_prepopulate_if_already_created=True
-    )
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],    # get
-        SRR['empty_good'],              # patch
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('PATCH', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'prepopulate': {
+            'dir_paths': ['/'],
+            'force_prepopulate_if_already_created': True
+        }
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_prepopulate_default(mock_request, patch_ansible):      # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_modify_prepopulate_default():
     ''' modify flexcache '''
-    args = dict(default_args())
-    args['prepopulate'] = dict(
-        dir_paths=['/'],
-    )
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],    # get
-        SRR['empty_good'],              # patch for flexcache prepopulate
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 3
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('PATCH', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'prepopulate': {
+            'dir_paths': ['/'],
+        }
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_rest_modify_prepopulate_and_mount(mock_request, patch_ansible):    # pylint: disable=redefined-outer-name,unused-argument
+def test_rest_modify_prepopulate_and_mount():
     ''' modify flexcache '''
-    args = dict(default_args())
-    args['prepopulate'] = dict(
-        dir_paths=['/'],
-    )
-    args['path'] = '/mount_path'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest'],
-        SRR['one_flexcache_record'],    # get
-        SRR['empty_good'],              # patch for mount
-        SRR['empty_good'],              # patch for flexcache prepopulate
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
-    print(mock_request.mock_calls)
-    assert len(mock_request.mock_calls) == 4
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('PATCH', 'storage/volumes/a1b2c3', SRR['empty_good']),
+        ('PATCH', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'prepopulate': {
+            'dir_paths': ['/'],
+        },
+        'path': '/mount_path'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_error_modify():
+    ''' create flexcache idempotent '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'volume': 'flexcache_volume2',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+    }
+    error = 'FlexCache properties cannot be modified by this module.  modify:'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_warn_prepopulate():
+    ''' create flexcache idempotent '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('PATCH', 'storage/volumes/a1b2c3', SRR['success']),
+        ('PATCH', 'storage/flexcache/flexcaches/a1b2c3', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'volume': 'flexcache_volume',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'prepopulate': {
+            'dir_paths': ['/'],
+            'force_prepopulate_if_already_created': True
+        },
+        'junction_path': ''
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised('na_ontap_flexcache is not idempotent when prepopulate is present and force_prepopulate_if_already_created=true')
+    assert_warning_was_raised('prepopulate requires the FlexCache volume to be mounted')
+
+
+def test_error_missing_uuid():
+    module_args = {
+        'use_rest': 'akway',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    current = {}
+    error_template = 'Error in %s: Error, no uuid in current: {}'
+    error = error_template % 'rest_offline_volume'
+    assert error in expect_and_capture_ansible_exception(my_obj.rest_offline_volume, 'fail', current)['msg']
+    error = error_template % 'rest_mount_volume'
+    assert error in expect_and_capture_ansible_exception(my_obj.rest_mount_volume, 'fail', current, 'path')['msg']
+    error = error_template % 'flexcache_rest_delete'
+    assert error in expect_and_capture_ansible_exception(my_obj.flexcache_rest_delete, 'fail', current)['msg']
+
+
+def test_prepopulate_option_checks():
+    ''' create flexcache idempotent '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'prepopulate': {
+            'dir_paths': ['/'],
+            'force_prepopulate_if_already_created': True,
+            'exclude_dir_paths': ['/']
+        },
+    }
+    error = 'Error: using prepopulate requires ONTAP 9.8 or later and REST must be enabled - ONTAP version: 9.7.0.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = 'Error: using prepopulate: exclude_dir_paths requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
