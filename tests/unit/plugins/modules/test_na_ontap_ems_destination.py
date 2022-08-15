@@ -63,7 +63,7 @@ def test_get_ems_destination_error():
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
     my_module_object = create_module(my_module, DEFAULT_ARGS, module_args)
     msg = 'Error: calling: support/ems/destinations: got Expected error.'
-    assert msg in expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail')['msg']
+    assert msg in expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
 
 
 def test_create_ems_destination():
@@ -79,7 +79,6 @@ def test_create_ems_destination():
 def test_create_ems_destination_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/destinations', SRR['empty_records']),
         ('POST', 'support/ems/destinations', SRR['generic_error'])
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
@@ -102,14 +101,13 @@ def test_delete_ems_destination():
 def test_delete_ems_destination_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/destinations', SRR['ems_destination']),
         ('DELETE', 'support/ems/destinations/test', SRR['generic_error'])
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter'], 'state': 'absent'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = expect_and_capture_ansible_exception(my_obj.delete_ems_destination, 'fail')['msg']
+    error = expect_and_capture_ansible_exception(my_obj.delete_ems_destination, 'fail', 'test')['msg']
     print('Info: %s' % error)
-    assert 'Error deleting key with id 1: calling: support/ems/destinations/1: got Expected error.' == error
+    assert 'Error: calling: support/ems/destinations/test: got Expected error.' == error
 
 
 def test_modify_ems_destination():
@@ -125,11 +123,11 @@ def test_modify_ems_destination():
 def test_modify_ems_destination_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/destinations', SRR['ems_destination']),
         ('PATCH', 'support/ems/destinations/test', SRR['generic_error'])
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['other-filter']}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = expect_and_capture_ansible_exception(my_obj.modify_ems_destination, 'fail')['msg']
+    modify = {'filters': ['other-filter']}
+    error = expect_and_capture_ansible_exception(my_obj.modify_ems_destination, 'fail', 'test', modify)['msg']
     print('Info: %s' % error)
-    assert 'Error modifying key with id 1: calling: support/ems/destinations/1: got Expected error.' == error
+    assert 'Error: calling: support/ems/destinations/test: got Expected error.' == error

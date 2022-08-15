@@ -12,13 +12,13 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_ems_destination
-short_description: NetApp ONTAP configuration for EMS event destinations.
+short_description: NetApp ONTAP configuration for EMS event destination
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
-version_added: 21.22.0
+version_added: 21.23.0
 author: Bartosz Bielawski (@bielawb) <bartek.bielawski@live.com>
 description:
-  - Configure EMS destinations. Currently certificate authentication for REST is not supported.
+  - Configure EMS destination. Currently certificate authentication for REST is not supported.
 options:
   state:
     description:
@@ -28,7 +28,7 @@ options:
     default: present
   name:
     description:
-      - Name of the EMS destination
+      - Name of the EMS destination.
     required: true
     type: str
   type:
@@ -39,12 +39,12 @@ options:
     type: str
   destination:
     description:
-      - Destination - content depends on the type
+      - Destination - content depends on the type.
     required: true
     type: str
   filters:
     description:
-      - List of filters that destination is linked to
+      - List of filters that destination is linked to.
     required: true
     type: list
     elements: str
@@ -76,7 +76,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapEmsDestination:
-    """Create/ Modify/ Remove EMS destinations"""
+    """Create/Modify/Remove EMS destination"""
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -107,11 +107,7 @@ class NetAppOntapEmsDestination:
         self.module.fail_json(**elements)
 
     def generate_filters_list(self, filters):
-        filters_list = []
-        for filter in filters:
-            filters_list.append({'name': filter})
-
-        return filters_list
+        return [{'name': filter} for filter in filters]
 
     def get_ems_destination(self, name):
         api = 'support/ems/destinations'
@@ -128,7 +124,7 @@ class NetAppOntapEmsDestination:
                     'filters': [filter['name'] for filter in record['filters']]
                 }
             except KeyError as exc:
-                self.module.fail_json(msg='Error: unexpected ems destination body: %s, KeyError on %s' % (str(record), str(exc)))
+                self.module.fail_json(msg='Error: unexpected ems destination body: %s, KeyError on %s' % (record, exc))
             return current
         return None
 
