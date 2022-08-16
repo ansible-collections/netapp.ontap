@@ -98,12 +98,10 @@ class NetAppOntapEmsDestination:
         if not self.use_rest:
             self.module.fail_json(msg='na_ontap_ems_destination is only supported with REST API')
 
-    def fail_on_error(self, error, stack=False):
+    def fail_on_error(self, error):
         if error is None:
             return
         elements = dict(msg="Error: %s" % error)
-        if stack:
-            elements['stack'] = traceback.format_stack()
         self.module.fail_json(**elements)
 
     def generate_filters_list(self, filters):

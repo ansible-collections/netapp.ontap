@@ -34,6 +34,15 @@ SRR = rest_responses({
                 ]
             }],
         "num_records": 1
+    }, None),
+    'missing_key': (200, {
+        "records": [
+            {
+                "name": "test",
+                "type": "rest_api",
+                "destination": "https://test.destination"
+            }
+        ]
     }, None)
 })
 
@@ -64,6 +73,19 @@ def test_get_ems_destination_error():
     my_module_object = create_module(my_module, DEFAULT_ARGS, module_args)
     msg = 'Error: calling: support/ems/destinations: got Expected error.'
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
+
+
+def test_get_ems_destination_keyerror():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'support/ems/destinations', SRR['missing_key'])
+    ])
+    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
+    my_module_object = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
+    print('Info: %s' % error)
+    assert "Error: unexpected ems destination body:" in error
+    assert "KeyError on 'filters'" in error
 
 
 def test_create_ems_destination():
@@ -110,7 +132,7 @@ def test_delete_ems_destination_error():
     assert 'Error: calling: support/ems/destinations/test: got Expected error.' == error
 
 
-def test_modify_ems_destination():
+def test_modify_ems_destination_filter():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'support/ems/destinations', SRR['ems_destination']),
@@ -120,7 +142,17 @@ def test_modify_ems_destination():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_modify_for_type():
+def test_modify_ems_destination_target():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('PATCH', 'support/ems/destinations/test', SRR['empty_good'])
+    ])
+    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://different.destination', 'filters': ['test-filter']}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ems_destination_type():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'support/ems/destinations', SRR['ems_destination']),
@@ -142,3 +174,13 @@ def test_modify_ems_destination_error():
     error = expect_and_capture_ansible_exception(my_obj.modify_ems_destination, 'fail', 'test', modify)['msg']
     print('Info: %s' % error)
     assert 'Error: calling: support/ems/destinations/test: got Expected error.' == error
+
+
+def test_module_fail_without_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_zapi'])
+    ])
+    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
+    error = create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    print('Info: %s' % error)
+    assert 'na_ontap_ems_destination is only supported with REST API' == error
