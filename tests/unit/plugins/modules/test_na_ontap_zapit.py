@@ -51,7 +51,7 @@ def build_zapi_error_custom(errno, reason, results='results'):
         reason as str
     '''
     if not netapp_utils.has_netapp_lib():
-        return('build_zapi_error: netapp-lib is missing', 'invalid')
+        return 'build_zapi_error: netapp-lib is missing', 'invalid'
     if results != 'results':
         return (netapp_utils.zapi.NaElement(results), 'valid')
     xml = {}

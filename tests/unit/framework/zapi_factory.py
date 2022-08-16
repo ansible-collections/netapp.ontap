@@ -94,7 +94,7 @@ def build_zapi_response(contents, num_records=None):
     '''
     if not netapp_utils.has_netapp_lib():
         # do not report an error at init, as it breaks ansible-test checks
-        return('build_zapi_response: netapp-lib is missing', 'invalid')
+        return 'build_zapi_response: netapp-lib is missing', 'invalid'
     if num_records is not None:
         contents['num-records'] = str(num_records)
     response = netapp_utils.zapi.NaElement('results')
@@ -109,7 +109,7 @@ def build_zapi_error(errno, reason):
         reason as str
     '''
     if not netapp_utils.has_netapp_lib():
-        return('build_zapi_error: netapp-lib is missing', 'invalid')
+        return 'build_zapi_error: netapp-lib is missing', 'invalid'
     response = netapp_utils.zapi.NaElement('results')
     response.add_attr('errno', str(errno))
     response.add_attr('reason', reason)

@@ -84,10 +84,10 @@ def test_fixture_no_netapp_lib(patch_fixture):
     mock_sr = patch_fixture
     cx = netapp_utils.OntapRestAPI(Module())
     cx.send_request('GET', 'cluster', None)
-    assert('test_fixture_no_netapp_lib') in uut._RESPONSES
-    assert('test_fixture_no_netapp_lib') in uut._REQUESTS
+    assert 'test_fixture_no_netapp_lib' in uut._RESPONSES
+    assert 'test_fixture_no_netapp_lib' in uut._REQUESTS
     uut.print_requests()
     uut.print_requests_and_responses()
-    assert(len(mock_sr.mock_calls) == 1)
+    assert len(mock_sr.mock_calls) == 1
     calls = uut.get_mock_record()
     assert len([calls.get_requests()]) == 1
