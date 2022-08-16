@@ -120,6 +120,17 @@ def test_modify_ems_destination():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_modify_for_type():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('DELETE', 'support/ems/destinations/test', SRR['empty_good']),
+        ('POST', 'support/ems/destinations', SRR['empty_good'])
+    ])
+    module_args = {'name': 'test', 'type': 'email', 'destination': 'test@hq.com', 'filters': ['test-filter']}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_modify_ems_destination_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
