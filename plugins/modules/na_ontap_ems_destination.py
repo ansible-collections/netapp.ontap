@@ -52,12 +52,23 @@ options:
 
 EXAMPLES = """
     - name: Configure REST EMS destination
-      na_ontap_ems_destination:
+      netapp.ontap.na_ontap_ems_destination:
         state: present
         name: rest
         type: rest_api
         filters: ['important_events']
         destination: http://my.rest.api/address
+        hostname: "{{hostname}}"
+        username: "{{username}}"
+        password: "{{password}}"
+
+    - name: Remove email EMS destination
+      netapp.ontap.na_ontap_ems_destination:
+        state: absent
+        name: email_destination
+        type: email
+        filters: ['important_events']
+        destination: netapp@company.com
         hostname: "{{hostname}}"
         username: "{{username}}"
         password: "{{password}}"
@@ -101,8 +112,7 @@ class NetAppOntapEmsDestination:
     def fail_on_error(self, error):
         if error is None:
             return
-        elements = dict(msg="Error: %s" % error)
-        self.module.fail_json(**elements)
+        self.module.fail_json(msg="Error: %s" % error)
 
     def generate_filters_list(self, filters):
         return [{'name': filter} for filter in filters]
