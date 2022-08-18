@@ -1,16 +1,12 @@
 #!/usr/bin/python
 '''
 (c) 2019, Red Hat, Inc
-GNU General Public License v3.0+
-(see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+(c) 2019-2022, NetApp, Inc
+GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 
@@ -23,93 +19,98 @@ version_added: 2.9.0
 author: Milan Zink (@zeten30) <zeten30@gmail.com>,<mzink@redhat.com>
 
 description:
-- Create, modify or delete vserver kerberos realm configuration
+  - Create, modify or delete vserver kerberos realm configuration
 
 options:
 
   state:
     description:
-    - Whether the Kerberos realm is present or absent.
+      - Whether the Kerberos realm is present or absent.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   vserver:
     description:
-    - vserver/svm with kerberos realm configured
+      - vserver/svm with kerberos realm configured
     required: true
     type: str
 
   realm:
     description:
-    - Kerberos realm name
+      - Kerberos realm name
     required: true
     type: str
 
   kdc_vendor:
     description:
-    - The vendor of the Key Distribution Centre (KDC) server
-    - Required if I(state=present)
+      - The vendor of the Key Distribution Centre (KDC) server
+      - Required if I(state=present)
     choices: ['other', 'microsoft']
     type: str
 
   kdc_ip:
     description:
-    - IP address of the Key Distribution Centre (KDC) server
-    - Required if I(state=present)
+      - IP address of the Key Distribution Centre (KDC) server
+      - Required if I(state=present)
     type: str
 
   kdc_port:
     description:
-    - TCP port on the KDC to be used for Kerberos communication.
-    - The default for this parameter is '88'.
+      - TCP port on the KDC to be used for Kerberos communication.
+      - The default for this parameter is '88'.
     type: str
 
   clock_skew:
     description:
-    - The clock skew in minutes is the tolerance for accepting tickets with time stamps that do not exactly match the host's system clock.
-    - The default for this parameter is '5' minutes.
+      - The clock skew in minutes is the tolerance for accepting tickets with time stamps that do not exactly match the host's system clock.
+      - The default for this parameter is '5' minutes.
+      - This option is not supported with REST.
     type: str
 
   comment:
     description:
-    - Optional comment
+      - Optional comment
     type: str
 
   admin_server_ip:
     description:
-    - IP address of the host where the Kerberos administration daemon is running. This is usually the master KDC.
-    - If this parameter is omitted, the address specified in kdc_ip is used.
+      - IP address of the host where the Kerberos administration daemon is running. This is usually the master KDC.
+      - If this parameter is omitted, the address specified in kdc_ip is used.
+      - This option is not supported with REST.
     type: str
 
   admin_server_port:
     description:
-    - The TCP port on the Kerberos administration server where the Kerberos administration service is running.
-    - The default for this parmater is '749'
+      - The TCP port on the Kerberos administration server where the Kerberos administration service is running.
+      - The default for this parmater is '749'.
+      - This option is not supported with REST.
     type: str
 
   pw_server_ip:
     description:
-    - IP address of the host where the Kerberos password-changing server is running.
-    - Typically, this is the same as the host indicated in the adminserver-ip.
-    - If this parameter is omitted, the IP address in kdc-ip is used.
+      - IP address of the host where the Kerberos password-changing server is running.
+      - Typically, this is the same as the host indicated in the adminserver-ip.
+      - If this parameter is omitted, the IP address in kdc-ip is used.
+      - This option is not supported with REST.
     type: str
 
   pw_server_port:
     description:
-    - The TCP port on the Kerberos password-changing server where the Kerberos password-changing service is running.
-    - The default for this parameter is '464'.
+      - The TCP port on the Kerberos password-changing server where the Kerberos password-changing service is running.
+      - The default for this parameter is '464'.
+      - This option is not supported with REST.
     type: str
 
   ad_server_ip:
     description:
-    - IP Address of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
+      - IP Address of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
     type: str
     version_added: '20.4.0'
 
   ad_server_name:
     description:
-    - Host name of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
+      - Host name of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
     type: str
     version_added: '20.4.0'
 '''
@@ -117,28 +118,28 @@ options:
 EXAMPLES = '''
 
     - name: Create kerberos realm other kdc vendor
-      na_ontap_kerberos_realm:
-        state:         present
-        realm:         'EXAMPLE.COM'
-        vserver:       'vserver1'
-        kdc_ip:        '1.2.3.4'
-        kdc_vendor:    'other'
-        hostname:      "{{ netapp_hostname }}"
-        username:      "{{ netapp_username }}"
-        password:      "{{ netapp_password }}"
+      netapp.ontap.na_ontap_kerberos_realm:
+        state: present
+        realm: 'EXAMPLE.COM'
+        vserver: 'vserver1'
+        kdc_ip: '1.2.3.4'
+        kdc_vendor: 'other'
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Create kerberos realm Microsoft kdc vendor
-      na_ontap_kerberos_realm:
-        state:          present
-        realm:          'EXAMPLE.COM'
-        vserver:        'vserver1'
-        kdc_ip:         '1.2.3.4'
-        kdc_vendor:     'microsoft'
-        ad_server_ip:   '0.0.0.0'
+      netapp.ontap.na_ontap_kerberos_realm:
+        state: present
+        realm: 'EXAMPLE.COM'
+        vserver: 'vserver1'
+        kdc_ip: '1.2.3.4'
+        kdc_vendor: 'microsoft'
+        ad_server_ip: '0.0.0.0'
         ad_server_name: 'server'
-        hostname:      "{{ netapp_hostname }}"
-        username:      "{{ netapp_username }}"
-        password:      "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
 '''
 
@@ -150,11 +151,10 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible.module_utils._text import to_native
 from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapKerberosRealm(object):
+class NetAppOntapKerberosRealm:
     '''
     Kerberos Realm definition class
     '''
@@ -182,27 +182,34 @@ class NetAppOntapKerberosRealm(object):
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            required_if=[('state', 'present', ['kdc_vendor', 'kdc_ip']), ('kdc_vendor', 'microsoft', ['ad_server_ip', 'ad_server_name'])],
+            required_if=[
+                ('state', 'present', ['kdc_vendor', 'kdc_ip']),
+                ('kdc_vendor', 'microsoft', ['ad_server_ip', 'ad_server_name'])
+            ]
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Set up Rest API
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        unsupported_rest_properties = ['admin_server_ip', 'admin_server_port', 'clock_skew', 'pw_server_ip', 'pw_server_port']
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        self.svm_uuid = None
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
-        self.simple_attributes = [
-            'admin_server_ip',
-            'admin_server_port',
-            'clock_skew',
-            'kdc_ip',
-            'kdc_port',
-            'kdc_vendor',
-        ]
+            self.simple_attributes = [
+                'admin_server_ip',
+                'admin_server_port',
+                'clock_skew',
+                'kdc_ip',
+                'kdc_port',
+                'kdc_vendor',
+            ]
 
-    def get_krbrealm(self, realm_name=None, vserver_name=None):
+    def get_krbrealm(self):
         '''
         Checks if Kerberos Realm config exists.
 
@@ -211,22 +218,21 @@ class NetAppOntapKerberosRealm(object):
             None if not found
         :rtype: object/None
         '''
+        if self.use_rest:
+            return self.get_krbrealm_rest()
+
         # Make query
         krbrealm_info = netapp_utils.zapi.NaElement('kerberos-realm-get-iter')
-
-        if realm_name is None:
-            realm_name = self.parameters['realm']
-
-        if vserver_name is None:
-            vserver_name = self.parameters['vserver']
-
-        query_details = netapp_utils.zapi.NaElement.create_node_with_children('kerberos-realm', **{'realm': realm_name, 'vserver-name': vserver_name})
-
+        query_details = netapp_utils.zapi.NaElement.create_node_with_children('kerberos-realm', **{'realm': self.parameters['realm'],
+                                                                              'vserver-name': self.parameters['vserver']})
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(query_details)
         krbrealm_info.add_child_elem(query)
 
-        result = self.server.invoke_successfully(krbrealm_info, enable_tunneling=True)
+        try:
+            result = self.server.invoke_successfully(krbrealm_info, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching kerberos realm %s: %s' % (self.parameters['realm'], to_native(error)))
 
         # Get Kerberos Realm details
         krbrealm_details = None
@@ -255,6 +261,9 @@ class NetAppOntapKerberosRealm(object):
         '''supported
         Create Kerberos Realm configuration
         '''
+        if self.use_rest:
+            return self.create_krbrealm_rest()
+
         options = {
             'realm': self.parameters['realm']
         }
@@ -288,8 +297,9 @@ class NetAppOntapKerberosRealm(object):
         '''
         Delete Kerberos Realm configuration
         '''
+        if self.use_rest:
+            return self.delete_krbrealm_rest()
         krbrealm_delete = netapp_utils.zapi.NaElement.create_node_with_children('kerberos-realm-delete', **{'realm': self.parameters['realm']})
-
         try:
             self.server.invoke_successfully(krbrealm_delete, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as errcatch:
@@ -301,6 +311,8 @@ class NetAppOntapKerberosRealm(object):
         Modify Kerberos Realm
         :param modify: list of modify attributes
         '''
+        if self.use_rest:
+            return self.modify_krbrealm_rest(modify)
         krbrealm_modify = netapp_utils.zapi.NaElement('kerberos-realm-modify')
         krbrealm_modify.add_new_child('realm', self.parameters['realm'])
 
@@ -323,30 +335,91 @@ class NetAppOntapKerberosRealm(object):
             self.module.fail_json(msg='Error modifying Kerberos Realm %s: %s' % (self.parameters['realm'], to_native(errcatch)),
                                   exception=traceback.format_exc())
 
+    def get_krbrealm_rest(self):
+        api = 'protocols/nfs/kerberos/realms'
+        params = {
+            'name': self.parameters['realm'],
+            'svm.name': self.parameters['vserver'],
+            'fields': 'kdc,ad_server,svm,comment'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching kerberos realm %s: %s' % (self.parameters['realm'], to_native(error)))
+        if record:
+            self.svm_uuid = record['svm']['uuid']
+            return {
+                'kdc_ip': self.na_helper.safe_get(record, ['kdc', 'ip']),
+                'kdc_port': self.na_helper.safe_get(record, ['kdc', 'port']),
+                'kdc_vendor': self.na_helper.safe_get(record, ['kdc', 'vendor']),
+                'ad_server_ip': self.na_helper.safe_get(record, ['ad_server', 'address']),
+                'ad_server_name': self.na_helper.safe_get(record, ['ad_server', 'name']),
+                'comment': self.na_helper.safe_get(record, ['comment'])
+            }
+        return None
+
+    def create_krbrealm_rest(self):
+        api = 'protocols/nfs/kerberos/realms'
+        body = {
+            'name': self.parameters['realm'],
+            'svm.name': self.parameters['vserver'],
+            'kdc.ip': self.parameters['kdc_ip'],
+            'kdc.vendor': self.parameters['kdc_vendor']
+        }
+        if self.parameters.get('kdc_port'):
+            body['kdc.port'] = self.parameters['kdc_port']
+        if self.parameters.get('comment'):
+            body['comment'] = self.parameters['comment']
+        if self.parameters['kdc_vendor'] == 'microsoft':
+            body['ad_server.address'] = self.parameters['ad_server_ip']
+            body['ad_server.name'] = self.parameters['ad_server_name']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg='Error creating Kerberos Realm configuration %s: %s' % (self.parameters['realm'], to_native(error)))
+
+    def modify_krbrealm_rest(self, modify):
+        api = 'protocols/nfs/kerberos/realms/%s' % self.svm_uuid
+        body = {}
+        if modify.get('kdc_ip'):
+            body['kdc.ip'] = modify['kdc_ip']
+        if modify.get('kdc_vendor'):
+            body['kdc.vendor'] = modify['kdc_vendor']
+        if modify.get('kdc_port'):
+            body['kdc.port'] = modify['kdc_port']
+        if modify.get('comment'):
+            body['comment'] = modify['comment']
+        if modify.get('ad_server_ip'):
+            body['ad_server.address'] = modify['ad_server_ip']
+        if modify.get('ad_server_name'):
+            body['ad_server.name'] = modify['ad_server_name']
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['realm'], body)
+        if error:
+            self.module.fail_json(msg='Error modifying Kerberos Realm %s: %s' % (self.parameters['realm'], to_native(error)))
+
+    def delete_krbrealm_rest(self):
+        api = 'protocols/nfs/kerberos/realms/%s' % self.svm_uuid
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.parameters['realm'])
+        if error:
+            self.module.fail_json(msg='Error deleting Kerberos Realm configuration %s: %s' % (self.parameters['realm'], to_native(error)))
+
     def apply(self):
         '''Call create/modify/delete operations.'''
+        if not self.use_rest:
+            #  create an ems log event for users with auto support turned on
+            netapp_utils.ems_log_event("na_ontap_kerberos_realm", self.server)
         current = self.get_krbrealm()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        #  create an ems log event for users with auto support turned on
-        netapp_utils.ems_log_event("na_ontap_kerberos_realm", self.server)
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.create_krbrealm()
-                elif cd_action == 'delete':
-                    self.delete_krbrealm()
-                elif modify:
-                    self.modify_krbrealm(modify)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_krbrealm()
+            elif cd_action == 'delete':
+                self.delete_krbrealm()
+            elif modify:
+                self.modify_krbrealm(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
-#
-# MAIN
-#
 def main():
     '''ONTAP Kerberos Realm'''
     krbrealm = NetAppOntapKerberosRealm()

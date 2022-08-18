@@ -79,6 +79,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_key_manager - new REST option `onboard` for onboard key manager.
 
 ### Added REST support to existing modules
+  - na_ontap_kerberos_realm - added REST support.
   - na_ontap_security_key_manager - added REST support.
 
 ## 21.22.0
