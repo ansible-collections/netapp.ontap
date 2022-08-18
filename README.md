@@ -81,6 +81,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Added REST support to existing modules
   - na_ontap_kerberos_realm - added REST support.
   - na_ontap_security_key_manager - added REST support.
+  - na_ontap_ucadapter - added REST support.
 
 ## 21.22.0
 
