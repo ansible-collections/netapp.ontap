@@ -91,9 +91,7 @@ class NetAppOntapNTPKey:
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
-
-        if not self.use_rest:
-            self.module.fail_json(msg='na_ontap_ntp_key is only supported with REST API')
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_ntp_key', 9, 7)
 
     def get_ntp_key(self):
         api = 'cluster/ntp/keys'
@@ -123,28 +121,30 @@ class NetAppOntapNTPKey:
             self.module.fail_json(msg='Error deleting key with id %s: %s' % (self.parameters['id'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_ntp_key(self):
-        body = {'digest_type': self.parameters['digest_type'],
-                'value': self.parameters['value']
-                }
-        dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/ntp/keys', str(self.parameters['id']), body)
-        if error:
-            self.module.fail_json(msg='Error modifying key with id %s: %s' % (self.parameters['id'], to_native(error)),
-                                  exception=traceback.format_exc())
+    def modify_ntp_key(self, modify):
+        body = {}
+        if 'digest_type' in modify:
+            body['digest_type'] = self.parameters['digest_type']
+        if 'value' in modify:
+            body['value'] = self.parameters['value']
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/ntp/keys', str(self.parameters['id']), body)
+            if error:
+                self.module.fail_json(msg='Error modifying key with id %s: %s' % (self.parameters['id'], to_native(error)),
+                                      exception=traceback.format_exc())
 
     def apply(self):
-        modify = None
+        cd_action = None
         current = self.get_ntp_key()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action is None and self.parameters['state'] == 'present':
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_ntp_key()
             elif cd_action == 'delete':
                 self.delete_ntp_key()
             elif modify:
-                self.modify_ntp_key()
+                self.modify_ntp_key(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 

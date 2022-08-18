@@ -42,12 +42,13 @@ DEFAULT_ARGS = {
     'hostname': 'hostname',
     'username': 'username',
     'password': 'password',
-
+    'use_rest': 'always'
 }
 
 
 def test_get_ntp_key_none():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster/ntp/keys', SRR['empty_records'])
     ])
@@ -58,6 +59,7 @@ def test_get_ntp_key_none():
 
 def test_get_ntp_key_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster/ntp/keys', SRR['generic_error'])
     ])
@@ -70,6 +72,7 @@ def test_get_ntp_key_error():
 def test_create_ntp_key():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster/ntp/keys', SRR['empty_records']),
         ('POST', 'cluster/ntp/keys', SRR['empty_good'])
     ])
@@ -79,6 +82,7 @@ def test_create_ntp_key():
 
 def test_create_ntp_key_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('POST', 'cluster/ntp/keys', SRR['generic_error'])
     ])
@@ -92,6 +96,7 @@ def test_create_ntp_key_error():
 def test_delete_ntp_key():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster/ntp/keys', SRR['ntp_key']),
         ('DELETE', 'cluster/ntp/keys/1', SRR['empty_good'])
     ])
@@ -101,6 +106,7 @@ def test_delete_ntp_key():
 
 def test_delete_ntp_key_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'cluster/ntp/keys/1', SRR['generic_error'])
     ])
@@ -114,6 +120,7 @@ def test_delete_ntp_key_error():
 def test_modify_ntp_key():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster/ntp/keys', SRR['ntp_key']),
         ('PATCH', 'cluster/ntp/keys/1', SRR['empty_good'])
     ])
@@ -124,10 +131,11 @@ def test_modify_ntp_key():
 def test_modify_ntp_key_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/ntp/keys', SRR['ntp_key']),
         ('PATCH', 'cluster/ntp/keys/1', SRR['generic_error'])
     ])
     module_args = {'id': 1, 'digest_type': 'sha1', 'value': 'test2'}
-    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = expect_and_capture_ansible_exception(my_obj.modify_ntp_key, 'fail')['msg']
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     print('Info: %s' % error)
     assert 'Error modifying key with id 1: calling: cluster/ntp/keys/1: got Expected error.' == error

@@ -73,6 +73,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_s3_buckets - fix options that cannot be modified if not set in creating s3 buckets.
   - na_ontap_s3_buckets - fix TypeError if `conditions` not present in policy statements.
   - na_ontap_s3_buckets - updated correct choices in options `audit_event_selector.access` and `audit_event_selector.permission`.
+  - na_ontap_ntp - fixed typeError on `key_id` field with ZAPI.
+
+### Minor Changes
+  - na_ontap_ntp - for ONTAP version 9.6 or below fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
+  - na_ontap_ntp_key - fail for ONTAP version 9.6 or below when `use_rest` is set to `auto` or when REST is desired.
 
 ### New Options
   - na_ontap_security_key_manager - new REST options `external` and `vserver` for external key manager.
@@ -97,6 +102,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_name_service_switch - fix AttributeError 'NoneType' object has no attribute 'get_children' if `sources` is '-' in current.
   - na_ontap_name_service_switch - fix idempotency issue on `sources` option.
   - na_ontap_security_key_manager - fix KeyError on `node`.
+  - na_ontap_ntp - fixed typeError on `key_id` field with ZAPI.
   - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
   - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
   - na_ontap_service_processor_network - allow manually configuring network if all of `ip_address`, `netmask`, `gateway_ip_address` set and `dhcp` not present in REST.
