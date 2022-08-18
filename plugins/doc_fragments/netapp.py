@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright: (c) 2018, Sumit Kumar <sumit4@netapp.com>, chris Archibald <carchi@netapp.com>
+# Copyright: (c) 2018-2022, Sumit Kumar <sumit4@netapp.com>, chris Archibald <carchi@netapp.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -90,11 +90,22 @@ options:
         - Supported keys and values are subject to change without notice.  Unknown keys are ignored.
       type: dict
       version_added: "20.5.0"
+  force_ontap_version:
+      description:
+        - Override the cluster ONTAP version when using REST.
+        - The behavior is undefined if the version does not match the target cluster.
+        - This is provided as a work-around when the cluster version cannot be read because of permission issues.
+          See https://github.com/ansible-collections/netapp.ontap/wiki/Known-issues.
+        - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
+        - When C(use_rest) is set to auto, this may force a switch to ZAPI based on the version and platform capabilities.
+        - Ignored with ZAPI.
+      type: str
+      version_added: "21.23.0"
 
 
 requirements:
-  - Ansible 2.9 or later
-  - Python3
+  - Ansible 2.9 or later - 2.12 or later is recommended.
+  - Python3 - 3.9 or later is recommended.
   - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
     netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues
   - a physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
@@ -163,5 +174,15 @@ options:
           - never -- will always use the ZAPI
           - auto -- will try to use the REST Api
         type: str
-
+      force_ontap_version:
+          description:
+            - Override the cluster ONTAP version when using REST.
+            - The behavior is undefined if the version does not match the target cluster.
+            - This is provided as a work-around when the cluster version cannot be read because of permission issues.
+              See https://github.com/ansible-collections/netapp.ontap/wiki/Known-issues.
+            - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
+            - When C(use_rest) is set to auto, this may force a switch to ZAPI based on the version and platform capabilities.
+            - Ignored with ZAPI.
+          type: str
+          version_added: "21.23.0"
 '''

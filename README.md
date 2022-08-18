@@ -64,11 +64,22 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 21.23.0
 
+### New Options
+  - all REST modules - new option ``force_ontap_version`` to bypass permission issues with custom vsadmin roles.
+  - na_ontap_rest_info - new option ``ignore_api_errors`` to report error in subset rather than breaking execution.
+
 ### Bug Fixes
   - na_ontap_flexcache - properly use `origin_cluster` in GET but not in POST when using REST.
   - na_ontap_s3_buckets - fix options that cannot be modified if not set in creating s3 buckets.
   - na_ontap_s3_buckets - fix TypeError if `conditions` not present in policy statements.
   - na_ontap_s3_buckets - updated correct choices in options `audit_event_selector.access` and `audit_event_selector.permission`.
+
+### New Options
+  - na_ontap_security_key_manager - new REST options `external` and `vserver` for external key manager.
+  - na_ontap_security_key_manager - new REST option `onboard` for onboard key manager.
+
+### Added REST support to existing modules
+  - na_ontap_security_key_manager - added REST support.
 
 ## 21.22.0
 

@@ -6,6 +6,7 @@
 #
 # Copyright (c) 2017, Sumit Kumar <sumit4@netapp.com>
 # Copyright (c) 2017, Michael Price <michael.price@netapp.com>
+# Copyright (c) 2017-2022, NetApp, Inc
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
@@ -141,6 +142,7 @@ def na_ontap_host_argument_spec():
         feature_flags=dict(required=False, type='dict', default=dict()),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
+        force_ontap_version=dict(required=False, type='str')
     )
 
 
@@ -618,6 +620,7 @@ class OntapRestAPI(object):
         self.verify = self.host_options['validate_certs']
         self.timeout = timeout
         port = self.host_options['http_port']
+        self.force_ontap_version = self.host_options.get('force_ontap_version')
         if port is None:
             self.url = 'https://%s/api/' % self.hostname
         else:
@@ -915,6 +918,39 @@ class OntapRestAPI(object):
             message = message['records'][0]
         return status_code, message, error
 
+    def get_ontap_version_from_params(self):
+        """ Provide a way to override the current version
+            This is required when running a custom vsadmin role as ONTAP does not currently allow access to /api/cluster.
+            This may also be interesting for testing :)
+            Report a warning if API call failed to report version.
+            Report a warning if current version could be fetched and is different.
+        """
+        try:
+            version = [int(x) for x in self.force_ontap_version.split('.')]
+            if len(version) == 2:
+                version.append(0)
+            gen, major, minor = version
+        except (TypeError, ValueError) as exc:
+            self.module.fail_json(
+                msg='Error: unexpected format in force_ontap_version, expecting G.M.m or G.M, as in 9.10.1, got: %s, error: %s'
+                    % (self.force_ontap_version, exc))
+
+        warning = ''
+        read_version = self.get_ontap_version()
+        if read_version == (-1, -1, -1):
+            warning = ', unable to read current version:'
+        elif read_version != (gen, major, minor):
+            warning = ' but current version is %s' % self.ontap_version['full']
+        if warning:
+            warning = 'Forcing ONTAP version to %s%s' % (self.force_ontap_version, warning)
+            self.set_version({'version': {
+                'generation': gen,
+                'major': major,
+                'minor': minor,
+                'full': 'set by user to %s' % self.force_ontap_version,
+            }})
+        return warning
+
     def get_ontap_version_using_rest(self):
         # using GET rather than HEAD because the error messages are different,
         # and we need the version as some REST options are not available in earlier versions
@@ -929,9 +965,22 @@ class OntapRestAPI(object):
         except AttributeError:
             pass
         self.set_version(message)
-        self.is_rest_error = str(error) if error else None
         if error:
             self.log_error(status_code, str(error))
+        if self.force_ontap_version:
+            warning = self.get_ontap_version_from_params()
+            if error:
+                warning += ' error: %s, status_code: %s' % (error, status_code)
+            if warning:
+                self.module.warn(warning)
+                msg = 'Forcing ONTAP version to %s' % self.force_ontap_version
+                if error:
+                    self.log_error('INFO', msg)
+                else:
+                    self.log_debug('INFO', msg)
+            error = None
+            status_code = 200
+        self.is_rest_error = str(error) if error else None
         return status_code
 
     def _is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):

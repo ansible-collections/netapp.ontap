@@ -1,8 +1,9 @@
 # Copyright (c) 2018-2022 NetApp
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-''' unit tests for module_utils netapp_module.py '''
+""" unit tests for module_utils netapp_module.py """
 from __future__ import (absolute_import, division, print_function)
+import copy
 __metaclass__ = type
 
 import pytest
@@ -29,7 +30,7 @@ def create_ontap_module(args=None):
 
 
 def test_get_cd_action_create():
-    ''' validate cd_action for create '''
+    """ validate cd_action for create """
     current = None
     desired = {'state': 'present'}
     my_obj = na_helper()
@@ -38,7 +39,7 @@ def test_get_cd_action_create():
 
 
 def test_get_cd_action_delete():
-    ''' validate cd_action for delete '''
+    """ validate cd_action for delete """
     current = {'state': 'absent'}
     desired = {'state': 'absent'}
     my_obj = na_helper()
@@ -47,7 +48,7 @@ def test_get_cd_action_delete():
 
 
 def test_get_cd_action_already_exist():
-    ''' validate cd_action for returning None '''
+    """ validate cd_action for returning None """
     current = {'state': 'whatever'}
     desired = {'state': 'present'}
     my_obj = na_helper()
@@ -56,7 +57,7 @@ def test_get_cd_action_already_exist():
 
 
 def test_get_cd_action_already_absent():
-    ''' validate cd_action for returning None '''
+    """ validate cd_action for returning None """
     current = None
     desired = {'state': 'absent'}
     my_obj = na_helper()
@@ -65,7 +66,7 @@ def test_get_cd_action_already_absent():
 
 
 def test_get_modified_attributes_for_no_data():
-    ''' validate modified attributes when current is None '''
+    """ validate modified attributes when current is None """
     current = None
     desired = {'name': 'test'}
     my_obj = na_helper()
@@ -74,7 +75,7 @@ def test_get_modified_attributes_for_no_data():
 
 
 def test_get_modified_attributes():
-    ''' validate modified attributes '''
+    """ validate modified attributes """
     current = {'name': ['test', 'abcd', 'xyz', 'pqr'], 'state': 'present'}
     desired = {'name': ['abcd', 'abc', 'xyz', 'pqr'], 'state': 'absent'}
     my_obj = na_helper()
@@ -83,7 +84,7 @@ def test_get_modified_attributes():
 
 
 def test_get_modified_attributes_for_intersecting_mixed_list():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'name': [2, 'four', 'six', 8]}
     desired = {'name': ['a', 8, 'ab', 'four', 'abcd']}
     my_obj = na_helper()
@@ -92,7 +93,7 @@ def test_get_modified_attributes_for_intersecting_mixed_list():
 
 
 def test_get_modified_attributes_for_intersecting_list():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'name': ['two', 'four', 'six', 'eight']}
     desired = {'name': ['a', 'six', 'ab', 'four', 'abc']}
     my_obj = na_helper()
@@ -101,7 +102,7 @@ def test_get_modified_attributes_for_intersecting_list():
 
 
 def test_get_modified_attributes_for_nonintersecting_list():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'name': ['two', 'four', 'six', 'eight']}
     desired = {'name': ['a', 'ab', 'abd']}
     my_obj = na_helper()
@@ -110,7 +111,7 @@ def test_get_modified_attributes_for_nonintersecting_list():
 
 
 def test_get_modified_attributes_for_list_of_dicts_no_data():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = None
     desired = {'address_blocks': [{'start': '10.20.10.40', 'size': 5}]}
     my_obj = na_helper()
@@ -119,7 +120,7 @@ def test_get_modified_attributes_for_list_of_dicts_no_data():
 
 
 def test_get_modified_attributes_for_intersecting_list_of_dicts():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'address_blocks': [{'start': '10.10.10.23', 'size': 5}, {'start': '10.10.10.30', 'size': 5}]}
     desired = {'address_blocks': [{'start': '10.10.10.23', 'size': 5}, {'start': '10.10.10.30', 'size': 5}, {'start': '10.20.10.40', 'size': 5}]}
     my_obj = na_helper()
@@ -128,7 +129,7 @@ def test_get_modified_attributes_for_intersecting_list_of_dicts():
 
 
 def test_get_modified_attributes_for_nonintersecting_list_of_dicts():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'address_blocks': [{'start': '10.10.10.23', 'size': 5}, {'start': '10.10.10.30', 'size': 5}]}
     desired = {'address_blocks': [{'start': '10.20.10.23', 'size': 5}, {'start': '10.20.10.30', 'size': 5}, {'start': '10.20.10.40', 'size': 5}]}
     my_obj = na_helper()
@@ -137,7 +138,7 @@ def test_get_modified_attributes_for_nonintersecting_list_of_dicts():
 
 
 def test_get_modified_attributes_for_list_diff():
-    ''' validate modified attributes for list diff '''
+    """ validate modified attributes for list diff """
     current = {'name': ['test', 'abcd'], 'state': 'present'}
     desired = {'name': ['abcd', 'abc'], 'state': 'present'}
     my_obj = na_helper()
@@ -146,7 +147,7 @@ def test_get_modified_attributes_for_list_diff():
 
 
 def test_get_modified_attributes_for_no_change():
-    ''' validate modified attributes for same data in current and desired '''
+    """ validate modified attributes for same data in current and desired """
     current = {'name': 'test'}
     desired = {'name': 'test'}
     my_obj = na_helper()
@@ -155,7 +156,7 @@ def test_get_modified_attributes_for_no_change():
 
 
 def test_get_modified_attributes_for_an_empty_desired_list():
-    ''' validate modified attributes for an empty desired list '''
+    """ validate modified attributes for an empty desired list """
     current = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     desired = {'snapmirror_label': [], 'state': 'present'}
     my_obj = na_helper()
@@ -164,7 +165,7 @@ def test_get_modified_attributes_for_an_empty_desired_list():
 
 
 def test_get_modified_attributes_for_an_empty_desired_list_diff():
-    ''' validate modified attributes for an empty desired list with diff'''
+    """ validate modified attributes for an empty desired list with diff"""
     current = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     desired = {'snapmirror_label': [], 'state': 'present'}
     my_obj = na_helper()
@@ -173,7 +174,7 @@ def test_get_modified_attributes_for_an_empty_desired_list_diff():
 
 
 def test_get_modified_attributes_for_an_empty_current_list():
-    ''' validate modified attributes for an empty current list '''
+    """ validate modified attributes for an empty current list """
     current = {'snapmirror_label': [], 'state': 'present'}
     desired = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     my_obj = na_helper()
@@ -182,7 +183,7 @@ def test_get_modified_attributes_for_an_empty_current_list():
 
 
 def test_get_modified_attributes_for_an_empty_current_list_diff():
-    ''' validate modified attributes for an empty current list with diff'''
+    """ validate modified attributes for an empty current list with diff"""
     current = {'snapmirror_label': [], 'state': 'present'}
     desired = {'snapmirror_label': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     my_obj = na_helper()
@@ -191,7 +192,7 @@ def test_get_modified_attributes_for_an_empty_current_list_diff():
 
 
 def test_get_modified_attributes_for_empty_lists():
-    ''' validate modified attributes for empty lists '''
+    """ validate modified attributes for empty lists """
     current = {'snapmirror_label': [], 'state': 'present'}
     desired = {'snapmirror_label': [], 'state': 'present'}
     my_obj = na_helper()
@@ -200,7 +201,7 @@ def test_get_modified_attributes_for_empty_lists():
 
 
 def test_get_modified_attributes_for_empty_lists_diff():
-    ''' validate modified attributes for empty lists with diff '''
+    """ validate modified attributes for empty lists with diff """
     current = {'snapmirror_label': [], 'state': 'present'}
     desired = {'snapmirror_label': [], 'state': 'present'}
     my_obj = na_helper()
@@ -209,7 +210,7 @@ def test_get_modified_attributes_for_empty_lists_diff():
 
 
 def test_get_modified_attributes_equal_lists_with_duplicates():
-    ''' validate modified attributes for equal lists with duplicates '''
+    """ validate modified attributes for equal lists with duplicates """
     current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     my_obj = na_helper()
@@ -218,7 +219,7 @@ def test_get_modified_attributes_equal_lists_with_duplicates():
 
 
 def test_get_modified_attributes_equal_lists_with_duplicates_diff():
-    ''' validate modified attributes for equal lists with duplicates with diff '''
+    """ validate modified attributes for equal lists with duplicates with diff """
     current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     my_obj = na_helper()
@@ -227,7 +228,7 @@ def test_get_modified_attributes_equal_lists_with_duplicates_diff():
 
 
 def test_get_modified_attributes_for_current_list_with_duplicates():
-    ''' validate modified attributes for current list with duplicates '''
+    """ validate modified attributes for current list with duplicates """
     current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     desired = {'schedule': ['daily', 'daily', 'weekly', 'monthly'], 'state': 'present'}
     my_obj = na_helper()
@@ -236,7 +237,7 @@ def test_get_modified_attributes_for_current_list_with_duplicates():
 
 
 def test_get_modified_attributes_for_current_list_with_duplicates_diff():
-    ''' validate modified attributes for current list with duplicates with diff '''
+    """ validate modified attributes for current list with duplicates with diff """
     current = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     desired = {'schedule': ['daily', 'daily', 'weekly', 'monthly'], 'state': 'present'}
     my_obj = na_helper()
@@ -245,7 +246,7 @@ def test_get_modified_attributes_for_current_list_with_duplicates_diff():
 
 
 def test_get_modified_attributes_for_desired_list_with_duplicates():
-    ''' validate modified attributes for desired list with duplicates '''
+    """ validate modified attributes for desired list with duplicates """
     current = {'schedule': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     my_obj = na_helper()
@@ -254,7 +255,7 @@ def test_get_modified_attributes_for_desired_list_with_duplicates():
 
 
 def test_get_modified_attributes_for_desired_list_with_duplicates_diff():
-    ''' validate modified attributes for desired list with duplicates with diff '''
+    """ validate modified attributes for desired list with duplicates with diff """
     current = {'schedule': ['daily', 'weekly', 'monthly'], 'state': 'present'}
     desired = {'schedule': ['hourly', 'daily', 'daily', 'weekly', 'monthly', 'daily'], 'state': 'present'}
     my_obj = na_helper()
@@ -263,7 +264,7 @@ def test_get_modified_attributes_for_desired_list_with_duplicates_diff():
 
 
 def test_get_modified_attributes_exceptions():
-    ''' validate exceptions '''
+    """ validate exceptions """
     current = {'schedule': {'name': 'weekly'}, 'state': 'present'}
     desired = {'schedule': 'weekly', 'state': 'present'}
     my_obj = create_ontap_module({'hostname': None})
@@ -280,7 +281,7 @@ def test_get_modified_attributes_exceptions():
 
 
 def test_get_modified_attributes_for_dicts():
-    ''' validate modified attributes for dict of dicts '''
+    """ validate modified attributes for dict of dicts """
     current = {'schedule': {'name': 'weekly'}, 'state': 'present'}
     desired = {'schedule': {'name': 'daily'}, 'state': 'present'}
     my_obj = na_helper()
@@ -289,7 +290,7 @@ def test_get_modified_attributes_for_dicts():
 
 
 def test_is_rename_action_for_empty_input():
-    ''' validate rename action for input None '''
+    """ validate rename action for input None """
     source = None
     target = None
     my_obj = na_helper()
@@ -298,7 +299,7 @@ def test_is_rename_action_for_empty_input():
 
 
 def test_is_rename_action_for_no_source():
-    ''' validate rename action when source is None '''
+    """ validate rename action when source is None """
     source = None
     target = 'test2'
     my_obj = na_helper()
@@ -307,7 +308,7 @@ def test_is_rename_action_for_no_source():
 
 
 def test_is_rename_action_for_no_target():
-    ''' validate rename action when target is None '''
+    """ validate rename action when target is None """
     source = 'test2'
     target = None
     my_obj = na_helper()
@@ -316,7 +317,7 @@ def test_is_rename_action_for_no_target():
 
 
 def test_is_rename_action():
-    ''' validate rename action '''
+    """ validate rename action """
     source = 'test'
     target = 'test2'
     my_obj = na_helper()
@@ -325,7 +326,7 @@ def test_is_rename_action():
 
 
 def test_required_is_not_set_to_none():
-    ''' if a key is present, without a value, Ansible sets it to None '''
+    """ if a key is present, without a value, Ansible sets it to None """
     my_obj = create_ontap_module({'hostname': None})
     msg = 'hostname requires a value, got: None'
     assert msg == expect_and_capture_ansible_exception(my_obj.na_helper.check_and_set_parameters, 'fail', my_obj.module)['msg']
@@ -337,7 +338,7 @@ def test_required_is_not_set_to_none():
 
 
 def test_sanitize_wwn_no_action():
-    ''' no change '''
+    """ no change """
     initiator = 'tEsT'
     expected = initiator
     my_obj = na_helper()
@@ -346,7 +347,7 @@ def test_sanitize_wwn_no_action():
 
 
 def test_sanitize_wwn_no_action_valid_iscsi():
-    ''' no change '''
+    """ no change """
     initiator = 'iqn.1995-08.com.eXaMpLe:StRiNg'
     expected = initiator
     my_obj = na_helper()
@@ -355,7 +356,7 @@ def test_sanitize_wwn_no_action_valid_iscsi():
 
 
 def test_sanitize_wwn_no_action_valid_wwn():
-    ''' no change '''
+    """ no change """
     initiator = '01:02:03:04:0A:0b:0C:0d'
     expected = initiator.lower()
     my_obj = na_helper()
@@ -364,7 +365,7 @@ def test_sanitize_wwn_no_action_valid_wwn():
 
 
 def test_filter_empty_dict():
-    ''' empty dict return empty dict '''
+    """ empty dict return empty dict """
     my_obj = na_helper()
     arg = {}
     result = my_obj.filter_out_none_entries(arg)
@@ -372,7 +373,7 @@ def test_filter_empty_dict():
 
 
 def test_filter_empty_list():
-    ''' empty list return empty list '''
+    """ empty list return empty list """
     my_obj = na_helper()
     arg = []
     result = my_obj.filter_out_none_entries(arg)
@@ -380,33 +381,33 @@ def test_filter_empty_list():
 
 
 def test_filter_typeerror_on_none():
-    ''' empty list return empty list '''
+    """ empty list return empty list """
     my_obj = na_helper()
     arg = None
     with pytest.raises(TypeError) as exc:
         my_obj.filter_out_none_entries(arg)
-    msg = "unexpected type <class 'NoneType'>"
     if sys.version_info < (3, 0):
         # the assert fails on 2.x
         return
+    msg = "unexpected type <class 'NoneType'>"
     assert exc.value.args[0] == msg
 
 
 def test_filter_typeerror_on_str():
-    ''' empty list return empty list '''
+    """ empty list return empty list """
     my_obj = na_helper()
     arg = ""
     with pytest.raises(TypeError) as exc:
         my_obj.filter_out_none_entries(arg)
-    msg = "unexpected type <class 'str'>"
     if sys.version_info < (3, 0):
         # the assert fails on 2.x
         return
+    msg = "unexpected type <class 'str'>"
     assert exc.value.args[0] == msg
 
 
 def test_filter_simple_dict():
-    ''' simple dict return simple dict '''
+    """ simple dict return simple dict """
     my_obj = na_helper()
     arg = dict(a=None, b=1, c=None, d=2, e=3)
     expected = dict(b=1, d=2, e=3)
@@ -415,7 +416,7 @@ def test_filter_simple_dict():
 
 
 def test_filter_simple_list():
-    ''' simple list return simple list '''
+    """ simple list return simple list """
     my_obj = na_helper()
     arg = [None, 2, 3, None, 5]
     expected = [2, 3, 5]
@@ -424,16 +425,16 @@ def test_filter_simple_list():
 
 
 def test_filter_dict_dict():
-    ''' simple dict return simple dict '''
+    """ simple dict return simple dict """
     my_obj = na_helper()
-    arg = dict(a=None, b=dict(u=1, v=None, w=2), c=dict(), d=2, e=3)
+    arg = dict(a=None, b=dict(u=1, v=None, w=2), c={}, d=2, e=3)
     expected = dict(b=dict(u=1, w=2), d=2, e=3)
     result = my_obj.filter_out_none_entries(arg)
     assert expected == result
 
 
 def test_filter_list_list():
-    ''' simple list return simple list '''
+    """ simple list return simple list """
     my_obj = na_helper()
     arg = [None, [1, None, 3], 3, None, 5]
     expected = [[1, 3], 3, 5]
@@ -442,16 +443,16 @@ def test_filter_list_list():
 
 
 def test_filter_dict_list_dict():
-    ''' simple dict return simple dict '''
+    """ simple dict return simple dict """
     my_obj = na_helper()
-    arg = dict(a=None, b=[dict(u=1, v=None, w=2), 5, None, dict(x=6, y=None)], c=dict(), d=2, e=3)
+    arg = dict(a=None, b=[dict(u=1, v=None, w=2), 5, None, dict(x=6, y=None)], c={}, d=2, e=3)
     expected = dict(b=[dict(u=1, w=2), 5, dict(x=6)], d=2, e=3)
     result = my_obj.filter_out_none_entries(arg)
     assert expected == result
 
 
 def test_filter_list_dict_list():
-    ''' simple list return simple list '''
+    """ simple list return simple list """
     my_obj = na_helper()
     arg = [None, [1, None, 3], dict(a=None, b=[7, None, 9], c=None, d=dict(u=None, v=10)), None, 5]
     expected = [[1, 3], dict(b=[7, 9], d=dict(v=10)), 5]
@@ -460,7 +461,7 @@ def test_filter_list_dict_list():
 
 
 def test_convert_value():
-    ''' positive tests '''
+    """ positive tests """
     my_obj = na_helper()
     for value, convert_to, expected in [
         ('any', None, 'any'),
@@ -478,7 +479,7 @@ def test_convert_value():
 
 
 def test_convert_value_with_error():
-    ''' negative tests '''
+    """ negative tests """
     my_obj = na_helper()
     for value, convert_to, expected in [
         (12345, 'any', "Unexpected type:"),
@@ -492,7 +493,7 @@ def test_convert_value_with_error():
 
 
 def test_convert_value_with_exception():
-    ''' negative tests '''
+    """ negative tests """
     my_obj = create_ontap_module({'hostname': None})
     expect_and_capture_ansible_exception(my_obj.na_helper.convert_value, 'fail', 'any', 'any')
 
@@ -823,3 +824,30 @@ def test_ignore_missing_vserver_on_delete():
     assert error in expect_and_capture_ansible_exception(my_obj.na_helper.ignore_missing_vserver_on_delete, 'fail', ['error_msg'])['msg']
     assert not my_obj.na_helper.ignore_missing_vserver_on_delete('error')
     assert my_obj.na_helper.ignore_missing_vserver_on_delete({'message': 'SVM "svm" does not exist.'})
+
+
+def test_remove_hal_links():
+    my_obj = create_ontap_module({'hostname': 'abc'})
+    assert my_obj.na_helper.remove_hal_links(None) is None
+    assert my_obj.na_helper.remove_hal_links('string') is None
+    adict = {
+        '_links': 'whatever',
+        'other': 'other'
+    }
+    # dict
+    test_object = copy.deepcopy(adict)
+    assert my_obj.na_helper.remove_hal_links(test_object) is None
+    assert '_links' not in test_object
+    # list of dicts
+    test_object = [copy.deepcopy(adict)] * 5
+    assert my_obj.na_helper.remove_hal_links(test_object) is None
+    assert all('_links' not in elem for elem in test_object)
+    # dict of dicts
+    test_object = {'a': copy.deepcopy(adict), 'b': copy.deepcopy(adict)}
+    assert my_obj.na_helper.remove_hal_links(test_object) is None
+    assert all('_links' not in value for value in test_object.values())
+    # list of list of dicts
+    items = [copy.deepcopy(adict)] * 5
+    test_object = [items, items]
+    assert my_obj.na_helper.remove_hal_links(test_object) is None
+    assert all('_links' not in elem for elems in test_object for elem in elems)

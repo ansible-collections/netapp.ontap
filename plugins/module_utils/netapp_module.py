@@ -200,9 +200,7 @@ class NetAppModule(object):
             return None
         # change in state
         self.changed = True
-        if current is not None:
-            return 'delete'
-        return 'create'
+        return 'create' if current is None else 'delete'
 
     @staticmethod
     def check_keys(current, desired):
@@ -587,3 +585,13 @@ class NetAppModule(object):
         else:
             self.module.fail_json(msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
         return 'SVM "%s" does not exist.' % self.parameters['vserver'] in error
+
+    def remove_hal_links(self, records):
+        """ Remove all _links entries """
+        if isinstance(records, dict):
+            records.pop('_links', None)
+            for record in records.values():
+                self.remove_hal_links(record)
+        if isinstance(records, list):
+            for record in records:
+                self.remove_hal_links(record)

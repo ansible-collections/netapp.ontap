@@ -598,7 +598,8 @@ def test_run_ontap_version_check_for_9_2_fail():
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_fail']),
     ])
-    assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check(), fail=True)['msg'] == SRR['validate_ontap_version_fail'][2]
+    assert call_main(my_main, set_args_run_ontap_version_check(), fail=True)['msg'] ==\
+        'Error using REST for version, error: %s.' % SRR['validate_ontap_version_fail'][2]
 
 
 def test_version_warning_message():
@@ -794,6 +795,7 @@ def test_private_cli_vserver_security_file_directory():
 
 def test_get_ontap_subset_info_all_with_field():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'some/api', SRR['get_subset_info']),
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
@@ -802,6 +804,9 @@ def test_get_ontap_subset_info_all_with_field():
 
 
 def test_negative_get_ontap_subset_info_all_bad_subset():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
     msg = 'Specified subset bad_subset is not found, supported subsets are []'
     assert expect_and_capture_ansible_exception(my_obj.get_ontap_subset_info_all, 'fail', 'bad_subset', None, {})['msg'] == msg
@@ -827,6 +832,7 @@ def test_subset_with_default_fields():
 
 def test_negative_error_on_post():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'api', SRR['generic_error']),
     ])
     assert create_module(ontap_rest_info_module, set_default_args()).run_post({'api_call': 'api'}) is None
@@ -835,6 +841,7 @@ def test_negative_error_on_post():
 @patch('time.sleep')
 def test_negative_error_on_wait_after_post(sleep_mock):
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'api', SRR['metrocluster_post']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),     # retries
@@ -953,3 +960,21 @@ def test_lun_info_with_serial():
     assert lun_info['serial_number'] == 'z6CcD+SK5mPb'
     assert lun_info['serial_hex'] == '7a364363442b534b356d5062'
     assert lun_info['naa_id'] == 'naa.600a0980' + '7a364363442b534b356d5062'
+
+
+def test_ignore_api_errors():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/luns'
+    args['ignore_api_errors'] = ['something', 'Expected error']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/luns', SRR['error_record']),
+    ])
+    info = create_and_apply(ontap_rest_info_module, args)
+    assert 'ontap_info' in info
+    assert 'storage/luns' in info['ontap_info']
+    assert 'error' in info['ontap_info']['storage/luns']
+    error = info['ontap_info']['storage/luns']['error']
+    assert error
+    assert error['code'] == 6
+    assert error['message'] == 'Expected error'

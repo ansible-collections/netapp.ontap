@@ -14,7 +14,7 @@ from ansible.module_utils import basic
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import call, patch
 
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
-    assert_warning_was_raised, create_module, expect_and_capture_ansible_exception, patch_ansible
+    assert_no_warnings, assert_warning_was_raised, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -517,3 +517,68 @@ def test_set_version():
     assert rest_api.ontap_version['valid']
     rest_api.set_version({})
     assert not rest_api.ontap_version['valid']
+
+
+def test_force_ontap_version_local():
+    """ test get_ontap_version_from_params in isolation """
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    rest_api.set_version(VERSION)
+    print('VERSION', rest_api.ontap_version)
+    assert rest_api.ontap_version['generation'] == VERSION['version']['generation']
+    # same version
+    rest_api.force_ontap_version = VERSION['version']['full']
+    assert not rest_api.get_ontap_version_from_params()
+    # different versions
+    rest_api.force_ontap_version = '10.8.1'
+    warning = rest_api.get_ontap_version_from_params()
+    assert rest_api.ontap_version['generation'] != VERSION['version']['generation']
+    assert rest_api.ontap_version['generation'] == 10
+    assert 'Forcing ONTAP version to 10.8.1 but current version is 9.8.45' in warning
+    # version could not be read
+    rest_api.set_version({})
+    rest_api.force_ontap_version = '10.8'
+    warning = rest_api.get_ontap_version_from_params()
+    assert rest_api.ontap_version['generation'] != VERSION['version']['generation']
+    assert rest_api.ontap_version['generation'] == 10
+    assert rest_api.ontap_version['minor'] == 0
+    assert 'Forcing ONTAP version to 10.8, unable to read current version:' in warning
+
+
+def test_negative_force_ontap_version_local():
+    """ test get_ontap_version_from_params in isolation """
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    # non numeric
+    rest_api.force_ontap_version = '9.8P4'
+    error = 'Error: unexpected format in force_ontap_version, expecting G.M.m or G.M, as in 9.10.1, got: 9.8P4,'
+    assert error in expect_and_capture_ansible_exception(rest_api.get_ontap_version_from_params, 'fail')['msg']
+    # too short
+    rest_api.force_ontap_version = '9'
+    error = 'Error: unexpected format in force_ontap_version, expecting G.M.m or G.M, as in 9.10.1, got: 9,'
+    assert error in expect_and_capture_ansible_exception(rest_api.get_ontap_version_from_params, 'fail')['msg']
+    # too long
+    rest_api.force_ontap_version = '9.1.2.3'
+    error = 'Error: unexpected format in force_ontap_version, expecting G.M.m or G.M, as in 9.10.1, got: 9.1.2.3,'
+    assert error in expect_and_capture_ansible_exception(rest_api.get_ontap_version_from_params, 'fail')['msg']
+
+
+def test_force_ontap_version_rest_call():
+    """ test get_ontap_version_using_rest with force_ontap_version option """
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['generic_error']),
+    ])
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    # same version
+    rest_api.force_ontap_version = '9.7'
+    assert rest_api.get_ontap_version_using_rest() == 200
+    assert_no_warnings()
+    # different versions
+    rest_api.force_ontap_version = '10.8.1'
+    assert rest_api.get_ontap_version_using_rest() == 200
+    assert rest_api.ontap_version['generation'] == 10
+    assert_warning_was_raised('Forcing ONTAP version to 10.8.1 but current version is dummy_9_9_0')
+    # version could not be read
+    assert rest_api.get_ontap_version_using_rest() == 200
+    assert_warning_was_raised('Forcing ONTAP version to 10.8.1, unable to read current version: error: Expected error, status_code: 400')
+    assert rest_api.ontap_version['generation'] == 10
