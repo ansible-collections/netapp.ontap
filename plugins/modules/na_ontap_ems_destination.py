@@ -158,14 +158,14 @@ class NetAppOntapEmsDestination:
             self.delete_ems_destination(name)
             self.create_ems_destination()
         else:
-            api = 'support/ems/destinations'
-            body = dict()
+            body = {}
             for option in modify:
                 if option == 'filters':
                     body[option] = self.generate_filters_list(modify[option])
                 else:
                     body[option] = modify[option]
             if body:
+                api = 'support/ems/destinations'
                 dummy, error = rest_generic.patch_async(self.rest_api, api, name, body)
                 self.fail_on_error(error)
 

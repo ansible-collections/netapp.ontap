@@ -88,6 +88,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_key_manager - added REST support.
   - na_ontap_ucadapter - added REST support.
 
+### New Module
+  - na_ontap_ems_destination - Manage EMS destination - Contribution by Bartosz Bielawski (@bielawb).
+
 ## 21.22.0
 
 ### New Options
