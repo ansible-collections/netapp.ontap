@@ -71,7 +71,7 @@ def test_get_ems_destination_error():
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
     my_module_object = create_module(my_module, DEFAULT_ARGS, module_args)
-    msg = 'Error using GET: calling: support/ems/destinations: got Expected error.'
+    msg = 'Error fetching EMS destination for test: calling: support/ems/destinations: got Expected error.'
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
 
 
@@ -107,7 +107,7 @@ def test_create_ems_destination_error():
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     error = expect_and_capture_ansible_exception(my_obj.create_ems_destination, 'fail')['msg']
     print('Info: %s' % error)
-    assert 'Error using POST: calling: support/ems/destinations: got Expected error.' == error
+    assert 'Error creating EMS destinations for test: calling: support/ems/destinations: got Expected error.' == error
 
 
 def test_delete_ems_destination():
@@ -129,7 +129,7 @@ def test_delete_ems_destination_error():
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     error = expect_and_capture_ansible_exception(my_obj.delete_ems_destination, 'fail', 'test')['msg']
     print('Info: %s' % error)
-    assert 'Error using DELETE: calling: support/ems/destinations/test: got Expected error.' == error
+    assert 'Error deleting EMS destination for test: calling: support/ems/destinations/test: got Expected error.' == error
 
 
 def test_modify_ems_destination_filter():
@@ -173,7 +173,7 @@ def test_modify_ems_destination_error():
     modify = {'filters': ['other-filter']}
     error = expect_and_capture_ansible_exception(my_obj.modify_ems_destination, 'fail', 'test', modify)['msg']
     print('Info: %s' % error)
-    assert 'Error using PATCH: calling: support/ems/destinations/test: got Expected error.' == error
+    assert 'Error modifying EMS destination for test: calling: support/ems/destinations/test: got Expected error.' == error
 
 
 def test_module_fail_without_rest():
@@ -194,7 +194,7 @@ def test_apply_returns_errors_from_get_destination():
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     print('Info: %s' % error)
-    assert 'Error using GET: calling: support/ems/destinations: got Expected error.' == error
+    assert 'Error fetching EMS destination for test: calling: support/ems/destinations: got Expected error.' == error
 
 
 def test_check_mode_creates_no_destination():
