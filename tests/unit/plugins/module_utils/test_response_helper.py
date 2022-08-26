@@ -86,9 +86,9 @@ def test_check_for_0_or_more_records_errors():
     assert rest_response_helpers.check_for_0_or_more_records('cluster', response_in, error_in) == (response_out, error_out)
     response_in, error_in, response_out, error_out = RESPONSES['empty'], None, None, 'calling: cluster: no response {}.'
     assert rest_response_helpers.check_for_0_or_more_records('cluster', response_in, error_in) == (response_out, error_out)
-    response_in, error_in, response_out, error_out = RESPONSES['one_record_no_num_records_no_records'], None, [RECORD], None
-    with pytest.raises(KeyError):
-        rest_response_helpers.check_for_0_or_more_records('cluster', response_in, error_in) == (response_out, error_out)
+    error = "calling: cluster: got No \"records\" key in {'key': 'value'}."
+    response_in, error_in, response_out, error_out = RESPONSES['one_record_no_num_records_no_records'], None, None, error
+    assert rest_response_helpers.check_for_0_or_more_records('cluster', response_in, error_in) == (response_out, error_out)
 
     # error in
     response_in, error_in, response_out, error_out = None, 'some_error', None, 'calling: cluster: got some_error.'

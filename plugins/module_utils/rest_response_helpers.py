@@ -59,12 +59,12 @@ def unexpected_response_error(api, response, query=None):
 
 
 def get_num_records(response):
-    # num_records is not always present!
+    """ num_records is not always present
+        if absent, count the records or assume 1
+    """
     if 'num_records' in response:
         return response['num_records']
-    if 'records' in response:
-        return len(response['records'])
-    return 1
+    return len(response['records']) if 'records' in response else 1
 
 
 def check_for_0_or_1_records(api, response, error, query=None):
@@ -97,7 +97,10 @@ def check_for_0_or_more_records(api, response, error):
         return None, no_response_error(api, response)
     if get_num_records(response) == 0:
         return None, None     # not found
-    return response['records'], None
+    if 'records' in response:
+        return response['records'], None
+    error = 'No "records" key in %s' % response
+    return (None, api_error(api, error)) if api else (None, error)
 
 
 def check_for_error_and_job_results(api, response, error, rest_api, **kwargs):

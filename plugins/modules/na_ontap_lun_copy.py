@@ -1,15 +1,10 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'community'}
 
 
 DOCUMENTATION = '''
@@ -23,44 +18,51 @@ version_added: 2.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Copy LUNs on NetApp ONTAP.
+  - Copy LUNs on NetApp ONTAP.
 
 options:
 
   state:
     description:
-    - Whether the specified LUN should exist or not.
+      - Whether the specified LUN should exist or not.
     choices: ['present']
     type: str
     default: present
 
   destination_vserver:
     description:
-    - the name of the Vserver that will host the new LUN.
+      - the name of the Vserver that will host the new LUN.
     required: true
     type: str
+    aliases: ['vserver']
 
   destination_path:
     description:
-    - Specifies the full path to the new LUN.
+      - Specifies the full path to the new LUN.
     required: true
     type: str
 
   source_path:
     description:
-    - Specifies the full path to the source LUN.
+      - Specifies the full path to the source LUN.
     required: true
     type: str
 
   source_vserver:
     description:
-    - Specifies the name of the vserver hosting the LUN to be copied.
+      - Specifies the name of the vserver hosting the LUN to be copied.
+      - If not provided, C(destination_vserver) value is set as default.
+      - with REST, this option value must match C(destination_vserver) when present.
     type: str
 
+notes:
+  - supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
+  - supports check mode.
+  - REST supports intra-Vserver lun copy only.
   '''
 EXAMPLES = """
 - name: Copy LUN
-  na_ontap_lun_copy:
+  netapp.ontap.na_ontap_lun_copy:
     destination_vserver: ansible
     destination_path: /vol/test/test_copy_dest_dest_new
     source_path: /vol/test/test_copy_1
@@ -79,18 +81,16 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
-
-class NetAppOntapLUNCopy(object):
+class NetAppOntapLUNCopy:
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
-            destination_vserver=dict(required=True, type='str'),
+            destination_vserver=dict(required=True, type='str', aliases=['vserver']),
             destination_path=dict(required=True, type='str'),
             source_path=dict(required=True, type='str'),
             source_vserver=dict(required=False, type='str'),
@@ -104,11 +104,19 @@ class NetAppOntapLUNCopy(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['destination_vserver'])
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        # if source_vserver not present, set destination_vserver value for intra-vserver copy operation.
+        if not self.parameters.get('source_vserver'):
+            self.parameters['source_vserver'] = self.parameters['destination_vserver']
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            msg = 'REST requires ONTAP 9.10.1 or later for na_ontap_lun_copy'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module,
+                                                           vserver=self.parameters['destination_vserver'])
 
     def get_lun(self):
         """
@@ -118,6 +126,8 @@ class NetAppOntapLUNCopy(object):
         :rtype: bool
         """
 
+        if self.use_rest:
+            return self.get_lun_rest()
         return_value = False
         lun_info = netapp_utils.zapi.NaElement('lun-get-iter')
         query_details = netapp_utils.zapi.NaElement('lun-info')
@@ -133,7 +143,7 @@ class NetAppOntapLUNCopy(object):
             result = self.server.invoke_successfully(lun_info, True)
 
         except netapp_utils.zapi.NaApiError as e:
-            self.module.fail_json(msg="Error getting lun  info %s for  verver %s: %s" %
+            self.module.fail_json(msg="Error getting lun info %s for  verver %s: %s" %
                                       (self.parameters['destination_path'], self.parameters['destination_vserver'], to_native(e)),
                                   exception=traceback.format_exc())
 
@@ -145,9 +155,10 @@ class NetAppOntapLUNCopy(object):
         """
         Copy LUN with requested path and vserver
         """
+        if self.use_rest:
+            return self.copy_lun_rest()
         lun_copy = netapp_utils.zapi.NaElement.create_node_with_children(
             'lun-copy-start', **{'source-vserver': self.parameters['source_vserver']})
-
         path_obj = netapp_utils.zapi.NaElement('paths')
         pair = netapp_utils.zapi.NaElement('lun-path-pair')
         pair.add_new_child('destination-path', self.parameters['destination_path'])
@@ -162,16 +173,40 @@ class NetAppOntapLUNCopy(object):
                                       (self.parameters['source_vserver'], self.parameters['destination_vserver'], to_native(e)),
                                   exception=traceback.format_exc())
 
-    def apply(self):
+    def get_lun_rest(self):
+        api = 'storage/luns'
+        params = {
+            'svm.name': self.parameters['destination_vserver'],
+            'name': self.parameters['destination_path']
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg="Error getting lun info %s for  verver %s: %s" %
+                                      (self.parameters['destination_path'], self.parameters['destination_vserver'], to_native(error)))
+        return True if record else False
 
-        netapp_utils.ems_log_event("na_ontap_lun_copy", self.server)
+    def copy_lun_rest(self):
+        api = 'storage/luns'
+        body = {
+            'copy': {'source': {'name': self.parameters['source_path']}},
+            'name': self.parameters['destination_path'],
+            'svm.name': self.parameters['destination_vserver']
+        }
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg="Error copying lun from %s to  vserver %s: %s" %
+                                      (self.parameters['source_vserver'], self.parameters['destination_vserver'], to_native(error)))
+
+    def apply(self):
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_lun_copy", self.server)
         if self.get_lun():  # lun already exists at destination
             changed = False
         else:
+            if self.use_rest and self.parameters['source_vserver'] != self.parameters['destination_vserver']:
+                self.module.fail_json(msg="Error: REST does not supports inter-Vserver lun copy.")
             changed = True
-            if self.module.check_mode:
-                pass
-            else:
+            if not self.module.check_mode:
                 # need to copy lun
                 if self.parameters['state'] == 'present':
                     self.copy_lun()

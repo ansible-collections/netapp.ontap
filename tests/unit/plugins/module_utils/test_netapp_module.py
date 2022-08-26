@@ -540,6 +540,14 @@ def test_safe_get():
     assert my_obj.safe_get(get_zapi_info(), ['a', 'none_stuff', 'extra']) is None       # TypeError on None
 
 
+def test_safe_get_dict_of_list():
+    my_obj = na_helper()
+    my_dict = {'a': ['b', 'c', {'d': ['e']}]}
+    assert my_obj.safe_get(my_dict, ['a', 0]) == 'b'
+    assert my_obj.safe_get(my_dict, ['a', 2, 'd', 0]) == 'e'
+    assert my_obj.safe_get(my_dict, ['a', 3]) is None
+
+
 def test_safe_get_with_exception():
     na_element = get_zapi_na_element(get_zapi_info())
     my_obj = create_ontap_module({'hostname': None})
@@ -548,6 +556,11 @@ def test_safe_get_with_exception():
     assert 'No element by given name c.' in error
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, KeyError, get_zapi_info(), ['a', 'c'], allow_sparse_dict=False)
     assert 'c' == error
+    # IndexError
+    error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', 4], allow_sparse_dict=False)
+    assert 'list index out of range' in str(error)
+    error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', -4], allow_sparse_dict=False)
+    assert 'list index out of range' in str(error)
     # TypeError - not sure I can build a valid ZAPI NaElement that can give a type error, but using a dict worked.
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, TypeError, get_zapi_info(), ['a', 'bad_stuff', 'extra'], allow_sparse_dict=False)
     # 'list indices must be integers, not str' with 2.7

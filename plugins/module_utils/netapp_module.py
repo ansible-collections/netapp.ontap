@@ -340,8 +340,8 @@ class NetAppModule(object):
         return initiator
 
     def safe_get(self, an_object, key_list, allow_sparse_dict=True):
-        ''' recursively traverse a dictionary or a any object supporting get_item
-            (in our case, python dicts and NAElement responses)
+        ''' recursively traverse a dictionary or a any object supporting get_item or indexing
+            (in our case, python dicts and NAElement responses, and lists)
             It is expected that some keys can be missing, this is controlled with allow_sparse_dict
 
             return value if the key chain is exhausted
@@ -357,8 +357,8 @@ class NetAppModule(object):
         key = key_list.pop(0)
         try:
             return self.safe_get(an_object[key], key_list, allow_sparse_dict=allow_sparse_dict)
-        except KeyError as exc:
-            # error, key not found
+        except (KeyError, IndexError) as exc:
+            # error, key or index not found
             if allow_sparse_dict:
                 return None
             raise exc
