@@ -50,12 +50,54 @@ policy_rule = {
             'anonymous-user-id': 'anonymous_user_id',
         }}}
 
+policy_rule_two_records = {
+    'attributes-list': [
+        {'export-rule-info': {
+            'policy-name': 'policy_name',
+            'client-match': 'client_match1,client_match2',
+            'ro-rule': [{
+                'security-flavor': 'any'
+            }],
+            'rw-rule': [{
+                'security-flavor': 'any'
+            }],
+            'protocol': [{
+                'access-protocol': 'protocol'
+            }],
+            'super-user-security': {
+                'security-flavor': 'any'
+            },
+            'is-allow-set-uid-enabled': 'false',
+            'rule-index': 123,
+            'anonymous-user-id': 'anonymous_user_id',
+        }},
+        {'export-rule-info': {
+            'policy-name': 'policy_name',
+            'client-match': 'client_match2,client_match1',
+            'ro-rule': [{
+                'security-flavor': 'any'
+            }],
+            'rw-rule': [{
+                'security-flavor': 'any'
+            }],
+            'protocol': [{
+                'access-protocol': 'protocol'
+            }],
+            'super-user-security': {
+                'security-flavor': 'any'
+            },
+            'is-allow-set-uid-enabled': 'false',
+            'rule-index': 123,
+            'anonymous-user-id': 'anonymous_user_id',
+        }}]
+}
+
 
 ZRR = zapi_responses({
     'one_policy_record': build_zapi_response(policy, 1),
     'one_bad_policy_record': build_zapi_response({'error': 'no_policy_id'}, 1),
     'one_rule_record': build_zapi_response(policy_rule, 1),
-    'two_rule_records': build_zapi_response(policy_rule, 2),
+    'two_rule_records': build_zapi_response(policy_rule_two_records, 2),
 })
 
 
@@ -284,7 +326,7 @@ def test_helper_query_parameters():
     assert result['query']['export-rule-info']['rule-index'] == 10
     result = my_obj.set_query_parameters(None)
     print(result)
-    assert result['query']['export-rule-info']['client-match'] == 'client_match1,client_match2'
+    assert 'client-match' not in result['query']['export-rule-info']
     assert result['query']['export-rule-info']['rw-rule'] == [{'security-flavor': 'any'}]
 
 
@@ -353,10 +395,11 @@ def test_delete_no_index():
         ('ZAPI', 'export-rule-destroy', ZRR['success']),
     ])
     module_args = {
-        'client_match': 'client_match',
+        'client_match': 'client_match2,client_match1',
         'rw_rule': 'any',
         'ro_rule': 'any',
         'state': 'absent',
-        'force_delete_on_first_match': True
+        'force_delete_on_first_match': True,
+        'allow_suid': False
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']

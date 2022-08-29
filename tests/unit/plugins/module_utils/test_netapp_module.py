@@ -558,9 +558,13 @@ def test_safe_get_with_exception():
     assert 'c' == error
     # IndexError
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', 4], allow_sparse_dict=False)
-    assert 'list index out of range' in str(error)
+    if sys.version_info > (3, 5, 9):
+        # this fails on 3.5.7 but works on 3.5.10
+        assert 'list index out of range' in str(error)
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', -4], allow_sparse_dict=False)
-    assert 'list index out of range' in str(error)
+    if sys.version_info > (3, 5, 9):
+        # this fails on 3.5.7 but works on 3.5.10
+        assert 'list index out of range' in str(error)
     # TypeError - not sure I can build a valid ZAPI NaElement that can give a type error, but using a dict worked.
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, TypeError, get_zapi_info(), ['a', 'bad_stuff', 'extra'], allow_sparse_dict=False)
     # 'list indices must be integers, not str' with 2.7

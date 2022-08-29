@@ -308,21 +308,16 @@ class NetAppontapExportRule:
         else:
             for item_key, value in self.parameters.items():
                 zapi_key = None
-                if item_key in self.na_helper.zapi_string_keys:
+                if item_key in self.na_helper.zapi_string_keys and item_key != 'client_match':
+                    # ignore client_match as ZAPI query is string based and preserves order
                     zapi_key = self.na_helper.zapi_string_keys[item_key]
-                    # convert client_match list to comma-separated string
-                    if value and item_key == 'client_match':
-                        value = self.list_to_string(value)
-                elif item_key in self.na_helper.zapi_bool_keys.items():
+                elif item_key in self.na_helper.zapi_bool_keys:
                     zapi_key = self.na_helper.zapi_bool_keys[item_key]
                     value = self.na_helper.get_value_for_bool(from_zapi=False, value=value)
-                elif item_key in self.na_helper.zapi_int_keys:
-                    zapi_key = self.na_helper.zapi_int_keys[item_key]
-                    value = self.na_helper.get_value_for_int(from_zapi=False, value=value)
+                # skipping int keys to not include rule index in query as we're matching on attributes
                 elif item_key in self.na_helper.zapi_list_keys:
                     zapi_key, child_key = self.na_helper.zapi_list_keys[item_key]
                     value = [{child_key: item} for item in value] if value else None
-
                 if zapi_key:
                     self.set_dict_when_not_none(query, zapi_key, value)
 
@@ -354,26 +349,27 @@ class NetAppontapExportRule:
                                   % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
         if result is not None and result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
-            if int(result.get_child_content('num-records')) > 1 and not (
-                    self.parameters['state'] == 'absent' and self.parameters['force_delete_on_first_match']):
-                self.module.fail_json(msg='Error multiple records exist for query: %s.  Specify index to modify or delete a rule.  Found: %s'
-                                      % (query, result.to_string()))
-            rule_info = result.get_child_by_name('attributes-list').get_child_by_name('export-rule-info')
-            current = {}
-            for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
-                current[item_key] = rule_info.get_child_content(zapi_key)
-                if item_key == 'client_match' and current[item_key]:
-                    current[item_key] = current[item_key].split(',')
-            for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
-                current[item_key] = self.na_helper.get_value_for_bool(from_zapi=True,
-                                                                      value=rule_info[zapi_key])
-            for item_key, zapi_key in self.na_helper.zapi_int_keys.items():
-                current[item_key] = self.na_helper.get_value_for_int(from_zapi=True,
-                                                                     value=rule_info[zapi_key])
-            for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
-                parent, dummy = zapi_key
-                current[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
-                                                                      zapi_parent=rule_info.get_child_by_name(parent))
+            if rule_index is None:
+                return self.match_export_policy_rule_exactly(result.get_child_by_name('attributes-list').get_children(), query, is_rest=False)
+            return self.zapi_export_rule_info_to_dict(result.get_child_by_name('attributes-list').get_child_by_name('export-rule-info'))
+        return None
+
+    def zapi_export_rule_info_to_dict(self, rule_info):
+        current = {}
+        for item_key, zapi_key in self.na_helper.zapi_string_keys.items():
+            current[item_key] = rule_info.get_child_content(zapi_key)
+            if item_key == 'client_match' and current[item_key]:
+                current[item_key] = current[item_key].split(',')
+        for item_key, zapi_key in self.na_helper.zapi_bool_keys.items():
+            current[item_key] = self.na_helper.get_value_for_bool(from_zapi=True,
+                                                                  value=rule_info[zapi_key])
+        for item_key, zapi_key in self.na_helper.zapi_int_keys.items():
+            current[item_key] = self.na_helper.get_value_for_int(from_zapi=True,
+                                                                 value=rule_info[zapi_key])
+        for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
+            parent, dummy = zapi_key
+            current[item_key] = self.na_helper.get_value_for_list(from_zapi=True,
+                                                                  zapi_parent=rule_info.get_child_by_name(parent))
         return current
 
     def set_export_policy_id(self):
@@ -554,11 +550,14 @@ class NetAppontapExportRule:
             if "entry doesn't exist" in error:
                 return None
             self.module.fail_json(msg="Error on fetching export policy rules: %s" % error)
+        return self.match_export_policy_rule_exactly(records, query, is_rest=True)
+
+    def match_export_policy_rule_exactly(self, records, query, is_rest):
         if not records:
             return None
         founds = []
         for record in records:
-            self.filter_get_results(record)
+            record = self.filter_get_results(record) if is_rest else self.zapi_export_rule_info_to_dict(record)
             modify = self.na_helper.get_modified_attributes(record, self.parameters)
             modify.pop('rule_index', None)
             if not modify:
