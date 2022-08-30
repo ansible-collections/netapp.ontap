@@ -548,23 +548,6 @@ def test_safe_get_dict_of_list():
     assert my_obj.safe_get(my_dict, ['a', 3]) is None
 
 
-def is_indexerror_exception_formatted():
-    """ some versions of python do not format IndexError exception properly
-        the error message is not reported in str() or repr()
-        - fails on 3.5.7 but works on 3.5.10
-        - fails on 3.6.8 but works on 3.6.9
-        - fails on 3.7.4 but works on 3.7.5
-    """
-    return (
-        sys.version_info[0:2] == (2, 7)
-        or sys.version_info[0:2] == (3, 5) and sys.version_info[0:3] > (3, 5, 7)
-        or sys.version_info[0:2] == (3, 6) and sys.version_info[0:3] > (3, 6, 8)
-        or sys.version_info[0:2] == (3, 7) and sys.version_info[0:3] > (3, 7, 4)
-        or sys.version_info[0:2] == (3, 8) and sys.version_info[0:3] > (3, 8, 0)
-        or sys.version_info[0:2] >= (3, 9)
-    )
-
-
 def test_safe_get_with_exception():
     na_element = get_zapi_na_element(get_zapi_info())
     my_obj = create_ontap_module({'hostname': None})
@@ -575,19 +558,14 @@ def test_safe_get_with_exception():
     assert 'c' == error
     # IndexError
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', 4], allow_sparse_dict=False)
-    print('STR', str(error))
-    print('REPR', repr(error))
-    print('VER', str(sys.version_info))
-    if is_indexerror_exception_formatted():
+    print(str(error))
+    if sys.version_info > (3, 6, 8):
         # this fails on 3.5.7 but works on 3.5.10
         # this fails on 3.6.8 but works on 3.6.9
-        # this fails on 3.7.4
         assert 'list index out of range' in str(error)
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', -4], allow_sparse_dict=False)
-    print('STR', str(error))
-    print('REPR', repr(error))
-    print('VER', str(sys.version_info))
-    if is_indexerror_exception_formatted():
+    print(str(error))
+    if sys.version_info > (3, 6, 8):
         # this fails on 3.5.7 but works on 3.5.10
         # this fails on 3.6.8 but works on 3.6.9
         assert 'list index out of range' in str(error)

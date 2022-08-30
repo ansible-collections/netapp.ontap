@@ -85,6 +85,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_ntp_key - fail for ONTAP version 9.6 or below when `use_rest` is set to `auto` or when REST is desired.
 
 ### Added REST support to existing modules
+  - na_ontap_cifs_local_user_set_password -- added REST support.
   - na_ontap_cluster_ha - added REST support.
   - na_ontap_lun_copy - added REST support.
   - na_ontap_lun_map_reporting_nodes - added REST support.

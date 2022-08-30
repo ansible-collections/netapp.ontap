@@ -64,6 +64,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_vserver
 
 
 class NetAppONTAPCifsSetPassword():
@@ -87,14 +89,25 @@ class NetAppONTAPCifsSetPassword():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        if not netapp_utils.has_netapp_lib():
-            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        self.rest_api = OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.svm_uuid = None
+
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            msg = 'REST requires ONTAP 9.10.1 or later for protocols/cifs/local-users APIs.'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def cifs_local_set_passwd(self):
         """
         :return: None
         """
+        if self.use_rest:
+            return self.cifs_local_set_passwd_rest()
         cifs_local_set_passwd = netapp_utils.zapi.NaElement('cifs-local-user-set-password')
         cifs_local_set_passwd.add_new_child('user-name', self.parameters['user_name'])
         cifs_local_set_passwd.add_new_child('user-password', self.parameters['user_password'])
@@ -106,14 +119,36 @@ class NetAppONTAPCifsSetPassword():
                                   % (self.parameters['user_name'], self.parameters['vserver'], to_native(e)),
                                   exception=traceback.format_exc())
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_cifs_local_user_set_password", cserver)
+    def cifs_local_set_passwd_rest(self):
+        self.get_svm_uuid()
+        sid = self.get_user_sid()
+        api = 'protocols/cifs/local-users'
+        uuids = '%s/%s' % (self.svm_uuid, sid)
+        body = {'password': self.parameters['user_password']}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, uuids, body, job_timeout=120)
+        if error:
+            self.module.fail_json(msg='Error change password for user %s: %s' % (self.parameters['user_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
+    def get_svm_uuid(self):
+        self.svm_uuid, dummy = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['vserver'], self.module, True)
+
+    def get_user_sid(self):
+        api = 'protocols/cifs/local-users'
+        fields = 'sid'
+        params = {'svm.uuid': self.svm_uuid, 'name': self.parameters['user_name'], 'fields': fields}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching cifs/local-user %s: %s' % (self.parameters['user_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+        if record:
+            return record['sid']
+        self.module.fail_json(msg='Error no cifs/local-user with name %s' % (self.parameters['user_name']))
 
     def apply(self):
         changed = True
-        self.ems_log_event()
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver('na_ontap_cifs_local_user_set_password', self.server, self.module)
         if not self.module.check_mode:
             self.cifs_local_set_passwd()
 
