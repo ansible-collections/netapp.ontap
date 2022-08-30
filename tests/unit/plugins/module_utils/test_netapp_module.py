@@ -560,7 +560,8 @@ def is_indexerror_exception_formatted():
         or sys.version_info[0:2] == (3, 5) and sys.version_info[0:3] > (3, 5, 7)
         or sys.version_info[0:2] == (3, 6) and sys.version_info[0:3] > (3, 6, 8)
         or sys.version_info[0:2] == (3, 7) and sys.version_info[0:3] > (3, 7, 4)
-        or sys.version_info[0:2] >= (3, 8)
+        or sys.version_info[0:2] == (3, 8) and sys.version_info[0:3] > (3, 8, 0)
+        or sys.version_info[0:2] >= (3, 9)
     )
 
 
