@@ -561,7 +561,7 @@ def test_safe_get_with_exception():
     print('STR', str(error))
     print('REPR', repr(error))
     print('VER', str(sys.version_info))
-    if sys.version_info > (3, 6, 8):
+    if sys.version_info[0:3] > (3, 6, 8):
         # this fails on 3.5.7 but works on 3.5.10
         # this fails on 3.6.8 but works on 3.6.9
         assert 'list index out of range' in str(error)
@@ -569,7 +569,7 @@ def test_safe_get_with_exception():
     print('STR', str(error))
     print('REPR', repr(error))
     print('VER', str(sys.version_info))
-    if sys.version_info > (3, 6, 8):
+    if sys.version_info[0:3] > (3, 6, 8):
         # this fails on 3.5.7 but works on 3.5.10
         # this fails on 3.6.8 but works on 3.6.9
         assert 'list index out of range' in str(error)
