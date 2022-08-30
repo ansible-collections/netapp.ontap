@@ -558,7 +558,9 @@ def test_safe_get_with_exception():
     assert 'c' == error
     # IndexError
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', 4], allow_sparse_dict=False)
-    print(str(error))
+    print('STR', str(error))
+    print('REPR', repr(error))
+    print('VER', str(sys.version_info))
     if sys.version_info > (3, 6, 8):
         # this fails on 3.5.7 but works on 3.5.10
         # this fails on 3.6.8 but works on 3.6.9
