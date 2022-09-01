@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -68,9 +68,9 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_vserver
 
 
-class NetAppONTAPCifsSetPassword():
+class NetAppONTAPCifsSetPassword:
     '''
-    Set  CIFS local user password.
+    Set CIFS local user password.
     '''
     def __init__(self):
 
@@ -148,7 +148,7 @@ class NetAppONTAPCifsSetPassword():
     def apply(self):
         changed = True
         if not self.use_rest:
-            netapp_utils.ems_log_event_cserver('na_ontap_cifs_local_user_set_password', self.server, self.module)
+            netapp_utils.ems_log_event('na_ontap_cifs_local_user_set_password', self.server)
         if not self.module.check_mode:
             self.cifs_local_set_passwd()
 

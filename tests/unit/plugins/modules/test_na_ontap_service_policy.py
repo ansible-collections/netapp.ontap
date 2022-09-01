@@ -1,7 +1,7 @@
 # (c) 2018-2021, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-''' unit test for ONTAP publickey Ansible module '''
+''' unit test for ONTAP service policy Ansible module '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -10,8 +10,8 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, WARNINGS
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_service_policy \
     import NetAppOntapServicePolicy as my_module, main as uut_main      # module under test
@@ -95,7 +95,7 @@ def test_ensure_get_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -116,7 +116,7 @@ def test_ensure_create_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -139,7 +139,7 @@ def test_ensure_create_called_cluster(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -159,7 +159,7 @@ def test_ensure_create_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -179,7 +179,7 @@ def test_ensure_modify_called(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -199,7 +199,7 @@ def test_ensure_modify_called_no_service(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -222,7 +222,7 @@ def test_ensure_delete_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     print(mock_request.mock_calls)
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -243,7 +243,7 @@ def test_ensure_delete_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -264,7 +264,7 @@ def test_negative_extra_record(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in get_service_policy: calling: network/ip/service-policies: unexpected response'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 def test_negative_ipspace_required_1(patch_ansible):
@@ -280,7 +280,7 @@ def test_negative_ipspace_required_1(patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "vserver is None but all of the following are missing: ipspace"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 def test_negative_ipspace_required_2(patch_ansible):
@@ -296,7 +296,7 @@ def test_negative_ipspace_required_2(patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "scope is cluster but all of the following are missing: ipspace"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 def test_negative_ipspace_required_3(patch_ansible):
@@ -312,7 +312,7 @@ def test_negative_ipspace_required_3(patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "one of the following is required: ipspace, vserver"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 def test_negative_vserver_required_1(patch_ansible):
@@ -329,7 +329,7 @@ def test_negative_vserver_required_1(patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "one of the following is required: ipspace, vserver"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 def test_negative_vserver_required_2(patch_ansible):
@@ -347,7 +347,7 @@ def test_negative_vserver_required_2(patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "scope is svm but all of the following are missing: vserver"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -371,7 +371,7 @@ def test_negative_vserver_required_3(mock_request, patch_ansible):
     msg = 'Error: vserver cannot be None when "scope: svm" is specified.'
     print(mock_request.mock_calls)
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -393,7 +393,7 @@ def test_negative_vserver_not_required(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: vserver cannot be set when "scope: cluster" is specified.  Got: vserver'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -415,7 +415,7 @@ def test_negative_no_service_not_alone(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: no other service can be present when no_service is specified."
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -437,7 +437,7 @@ def test_negative_vserver_set_with_cluster_scope(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: no other service can be present when no_service is specified."
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -460,7 +460,7 @@ def test_negative_extra_arg_in_modify(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: attributes not supported in modify: {'scope': 'cluster'}"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -480,7 +480,7 @@ def test_negative_empty_body_in_modify(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: nothing to change - modify called with: {}'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -501,7 +501,7 @@ def test_negative_create_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in create_service_policy: calling: network/ip/service-policies: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -523,7 +523,7 @@ def test_negative_delete_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in delete_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -545,4 +545,4 @@ def test_negative_modify_called(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error in modify_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
