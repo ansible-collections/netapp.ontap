@@ -440,6 +440,8 @@ def test_get_ontap_version_using_rest():
 
 
 def test__is_rest():
+    if not sys.version_info > (3, 0):
+        return
     rest_api = create_restapi_object(DEFAULT_ARGS)
     rest_api.use_rest = 'invalid'
     msg = "use_rest must be one of: never, always, auto. Got: 'invalid'"
@@ -486,6 +488,8 @@ def test_is_rest_supported_properties():
 
 
 def test_is_rest_partially_supported_properties():
+    if not sys.version_info > (3, 0):
+        return
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),

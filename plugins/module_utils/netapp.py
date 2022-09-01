@@ -983,6 +983,21 @@ class OntapRestAPI(object):
         self.is_rest_error = str(error) if error else None
         return status_code
 
+    def convert_parameter_keys_to_dot_notation(self, parameters):
+        # Get all variable set in a list and add them to a dict so that partially_supported_rest_properties works correctly
+        temp = {}
+        if isinstance(parameters, dict):
+            for parameter in parameters:
+                if isinstance(parameters[parameter], list):
+                    if parameter not in temp:
+                        temp[parameter] = {}
+                    for adict in parameters[parameter]:
+                        if isinstance(adict, dict):
+                            for key in adict:
+                                temp[parameter + '.' + key] = 0
+            parameters.update(temp)
+        return parameters
+
     def _is_rest(self, used_unsupported_rest_properties=None, partially_supported_rest_properties=None, parameters=None):
         if self.use_rest not in ['always', 'auto', 'never']:
             error = "use_rest must be one of: never, always, auto. Got: '%s'" % self.use_rest
@@ -995,10 +1010,13 @@ class OntapRestAPI(object):
             return False, None
         status_code = self.get_ontap_version_using_rest()
         if self.use_rest == "always" and partially_supported_rest_properties:
+            # If a variable is on a list we need to move it to a dict for this check to work correctly.
+            temp_parameters = parameters.copy()
+            temp_parameters = self.convert_parameter_keys_to_dot_notation(temp_parameters)
             error = '\n'.join(
                 "Minimum version of ONTAP for %s is %s." % (property[0], str(property[1]))
                 for property in partially_supported_rest_properties
-                if self.get_ontap_version()[:3] < property[1] and property[0] in parameters
+                if self.get_ontap_version()[0:3] < property[1] and property[0] in temp_parameters
             )
             if error != '':
                 return True, error
@@ -1015,8 +1033,12 @@ class OntapRestAPI(object):
             return False, None
         if partially_supported_rest_properties:
             # if ontap version is lower than partially_supported_rest_properties version, force ZAPI, only if the paramater is used
+            # If a variable is on a list we need to move it to a dict for this check to work correctly.
+            temp_parameters = parameters.copy()
+            temp_parameters = self.convert_parameter_keys_to_dot_notation(temp_parameters)
             for property in partially_supported_rest_properties:
-                if self.get_ontap_version()[:3] < property[1] and property[0] in parameters:
+                if self.get_ontap_version()[0:3] < property[1] and property[0] in temp_parameters:
+
                     self.fallback_to_zapi_reason =\
                         'because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1]))
                     self.module.warn('Falling back to ZAPI %s' % self.fallback_to_zapi_reason)

@@ -688,6 +688,20 @@ def test_rest_negative_create_no_ip_address():
     assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+def test_rest_get_fc_no_svm():
+    ''' create cluster '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster/nodes', SRR['nodes']),     # get nodes
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'interface_type': 'fc',
+    }
+    msg = "A data 'vserver' is required for FC interfaces."
+    assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
 def test_rest_negative_get_multiple_ip_if():
     ''' create cluster '''
     register_responses([
@@ -1181,12 +1195,19 @@ def test_negative_derive_interface_type_multiple():
 def test_derive_block_file_type_fcp():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_97']),
     ])
     module_args = {
         'use_rest': 'always',
     }
     my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
     block_p, file_p, fcp = my_obj.derive_block_file_type(['fcp'])
+    assert block_p
+    assert not file_p
+    assert fcp
+    module_args['interface_type'] = 'fc'
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    block_p, file_p, fcp = my_obj.derive_block_file_type(None)
     assert block_p
     assert not file_p
     assert fcp
@@ -1516,40 +1537,51 @@ def test_error_messages_build_rest_body_and_validations():
     error = 'Error: Missing one or more required parameters for creating interface: interface_type.'
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
     my_obj.parameters['interface_type'] = 'type'
+    error = 'Error: unexpected value for interface_type: type.'
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
+    my_obj.parameters['interface_type'] = 'ip'
+    my_obj.parameters['ipspace'] = 'ipspace'
     error = 'Error: Protocol cannot be specified for intercluster role, failed to create interface.'
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
     del my_obj.parameters['protocols']
-    error = 'Error: unexpected value for interface_type: type.'
-    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
     my_obj.parameters['interface_type'] = 'fc'
-    error = "Error: 'home_port' is not suported for FC interfaces with 9.7, use 'current_port', avoid home_node."
+    error = "Error: 'home_port' is not supported for FC interfaces with 9.7, use 'current_port', avoid home_node."
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
     print_warnings()
     assert_warning_was_raised("Avoid 'home_node' with FC interfaces with 9.7, use 'current_node'.")
     del my_obj.parameters['home_port']
-    error = 'Error: ipspace name must be provided if scope is cluster, or vserver for svm scope.'
+    error = "Error: A data 'vserver' is required for FC interfaces."
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
-    my_obj.parameters['ipspace'] = 'ipspace'
     my_obj.parameters['current_port'] = '0a'
     my_obj.parameters['data_protocol'] = 'fc'
     my_obj.parameters['force_subnet_association'] = True
     my_obj.parameters['failover_group'] = 'failover_group'
+    my_obj.parameters['vserver'] = 'vserver'
+    error = "Error: 'role' is deprecated, and 'data' is the only value supported for FC interfaces: found intercluster."
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
+    my_obj.parameters['role'] = 'data'
     error = "Error creating interface, unsupported options: {'failover_group': 'failover_group'}"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
+    del my_obj.parameters['failover_group']
+    my_obj.parameters['broadcast_domain'] = 'BDD1'
+    error = "Error: broadcast_domain is only supported for IP interfaces: abc_if, interface_type: fc"
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
+    my_obj.parameters['service_policy'] = 'svc_pol'
+    error = "Error: 'service_policy' is not supported for FC interfaces."
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
     print_warnings()
     assert_warning_was_raised('Ignoring force_subnet_association')
-    modify = {'ipspace': 'ipspace'}
     my_obj.parameters['interface_type'] = 'ip'
+    del my_obj.parameters['vserver']
+    del my_obj.parameters['ipspace']
+    error = 'Error: ipspace name must be provided if scope is cluster, or vserver for svm scope.'
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
+    modify = {'ipspace': 'ipspace'}
     error = "The following option cannot be modified: ipspace.name"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', modify)['msg']
     del my_obj.parameters['role']
-    my_obj.parameters['broadcast_domain'] = 'BDD1'
     my_obj.parameters['current_port'] = 'port1'
-    my_obj.parameters['interface_type'] = 'fc'
-    del my_obj.parameters['failover_group']
-    error = "Error broadcast_domain is only supported for IP interfaces: abc_if, interface_type: fc"
-    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
-    my_obj.parameters['interface_type'] = 'ip'
     my_obj.parameters['home_port'] = 'port1'
-    error = "Error home_port and broadcast_domain are mutually exclusive for creating: abc_if"
+    my_obj.parameters['ipspace'] = 'ipspace'
+    error = "Error: home_port and broadcast_domain are mutually exclusive for creating: abc_if"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']

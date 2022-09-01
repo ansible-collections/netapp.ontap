@@ -392,7 +392,7 @@ def test_negative_modify_with_extra_stuff_rest():
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_modify, 'fail', current)['msg']
 
 
-def test_delete_idempotent():
+def test_delete_idempotent_rest():
     ''' Test delete idempotency with rest API '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),

@@ -4,7 +4,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
-na_ontap_export_policy_rule
+na_ontap_interface
 '''
 
 from __future__ import absolute_import, division, print_function
@@ -100,8 +100,9 @@ options:
     description:
       - The name of the vserver to use.
       - Required with ZAPI.
-      - Required with REST for SVM-scoped interfaces.
-      - Invalid with REST for cluster-scoped interfaces.
+      - Required with REST for FC interfaces (data vservers).
+      - Required with REST for SVM-scoped IP interfaces (data vservers).
+      - Invalid with REST for cluster-scoped IP interfaces.
       - To help with transition from ZAPI to REST, vserver is ignored when the role is set to 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
       - Remove this option to suppress the warning.
     required: false
@@ -225,6 +226,7 @@ options:
       - IP interfaces includes cluster, intercluster, management, and NFS, CIFS, iSCSI interfaces.
       - FC interfaces includes FCP and NVME-FC interfaces.
       - ignored with ZAPI.
+      - required with REST, but maybe derived from deprecated options like C(role), C(protocols), and C(firewall_policy).
     type: str
     choices: ['fc', 'ip']
     version_added: 21.13.0
@@ -564,7 +566,8 @@ class NetAppOntapInterface():
     def derive_block_file_type(self, protocols):
         block_p, file_p, fcp = False, False, False
         if protocols is None:
-            return block_p, file_p, fcp
+            fcp = self.parameters.get('interface_type') == 'fc'
+            return fcp, file_p, fcp
         block_values, file_values = [], []
         for protocol in protocols:
             if protocol.lower() in ['fc-nvme', 'fcp', 'iscsi']:
@@ -580,10 +583,8 @@ class NetAppOntapInterface():
         return block_p, file_p, fcp
 
     def get_interface_record_rest(self, if_type, query, fields):
-        if 'ipspace' in self.parameters:
+        if 'ipspace' in self.parameters and if_type == 'ip':
             query['ipspace.name'] = self.parameters['ipspace']
-        if 'vserver' in self.parameters:
-            query['svm.name'] = self.parameters['vserver']
         return rest_generic.get_one_record(self.rest_api, self.get_net_int_api(if_type), query, fields)
 
     def get_interface_records_rest(self, if_type, query, fields):
@@ -884,6 +885,9 @@ class NetAppOntapInterface():
             if errors['role'] == 'cluster' and errors.get('firewall_policy') in [None, 'mgmt']:
                 options['service_policy'] = 'default-cluster'
                 fixed = True
+            if errors['role'] == 'data' and fcp and errors.get('firewall_policy') is None:
+                # ignore role for FC interface
+                fixed = True
             if fixed:
                 errors.pop('role')
                 errors.pop('firewall_policy', None)
@@ -1053,8 +1057,21 @@ class NetAppOntapInterface():
             # REST only supports DATA SVMs
             del self.parameters['vserver']
             self.module.warn('Ignoring vserver with REST for non data SVM.')
-        if action == 'create' and 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
-            self.module.fail_json(msg='Error: ipspace name must be provided if scope is cluster, or vserver for svm scope.')
+        errors = []
+        if action == 'create':
+            if 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
+                errors.append('ipspace name must be provided if scope is cluster, or vserver for svm scope.')
+            if self.parameters.get('broadcast_domain') and self.parameters['interface_type'] == 'fc':
+                errors.append('broadcast_domain is only supported for IP interfaces: %s, interface_type: %s'
+                              % (self.parameters.get('interface_name'), self.parameters['interface_type']))
+            if self.parameters.get('home_port') and self.parameters.get('broadcast_domain'):
+                errors.append('home_port and broadcast_domain are mutually exclusive for creating: %s'
+                              % self.parameters.get('interface_name'))
+        if self.parameters.get('role') == "intercluster" and self.parameters.get('protocols') is not None:
+            errors.append('Protocol cannot be specified for intercluster role, failed to create interface.')
+        if errors:
+            self.module.fail_json(msg='Error: %s' % '  '.join(errors))
+
         ignored_keys = []
         for key in self.parameters.get('ignore_zapi_options', []):
             if key in self.parameters:
@@ -1062,6 +1079,7 @@ class NetAppOntapInterface():
                 ignored_keys.append(key)
         if ignored_keys:
             self.module.warn("Ignoring %s" % ', '.join(ignored_keys))
+        # if role is intercluster, protocol cannot be specified
 
     def validate_required_parameters(self, keys):
         '''
@@ -1071,28 +1089,32 @@ class NetAppOntapInterface():
         '''
         home_node = self.parameters.get('home_node') or self.get_home_node_for_cluster()
         # validate if mandatory parameters are present for create or modify
-        error = None
+        errors = []
         if self.use_rest and home_node is None and self.parameters.get('home_port') is not None:
-            error = 'Cannot guess home_node, home_node is required when home_port is present with REST.'
+            errors.append('Cannot guess home_node, home_node is required when home_port is present with REST.')
         if 'broadcast_domain_home_port_or_home_node' in keys:
             if all(x not in self.parameters for x in ['broadcast_domain', 'home_port', 'home_node']):
-                error = "At least one of 'broadcast_domain', 'home_port', 'home_node' is required to create an IP interface."
+                errors.append("At least one of 'broadcast_domain', 'home_port', 'home_node' is required to create an IP interface.")
             keys.remove('broadcast_domain_home_port_or_home_node')
-        if not error and not keys.issubset(set(self.parameters.keys())) and self.parameters.get('subnet_name') is None:
-            error = 'Missing one or more required parameters for creating interface: %s.' % ', '.join(keys)
-        # if role is intercluster, protocol cannot be specified
-        if not error and self.parameters.get('role') == "intercluster" and self.parameters.get('protocols') is not None:
-            error = 'Protocol cannot be specified for intercluster role, failed to create interface.'
-        if not error and 'interface_type' in keys:
+        if not keys.issubset(set(self.parameters.keys())):
+            errors.append('Missing one or more required parameters for creating interface: %s.' % ', '.join(keys))
+        if 'interface_type' in keys and 'interface_type' in self.parameters:
             if self.parameters['interface_type'] not in ['fc', 'ip']:
-                error = 'unexpected value for interface_type: %s.' % self.parameters['interface_type']
-            if self.parameters['interface_type'] == 'fc' and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
-                if 'home_port' in self.parameters:
-                    error = "'home_port' is not suported for FC interfaces with 9.7, use 'current_port', avoid home_node."
-                if 'home_node' in self.parameters:
-                    self.module.warn("Avoid 'home_node' with FC interfaces with 9.7, use 'current_node'.")
-        if error:
-            self.module.fail_json(msg='Error: %s' % error)
+                errors.append('unexpected value for interface_type: %s.' % self.parameters['interface_type'])
+            elif self.parameters['interface_type'] == 'fc':
+                if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
+                    if 'home_port' in self.parameters:
+                        errors.append("'home_port' is not supported for FC interfaces with 9.7, use 'current_port', avoid home_node.")
+                    if 'home_node' in self.parameters:
+                        self.module.warn("Avoid 'home_node' with FC interfaces with 9.7, use 'current_node'.")
+                if 'vserver' not in self.parameters:
+                    errors.append("A data 'vserver' is required for FC interfaces.")
+                if 'service_policy' in self.parameters:
+                    errors.append("'service_policy' is not supported for FC interfaces.")
+                if 'role' in self.parameters and self.parameters.get('role') != 'data':
+                    errors.append("'role' is deprecated, and 'data' is the only value supported for FC interfaces: found %s." % self.parameters.get('role'))
+        if errors:
+            self.module.fail_json(msg='Error: %s' % '  '.join(errors))
 
     def validate_modify_parameters(self, body):
         """ Only the following keys can be modified:
@@ -1109,12 +1131,6 @@ class NetAppOntapInterface():
         self.validate_required_parameters(required_keys)
         self.validate_rest_input_parameters(action='modify' if modify else 'create')
         if not modify:
-            if self.parameters.get('broadcast_domain') and self.parameters['interface_type'] == 'fc':
-                self.module.fail_json(msg='Error broadcast_domain is only supported for IP interfaces: %s, interface_type: %s'
-                                      % (self.parameters.get('interface_name'), self.parameters['interface_type']))
-            if self.parameters.get('home_port') and self.parameters.get('broadcast_domain'):
-                self.module.fail_json(msg='Error home_port and broadcast_domain are mutually exclusive for creating: %s'
-                                      % self.parameters.get('interface_name'))
             required_keys = set()
             required_keys.add('interface_name')
             if self.parameters['interface_type'] == 'fc':
