@@ -23,13 +23,79 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 SRR = rest_responses({
+    's3_bucket_more_policy': (200, {"records": [{
+        'comment': 'carchi8py was here again',
+        'name': 'bucket1',
+        'policy': {
+            'statements': [
+                {
+                    "sid": 1,
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+                    "effect": "deny",
+                    "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1/32", "1.2.2.0/24"]}],
+                    "principals": ["user1", "user2"],
+                    "resources": ["bucket1", "bucket1/*"]
+                },
+                {
+                    "sid": 2,
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+                    "effect": "deny",
+                    "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1/32", "1.2.2.0/24"]}],
+                    "principals": ["user1", "user2"],
+                    "resources": ["bucket1", "bucket1/*"]
+                }
+            ]
+        },
+        'qos_policy': {
+            'max_throughput_iops': 100,
+            'max_throughput_mbps': 150,
+            'min_throughput_iops': 0,
+            'min_throughput_mbps': 0,
+            'name': 'ansibleSVM_auto_gen_policy_9be26687_2849_11ed_9696_005056b3b297',
+            'uuid': '9be28517-2849-11ed-9696-005056b3b297'
+        },
+        'size': 938860800,
+        'svm': {'name': 'ansibleSVM', 'uuid': '969ansi97'},
+        'uuid': '9bdefd59-2849-11ed-9696-005056b3b297',
+        'volume': {'uuid': '1cd8a442-86d1-11e0-abcd-123478563412'}}], "num_records": 1}, None),
+    's3_bucket_without_condition': (200, {"records": [{
+        'comment': 'carchi8py was here again',
+        'name': 'bucket1',
+        'policy': {
+            'statements': [
+                {
+                    "sid": 1,
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+                    "effect": "deny",
+                    "principals": ["user1", "user2"],
+                    "resources": ["bucket1", "bucket1/*"]
+                },
+                {
+                    "sid": 2,
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+                    "effect": "deny",
+                    "principals": ["user1", "user2"],
+                    "resources": ["bucket1", "bucket1/*"]
+                }
+            ]
+        },
+        'qos_policy': {
+            'max_throughput_iops': 100,
+            'max_throughput_mbps': 150,
+            'min_throughput_iops': 0,
+            'min_throughput_mbps': 0,
+            'name': 'ansibleSVM_auto_gen_policy_9be26687_2849_11ed_9696_005056b3b297',
+            'uuid': '9be28517-2849-11ed-9696-005056b3b297'
+        },
+        'size': 938860800,
+        'svm': {'name': 'ansibleSVM', 'uuid': '969ansi97'},
+        'uuid': '9bdefd59-2849-11ed-9696-005056b3b297',
+        'volume': {'uuid': '1cd8a442-86d1-11e0-abcd-123478563412'}}], "num_records": 1}, None),
     's3_bucket_9_10': (200, {
         "logical_used_size": 0,
         "uuid": "414b29a1-3b26-11e9-bd58-0050568ea055",
         "size": 1677721600,
-        "protection_status": {
-            "destination": {}
-        },
+        "protection_status": {"destination": {}},
         "constituents_per_aggregate": 4,
         "qos_policy": {
             "max_throughput_iops": 10000,
@@ -43,67 +109,35 @@ SRR = rest_responses({
             "statements": [
                 {
                     "sid": "FullAccessToUser1",
-                    "resources": [
-                        "bucket1",
-                        "bucket1/*"
-                    ],
-                    "actions": [
-                        "GetObject",
-                        "PutObject",
-                        "DeleteObject",
-                        "ListBucket"
-                    ],
+                    "resources": ["bucket1", "bucket1/*"],
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
                     "effect": "allow",
                     "conditions": [
                         {
                             "operator": "ip-address",
-                            "max_keys": [
-                                "1000"
-                            ],
-                            "delimiters": [
-                                "/"
-                            ],
-                            "source-ips": [
-                                "1.1.1.1",
-                                "1.2.2.0/24"
-                            ],
-                            "prefixes": [
-                                "pref"
-                            ],
-                            "usernames": [
-                                "user1"
-                            ]
+                            "max_keys": ["1000"],
+                            "delimiters": ["/"],
+                            "source-ips": ["1.1.1.1", "1.2.2.0/24"],
+                            "prefixes": ["pref"],
+                            "usernames": ["user1"]
                         }
                     ],
-                    "principals": [
-                        "user1",
-                        "group/grp1"
-                    ]
+                    "principals": ["user1", "group/grp1"]
                 }
             ]
         },
         "storage_service_level": "value",
-        "audit_event_selector": {
-            "access": "all",
-            "permission": "all"
-        },
+        "audit_event_selector": {"access": "all", "permission": "all"},
         "name": "bucket1",
         "comment": "S3 bucket.",
-        "svm": {
-            "name": "svm1",
-            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
-        },
-        "volume": {
-            "uuid": "1cd8a442-86d1-11e0-abcd-123478563412",
-        }
+        "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"},
+        "volume": {"uuid": "1cd8a442-86d1-11e0-abcd-123478563412"}
     }, None),
     's3_bucket_9_8': (200, {
         "logical_used_size": 0,
         "uuid": "414b29a1-3b26-11e9-bd58-0050568ea055",
         "size": 1677721600,
-        "protection_status": {
-            "destination": {}
-        },
+        "protection_status": {"destination": {}},
         "constituents_per_aggregate": 4,
         "qos_policy": {
             "max_throughput_iops": 10000,
@@ -117,61 +151,31 @@ SRR = rest_responses({
             "statements": [
                 {
                     "sid": "FullAccessToUser1",
-                    "resources": [
-                        "bucket1",
-                        "bucket1/*"
-                    ],
-                    "actions": [
-                        "GetObject",
-                        "PutObject",
-                        "DeleteObject",
-                        "ListBucket"
-                    ],
+                    "resources": ["bucket1", "bucket1/*"],
+                    "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
                     "effect": "allow",
                     "conditions": [
                         {
                             "operator": "ip-address",
-                            "max_keys": [
-                                "1000"
-                            ],
-                            "delimiters": [
-                                "/"
-                            ],
-                            "source-ips": [
-                                "1.1.1.1",
-                                "1.2.2.0/24"
-                            ],
-                            "prefixes": [
-                                "pref"
-                            ],
-                            "usernames": [
-                                "user1"
-                            ]
+                            "max_keys": ["1000"],
+                            "delimiters": ["/"],
+                            "source-ips": ["1.1.1.1", "1.2.2.0/24"],
+                            "prefixes": ["pref"],
+                            "usernames": ["user1"]
                         }
                     ],
-                    "principals": [
-                        "user1",
-                        "group/grp1"
-                    ]
+                    "principals": ["user1", "group/grp1"]
                 }
             ]
         },
         "storage_service_level": "value",
         "name": "bucket1",
         "comment": "S3 bucket.",
-        "svm": {
-            "name": "svm1",
-            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
-        },
-        "volume": {
-            "uuid": "1cd8a442-86d1-11e0-abcd-123478563412",
-        }
+        "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"},
+        "volume": {"uuid": "1cd8a442-86d1-11e0-abcd-123478563412"}
     }, None),
     'volume_info': (200, {
-        "aggregates": [{
-            "name": "aggr1",
-            "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
-        }],
+        "aggregates": [{"name": "aggr1", "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"}],
     }, None),
 })
 
@@ -186,144 +190,134 @@ DEFAULT_ARGS = {
 POLICY_ARGS = {
     "statements": [{
         "sid": "FullAccessToUser1",
-        "resources": [
-            "bucket1",
-            "bucket1/*"
-        ],
-        "actions": [
-            "GetObject",
-            "PutObject",
-            "DeleteObject",
-            "ListBucket"
-        ],
+        "resources": ["bucket1", "bucket1/*"],
+        "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
         "effect": "allow",
         "conditions": [
             {
                 "operator": "ip_address",
-                "max_keys": [
-                    "1000"
-                ],
-                "delimiters": [
-                    "/"
-                ],
-                "source_ips": [
-                    "1.1.1.1",
-                    "1.2.2.0/24"
-                ],
-                "prefixes": [
-                    "pref"
-                ],
-                "usernames": [
-                    "user1"
-                ]
+                "max_keys": ["1000"],
+                "delimiters": ["/"],
+                "source_ips": ["1.1.1.1", "1.2.2.0/24"],
+                "prefixes": ["pref"],
+                "usernames": ["user1"]
             }
         ],
-        "principals": [
-            "user1",
-            "group/grp1"
-        ]
+        "principals": ["user1", "group/grp1"]
     }]
 }
 
 REAL_POLICY_ARGS = {
     "statements": [{
         "sid": "FullAccessToUser1",
-        "resources": [
-            "bucket1",
-            "bucket1/*"
-        ],
-        "actions": [
-            "GetObject",
-            "PutObject",
-            "DeleteObject",
-            "ListBucket"
-        ],
+        "resources": ["bucket1", "bucket1/*"],
+        "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
         "effect": "allow",
-        "conditions": [
-            {
-                "operator": "ip_address",
-                "source_ips": [
-                    "1.1.1.1",
-                    "1.2.2.0/24"]
-            }
-        ],
-        "principals": [
-            "user1",
-            "group/grp1"
-        ]
+        "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+        "principals": ["user1", "group/grp1"]
     }]
 }
 
 REAL_POLICY_WTIH_NUM_ARGS = {
     "statements": [{
         "sid": 1,
-        "resources": [
-            "bucket1",
-            "bucket1/*"
-        ],
-        "actions": [
-            "GetObject",
-            "PutObject",
-            "DeleteObject",
-            "ListBucket"
-        ],
+        "resources": ["bucket1", "bucket1/*"],
+        "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
         "effect": "allow",
-        "conditions": [
-            {
-                "operator": "ip_address",
-                "source_ips": [
-                    "1.1.1.1",
-                    "1.2.2.0/24"]
-            }
-        ],
-        "principals": [
-            "user1",
-            "group/grp1"
-        ]
+        "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+        "principals": ["user1", "group/grp1"]
     }]
 }
 
 MODIFY_POLICY_ARGS = {
     "statements": [{
         "sid": "FullAccessToUser1",
-        "resources": [
-            "bucket1",
-            "bucket1/*"
-        ],
-        "actions": [
-            "GetObject",
-            "PutObject",
-            "DeleteObject",
-            "ListBucket"
-        ],
+        "resources": ["bucket1", "bucket1/*"],
+        "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
         "effect": "allow",
         "conditions": [
             {
                 "operator": "ip_address",
-                "max_keys": [
-                    "100"
-                ],
-                "delimiters": [
-                    "/"
-                ],
-                "source_ips": [
-                    "2.2.2.2",
-                    "1.2.2.0/24"
-                ],
-                "prefixes": [
-                    "pref"
-                ],
-                "usernames": [
-                    "user2"
-                ]
+                "max_keys": ["100"],
+                "delimiters": ["/"],
+                "source_ips": ["2.2.2.2", "1.2.2.0/24"],
+                "prefixes": ["pref"],
+                "usernames": ["user2"]
             }
         ],
-        "principals": [
-            "user2",
-            "group/grp1"
-        ]
+        "principals": ["user1", "group/grp1"]
     }]
 }
+
+
+MULTIPLE_POLICY_STATEMENTS = {
+    "statements": [
+        {
+            "sid": 1,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        },
+        {
+            "sid": 2,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        }
+    ]
+}
+
+
+SAME_POLICY_STATEMENTS = {
+    "statements": [
+        {
+            "sid": 1,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        },
+        {
+            "sid": 1,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        },
+    ]
+}
+
+
+MULTIPLE_POLICY_CONDITIONS = {
+    "statements": [
+        {
+            "sid": 1,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [
+                {"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]},
+                {"operator": "not_ip_address", "source_ips": ["2.1.1.1", "1.2.2.0/24"]}
+            ],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        },
+        {
+            "sid": 2,
+            "actions": ["GetObject", "PutObject", "DeleteObject", "ListBucket"],
+            "effect": "deny",
+            "conditions": [{"operator": "ip_address", "source_ips": ["1.1.1.1", "1.2.2.0/24"]}],
+            "principals": ["user1", "user2"],
+            "resources": ["*"]
+        }
+    ]
+}
+
 
 QOS_ARGS = {
     "max_throughput_iops": 10000,
@@ -550,6 +544,81 @@ def test_modify_s3_bucket_9_10():
                    'qos_policy': MODIFY_QOS_ARGS,
                    'audit_event_selector': MODIFY_AUDIT_EVENT}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_s3_bucket_policy_statements():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
+         SRR['empty_good']),
+        # add multiple statements.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        # try to modify with identical statements.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
+        # empty policy statements.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
+         SRR['empty_good'])
+    ])
+    module_args = {'policy': MULTIPLE_POLICY_STATEMENTS}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {'policy': SAME_POLICY_STATEMENTS}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, {'policy': {'statements': []}})
+
+
+def test_modify_s3_bucket_policy_statements_conditions():
+    register_responses([
+        # modify if desired statements has conditions and current statement conditions is None.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_without_condition']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
+        # empty policy statements conditions.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
+        # add multiple conditions.
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good'])
+    ])
+    module_args = {'policy': MULTIPLE_POLICY_STATEMENTS}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {'policy': MULTIPLE_POLICY_STATEMENTS.copy()}
+    module_args['policy']['statements'][0]['conditions'] = []
+    module_args['policy']['statements'][1]['conditions'] = []
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args = {'policy': MULTIPLE_POLICY_CONDITIONS}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_when_try_set_empty_dict_to_policy():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
+    ])
+    module_args = {'policy': {'statements': [{}]}}
+    assert 'cannot set empty dict' in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_modify_s3_bucket_error():

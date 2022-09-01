@@ -495,12 +495,15 @@ class NetAppOntapS3Buckets:
             return True
         match_found = []
         for statement in modify['policy']['statements']:
-            for current_statement in current['policy']['statements']:
+            for index, current_statement in enumerate(current['policy']['statements']):
+                # continue to next if the current statement already has a match.
+                if index in match_found:
+                    continue
                 statement_modified = self.na_helper.get_modified_attributes(current_statement, statement)
                 # no modify required, match found for the statment.
                 # break the loop and check next desired policy statement has match.
                 if not statement_modified:
-                    match_found.append(True)
+                    match_found.append(index)
                     break
                 # match not found, switch to next current statement and continue to find desired statement is present.
                 if len(statement_modified) > 1:
@@ -528,7 +531,7 @@ class NetAppOntapS3Buckets:
                             else:
                                 return True
                     if not require_modify(statement_modified['conditions'], current_statement['conditions']):
-                        match_found.append(True)
+                        match_found.append(index)
                         break
         # allow modify
         #   - if not match found
