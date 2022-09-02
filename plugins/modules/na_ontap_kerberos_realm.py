@@ -58,8 +58,8 @@ options:
   kdc_port:
     description:
       - TCP port on the KDC to be used for Kerberos communication.
-      - The default for this parameter is '88'.
-    type: str
+      - The default for this parameter is 88.
+    type: int
 
   clock_skew:
     description:
@@ -113,6 +113,10 @@ options:
       - Host name of the Active Directory Domain Controller (DC). This is a mandatory parameter if the kdc-vendor is 'microsoft'.
     type: str
     version_added: '20.4.0'
+
+notes:
+  - supports ZAPI and REST. REST requires ONTAP 9.6 or later.
+  - supports check mode.
 '''
 
 EXAMPLES = '''
@@ -167,7 +171,7 @@ class NetAppOntapKerberosRealm:
             clock_skew=dict(required=False, type='str'),
             comment=dict(required=False, type='str'),
             kdc_ip=dict(required=False, type='str'),
-            kdc_port=dict(required=False, type='str'),
+            kdc_port=dict(required=False, type='int'),
             kdc_vendor=dict(required=False, type='str',
                             choices=['microsoft', 'other']),
             pw_server_ip=dict(required=False, type='str'),
@@ -205,7 +209,6 @@ class NetAppOntapKerberosRealm:
                 'admin_server_port',
                 'clock_skew',
                 'kdc_ip',
-                'kdc_port',
                 'kdc_vendor',
             ]
 
@@ -245,14 +248,15 @@ class NetAppOntapKerberosRealm:
                 'admin_server_port': config_info.get_child_content('admin-server-port'),
                 'clock_skew': config_info.get_child_content('clock-skew'),
                 'kdc_ip': config_info.get_child_content('kdc-ip'),
-                'kdc_port': config_info.get_child_content('kdc-port'),
+                'kdc_port': int(config_info.get_child_content('kdc-port')),
                 'kdc_vendor': config_info.get_child_content('kdc-vendor'),
                 'pw_server_ip': config_info.get_child_content('password-server-ip'),
                 'pw_server_port': config_info.get_child_content('password-server-port'),
                 'realm': config_info.get_child_content('realm'),
                 'vserver': config_info.get_child_content('vserver-name'),
                 'ad_server_ip': config_info.get_child_content('ad-server-ip'),
-                'ad_server_name': config_info.get_child_content('ad-server-name')
+                'ad_server_name': config_info.get_child_content('ad-server-name'),
+                'comment': config_info.get_child_content('comment')
             }
 
         return krbrealm_details
@@ -273,6 +277,8 @@ class NetAppOntapKerberosRealm:
             if self.parameters.get(attribute) is not None:
                 options[str(attribute).replace('_', '-')] = self.parameters[attribute]
 
+        if self.parameters.get('kdc_port'):
+            options['kdc-port'] = str(self.parameters['kdc_port'])
         if self.parameters.get('pw_server_ip') is not None:
             options['password-server-ip'] = self.parameters['pw_server_ip']
         if self.parameters.get('pw_server_port') is not None:
@@ -319,6 +325,8 @@ class NetAppOntapKerberosRealm:
         for attribute in modify:
             if attribute in self.simple_attributes:
                 krbrealm_modify.add_new_child(str(attribute).replace('_', '-'), self.parameters[attribute])
+            if attribute == 'kdc_port':
+                krbrealm_modify.add_new_child('kdc-port', str(self.parameters['kdc_port']))
             if attribute == 'pw_server_ip':
                 krbrealm_modify.add_new_child('password-server-ip', self.parameters['pw_server_ip'])
             if attribute == 'pw_server_port':
@@ -327,6 +335,8 @@ class NetAppOntapKerberosRealm:
                 krbrealm_modify.add_new_child('ad-server-ip', self.parameters['ad_server_ip'])
             if attribute == 'ad_server_name':
                 krbrealm_modify.add_new_child('ad-server-name', self.parameters['ad_server_name'])
+            if attribute == 'comment':
+                krbrealm_modify.add_new_child('comment', self.parameters['comment'])
 
         # Try to modify Kerberos Realm
         try:

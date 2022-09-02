@@ -192,11 +192,17 @@ def test_successfully_create_realm_rest():
 def test_successfully_modify_realm_rest():
     ''' Test modify realm successful for modifying kdc_ip. '''
     register_responses([
+        # modify ip.
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'protocols/nfs/kerberos/realms', SRR['kerberos_info']),
+        ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['success']),
+        # modify port.
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['kerberos_info']),
         ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['success']),
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS, {'use_rest': 'always', 'kdc_ip': '10.1.1.20'})
+    assert create_and_apply(my_module, DEFAULT_ARGS, {'use_rest': 'always', 'kdc_port': '8088'})
 
 
 def test_successfully_delete_realm_rest():

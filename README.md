@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs_acl - use `type` if present when fetching existing ACL with ZAPI.
   - na_ontap_cifs_local_user_set_password - when using ZAPI, do not require cluster admin privileges.
   - na_ontap_flexcache - properly use `origin_cluster` in GET but not in POST when using REST.
+  - na_ontap_kerberos_realm - fix cannot modify `comment` option in ZAPI.
   - na_ontap_lun_copy - fix key error on `source_vserver` option.
   - na_ontap_s3_buckets - fix options that cannot be modified if not set in creating s3 buckets.
   - na_ontap_s3_buckets - fix TypeError if `conditions` not present in policy statements.
@@ -84,6 +85,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_export_policy_rule - `rule_index` is now optional for create and delete.
   - na_ontap_interface - improved validations for unsupported options with FC interfaces.
+  - na_ontap_kerberos_realm - change `kdc_port` option type to int.
   - na_ontap_ntp - for ONTAP version 9.6 or below fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
   - na_ontap_ntp_key - fail for ONTAP version 9.6 or below when `use_rest` is set to `auto` or when REST is desired.
 
