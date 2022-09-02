@@ -506,7 +506,7 @@ class NetAppModule(object):
                 function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
         return function_name
 
-    def fail_on_error(self, error, api=None, stack=False, depth=1):
+    def fail_on_error(self, error, api=None, stack=False, depth=1, previous_errors=None):
         '''depth identifies how far is the caller in the call stack'''
         if error is None:
             return
@@ -517,6 +517,8 @@ class NetAppModule(object):
         results = dict(msg='Error in %s: %s' % (self.get_caller(depth), error))
         if stack:
             results['stack'] = traceback.format_stack()
+        if previous_errors:
+            results['previous_errors'] = ' - '.join(previous_errors)
         if getattr(self, 'module', None) is not None:
             self.module.fail_json(**results)
         raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))

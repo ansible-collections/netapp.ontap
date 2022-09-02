@@ -781,6 +781,10 @@ def test_fail_on_error():
         'Error in expect_and_capture_ansible_exception: error_msg'
     assert expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api')['msg'] ==\
         'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
+    previous_errors = ['some_errror']
+    exc = expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api', previous_errors=previous_errors)
+    assert exc['msg'] == 'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
+    assert exc['previous_errors'] == previous_errors[0]
     exc = expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api', True)
     assert exc['msg'] == 'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
     assert exc['stack']

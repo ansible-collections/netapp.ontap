@@ -209,6 +209,7 @@ ZRR = zapi_responses({
     'job_time_out': build_zapi_response(job_info('running', 'time_out')),
     'job_no_completion': build_zapi_response(job_info('failure', None)),
     'async_results': build_zapi_response(results_info('in_progress')),
+    'failed_results': build_zapi_response(results_info('failed')),
     'modify_async_result_success': build_zapi_response(modify_async_results_info('in_progress')),
     'modify_async_result_failure': build_zapi_response(modify_async_results_info('failure', 'error_in_modify')),
     'vol_encryption_conversion_status_running': build_zapi_response(vol_encryption_conversion_status('running')),
@@ -445,12 +446,41 @@ def test_error_delete():
         ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
         ('ZAPI', 'sis-get-iter', ZRR['no_records']),
         ('ZAPI', 'volume-destroy', ZRR['error']),
+        ('ZAPI', 'volume-destroy', ZRR['error']),
     ])
     module_args = {
         'state': 'absent',
     }
+    error = 'Error deleting volume test_vol:'
+    msg = create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    error = 'volume delete failed with unmount-and-offline option: %s' % ZAPI_ERROR
+    assert error in msg
+    error = 'volume delete failed without unmount-and-offline option: %s' % ZAPI_ERROR
+    assert error in msg
+
+
+def test_error_delete_async():
+    ''' Test delete existing volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-unmount', ZRR['error']),
+        ('ZAPI', 'volume-offline-async', ZRR['error']),
+        ('ZAPI', 'volume-destroy-async', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'absent',
+
+    }
     error = 'Error deleting volume test_vol: %s' % ZAPI_ERROR
-    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+    msg = create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    error = 'Error unmounting volume test_vol: %s' % ZAPI_ERROR
+    assert error in msg
+    error = 'Error changing the state of volume test_vol to offline: %s' % ZAPI_ERROR
+    assert error in msg
 
 
 def test_delete_idempotency():
@@ -653,7 +683,7 @@ def test_successful_modify_efficiency_policy():
     ])
     module_args = {
         'efficiency_policy': 'test',
-        'compression': True
+        'inline_compression': True
     }
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
     print_requests()
@@ -1020,7 +1050,6 @@ def test_successful_create_flex_group_manually():
         ('ZAPI', 'sis-get-iter', ZRR['no_records']),
         ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
         ('ZAPI', 'job-get', ZRR['job_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
     ])
     args = copy.deepcopy(DEFAULT_ARGS)
     del args['space_slo']
@@ -1321,7 +1350,6 @@ def test_successful_offline_state_flex_group(get_volume):
         ('ZAPI', 'volume-unmount', ZRR['success']),
         ('ZAPI', 'volume-offline-async', ZRR['async_results']),
         ('ZAPI', 'job-get', ZRR['job_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
     ])
     module_args, current = setup_offline_state()
     get_volume.return_value = current
@@ -1366,9 +1394,7 @@ def test_successful_online_state_flex_group(get_volume):
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-online-async', ZRR['async_results']),
         ('ZAPI', 'job-get', ZRR['job_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'volume-mount', ZRR['success']),
     ])
@@ -1387,10 +1413,10 @@ def test_successful_online_state_flex_group(get_volume):
     get_volume.return_value = current
     assert create_and_apply(vol_module, DEFAULT_ARGS)['changed']
     print_requests()
-    assert get_mock_record().is_text_in_zapi_request('<group-id>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<user-id>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<junction-path>/test</junction-path>', 7)
+    assert get_mock_record().is_text_in_zapi_request('<group-id>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<user-id>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<junction-path>/test</junction-path>', 5)
 
 
 def test_check_job_status_error():
@@ -1411,7 +1437,6 @@ def test_check_job_status_error():
 def test_check_job_status_not_found(skip_sleep):
     ''' Test check job status error '''
     register_responses([
-        ('ZAPI', 'job-get', ZRR['error_15661']),
         ('ZAPI', 'job-get', ZRR['error_15661']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'job-get', ZRR['error_15661']),
@@ -1464,7 +1489,6 @@ def test_check_job_status_time_out_is_0():
 def test_check_job_status_unexpected():
     ''' Test check job status unexpected state '''
     register_responses([
-        ('ZAPI', 'job-get', ZRR['job_other']),
         ('ZAPI', 'job-get', ZRR['job_other']),
     ])
     module_args = {
@@ -1991,7 +2015,7 @@ def test_create_volume_attribute():
     parent = netapp_utils.zapi.NaElement('results')
     obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', int)
     assert parent['zapi_name'] == '123'
-    # bool
+    # boolmodify_volume_efficiency_config
     obj.parameters['option_name'] = False
     parent = netapp_utils.zapi.NaElement('results')
     obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', bool)
@@ -2009,3 +2033,40 @@ def test_create_volume_attribute():
     child = netapp_utils.zapi.NaElement('child')
     obj.create_volume_attribute(child, parent, 'zapi_name', 'option_name', bool)
     assert parent['child']['zapi_name'] == 'false'
+
+
+def test_check_invoke_result():
+    register_responses([
+        # 3rd run
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        # 3th run
+        ('ZAPI', 'job-get', ZRR['job_failure']),
+    ])
+    module_args = {
+        'time_out': 0
+    }
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    # 1 - operation failed immediately
+    error = 'Operation failed when testing volume.'
+    assert error in expect_and_capture_ansible_exception(obj.check_invoke_result, 'fail', ZRR['failed_results'][0], 'testing')['msg']
+    # 2 - operation in progress - exit immediately as time_out is 0
+    assert obj.check_invoke_result(ZRR['async_results'][0], 'testing') is None
+    module_args = {
+        'time_out': 10
+    }
+    # 3 - operation in progress - job reported success
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    error = 'Error when testing volume: failure'
+    assert obj.check_invoke_result(ZRR['async_results'][0], 'testing') is None
+    # 4 - operation in progress - job reported a failure
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    error = 'Error when testing volume: failure'
+    assert error in expect_and_capture_ansible_exception(obj.check_invoke_result, 'fail', ZRR['async_results'][0], 'testing')['msg']
+
+
+def test_error_vserver_ems():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
+    ])
+    error = zapi_error_message('Error on vserver: test_vserver')
+    assert call_main(my_main, DEFAULT_ARGS, fail=True)['msg'] == error

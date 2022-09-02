@@ -88,6 +88,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_kerberos_realm - change `kdc_port` option type to int.
   - na_ontap_ntp - for ONTAP version 9.6 or below fall back to ZAPI when `use_rest` is set to `auto` or fail when REST is desired.
   - na_ontap_ntp_key - fail for ONTAP version 9.6 or below when `use_rest` is set to `auto` or when REST is desired.
+  - na_ontap_volume - attempt to delete volume even when unmounting or offlining failed.
 
 ### Added REST support to existing modules
   - na_ontap_cifs_local_user_set_password -- added REST support.

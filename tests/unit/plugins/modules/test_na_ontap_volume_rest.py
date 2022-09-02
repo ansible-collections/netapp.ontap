@@ -1,4 +1,4 @@
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -10,8 +10,7 @@ __metaclass__ = type
 import copy
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     assert_no_warnings, assert_warning_was_raised, print_warnings, call_main, create_and_apply,\
@@ -345,7 +344,7 @@ def test_rest_error_volume_unmount_rest():
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # Mount Volume
     ])
     module_args = {'junction_path': ''}
-    msg = 'Error unmounting volume test_svm: with path "", calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
+    msg = 'Error unmounting volume test_svm with path "": calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -375,7 +374,7 @@ def test_rest_error_volume_mount_rest():
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # Mount Volume
     ])
     module_args = {'junction_path': '/this/path'}
-    msg = "Error mounting volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+    msg = 'Error mounting volume test_svm with path "/this/path": calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -887,7 +886,7 @@ def test_snaplock_volume_create():
         ('POST', 'storage/volumes', SRR['empty_records']),
         ('GET', 'storage/volumes', SRR['get_volume_sl_enterprise']),
     ])
-    module_args = {'snaplock': {'type': 'enterprise'}}
+    module_args = {'snaplock': {'type': 'enterprise', 'retention': {'maximum': 'P5D'}}}
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
@@ -1255,3 +1254,12 @@ def test_ignore_small_change():
     assert obj.parameters['attribute'] == 50
     print_warnings()
     assert_warning_was_raised('resize request for attribute ignored: 0.4% is below the threshold: 0.5%')
+
+
+def test_set_efficiency_rest_empty_body():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    obj = create_module(volume_module, DEFAULT_VOLUME_ARGS)
+    # no action
+    assert obj.set_efficiency_rest() is None
