@@ -71,6 +71,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_key_manager - new REST options `external` and `vserver` for external key manager.
   - na_ontap_security_key_manager - new REST option `onboard` for onboard key manager.
 
+### New Rest Info
+  - na_ontap_rest_info - support added for protocols/vscan/on-access-policies.
+  - na_ontap_rest_info - support added for protocols/vscan/on-demand-policies.
+  - na_ontap_rest_info - support added for protocols/vscan/scanner-pools.
+
 ### Bug Fixes
   - na_ontap_cifs_acl - use `type` if present when fetching existing ACL with ZAPI.
   - na_ontap_cifs_local_user_set_password - when using ZAPI, do not require cluster admin privileges.

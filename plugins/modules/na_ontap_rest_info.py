@@ -134,6 +134,9 @@ options:
       - protocols/san/portsets
       - protocols/san/vvol-bindings
       - protocols/vscan or vscan_status_info or vscan_info
+      - protocols/vscan/on-access-policies B(Requires the owning_resource to be set)
+      - protocols/vscan/on-demand-policies B(Requires the owning_resource to be set)
+      - protocols/vscan/scanner-pools B(Requires the owning_resource to be set)
       - protocols/vscan/server-status or vscan_connection_status_all_info
       - security/accounts or security_login_info or security_login_account_info
       - security/anti-ransomware/suspects
@@ -258,7 +261,10 @@ options:
       - The following subsets require an owning resource, and the following suboptions when uuid is not present.
       - <storage/volumes/snapshots>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
       - <protocols/nfs/export-policies/rules> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy,
-      - B(rule_index) is the rule index.
+        B(rule_index) is the rule index.
+      - <protocols/vscan/on-access-policies> B(svm_name) is the owning vserver name for the vscan
+      - <protocols/vscan/on-demand-policies> B(svm_name) is the owning vserver name for the vscan
+      - <protocols/vscan/scanner-pools> B(svm_name) is the owning vserver name for the vscan
     type: dict
     version_added: '21.19.0'
   ignore_api_errors:
@@ -398,7 +404,7 @@ from ansible.module_utils._text import to_text, to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_owning_resource, rest_vserver
 
 
 class NetAppONTAPGatherInfo(object):
@@ -986,41 +992,32 @@ class NetAppONTAPGatherInfo(object):
         if 'gather_subset' in self.parameters:
             if 'storage/volumes/snapshots' in self.parameters['gather_subset']:
                 self.check_error_values('storage/volumes/snapshots', params, ['volume_name', 'svm_name'])
-                record = self.get_volume_uuid()
-                if record:
-                    get_ontap_subset_info['storage/volumes/snapshots'] = {
-                        'api_call': 'storage/volumes/%s/snapshots' % record.get('uuid'),
-                    }
+                volume_uuid = rest_owning_resource.get_volume_uuid(self.rest_api, self.parameters['owning_resource']['volume_name'],
+                                                                   self.parameters['owning_resource']['svm_name'], self.module)
+                if volume_uuid:
+                    get_ontap_subset_info['storage/volumes/snapshots'] = {'api_call': 'storage/volumes/%s/snapshots' % volume_uuid}
             if 'protocols/nfs/export-policies/rules' in self.parameters['gather_subset']:
                 self.check_error_values('protocols/nfs/export-policies/rules', params, ['policy_name', 'svm_name', 'rule_index'])
-                record = self.get_export_policy_id()
-                if record:
+                policy_id = rest_owning_resource.get_export_policy_id(self.rest_api, self.parameters['owning_resource']['policy_name'],
+                                                                      self.parameters['owning_resource']['svm_name'], self.module)
+                if policy_id:
                     get_ontap_subset_info['protocols/nfs/export-policies/rules'] = {
-                        'api_call': 'protocols/nfs/export-policies/%s/rules/%s' % (record.get('id'), self.parameters['owning_resource']['rule_index']),
+                        'api_call': 'protocols/nfs/export-policies/%s/rules/%s' % (policy_id, self.parameters['owning_resource']['rule_index']),
                     }
+            if 'protocols/vscan/on-access-policies' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/on-access-policies', params, 'protocols/vscan/%s/on-access-policies', get_ontap_subset_info)
+            if 'protocols/vscan/on-demand-policies' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/on-demand-policies', params, 'protocols/vscan/%s/on-demand-policies', get_ontap_subset_info)
+            if 'protocols/vscan/scanner-pools' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/scanner-pools', params, 'protocols/vscan/%s/scanner-pools', get_ontap_subset_info)
+
         return get_ontap_subset_info
 
-    def get_volume_uuid(self):
-        api = 'storage/volumes'
-        query = {'name': self.parameters['owning_resource']['volume_name'],
-                 'svm.name': self.parameters['owning_resource']['svm_name']}
-        record, error = rest_generic.get_one_record(self.rest_api, api, query)
-        if error:
-            self.module.fail_json(
-                msg='Could not find volume %s on SVM %s' % (self.parameters['owning_resource']['volume_name'],
-                                                            self.parameters['owning_resource']['svm_name']))
-        return record
-
-    def get_export_policy_id(self):
-        api = 'protocols/nfs/export-policies'
-        query = {'name': self.parameters['owning_resource']['policy_name'],
-                 'svm.name': self.parameters['owning_resource']['svm_name']}
-        record, error = rest_generic.get_one_record(self.rest_api, api, query)
-        if error:
-            self.module.fail_json(
-                msg='Could not find export policy %s on SVM %s' % (self.parameters['owning_resource']['policy_name'],
-                                                                   self.parameters['owning_resource']['svm_name']))
-        return record
+    def add_vserver_owning_resource(self, subset, params, api, get_ontap_subset_info):
+        self.check_error_values(subset, params, ['svm_name'])
+        svm_uuid, dummy = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['owning_resource']['svm_name'])
+        if svm_uuid:
+            get_ontap_subset_info[subset] = {'api_call': api % svm_uuid}
 
     def check_error_values(self, api, params, items):
         error = not params or sorted(list(params.keys())) != sorted(items)
