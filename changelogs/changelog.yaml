@@ -26,13 +26,14 @@ releases:
       - na_ontap_vserver_cifs_security - fix int and boolean options when modifying
         vserver cifs security.
       minor_changes:
-      - "Added REST support to existing modules.\n  By default, the module will use
-        REST if the target system supports it, and the options are supported.  Otherwise,
-        it will switch back to ZAPI.\n  This behavior can be controlled with the ``use_rest``
-        option.\n  Always - to force REST.  The module fails and reports an error
-        if REST cannot be used.\n  Never - to force ZAPI.  This could be useful if
-        you find some incompatibility with REST, or want to confirm the behavior is
-        identical between REST and ZAPI.\n  Auto - the default, as described above.\n"
+      - "Added REST support to existing modules.\n  By default, the module will use\
+        \ REST if the target system supports it, and the options are supported.  Otherwise,\
+        \ it will switch back to ZAPI.\n  This behavior can be controlled with the\
+        \ ``use_rest`` option.\n  Always - to force REST.  The module fails and reports\
+        \ an error if REST cannot be used.\n  Never - to force ZAPI.  This could be\
+        \ useful if you find some incompatibility with REST, or want to confirm the\
+        \ behavior is identical between REST and ZAPI.\n  Auto - the default, as described\
+        \ above.\n"
       - na_ontap_cluster_config - role updated to support a cleaner playbook
       - na_ontap_command - ``vserver`` - to allow command to run as either cluster
         admin or vserver admin.  To run as vserver admin you must use the vserver
@@ -1989,6 +1990,82 @@ releases:
     - DEVOPS-5299.yaml
     - DEVOPS-5304.yaml
     release_date: '2022-08-03'
+  21.23.0:
+    changes:
+      bugfixes:
+      - na_ontap_cifs_acl - use ``type`` if present when fetching existing ACL with
+        ZAPI.
+      - na_ontap_cifs_local_user_set_password - when using ZAPI, do not require cluster
+        admin privileges.
+      - na_ontap_flexcache - properly use ``origin_cluster`` in GET but not in POST
+        when using REST.
+      - na_ontap_kerberos_realm - fix cannot modify ``comment`` option in ZAPI.
+      - na_ontap_lun_copy - fix key error on ``source_vserver`` option.
+      - na_ontap_ntp - fixed typeError on ``key_id`` field with ZAPI.
+      - na_ontap_s3_buckets - fix TypeError if ``conditions`` not present in policy
+        statements.
+      - na_ontap_s3_buckets - fix options that cannot be modified if not set in creating
+        s3 buckets.
+      - na_ontap_s3_buckets - updated correct choices in options ``audit_event_selector.access``
+        and ``audit_event_selector.permission``.
+      minor_changes:
+      - all REST modules - new option ``force_ontap_version`` to bypass permission
+        issues with custom vsadmin roles.
+      - na_ontap_cifs_local_user_set_password - Added REST support.
+      - na_ontap_cluster_ha - added REST support.
+      - na_ontap_export_policy_rule - ``rule_index`` is now optional for create and
+        delete.
+      - na_ontap_export_policy_rule - new option ``force_delete_on_first_match`` to
+        support duplicate entries on delete.
+      - na_ontap_interface - improved validations for unsupported options with FC
+        interfaces.
+      - na_ontap_kerberos_realm - added REST support.
+      - na_ontap_kerberos_realm - change ``kdc_port`` option type to int.
+      - na_ontap_lun_copy - added REST support.
+      - na_ontap_lun_map_reporting_nodes - added REST support.
+      - na_ontap_ntp - for ONTAP version 9.6 or below fall back to ZAPI when ``use_rest``
+        is set to ``auto`` or fail when REST is desired.
+      - na_ontap_ntp_key - fail for ONTAP version 9.6 or below when ``use_rest`` is
+        set to ``auto`` or when REST is desired.
+      - na_ontap_rest_info - new option ``ignore_api_errors`` to report error in subset
+        rather than breaking execution.
+      - na_ontap_rest_info - support added for protocols/vscan/on-access-policies.
+      - na_ontap_rest_info - support added for protocols/vscan/on-demand-policies.
+      - na_ontap_rest_info - support added for protocols/vscan/scanner-pools.
+      - na_ontap_security_key_manager - added REST support.
+      - na_ontap_security_key_manager - new REST option ``onboard`` for onboard key
+        manager.
+      - na_ontap_security_key_manager - new REST options ``external`` and ``vserver``
+        for external key manager.
+      - na_ontap_ucadapter - added REST support.
+      - na_ontap_user_role -- added REST support.
+      - na_ontap_volume - attempt to delete volume even when unmounting or offlining
+        failed.
+    fragments:
+    - DEVOPS-4197.yaml
+    - DEVOPS-4347.yaml
+    - DEVOPS-4716.yaml
+    - DEVOPS-4762.yaml
+    - DEVOPS-4763.yaml
+    - DEVOPS-4767.yaml
+    - DEVOPS-4771.yaml
+    - DEVOPS-4774.yaml
+    - DEVOPS-4775.yaml
+    - DEVOPS-4789.yaml
+    - DEVOPS-4800.yaml
+    - DEVOPS-5085.yaml
+    - DEVOPS-5223.yaml
+    - DEVOPS-5251.yaml
+    - DEVOPS-5285.yaml
+    - DEVOPS-5338.yaml
+    - DEVOPS-5367.yaml
+    - DEVOPS-5412.yaml
+    - DEVOPS-5413.yaml
+    modules:
+    - description: NetApp ONTAP configuration for EMS event destination
+      name: na_ontap_ems_destination
+      namespace: ''
+    release_date: '2022-09-07'
   21.3.0:
     changes:
       bugfixes:

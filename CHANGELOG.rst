@@ -5,6 +5,53 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.23.0
+========
+
+Minor Changes
+-------------
+
+- all REST modules - new option ``force_ontap_version`` to bypass permission issues with custom vsadmin roles.
+- na_ontap_cifs_local_user_set_password - Added REST support.
+- na_ontap_cluster_ha - added REST support.
+- na_ontap_export_policy_rule - ``rule_index`` is now optional for create and delete.
+- na_ontap_export_policy_rule - new option ``force_delete_on_first_match`` to support duplicate entries on delete.
+- na_ontap_interface - improved validations for unsupported options with FC interfaces.
+- na_ontap_kerberos_realm - added REST support.
+- na_ontap_kerberos_realm - change ``kdc_port`` option type to int.
+- na_ontap_lun_copy - added REST support.
+- na_ontap_lun_map_reporting_nodes - added REST support.
+- na_ontap_ntp - for ONTAP version 9.6 or below fall back to ZAPI when ``use_rest`` is set to ``auto`` or fail when REST is desired.
+- na_ontap_ntp_key - fail for ONTAP version 9.6 or below when ``use_rest`` is set to ``auto`` or when REST is desired.
+- na_ontap_rest_info - new option ``ignore_api_errors`` to report error in subset rather than breaking execution.
+- na_ontap_rest_info - support added for protocols/vscan/on-access-policies.
+- na_ontap_rest_info - support added for protocols/vscan/on-demand-policies.
+- na_ontap_rest_info - support added for protocols/vscan/scanner-pools.
+- na_ontap_security_key_manager - added REST support.
+- na_ontap_security_key_manager - new REST option ``onboard`` for onboard key manager.
+- na_ontap_security_key_manager - new REST options ``external`` and ``vserver`` for external key manager.
+- na_ontap_ucadapter - added REST support.
+- na_ontap_user_role -- added REST support.
+- na_ontap_volume - attempt to delete volume even when unmounting or offlining failed.
+
+Bugfixes
+--------
+
+- na_ontap_cifs_acl - use ``type`` if present when fetching existing ACL with ZAPI.
+- na_ontap_cifs_local_user_set_password - when using ZAPI, do not require cluster admin privileges.
+- na_ontap_flexcache - properly use ``origin_cluster`` in GET but not in POST when using REST.
+- na_ontap_kerberos_realm - fix cannot modify ``comment`` option in ZAPI.
+- na_ontap_lun_copy - fix key error on ``source_vserver`` option.
+- na_ontap_ntp - fixed typeError on ``key_id`` field with ZAPI.
+- na_ontap_s3_buckets - fix TypeError if ``conditions`` not present in policy statements.
+- na_ontap_s3_buckets - fix options that cannot be modified if not set in creating s3 buckets.
+- na_ontap_s3_buckets - updated correct choices in options ``audit_event_selector.access`` and ``audit_event_selector.permission``.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_ems_destination - NetApp ONTAP configuration for EMS event destination
+
 v21.22.0
 ========
 

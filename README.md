@@ -45,6 +45,7 @@ return values differently than ZAPI you will need to update your playbooks to wo
   - na_ontap_command -> na_ontap_rest_cli
   - na_ontap_firewall_policy -> na_ontap_service_policy
   - na_ontap_info -> na_ontap_rest_info
+  - na_ontap_ldap -> na_ontap_ldap_client
   - na_ontap_motd -> na_ontap_login_messages
   - na_ontap_qos_adaptive_policy_group -> na_ontap_qos_policy_group
   - na_ontap_volume_snaplock -> na_ontap_volume
@@ -56,7 +57,6 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_active_directory
   - na_ontap_cg_snapshot
   - na_ontap_file_directory_policy
-  - na_ontap_net_subnet
   - na_ontap_svm_options
 
 
