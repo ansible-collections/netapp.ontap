@@ -115,7 +115,7 @@ options:
       nfs_access:
         description:
           - The list of NFS access controls.  You must provide I(host) or I(access) to enable NFS access.
-          - Mutually exclusive with export_policy option in nas_application_template.
+          - Mutually exclusive with export_policy option.
         type: list
         elements: dict
         suboptions:
@@ -986,17 +986,13 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
-        if self.use_rest and self.parameters['use_rest'].lower() == 'auto':
-            self.module.warn(
-                'Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')
-            self.use_rest = False
 
         if not self.use_rest:
             self.setup_zapi()
         if self.use_rest:
             self.rest_errors()
 
-        # REST API for application/applications if needed
+        # REST API for application/applications if needed - will report an error when REST is not supported
         self.rest_app = self.setup_rest_application()
 
     def setup_zapi(self):
@@ -1005,8 +1001,11 @@ class NetAppOntapVolume:
 
         for unsupported_zapi_property in self.unsupported_zapi_properties:
             if self.parameters.get(unsupported_zapi_property) is not None:
-                self.module.fail_json(
-                    msg="%s option is not supported with ZAPI. It can only be used with REST." % unsupported_zapi_property)
+                msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                msg += '  use_rest: %s.' % self.parameters['use_rest']
+                if self.rest_api.fallback_to_zapi_reason:
+                    msg += '  Conflict %s.' % self.rest_api.fallback_to_zapi_reason
+                self.module.fail_json(msg=msg)
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         self.cluster = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
@@ -1018,9 +1017,14 @@ class NetAppOntapVolume:
                     self.module.fail_json(msg="snapshot_auto_delete option '%s' is not valid." % key)
 
     def setup_rest_application(self):
-        use_application_template = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application'])
         rest_app = None
-        if use_application_template:
+        if self.na_helper.safe_get(self.parameters, ['nas_application_template', 'use_nas_application']):
+            if not self.use_rest:
+                msg = 'Error: nas_application_template requires REST support.'
+                msg += '  use_rest: %s.' % self.parameters['use_rest']
+                if self.rest_api.fallback_to_zapi_reason:
+                    msg += '  Conflict %s.' % self.rest_api.fallback_to_zapi_reason
+                self.module.fail_json(msg=msg)
             # consistency checks
             # tiering policy is duplicated, make sure values are matching
             tiering_policy_nas = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'tiering', 'policy'])
@@ -1234,7 +1238,7 @@ class NetAppOntapVolume:
         nas = dict(application_components=[self.create_nas_application_component()])
         value = self.na_helper.safe_get(self.parameters, ['snapshot_policy'])
         if value is not None:
-            nas['protection_type'] = dict(local_policy=value)
+            nas['protection_type'] = {'local_policy': value}
         for attr in ('nfs_access', 'cifs_access'):
             value = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
             if value is not None:
@@ -1246,7 +1250,7 @@ class NetAppOntapVolume:
             values = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
             if values:
                 nas[attr] = [dict(name=name) for name in values]
-        return self.rest_app.create_application_body("nas", nas)
+        return self.rest_app.create_application_body("nas", nas, smart_container=True)
 
     def create_nas_application(self):
         '''Use REST application/applications nas template to create a volume'''
@@ -1381,17 +1385,6 @@ class NetAppOntapVolume:
             options['volume-state'] = 'offline'
         return options
 
-    def rest_unmount_volume(self, uuid, current):
-        """
-        Unmount the volume using REST PATCH method.
-        """
-        response = None
-        if current.get('junction_path'):
-            body = dict(nas=dict(path=''))
-            response, error = self.volume_rest_patch(body)
-            self.na_helper.fail_on_error(error)
-        return response
-
     def rest_delete_volume(self, current):
         """
         Delete the volume using REST DELETE method (it scrubs better than ZAPI).
@@ -1399,30 +1392,56 @@ class NetAppOntapVolume:
         uuid = self.parameters['uuid']
         if uuid is None:
             self.module.fail_json(msg='Could not read UUID for volume %s in delete.' % self.parameters['name'])
-        self.rest_unmount_volume(uuid, current)
-        response, error = rest_generic.delete_async(self.rest_api, 'storage/volumes', uuid, job_timeout=self.parameters['time_out'])
-        self.na_helper.fail_on_error(error)
-        return response
+        unmount_error = self.volume_unmount_rest(fail_on_error=False) if current.get('junction_path') else None
+        dummy, error = rest_generic.delete_async(self.rest_api, 'storage/volumes', uuid, job_timeout=self.parameters['time_out'])
+        self.na_helper.fail_on_error(error, previous_errors=(['Error unmounting volume: %s' % unmount_error] if unmount_error else None))
+        self.module.warn('Volume was successfully deleted though unmount failed with %s' % unmount_error)
+
+    def delete_volume_async(self, current):
+        '''Delete ONTAP volume for infinite or flexgroup types '''
+        errors = None
+        if current['is_online']:
+            dummy, errors = self.change_volume_state(call_from_delete_vol=True)
+        volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
+            'volume-destroy-async', **{'volume-name': self.parameters['name']})
+        try:
+            result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
+            self.check_invoke_result(result, 'delete')
+        except netapp_utils.zapi.NaApiError as error:
+            msg = 'Error deleting volume %s: %s.' % (self.parameters['name'], to_native(error))
+            if errors:
+                msg += '  Previous errors when offlining/unmounting volume: %s' % ' - '.join(errors)
+            self.module.fail_json(msg=msg)
+
+    def delete_volume_sync(self, current, unmount_offline):
+        '''Delete ONTAP volume for flexvol types '''
+        options = {'name': self.parameters['name']}
+        if unmount_offline:
+            options['unmount-and-offline'] = 'true'
+        volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
+            'volume-destroy', **options)
+        try:
+            result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            return error
+        return None
 
     def delete_volume(self, current):
         '''Delete ONTAP volume'''
         if self.use_rest and self.parameters['uuid'] is not None:
             return self.rest_delete_volume(current)
         if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
-            if current['is_online']:
-                self.change_volume_state(call_from_delete_vol=True)
-            volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
-                'volume-destroy-async', **{'volume-name': self.parameters['name']})
-        else:
-            volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
-                'volume-destroy', **{'name': self.parameters['name'], 'unmount-and-offline': 'true'})
-        try:
-            result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
-            if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
-                self.check_invoke_result(result, 'delete')
-        except netapp_utils.zapi.NaApiError as error:
+            return self.delete_volume_async(current)
+        errors = []
+        error = self.delete_volume_sync(current, True)
+        if error:
+            errors.append('volume delete failed with unmount-and-offline option: %s' % to_native(error))
+            error = self.delete_volume_sync(current, False)
+            if error:
+                errors.append('volume delete failed without unmount-and-offline option: %s' % to_native(error))
+        if errors:
             self.module.fail_json(msg='Error deleting volume %s: %s'
-                                  % (self.parameters['name'], to_native(error)),
+                                  % (self.parameters['name'], ' - '.join(errors)),
                                   exception=traceback.format_exc())
 
     def move_volume(self, encrypt_destination=None):
@@ -1633,9 +1652,9 @@ class NetAppOntapVolume:
                 self.check_invoke_result(result, action)
         except netapp_utils.zapi.NaApiError as error:
             errors.append('Error changing the state of volume %s to %s: %s' % (self.parameters['name'], state, to_native(error)))
-            self.module.fail_json(msg=', '.join(errors),
-                                  exception=traceback.format_exc())
-        return state
+        if errors and not call_from_delete_vol:
+            self.module.fail_json(msg=', '.join(errors), exception=traceback.format_exc())
+        return state, errors
 
     def create_volume_attribute(self, zapi_object, parent_attribute, attribute, option_name, convert_from=None):
         """
@@ -1657,7 +1676,9 @@ class NetAppOntapVolume:
             parent_attribute.add_new_child(attribute, value)
             return
         if isinstance(zapi_object, str):
-            zapi_object = netapp_utils.zapi.NaElement(zapi_object)
+            # retrieve existing in parent, or create a new one
+            element = parent_attribute.get_child_by_name(zapi_object)
+            zapi_object = netapp_utils.zapi.NaElement(zapi_object) if element is None else element
         zapi_object.add_new_child(attribute, value)
         parent_attribute.add_child_elem(zapi_object)
 
@@ -1806,7 +1827,9 @@ class NetAppOntapVolume:
         '''Modify volume action'''
         attributes = modify.keys()
         # order matters here, if both is_online and mount in modify, must bring the volume online first.
-        is_online = self.change_volume_state() == 'online' if 'is_online' in attributes else is_online
+        if 'is_online' in attributes:
+            state, dummy = self.change_volume_state()
+            is_online = state == 'online'
         for attribute in attributes:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
@@ -1833,44 +1856,6 @@ class NetAppOntapVolume:
             self.move_volume(self.parameters.get('encrypt'))
         elif 'encrypt' in attributes:
             self.start_encryption_conversion(self.parameters['encrypt'])
-
-    def compare_chmod_value(self, current):
-        """
-        compare current unix_permissions to desire unix_permissions.
-        :return: True if the same, False it not the same or desire unix_permissions is not valid.
-        """
-        desire = self.parameters
-        if current is None or 'unix_permissions' not in current:
-            return False
-        unix_permissions = desire['unix_permissions']
-        if unix_permissions.isdigit():
-            return int(current['unix_permissions']) == int(unix_permissions)
-        if len(unix_permissions) != 12:
-            return False
-        if unix_permissions[:3] != '---':
-            return False
-        octal_value = ''
-        for i in range(3, len(unix_permissions), 3):
-            if unix_permissions[i] not in ['r', '-'] or unix_permissions[i + 1] not in ['w', '-']\
-                    or unix_permissions[i + 2] not in ['x', '-']:
-                return False
-            group_permission = self.char_to_octal(unix_permissions[i:i + 3])
-            octal_value += str(group_permission)
-        return int(current['unix_permissions']) == int(octal_value)
-
-    def char_to_octal(self, chars):
-        """
-        :param chars: Characters to be converted into octal values.
-        :return: octal value of the individual group permission.
-        """
-        total = 0
-        if chars[0] == 'r':
-            total += 4
-        if chars[1] == 'w':
-            total += 2
-        if chars[2] == 'x':
-            total += 1
-        return total
 
     def get_volume_style(self, current):
         '''Get volume style, infinite or standard flexvol'''
@@ -1910,8 +1895,10 @@ class NetAppOntapVolume:
         server = self.server
         sleep_time = 5
         time_out = self.parameters['time_out']
-        results = self.get_job(jobid, server)
         error = 'timeout'
+
+        if time_out <= 0:
+            results = self.get_job(jobid, server)
 
         while time_out > 0:
             results = self.get_job(jobid, server)
@@ -2115,7 +2102,7 @@ class NetAppOntapVolume:
             if change < threshold:
                 self.parameters[attribute] = current[attribute]
                 if change > 0.1:
-                    self.module.warn('resize request for %s ignored: %.1f%% is below the threshold: %d%%' % (attribute, change, threshold))
+                    self.module.warn('resize request for %s ignored: %.1f%% is below the threshold: %.1f%%' % (attribute, change, threshold))
 
     def adjust_sizes(self, current, after_create):
         """
@@ -2158,8 +2145,9 @@ class NetAppOntapVolume:
 
     def set_modify_dict(self, current, after_create=False):
         '''Fill modify dict with changes'''
+        octal_value = current.get('unix_permissions') if current else None
         if self.parameters.get('unix_permissions') is not None and (
-            self.compare_chmod_value(current) or not self.parameters['is_online']
+            self.na_helper.compare_chmod_value(octal_value, self.parameters['unix_permissions']) or not self.parameters['is_online']
         ):
             # don't change if the values are the same
             # can't change permissions if not online
@@ -2389,7 +2377,7 @@ class NetAppOntapVolume:
             body['efficiency.policy.name'] = self.parameters['efficiency_policy']
         if self.get_compression():
             body['efficiency.compression'] = self.get_compression()
-        body['state'] = 'online' if self.parameters['is_online'] else 'offline'
+        body['state'] = self.bool_to_online(self.parameters['is_online'])
         return body
 
     def aggregates_rest(self, body):
@@ -2408,69 +2396,76 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error modifying volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    @staticmethod
+    def bool_to_online(item):
+        return 'online' if item else 'offline'
+
     def modify_volume_body_rest(self, params):
         body = {}
-        if self.parameters.get('space_guarantee') is not None:
-            body['guarantee.type'] = self.parameters['space_guarantee']
-        if self.parameters.get('percent_snapshot_space') is not None:
-            body['space.snapshot.reserve_percent'] = self.parameters['percent_snapshot_space']
-        if self.parameters.get('snapshot_policy') is not None:
-            body['snapshot_policy.name'] = self.parameters['snapshot_policy']
-        if self.parameters.get('export_policy') is not None:
-            body['nas.export_policy.name'] = self.parameters['export_policy']
-        if self.parameters.get('unix_permissions') is not None:
-            body['nas.unix_permissions'] = self.parameters['unix_permissions']
-        if self.parameters.get('group_id') is not None:
-            body['nas.gid'] = self.parameters['group_id']
-        if self.parameters.get('user_id') is not None:
-            body['nas.uid'] = self.parameters['user_id']
-        if params and params.get('volume_security_style') is not None:
-            body['nas.security_style'] = self.parameters['volume_security_style']
-        if self.get_qos_policy_group() is not None:
-            body['qos.policy.name'] = self.get_qos_policy_group()
-        if params and params.get('tiering_policy') is not None:
-            body['tiering.policy'] = self.parameters['tiering_policy']
-        if self.parameters.get('comment') is not None:
-            body['comment'] = self.parameters['comment']
-        if self.parameters.get('logical_space_enforcement') is not None:
-            body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
-        if self.parameters.get('logical_space_reporting') is not None:
-            body['space.logical_space.reporting'] = self.parameters['logical_space_reporting']
-        if self.parameters.get('tiering_minimum_cooling_days') is not None:
-            body['tiering.min_cooling_days'] = self.parameters['tiering_minimum_cooling_days']
+        for key, option, transform in [
+            ('guarantee.type', 'space_guarantee', None),
+            ('space.snapshot.reserve_percent', 'percent_snapshot_space', None),
+            ('snapshot_policy.name', 'snapshot_policy', None),
+            ('nas.export_policy.name', 'export_policy', None),
+            ('nas.unix_permissions', 'unix_permissions', None),
+            ('nas.gid', 'group_id', None),
+            ('nas.uid', 'user_id', None),
+            # only one of these 2 options for QOS policy can be defined at most
+            ('qos.policy.name', 'qos_policy_group', None),
+            ('qos.policy.name', 'qos_adaptive_policy_group', None),
+            ('comment', 'comment', None),
+            ('space.logical_space.enforcement', 'logical_space_enforcement', None),
+            ('space.logical_space.reporting', 'logical_space_reporting', None),
+            ('tiering.min_cooling_days', 'tiering_minimum_cooling_days', None),
+            ('state', 'is_online', self.bool_to_online),
+        ]:
+            value = self.parameters.get(option)
+            if value is not None:
+                if transform:
+                    value = transform(value)
+                if value is not None:
+                    body[key] = value
+
+        # not too sure why we don't always set them
+        # one good reason are fields that are not supported on all releases
+        for key, option, transform in [
+            ('nas.security_style', 'volume_security_style', None),
+            ('tiering.policy', 'tiering_policy', None),
+            ('files.maximum', 'max_files', None),
+        ]:
+            if params and params.get(option) is not None:
+                body[key] = self.parameters[option]
+
         if params and params.get('snaplock') is not None:
-            sl_dict = self.na_helper.filter_out_none_entries(self.parameters['snaplock']) or []
+            sl_dict = self.na_helper.filter_out_none_entries(self.parameters['snaplock']) or {}
             # type is not allowed in patch, and we already prevented any change in type
             sl_dict.pop('type', None)
             if sl_dict:
                 body['snaplock'] = sl_dict
-        if params and params.get('max_files') is not None:
-            body['files'] = {'maximum': params['max_files']}
-        body['state'] = 'online' if self.parameters['is_online'] else 'offline'
         return body
 
     def change_volume_state_rest(self):
-        # TODO: check if call_from_delete_vol is needed in rest
         body = {
-            'state': 'online' if self.parameters['is_online'] else 'offline',
+            'state': self.bool_to_online(self.parameters['is_online']),
         }
         dummy, error = self.volume_rest_patch(body)
         if error:
             self.module.fail_json(msg='Error changing state of volume %s: %s' % (self.parameters['name'],
                                                                                  to_native(error)),
                                   exception=traceback.format_exc())
-        return body['state']
+        return body['state'], None
 
-    def volume_unmount_rest(self):
+    def volume_unmount_rest(self, fail_on_error=True):
         body = {
             'nas.path': '',
         }
         dummy, error = self.volume_rest_patch(body)
-        if error:
-            self.module.fail_json(msg='Error unmounting volume %s: with path "%s", %s' % (self.parameters['name'],
-                                                                                          self.parameters['junction_path'],
-                                                                                          to_native(error)),
+        if error and fail_on_error:
+            self.module.fail_json(msg='Error unmounting volume %s with path "%s": %s' % (self.parameters['name'],
+                                                                                         self.parameters.get('junction_path'),
+                                                                                         to_native(error)),
                                   exception=traceback.format_exc())
+        return error
 
     def volume_mount_rest(self):
         body = {
@@ -2478,7 +2473,9 @@ class NetAppOntapVolume:
         }
         dummy, error = self.volume_rest_patch(body)
         if error:
-            self.module.fail_json(msg='Error mounting volume %s: %s' % (self.parameters['name'], to_native(error)),
+            self.module.fail_json(msg='Error mounting volume %s with path "%s": %s' % (self.parameters['name'],
+                                                                                       self.parameters['junction_path'],
+                                                                                       to_native(error)),
                                   exception=traceback.format_exc())
 
     def set_efficiency_rest(self):
@@ -2694,7 +2691,10 @@ class NetAppOntapVolume:
     def apply(self):
         '''Call create/modify/delete operations'''
         if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume", self.server)
+            try:
+                netapp_utils.ems_log_event("na_ontap_volume", self.server)
+            except netapp_utils.zapi.NaApiError as error:
+                self.module.fail_json(msg="Error on vserver: %s: %s" % (self.parameters['vserver'], error))
         actions, current, modify = self.set_actions()
 
         response = None

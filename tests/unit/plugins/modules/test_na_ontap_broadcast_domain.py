@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible.module_utils import basic
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_broadcast_domain \
@@ -342,13 +342,6 @@ class TestMyModule(unittest.TestCase):
         delete_broadcast_domain.assert_called_with(current=current)
 
 
-WARNINGS = list()
-
-
-def warn(dummy, msg):
-    WARNINGS.append(msg)
-
-
 def default_args():
     args = {
         'state': 'present',
@@ -493,7 +486,7 @@ def test_create_broadcast_domain(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -514,7 +507,7 @@ def test_create_broadcast_domain_idempotency(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -537,7 +530,7 @@ def test_create_broadcast_domain_idempotency_identical_ports(mock_request, patch
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -559,7 +552,7 @@ def test_modify_broadcast_domain(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -587,7 +580,7 @@ def test_rename_broadcast_domain(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -614,7 +607,7 @@ def test_split_broadcast_domain_create_domain2_with_e0a(mock_request, patch_ansi
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -639,7 +632,7 @@ def test_split_broadcast_domain_create_domain2_with_e0a_idempotent(mock_request,
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -666,7 +659,7 @@ def test_create_new_broadcast_domain_with_partial_match(mock_request, patch_ansi
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -690,7 +683,7 @@ def test_delete_broadcast_domain(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -757,7 +750,7 @@ def test_module_modify_ipspace(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -784,7 +777,7 @@ def test_module_modify_name_and_ipspace(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -812,4 +805,4 @@ def test_module_split_name_ipspace_if_not_exact_match_of_ports(mock_request, pat
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()

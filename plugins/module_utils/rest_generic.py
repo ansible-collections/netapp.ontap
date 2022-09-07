@@ -87,7 +87,7 @@ def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_t
     # cluster does not use uuid or name, and query based PATCH does not use UUID (for restit)
     api = '%s/%s' % (api, uuid_or_name) if uuid_or_name is not None else api
     response, error = rest_api.patch(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
-    increment = max(job_timeout / 6, 5)
+    increment = min(max(job_timeout / 6, 5), 60)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error
 
@@ -96,6 +96,6 @@ def delete_async(rest_api, api, uuid, query=None, body=None, timeout=30, job_tim
     # query based DELETE does not use UUID (for restit)
     api = '%s/%s' % (api, uuid) if uuid is not None else api
     response, error = rest_api.delete(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
-    increment = max(job_timeout / 6, 5)
+    increment = min(max(job_timeout / 6, 5), 60)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error

@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2018-2022, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
 na_ontap_job_schedule
@@ -24,58 +23,58 @@ description:
 options:
   state:
     description:
-    - Whether the specified job schedule should exist or not.
+      - Whether the specified job schedule should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
   name:
     description:
-    - The name of the job-schedule to manage.
+      - The name of the job-schedule to manage.
     required: true
     type: str
   job_minutes:
     description:
-    - The minute(s) of each hour when the job should be run.
-      Job Manager cron scheduling minute.
-      -1 represents all minutes.
-      Range is [-1..59]
-    - Required for create.
+      - The minute(s) of each hour when the job should be run.
+        Job Manager cron scheduling minute.
+      - 1 represents all minutes.
+        Range is [-1..59]
+      - Required for create.
     type: list
     elements: int
   job_hours:
     version_added: 2.8.0
     description:
-    - The hour(s) of the day when the job should be run.
-      Job Manager cron scheduling hour.
-      -1 represents all hours.
-      Range is [-1..23]
+      - The hour(s) of the day when the job should be run.
+        Job Manager cron scheduling hour.
+      - 1 represents all hours.
+        Range is [-1..23]
     type: list
     elements: int
   job_months:
     version_added: 2.8.0
     description:
-    - The month(s) when the job should be run.
-      Job Manager cron scheduling month.
-      -1 represents all months.
-      Range is [-1..12], 0 and 12 may or may not be supported, see C(month_offset)
+      - The month(s) when the job should be run.
+        Job Manager cron scheduling month.
+      - 1 represents all months.
+        Range is [-1..12], 0 and 12 may or may not be supported, see C(month_offset)
     type: list
     elements: int
   job_days_of_month:
     version_added: 2.8.0
     description:
-    - The day(s) of the month when the job should be run.
-      Job Manager cron scheduling day of month.
-      -1 represents all days of a month from 1 to 31.
-      Range is [-1..31]
+      - The day(s) of the month when the job should be run.
+        Job Manager cron scheduling day of month.
+      - 1 represents all days of a month from 1 to 31.
+        Range is [-1..31]
     type: list
     elements: int
   job_days_of_week:
     version_added: 2.8.0
     description:
-    - The day(s) in the week when the job should be run.
-      Job Manager cron scheduling day of week.
-      Zero represents Sunday. -1 represents all days of a week.
-      Range is [-1..6]
+      - The day(s) in the week when the job should be run.
+        Job Manager cron scheduling day of week.
+      - Zero represents Sunday. -1 represents all days of a week.
+        Range is [-1..6]
     type: list
     elements: int
   month_offset:
@@ -87,6 +86,16 @@ options:
     type: int
     choices: [0, 1]
     version_added: 21.9.0
+  cluster:
+    description:
+       - Defaults to local cluster.
+       - In a MetroCluster configuration, user-created schedules owned by the local cluster are replicated to the partner cluster.
+         Likewise, user-created schedules owned by the partner cluster are replicated to the local cluster.
+       - Normally, only schedules owned by the local cluster can be created, modified, and deleted on the local cluster.
+         However, when a MetroCluster configuration is in switchover, the cluster in switchover state can
+         create, modify, and delete schedules owned by the partner cluster.
+    type: str
+    version_added: 21.22.0
 '''
 
 EXAMPLES = """
@@ -155,11 +164,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppONTAPJob():
+class NetAppONTAPJob:
     '''Class with job schedule cron methods'''
 
     def __init__(self):
@@ -174,7 +182,8 @@ class NetAppONTAPJob():
             job_hours=dict(required=False, type='list', elements='int'),
             job_days_of_month=dict(required=False, type='list', elements='int'),
             job_days_of_week=dict(required=False, type='list', elements='int'),
-            month_offset=dict(required=False, type='int', choices=[0, 1])
+            month_offset=dict(required=False, type='int', choices=[0, 1]),
+            cluster=dict(required=False, type='str')
         ))
 
         self.uuid = None
@@ -185,17 +194,9 @@ class NetAppONTAPJob():
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.set_playbook_zapi_key_map()
-        self.set_playbook_api_key_map()
 
-        self.rest_api = OntapRestAPI(self.module)
-        if self.rest_api.is_rest():
-            self.use_rest = True
-        elif netapp_utils.has_netapp_lib():
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        else:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
         self.month_offset = self.parameters.get('month_offset')
         if self.month_offset is None:
@@ -206,9 +207,18 @@ class NetAppONTAPJob():
             # other value errors will be reported by the API.
             self.module.fail_json(msg='Error: 0 is not a valid value in months if month_offset is set to 1: %s' % self.parameters['job_months'])
 
+        if self.use_rest:
+            self.set_playbook_api_key_map()
+        elif not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        else:
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            self.set_playbook_zapi_key_map()
+
     def set_playbook_zapi_key_map(self):
         self.na_helper.zapi_string_keys = {
             'name': 'job-schedule-name',
+            'cluster': 'job-schedule-cluster'
         }
         self.na_helper.zapi_list_keys = {
             'job_minutes': ('job-schedule-cron-minute', 'cron-minute'),
@@ -236,9 +246,11 @@ class NetAppONTAPJob():
         :rtype: dict
         """
         query = {'name': self.parameters['name']}
+        if self.parameters.get('cluster'):
+            query['cluster'] = self.parameters['cluster']
         record, error = rest_generic.get_one_record(self.rest_api, 'cluster/schedules', query, 'uuid,cron')
         if error is not None:
-            self.module.fail_json(msg="Error on fetching job schedule: %s" % error)
+            self.module.fail_json(msg="Error fetching job schedule: %s" % error)
         if record:
             self.uuid = record['uuid']
             job_details = {'name': record['name']}
@@ -271,13 +283,10 @@ class NetAppONTAPJob():
             return self.get_job_schedule_rest()
 
         job_get_iter = netapp_utils.zapi.NaElement('job-schedule-cron-get-iter')
-        job_get_iter.translate_struct({
-            'query': {
-                'job-schedule-cron-info': {
-                    'job-schedule-name': self.parameters['name']
-                }
-            }
-        })
+        query = {'job-schedule-cron-info': {'job-schedule-name': self.parameters['name']}}
+        if self.parameters.get('cluster'):
+            query['job-schedule-cron-info']['job-schedule-cluster'] = self.parameters['cluster']
+        job_get_iter.translate_struct({'query': query})
         try:
             result = self.server.invoke_successfully(job_get_iter, True)
         except netapp_utils.zapi.NaApiError as error:
@@ -355,10 +364,12 @@ class NetAppONTAPJob():
                 'name': self.parameters['name'],
                 'cron': cron
             }
+            if self.parameters.get('cluster'):
+                params['cluster'] = self.parameters['cluster']
             api = 'cluster/schedules'
             dummy, error = self.rest_api.post(api, params)
             if error is not None:
-                self.module.fail_json(msg="Error on creating job schedule: %s" % error)
+                self.module.fail_json(msg="Error creating job schedule: %s" % error)
 
         else:
             job_schedule_create = netapp_utils.zapi.NaElement('job-schedule-cron-create')
@@ -379,7 +390,7 @@ class NetAppONTAPJob():
             api = 'cluster/schedules/' + self.uuid
             dummy, error = self.rest_api.delete(api)
             if error is not None:
-                self.module.fail_json(msg="Error on deleting job schedule: %s" % error)
+                self.module.fail_json(msg="Error deleting job schedule: %s" % error)
         else:
             job_schedule_delete = netapp_utils.zapi.NaElement('job-schedule-cron-destroy')
             self.add_job_details(job_schedule_delete, self.parameters)
@@ -420,7 +431,7 @@ class NetAppONTAPJob():
             api = 'cluster/schedules/' + self.uuid
             dummy, error = self.rest_api.patch(api, params)
             if error is not None:
-                self.module.fail_json(msg="Error on modifying job schedule: %s" % error)
+                self.module.fail_json(msg="Error modifying job schedule: %s" % error)
         else:
             job_schedule_modify = netapp_utils.zapi.NaElement.create_node_with_children(
                 'job-schedule-cron-modify', **{'job-schedule-name': self.parameters['name']})

@@ -7,14 +7,15 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_error_message, zapi_responses
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_login_messages \
-    import NetAppOntapLoginMessages as messages_module  # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_login_messages import main as my_main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -22,230 +23,291 @@ HAS_NETAPP_ZAPI_MSG = "pip install netapp_lib is required"
 
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
-    # 'dns_record': ({"records": [{"message": "test message",
-    #                              "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}]}, None),
-    'svm_uuid': (200, {"records": [{"uuid": "test_uuid"}], "num_records": 1}, None)
+SRR = rest_responses({
+    'svm_uuid': (200, {"records": [{"uuid": "test_uuid"}], "num_records": 1}, None),
+    'login_info': (200, {
+        "records": [{
+            "banner": "banner",
+            "message": "message",
+            "show_cluster_message": True,
+            "uuid": "uuid_uuid"
+        }],
+        "num_records": 1}, None),
+})
+
+
+banner_info = {
+    'num-records': 1,
+    'attributes-list': [{'vserver-login-banner-info': {
+        'message': 'banner message',
+    }}]}
+
+
+banner_info_empty = {
+    'num-records': 1,
+    'attributes-list': [{'vserver-login-banner-info': {
+        'message': '-',
+        'vserver': 'vserver'
+    }}]}
+
+
+motd_info = {
+    'num-records': 1,
+    'attributes-list': [{'vserver-motd-info': {
+        'is-cluster-message-enabled': 'true',
+        'message': 'motd message',
+        'vserver': 'vserver'
+    }}]}
+
+
+motd_info_empty = {
+    'num-records': 1,
+    'attributes-list': [{'vserver-motd-info': {
+        'is-cluster-message-enabled': 'true',
+        'vserver': 'vserver'
+    }}]}
+
+
+ZRR = zapi_responses({
+    'banner_info': build_zapi_response(banner_info),
+    'banner_info_empty': build_zapi_response(banner_info_empty),
+    'motd_info': build_zapi_response(motd_info),
+    'motd_info_empty': build_zapi_response(motd_info_empty),
+})
+
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        request = xml.to_string().decode('utf-8')
-        print(request)
-        if request.startswith("<ems-autosupport-log>"):
-            xml = None  # or something that may the logger happy, and you don't need @patch anymore
-            # or
-            # xml = build_ems_log_response()
-        elif self.kind == 'error':
-            raise netapp_utils.zapi.NaApiError('test', 'expect error')
-        elif request.startswith("<vserver-login-banner-get-iter>"):
-            if self.kind == 'create':
-                xml = self.build_banner_info()
-            # elif self.kind == 'create_idempotency':
-            #     xml = self.build_banner_info(self.params)
-            else:
-                xml = self.build_banner_info(self.params)
-        elif request.startswith("<vserver-login-banner-modify-iter>"):
-            xml = self.build_banner_info(self.params)
-        elif request.startswith("<vserver-motd-modify-iter>"):
-            xml = self.build_motd_info(self.params)
-        elif request.startswith("<vserver-motd-get-iter>"):
-            if self.kind == 'create':
-                xml = self.build_motd_info()
-            # elif self.kind == 'create_idempotency':
-            #     xml = self.build_banner_info(self.params)
-            else:
-                xml = self.build_motd_info(self.params)
-
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_banner_info(data=None):
-        xml = netapp_utils.zapi.NaElement('xml')
-        vserver = 'vserver'
-        attributes = {'num-records': 1,
-                      'attributes-list': {'vserver-login-banner-info': {'vserver': vserver}}}
-        if data is not None and data.get('banner'):
-            attributes['attributes-list']['vserver-login-banner-info']['message'] = data['banner']
-        xml.translate_struct(attributes)
-        return xml
-
-    @staticmethod
-    def build_motd_info(data=None):
-        xml = netapp_utils.zapi.NaElement('xml')
-        vserver = 'vserver'
-        attributes = {'num-records': 1,
-                      'attributes-list': {'vserver-motd-info': {'vserver': vserver}}}
-        if data is not None and data.get('motd_message'):
-            attributes['attributes-list']['vserver-motd-info']['message'] = data['motd_message']
-        if data is not None and data.get('show_cluster_motd') is False:
-            attributes['attributes-list']['vserver-motd-info']['is-cluster-message-enabled'] = 'false'
-        else:
-            attributes['attributes-list']['vserver-motd-info']['is-cluster-message-enabled'] = 'true'
-        xml.translate_struct(attributes)
-        return xml
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    assert "Error: vserver is a required parameter when using ZAPI." == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_login_banner '''
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.HAS_NETAPP_LIB', False)
+def test_module_fail_when_netapp_lib_missing():
+    ''' required lib missing '''
+    module_args = {
+        'use_rest': 'never',
+    }
+    assert 'Error: the python NetApp-Lib module is required.  Import error: None' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    def mock_args(self):
-        return {
-            'vserver': 'vserver',
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!'
-        }
 
-    def get_login_mock_object(self, cx_type='zapi', kind=None, status=None):
-        banner_obj = messages_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                banner_obj.server = MockONTAPConnection()
-            else:
-                banner_obj.server = MockONTAPConnection(kind=kind, data=status)
-        return banner_obj
+def test_successfully_create_banner():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-login-banner-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'banner': 'test banner',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            messages_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_successfully_create_banner(self):
-        data = self.mock_args()
-        data['banner'] = 'test banner'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_login_mock_object('zapi', 'create', data).apply()
-        assert exc.value.args[0]['changed']
+def test_create_banner_idempotency():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'banner': 'banner message',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_create_banner_idempotency(self):
-        data = self.mock_args()
-        data['banner'] = 'test banner'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_login_mock_object('zapi', 'create_idempotency', data).apply()
-        assert not exc.value.args[0]['changed']
 
-    def test_successfully_create_motd(self):
-        data = self.mock_args()
-        data['motd_message'] = 'test message'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_login_mock_object('zapi', 'create', data).apply()
-        assert exc.value.args[0]['changed']
+def test_successfully_create_motd():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info_empty']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info_empty']),
+        ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'motd_message': 'test message',
+        'show_cluster_motd': False
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_create_motd_idempotency(self):
-        data = self.mock_args()
-        data['motd_message'] = 'test message'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_login_mock_object('zapi', 'create_idempotency', data).apply()
-        assert not exc.value.args[0]['changed']
 
-    def test_get_banner_error(self):
-        data = self.mock_args()
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_login_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error fetching login_banner info: NetApp API failed. Reason - test:expect error'
+def test_create_motd_idempotency():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'motd_message': 'motd message',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_login_messages.NetAppOntapLoginMessages.get_banner_motd')
-    def test_modify_banner_error(self, get_info):
-        data = self.mock_args()
-        data['banner'] = 'modify to new banner'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        get_info.side_effect = [
-            {
-                'banner': 'old banner',
-                'motd': ''
-            }
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_login_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying login_banner: NetApp API failed. Reason - test:expect error'
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_login_messages.NetAppOntapLoginMessages.get_banner_motd')
-    def test_modify_motd_error(self, get_info):
-        data = self.mock_args()
-        data['motd_message'] = 'modify to new motd'
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        get_info.side_effect = [
-            {
-                'motd': 'old motd',
-                'show_cluster_motd': False
-            }
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_login_mock_object('zapi', 'error', data).apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying motd: NetApp API failed. Reason - test:expect error'
+def test_create_motd_modify():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
+        ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'motd_message': 'motd message',
+        'show_cluster_motd': False
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successfully_create_banner_rest(self, mock_request):
-        data = self.mock_args()
-        data['banner'] = 'test banner'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_uuid'],
-            SRR['empty_good'],    # get
-            SRR['empty_good'],    # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_login_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_banner_error_rest(self, mock_request):
-        data = self.mock_args()
-        data['banner'] = 'test banner'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_uuid'],
-            SRR['generic_error'],    # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_login_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == 'Error when fetching login_banner info: Expected error'
+def test_get_banner_error():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == zapi_error_message('Error fetching login_banner info')
 
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['svm_uuid'],
-            SRR['empty_good'],       # get
-            SRR['generic_error'],    # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_login_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == 'Error when modifying banner: Expected error'
+
+def test_get_motd_error():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == zapi_error_message('Error fetching motd info')
+
+
+def test_modify_banner_error():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
+        ('ZAPI', 'vserver-login-banner-modify-iter', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'banner': 'modify to new banner',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == zapi_error_message('Error modifying login_banner')
+
+
+def test_modify_motd_error():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
+        ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
+        ('ZAPI', 'vserver-motd-modify-iter', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'motd_message': 'modify to new motd',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == zapi_error_message('Error modifying motd')
+
+
+def test_successfully_create_banner_rest():
+    register_responses([
+        # no vserver, cluster scope
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info']),
+        ('PATCH', 'security/login/messages/uuid_uuid', SRR['success']),
+        # with vserver
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['zero_records']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('PATCH', 'security/login/messages/test_uuid', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'banner': 'test banner',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['vserver'] = 'vserver'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_successfully_create_motd_rest():
+    register_responses([
+        # no vserver, cluster scope
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info']),
+        ('PATCH', 'security/login/messages/uuid_uuid', SRR['success']),
+        # with vserver
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info']),
+        ('PATCH', 'security/login/messages/uuid_uuid', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'motd_message': 'test motd',
+        'show_cluster_motd': False
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['vserver'] = 'vserver'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_banner_error_rest():
+    register_responses([
+        # no vserver, cluster scope
+        # error fetching info
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['generic_error']),
+        # error no info at cluster level
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['zero_records']),
+        # with vserver
+        # error fetching SVM UUID
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['zero_records']),
+        ('GET', 'svm/svms', SRR['generic_error']),
+        # error, SVM not found
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['zero_records']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        # error, on patch
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info']),
+        ('PATCH', 'security/login/messages/uuid_uuid', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'banner': 'test banner',
+        # 'show_cluster_motd': False
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == rest_error_message(
+        'Error fetching login_banner info', 'security/login/messages')
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'Error fetching login_banner info for cluster - no data.'
+    module_args['vserver'] = 'vserver'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == rest_error_message('Error fetching vserver vserver', 'svm/svms')
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] ==\
+        'Error fetching vserver vserver. Please make sure vserver name is correct. For cluster vserver, don\'t set vserver.'
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == rest_error_message(
+        'Error modifying banner', 'security/login/messages/uuid_uuid')

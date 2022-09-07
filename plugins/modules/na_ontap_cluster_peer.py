@@ -392,7 +392,8 @@ class NetAppONTAPClusterPeer:
         destination_action = self.na_helper.get_cd_action(destination, self.parameters)
         self.na_helper.changed = False
         # create only if expected cluster peer relation is not present on both source and destination clusters
-        if source_action == 'create' and destination_action == 'create':
+        # will error out with appropriate message if peer relationship already exists on either cluster
+        if source_action == 'create' or destination_action == 'create':
             if not self.module.check_mode:
                 self.cluster_peer_create('source')
                 self.cluster_peer_create('destination')

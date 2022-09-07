@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -13,52 +13,52 @@ extends_documentation_fragment:
 version_added: 2.8.0
 author:  Storage Engineering (@Albinpopote) <ansible@black-perl.fr>
 description:
-- Create, modify, destroy the network subnet
+  - Create, modify, destroy the network subnet
 options:
   state:
     description:
-    - Whether the specified network interface group should exist or not.
+      - Whether the specified network interface group should exist or not.
     choices: ['present', 'absent']
     default: present
     type: str
 
   broadcast_domain:
     description:
-    - Specify the required broadcast_domain name for the subnet.
-    - A broadcast domain can not be modified after the subnet has been created
+      - Specify the required broadcast_domain name for the subnet.
+      - A broadcast domain can not be modified after the subnet has been created
     type: str
 
   name:
     description:
-    - Specify the subnet name.
+      - Specify the subnet name.
     required: true
     type: str
 
   from_name:
     description:
-    - Name of the subnet to be renamed
+      - Name of the subnet to be renamed
     type: str
 
   gateway:
     description:
-    - Specify the gateway for the default route of the subnet.
+      - Specify the gateway for the default route of the subnet.
     type: str
 
   ipspace:
     description:
-    - Specify the ipspace for the subnet.
-    - The default value for this parameter is the default IPspace, named 'Default'.
+      - Specify the ipspace for the subnet.
+      - The default value for this parameter is the default IPspace, named 'Default'.
     type: str
 
   ip_ranges:
     description:
-    - Specify the list of IP address ranges associated with the subnet.
+      - Specify the list of IP address ranges associated with the subnet.
     type: list
     elements: str
 
   subnet:
     description:
-    - Specify the subnet (ip and mask).
+      - Specify the subnet (ip and mask).
     type: str
 """
 
@@ -132,11 +132,11 @@ class NetAppOntapSubnet:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.na_helper.module_deprecated(self.module)
 
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-        return
 
     def get_subnet(self, name=None):
         """
@@ -152,7 +152,8 @@ class NetAppOntapSubnet:
         subnet_iter = netapp_utils.zapi.NaElement('net-subnet-get-iter')
         subnet_info = netapp_utils.zapi.NaElement('net-subnet-info')
         subnet_info.add_new_child('subnet-name', name)
-
+        if self.parameters.get('ipspace'):
+            subnet_info.add_new_child('ipspace', self.parameters['ipspace'])
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(subnet_info)
 

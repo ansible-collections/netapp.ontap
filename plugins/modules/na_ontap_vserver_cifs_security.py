@@ -201,6 +201,7 @@ class NetAppONTAPCifsSecurity(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.na_helper.module_replaces('na_ontap_cifs_server', self.module)
         msg = 'Error: na_ontap_vserver_cifs_security only supports ZAPI.netapp.ontap.na_ontap_cifs_server should be used instead.'
         self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 

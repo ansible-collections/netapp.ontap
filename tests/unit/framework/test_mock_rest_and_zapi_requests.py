@@ -153,12 +153,12 @@ def test_fixture(patch_fixture):
     mock_sr, mock_invoke = patch_fixture
     cx = netapp_utils.OntapZAPICx()
     cx.invoke_elem(netapp_utils.zapi.NaElement.create_node_with_children('get-version'))
-    assert('test_fixture') in uut._RESPONSES
-    assert('test_fixture') in uut._REQUESTS
+    assert 'test_fixture' in uut._RESPONSES
+    assert 'test_fixture' in uut._REQUESTS
     uut.print_requests()
     uut.print_requests_and_responses()
-    assert(len(mock_sr.mock_calls) == 0)
-    assert(len(mock_invoke.mock_calls) == 1)
+    assert len(mock_sr.mock_calls) == 0
+    assert len(mock_invoke.mock_calls) == 1
     calls = uut.get_mock_record()
     assert len([calls.get_requests()]) == 1
 

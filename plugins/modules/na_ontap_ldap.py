@@ -1,16 +1,12 @@
 #!/usr/bin/python
 '''
-(c) 2018-2019, NetApp, Inc
+(c) 2018-2022, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 
@@ -29,26 +25,26 @@ options:
 
   state:
     description:
-    - Whether the LDAP is present or not.
+      - Whether the LDAP is present or not.
     choices: ['present', 'absent']
     default: 'present'
     type: str
 
   vserver:
     description:
-    - vserver/svm configured to use LDAP
+      - vserver/svm configured to use LDAP
     required: true
     type: str
 
   name:
     description:
-    - The name of LDAP client configuration
+      - The name of LDAP client configuration
     required: true
     type: str
 
   skip_config_validation:
     description:
-    - Skip LDAP validation
+      - Skip LDAP validation
     choices: ['true', 'false']
     type: str
 '''
@@ -56,7 +52,7 @@ options:
 EXAMPLES = '''
 
     - name: Enable LDAP on SVM
-      na_ontap_ldap:
+      netapp.ontap.na_ontap_ldap:
         state:         present
         name:          'example_ldap'
         vserver:       'vserver1'
@@ -75,10 +71,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapLDAP(object):
+class NetAppOntapLDAP:
     '''
     LDAP Client definition class
     '''
@@ -98,12 +92,12 @@ class NetAppOntapLDAP(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        msg = 'Error: na_ontap_ldap only supports ZAPI.netapp.ontap.na_ontap_ldap_client should be used instead.'
+        self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(
-                msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_ldap(self, client_config_name=None):
         '''

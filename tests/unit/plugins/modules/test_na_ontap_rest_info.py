@@ -4,6 +4,7 @@
 ''' Unit Tests NetApp ONTAP REST APIs Ansible module: na_ontap_rest_info '''
 
 from __future__ import (absolute_import, division, print_function)
+
 __metaclass__ = type
 
 import pytest
@@ -11,8 +12,9 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception, \
-    patch_ansible, create_and_apply
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, \
+    expect_and_capture_ansible_exception, \
+    patch_ansible, create_and_apply, assert_warning_was_raised
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -20,20 +22,20 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_info \
     import NetAppONTAPGatherInfo as ontap_rest_info_module, main as my_main
 
-
 if sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
-
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
     # common responses
-    'validate_ontap_version_pass': (200, {'version': 'ontap_version'}, None),
+    'validate_ontap_version_pass': (
+        200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
     'validate_ontap_version_fail': (200, None, 'API not found error'),
     'error_invalid_api': (500, None, {'code': 3, 'message': 'Invalid API'}),
     'error_user_is_not_authorized': (500, None, {'code': 6, 'message': 'user is not authorized'}),
     'error_no_processing': (500, None, {'code': 123, 'message': 'error reported as is'}),
-    'error_no_aggr_recommendation': (500, None, {'code': 19726344, 'message': 'No recommendation can be made for this cluster'}),
+    'error_no_aggr_recommendation': (
+        500, None, {'code': 19726344, 'message': 'No recommendation can be made for this cluster'}),
     'get_subset_info': (200,
                         {'_links': {'self': {'href': 'dummy_href'}},
                          'num_records': 3,
@@ -104,7 +106,9 @@ SRR = rest_responses({
                 {'node': 'node1', 'check_type': 'type'},
                 {'node': 'node1', 'check_type': 'type'}],
             "num_records": 3}, None),
+    'lun_info': (200, {'records': [{"serial_number": "z6CcD+SK5mPb"}]}, None),
     'volume_info': (200, {"uuid": "7882901a-1aef-11ec-a267-005056b30cfa"}, None),
+    'svm_uuid': (200, {"records": [{"uuid": "test_uuid"}], "num_records": 1}, None),
     'get_uuid_policy_id_export_policy': (
         200,
         {
@@ -116,6 +120,115 @@ SRR = rest_responses({
                 "name": "ansible"
             }],
             "num_records": 1}, None),
+    'vscan_on_access_policies': (
+        200, {"records": [
+            {
+                "name": "on-access-test",
+                "mandatory": True,
+                "scope": {
+                    "scan_readonly_volumes": True,
+                    "exclude_paths": [
+                        "\\dir1\\dir2\\name",
+                        "\\vol\\a b",
+                        "\\vol\\a,b\\"
+                    ],
+                    "scan_without_extension": True,
+                    "include_extensions": [
+                        "mp*",
+                        "txt"
+                    ],
+                    "exclude_extensions": [
+                        "mp*",
+                        "txt"
+                    ],
+                    "only_execute_access": True,
+                    "max_file_size": "2147483648"
+                },
+                "enabled": True
+            }
+        ]}, None
+    ),
+    'vscan_on_demand_policies': (
+        200, {"records": [
+            {
+                "log_path": "/vol0/report_dir",
+                "scan_paths": [
+                    "/vol1/",
+                    "/vol2/cifs/"
+                ],
+                "name": "task-1",
+                "svm": {
+                    "_links": {
+                        "self": {
+                            "href": "/api/resourcelink"
+                        }
+                    },
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+                },
+                "scope": {
+                    "exclude_paths": [
+                        "/vol1/cold-files/",
+                        "/vol1/cifs/names"
+                    ],
+                    "scan_without_extension": True,
+                    "include_extensions": [
+                        "vmdk",
+                        "mp*"
+                    ],
+                    "exclude_extensions": [
+                        "mp3",
+                        "mp4"
+                    ],
+                    "max_file_size": "10737418240"
+                },
+                "schedule": {
+                    "_links": {
+                        "self": {
+                            "href": "/api/resourcelink"
+                        }
+                    },
+                    "name": "weekly",
+                    "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+                }
+            }
+        ]}, None
+    ),
+    'vscan_scanner_pools': (
+        200, {"records": [
+            {
+                "cluster": {
+                    "_links": {
+                        "self": {
+                            "href": "/api/resourcelink"
+                        }
+                    },
+                    "name": "cluster1",
+                    "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+                },
+                "name": "scanner-1",
+                "servers": [
+                    "1.1.1.1",
+                    "10.72.204.27",
+                    "vmwin204-27.fsct.nb"
+                ],
+                "privileged_users": [
+                    "cifs\\u1",
+                    "cifs\\u2"
+                ],
+                "svm": {
+                    "_links": {
+                        "self": {
+                            "href": "/api/resourcelink"
+                        }
+                    },
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+                },
+                "role": "primary"
+            }
+        ]}, None
+    )
 })
 
 ALL_SUBSETS = ['application/applications',
@@ -176,8 +289,6 @@ ALL_SUBSETS = ['application/applications',
                'protocols/cifs/shares',
                'protocols/cifs/users-and-groups/privileges',
                'protocols/cifs/unix-symlink-mapping',
-               'protocols/file-access-tracing/events',
-               'protocols/file-access-tracing/filters',
                'protocols/fpolicy',
                'protocols/locks',
                'protocols/ndmp',
@@ -242,7 +353,6 @@ ALL_SUBSETS = ['application/applications',
                'storage/flexcache/flexcaches',
                'storage/flexcache/origins',
                'storage/luns',
-               'storage/monitored-files',
                'storage/namespaces',
                'storage/ports',
                'storage/qos/policies',
@@ -284,7 +394,6 @@ ALL_SUBSETS = ['application/applications',
                'svm/peer-permissions',
                'svm/svms']
 
-
 # Super Important, Metrocluster doesn't call get_subset_info and has 3 api calls instead of 1!!!!
 # The metrocluster calls need to be in the correct place. The Module return the keys in a sorted list.
 ALL_RESPONSES = [
@@ -313,9 +422,6 @@ ALL_RESPONSES = [
     ('GET', 'cluster/nodes', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', 'cluster/ntp/servers', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
-    ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
     ('GET', '*', SRR['get_subset_info']),
@@ -603,19 +709,31 @@ def test_run_ontap_version_check_for_9_2_fail():
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_fail']),
     ])
-    assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check(), fail=True)['msg'] == SRR['validate_ontap_version_fail'][2]
+    assert call_main(my_main, set_args_run_ontap_version_check(),
+                     fail=True)['msg'] == 'Error using REST for version, error: %s.' % SRR['validate_ontap_version_fail'][2]
+
+
+def test_version_warning_message():
+    gather_subset = ['cluster/metrocluster/diagnostics']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+    ])
+    create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())
+    assert_warning_was_raised('The following subset have been removed from your query as they are not supported on ' +
+                              'your version of ONTAP cluster/metrocluster/diagnostics requires (9, 8), ')
 
 
 # metrocluster/diagnostics doesn't call get_subset_info and has 3 api calls instead of 1
 def test_run_metrocluster_pass():
     gather_subset = ['cluster/metrocluster/diagnostics']
     register_responses([
-        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'cluster/metrocluster/diagnostics', SRR['metrocluster_post']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['job']),
         ('GET', 'cluster/metrocluster/diagnostics', SRR['metrocluster_return']),
     ])
-    assert set(create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())['ontap_info']) == set(gather_subset)
+    assert set(create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())['ontap_info']) == set(
+        gather_subset)
 
 
 def test_run_ontap_gather_facts_for_vserver_info_pass():
@@ -645,7 +763,8 @@ def test_run_ontap_gather_facts_for_all_subsets_pass():
 def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass():
     gather_subset = ALL_SUBSETS
     register_responses(ALL_RESPONSES)
-    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass()
+    assert set(create_and_apply(ontap_rest_info_module,
+                                set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_pass()
                                 )['ontap_info']) == set(gather_subset)
 
 
@@ -655,8 +774,11 @@ def test_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail():
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
     ])
-    assert create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail(), fail=True
-                            )['msg'] == error_message
+    assert \
+        create_and_apply(ontap_rest_info_module,
+                         set_args_run_ontap_gather_facts_for_all_subsets_with_fields_section_fail(),
+                         fail=True
+                         )['msg'] == error_message
 
 
 def test_run_ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass():
@@ -665,7 +787,8 @@ def test_run_ontap_gather_facts_for_aggregate_info_pass_with_fields_section_pass
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
         ('GET', 'storage/aggregates', SRR['get_subset_info']),
     ])
-    assert set(create_and_apply(ontap_rest_info_module, set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass()
+    assert set(create_and_apply(ontap_rest_info_module,
+                                set_args_run_ontap_gather_facts_for_aggregate_info_with_fields_section_pass()
                                 )['ontap_info']) == set(gather_subset)
 
 
@@ -676,7 +799,8 @@ def test_get_all_records_for_volume_info_to_check_next_api_call_functionality_pa
         ('GET', 'storage/volumes', SRR['get_subset_info_with_next']),
         ('GET', '/next_record_api', SRR['get_next_record']),
     ])
-    assert create_and_apply(ontap_rest_info_module, set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
+    assert create_and_apply(ontap_rest_info_module,
+                            set_args_get_all_records_for_volume_info_to_check_next_api_call_functionality_pass()
                             )['ontap_info']['storage/volumes']['num_records'] == total_records
 
 
@@ -772,7 +896,8 @@ def test_strip_dacls():
     record['acls'] = ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123']
     assert ontap_rest_info_module.strip_dacls(response) == [{'access_type': 'AT', 'user_or_group': 'user'}]
     record['acls'] = ['junk', 'junk', 'DACL - ACEs', 'AT-user-0x123', 'AT2-group-0xABC']
-    assert ontap_rest_info_module.strip_dacls(response) == [{'access_type': 'AT', 'user_or_group': 'user'}, {'access_type': 'AT2', 'user_or_group': 'group'}]
+    assert ontap_rest_info_module.strip_dacls(response) == [{'access_type': 'AT', 'user_or_group': 'user'},
+                                                            {'access_type': 'AT2', 'user_or_group': 'group'}]
 
 
 def test_private_cli_vserver_security_file_directory():
@@ -781,14 +906,16 @@ def test_private_cli_vserver_security_file_directory():
     args['use_python_keys'] = True
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
-        ('GET', 'private/cli/vserver/security/file-directory?fields=acls', SRR['get_private_cli_vserver_security_file_directory_info']),
+        ('GET', 'private/cli/vserver/security/file-directory?fields=acls',
+         SRR['get_private_cli_vserver_security_file_directory_info']),
     ])
-    assert create_and_apply(ontap_rest_info_module, args)['ontap_info'] == \
-        {'private_cli_vserver_security_file_directory': [{'access_type': 'AT', 'user_or_group': 'user'}]}
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info'] == {
+        'private_cli_vserver_security_file_directory': [{'access_type': 'AT', 'user_or_group': 'user'}]}
 
 
 def test_get_ontap_subset_info_all_with_field():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'some/api', SRR['get_subset_info']),
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
@@ -797,6 +924,9 @@ def test_get_ontap_subset_info_all_with_field():
 
 
 def test_negative_get_ontap_subset_info_all_bad_subset():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
     msg = 'Specified subset bad_subset is not found, supported subsets are []'
     assert expect_and_capture_ansible_exception(my_obj.get_ontap_subset_info_all, 'fail', 'bad_subset', None, {})['msg'] == msg
@@ -817,11 +947,14 @@ def test_subset_with_default_fields():
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
         ('GET', 'storage/aggregates', SRR['get_subset_info']),
     ])
-    assert 'storage/aggregates' in create_and_apply(ontap_rest_info_module, set_default_args(), {'gather_subset': 'aggr_efficiency_info'})['ontap_info']
+    assert 'storage/aggregates' in \
+           create_and_apply(ontap_rest_info_module, set_default_args(), {'gather_subset': 'aggr_efficiency_info'})[
+               'ontap_info']
 
 
 def test_negative_error_on_post():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'api', SRR['generic_error']),
     ])
     assert create_module(ontap_rest_info_module, set_default_args()).run_post({'api_call': 'api'}) is None
@@ -830,14 +963,16 @@ def test_negative_error_on_post():
 @patch('time.sleep')
 def test_negative_error_on_wait_after_post(sleep_mock):
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'api', SRR['metrocluster_post']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
-        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),     # retries
+        ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),  # retries
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
         ('GET', 'cluster/jobs/fde79888-692a-11ea-80c2-005056b39fe7', SRR['generic_error']),
     ])
     my_obj = create_module(ontap_rest_info_module, set_default_args())
-    assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == ' - '.join(['Expected error'] * 4)
+    assert expect_and_capture_ansible_exception(my_obj.run_post, 'fail', {'api_call': 'api'})['msg'] == ' - '.join(
+        ['Expected error'] * 4)
 
 
 def test_owning_resource_snapshot():
@@ -885,6 +1020,42 @@ def test_owning_resource_snapshot_volume_not_found():
     assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
 
 
+def test_owning_resource_vscan_on_access_policies():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/vscan/on-access-policies'
+    args['owning_resource'] = {'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/vscan/test_uuid/on-access-policies', SRR['vscan_on_access_policies'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
+def test_owning_resource_vscan_on_demand_policies():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/vscan/on-demand-policies'
+    args['owning_resource'] = {'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/vscan/test_uuid/on-demand-policies', SRR['vscan_on_access_policies'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
+def test_owning_resource_vscan_scanner_pools():
+    args = set_default_args()
+    args['gather_subset'] = 'protocols/vscan/scanner-pools'
+    args['owning_resource'] = {'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/vscan/test_uuid/scanner-pools', SRR['vscan_scanner_pools'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
 def test_owning_resource_export_policies_rules():
     args = set_default_args()
     args['gather_subset'] = 'protocols/nfs/export-policies/rules'
@@ -928,3 +1099,41 @@ def test_owning_resource_export_policies_rules_policy_not_found():
     ])
     msg = 'Could not find export policy policy_name on SVM svm1'
     assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_lun_info_with_serial():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/luns'
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/luns', SRR['lun_info']),
+    ])
+    info = create_and_apply(ontap_rest_info_module, args)
+    assert 'ontap_info' in info
+    assert 'storage/luns' in info['ontap_info']
+    assert 'records' in info['ontap_info']['storage/luns']
+    records = info['ontap_info']['storage/luns']['records']
+    assert records
+    lun_info = records[0]
+    print('INFO', lun_info)
+    assert lun_info['serial_number'] == 'z6CcD+SK5mPb'
+    assert lun_info['serial_hex'] == '7a364363442b534b356d5062'
+    assert lun_info['naa_id'] == 'naa.600a0980' + '7a364363442b534b356d5062'
+
+
+def test_ignore_api_errors():
+    args = set_default_args()
+    args['gather_subset'] = 'storage/luns'
+    args['ignore_api_errors'] = ['something', 'Expected error']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'storage/luns', SRR['error_record']),
+    ])
+    info = create_and_apply(ontap_rest_info_module, args)
+    assert 'ontap_info' in info
+    assert 'storage/luns' in info['ontap_info']
+    assert 'error' in info['ontap_info']['storage/luns']
+    error = info['ontap_info']['storage/luns']['error']
+    assert error
+    assert error['code'] == 6
+    assert error['message'] == 'Expected error'

@@ -61,16 +61,19 @@ _DEFAULT_RESPONSES = {
     'zero_records': (200, {'num_records': 0}, None),
     'one_record': (200, {'num_records': 1}, None),
     'generic_error': (400, None, "Expected error"),
+    'error_record': (400, None, {'code': 6, 'message': 'Expected error'}),
     'job_generic_response_success': _build_job('success'),
     'job_generic_response_running': _build_job('running'),
     'job_generic_response_failure': _build_job('failure'),
 }
 
 
-def rest_error_message(error, api=None, extra=''):
+def rest_error_message(error, api=None, extra='', got=None):
+    if got is None:
+        got = 'got Expected error.'
     msg = ('%s: ' % error) if error else ''
     msg += ('calling: %s: ' % api) if api else ''
-    msg += 'got Expected error.'
+    msg += got
     msg += extra
     return msg
 

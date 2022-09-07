@@ -37,8 +37,11 @@ options:
   name:
     description:
       - The name of the SVM to manage.
+      - vserver is a convenient alias when using module_defaults.
     type: str
     required: true
+    aliases:
+      - vserver
 
   from_name:
     description:
@@ -82,23 +85,16 @@ options:
   allowed_protocols:
     description:
       - Allowed Protocols.
-      - When specified as part of a vserver-create,
-        this field represent the list of protocols allowed on the Vserver.
-      - When part of vserver-get-iter call,
-        this will return the list of Vservers
-        which have any of the protocols specified
-        as part of the allowed-protocols.
-      - When part of vserver-modify,
+      - This field represent the list of protocols allowed on the Vserver.
+      - When part of modify,
         this field should include the existing list
         along with new protocol list to be added to prevent data disruptions.
-      - ndmp is default in creation and can't be modified when using REST API.
-        Specify ndmp in task to maintain idempotency.
       - Possible values
       - nfs   NFS protocol,
       - cifs  CIFS protocol,
       - fcp   FCP protocol,
       - iscsi iSCSI protocol,
-      - ndmp  NDMP protocol - ZAPI only,
+      - ndmp  NDMP protocol,
       - http  HTTP protocol - ZAPI only,
       - nvme  NVMe protocol
     type: list
@@ -354,7 +350,7 @@ class NetAppOntapSVM():
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            name=dict(required=True, type='str'),
+            name=dict(required=True, type='str', aliases=['vserver']),
             from_name=dict(required=False, type='str'),
             admin_state=dict(required=False, type='str', choices=['running', 'stopped']),
             root_volume=dict(type='str'),
@@ -445,7 +441,7 @@ class NetAppOntapSVM():
         if use_rest and 'aggr_list' in self.parameters and self.parameters['aggr_list'] == ['*']:
             self.module.warn("Using REST and ignoring aggr_list: '*'")
             del self.parameters['aggr_list']
-        if use_rest and self.parameters.get('allowed_protocols'):
+        if use_rest and self.parameters.get('allowed_protocols') is not None:
             # python 2.6 does not support dict comprehension with k: v
             self.parameters['services'] = dict(
                 # using old semantics, anything not present is disallowed
@@ -506,19 +502,21 @@ class NetAppOntapSVM():
             }
 
         services = {}
-        allowed_protocols = ([] if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1)
-                             else vserver_details.get('allowed_protocols', []))
+        # REST returns allowed: True/False with recent versions, and a list of protocols in allowed_protocols for older versions
+        allowed_protocols = (None if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1)
+                             else vserver_details.get('allowed_protocols'))
 
         for protocol in self.allowable_protocols_rest:
             # protocols are not present when the vserver is stopped
             allowed = self.na_helper.safe_get(vserver_details, [protocol, 'allowed'])
+            if allowed is None and allowed_protocols is not None:
+                # earlier ONTAP versions
+                allowed = protocol in allowed_protocols
             enabled = self.na_helper.safe_get(vserver_details, [protocol, 'enabled'])
             if allowed is not None or enabled is not None:
                 services[protocol] = {}
             if allowed is not None:
                 services[protocol]['allowed'] = allowed
-            elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
-                services[protocol] = {'allowed': protocol in allowed_protocols}
             if enabled is not None:
                 services[protocol]['enabled'] = enabled
 
@@ -885,9 +883,6 @@ class NetAppOntapSVM():
                 current = old_svm
                 cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        self.rest_api.log_debug('parameters', self.parameters)
-        self.rest_api.log_debug('current', current)
-        self.rest_api.log_debug('modify', modify)
 
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']
         msgs = ['%s - current: %s - desired: %s' % (attribute, current[attribute], self.parameters[attribute])

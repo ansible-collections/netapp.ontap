@@ -61,16 +61,18 @@ DEFAULT_ARGS = {
 
 def test_low_version():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97'])
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     print('Info: %s' % error)
-    msg = 'ONTAP version must be 9.8 or higher'
+    msg = 'Error: na_ontap_s3_services only supports REST, and requires ONTAP 9.8.0 or later.  Found: 9.7.0.'
     assert msg in error
 
 
 def test_get_s3_service_none():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['empty_records'])
     ])
@@ -82,6 +84,7 @@ def test_get_s3_service_none():
 def test_get_s3_service_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['generic_error'])
     ])
     my_module_object = create_module(my_module, DEFAULT_ARGS)
@@ -91,6 +94,7 @@ def test_get_s3_service_error():
 
 def test_create_s3_service():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['empty_records']),
         ('POST', 'protocols/s3/services', SRR['empty_good'])
@@ -106,6 +110,7 @@ def test_create_s3_service():
 def test_create_s3_service_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('POST', 'protocols/s3/services', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -120,6 +125,7 @@ def test_create_s3_service_error():
 def test_delete_s3_service():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['s3_service']),
         ('DELETE', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['empty_good'])
     ])
@@ -129,6 +135,7 @@ def test_delete_s3_service():
 
 def test_delete_s3_service_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['generic_error'])
     ])
@@ -143,6 +150,7 @@ def test_delete_s3_service_error():
 def test_modify_s3_service():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['s3_service']),
         ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['empty_good'])
     ])
@@ -155,6 +163,7 @@ def test_modify_s3_service():
 
 def test_modify_s3_service_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['generic_error'])
     ])

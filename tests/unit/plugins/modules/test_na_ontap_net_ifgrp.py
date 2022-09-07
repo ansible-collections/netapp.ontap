@@ -11,8 +11,8 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible, WARNINGS
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args,\
+    AnsibleFailJson, AnsibleExitJson, patch_ansible
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_net_ifgrp \
     import NetAppOntapIfGrp as ifgrp_module  # module under test
@@ -104,7 +104,8 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'test',
             'username': 'test_user',
             'password': 'test_pass!',
-            'feature_flags': {'no_cserver_ems': True}
+            'feature_flags': {'no_cserver_ems': True},
+            'use_rest': 'never'
         }
 
     def get_ifgrp_mock_object(self, kind=None, data=None):
@@ -540,7 +541,7 @@ def test_module_try_to_delete_only_partial_match_found(mock_request, patch_ansib
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -564,7 +565,7 @@ def test_module_try_to_delete_ports_in_different_LAG(mock_request, patch_ansible
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -588,7 +589,7 @@ def test_module_fail_partial_match(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: cannot find LAG matching from_lag_ports: '['e0c', 'e0a', 'e0v']'."
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -611,7 +612,7 @@ def test_module_fail_partial_match_ports_empty_record_from_lag_ports(mock_reques
     print('Info: %s' % exc.value.args[0])
     msg = "Error: cannot find LAG matching from_lag_ports: '['e0k']'."
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -634,7 +635,7 @@ def test_create_ifgrp_port(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -656,7 +657,7 @@ def test_create_ifgrp_port_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -680,7 +681,7 @@ def test_modify_ifgrp_port(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -706,7 +707,7 @@ def test_modify_ifgrp_broadcast_domain(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -732,4 +733,4 @@ def test_delete_ifgrp(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()

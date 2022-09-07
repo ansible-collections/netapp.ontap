@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ NetApp ONTAP Info using REST APIs """
@@ -37,232 +37,243 @@ notes:
   - I(volume_move_target_aggr_info) there is not REST equivalent.
 
 options:
-    state:
-        type: str
-        description:
-            - deprecated as of 21.1.0.
-            - this option was ignored and continues to be ignored.
-    gather_subset:
-        type: list
-        elements: str
-        description:
-            - When supplied, this argument will restrict the information collected to a given subset.
-            - Either the REST API or the ZAPI info name can be given. Possible values for this argument include
-            - application/applications or application_info
-            - application/consistency-groups
-            - application/templates or application_template_info
-            - cloud/targets or cloud_targets_info
-            - cluster/chassis or cluster_chassis_info
-            - cluster/fireware/history
-            - cluster/jobs or cluster_jobs_info
-            - cluster/licensing/licenses or license_info
-            - cluster/mediators
-            - cluster/metrics or cluster_metrics_info
-            - cluster/metrocluster or metrocluster_info
-            - cluster/metrocluster/diagnostics or cluster_metrocluster_diagnostics or metrocluster_check_info
-            - cluster/metrocluster/dr-groups
-            - cluster/metrocluster/interconnects
-            - cluster/metrocluster/nodes or metrocluster-node-get-iter
-            - cluster/metrocluster/operations
-            - cluster/nodes or cluster_node_info or sysconfig_info
-            - cluster/ntp/keys
-            - cluster/ntp/servers or ntp_server_info
-            - cluster/peers or cluster_peer_info
-            - cluster/schedules or cluster_schedules or job_schedule_cron_info
-            - cluster/software or ontap_system_version or  cluster_image_info
-            - cluster/software/download or cluster_software_download
-            - cluster/software/history or cluster_software_history
-            - cluster/software/packages or cluster_software_packages
-            - cluster/web
-            - name-services/dns or svm_dns_config_info or net_dns_info
-            - name-services/ldap or svm_ldap_config_info or ldap_client or ldap_config
-            - name-services/local-hosts
-            - name-services/name-mappings or svm_name_mapping_config_info
-            - name-services/nis or svm_nis_config_info
-            - name-services/unix-groups
-            - name-services/unix-users
-            - network/ethernet/broadcast-domains or broadcast_domains_info or net_port_broadcast_domain_info
-            - network/ethernet/ports or network_ports_info or  net_port_info
-            - network/ethernet/switch/ports
-            - network/ethernet/switches or cluster_switch_info
-            - network/fc/logins or san_fc_logins_info
-            - network/fc/ports
-            - network/fc/wwpn-aliases or san_fc_wppn-aliases or fcp_alias_info
-            - network/http-proxy
-            - network/ip/bgp/peer-groups
-            - network/ip/interfaces or ip_interfaces_info or net_interface_info
-            - network/ip/routes or ip_routes_info or net_routes_info
-            - network/ip/service-policies or ip_service_policies or net_interface_service_policy_info
-            - network/ipspaces or network_ipspaces_info or net_ipspaces_info
-            - private/support/alerts or sys_cluster_alerts
-            - private/cli/vserver/security/file-directory or file_directory_security
-            - protocols/audit
-            - protocols/cifs/domains
-            - protocols/cifs/home-directory/search-paths or cifs_home_directory_info
-            - protocols/cifs/local-groups
-            - protocols/cifs/local-users
-            - protocols/cifs/services or cifs_services_info or cifs_options_info
-            - protocols/cifs/sessions
-            - protocols/cifs/shares or cifs_share_info
-            - protocols/cifs/users-and-groups/privileges
-            - protocols/cifs/unix-symlink-mapping
-            - protocols/file-access-tracing/events
-            - protocols/file-access-tracing/filters
-            - protocols/fpolicy
-            - protocols/locks
-            - protocols/ndmp
-            - protocols/ndmp/nodes
-            - protocols/ndmp/sessions
-            - protocols/ndmp/svms
-            - protocols/nfs/connected-clients
-            - protocols/nfs/export-policies or export_policy_info
-            - protocols/nfs/export-policies/rules B(Requires the owning_resource to be set)
-            - protocols/nfs/kerberos/interfaces
-            - protocols/nfs/kerberos/realms or kerberos_realm_info
-            - protocols/nfs/services or vserver_nfs_info or nfs_info
-            - protocols/nvme/interfaces or nvme_interface_info
-            - protocols/nvme/services or nvme_info
-            - protocols/nvme/subsystems or nvme_subsystem_info
-            - protocols/nvme/subsystem-controllers
-            - protocols/nvme/subsystem-maps
-            - protocols/s3/buckets
-            - protocols/s3/services
-            - protocols/san/fcp/services or san_fcp_services or fcp_service_info
-            - protocols/san/igroups or nitiator_groups_info or igroup_info
-            - protocols/san/iscsi/credentials or san_iscsi_credentials
-            - protocols/san/iscsi/services or san_iscsi_services or iscsi_service_info
-            - protocols/san/iscsi/sessions
-            - protocols/san/lun-maps or san_lun_maps or lun_map_info
-            - protocols/san/portsets
-            - protocols/san/vvol-bindings
-            - protocols/vscan or vscan_status_info or vscan_info
-            - protocols/vscan/server-status or vscan_connection_status_all_info
-            - security/accounts or security_login_info or security_login_account_info
-            - security/anti-ransomware/suspects
-            - security/audit
-            - security/audit/destinations or cluster_log_forwarding_info
-            - security/audit/messages
-            - security/authentication/cluster/ad-proxy
-            - security/authentication/cluster/ldap
-            - security/authentication/cluster/nis
-            - security/authentication/cluster/saml-sp
-            - security/authentication/publickeys
-            - security/azure-key-vaults
-            - security/certificates
-            - security/gcp-kms
-            - security/ipsec
-            - security/ipsec/ca-certificates
-            - security/ipsec/policies
-            - security/ipsec/security-associations
-            - security/key-manager-configs
-            - security/key-managers
-            - security/key-stores
-            - security/login/messages
-            - security/roles or security_login_rest_role_info
-            - security/ssh
-            - security/ssh/svms
-            - snapmirror/policies or snapmirror_policy_info
-            - snapmirror/relationships or snapmirror_info
-            - storage/aggregates or aggregate_info
-            - storage/bridges or storage_bridge_info
-            - storage/cluster
-            - storage/disks or disk_info
-            - storage/file/clone/split-loads
-            - storage/file/clone/split-status
-            - storage/file/clone/tokens
-            - storage/flexcache/flexcaches or storage_flexcaches_info
-            - storage/flexcache/origins or storage_flexcaches_origin_info
-            - storage/luns or storage_luns_info or lun_info
-            - storage/monitored-files
-            - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
-            - storage/ports or storage_ports_info
-            - storage/qos/policies or storage_qos_policies or qos_policy_info or qos_adaptive_policy_info
-            - storage/qos/workloads
-            - storage/qtrees or storage_qtrees_config or qtree_info
-            - storage/quota/reports or storage_quota_reports or quota_report_info
-            - storage/quota/rules or storage_quota_policy_rules
-            - storage/shelves or storage_shelves_config or shelf_info
-            - storage/snaplock/audit-logs
-            - storage/snaplock/compliance-clocks
-            - storage/snaplock/event-retention/operations
-            - storage/snaplock/event-retention/policies
-            - storage/snaplock/file-fingerprints
-            - storage/snaplock/litigations
-            - storage/snapshot-policies or storage_snapshot_policies or snapshot_policy_info
-            - storage/switches
-            - storage/tape-devices
-            - storage/volumes or volume_info
-            - storage/volumes/snapshots B(Requires the owning_resource to be set)
-            - storage/volume-efficiency-policies or sis_policy_info
-            - support/autosupport or autosupport_config_info
-            - support/autosupport/check or autosupport_check_info
-            - support/autosupport/messages or autosupport_messages_history
-            - support/auto-update
-            - support/auto-update/configurations
-            - support/auto-update/updates
-            - support/configuration-backup
-            - support/configuration-backup/backups
-            - support/coredump/coredumps
-            - support/ems or support_ems_config
-            - support/ems/destinations or event_notification_info or event_notification_destination_info
-            - support/ems/events or support_ems_events
-            - support/ems/filters or support_ems_filters
-            - support/ems/messages
-            - support/snmp
-            - support/snmp/traphosts
-            - support/snmp/users
-            - svm/migrations
-            - svm/peers or svm_peers_info or vserver_peer_info
-            - svm/peer-permissions or svm_peer-permissions_info
-            - svm/svms or vserver_info
-            - B(The following do not have direct Rest API equivalent)
-            - aggr_efficiency_info
-            - cifs_vserver_security_info
-            - clock_info
-            - cluster_identity_info
-            - net_vlan_info
-            - sis_info
-            - snapmirror_destination_info
-            - system_node_info
-            - volume_space_info
-            - Can specify a list of values to include a larger subset.
-            - REST APIs are supported with ONTAP 9.6 onwards.
-        default: "demo"
-    max_records:
-        type: int
-        description:
-            - Maximum number of records returned in a single call.
-        default: 1024
-    fields:
-        type: list
-        elements: str
-        description:
-            - Request specific fields from subset.
-               '*' to return all the fields, one or more subsets are allowed.
-               '<list of fields>'  to return specified fields, only one subset will be allowed.
-            - If the option is not present, return default REST subset of Api Fields for that API.
-        version_added: '20.6.0'
-    parameters:
-        description:
-        - Allows for any rest option to be passed in
-        type: dict
-        version_added: '20.7.0'
-    use_python_keys:
-        description:
-        - If true, I(/) in the returned dictionary keys are translated to I(_).
-        - It makes it possible to use a . notation when processing the output.
-        - For instance I(ontap_info["svm/svms"]) can be accessed as I(ontap_info.svm_svms).
-        type: bool
-        default: false
-        version_added: '21.9.0'
-    owning_resource:
-        description:
-        - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snaphot.
-        - The following subsets require an owning resource, and the following suboptions when uuid is not present.
-        - <snapshot>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
-        - <export policy rule> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy, B(rule_index) is the rule index.
-        type: dict
-        version_added: '21.19.0'
+  state:
+    type: str
+    description:
+      - deprecated as of 21.1.0.
+      - this option was ignored and continues to be ignored.
+  gather_subset:
+    type: list
+    elements: str
+    description:
+      - When supplied, this argument will restrict the information collected to a given subset.
+      - Either the REST API or the ZAPI info name can be given. Possible values for this argument include
+      - application/applications or application_info
+      - application/consistency-groups
+      - application/templates or application_template_info
+      - cloud/targets or cloud_targets_info
+      - cluster/chassis or cluster_chassis_info
+      - cluster/fireware/history
+      - cluster/jobs or cluster_jobs_info
+      - cluster/licensing/licenses or license_info
+      - cluster/mediators
+      - cluster/metrics or cluster_metrics_info
+      - cluster/metrocluster or metrocluster_info
+      - cluster/metrocluster/diagnostics or cluster_metrocluster_diagnostics or metrocluster_check_info
+      - cluster/metrocluster/dr-groups
+      - cluster/metrocluster/interconnects
+      - cluster/metrocluster/nodes or metrocluster-node-get-iter
+      - cluster/metrocluster/operations
+      - cluster/nodes or cluster_node_info or sysconfig_info
+      - cluster/ntp/keys
+      - cluster/ntp/servers or ntp_server_info
+      - cluster/peers or cluster_peer_info
+      - cluster/schedules or cluster_schedules or job_schedule_cron_info
+      - cluster/software or ontap_system_version or  cluster_image_info
+      - cluster/software/download or cluster_software_download
+      - cluster/software/history or cluster_software_history
+      - cluster/software/packages or cluster_software_packages
+      - cluster/web
+      - name-services/dns or svm_dns_config_info or net_dns_info
+      - name-services/ldap or svm_ldap_config_info or ldap_client or ldap_config
+      - name-services/local-hosts
+      - name-services/name-mappings or svm_name_mapping_config_info
+      - name-services/nis or svm_nis_config_info
+      - name-services/unix-groups
+      - name-services/unix-users
+      - network/ethernet/broadcast-domains or broadcast_domains_info or net_port_broadcast_domain_info
+      - network/ethernet/ports or network_ports_info or  net_port_info
+      - network/ethernet/switch/ports
+      - network/ethernet/switches or cluster_switch_info
+      - network/fc/logins or san_fc_logins_info
+      - network/fc/ports
+      - network/fc/wwpn-aliases or san_fc_wppn-aliases or fcp_alias_info
+      - network/http-proxy
+      - network/ip/bgp/peer-groups
+      - network/ip/interfaces or ip_interfaces_info or net_interface_info
+      - network/ip/routes or ip_routes_info or net_routes_info
+      - network/ip/service-policies or ip_service_policies or net_interface_service_policy_info
+      - network/ipspaces or network_ipspaces_info or net_ipspaces_info
+      - private/support/alerts or sys_cluster_alerts
+      - private/cli/vserver/security/file-directory or file_directory_security
+      - protocols/audit
+      - protocols/cifs/domains
+      - protocols/cifs/home-directory/search-paths or cifs_home_directory_info
+      - protocols/cifs/local-groups
+      - protocols/cifs/local-users
+      - protocols/cifs/services or cifs_services_info or cifs_options_info
+      - protocols/cifs/sessions
+      - protocols/cifs/shares or cifs_share_info
+      - protocols/cifs/users-and-groups/privileges
+      - protocols/cifs/unix-symlink-mapping
+      - protocols/fpolicy
+      - protocols/locks
+      - protocols/ndmp
+      - protocols/ndmp/nodes
+      - protocols/ndmp/sessions
+      - protocols/ndmp/svms
+      - protocols/nfs/connected-clients
+      - protocols/nfs/export-policies or export_policy_info
+      - protocols/nfs/export-policies/rules B(Requires the owning_resource to be set)
+      - protocols/nfs/kerberos/interfaces
+      - protocols/nfs/kerberos/realms or kerberos_realm_info
+      - protocols/nfs/services or vserver_nfs_info or nfs_info
+      - protocols/nvme/interfaces or nvme_interface_info
+      - protocols/nvme/services or nvme_info
+      - protocols/nvme/subsystems or nvme_subsystem_info
+      - protocols/nvme/subsystem-controllers
+      - protocols/nvme/subsystem-maps
+      - protocols/s3/buckets
+      - protocols/s3/services
+      - protocols/san/fcp/services or san_fcp_services or fcp_service_info
+      - protocols/san/igroups or nitiator_groups_info or igroup_info
+      - protocols/san/iscsi/credentials or san_iscsi_credentials
+      - protocols/san/iscsi/services or san_iscsi_services or iscsi_service_info
+      - protocols/san/iscsi/sessions
+      - protocols/san/lun-maps or san_lun_maps or lun_map_info
+      - protocols/san/portsets
+      - protocols/san/vvol-bindings
+      - protocols/vscan or vscan_status_info or vscan_info
+      - protocols/vscan/on-access-policies B(Requires the owning_resource to be set)
+      - protocols/vscan/on-demand-policies B(Requires the owning_resource to be set)
+      - protocols/vscan/scanner-pools B(Requires the owning_resource to be set)
+      - protocols/vscan/server-status or vscan_connection_status_all_info
+      - security/accounts or security_login_info or security_login_account_info
+      - security/anti-ransomware/suspects
+      - security/audit
+      - security/audit/destinations or cluster_log_forwarding_info
+      - security/audit/messages
+      - security/authentication/cluster/ad-proxy
+      - security/authentication/cluster/ldap
+      - security/authentication/cluster/nis
+      - security/authentication/cluster/saml-sp
+      - security/authentication/publickeys
+      - security/azure-key-vaults
+      - security/certificates
+      - security/gcp-kms
+      - security/ipsec
+      - security/ipsec/ca-certificates
+      - security/ipsec/policies
+      - security/ipsec/security-associations
+      - security/key-manager-configs
+      - security/key-managers
+      - security/key-stores
+      - security/login/messages
+      - security/roles or security_login_rest_role_info
+      - security/ssh
+      - security/ssh/svms
+      - snapmirror/policies or snapmirror_policy_info
+      - snapmirror/relationships or snapmirror_info
+      - storage/aggregates or aggregate_info
+      - storage/bridges or storage_bridge_info
+      - storage/cluster
+      - storage/disks or disk_info
+      - storage/file/clone/split-loads
+      - storage/file/clone/split-status
+      - storage/file/clone/tokens
+      - storage/flexcache/flexcaches or storage_flexcaches_info
+      - storage/flexcache/origins or storage_flexcaches_origin_info
+      - storage/luns or storage_luns_info or lun_info (if serial_number is present, serial_hex and naa_id are computed)
+      - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
+      - storage/ports or storage_ports_info
+      - storage/qos/policies or storage_qos_policies or qos_policy_info or qos_adaptive_policy_info
+      - storage/qos/workloads
+      - storage/qtrees or storage_qtrees_config or qtree_info
+      - storage/quota/reports or storage_quota_reports or quota_report_info
+      - storage/quota/rules or storage_quota_policy_rules
+      - storage/shelves or storage_shelves_config or shelf_info
+      - storage/snaplock/audit-logs
+      - storage/snaplock/compliance-clocks
+      - storage/snaplock/event-retention/operations
+      - storage/snaplock/event-retention/policies
+      - storage/snaplock/file-fingerprints
+      - storage/snaplock/litigations
+      - storage/snapshot-policies or storage_snapshot_policies or snapshot_policy_info
+      - storage/switches
+      - storage/tape-devices
+      - storage/volumes or volume_info
+      - storage/volumes/snapshots B(Requires the owning_resource to be set)
+      - storage/volume-efficiency-policies or sis_policy_info
+      - support/autosupport or autosupport_config_info
+      - support/autosupport/check or autosupport_check_info
+      - support/autosupport/messages or autosupport_messages_history
+      - support/auto-update
+      - support/auto-update/configurations
+      - support/auto-update/updates
+      - support/configuration-backup
+      - support/configuration-backup/backups
+      - support/coredump/coredumps
+      - support/ems or support_ems_config
+      - support/ems/destinations or event_notification_info or event_notification_destination_info
+      - support/ems/events or support_ems_events
+      - support/ems/filters or support_ems_filters
+      - support/ems/messages
+      - support/snmp
+      - support/snmp/traphosts
+      - support/snmp/users
+      - svm/migrations
+      - svm/peers or svm_peers_info or vserver_peer_info
+      - svm/peer-permissions or svm_peer-permissions_info
+      - svm/svms or vserver_info
+      - B(The following do not have direct Rest API equivalent)
+      - aggr_efficiency_info
+      - cifs_vserver_security_info
+      - clock_info
+      - cluster_identity_info
+      - net_vlan_info
+      - sis_info
+      - snapmirror_destination_info
+      - system_node_info
+      - volume_space_info
+      - Can specify a list of values to include a larger subset.
+      - REST APIs are supported with ONTAP 9.6 onwards.
+    default: "demo"
+  max_records:
+    type: int
+    description:
+      - Maximum number of records returned in a single call.
+    default: 1024
+  fields:
+    type: list
+    elements: str
+    description:
+      - Request specific fields from subset.
+        '*' to return all the fields, one or more subsets are allowed.
+        '<list of fields>'  to return specified fields, only one subset will be allowed.
+      - If the option is not present, return default REST subset of Api Fields for that API.
+    version_added: '20.6.0'
+  parameters:
+    description:
+      - Allows for any rest option to be passed in
+    type: dict
+    version_added: '20.7.0'
+  use_python_keys:
+    description:
+      - If true, I(/) in the returned dictionary keys are translated to I(_).
+      - It makes it possible to use a . notation when processing the output.
+      - For instance I(ontap_info["svm/svms"]) can be accessed as I(ontap_info.svm_svms).
+    type: bool
+    default: false
+    version_added: '21.9.0'
+  owning_resource:
+    description:
+      - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snaphot.
+      - The following subsets require an owning resource, and the following suboptions when uuid is not present.
+      - <storage/volumes/snapshots>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
+      - <protocols/nfs/export-policies/rules> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy,
+        B(rule_index) is the rule index.
+      - <protocols/vscan/on-access-policies> B(svm_name) is the owning vserver name for the vscan
+      - <protocols/vscan/on-demand-policies> B(svm_name) is the owning vserver name for the vscan
+      - <protocols/vscan/scanner-pools> B(svm_name) is the owning vserver name for the vscan
+    type: dict
+    version_added: '21.19.0'
+  ignore_api_errors:
+    description:
+      - List of substrings.
+      - If a substring is contained in an error message when fetching a subset, the module does not fail and the error is reported in the subset.
+    type: list
+    elements: str
+    version_added: '21.23.0'
 '''
 
 EXAMPLES = '''
@@ -275,7 +286,7 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - svm/svms
+        - svm/svms
 
 - name: run ONTAP gather facts for aggregate info and volume info
   netapp.ontap.na_ontap_rest_info:
@@ -286,8 +297,8 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - storage/aggregates
-      - storage/volumes
+        - storage/aggregates
+        - storage/volumes
 
 - name: run ONTAP gather facts for all subsets
   netapp.ontap.na_ontap_rest_info:
@@ -298,7 +309,7 @@ EXAMPLES = '''
       validate_certs: false
       use_rest: Always
       gather_subset:
-      - all
+        - all
 
 - name: run ONTAP gather facts for aggregate info and volume info with fields section
   netapp.ontap.na_ontap_rest_info:
@@ -369,18 +380,31 @@ EXAMPLES = '''
     https: true
     validate_certs: false
     gather_subset:
-        - file_directory_security
+      - file_directory_security
     parameters:
       vserver: svm1
       path: /vol1/qtree1
     use_python_keys: true
+
+# assuming module_defaults is used to set hostname, username, ...
+- name: run demo subset using custom vsadmin role
+  netapp.ontap.na_ontap_rest_info:
+    gather_subset:
+      - demo
+    force_ontap_version: 9.8
+    ignore_api_errors:
+      - 'not authorized for that command'
+
+# reports: {"cluster/nodes": {"error": {"code": "6", "message": "not authorized for that command"}}
 '''
 
+import codecs
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_text, to_bytes
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_owning_resource, rest_vserver
 
 
 class NetAppONTAPGatherInfo(object):
@@ -400,6 +424,7 @@ class NetAppONTAPGatherInfo(object):
             parameters=dict(type='dict', required=False),
             use_python_keys=dict(type='bool', default=False),
             owning_resource=dict(type='dict', required=False),
+            ignore_api_errors=dict(type='list', elements='str', required=False),
         ))
 
         self.module = AnsibleModule(
@@ -413,21 +438,7 @@ class NetAppONTAPGatherInfo(object):
         self.fields = ''
 
         self.rest_api = OntapRestAPI(self.module)
-
-    def validate_ontap_version(self):
-        """
-            Method to validate the ONTAP version
-        """
-
-        api = 'cluster'
-        data = {'fields': ['version']}
-
-        ontap_version, error = self.rest_api.get(api, data)
-
-        if error:
-            self.module.fail_json(msg=error)
-
-        return ontap_version
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_rest_info', 9, 6, 0)
 
     def get_subset_info(self, gather_subset_info, default_fields=None):
         """
@@ -466,9 +477,13 @@ class NetAppONTAPGatherInfo(object):
            int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message')):
             return error.get('message')
 
+        # Do not fail on error
+        for error_pattern in self.parameters.get('ignore_api_errors', []):
+            if error_pattern in error.get('message'):
+                return {'error': error}
         # Fail the module if error occurs from REST APIs call
         if int(error.get('code', 0)) == 6:
-            error = "%s user is not authorized to make %s api call" % (self.parameters.get('username'), api)
+            error = "Error: %s user is not authorized to make %s api call" % (self.parameters.get('username'), api)
         self.module.fail_json(msg=error)
 
     @staticmethod
@@ -691,6 +706,26 @@ class NetAppONTAPGatherInfo(object):
                 subsets.append(subset)
         return subsets
 
+    def add_naa_id(self, info):
+        ''' https://kb.netapp.com/Advice_and_Troubleshooting/Data_Storage_Systems/FlexPod_with_Infrastructure_Automation/
+            How_to_match__LUNs_NAA_number_to_its_serial_number
+        '''
+        if info and 'records' in info:
+            for lun in info['records']:
+                if 'serial_number' in lun:
+                    hexlify = codecs.getencoder('hex')
+                    lun['serial_hex'] = to_text(hexlify(to_bytes(lun['serial_number']))[0])
+                    lun['naa_id'] = 'naa.600a0980' + lun['serial_hex']
+
+    def augment_subset_info(self, subset, subset_info):
+        if subset == 'private/cli/vserver/security/file-directory':
+            # creates a new list of dicts
+            subset_info = self.strip_dacls(subset_info)
+        if subset == 'storage/luns':
+            # mutates the existing dicts
+            self.add_naa_id(subset_info)
+        return subset_info
+
     def get_ontap_subset_info_all(self, subset, default_fields, get_ontap_subset_info):
         """ Iteratively get all records for a subset """
         try:
@@ -717,186 +752,180 @@ class NetAppONTAPGatherInfo(object):
             if subset_info.get('records') is not None:
                 # Getting total number of records
                 subset_info['num_records'] = len(subset_info['records'])
-        if subset == 'private/cli/vserver/security/file-directory':
-            subset_info = self.strip_dacls(subset_info)
 
-        return subset_info
+        return self.augment_subset_info(subset, subset_info)
 
     def apply(self):
         """
         Perform pre-checks, call functions and exit
         """
-        # Validating ONTAP version
-        self.validate_ontap_version()
 
         # Defining gather_subset and appropriate api_call
         get_ontap_subset_info = {
             'application/applications': {},
-            'application/consistency-groups': {},
+            'application/consistency-groups': {'version': (9, 10, 1)},
             'application/templates': {},
             'cloud/targets': {},
             'cluster': {},
             'cluster/chassis': {},
-            'cluster/fireware/history': {},
+            'cluster/fireware/history': {'version': (9, 8)},
             'cluster/jobs': {},
             'cluster/licensing/licenses': {},
-            'cluster/mediators': {},
-            'cluster/metrocluster': {},
+            'cluster/mediators': {'version': (9, 8)},
+            'cluster/metrocluster': {'version': (9, 8)},
             'cluster/metrocluster/diagnostics': {
+                'version': (9, 8),
                 'post': True
             },
-            'cluster/metrocluster/dr-groups': {},
-            'cluster/metrocluster/interconnects': {},
-            'cluster/metrocluster/nodes': {},
-            'cluster/metrocluster/operations': {},
+            'cluster/metrocluster/dr-groups': {'version': (9, 8)},
+            'cluster/metrocluster/interconnects': {'version': (9, 8)},
+            'cluster/metrocluster/nodes': {'version': (9, 8)},
+            'cluster/metrocluster/operations': {'version': (9, 8)},
             'cluster/metrics': {},
             'cluster/nodes': {},
-            'cluster/ntp/keys': {},
-            'cluster/ntp/servers': {},
+            'cluster/ntp/keys': {'version': (9, 7)},
+            'cluster/ntp/servers': {'version': (9, 7)},
             'cluster/peers': {},
             'cluster/schedules': {},
             'cluster/software': {},
-            'cluster/software/download': {},
+            'cluster/software/download': {'version': (9, 7)},
             'cluster/software/history': {},
             'cluster/software/packages': {},
-            'cluster/web': {},
+            'cluster/web': {'version': (9, 10, 1)},
             'name-services/dns': {},
             'name-services/ldap': {},
-            'name-services/local-hosts': {},
+            'name-services/local-hosts': {'version': (9, 10, 1)},
             'name-services/name-mappings': {},
             'name-services/nis': {},
-            'name-services/unix-groups': {},
-            'name-services/unix-users': {},
+            'name-services/unix-groups': {'version': (9, 9)},
+            'name-services/unix-users': {'version': (9, 9)},
             'network/ethernet/broadcast-domains': {},
             'network/ethernet/ports': {},
-            'network/ethernet/switch/ports': {},
+            'network/ethernet/switch/ports': {'version': (9, 8)},
             'network/fc/logins': {},
             'network/fc/ports': {},
             'network/fc/wwpn-aliases': {},
-            'network/http-proxy': {},
-            'network/ip/bgp/peer-groups': {},
+            'network/http-proxy': {'version': (9, 7)},
+            'network/ip/bgp/peer-groups': {'version': (9, 7)},
             'network/ip/interfaces': {},
             'network/ip/routes': {},
             'network/ip/service-policies': {},
             'network/ipspaces': {},
-            'network/ethernet/switches': {},
+            'network/ethernet/switches': {'version': (9, 8)},
             'private/support/alerts': {},
             'protocols/audit': {},
-            'protocols/cifs/domains': {},
+            'protocols/cifs/domains': {'version': (9, 10, 1)},
             'protocols/cifs/home-directory/search-paths': {},
-            'protocols/cifs/local-groups': {},
-            'protocols/cifs/local-users': {},
+            'protocols/cifs/local-groups': {'version': (9, 9)},
+            'protocols/cifs/local-users': {'version': (9, 9)},
             'protocols/cifs/services': {},
-            'protocols/cifs/sessions': {},
+            'protocols/cifs/sessions': {'version': (9, 8)},
             'protocols/cifs/shares': {},
-            'protocols/cifs/users-and-groups/privileges': {},
             'protocols/cifs/unix-symlink-mapping': {},
-            'protocols/file-access-tracing/events': {},
-            'protocols/file-access-tracing/filters': {},
+            'protocols/cifs/users-and-groups/privileges': {'version': (9, 9)},
             'protocols/fpolicy': {},
-            'protocols/locks': {},
-            'protocols/ndmp': {},
-            'protocols/ndmp/nodes': {},
-            'protocols/ndmp/sessions': {},
-            'protocols/ndmp/svms': {},
-            'protocols/nfs/connected-clients': {},
+            'protocols/locks': {'version': (9, 10, 1)},
+            'protocols/ndmp': {'version': (9, 7)},
+            'protocols/ndmp/nodes': {'version': (9, 7)},
+            'protocols/ndmp/sessions': {'version': (9, 7)},
+            'protocols/ndmp/svms': {'version': (9, 7)},
+            'protocols/nfs/connected-clients': {'version': (9, 7)},
             'protocols/nfs/export-policies': {},
             'protocols/nfs/kerberos/interfaces': {},
             'protocols/nfs/kerberos/realms': {},
             'protocols/nfs/services': {},
             'protocols/nvme/interfaces': {},
             'protocols/nvme/services': {},
-            'protocols/nvme/subsystems': {},
             'protocols/nvme/subsystem-controllers': {},
             'protocols/nvme/subsystem-maps': {},
-            'protocols/s3/buckets': {},
-            'protocols/s3/services': {},
+            'protocols/nvme/subsystems': {},
+            'protocols/s3/buckets': {'version': (9, 7)},
+            'protocols/s3/services': {'version': (9, 7)},
             'protocols/san/fcp/services': {},
             'protocols/san/igroups': {},
             'protocols/san/iscsi/credentials': {},
             'protocols/san/iscsi/services': {},
             'protocols/san/iscsi/sessions': {},
             'protocols/san/lun-maps': {},
-            'protocols/san/portsets': {},
-            'protocols/san/vvol-bindings': {},
+            'protocols/san/portsets': {'version': (9, 9)},
+            'protocols/san/vvol-bindings': {'version': (9, 10, 1)},
             'protocols/vscan/server-status': {},
             'protocols/vscan': {},
             'security/accounts': {},
-            'security/anti-ransomware/suspects': {},
+            'security/anti-ransomware/suspects': {'version': (9, 10, 1)},
             'security/audit': {},
             'security/audit/destinations': {},
             'security/audit/messages': {},
-            'security/authentication/cluster/ad-proxy': {},
+            'security/authentication/cluster/ad-proxy': {'version': (9, 7)},
             'security/authentication/cluster/ldap': {},
             'security/authentication/cluster/nis': {},
             'security/authentication/cluster/saml-sp': {},
-            'security/authentication/publickeys': {},
-            'security/azure-key-vaults': {},
+            'security/authentication/publickeys': {'version': (9, 7)},
+            'security/azure-key-vaults': {'version': (9, 8)},
             'security/certificates': {},
-            'security/gcp-kms': {},
-            'security/ipsec': {},
-            'security/ipsec/ca-certificates': {},
-            'security/ipsec/policies': {},
-            'security/ipsec/security-associations': {},
-            'security/key-manager-configs': {},
+            'security/gcp-kms': {'version': (9, 9)},
+            'security/ipsec': {'version': (9, 8)},
+            'security/ipsec/ca-certificates': {'version': (9, 10, 1)},
+            'security/ipsec/policies': {'version': (9, 8)},
+            'security/ipsec/security-associations': {'version': (9, 8)},
+            'security/key-manager-configs': {'version': (9, 10, 1)},
             'security/key-managers': {},
-            'security/key-stores': {},
+            'security/key-stores': {'version': (9, 10, 1)},
             'security/login/messages': {},
             'security/roles': {},
-            'security/ssh': {},
-            'security/ssh/svms': {},
+            'security/ssh': {'version': (9, 7)},
+            'security/ssh/svms': {'version': (9, 10, 1)},
             'snapmirror/policies': {},
             'snapmirror/relationships': {},
             'storage/aggregates': {},
-            'storage/bridges': {},
+            'storage/bridges': {'version': (9, 9)},
             'storage/cluster': {},
             'storage/disks': {},
-            'storage/file/clone/split-loads': {},
-            'storage/file/clone/split-status': {},
-            'storage/file/clone/tokens': {},
+            'storage/file/clone/split-loads': {'version': (9, 10, 1)},
+            'storage/file/clone/split-status': {'version': (9, 10, 1)},
+            'storage/file/clone/tokens': {'version': (9, 10, 1)},
             'storage/flexcache/flexcaches': {},
             'storage/flexcache/origins': {},
             'storage/luns': {},
-            'storage/monitored-files': {},
             'storage/namespaces': {},
             'storage/ports': {},
             'storage/qos/policies': {},
-            'storage/qos/workloads': {},
+            'storage/qos/workloads': {'version': (9, 10, 1)},
             'storage/qtrees': {},
             'storage/quota/reports': {},
             'storage/quota/rules': {},
             'storage/shelves': {},
-            'storage/snaplock/audit-logs': {},
-            'storage/snaplock/compliance-clocks': {},
-            'storage/snaplock/event-retention/operations': {},
-            'storage/snaplock/event-retention/policies': {},
-            'storage/snaplock/file-fingerprints': {},
-            'storage/snaplock/litigations': {},
+            'storage/snaplock/audit-logs': {'version': (9, 7)},
+            'storage/snaplock/compliance-clocks': {'version': (9, 7)},
+            'storage/snaplock/event-retention/operations': {'version': (9, 7)},
+            'storage/snaplock/event-retention/policies': {'version': (9, 7)},
+            'storage/snaplock/file-fingerprints': {'version': (9, 7)},
+            'storage/snaplock/litigations': {'version': (9, 7)},
             'storage/snapshot-policies': {},
-            'storage/switches': {},
-            'storage/tape-devices': {},
+            'storage/switches': {'version': (9, 9)},
+            'storage/tape-devices': {'version': (9, 9)},
             'storage/volumes': {},
-            'storage/volume-efficiency-policies': {},
+            'storage/volume-efficiency-policies': {'version': (9, 8)},
             'support/autosupport': {},
             'support/autosupport/check': {
                 'api_call': '/private/cli/system/node/autosupport/check/details' + self.private_cli_fields('support/autosupport/check'),
             },
             'support/autosupport/messages': {},
-            'support/auto-update': {},
-            'support/auto-update/configurations': {},
-            'support/auto-update/updates': {},
+            'support/auto-update': {'version': (9, 10, 1)},
+            'support/auto-update/configurations': {'version': (9, 10, 1)},
+            'support/auto-update/updates': {'version': (9, 10, 1)},
             'support/configuration-backup': {},
-            'support/configuration-backup/backups': {},
-            'support/coredump/coredumps': {},
+            'support/configuration-backup/backups': {'version': (9, 7)},
+            'support/coredump/coredumps': {'version': (9, 10, 1)},
             'support/ems': {},
             'support/ems/destinations': {},
             'support/ems/events': {},
             'support/ems/filters': {},
             'support/ems/messages': {},
-            'support/snmp': {},
-            'support/snmp/traphosts': {},
-            'support/snmp/users': {},
-            'svm/migrations': {},
+            'support/snmp': {'version': (9, 7)},
+            'support/snmp/traphosts': {'version': (9, 7)},
+            'support/snmp/users': {'version': (9, 7)},
+            'svm/migrations': {'version': (9, 10, 1)},
             'svm/peers': {},
             'svm/peer-permissions': {},
             'svm/svms': {}
@@ -915,6 +944,7 @@ class NetAppONTAPGatherInfo(object):
         get_ontap_subset_info = self.add_uuid_subsets(get_ontap_subset_info)
 
         length_of_subsets = len(self.parameters['gather_subset'])
+        unsupported_subsets = self.subset_version_warning(get_ontap_subset_info)
 
         if self.parameters.get('fields') is not None:
             # If multiple fields specified to return, convert list to string
@@ -929,6 +959,8 @@ class NetAppONTAPGatherInfo(object):
         for subset in converted_subsets:
             subset, default_fields = subset if isinstance(subset, list) else (subset, None)
             result_message[subset] = self.get_ontap_subset_info_all(subset, default_fields, get_ontap_subset_info)
+        for subset in unsupported_subsets:
+            result_message[subset] = '%s requires ONTAP %s' % (subset, get_ontap_subset_info[subset]['version'])
 
         results = {'changed': False}
         if self.parameters.get('state') is not None:
@@ -940,50 +972,52 @@ class NetAppONTAPGatherInfo(object):
             result_message = new_dict
         self.module.exit_json(ontap_info=result_message, **results)
 
+    def subset_version_warning(self, get_ontap_subset_info):
+        # If a user requests a subset that their version of ONTAP does not support give them a warning (but don't fail)
+        unsupported_subset = []
+        warn_message = ''
+        user_version = self.rest_api.get_ontap_version()
+        for subset in self.parameters['gather_subset']:
+            if subset in get_ontap_subset_info and 'version' in get_ontap_subset_info[subset] and get_ontap_subset_info[subset]['version'] > user_version:
+                warn_message += '%s requires %s, ' % (subset, get_ontap_subset_info[subset]['version'])
+                # remove subset so info dosn't fail for a bad subset
+                unsupported_subset.append(subset)
+                self.parameters['gather_subset'].remove(subset)
+        if warn_message != '':
+            self.module.warn('The following subset have been removed from your query as they are not supported on your version of ONTAP %s' % warn_message)
+        return unsupported_subset
+
     def add_uuid_subsets(self, get_ontap_subset_info):
         params = self.parameters.get('owning_resource')
         if 'gather_subset' in self.parameters:
             if 'storage/volumes/snapshots' in self.parameters['gather_subset']:
                 self.check_error_values('storage/volumes/snapshots', params, ['volume_name', 'svm_name'])
-                record = self.get_volume_uuid()
-                if record:
-                    get_ontap_subset_info['storage/volumes/snapshots'] = {
-                        'api_call': 'storage/volumes/%s/snapshots' % record.get('uuid'),
-                    }
+                volume_uuid = rest_owning_resource.get_volume_uuid(self.rest_api, self.parameters['owning_resource']['volume_name'],
+                                                                   self.parameters['owning_resource']['svm_name'], self.module)
+                if volume_uuid:
+                    get_ontap_subset_info['storage/volumes/snapshots'] = {'api_call': 'storage/volumes/%s/snapshots' % volume_uuid}
             if 'protocols/nfs/export-policies/rules' in self.parameters['gather_subset']:
                 self.check_error_values('protocols/nfs/export-policies/rules', params, ['policy_name', 'svm_name', 'rule_index'])
-                record = self.get_export_policy_id()
-                if record:
+                policy_id = rest_owning_resource.get_export_policy_id(self.rest_api, self.parameters['owning_resource']['policy_name'],
+                                                                      self.parameters['owning_resource']['svm_name'], self.module)
+                if policy_id:
                     get_ontap_subset_info['protocols/nfs/export-policies/rules'] = {
-                        'api_call': 'protocols/nfs/export-policies/%s/rules/%s' % (record.get('id'), self.parameters['owning_resource']['rule_index']),
+                        'api_call': 'protocols/nfs/export-policies/%s/rules/%s' % (policy_id, self.parameters['owning_resource']['rule_index']),
                     }
+            if 'protocols/vscan/on-access-policies' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/on-access-policies', params, 'protocols/vscan/%s/on-access-policies', get_ontap_subset_info)
+            if 'protocols/vscan/on-demand-policies' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/on-demand-policies', params, 'protocols/vscan/%s/on-demand-policies', get_ontap_subset_info)
+            if 'protocols/vscan/scanner-pools' in self.parameters['gather_subset']:
+                self.add_vserver_owning_resource('protocols/vscan/scanner-pools', params, 'protocols/vscan/%s/scanner-pools', get_ontap_subset_info)
+
         return get_ontap_subset_info
 
-    def get_volume_uuid(self):
-        api = 'storage/volumes'
-        query = {'name': self.parameters['owning_resource']['volume_name'],
-                 'svm.name': self.parameters['owning_resource']['svm_name']}
-        record, error = rest_generic.get_one_record(self.rest_api, api, query)
-        if error:
-            self.module.fail_json(
-                msg='Could not find volume %s on SVM %s' % (self.parameters['owning_resource']['volume_name'],
-                                                            self.parameters['owning_resource']['svm_name']))
-        if record:
-            return record
-        return None
-
-    def get_export_policy_id(self):
-        api = 'protocols/nfs/export-policies'
-        query = {'name': self.parameters['owning_resource']['policy_name'],
-                 'svm.name': self.parameters['owning_resource']['svm_name']}
-        record, error = rest_generic.get_one_record(self.rest_api, api, query)
-        if error:
-            self.module.fail_json(
-                msg='Could not find export policy %s on SVM %s' % (self.parameters['owning_resource']['policy_name'],
-                                                                   self.parameters['owning_resource']['svm_name']))
-        if record:
-            return record
-        return None
+    def add_vserver_owning_resource(self, subset, params, api, get_ontap_subset_info):
+        self.check_error_values(subset, params, ['svm_name'])
+        svm_uuid, dummy = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['owning_resource']['svm_name'])
+        if svm_uuid:
+            get_ontap_subset_info[subset] = {'api_call': api % svm_uuid}
 
     def check_error_values(self, api, params, items):
         error = not params or sorted(list(params.keys())) != sorted(items)

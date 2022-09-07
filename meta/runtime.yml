@@ -25,6 +25,7 @@ action_groups:
     - na_ontap_dns
     - na_ontap_domain_tunnel
     - na_ontap_efficiency_policy
+    - na_ontap_ems_destination
     - na_ontap_export_policy
     - na_ontap_export_policy_rule
     - na_ontap_fcp
@@ -75,6 +76,7 @@ action_groups:
     - na_ontap_ntfs_dacl
     - na_ontap_ntfs_sd
     - na_ontap_ntp
+    - na_ontap_ntp_key
     - na_ontap_nvme_namespace
     - na_ontap_nvme
     - na_ontap_nvme_subsystem
@@ -92,6 +94,8 @@ action_groups:
     - na_ontap_rest_info
     - na_ontap_restit
     - na_ontap_s3_buckets
+    - na_ontap_s3_groups
+    - na_ontap_s3_policies
     - na_ontap_s3_services
     - na_ontap_s3_users
     - na_ontap_security_certificates

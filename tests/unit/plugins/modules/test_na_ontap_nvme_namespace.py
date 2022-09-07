@@ -84,7 +84,8 @@ class TestMyModule(unittest.TestCase):
             'vserver': vserver,
             'path': path,
             'size': size,
-            'size_unit': size_unit
+            'size_unit': size_unit,
+            'use_rest': 'never',
         })
 
     def test_module_fail_when_required_args_missing(self):

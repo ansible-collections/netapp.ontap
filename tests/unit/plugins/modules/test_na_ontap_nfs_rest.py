@@ -97,7 +97,7 @@ def test_partially_supported_rest():
     with pytest.raises(AnsibleFailJson) as exc:
         my_module()
     print('Info: %s' % exc.value.args[0]['msg'])
-    msg = "Minimum version of ONTAP for showmount is (9, 8)\n"
+    msg = "Minimum version of ONTAP for showmount is (9, 8)."
     assert msg == exc.value.args[0]['msg']
 
 

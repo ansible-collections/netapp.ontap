@@ -1,17 +1,13 @@
 #!/usr/bin/python
 
 """
- (c) 2018-2021, NetApp, Inc
+ (c) 2018-2022, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = """
 
@@ -23,45 +19,49 @@ extends_documentation_fragment:
 version_added: '21.2.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- And and Remove LUN map reporting nodes.
+  - Add and Remove LUN map reporting nodes.
 
 options:
   state:
     description:
-    - Whether to add or remove reporting nodes
+      - Whether to add or remove reporting nodes
     choices: ['present', 'absent']
     type: str
     default: present
 
   initiator_group_name:
     description:
-    - Initiator group to map to the given LUN.
+      - Initiator group to map to the given LUN.
     required: true
     type: str
 
   path:
     description:
-    - Path of the LUN.
+      - Path of the LUN.
     required: true
     type: str
 
   vserver:
     required: true
     description:
-    - The name of the vserver owning the LUN.
+      - The name of the vserver owning the LUN.
     type: str
 
   nodes:
     required: true
     description:
-    - List of reporting nodes to add or remove
+      - List of reporting nodes to add or remove
     type: list
     elements: str
+
+notes:
+  - supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
+  - supports check mode.
 """
 
 EXAMPLES = """
     - name: Create Lun Map reporting nodes
-      na_ontap_lun_map_reporting_nodes:
+      netapp.ontap.na_ontap_lun_map_reporting_nodes:
         hostname: 172.21.121.82
         username: admin
         password: netapp1!
@@ -74,7 +74,7 @@ EXAMPLES = """
         nodes: [node2]
 
     - name: Delete Lun Map reporting nodes
-      na_ontap_lun_map_reporting_nodes:
+      netapp.ontap.na_ontap_lun_map_reporting_nodes:
         hostname: 172.21.121.82
         username: admin
         password: netapp1!
@@ -97,11 +97,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapLUNMapReportingNodes(object):
+class NetAppOntapLUNMapReportingNodes:
     ''' add or remove reporting nodes from a lun map '''
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -118,15 +117,17 @@ class NetAppOntapLUNMapReportingNodes(object):
             supports_check_mode=True
         )
 
-        self.result = dict(
-            changed=False,
-        )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.lun_uuid, self.igroup_uuid, self.nodes_uuids = None, None, {}
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            msg = 'REST requires ONTAP 9.10.1 or later for na_ontap_lun_map_reporting_nodes'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_lun_map_reporting_nodes(self):
@@ -136,6 +137,8 @@ class NetAppOntapLUNMapReportingNodes(object):
         :return: list of reporting nodes
         :rtype: list
         """
+        if self.use_rest:
+            return self.get_lun_map_reporting_nodes_rest()
         query_details = netapp_utils.zapi.NaElement('lun-map-info')
         query_details.add_new_child('path', self.parameters['path'])
         query_details.add_new_child('initiator-group', self.parameters['initiator_group_name'])
@@ -159,7 +162,6 @@ class NetAppOntapLUNMapReportingNodes(object):
             self.module.fail_json(msg="Error: unexpected ZAPI response for lun-map-get-iter: %s" % result.to_string())
         if num_records == 0:
             return None
-
         alist = result.get_child_by_name('attributes-list')
         info = alist.get_child_by_name('lun-map-info')
         reporting_nodes = info.get_child_by_name('reporting-nodes')
@@ -199,11 +201,48 @@ class NetAppOntapLUNMapReportingNodes(object):
                                   (self.parameters['initiator_group_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_lun_map_reporting_nodes_rest(self):
+        api = 'protocols/san/lun-maps'
+        query = {
+            'lun.name': self.parameters['path'],
+            'igroup.name': self.parameters['initiator_group_name'],
+            'svm.name': self.parameters['vserver'],
+            'fields': 'reporting_nodes,lun.uuid,igroup.uuid'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg='Error getting LUN map for %s: %s' %
+                                  (self.parameters['initiator_group_name'], to_native(error)))
+        if record:
+            self.lun_uuid = record['lun']['uuid']
+            self.igroup_uuid = record['igroup']['uuid']
+            node_list = []
+            for node in record.get('reporting_nodes', []):
+                self.nodes_uuids[node['name']] = node['uuid']
+                node_list.append(node['name'])
+            return node_list
+        return None
+
+    def add_lun_map_reporting_nodes_rest(self, node):
+        api = 'protocols/san/lun-maps/%s/%s/reporting-nodes' % (self.lun_uuid, self.igroup_uuid)
+        dummy, error = rest_generic.post_async(self.rest_api, api, {'name': node})
+        if error:
+            self.module.fail_json(msg='Error creating LUN map reporting node for %s: %s' %
+                                  (self.parameters['initiator_group_name'], to_native(error)))
+
+    def remove_lun_map_reporting_nodes_rest(self, node):
+        api = 'protocols/san/lun-maps/%s/%s/reporting-nodes' % (self.lun_uuid, self.igroup_uuid)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.nodes_uuids[node])
+        if error:
+            self.module.fail_json(msg='Error deleting LUN map reporting nodes for %s: %s' %
+                                  (self.parameters['initiator_group_name'], to_native(error)))
+
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_lun_map_reporting_nodes", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_lun_map_reporting_nodes", self.server)
         reporting_nodes = self.get_lun_map_reporting_nodes()
         if reporting_nodes is None:
-            self.module.fail_json(msg='Error: LUN map for found for vserver %s, LUN path: %s, igroup: %s' %
+            self.module.fail_json(msg='Error: LUN map not found for vserver %s, LUN path: %s, igroup: %s' %
                                   (self.parameters['vserver'], self.parameters['path'], self.parameters['initiator_group_name']))
         if self.parameters['state'] == 'present':
             nodes_to_add = [node for node in self.parameters['nodes'] if node not in reporting_nodes]
@@ -214,9 +253,17 @@ class NetAppOntapLUNMapReportingNodes(object):
         changed = len(nodes_to_add) > 0 or len(nodes_to_delete) > 0
         if changed and not self.module.check_mode:
             if nodes_to_add:
-                self.add_lun_map_reporting_nodes(nodes_to_add)
+                if self.use_rest:
+                    for node in nodes_to_add:
+                        self.add_lun_map_reporting_nodes_rest(node)
+                else:
+                    self.add_lun_map_reporting_nodes(nodes_to_add)
             if nodes_to_delete:
-                self.remove_lun_map_reporting_nodes(nodes_to_delete)
+                if self.use_rest:
+                    for node in nodes_to_delete:
+                        self.remove_lun_map_reporting_nodes_rest(node)
+                else:
+                    self.remove_lun_map_reporting_nodes(nodes_to_delete)
         self.module.exit_json(changed=changed, reporting_nodes=reporting_nodes, nodes_to_add=nodes_to_add, nodes_to_delete=nodes_to_delete)
 
 

@@ -15,7 +15,7 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
     assert_warning_was_raised, call_main, create_module, create_and_apply, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     get_mock_record, patch_request_and_invoke, print_requests, register_responses
-from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
     import NetAppOntapVolume as vol_module, main as my_main  # module under test
@@ -101,7 +101,8 @@ def volume_info(style, vol_details=None, remove_keys=None):
                         'permissions': vol_details['unix_permissions'],
                         'group-id': vol_details['group_id'],
                         'user-id': vol_details['user_id']
-                    }
+                    },
+                    'style': 'unix',
                 },
                 'volume-vserver-dr-protection-attributes': {
                     'vserver-dr-protection': vol_details['vserver_dr_protection'],
@@ -155,7 +156,7 @@ def job_info(state, error):
         'attributes': {
             'job-info': {
                 'job-state': state,
-                'job-progress': 'dummy',
+                'job-progress': 'progress',
                 'job-completion': error,
             }
         }
@@ -164,7 +165,7 @@ def job_info(state, error):
 
 def results_info(status):
     return {
-        'result-status': 'in_progress',
+        'result-status': status,
         'result-jobid': 'job12345',
     }
 
@@ -206,7 +207,9 @@ ZRR = zapi_responses({
     'job_running': build_zapi_response(job_info('running', None)),
     'job_success': build_zapi_response(job_info('success', None)),
     'job_time_out': build_zapi_response(job_info('running', 'time_out')),
-    'async_results': build_zapi_response(results_info('1')),
+    'job_no_completion': build_zapi_response(job_info('failure', None)),
+    'async_results': build_zapi_response(results_info('in_progress')),
+    'failed_results': build_zapi_response(results_info('failed')),
     'modify_async_result_success': build_zapi_response(modify_async_results_info('in_progress')),
     'modify_async_result_failure': build_zapi_response(modify_async_results_info('failure', 'error_in_modify')),
     'vol_encryption_conversion_status_running': build_zapi_response(vol_encryption_conversion_status('running')),
@@ -217,7 +220,8 @@ ZRR = zapi_responses({
     'vol_move_status_error': build_zapi_response(vol_move_status('failed')),
     'insufficient_privileges': build_zapi_error(12346, 'Insufficient privileges: user USERID does not have read access to this resource'),
     'get_sis_info': build_zapi_response(sis_info()),
-    'error_15661': build_zapi_error(15661, 'force job not found error')
+    'error_15661': build_zapi_error(15661, 'force job not found error'),
+    'error_tiering_94': build_zapi_error(94, 'volume-comp-aggr-attributes')
 })
 
 
@@ -442,12 +446,41 @@ def test_error_delete():
         ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
         ('ZAPI', 'sis-get-iter', ZRR['no_records']),
         ('ZAPI', 'volume-destroy', ZRR['error']),
+        ('ZAPI', 'volume-destroy', ZRR['error']),
     ])
     module_args = {
         'state': 'absent',
     }
+    error = 'Error deleting volume test_vol:'
+    msg = create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    error = 'volume delete failed with unmount-and-offline option: %s' % ZAPI_ERROR
+    assert error in msg
+    error = 'volume delete failed without unmount-and-offline option: %s' % ZAPI_ERROR
+    assert error in msg
+
+
+def test_error_delete_async():
+    ''' Test delete existing volume '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-unmount', ZRR['error']),
+        ('ZAPI', 'volume-offline-async', ZRR['error']),
+        ('ZAPI', 'volume-destroy-async', ZRR['error']),
+    ])
+    module_args = {
+        'state': 'absent',
+
+    }
     error = 'Error deleting volume test_vol: %s' % ZAPI_ERROR
-    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+    msg = create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error in msg
+    error = 'Error unmounting volume test_vol: %s' % ZAPI_ERROR
+    assert error in msg
+    error = 'Error changing the state of volume test_vol to offline: %s' % ZAPI_ERROR
+    assert error in msg
 
 
 def test_delete_idempotency():
@@ -589,6 +622,22 @@ def test_successful_modify_unix_permissions():
     assert get_mock_record().is_text_in_zapi_request('<permissions>---rw-r-xr-x', 3)
 
 
+def test_successful_modify_volume_security_style():
+    ''' Test successful modify volume_security_style '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
+    ])
+    module_args = {
+        'volume_security_style': 'mixed',
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    print_requests()
+    assert get_mock_record().is_text_in_zapi_request('<style>mixed</style>', 3)
+
+
 def test_successful_modify_max_files_and_encrypt():
     ''' Test successful modify unix_permissions '''
     register_responses([
@@ -634,7 +683,7 @@ def test_successful_modify_efficiency_policy():
     ])
     module_args = {
         'efficiency_policy': 'test',
-        'compression': True
+        'inline_compression': True
     }
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
     print_requests()
@@ -903,102 +952,92 @@ def test_modify_helper():
     assert create_module(vol_module, DEFAULT_ARGS, module_args).modify_volume(modify, True) is None
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_1(get_volume):
+def test_compare_chmod_value_true_1():
     module_args = {'unix_permissions': '------------'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_2(get_volume):
+def test_compare_chmod_value_true_2():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = {
         'unix_permissions': '777'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_3(get_volume):
+def test_compare_chmod_value_true_3():
     module_args = {'unix_permissions': '---rwxr-xr-x'}
     current = {
         'unix_permissions': '755'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_true_4(get_volume):
+def test_compare_chmod_value_true_4():
     module_args = {'unix_permissions': '755'}
     current = {
         'unix_permissions': '755'
     }
-    get_volume.return_value = current
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_false_1(get_volume):
+def test_compare_chmod_value_false_1():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_false_2(get_volume):
+def test_compare_chmod_value_false_2():
     module_args = {'unix_permissions': '---rwxrwxrwx'}
     current = None
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current, module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_1(get_volume):
+def test_compare_chmod_value_invalid_input_1():
     module_args = {'unix_permissions': '---xwrxwrxwr'}
     current = {
         'unix_permissions': '777'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_2(get_volume):
+def test_compare_chmod_value_invalid_input_2():
     module_args = {'unix_permissions': '---rwx-wx--a'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_3(get_volume):
+def test_compare_chmod_value_invalid_input_3():
     module_args = {'unix_permissions': '---'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume.NetAppOntapVolume.get_volume')
-def test_compare_chmod_value_invalid_input_4(get_volume):
+def test_compare_chmod_value_invalid_input_4():
     module_args = {'unix_permissions': 'rwx---rwxrwx'}
     current = {
         'unix_permissions': '0'
     }
-    get_volume.return_value = current
-    assert not create_module(vol_module, DEFAULT_ARGS, module_args).compare_chmod_value(current)
+    vol_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    assert not vol_obj.na_helper.compare_chmod_value(current['unix_permissions'], module_args['unix_permissions'])
 
 
 def test_successful_create_flex_group_manually():
@@ -1010,7 +1049,6 @@ def test_successful_create_flex_group_manually():
         ('ZAPI', 'volume-get-iter', ZRR['get_flexgroup']),
         ('ZAPI', 'sis-get-iter', ZRR['no_records']),
         ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'job-get', ZRR['job_success']),
     ])
     args = copy.deepcopy(DEFAULT_ARGS)
@@ -1312,7 +1350,6 @@ def test_successful_offline_state_flex_group(get_volume):
         ('ZAPI', 'volume-unmount', ZRR['success']),
         ('ZAPI', 'volume-offline-async', ZRR['async_results']),
         ('ZAPI', 'job-get', ZRR['job_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
     ])
     module_args, current = setup_offline_state()
     get_volume.return_value = current
@@ -1357,9 +1394,7 @@ def test_successful_online_state_flex_group(get_volume):
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-online-async', ZRR['async_results']),
         ('ZAPI', 'job-get', ZRR['job_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'volume-modify-iter-async', ZRR['modify_async_result_success']),
-        ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'job-get', ZRR['job_success']),
         ('ZAPI', 'volume-mount', ZRR['success']),
     ])
@@ -1378,10 +1413,10 @@ def test_successful_online_state_flex_group(get_volume):
     get_volume.return_value = current
     assert create_and_apply(vol_module, DEFAULT_ARGS)['changed']
     print_requests()
-    assert get_mock_record().is_text_in_zapi_request('<group-id>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<user-id>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>', 4)
-    assert get_mock_record().is_text_in_zapi_request('<junction-path>/test</junction-path>', 7)
+    assert get_mock_record().is_text_in_zapi_request('<group-id>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<user-id>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<percentage-snapshot-reserve>', 3)
+    assert get_mock_record().is_text_in_zapi_request('<junction-path>/test</junction-path>', 5)
 
 
 def test_check_job_status_error():
@@ -1403,7 +1438,6 @@ def test_check_job_status_not_found(skip_sleep):
     ''' Test check job status error '''
     register_responses([
         ('ZAPI', 'job-get', ZRR['error_15661']),
-        ('ZAPI', 'job-get', ZRR['error_15661']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'job-get', ZRR['error_15661']),
     ])
@@ -1423,6 +1457,9 @@ def test_check_job_status_failure(skip_sleep):
         ('ZAPI', 'job-get', ZRR['job_running']),
         ('ZAPI', 'job-get', ZRR['job_running']),
         ('ZAPI', 'job-get', ZRR['job_failure']),
+        ('ZAPI', 'job-get', ZRR['job_running']),
+        ('ZAPI', 'job-get', ZRR['job_running']),
+        ('ZAPI', 'job-get', ZRR['job_no_completion']),
     ])
     module_args = {
         'aggr_list': 'aggr_0,aggr_1',
@@ -1430,6 +1467,8 @@ def test_check_job_status_failure(skip_sleep):
         'time_out': 20
     }
     msg = 'failure'
+    assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
+    msg = 'progress'
     assert msg == create_module(vol_module, MINIMUM_ARGS, module_args).check_job_status('123')
 
 
@@ -1450,7 +1489,6 @@ def test_check_job_status_time_out_is_0():
 def test_check_job_status_unexpected():
     ''' Test check job status unexpected state '''
     register_responses([
-        ('ZAPI', 'job-get', ZRR['job_other']),
         ('ZAPI', 'job-get', ZRR['job_other']),
     ])
     module_args = {
@@ -1474,6 +1512,25 @@ def test_successful_modify_tiering_policy():
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
     print_requests()
     assert get_mock_record().is_text_in_zapi_request('<tiering-policy>auto</tiering-policy>', 3)
+
+
+def test_error_modify_tiering_policy():
+    ''' Test successful modify tiering policy '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['error']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-modify-iter', ZRR['error_tiering_94']),
+    ])
+    module_args = {'tiering_policy': 'auto'}
+    error = zapi_error_message('Error modifying volume test_vol')
+    assert error in create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = zapi_error_message('Error modifying volume test_vol', 94, 'volume-comp-aggr-attributes', '. Added info: tiering option requires 9.4 or later.')
+    assert error in create_and_apply(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_successful_modify_vserver_dr_protection():
@@ -1639,7 +1696,7 @@ def test_error_modify_flexgroup_to_flexvol():
 def test_error_snaplock_not_supported_with_zapi():
     ''' Test successful modify vserver_dr_protection '''
     module_args = {'snaplock': {'retention': {'default': 'P30TM'}}}
-    msg = 'snaplock option is not supported with ZAPI. It can only be used with REST.'
+    msg = 'Error: snaplock option is not supported with ZAPI.  It can only be used with REST.  use_rest: never.'
     assert msg == create_module(vol_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
@@ -1922,7 +1979,7 @@ def test_create_volume_from_main():
         'space_guarantee': 'file',
         'tiering_policy': 'snapshot-only',
         'volume_security_style': 'unix',
-        'vserver_dr_protection': 'unprotected'
+        'vserver_dr_protection': 'unprotected',
     }
     assert call_main(my_main, args, module_args)['changed']
 
@@ -1942,3 +1999,74 @@ def test_error_create_volume_change_in_type():
     }
     error = 'Error: volume type was not set properly at creation time.  Current: rw, desired: dp.'
     assert call_main(my_main, args, module_args, fail=True)['msg'] == error
+
+
+def test_create_volume_attribute():
+    obj = create_module(vol_module, DEFAULT_ARGS)
+    # str
+    obj.parameters['option_name'] = 'my_option'
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name')
+    print(parent.to_string())
+    assert parent['zapi_name'] == 'my_option'
+    # int - fail, unless converted
+    obj.parameters['option_name'] = 123
+    expect_and_capture_ansible_exception(obj.create_volume_attribute, TypeError, None, parent, 'zapi_name', 'option_name')
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', int)
+    assert parent['zapi_name'] == '123'
+    # boolmodify_volume_efficiency_config
+    obj.parameters['option_name'] = False
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute(None, parent, 'zapi_name', 'option_name', bool)
+    assert parent['zapi_name'] == 'false'
+    # parent->attrs->attr
+    # create child
+    parent = netapp_utils.zapi.NaElement('results')
+    obj.create_volume_attribute('child', parent, 'zapi_name', 'option_name', bool)
+    assert parent['child']['zapi_name'] == 'false'
+    # use existing child in parent
+    obj.create_volume_attribute('child', parent, 'zapi_name2', 'option_name', bool)
+    assert parent['child']['zapi_name2'] == 'false'
+    # pass child
+    parent = netapp_utils.zapi.NaElement('results')
+    child = netapp_utils.zapi.NaElement('child')
+    obj.create_volume_attribute(child, parent, 'zapi_name', 'option_name', bool)
+    assert parent['child']['zapi_name'] == 'false'
+
+
+def test_check_invoke_result():
+    register_responses([
+        # 3rd run
+        ('ZAPI', 'job-get', ZRR['job_success']),
+        # 3th run
+        ('ZAPI', 'job-get', ZRR['job_failure']),
+    ])
+    module_args = {
+        'time_out': 0
+    }
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    # 1 - operation failed immediately
+    error = 'Operation failed when testing volume.'
+    assert error in expect_and_capture_ansible_exception(obj.check_invoke_result, 'fail', ZRR['failed_results'][0], 'testing')['msg']
+    # 2 - operation in progress - exit immediately as time_out is 0
+    assert obj.check_invoke_result(ZRR['async_results'][0], 'testing') is None
+    module_args = {
+        'time_out': 10
+    }
+    # 3 - operation in progress - job reported success
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    error = 'Error when testing volume: failure'
+    assert obj.check_invoke_result(ZRR['async_results'][0], 'testing') is None
+    # 4 - operation in progress - job reported a failure
+    obj = create_module(vol_module, DEFAULT_ARGS, module_args)
+    error = 'Error when testing volume: failure'
+    assert error in expect_and_capture_ansible_exception(obj.check_invoke_result, 'fail', ZRR['async_results'][0], 'testing')['msg']
+
+
+def test_error_vserver_ems():
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
+    ])
+    error = zapi_error_message('Error on vserver: test_vserver')
+    assert call_main(my_main, DEFAULT_ARGS, fail=True)['msg'] == error

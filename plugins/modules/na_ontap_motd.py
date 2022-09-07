@@ -1,15 +1,11 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # (c) 2018 Piotr Olczak <piotr.olczak@redhat.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -24,8 +20,6 @@ description:
     - This module allows you to manipulate motd for a vserver
     - It also allows to manipulate motd at the cluster level by using the cluster vserver (cserver)
 version_added: 2.7.0
-requirements:
-    - netapp_lib
 options:
     state:
         description:
@@ -50,12 +44,16 @@ options:
         type: bool
         default: True
 
+notes:
+  - This module is deprecated and only supports ZAPI.
+  - Please use netapp.ontap.na_ontap_login_messages both for ZAPI and REST.
+
 '''
 
 EXAMPLES = '''
 
 - name: Set Cluster-Level MOTD
-  na_ontap_motd:
+  netapp.ontap.na_ontap_motd:
     vserver: my_ontap_cluster
     motd_message: "Cluster wide MOTD"
     hostname: "{{ netapp_hostname }}"
@@ -65,7 +63,7 @@ EXAMPLES = '''
     https: true
 
 - name: Set MOTD for I(rhev_nfs_krb) SVM, do not show Cluster-Level MOTD
-  na_ontap_motd:
+  netapp.ontap.na_ontap_motd:
     vserver: rhev_nfs_krb
     motd_message: "Access to rhev_nfs_krb is also restricted"
     hostname: "{{ netapp_hostname }}"
@@ -76,14 +74,13 @@ EXAMPLES = '''
     https: true
 
 - name: Remove Cluster-Level MOTD
-  na_ontap_motd:
+  netapp.ontap.na_ontap_motd:
     vserver: my_ontap_cluster
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     state: absent
     https: true
-
 '''
 
 RETURN = '''
@@ -97,10 +94,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
-
-class NetAppONTAPMotd(object):
+class NetAppONTAPMotd:
 
     def __init__(self):
         argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -118,9 +112,16 @@ class NetAppONTAPMotd(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.na_helper.module_replaces('na_ontap_login_messages', self.module)
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
+        msg = 'netapp.ontap.na_ontap_motd is deprecated and only supports ZAPI.  Please use netapp.ontap.na_ontap_login_messages.'
+        if self.parameters['use_rest'].lower() == 'never':
+            self.module.warn(msg)
+        else:
+            self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
 
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
@@ -144,7 +145,7 @@ class NetAppONTAPMotd(object):
         :return: Dictionary of current motd details if query successful, else None
         """
         motd_get_iter = self.motd_get_iter()
-        motd_result = dict()
+        motd_result = {}
         try:
             result = self.server.invoke_successfully(motd_get_iter, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -156,8 +157,7 @@ class NetAppONTAPMotd(object):
                 'vserver-motd-info')
             motd_result['motd_message'] = motd_info.get_child_content('message')
             motd_result['motd_message'] = str(motd_result['motd_message']).rstrip()
-            motd_result['show_cluster_motd'] = True if motd_info.get_child_content(
-                'is-cluster-message-enabled') == 'true' else False
+            motd_result['show_cluster_motd'] = motd_info.get_child_content('is-cluster-message-enabled') == 'true'
             motd_result['vserver'] = motd_info.get_child_content('vserver')
             return motd_result
         return None
@@ -193,12 +193,8 @@ class NetAppONTAPMotd(object):
         if cd_action is None and self.parameters['state'] == 'present':
             self.na_helper.get_modified_attributes(current, self.parameters)
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                self.modify_motd()
-        self.module.warn('Module is deprecated. Recommended to use na_ontap_login_messages module.')
+        if self.na_helper.changed and not self.module.check_mode:
+            self.modify_motd()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

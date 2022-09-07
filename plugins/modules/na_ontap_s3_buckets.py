@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
 # (c) 2018-2022, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 
@@ -21,37 +20,37 @@ description:
 options:
   state:
     description:
-    - Whether the specified S3 bucket should exist or not.
+      - Whether the specified S3 bucket should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
 
   name:
     description:
-    - The name of the S3 bucket.
+      - The name of the S3 bucket.
     type: str
     required: true
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     type: str
     required: true
 
   aggregates:
     description:
-    - List of aggregates names to use for the S3 bucket.
+      - List of aggregates names to use for the S3 bucket.
     type: list
     elements: str
 
   constituents_per_aggregate:
     description:
-    - Number of constituents per aggregate.
+      - Number of constituents per aggregate.
     type: int
 
   size:
     description:
-    - Size of the S3 bucket in bytes.
+      - Size of the S3 bucket in bytes.
     type: int
 
   comment:
@@ -155,8 +154,8 @@ options:
 
   qos_policy:
     description:
-    - A policy group defines measurable service level objectives (SLOs) that apply to the storage objects with which the policy group is associated.
-    - If you do not assign a policy group to a bucket, the system wil not monitor and control the traffic to it.
+      - A policy group defines measurable service level objectives (SLOs) that apply to the storage objects with which the policy group is associated.
+      - If you do not assign a policy group to a bucket, the system wil not monitor and control the traffic to it.
     type: dict
     suboptions:
       max_throughput_iops:
@@ -184,17 +183,20 @@ options:
           - specifies the type of event access to be audited, read-only, write-only or all (default is all).
         type: str
         choices:
-          - read-only
-          - write-only
+          - read
+          - write
           - all
       permission:
         description:
           - specifies the type of event permission to be audited, allow-only, deny-only or all (default is all).
         type: str
         choices:
-          - allow-only
-          - deny-only
+          - allow
+          - deny
           - all
+notes:
+  - module will try to set desired C(audit_event_selector) if the bucket is not configured with audit_event_selector options,
+    but may not take effect if there is no audit configuration present in vserver.
 '''
 
 EXAMPLES = """
@@ -275,11 +277,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppOntapS3Buckets():
+class NetAppOntapS3Buckets:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
@@ -326,8 +327,8 @@ class NetAppOntapS3Buckets():
                 min_throughput_mbps=dict(type='int'),
             )),
             audit_event_selector=dict(type='dict', options=dict(
-                access=dict(type='str', choices=['read-only', 'write-only', 'all']),
-                permission=dict(type='str', choices=['allow-only', 'deny-only', 'all']))),
+                access=dict(type='str', choices=['read', 'write', 'all']),
+                permission=dict(type='str', choices=['allow', 'deny', 'all']))),
         ))
 
         self.module = AnsibleModule(
@@ -340,21 +341,43 @@ class NetAppOntapS3Buckets():
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
 
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
                                               parameters=self.parameters)
-        if not self.use_rest:
-            self.module.fail_json(msg='na_ontap_S3_buckets is only supported with REST API')
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
-            self.module.fail_json(msg="ONTAP version must be 9.8 or higher")
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_bucket', 9, 8)
+        # few keys in policy.statements will be configured with default value if not set in create.
+        # so removing None entries to avoid idempotent issue in next run.
+        if self.parameters.get('policy'):
+            # below keys can be reset with empty list.
+            #   - statements.
+            #   - conditions.
+            #   - actions.
+            #   - principals.
+            self.parameters['policy'] = self.na_helper.filter_out_none_entries(self.parameters['policy'], True)
+            for statement in self.parameters['policy'].get('statements', []):
+                if {} in self.parameters['policy']['statements']:
+                    self.module.fail_json(msg="Error: cannot set empty dict for policy statements.")
+                if len(statement.get('resources', [])) == 1 and statement['resources'] == ["*"]:
+                    statement['resources'] = [self.parameters['name'], self.parameters['name'] + '/*']
+                for condition in statement.get('conditions', []):
+                    updated_ips = []
+                    for ip in condition.get('source_ips', []):
+                        if '/' in ip:
+                            updated_ips.append(ip)
+                        else:
+                            # if cidr notation not set in each ip, append /32.
+                            # cidr unset ip address will return with /32 in next run.
+                            updated_ips.append(ip + '/32')
+                    if updated_ips:
+                        condition['source_ips'] = updated_ips
 
     def get_s3_bucket(self):
         api = 'protocols/s3/buckets'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
-            fields = 'name,svm.name,size,comment,volume.uuid,policy,qos_policy,audit_event_selector'
+            fields = 'name,svm.name,size,comment,volume.uuid,policy,policy.statements,qos_policy,audit_event_selector'
         else:
-            fields = 'name,svm.name,size,comment,volume.uuid,policy,qos_policy'
+            fields = 'name,svm.name,size,comment,volume.uuid,policy,policy.statements,qos_policy'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
                   'fields': fields}
@@ -362,9 +385,44 @@ class NetAppOntapS3Buckets():
         if error:
             self.module.fail_json(msg='Error fetching S3 bucket %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
-        if record:
-            return self.set_uuids(record)
-        return None
+        return self.form_current(record) if record else None
+
+    def form_current(self, record):
+        self.set_uuid(record)
+        body = {
+            'comment': self.na_helper.safe_get(record, ['comment']),
+            'size': self.na_helper.safe_get(record, ['size']),
+            'policy': self.na_helper.safe_get(record, ['policy']),
+            'qos_policy': self.na_helper.safe_get(record, ['qos_policy']),
+            'audit_event_selector': self.na_helper.safe_get(record, ['audit_event_selector'])
+        }
+        if body['policy']:
+            for policy_statement in body['policy'].get('statements', []):
+                # So we treat SID as a String as it can accept Words, or Numbers.
+                # ONTAP will return it as a String, unless it is just
+                # numbers then it is returned as an INT.
+                policy_statement['sid'] = str(policy_statement['sid'])
+                # setting keys in each condition to None if not present to avoid idempotency issue.
+                if not policy_statement.get('conditions'):
+                    policy_statement['conditions'] = []
+                else:
+                    for condition in policy_statement['conditions']:
+                        condition['delimiters'] = condition.get('delimiters')
+                        condition['max_keys'] = condition.get('max_keys')
+                        condition['operator'] = condition.get('operator')
+                        condition['prefixes'] = condition.get('prefixes')
+                        condition['source_ips'] = condition.get('source_ips')
+                        condition['usernames'] = condition.get('usernames')
+        # empty [] is used to reset policy statements.
+        # setting policy statements to [] to avoid idempotency issue.
+        else:
+            body['policy'] = {'statements': []}
+        return body
+
+    def set_uuid(self, record):
+        self.uuid = record['uuid']
+        self.svm_uuid = record['svm']['uuid']
+        self.volume_uuid = record['volume']['uuid']
 
     def create_s3_bucket(self):
         api = 'protocols/s3/buckets'
@@ -378,12 +436,7 @@ class NetAppOntapS3Buckets():
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']
         if self.parameters.get('policy'):
-            body['policy'] = self.na_helper.filter_out_none_entries(self.parameters['policy'])
-            if self.na_helper.safe_get(body, ['policy', 'statements']):
-                for statement in self.na_helper.safe_get(body, ['policy', 'statements']):
-                    for condition in self.na_helper.safe_get(statement, ['conditions']):
-                        if self.na_helper.safe_get(condition, ['source_ips']):
-                            condition['source-ips'] = condition.pop('source_ips')
+            body['policy'] = self.parameters['policy']
         if self.parameters.get('qos_policy'):
             body['qos_policy'] = self.na_helper.filter_out_none_entries(self.parameters['qos_policy'])
         if self.parameters.get('audit_event_selector'):
@@ -410,11 +463,15 @@ class NetAppOntapS3Buckets():
         if modify.get('comment'):
             body['comment'] = modify['comment']
         if modify.get('policy'):
-            body['policy'] = modify['policy']
+            # this will reset the policy statements to None.
+            if 'statements' in modify['policy'] and modify['policy']['statements'] == []:
+                body['policy'] = {'statements': []}
+            else:
+                body['policy'] = self.parameters['policy']
         if modify.get('qos_policy'):
-            body['qos_policy'] = modify['qos_policy']
+            body['qos_policy'] = self.na_helper.filter_out_none_entries(self.parameters['qos_policy'])
         if modify.get('audit_event_selector'):
-            body['audit_event_selector'] = modify['audit_event_selector']
+            body['audit_event_selector'] = self.na_helper.filter_out_none_entries(self.parameters['audit_event_selector'])
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuids, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error modifying S3 bucket %s: %s' % (self.parameters['name'], to_native(error)),
@@ -432,11 +489,54 @@ class NetAppOntapS3Buckets():
                 return True
         return False
 
-    def set_uuids(self, record):
-        self.uuid = record['uuid']
-        self.svm_uuid = record['svm']['uuid']
-        self.volume_uuid = record['volume']['uuid']
-        return record
+    def validate_modify_required(self, modify, current):
+        # if desired statement length different than current, allow modify.
+        if len(modify['policy']['statements']) != len(current['policy']['statements']):
+            return True
+        match_found = []
+        for statement in modify['policy']['statements']:
+            for index, current_statement in enumerate(current['policy']['statements']):
+                # continue to next if the current statement already has a match.
+                if index in match_found:
+                    continue
+                statement_modified = self.na_helper.get_modified_attributes(current_statement, statement)
+                # no modify required, match found for the statment.
+                # break the loop and check next desired policy statement has match.
+                if not statement_modified:
+                    match_found.append(index)
+                    break
+                # match not found, switch to next current statement and continue to find desired statement is present.
+                if len(statement_modified) > 1:
+                    continue
+                # 'conditions' key in policy.statements is list type, each element is dict.
+                # if the len of the desired conditions different than current, allow for modify.
+                # check for modify if 'conditions' is the only key present in statement_modified.
+                # check for difference in each modify[policy.statements[index][conditions] with current[policy.statements[index][conditions].
+                if statement_modified.get('conditions'):
+                    if not current_statement['conditions']:
+                        continue
+                    if len(statement_modified.get('conditions')) != len(current_statement['conditions']):
+                        continue
+
+                    # each condition should be checked for modify based on the operator key.
+                    def require_modify(desired, current):
+                        for condition in desired:
+                            # operator is a required field for condition, if not present, REST will throw error.
+                            if condition.get('operator'):
+                                for current_condition in current:
+                                    if condition['operator'] == current_condition['operator']:
+                                        condition_modified = self.na_helper.get_modified_attributes(current_condition, condition)
+                                        if condition_modified:
+                                            return True
+                            else:
+                                return True
+                    if not require_modify(statement_modified['conditions'], current_statement['conditions']):
+                        match_found.append(index)
+                        break
+        # allow modify
+        #   - if not match found
+        #   - if only partial policy statements has match found.
+        return not match_found or len(match_found) != len(modify['policy']['statements'])
 
     def apply(self):
         current = self.get_s3_bucket()
@@ -444,6 +544,11 @@ class NetAppOntapS3Buckets():
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if len(modify) == 1 and 'policy' in modify and current.get('policy'):
+                if modify['policy'].get('statements'):
+                    self.na_helper.changed = self.validate_modify_required(modify, current)
+                    if not self.na_helper.changed:
+                        modify = False
             if current and self.check_volume_aggr():
                 self.module.fail_json(msg='Aggregates can not be modified for S3 bucket %s' % self.parameters['name'])
         if self.na_helper.changed and not self.module.check_mode:
@@ -453,7 +558,6 @@ class NetAppOntapS3Buckets():
                 self.delete_s3_bucket()
             if modify:
                 self.modify_s3_bucket(modify)
-
         self.module.exit_json(changed=self.na_helper.changed)
 
 

@@ -119,7 +119,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -149,9 +148,9 @@ class NetAppONTAPNVMESubsystem:
             supports_check_mode=True
         )
 
-        self.na_helper = NetAppModule()
+        self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
@@ -166,21 +165,7 @@ class NetAppONTAPNVMESubsystem:
         """
         if self.use_rest:
             return self.get_subsystem_rest()
-        subsystem_get = netapp_utils.zapi.NaElement('nvme-subsystem-get-iter')
-        query = {
-            'query': {
-                'nvme-subsystem-info': {
-                    'subsystem': self.parameters.get('subsystem'),
-                    'vserver': self.parameters.get('vserver')
-                }
-            }
-        }
-        subsystem_get.translate_struct(query)
-        try:
-            result = self.server.invoke_successfully(subsystem_get, enable_tunneling=False)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching subsystem info: %s' % to_native(error),
-                                  exception=traceback.format_exc())
+        result = self.get_zapi_info('nvme-subsystem-get-iter', 'nvme-subsystem-info')
         if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
             return True
         return None
@@ -189,8 +174,6 @@ class NetAppONTAPNVMESubsystem:
         """
         Create a NVME Subsystem
         """
-        if self.parameters.get('ostype') is None:
-            self.module.fail_json(msg="Error: Missing required parameter 'os_type' for creating subsystem")
         if self.use_rest:
             return self.create_subsystem_rest()
         options = {'subsystem': self.parameters['subsystem'],
@@ -229,11 +212,18 @@ class NetAppONTAPNVMESubsystem:
         :return: list if host exists, None otherwise
         """
         if type == 'hosts':
-            zapi_get, zapi_info, zapi_type = 'nvme-subsystem-host-get-iter', 'nvme-target-subsystem-host-info',\
-                                             'host-nqn'
+            zapi_get, zapi_info, zapi_type = 'nvme-subsystem-host-get-iter', 'nvme-target-subsystem-host-info', 'host-nqn'
         elif type == 'paths':
             zapi_get, zapi_info, zapi_type = 'nvme-subsystem-map-get-iter', 'nvme-target-subsystem-map-info', 'path'
-        subsystem_get = netapp_utils.zapi.NaElement(zapi_get)
+        result = self.get_zapi_info(zapi_get, zapi_info, zapi_type)
+        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
+            attrs_list = result.get_child_by_name('attributes-list')
+            return_list = [item[zapi_type] for item in attrs_list.get_children()]
+            return {type: return_list}
+        return None
+
+    def get_zapi_info(self, zapi_get_method, zapi_info, zapi_type=None):
+        subsystem_get = netapp_utils.zapi.NaElement(zapi_get_method)
         query = {
             'query': {
                 zapi_info: {
@@ -243,18 +233,13 @@ class NetAppONTAPNVMESubsystem:
             }
         }
         subsystem_get.translate_struct(query)
+        qualifier = " %s" % zapi_type if zapi_type else ""
         try:
             result = self.server.invoke_successfully(subsystem_get, enable_tunneling=False)
         except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error fetching subsystem info: %s' % to_native(error),
+            self.module.fail_json(msg='Error fetching subsystem%s info: %s' % (qualifier, to_native(error)),
                                   exception=traceback.format_exc())
-        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
-            attrs_list = result.get_child_by_name('attributes-list')
-            return_list = []
-            for item in attrs_list.get_children():
-                return_list.append(item[zapi_type])
-            return {type: return_list}
-        return None
+        return result
 
     def add_subsystem_host_map(self, data, type):
         """
@@ -332,12 +317,12 @@ class NetAppONTAPNVMESubsystem:
         return action_add_dict, action_remove_dict
 
     def modify_host_map(self, add_host_map, remove_host_map):
-        for type, data in add_host_map.items():
+        for type, data in sorted(add_host_map.items()):
             if self.use_rest:
                 self.add_subsystem_host_map_rest(data, type)
             else:
                 self.add_subsystem_host_map(data, type)
-        for type, data in remove_host_map.items():
+        for type, data in sorted(remove_host_map.items()):
             if self.use_rest:
                 self.remove_subsystem_host_map_rest(data, type)
             else:
@@ -348,6 +333,8 @@ class NetAppONTAPNVMESubsystem:
         params = {'svm.name': self.parameters['vserver'], 'name': self.parameters['subsystem']}
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
+            if self.na_helper.ignore_missing_vserver_on_delete(error):
+                return None
             self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
         if record:
             self.subsystem_uuid = record['uuid']
@@ -359,7 +346,7 @@ class NetAppONTAPNVMESubsystem:
             api = 'protocols/nvme/subsystems/%s/hosts' % self.subsystem_uuid
             records, error = rest_generic.get_0_or_more_records(self.rest_api, api)
             if error:
-                self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
+                self.module.fail_json(msg='Error fetching subsystem host info for vserver: %s: %s' % (self.parameters['vserver'], to_native(error)))
             if records is not None:
                 return {type: [record['nqn'] for record in records]}
             return None
@@ -368,7 +355,7 @@ class NetAppONTAPNVMESubsystem:
             query = {'svm.name': self.parameters['vserver'], 'subsystem.name': self.parameters['subsystem']}
             records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
             if error:
-                self.module.fail_json(msg='Error fetching subsystem info for vserver: %s, %s' % (self.parameters['vserver'], to_native(error)))
+                self.module.fail_json(msg='Error fetching subsystem map info for vserver: %s: %s' % (self.parameters['vserver'], to_native(error)))
             if records is not None:
                 return_list = []
                 for each in records:
@@ -379,9 +366,7 @@ class NetAppONTAPNVMESubsystem:
 
     def add_subsystem_host_map_rest(self, data, type):
         if type == 'hosts':
-            records = []
-            for item in data:
-                records.append({'nqn': item})
+            records = [{'nqn': item} for item in data]
             api = 'protocols/nvme/subsystems/%s/hosts' % self.subsystem_uuid
             body = {'records': records}
             dummy, error = rest_generic.post_async(self.rest_api, api, body)
@@ -389,8 +374,8 @@ class NetAppONTAPNVMESubsystem:
                 self.module.fail_json(
                     msg='Error adding %s for subsystem %s: %s' % (records, self.parameters['subsystem'], to_native(error)), exception=traceback.format_exc())
         elif type == 'paths':
+            api = 'protocols/nvme/subsystem-maps'
             for item in data:
-                api = 'protocols/nvme/subsystem-maps'
                 body = {'subsystem.name': self.parameters['subsystem'],
                         'svm.name': self.parameters['vserver'],
                         'namespace.name': item
@@ -453,6 +438,8 @@ class NetAppONTAPNVMESubsystem:
         current = self.get_subsystem()
         add_host_map, remove_host_map = dict(), dict()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('ostype') is None:
+            self.module.fail_json(msg="Error: Missing required parameter 'ostype' for creating subsystem")
         if cd_action != 'delete' and self.parameters['state'] == 'present':
             add_host_map, remove_host_map = self.associate_host_map(types)
         if self.na_helper.changed and not self.module.check_mode:

@@ -12,13 +12,13 @@ import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    patch_ansible, call_main, create_and_apply, create_module, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
-from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_nvme_subsystem \
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_nvme_subsystem\
     import NetAppONTAPNVMESubsystem as my_module, main as my_main  # module under test
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
@@ -68,6 +68,8 @@ SRR = rest_responses({
         ],
         "num_records": 1
     }, None),
+
+    'error_svm_not_found': (400, None, 'SVM "ansibleSVM" does not exist.')
 })
 
 DEFAULT_ARGS = {
@@ -86,15 +88,14 @@ def test_get_subsystem_none():
         ('GET', 'cluster', SRR['is_rest_96']),
         ('GET', 'protocols/nvme/subsystems', SRR['empty_records'])
     ])
-    set_module_args(DEFAULT_ARGS)
-    my_obj = my_module()
-    assert my_obj.get_subsystem_rest() is None
+    my_module_object = create_module(my_module, DEFAULT_ARGS)
+    assert my_module_object.get_subsystem_rest() is None
 
 
 def test_get_subsystem_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
-        ('GET', 'protocols/nvme/subsystems', SRR['generic_error'])
+        ('GET', 'protocols/nvme/subsystems', SRR['generic_error']),
     ])
     my_module_object = create_module(my_module, DEFAULT_ARGS)
     msg = 'Error fetching subsystem info for vserver: ansibleSVM'
@@ -114,12 +115,17 @@ def test_create_subsystem():
 def test_create_subsystem_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
-        ('POST', 'protocols/nvme/subsystems', SRR['generic_error'])
+        ('POST', 'protocols/nvme/subsystems', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'protocols/nvme/subsystems', SRR['zero_records']),
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
-    error = expect_and_capture_ansible_exception(my_obj.create_subsystem_rest, 'fail')['msg']
-    msg = 'Error creating subsystem for vserver ansibleSVM: calling: protocols/nvme/subsystems: got Expected error.'
-    assert msg == error
+    error = 'Error creating subsystem for vserver ansibleSVM: calling: protocols/nvme/subsystems: got Expected error.'
+    assert error in expect_and_capture_ansible_exception(my_obj.create_subsystem_rest, 'fail')['msg']
+    args = dict(DEFAULT_ARGS)
+    del args['ostype']
+    error = "Error: Missing required parameter 'ostype' for creating subsystem"
+    assert error in call_main(my_main, args, fail=True)['msg']
 
 
 def test_delete_subsystem():
@@ -130,6 +136,15 @@ def test_delete_subsystem():
     ])
     module_args = {'state': 'absent'}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_subsystem_no_vserver():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'protocols/nvme/subsystems', SRR['error_svm_not_found']),
+    ])
+    module_args = {'state': 'absent'}
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_delete_subsystem_error():
@@ -214,3 +229,28 @@ def test_remove_only_subsystem_map():
     ])
     module_args = {'paths': ['/vol/test2/disk1']}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_errors():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'protocols/nvme/subsystems/None/hosts', SRR['generic_error']),
+        ('GET', 'protocols/nvme/subsystem-maps', SRR['generic_error']),
+        ('POST', 'protocols/nvme/subsystems/None/hosts', SRR['generic_error']),
+        ('POST', 'protocols/nvme/subsystem-maps', SRR['generic_error']),
+        ('DELETE', 'protocols/nvme/subsystems/None/hosts/host', SRR['generic_error']),
+        ('DELETE', 'protocols/nvme/subsystem-maps/None/None', SRR['generic_error'])
+    ])
+    my_module_object = create_module(my_module, DEFAULT_ARGS)
+    error = rest_error_message('Error fetching subsystem host info for vserver: ansibleSVM', 'protocols/nvme/subsystems/None/hosts')
+    assert error in expect_and_capture_ansible_exception(my_module_object.get_subsystem_host_map_rest, 'fail', 'hosts')['msg']
+    error = rest_error_message('Error fetching subsystem map info for vserver: ansibleSVM', 'protocols/nvme/subsystem-maps')
+    assert error in expect_and_capture_ansible_exception(my_module_object.get_subsystem_host_map_rest, 'fail', 'paths')['msg']
+    error = rest_error_message('Error adding [] for subsystem subsystem1', 'protocols/nvme/subsystems/None/hosts')
+    assert error in expect_and_capture_ansible_exception(my_module_object.add_subsystem_host_map_rest, 'fail', [], 'hosts')['msg']
+    error = rest_error_message('Error adding path for subsystem subsystem1', 'protocols/nvme/subsystem-maps')
+    assert error in expect_and_capture_ansible_exception(my_module_object.add_subsystem_host_map_rest, 'fail', ['path'], 'paths')['msg']
+    error = rest_error_message('Error removing host for subsystem subsystem1', 'protocols/nvme/subsystems/None/hosts/host')
+    assert error in expect_and_capture_ansible_exception(my_module_object.remove_subsystem_host_map_rest, 'fail', ['host'], 'hosts')['msg']
+    error = rest_error_message('Error removing path for subsystem subsystem1', 'protocols/nvme/subsystem-maps/None/None')
+    assert error in expect_and_capture_ansible_exception(my_module_object.remove_subsystem_host_map_rest, 'fail', ['path'], 'paths')['msg']

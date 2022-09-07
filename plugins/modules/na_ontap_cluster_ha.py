@@ -1,14 +1,10 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -31,7 +27,7 @@ version_added: 2.6.0
 
 EXAMPLES = """
     - name: "Enable HA status for cluster"
-      na_ontap_cluster_ha:
+      netapp.ontap.na_ontap_cluster_ha:
         state: present
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -46,11 +42,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapClusterHA(object):
+class NetAppOntapClusterHA:
     """
     object initialize and class methods
     """
@@ -67,10 +62,13 @@ class NetAppOntapClusterHA(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Set up Rest API
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def modify_cluster_ha(self, configure):
@@ -78,6 +76,9 @@ class NetAppOntapClusterHA(object):
         Enable or disable HA on cluster
         :return: None
         """
+        if self.use_rest:
+            return self.modify_cluster_ha_rest(configure)
+
         cluster_ha_modify = netapp_utils.zapi.NaElement.create_node_with_children(
             'cluster-ha-modify', **{'ha-configured': configure})
         try:
@@ -93,6 +94,8 @@ class NetAppOntapClusterHA(object):
         Get current cluster HA details
         :return: dict if enabled, None if disabled
         """
+        if self.use_rest:
+            return self.get_cluster_ha_enabled_rest()
         cluster_ha_get = netapp_utils.zapi.NaElement('cluster-ha-get')
         try:
             result = self.server.invoke_successfully(cluster_ha_get,
@@ -105,13 +108,27 @@ class NetAppOntapClusterHA(object):
             return {'ha-configured': True}
         return None
 
+    def get_cluster_ha_enabled_rest(self):
+        api = 'private/cli/cluster/ha'
+        params = {'fields': 'configured'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching cluster HA details: %s' % to_native(error))
+        return {'ha-configured': True} if record['configured'] else None
+
+    def modify_cluster_ha_rest(self, configure):
+        api = 'private/cli/cluster/ha'
+        body = {'configured': True if configure == "true" else False}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
+        if error:
+            self.module.fail_json(msg='Error modifying cluster HA to %s: %s' % (configure, to_native(error)))
+
     def apply(self):
         """
         Apply action to cluster HA
         """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_cluster_ha", cserver)
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_cluster_ha", self.server, self.module)
         current = self.get_cluster_ha_enabled()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if not self.module.check_mode:

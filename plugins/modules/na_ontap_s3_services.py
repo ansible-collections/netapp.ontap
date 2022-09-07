@@ -122,10 +122,7 @@ class NetAppOntapS3Services:
         self.use_rest = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
                                               parameters=self.parameters)
 
-        if not self.use_rest:
-            self.module.fail_json(msg='na_ontap_S3_service is only supported with REST API')
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
-            self.module.fail_json(msg="ONTAP version must be 9.8 or higher")
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_services', 9, 8)
 
     def get_s3_service(self):
         api = 'protocols/s3/services'
@@ -153,7 +150,7 @@ class NetAppOntapS3Services:
     def create_s3_service(self):
         api = 'protocols/s3/services'
         body = {'svm.name': self.parameters['vserver'], 'name': self.parameters['name']}
-        if self.parameters.get('enabled'):
+        if self.parameters.get('enabled') is not None:
             body['enabled'] = self.parameters['enabled']
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']

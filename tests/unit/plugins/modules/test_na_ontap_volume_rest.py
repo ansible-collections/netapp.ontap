@@ -1,4 +1,4 @@
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -10,11 +10,11 @@ __metaclass__ = type
 import copy
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_and_apply, expect_and_capture_ansible_exception,\
-    patch_ansible, create_module, assert_warning_was_raised, print_warnings
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_no_warnings, assert_warning_was_raised, print_warnings, call_main, create_and_apply,\
+    create_module, expect_and_capture_ansible_exception, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -344,7 +344,7 @@ def test_rest_error_volume_unmount_rest():
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # Mount Volume
     ])
     module_args = {'junction_path': ''}
-    msg = 'Error unmounting volume test_svm: with path "", calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
+    msg = 'Error unmounting volume test_svm with path "": calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -374,7 +374,7 @@ def test_rest_error_volume_mount_rest():
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # Mount Volume
     ])
     module_args = {'junction_path': '/this/path'}
-    msg = "Error mounting volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
+    msg = 'Error mounting volume test_svm with path "/this/path": calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -725,7 +725,7 @@ def test_rest_error_modify_volume_efficiency_policy_with_ontap_96():
         ('GET', 'cluster', SRR['is_rest_96']),
     ])
     module_args = {'efficiency_policy': 'test'}
-    msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)\n"
+    msg = "Minimum version of ONTAP for efficiency_policy is (9, 7)."
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -734,7 +734,7 @@ def test_rest_error_modify_volume_tiering_minimum_cooling_days_98():
         ('GET', 'cluster', SRR['is_rest_96']),
     ])
     module_args = {'tiering_minimum_cooling_days': 2}
-    msg = "Minimum version of ONTAP for tiering_minimum_cooling_days is (9, 8)\n"
+    msg = "Minimum version of ONTAP for tiering_minimum_cooling_days is (9, 8)."
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -886,7 +886,7 @@ def test_snaplock_volume_create():
         ('POST', 'storage/volumes', SRR['empty_records']),
         ('GET', 'storage/volumes', SRR['get_volume_sl_enterprise']),
     ])
-    module_args = {'snaplock': {'type': 'enterprise'}}
+    module_args = {'snaplock': {'type': 'enterprise', 'retention': {'maximum': 'P5D'}}}
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
@@ -934,16 +934,38 @@ def test_max_files_volume_modify():
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
-def test_fallback_to_zapi_and_netapp_lib_missing(mock_has_netapp_lib):
-    """fallback to ZAPI when use_rest: auto"""
+def test_use_zapi_and_netapp_lib_missing(mock_has_netapp_lib):
+    """ZAPI requires netapp_lib"""
+    register_responses([
+    ])
+    mock_has_netapp_lib.return_value = False
+    module_args = {'use_rest': 'never'}
+    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == error
+
+
+def test_fallback_to_zapi_and_nas_application_is_used():
+    """fallback to ZAPI when use_rest: auto and some ZAPI only options are used"""
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
     ])
-    mock_has_netapp_lib.return_value = False
-    module_args = {'use_rest': 'auto'}
-    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    module_args = {'use_rest': 'auto', 'cutover_action': 'wait', 'nas_application_template': {'storage_service': 'value'}}
+    error = "Error: nas_application_template requires REST support.  use_rest: auto.  "\
+            "Conflict because of unsupported option(s) or option value(s) in REST: ['cutover_action']."
     assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == error
-    assert_warning_was_raised('Falling back to ZAPI as REST support for na_ontap_volume is in beta and use_rest: auto.  Set use_rest: always to force REST.')
+    assert_warning_was_raised("Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: ['cutover_action']")
+
+
+def test_fallback_to_zapi_and_rest_option_is_used():
+    """fallback to ZAPI when use_rest: auto and some ZAPI only options are used"""
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    module_args = {'use_rest': 'auto', 'cutover_action': 'wait', 'sizing_method': 'use_existing_resources'}
+    error = "Error: sizing_method option is not supported with ZAPI.  It can only be used with REST.  use_rest: auto.  "\
+            "Conflict because of unsupported option(s) or option value(s) in REST: ['cutover_action']."
+    assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == error
+    assert_warning_was_raised("Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: ['cutover_action']")
 
 
 def test_error_conflict_export_policy_and_nfs_access():
@@ -1200,3 +1222,44 @@ def test_get_volume_style():
     my_obj = create_module(volume_module, args, module_args)
     assert my_obj.get_volume_style(None) == 'flexgroup'
     assert my_obj.parameters.get('aggr_list_multiplier') == 1
+
+
+def test_move_volume_with_rest_passthrough():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('PATCH', 'private/cli/volume/move/start', SRR['success']),
+        ('PATCH', 'private/cli/volume/move/start', SRR['generic_error']),
+    ])
+    module_args = {
+        'aggregate_name': 'aggr2'
+    }
+    obj = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args)
+    error = obj.move_volume_with_rest_passthrough(True)
+    assert error is None
+    error = obj.move_volume_with_rest_passthrough(True)
+    assert 'Expected error' in error
+
+
+def test_ignore_small_change():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    obj = create_module(volume_module, DEFAULT_VOLUME_ARGS)
+    obj.parameters['attribute'] = 51
+    assert obj.ignore_small_change({'attribute': 50}, 'attribute', .5) is None
+    assert obj.parameters['attribute'] == 51
+    assert_no_warnings()
+    obj.parameters['attribute'] = 50.2
+    assert obj.ignore_small_change({'attribute': 50}, 'attribute', .5) is None
+    assert obj.parameters['attribute'] == 50
+    print_warnings()
+    assert_warning_was_raised('resize request for attribute ignored: 0.4% is below the threshold: 0.5%')
+
+
+def test_set_efficiency_rest_empty_body():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    obj = create_module(volume_module, DEFAULT_VOLUME_ARGS)
+    # no action
+    assert obj.set_efficiency_rest() is None

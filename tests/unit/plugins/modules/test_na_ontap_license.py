@@ -8,15 +8,16 @@ __metaclass__ = type
 import sys
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_no_warnings, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, build_zapi_error, zapi_responses
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_license \
-    import NetAppOntapLicense as my_module      # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_license import NetAppOntapLicense as my_module, main as my_main      # module under test
 
 
 if not netapp_utils.has_netapp_lib():
@@ -27,256 +28,206 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.type = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'generic-error':
-            raise netapp_utils.zapi.NaApiError(code='15000', message="generic error")
-        if self.type == 'entry-not-exist':
-            raise netapp_utils.zapi.NaApiError(code='15661', message="License missing")
-        self.xml_out = xml
-        return xml
-
-
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
-
-    def setUp(self):
-        self.server = MockONTAPConnection()
-
-    def mock_args(self):
-        return {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'use_rest': 'never',
-            'state': 'present',
-            'feature_flags': {'no_cserver_ems': True}
-        }
-
-    def get_license_mock_object(self, kind=None, data=None):
-        """
-        Helper method to return an na_ontap_license object
-        :param kind: passes this param to MockONTAPConnection()
-        :param data: passes this param to MockONTAPConnection()
-        :return: na_ontap_license object
-        """
-        license_obj = my_module()
-        license_obj.asup_log_for_cserver = Mock(return_value=None)
-        license_obj.cluster = Mock()
-        license_obj.cluster.invoke_successfully = Mock()
-        license_obj.server = MockONTAPConnection(kind=kind)
-        return license_obj
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')
-    def test_module_add_license_zapi(self, get_licensing_status):
-        ''' Test add license '''
-        data = self.mock_args()
-        data['license_codes'] = 'LICENSECODE'
-        set_module_args(data)
-        current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'none'
-        }
-        updated_current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'site'
-        }
-        get_licensing_status.side_effect = [
-            current,
-            updated_current
+def license_status(fcp_method):
+    return {
+        'license-v2-status': [
+            {'license-v2-status-info':
+                {
+                    'package': 'base',
+                    'method': 'site'
+                }},
+            {'license-v2-status-info':
+                {
+                    'package': 'capacitypool',
+                    'method': 'none'
+                }},
+            {'license-v2-status-info':
+                {
+                    'package': 'cifs',
+                    'method': 'site'
+                }},
+            {'license-v2-status-info':
+                {
+                    'package': 'fcp',
+                    'method': fcp_method
+                }},
         ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_license_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')
-    def test_module_add_license_idempotent_zapi(self, get_licensing_status):
-        ''' Test add license idempotent '''
-        data = self.mock_args()
-        data['license_codes'] = 'LICENSECODE'
-        set_module_args(data)
-        current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'none'
-        }
-        updated_current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'none'
-        }
-        get_licensing_status.side_effect = [
-            current,
-            updated_current
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_license_mock_object().apply()
-        assert exc.value.args[0]['changed'] is False
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.remove_licenses')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')
-    def test_module_remove_license_zapi(self, get_licensing_status, remove_licenses):
-        ''' Test remove license '''
-        data = self.mock_args()
-        data['serial_number'] = '1-8-000000'
-        data['license_names'] = 'cifs,fcp'
-        data['state'] = 'absent'
-        set_module_args(data)
-        current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'site'
-        }
-        get_licensing_status.side_effect = [current]
-        remove_licenses.side_effect = [True, True]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_license_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.remove_licenses')
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')
-    def test_module_remove_license_idempotent_zapi(self, get_licensing_status, remove_licenses):
-        ''' Test remove license idempotent '''
-        data = self.mock_args()
-        data['serial_number'] = '1-8-000000'
-        data['license_names'] = 'cifs,fcp'
-        data['state'] = 'absent'
-        set_module_args(data)
-        current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'none',
-            'fcp': 'none'
-        }
-        get_licensing_status.side_effect = [current]
-        remove_licenses.side_effect = [False, False]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_license_mock_object().apply()
-        assert exc.value.args[0]['changed'] is False
-
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_license.NetAppOntapLicense.get_licensing_status')
-    def test_module_remove_unused_expired_zapi(self, get_licensing_status):
-        ''' Test remove unused expired license '''
-        data = self.mock_args()
-        data['remove_unused'] = True
-        data['remove_expired'] = True
-        set_module_args(data)
-        current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'site',
-            'fcp': 'site'
-        }
-        updated_current = {
-            'base': 'site',
-            'capacitypool': 'none',
-            'cifs': 'none',
-            'fcp': 'none'
-        }
-        get_licensing_status.side_effect = [current, updated_current]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_license_mock_object().apply()
-        assert exc.value.args[0]['changed']
-
-    def test_module_try_to_remove_non_existent_package_license_zapi(self):
-        ''' Try to remove non existent license '''
-        data = self.mock_args()
-        data['serial_number'] = '1-8-000000'
-        data['license_names'] = 'cifs'
-        data['state'] = 'absent'
-        set_module_args(data)
-        license_exist = self.get_license_mock_object("entry-not-exist").remove_licenses('cifs')
-        assert license_exist is False
-
-    def test_module_error_add_license_zapi(self):
-        ''' Test error add license '''
-        data = self.mock_args()
-        data['license_codes'] = 'random'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_license_mock_object("generic-error").add_licenses()
-        print('Info: %s' % exc.value.args[0]['msg'])
-        assert 'Error adding licenses' in exc.value.args[0]['msg']
-
-    def test_module_error_remove_license_zapi(self):
-        ''' Test error remove license '''
-        data = self.mock_args()
-        data['serial_number'] = '1-8-000000'
-        data['license_names'] = 'random'
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_license_mock_object("generic-error").remove_licenses(data['license_names'])
-        print('Info: %s' % exc.value.args[0]['msg'])
-        assert 'Error removing license' in exc.value.args[0]['msg']
-
-    def test_module_error_get_and_remove_unused_expired_license_zapi(self):
-        ''' Test error get and remove unused/expired license '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_license_mock_object("generic-error").get_licensing_status()
-        assert 'Error checking license status' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_license_mock_object("generic-error").remove_unused_licenses()
-        assert 'Error removing unused licenses' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_license_mock_object("generic-error").remove_expired_licenses()
-        assert 'Error removing expired licenses' in exc.value.args[0]['msg']
-
-
-WARNINGS = list()
-
-
-def warn(dummy, msg):
-    WARNINGS.append(msg)
-
-
-def default_args():
-    args = {
-        'state': 'present',
-        'hostname': '10.10.10.10',
-        'username': 'admin',
-        'https': 'true',
-        'validate_certs': 'false',
-        'password': 'password',
-        'use_rest': 'always'
     }
-    return args
+
+
+ZRR = zapi_responses({
+    'license_status_fcp_none': build_zapi_response(license_status('none')),
+    'license_status_fcp_site': build_zapi_response(license_status('site')),
+    'error_object_not_found': build_zapi_error('15661', 'license is not active')
+})
+
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+}
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_fail_netapp_lib_error(mock_has_netapp_lib):
+    mock_has_netapp_lib.return_value = False
+    module_args = {
+        "use_rest": "never"
+    }
+    assert 'Error: the python NetApp-Lib module is required.  Import error: None' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_module_add_license_zapi():
+    ''' Test add license '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_none']),
+        ('ZAPI', 'license-v2-add', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'license_codes': 'LICENSECODE',
+    }
+    print('ZRR', build_zapi_response(license_status('site'))[0].to_string())
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_module_add_license_idempotent_zapi():
+    ''' Test add license idempotent '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+        ('ZAPI', 'license-v2-add', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'license_codes': 'LICENSECODE',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_module_remove_license_zapi():
+    ''' Test remove license '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+        ('ZAPI', 'license-v2-delete', ZRR['success']),
+        ('ZAPI', 'license-v2-delete', ZRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'serial_number': '1-8-000000',
+        'license_names': 'cifs,fcp',
+        'state': 'absent',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_module_remove_license_idempotent_zapi():
+    ''' Test remove license idempotent '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+        ('ZAPI', 'license-v2-delete', ZRR['error_object_not_found']),
+        ('ZAPI', 'license-v2-delete', ZRR['error_object_not_found']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'serial_number': '1-8-000000',
+        'license_names': 'cifs,fcp',
+        'state': 'absent',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_module_remove_unused_expired_zapi():
+    ''' Test remove unused expired license '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
+        ('ZAPI', 'license-v2-delete-unused', ZRR['success']),
+        ('ZAPI', 'license-v2-delete-expired', ZRR['success']),
+        ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_none']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'remove_unused': True,
+        'remove_expired': True,
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_module_try_to_remove_non_existent_package_license_zapi():
+    ''' Try to remove non existent license '''
+    register_responses([
+        ('ZAPI', 'license-v2-delete', ZRR['error_object_not_found']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'serial_number': '1-8-000000',
+        'license_names': 'cifs',
+        'state': 'absent',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    license_exist = my_obj.remove_licenses('cifs')
+    assert not license_exist
+
+
+def test_module_error_add_license_zapi():
+    ''' Test error add license '''
+    register_responses([
+        ('ZAPI', 'license-v2-add', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'license_codes': 'random',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error adding licenses' in expect_and_capture_ansible_exception(my_obj.add_licenses, 'fail')['msg']
+
+
+def test_module_error_remove_license_zapi():
+    ''' Test error remove license '''
+    register_responses([
+        ('ZAPI', 'license-v2-delete', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'serial_number': '1-8-000000',
+        'license_names': 'random',
+        'state': 'absent',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error removing license' in expect_and_capture_ansible_exception(my_obj.remove_licenses, 'fail', 'random')['msg']
+
+
+def test_module_error_get_and_remove_unused_expired_license_zapi():
+    ''' Test error get and remove unused/expired license '''
+    register_responses([
+        ('ZAPI', 'license-v2-status-list-info', ZRR['error']),
+        ('ZAPI', 'license-v2-delete-unused', ZRR['error']),
+        ('ZAPI', 'license-v2-delete-expired', ZRR['error']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error checking license status' in expect_and_capture_ansible_exception(my_obj.get_licensing_status, 'fail')['msg']
+    assert 'Error removing unused licenses' in expect_and_capture_ansible_exception(my_obj.remove_unused_licenses, 'fail')['msg']
+    assert 'Error removing expired licenses' in expect_and_capture_ansible_exception(my_obj.remove_expired_licenses, 'fail')['msg']
 
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
-    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
-    'is_rest_9_7': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
-    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'zero_record': (200, dict(records=[], num_records=0), None),
-    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (404, None, "entry doesn't exist"),
-    'expected_error': (400, None, "Expected error"),
+SRR = rest_responses({
+    'error_entry_does_not_exist': (404, None, "entry doesn't exist"),
     'license_record': (200, {
         "num_records": 3,
         "records": [
@@ -314,163 +265,174 @@ SRR = {
                 "scope": "site",
                 "state": "compliant"
             }]
+    }, None),
+    'license_record_no_nfs': (200, {
+        "num_records": 3,
+        "records": [
+            {
+                "name": "base",
+                "scope": "cluster",
+                "state": "compliant"
+            },
+            {
+                "name": "cifs",
+                "scope": "site",
+                "state": "compliant"
+            }]
     }, None)
-}
+}, False)
 
 
-def test_module_fail_when_unsupported_rest_present(patch_ansible):
+def test_module_fail_when_unsupported_rest_present():
     ''' error if unsupported rest properties present '''
-    args = dict(default_args())
-    args['remove_unused'] = True
-    args['remove_expired'] = True
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj = my_module()
-        my_module()
-    print('Info: %s' % exc.value.args[0]['msg'])
-    msg = 'REST API currently does not support'
-    assert msg in exc.value.args[0]['msg']
+    register_responses([
+    ])
+    module_args = {
+        'remove_unused': True,
+        'remove_expired': True,
+        'use_rest': 'always'
+    }
+    error = 'REST API currently does not support'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_get_license_status_called_rest(mock_request, patch_ansible):
+def test_ensure_get_license_status_called_rest():
     ''' test get'''
-    args = dict(default_args())
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['license_record'],         # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),
+    ])
+    module_args = {
+        'use_rest': 'always'
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_error_get_license_rest(mock_request, patch_ansible):
+def test_module_error_get_license_rest():
     ''' test add license'''
-    args = dict(default_args())
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],             # get versioN
-        SRR['expected_error'],          # Error in getting license
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'calling: cluster/licensing/licenses: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always'
+    }
+    error = rest_error_message('', 'cluster/licensing/licenses')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_add_license_rest(mock_request, patch_ansible):
+def test_module_add_license_rest():
     ''' test add license'''
-    args = dict(default_args())
-    args['license_codes'] = "LICENCECODE"
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],             # get version
-        SRR['license_record'],          # get license information
-        SRR['empty_good'],              # Apply license
-        SRR['license_record_nfs'],      # get updated license information
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),       # get license information
+        ('POST', 'cluster/licensing/licenses', SRR['empty_good']),          # Apply license
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_nfs']),   # get updated license information
+    ])
+    module_args = {
+        'license_codes': 'LICENCECODE',
+        'use_rest': 'always'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_error_add_license_rest(mock_request, patch_ansible):
+def test_module_error_add_license_rest():
     ''' test add license'''
-    args = dict(default_args())
-    args['license_codes'] = "INVALIDLICENCECODE"
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],             # get version
-        SRR['license_record'],          # get license information
-        SRR['expected_error'],          # Error in adding license
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'calling: cluster/licensing/licenses: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),       # get license information
+        ('POST', 'cluster/licensing/licenses', SRR['generic_error']),       # Error in adding license
+    ])
+    module_args = {
+        'license_codes': 'INVALIDLICENCECODE',
+        'use_rest': 'always'
+    }
+    error = 'calling: cluster/licensing/licenses: got Expected error.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_remove_license(mock_request, patch_ansible):
+def test_module_remove_license():
     ''' test remove license'''
-    args = dict(default_args())
-    args['license_names'] = 'nfs'
-    args['serial_number'] = '1-23-45678'
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],           # get version
-        SRR['license_record_nfs'],    # get
-        SRR['empty_good'],            # remove license
-        SRR['license_record'],        # get updated license.
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_nfs']),
+        ('DELETE', 'cluster/licensing/licenses/nfs', SRR['empty_good']),        # remove license
+    ])
+    module_args = {
+        'license_names': 'nfs',
+        'serial_number': '1-23-45678',
+        'state': 'absent',
+        'use_rest': 'always'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_error_remove_license_rest(mock_request, patch_ansible):
+def test_module_error_remove_license_rest():
     ''' test remove license error'''
-    args = dict(default_args())
-    args['license_names'] = 'non-existent-package'
-    args['serial_number'] = '1-23-45678'
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],             # get version
-        SRR['license_record'],          # get license information
-        SRR['expected_error'],          # Error in removing license
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'calling: cluster/licensing/licenses/non-existent-package: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),                           # get license information
+        ('DELETE', 'cluster/licensing/licenses/non-existent-package', SRR['generic_error']),    # Error in removing license
+    ])
+    module_args = {
+        'license_names': 'non-existent-package',
+        'serial_number': '1-23-45678',
+        'state': 'absent',
+        'use_rest': 'always'
+    }
+    error = 'calling: cluster/licensing/licenses/non-existent-package: got Expected error.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_module_try_to_remove_license_not_present_rest(mock_request, patch_ansible):
+def test_module_try_to_remove_license_not_present_rest():
     ''' test remove license'''
-    args = dict(default_args())
-    args['license_names'] = 'nfs'
-    args['serial_number'] = '1-23-45678'
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],           # get version
-        SRR['license_record'],        # get
-        SRR['generic_error'],         # license not exist, so error returns.
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),
+        ('DELETE', 'cluster/licensing/licenses/non-existent-package', SRR['error_entry_does_not_exist']),   # license not active.
+    ])
+    module_args = {
+        'license_names': 'non-existent-package',
+        'serial_number': '1-23-45678',
+        'state': 'absent',
+        'use_rest': 'always'
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert_no_warnings()
+
+
+@patch('time.sleep')
+def test_error_mismatch_in_package_list_rest(dont_sleep):
+    ''' test remove license'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),
+        # 2nd test
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record']),
+        # 3rd test
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_no_nfs']),
+    ])
+    module_args = {
+        'license_names': 'non-existent-package',
+        'serial_number': '1-23-45678',
+        'use_rest': 'always'
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    previous_license_status = {'base': 'compliant', 'nfs': 'unlicensed', 'cifs': 'compliant'}
+    assert my_obj.compare_license_status(previous_license_status) == []
+    previous_license_status = {'base': 'compliant', 'nfs': 'unlicensed', 'cifs': 'unlicensed'}
+    assert my_obj.compare_license_status(previous_license_status) == ['cifs']
+    error = "Error: mismatch in license package names: 'nfs'.  Expected:"
+    assert error in expect_and_capture_ansible_exception(my_obj.compare_license_status, 'fail', previous_license_status)['msg']

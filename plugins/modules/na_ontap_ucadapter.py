@@ -1,17 +1,11 @@
 #!/usr/bin/python
 
 # (c) 2018-2019, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {
-    'metadata_version': '1.1',
-    'status': ['preview'],
-    'supported_by': 'certified'
-}
 
 DOCUMENTATION = '''
 ---
@@ -29,7 +23,7 @@ description:
 options:
   state:
     description:
-    - Whether the specified adapter should exist.
+      - Whether the specified adapter should exist.
     required: false
     choices: ['present']
     default: 'present'
@@ -37,31 +31,31 @@ options:
 
   adapter_name:
     description:
-    - Specifies the adapter name.
+      - Specifies the adapter name.
     required: true
     type: str
 
   node_name:
     description:
-    - Specifies the adapter home node.
+      - Specifies the adapter home node.
     required: true
     type: str
 
   mode:
     description:
-    - Specifies the mode of the adapter.
+      - Specifies the mode of the adapter.
     type: str
 
   type:
     description:
-    - Specifies the fc4 type of the adapter.
+      - Specifies the fc4 type of the adapter.
     type: str
 
   pair_adapters:
     description:
-    - Specifies the list of adapters which also need to be offline along with the current adapter during modifying.
-    - If specified adapter works in a group or pair, the other adapters might also need to offline before modify the specified adapter.
-    - The mode of pair_adapters are modified along with the adapter, the type of the pair_adapters are not modified.
+      - Specifies the list of adapters which also need to be offline along with the current adapter during modifying.
+      - If specified adapter works in a group or pair, the other adapters might also need to offline before modify the specified adapter.
+      - The mode of pair_adapters are modified along with the adapter, the type of the pair_adapters are not modified.
     type: list
     elements: str
     version_added: '20.6.0'
@@ -70,7 +64,7 @@ options:
 
 EXAMPLES = '''
     - name: Modify adapter
-      na_ontap_adapter:
+      netapp.ontap.na_ontap_adapter:
         state: present
         adapter_name: 0e
         pair_adapters: 0f
@@ -92,11 +86,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
-
-class NetAppOntapadapter(object):
+class NetAppOntapadapter:
     ''' object to describe  adapter info '''
 
     def __init__(self):
@@ -115,13 +108,16 @@ class NetAppOntapadapter(object):
             argument_spec=self.argument_spec,
             supports_check_mode=True
         )
-
+        self.adapters_uuids = {}
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Set up Rest API
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_adapter(self):
@@ -133,6 +129,8 @@ class NetAppOntapadapter(object):
         :return: Details about the adapter. None if not found.
         :rtype: dict
         """
+        if self.use_rest:
+            return self.get_adapter_rest()
         adapter_info = netapp_utils.zapi.NaElement('ucm-adapter-get')
         adapter_info.add_new_child('adapter-name', self.parameters['adapter_name'])
         adapter_info.add_new_child('node-name', self.parameters['node_name'])
@@ -159,6 +157,8 @@ class NetAppOntapadapter(object):
         """
         Modify the adapter.
         """
+        if self.use_rest:
+            return self.modify_adapter_rest()
         params = {'adapter-name': self.parameters['adapter_name'],
                   'node-name': self.parameters['node_name']}
         if self.parameters.get('type') is not None:
@@ -178,6 +178,8 @@ class NetAppOntapadapter(object):
         """
         Bring a Fibre Channel target adapter offline/online.
         """
+        if self.use_rest:
+            return self.online_or_offline_adapter_rest(status, adapter_name)
         if status == 'down':
             adapter = netapp_utils.zapi.NaElement('fcp-adapter-config-down')
         elif status == 'up':
@@ -191,24 +193,79 @@ class NetAppOntapadapter(object):
             self.module.fail_json(msg='Error trying to %s fc-adapter %s: %s' % (status, adapter_name, to_native(e)),
                                   exception=traceback.format_exc())
 
-    def autosupport_log(self):
-        """
-        Autosupport log for ucadater
-        :return:
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_ucadapter", cserver)
+    def get_adapters_uuids(self):
+        missing_adapters = []
+        adapters = [self.parameters['adapter_name']] + self.parameters.get('pair_adapters', [])
+        for adapter in adapters:
+            adapter_uuid = self.get_adapter_uuid(adapter)
+            if adapter_uuid is None:
+                missing_adapters.append(adapter)
+            else:
+                self.adapters_uuids[adapter] = adapter_uuid
+        if missing_adapters:
+            self.module.fail_json(msg="Error: Adapter(s) %s not exist" % (', ').join(missing_adapters))
+
+    def get_adapter_uuid(self, adapter):
+        api = 'network/fc/ports'
+        params = {
+            'name': adapter,
+            'node.name': self.parameters['node_name'],
+            'fields': 'uuid'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg="Error fetching adapter %s uuid" % adapter)
+        return record['uuid'] if record else None
+
+    def get_adapter_rest(self):
+        api = 'private/cli/ucadmin'
+        params = {
+            'node': self.parameters['node_name'],
+            'adapter': self.parameters['adapter_name'],
+            'fields': 'pending_mode,pending_type,current_mode,current_type,status_admin'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg='Error fetching ucadapter details: %s: %s'
+                                      % (self.parameters['node_name'], to_native(error)))
+        if record:
+            return {
+                'mode': self.na_helper.safe_get(record, ['current_mode']),
+                'pending-mode': self.na_helper.safe_get(record, ['pending_mode']),
+                'type': self.na_helper.safe_get(record, ['current_type']),
+                'pending-type': self.na_helper.safe_get(record, ['pending_type']),
+                'status': self.na_helper.safe_get(record, ['status_admin'])
+            }
+        return None
+
+    def modify_adapter_rest(self):
+        api = 'private/cli/ucadmin'
+        query = {
+            'node': self.parameters['node_name'],
+            'adapter': self.parameters['adapter_name']
+        }
+        body = {}
+        if self.parameters.get('type') is not None:
+            body['type'] = self.parameters['type']
+        if self.parameters.get('mode') is not None:
+            body['mode'] = self.parameters['mode']
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body, query)
+        if error:
+            self.module.fail_json(msg='Error modifying adapter %s: %s' % (self.parameters['adapter_name'], to_native(error)))
+
+    def online_or_offline_adapter_rest(self, status, adapter_name):
+        api = 'network/fc/ports'
+        body = {'enabled': True if status == 'up' else False}
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.adapters_uuids[adapter_name], body)
+        if error:
+            self.module.fail_json(msg='Error trying to %s fc-adapter %s: %s' % (status, adapter_name, to_native(error)))
 
     def apply(self):
         ''' calling all adapter features '''
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_ucadapter", self.server, self.module)
         changed = False
-        adapter_detail = self.get_adapter()
-
-        try:
-            self.autosupport_log()
-        except Exception:
-            pass
+        current = self.get_adapter()
 
         def need_to_change(expected, pending, current):
             if expected is None:
@@ -219,24 +276,22 @@ class NetAppOntapadapter(object):
                 return current != expected
             return False
 
-        if adapter_detail:
+        if current:
             if self.parameters.get('type') is not None:
-                changed = need_to_change(self.parameters['type'], adapter_detail['pending-type'], adapter_detail['type'])
-            changed = changed or need_to_change(self.parameters.get('mode'), adapter_detail['pending-mode'], adapter_detail['mode'])
-
-        if changed:
-            if self.module.check_mode:
-                pass
-            else:
-                self.online_or_offline_adapter('down', self.parameters['adapter_name'])
-                if self.parameters.get('pair_adapters') is not None:
-                    for adapter in self.parameters['pair_adapters']:
-                        self.online_or_offline_adapter('down', adapter)
-                self.modify_adapter()
-                self.online_or_offline_adapter('up', self.parameters['adapter_name'])
-                if self.parameters.get('pair_adapters') is not None:
-                    for adapter in self.parameters['pair_adapters']:
-                        self.online_or_offline_adapter('up', adapter)
+                changed = need_to_change(self.parameters['type'], current['pending-type'], current['type'])
+            changed = changed or need_to_change(self.parameters.get('mode'), current['pending-mode'], current['mode'])
+        if changed and self.use_rest:
+            self.get_adapters_uuids()
+        if changed and not self.module.check_mode:
+            self.online_or_offline_adapter('down', self.parameters['adapter_name'])
+            if self.parameters.get('pair_adapters') is not None:
+                for adapter in self.parameters['pair_adapters']:
+                    self.online_or_offline_adapter('down', adapter)
+            self.modify_adapter()
+            self.online_or_offline_adapter('up', self.parameters['adapter_name'])
+            if self.parameters.get('pair_adapters') is not None:
+                for adapter in self.parameters['pair_adapters']:
+                    self.online_or_offline_adapter('up', adapter)
 
         self.module.exit_json(changed=changed)
 

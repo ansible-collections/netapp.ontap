@@ -36,6 +36,7 @@ vserver_dns: # DNS at the Vserver level.
   - { vserver: cifs_vserver, dns_domains: lab.local, dns_nameservers: 172.32.0.40 }
 
 lifs: # interfaces for the Vservers being created
+      # with REST, ipspace, broadcast_domain, and service_policy are also supported.
   - { name: nfs_vserver_data_lif, vserver: nfs_vserver, node: cluster-01, port: e0c, protocol: nfs, address: 172.32.0.193, netmask: 255.255.255.0 }
   - { name: cifs_vserver_data_lif, vserver: nfs_vserver, node: cluster-01, port: e0c, protocol: nfs, address: 172.32.0.194, netmask: 255.255.255.0 }
 

@@ -134,6 +134,8 @@ class NetAppONTAPCifsAcl:
         cifs_acl_info.add_new_child('share', self.parameters['share_name'])
         cifs_acl_info.add_new_child('user-or-group', self.parameters['user_or_group'])
         cifs_acl_info.add_new_child('vserver', self.parameters['vserver'])
+        if self.parameters.get('type') is not None:
+            cifs_acl_info.add_new_child('user-group-type', self.parameters['type'])
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(cifs_acl_info)
         cifs_acl_iter.add_child_elem(query)
@@ -298,7 +300,7 @@ class NetAppONTAPCifsAcl:
 
     def modify_cifs_acl_permission_rest(self, current):
         """
-        Change permission or type for the given CIFS share/user-group with rest API.
+        Change permission for the given CIFS share/user-group with rest API.
         """
         if not self.use_rest:
             return self.modify_cifs_acl_permission()

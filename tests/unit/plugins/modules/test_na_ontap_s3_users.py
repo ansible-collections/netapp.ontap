@@ -36,6 +36,15 @@ SRR = rest_responses({
         ],
         "num_records": 1
     }, None),
+    's3_user_created': (200, {
+        "records": [
+            {
+                'access_key': 'random_access_key',
+                'secret_key': 'random_secret_key'
+            }
+        ],
+        "num_records": 1
+    }, None),
     'svm_uuid': (200, {"records": [
         {
             'uuid': 'e3cb5c7f-cd20'
@@ -53,16 +62,18 @@ DEFAULT_ARGS = {
 
 def test_low_version():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97'])
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     print('Info: %s' % error)
-    msg = 'ONTAP version must be 9.8 or higher'
+    msg = 'Error: na_ontap_s3_users only supports REST, and requires ONTAP 9.8.0 or later.  Found: 9.7.0.'
     assert msg in error
 
 
 def test_get_s3_users_none():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records'])
@@ -75,6 +86,7 @@ def test_get_s3_users_none():
 def test_get_s3_users_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['generic_error'])
     ])
@@ -86,6 +98,24 @@ def test_get_s3_users_error():
 def test_create_s3_users():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records']),
+        ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user_created'])
+    ])
+    module_args = {
+        'comment': 'this is a s3 user',
+    }
+    result = create_and_apply(my_module, DEFAULT_ARGS, module_args)
+    assert result['changed']
+    assert result['secret_key'] == 'random_secret_key'
+    assert result['access_key'] == 'random_access_key'
+
+
+def test_create_s3_users_fail_randomly():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records']),
         ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_good'])
@@ -93,11 +123,13 @@ def test_create_s3_users():
     module_args = {
         'comment': 'this is a s3 user',
     }
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, 'fail')['msg']
+    assert 'Error creating S3 user carchi8py' == error
 
 
 def test_create_s3_user_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['generic_error'])
     ])
@@ -112,6 +144,7 @@ def test_create_s3_user_error():
 def test_delete_s3_user():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user']),
         ('DELETE', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['empty_good'])
@@ -122,6 +155,7 @@ def test_delete_s3_user():
 
 def test_delete_s3_user_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['generic_error'])
     ])
@@ -136,6 +170,7 @@ def test_delete_s3_user_error():
 def test_modify_s3_user():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user']),
         ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['empty_good'])
@@ -146,6 +181,7 @@ def test_modify_s3_user():
 
 def test_modify_s3_user_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['generic_error'])
     ])

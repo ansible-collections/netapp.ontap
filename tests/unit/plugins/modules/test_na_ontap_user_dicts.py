@@ -78,33 +78,33 @@ DEFAULT_ARGS = {
     'hostname': 'hostname',
     'username': 'username',
     'password': 'password',
-    'use_rest': 'use_rest',
     'name': 'user_name',
     'vserver': 'vserver',
 }
-
-
-def set_default_args_rest():
-    return dict({
-        'hostname': 'hostname',
-        'username': 'username',
-        'password': 'password',
-        'name': 'user_name',
-        'vserver': 'vserver',
-        'application_dicts':
-            [dict(application='http', authentication_methods=['password']),
-             dict(application='ontapi', authentication_methods=['password'])],
-        'role_name': 'vsadmin',
-        'lock_user': 'True',
-    })
 
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     register_responses([
     ])
-    module_args = {}
+    module_args = {
+        "use_rest": "never"
+    }
     print('Info: %s' % call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'])
+
+
+def test_module_fail_when_application_name_is_repeated():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        "use_rest": "never",
+        "application_dicts": [
+            {'application': 'ssh', 'authentication_methods': ['cert']},
+            {'application': 'ssh', 'authentication_methods': ['password']}]
+    }
+    error = 'Error: repeated application name: ssh.  Group all authentication methods under a single entry.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_ensure_user_get_called():
@@ -154,16 +154,15 @@ def test_ensure_user_apply_called_using_dict():
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_ssh']),
     ])
-    application = {
-        'application': 'ssh',
-        'authentication_methods': ['publickey'],
-        'second_authentication_method': 'password'
-    }
     module_args = {
         "use_rest": "never",
         'name': 'create',
         'role_name': 'user',
-        'application_dicts': [application]
+        'application_dicts': [{
+            'application': 'ssh',
+            'authentication_methods': ['publickey'],
+            'second_authentication_method': 'password'
+        }]
     }
 
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
@@ -188,8 +187,8 @@ def test_ensure_user_apply_called_add():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'user',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='console', authentication_methods=['password'])],
         'replace_existing_apps_and_methods': 'always'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
@@ -215,12 +214,12 @@ def test_ensure_user_sp_apply_called():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'user',
-        'applications': 'service-processor',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='service-processor', authentication_methods=['password'])],
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
-    module_args['application'] = 'service_processor'
+    module_args['application_dicts'] = [dict(application='service_processor', authentication_methods=['password'])]
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
@@ -231,6 +230,7 @@ def test_ensure_user_apply_for_delete_called():
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-delete', ZRR['success']),
+        ('ZAPI', 'security-login-delete', ZRR['success']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
     ])
@@ -239,8 +239,8 @@ def test_ensure_user_apply_for_delete_called():
         "state": "absent",
         'name': 'create',
         'role_name': 'user',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='console', authentication_methods=['password'])],
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
@@ -260,8 +260,10 @@ def test_ensure_user_lock_called():
         "lock_user": False,
         'name': 'create',
         'role_name': 'user',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts': [
+            dict(application='console', authentication_methods=['password']),
+            dict(application='ssh', authentication_methods=['publickey'], second_authentication_method='password')
+        ],
     }
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     module_args['lock_user'] = True
@@ -282,8 +284,10 @@ def test_ensure_user_unlock_called():
         "lock_user": True,
         'name': 'create',
         'role_name': 'user',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts': [
+            dict(application='console', authentication_methods=['password']),
+            dict(application='ssh', authentication_methods=['publickey'], second_authentication_method='password')
+        ],
     }
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     module_args['lock_user'] = False
@@ -301,8 +305,10 @@ def test_ensure_user_set_password_called():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'user',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts': [
+            dict(application='console', authentication_methods=['password']),
+            dict(application='ssh', authentication_methods=['publickey'], second_authentication_method='password')
+        ],
         'set_password': '123456',
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
@@ -314,14 +320,17 @@ def test_ensure_user_role_update_called():
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-modify', ZRR['success']),
+        ('ZAPI', 'security-login-modify', ZRR['success']),
         ('ZAPI', 'security-login-modify-password', ZRR['success']),
     ])
     module_args = {
         "use_rest": "never",
         'name': 'create',
         'role_name': 'test123',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts': [
+            dict(application='console', authentication_methods=['password']),
+            dict(application='ssh', authentication_methods=['publickey'], second_authentication_method='password')
+        ],
         'set_password': '123456',
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
@@ -341,8 +350,8 @@ def test_ensure_user_role_update_additional_application_called():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'test123',
-        'applications': 'http',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='http', authentication_methods=['password'])],
         'set_password': '123456',
         'replace_existing_apps_and_methods': 'always'
     }
@@ -363,8 +372,8 @@ def test_ensure_user_role_update_additional_method_called():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'test123',
-        'applications': 'console',
-        'authentication_method': 'domain',
+        'application_dicts':
+            [dict(application='console', authentication_methods=['domain'])],
         'set_password': '123456',
         'replace_existing_apps_and_methods': 'always'
     }
@@ -385,8 +394,8 @@ def test_if_all_methods_catch_exception():
         "use_rest": "never",
         'name': 'create',
         'role_name': 'test123',
-        'applications': 'console',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='console', authentication_methods=['password'])],
     }
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     app = dict(application='console', authentication_methods=['password'])
@@ -407,8 +416,8 @@ def test_rest_error_applications_snmp():
     module_args = {
         "use_rest": "always",
         'role_name': 'test123',
-        'applications': 'snmp',
-        'authentication_method': 'password',
+        'application_dicts':
+            [dict(application='snmp', authentication_methods=['usm'])],
         'set_password': '123456',
     }
     register_responses([
@@ -475,11 +484,10 @@ def test_ensure_modify_user_rest_called():
         ('GET', 'security/accounts/ansible_vserver/abcd', SRR['get_user_details_rest']),
         ('PATCH', 'security/accounts/ansible_vserver/abcd', SRR['empty_good']),
     ])
-    app = dict(application='service_processor', authentication_methods=['usm'])
     module_args = {
         "use_rest": "always",
         'role_name': 'vsadmin',
-        'application_dicts': [app]
+        'application_dicts': [dict(application='service_processor', authentication_methods=['usm'])]
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 

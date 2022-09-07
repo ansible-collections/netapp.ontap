@@ -78,6 +78,14 @@ class NetAppModule(object):
         self.zapi_required = {}
         self.params_to_rest_api_keys = {}
 
+    def module_deprecated(self, module):
+        module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
+                    'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+
+    def module_replaces(self, new_module, module):
+        self.module_deprecated(module)
+        module.warn('netapp.ontap.%s should be used instead.' % new_module)
+
     def set_parameters(self, ansible_params):
         self.parameters = {}
         for param in ansible_params:
@@ -192,9 +200,7 @@ class NetAppModule(object):
             return None
         # change in state
         self.changed = True
-        if current is not None:
-            return 'delete'
-        return 'create'
+        return 'create' if current is None else 'delete'
 
     @staticmethod
     def check_keys(current, desired):
@@ -334,8 +340,8 @@ class NetAppModule(object):
         return initiator
 
     def safe_get(self, an_object, key_list, allow_sparse_dict=True):
-        ''' recursively traverse a dictionary or a any object supporting get_item
-            (in our case, python dicts and NAElement responses)
+        ''' recursively traverse a dictionary or a any object supporting get_item or indexing
+            (in our case, python dicts and NAElement responses, and lists)
             It is expected that some keys can be missing, this is controlled with allow_sparse_dict
 
             return value if the key chain is exhausted
@@ -351,8 +357,8 @@ class NetAppModule(object):
         key = key_list.pop(0)
         try:
             return self.safe_get(an_object[key], key_list, allow_sparse_dict=allow_sparse_dict)
-        except KeyError as exc:
-            # error, key not found
+        except (KeyError, IndexError) as exc:
+            # error, key or index not found
             if allow_sparse_dict:
                 return None
             raise exc
@@ -432,48 +438,50 @@ class NetAppModule(object):
             if value is not None or not omitnone:
                 result[key] = value
 
-    def _filter_out_none_entries_from_dict(self, adict):
+    def _filter_out_none_entries_from_dict(self, adict, allow_empty_list_or_dict):
         """take a dict as input and return a dict without keys whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
         result = {}
         for key, value in adict.items():
             if isinstance(value, (list, dict)):
-                sub = self.filter_out_none_entries(value)
-                if sub:
-                    # skip empty dict or list
+                sub = self.filter_out_none_entries(value, allow_empty_list_or_dict)
+                if sub or allow_empty_list_or_dict:
+                    # allow empty dict or list if allow_empty_list_or_dict is set.
+                    # skip empty dict or list otherwise
                     result[key] = sub
             elif value is not None:
                 # skip None value
                 result[key] = value
         return result
 
-    def _filter_out_none_entries_from_list(self, alist):
+    def _filter_out_none_entries_from_list(self, alist, allow_empty_list_or_dict):
         """take a list as input and return a list without elements whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
         result = []
         for item in alist:
             if isinstance(item, (list, dict)):
-                sub = self.filter_out_none_entries(item)
-                if sub:
-                    # skip empty dict or list
+                sub = self.filter_out_none_entries(item, allow_empty_list_or_dict)
+                if sub or allow_empty_list_or_dict:
+                    # allow empty dict or list if allow_empty_list_or_dict is set.
+                    # skip empty dict or list otherwise
                     result.append(sub)
             elif item is not None:
                 # skip None value
                 result.append(item)
         return result
 
-    def filter_out_none_entries(self, list_or_dict):
+    def filter_out_none_entries(self, list_or_dict, allow_empty_list_or_dict=False):
         """take a dict or list as input and return a dict/list without keys/elements whose values are None
-           skip empty dicts or lists.
+           return empty dicts or lists if allow_empty_list_or_dict otherwise skip empty dicts or lists.
         """
 
         if isinstance(list_or_dict, dict):
-            return self._filter_out_none_entries_from_dict(list_or_dict)
+            return self._filter_out_none_entries_from_dict(list_or_dict, allow_empty_list_or_dict)
 
         if isinstance(list_or_dict, list):
-            return self._filter_out_none_entries_from_list(list_or_dict)
+            return self._filter_out_none_entries_from_list(list_or_dict, allow_empty_list_or_dict)
 
         raise TypeError('unexpected type %s' % type(list_or_dict))
 
@@ -498,7 +506,7 @@ class NetAppModule(object):
                 function_name = 'Error retrieving function name: %s - %s' % (str(exc), repr(frames))
         return function_name
 
-    def fail_on_error(self, error, api=None, stack=False, depth=1):
+    def fail_on_error(self, error, api=None, stack=False, depth=1, previous_errors=None):
         '''depth identifies how far is the caller in the call stack'''
         if error is None:
             return
@@ -509,6 +517,83 @@ class NetAppModule(object):
         results = dict(msg='Error in %s: %s' % (self.get_caller(depth), error))
         if stack:
             results['stack'] = traceback.format_stack()
+        if previous_errors:
+            results['previous_errors'] = ' - '.join(previous_errors)
         if getattr(self, 'module', None) is not None:
             self.module.fail_json(**results)
         raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))
+
+    def compare_chmod_value(self, current_permissions, desired_permissions):
+        """
+        compare current unix_permissions to desired unix_permissions.
+        :return: True if the same, False it not the same or desired unix_permissions is not valid.
+        """
+        if current_permissions is None:
+            return False
+        if desired_permissions.isdigit():
+            return int(current_permissions) == int(desired_permissions)
+        # ONTAP will throw error as invalid field if the length is not 9 or 12.
+        if len(desired_permissions) not in [12, 9]:
+            return False
+        desired_octal_value = ''
+        # if the length is 12, first three character sets userid('s'), groupid('s') and sticky('t') attributes
+        if len(desired_permissions) == 12:
+            if desired_permissions[0] not in ['s', '-'] or desired_permissions[1] not in ['s', '-']\
+                    or desired_permissions[2] not in ['t', '-']:
+                return False
+            desired_octal_value += str(self.char_to_octal(desired_permissions[:3]))
+        # if the len is 9, start from 0 else start from 3.
+        start_range = len(desired_permissions) - 9
+        for i in range(start_range, len(desired_permissions), 3):
+            if desired_permissions[i] not in ['r', '-'] or desired_permissions[i + 1] not in ['w', '-']\
+                    or desired_permissions[i + 2] not in ['x', '-']:
+                return False
+            group_permission = self.char_to_octal(desired_permissions[i:i + 3])
+            desired_octal_value += str(group_permission)
+        return int(current_permissions) == int(desired_octal_value)
+
+    def char_to_octal(self, chars):
+        """
+        :param chars: Characters to be converted into octal values.
+        :return: octal value of the individual group permission.
+        """
+        total = 0
+        if chars[0] in ['r', 's']:
+            total += 4
+        if chars[1] in ['w', 's']:
+            total += 2
+        if chars[2] in ['x', 't']:
+            total += 1
+        return total
+
+    def ignore_missing_vserver_on_delete(self, error, vserver_name=None):
+        """ When a resource is expected to be absent, it's OK if the containing vserver is also absent.
+            This function expects self.parameters('vserver') to be set or the vserver_name argument to be passed.
+            error is an error returned by rest_generic.get_xxxx.
+        """
+        if self.parameters.get('state') != 'absent':
+            return False
+        if vserver_name is None:
+            if self.parameters.get('vserver') is None:
+                self.module.fail_json(msg='Internal error, vserver name is required, when processing error: %s' % error, exception=traceback.format_exc())
+            vserver_name = self.parameters['vserver']
+        if isinstance(error, str):
+            pass
+        elif isinstance(error, dict):
+            if 'message' in error:
+                error = error['message']
+            else:
+                self.module.fail_json(msg='Internal error, error should contain "message" key, found: %s' % error, exception=traceback.format_exc())
+        else:
+            self.module.fail_json(msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
+        return 'SVM "%s" does not exist.' % self.parameters['vserver'] in error
+
+    def remove_hal_links(self, records):
+        """ Remove all _links entries """
+        if isinstance(records, dict):
+            records.pop('_links', None)
+            for record in records.values():
+                self.remove_hal_links(record)
+        if isinstance(records, list):
+            for record in records:
+                self.remove_hal_links(record)

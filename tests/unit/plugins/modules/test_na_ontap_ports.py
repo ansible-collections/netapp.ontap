@@ -12,9 +12,10 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args,\
     AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports \
     import NetAppOntapPorts as port_module  # module under test
@@ -51,7 +52,8 @@ class TestMyModule(unittest.TestCase):
                 'resource_type': 'broadcast_domain',
                 'hostname': 'test',
                 'username': 'test_user',
-                'password': 'test_pass!'
+                'password': 'test_pass!',
+                'use_rest': 'never'
             }
         elif choice == 'portset':
             return {
@@ -61,7 +63,8 @@ class TestMyModule(unittest.TestCase):
                 'hostname': 'test',
                 'username': 'test_user',
                 'password': 'test_pass!',
-                'vserver': 'test_vserver'
+                'vserver': 'test_vserver',
+                'use_rest': 'never'
             }
 
     def get_port_mock_object(self):
@@ -69,13 +72,13 @@ class TestMyModule(unittest.TestCase):
         Helper method to return an na_ontap_port object
         """
         port_obj = port_module()
-        port_obj.asup_log_for_cserver = Mock(return_value=None)
         port_obj.server = MockONTAPConnection()
         return port_obj
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_successfully_add_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
+    def test_successfully_add_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
         ''' Test successful add broadcast domain ports '''
         data = self.mock_args('broadcast_domain')
         set_module_args(data)
@@ -86,9 +89,10 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_add_broadcast_domain_ports_idempotency(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
+    def test_add_broadcast_domain_ports_idempotency(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
         ''' Test add broadcast domain ports idempotency '''
         data = self.mock_args('broadcast_domain')
         set_module_args(data)
@@ -99,9 +103,10 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_successfully_add_portset_ports(self, portset_get, add_portset_ports):
+    def test_successfully_add_portset_ports(self, portset_get, add_portset_ports, ignored):
         ''' Test successful add portset ports '''
         data = self.mock_args('portset')
         set_module_args(data)
@@ -112,9 +117,10 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_add_portset_ports_idempotency(self, portset_get, add_portset_ports):
+    def test_add_portset_ports_idempotency(self, portset_get, add_portset_ports, ignored):
         ''' Test add portset ports idempotency '''
         data = self.mock_args('portset')
         set_module_args(data)
@@ -125,9 +131,10 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_successfully_remove_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
+    def test_successfully_remove_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
         ''' Test successful remove broadcast domain ports '''
         data = self.mock_args('broadcast_domain')
         data['state'] = 'absent'
@@ -139,9 +146,10 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_remove_add_portset_ports(self, portset_get, add_portset_ports):
+    def test_remove_add_portset_ports(self, portset_get, add_portset_ports, ignored):
         ''' Test successful remove portset ports '''
         data = self.mock_args('portset')
         data['state'] = 'absent'
@@ -152,13 +160,6 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
-
-
-WARNINGS = list()
-
-
-def warn(dummy, msg):
-    WARNINGS.append(msg)
 
 
 def default_args(choice=None, resource_name=None, portset_type=None):
@@ -409,7 +410,7 @@ def test_add_broadcast_domain_port_rest(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -430,7 +431,7 @@ def test_add_broadcast_domain_port_rest_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -454,7 +455,7 @@ def test_remove_broadcast_domain_port_rest(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -475,7 +476,7 @@ def test_remove_broadcast_domain_port_rest_idempotent(mock_request, patch_ansibl
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -492,7 +493,7 @@ def test_module_error_get_ports_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'calling: network/ethernet/ports: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -512,7 +513,7 @@ def test_module_error_get_broadcast_domain_ports_rest(mock_request, patch_ansibl
     print('Info: %s' % exc.value.args[0])
     msg = 'calling: network/ethernet/broadcast-domains: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -533,7 +534,7 @@ def test_module_error_add_broadcast_domain_ports_rest(mock_request, patch_ansibl
     print('Info: %s' % exc.value.args[0])
     msg = 'got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -555,7 +556,7 @@ def test_module_error_remove_broadcast_domain_ports_rest(mock_request, patch_ans
     print('Info: %s' % exc.value.args[0])
     msg = 'Error removing ports: calling: private/cli/network/port/broadcast-domain/remove-ports: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -573,7 +574,7 @@ def test_module_error_invalid_ports_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: Invalid value specified for port: mohan9cluster2-01e0b, provide port name as node_name:port_name'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -591,7 +592,7 @@ def test_module_error_broadcast_domain_missing_ports_rest(mock_request, patch_an
     print('Info: %s' % exc.value.args[0])
     msg = 'Error: ports: mohan9cluster2-01:e0l not found'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -612,7 +613,7 @@ def test_add_portset_port_iscsi_rest(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -632,7 +633,7 @@ def test_add_portset_port_iscsi_rest_idempotent(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -654,7 +655,7 @@ def test_remove_portset_port_iscsi_rest(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -678,7 +679,7 @@ def test_add_portset_port_mixed_rest(mock_request, patch_ansible):
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is True
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -697,7 +698,7 @@ def test_module_error_get_portset_fetching_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'Error fetching lifs details for lif_svm3_856: calling: network/ip/interfaces: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -719,7 +720,7 @@ def test_module_get_portset_fetching_portset_ip_rest(mock_request, patch_ansible
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -741,7 +742,7 @@ def test_module_get_portset_fetching_portset_fcp_rest(mock_request, patch_ansibl
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -761,7 +762,7 @@ def test_module_error_get_portset_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'calling: protocols/san/portsets: got Expected error'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -782,7 +783,7 @@ def test_module_error_get_portset_error_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: Portset 'iscsips_updated' does not exist"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -801,7 +802,7 @@ def test_module_error_get_portset_missing_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = "Error: lifs: lif_svm3_856 of type iscsi not found in vserver svm3"
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -822,7 +823,7 @@ def test_module_get_portset_missing_state_absent_rest(mock_request, patch_ansibl
         my_obj.apply()
     print('Info: %s' % exc.value.args[0])
     assert exc.value.args[0]['changed'] is False
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -843,7 +844,7 @@ def test_module_error_add_portset_ports_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'calling: protocols/san/portsets/52e31a9d-72e2-11ec-95ea-005056b3b297/interfaces: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
@@ -865,4 +866,4 @@ def test_module_error_remove_portset_ports_rest(mock_request, patch_ansible):
     print('Info: %s' % exc.value.args[0])
     msg = 'calling: protocols/san/portsets/52e31a9d-72e2-ec11-95ea-005056b3b298/interfaces/6a82e94a-72da-11ec-95ea-005056b3b297: got Expected error.'
     assert msg in exc.value.args[0]['msg']
-    assert not WARNINGS
+    assert_no_warnings()
