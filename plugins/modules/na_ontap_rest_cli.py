@@ -137,7 +137,10 @@ class NetAppONTAPCommandREST():
     def apply(self):
         ''' calls the command and returns raw output '''
         changed = True
-        output = self.run_command()
+        if self.module.check_mode:
+            output = "Would run command: '%s'" % str(self.command)
+        else:
+            output = self.run_command()
         self.module.exit_json(changed=changed, msg=output)
 
 
