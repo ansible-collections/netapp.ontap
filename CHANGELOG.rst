@@ -39,6 +39,7 @@ Bugfixes
 
 - na_ontap_cifs_acl - use ``type`` if present when fetching existing ACL with ZAPI.
 - na_ontap_cifs_local_user_set_password - when using ZAPI, do not require cluster admin privileges.
+- na_ontap_cluster_config Role - incorrect license was shown - updated to GNU General Public License v3.0
 - na_ontap_flexcache - properly use ``origin_cluster`` in GET but not in POST when using REST.
 - na_ontap_kerberos_realm - fix cannot modify ``comment`` option in ZAPI.
 - na_ontap_lun_copy - fix key error on ``source_vserver`` option.
