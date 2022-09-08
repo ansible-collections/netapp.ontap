@@ -479,6 +479,8 @@ SRR = rest_responses({
         'name': 'abc_if',
         'uuid': '54321',
         'svm': {'name': 'vserver', 'uuid': 'svm_uuid'},
+        'dns_zone': 'netapp.com',
+        'ddns_enabled': True,
         'data_protocol': ['nfs'],
         'enabled': True,
         'ip': {'address': '10.11.12.13', 'netmask': '255.192.0.0'},
@@ -1564,7 +1566,7 @@ def test_error_messages_build_rest_body_and_validations():
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail')['msg']
     del my_obj.parameters['failover_group']
     my_obj.parameters['broadcast_domain'] = 'BDD1'
-    error = "Error: broadcast_domain is only supported for IP interfaces: abc_if, interface_type: fc"
+    error = "Error: broadcast_domain option only supported for IP interfaces: abc_if, interface_type: fc"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
     my_obj.parameters['service_policy'] = 'svc_pol'
     error = "Error: 'service_policy' is not supported for FC interfaces."
@@ -1585,3 +1587,34 @@ def test_error_messages_build_rest_body_and_validations():
     my_obj.parameters['ipspace'] = 'ipspace'
     error = "Error: home_port and broadcast_domain are mutually exclusive for creating: abc_if"
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
+
+
+def test_dns_domain_ddns_enabled():
+    ''' domain and ddns enabled option test '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('POST', 'network/ip/interfaces', SRR['success']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'network/fc/interfaces', SRR['zero_records'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'address': '10.11.12.13',
+        'netmask': '255.192.0.0',
+        'vserver': 'vserver',
+        'dns_domain_name': 'netapp1.com',
+        'is_dns_update_enabled': False
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    del module_args['address']
+    del module_args['netmask']
+    args = {'data_protocol': 'fc_nvme', 'home_node': 'my_node', 'protocols': 'fc-nvme', 'interface_type': 'fc'}
+    module_args.update(args)
+    assert 'dns_domain_name, is_dns_update_enabled options only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

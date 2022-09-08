@@ -185,7 +185,7 @@ options:
   dns_domain_name:
     description:
       - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
-      - not supported with REST.
+      - Supported from ONTAP 9.9 in REST.
     version_added: 2.9.0
     type: str
 
@@ -199,7 +199,7 @@ options:
   is_dns_update_enabled:
     description:
       - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
-      - Not supported with REST.
+      - Supported from ONTAP 9.9.1 in REST.
     version_added: 2.9.0
     type: bool
 
@@ -253,7 +253,7 @@ options:
     description:
       - ignore unsupported options that should not be relevant.
       - ignored with ZAPI.
-    choices: ['dns_domain_name', 'failover_group', 'force_subnet_association', 'is_dns_update_enabled', 'listen_for_dns_query']
+    choices: ['failover_group', 'force_subnet_association', 'listen_for_dns_query']
     type: list
     elements: str
     default: ['force_subnet_association']
@@ -403,7 +403,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 FAILOVER_POLICIES = ['disabled', 'system-defined', 'local-only', 'sfo-partner-only', 'broadcast-domain-wide']
 FAILOVER_SCOPES = ['home_port_only', 'default', 'home_node_only', 'sfo_partners_only', 'broadcast_domain_only']
 REST_UNSUPPORTED_OPTIONS = ['is_ipv4_link_local', 'subnet_name', ]
-REST_IGNORABLE_OPTIONS = ['dns_domain_name', 'failover_group', 'force_subnet_association', 'is_dns_update_enabled', 'listen_for_dns_query']
+REST_IGNORABLE_OPTIONS = ['failover_group', 'force_subnet_association', 'listen_for_dns_query']
 
 
 def get_network(ip, mask):
@@ -481,7 +481,8 @@ class NetAppOntapInterface():
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = [key for key in REST_IGNORABLE_OPTIONS if key not in self.parameters['ignore_zapi_options']]
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        partially_supported_rest_properties = [['dns_domain_name', (9, 9)], ['is_dns_update_enabled', (9, 9, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
             if self.parameters['use_rest'].lower() == 'always':
@@ -678,6 +679,10 @@ class NetAppOntapInterface():
         fields = 'name,location,uuid,enabled,svm.name'
         fields_fc = fields + ',data_protocol'
         fields_ip = fields + ',ip,service_policy'
+        if self.parameters.get('dns_domain_name'):
+            fields_ip += ',dns_zone'
+        if 'is_dns_update_enabled' in self.parameters:
+            fields_ip += ',ddns_enabled'
         records, error, records2, error2 = None, None, None, None
         if if_type in [None, 'ip']:
             records, error = self.get_interface_records_rest('ip', query_ip, fields_ip)
@@ -742,6 +747,10 @@ class NetAppOntapInterface():
             return_value['current_node'] = record['location']['node']['name']
         if self.na_helper.safe_get(record, ['location', 'port', 'name']):
             return_value['current_port'] = record['location']['port']['name']
+        if self.na_helper.safe_get(record, ['dns_zone']):
+            return_value['dns_domain_name'] = record['dns_zone']
+        if self.na_helper.safe_get(record, ['ddns_enabled']):
+            return_value['is_dns_update_enabled'] = record['ddns_enabled']
         return return_value
 
     def get_node_port(self, uuid):
@@ -943,6 +952,8 @@ class NetAppOntapInterface():
             mapping_params_to_rest.update({
                 'ipspace': 'ipspace.name',
                 'service_policy': 'service_policy',
+                'dns_domain_name': 'dns_zone',
+                'is_dns_update_enabled': 'ddns_enabled',
                 # IP
                 'address': 'address',
                 'netmask': 'netmask',
@@ -982,7 +993,7 @@ class NetAppOntapInterface():
                     options[rkey] = parameters[pkey]
 
         keys_in_error = ('role', 'subnet_name', 'failover_group', 'firewall_policy', 'force_subnet_association',
-                         'dns_domain_name', 'listen_for_dns_query', 'is_dns_update_enabled', 'is_ipv4_link_local')
+                         'listen_for_dns_query', 'is_ipv4_link_local')
         for pkey in keys_in_error:
             if pkey in parameters:
                 errors[pkey] = parameters[pkey]
@@ -1061,9 +1072,13 @@ class NetAppOntapInterface():
         if action == 'create':
             if 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
                 errors.append('ipspace name must be provided if scope is cluster, or vserver for svm scope.')
-            if self.parameters.get('broadcast_domain') and self.parameters['interface_type'] == 'fc':
-                errors.append('broadcast_domain is only supported for IP interfaces: %s, interface_type: %s'
-                              % (self.parameters.get('interface_name'), self.parameters['interface_type']))
+            if self.parameters['interface_type'] == 'fc':
+                unsupported_fc_options = ['broadcast_domain', 'dns_domain_name', 'is_dns_update_enabled']
+                used_unsupported_fc_options = [option for option in unsupported_fc_options if option in self.parameters]
+                if used_unsupported_fc_options:
+                    plural = 's' if len(used_unsupported_fc_options) > 1 else ''
+                    errors.append('%s option%s only supported for IP interfaces: %s, interface_type: %s'
+                                  % (', '.join(used_unsupported_fc_options), plural, self.parameters.get('interface_name'), self.parameters['interface_type']))
             if self.parameters.get('home_port') and self.parameters.get('broadcast_domain'):
                 errors.append('home_port and broadcast_domain are mutually exclusive for creating: %s'
                               % self.parameters.get('interface_name'))
@@ -1120,7 +1135,7 @@ class NetAppOntapInterface():
         """ Only the following keys can be modified:
             enabled, ip, location, name, service_policy
         """
-        bad_keys = [key for key in body if key not in ['enabled', 'ip', 'location', 'name', 'service_policy']]
+        bad_keys = [key for key in body if key not in ['enabled', 'ip', 'location', 'name', 'service_policy', 'dns_zone', 'ddns_enabled']]
         if bad_keys:
             plural = 's' if len(bad_keys) > 1 else ''
             self.module.fail_json(msg='The following option%s cannot be modified: %s' % (plural, ', '.join(bad_keys)))
@@ -1380,7 +1395,6 @@ class NetAppOntapInterface():
 
         # build the payloads even in check_mode, to perform validations
         uuid, body, migrate_body = self.build_rest_payloads(cd_action, modify, current)
-
         if self.na_helper.changed and not self.module.check_mode:
             if rename and not self.use_rest:
                 self.rename_interface()
