@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 21.24.0
+
+### New Rest Info
+  - na_ontap_rest_info - added support for `network/ip/subnets`.
+
 ## 21.23.0
 
 ### New Options

@@ -93,6 +93,7 @@ options:
       - network/ip/interfaces or ip_interfaces_info or net_interface_info
       - network/ip/routes or ip_routes_info or net_routes_info
       - network/ip/service-policies or ip_service_policies or net_interface_service_policy_info
+      - network/ip/subnets
       - network/ipspaces or network_ipspaces_info or net_ipspaces_info
       - private/support/alerts or sys_cluster_alerts
       - private/cli/vserver/security/file-directory or file_directory_security
@@ -810,6 +811,7 @@ class NetAppONTAPGatherInfo(object):
             'network/ip/interfaces': {},
             'network/ip/routes': {},
             'network/ip/service-policies': {},
+            'network/ip/subnets': {'version': (9, 11, 1)},
             'network/ipspaces': {},
             'network/ethernet/switches': {'version': (9, 8)},
             'private/support/alerts': {},
