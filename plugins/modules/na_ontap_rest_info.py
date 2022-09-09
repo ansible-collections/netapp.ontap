@@ -52,9 +52,13 @@ options:
       - application/consistency-groups
       - application/templates or application_template_info
       - cloud/targets or cloud_targets_info
+      - cluster
       - cluster/chassis or cluster_chassis_info
+      - cluster/counter/tables
       - cluster/fireware/history
       - cluster/jobs or cluster_jobs_info
+      - cluster/licensing/capacity-pools
+      - cluster/licensing/license-managers
       - cluster/licensing/licenses or license_info
       - cluster/mediators
       - cluster/metrics or cluster_metrics_info
@@ -64,18 +68,26 @@ options:
       - cluster/metrocluster/interconnects
       - cluster/metrocluster/nodes or metrocluster-node-get-iter
       - cluster/metrocluster/operations
+      - cluster/metrocluster/svms
       - cluster/nodes or cluster_node_info or sysconfig_info
       - cluster/ntp/keys
       - cluster/ntp/servers or ntp_server_info
       - cluster/peers or cluster_peer_info
       - cluster/schedules or cluster_schedules or job_schedule_cron_info
+      - cluster/sensors
       - cluster/software or ontap_system_version or  cluster_image_info
       - cluster/software/download or cluster_software_download
       - cluster/software/history or cluster_software_history
       - cluster/software/packages or cluster_software_packages
       - cluster/web
+      - name-services/cache/group-membership/settings
+      - name-services/cache/host/settings
+      - name-services/cache/netgroup/settings
+      - name-services/cache/setting
+      - name-services/cache/unix-group/settings
       - name-services/dns or svm_dns_config_info or net_dns_info
       - name-services/ldap or svm_ldap_config_info or ldap_client or ldap_config
+      - name-services/ldap-schemas
       - name-services/local-hosts
       - name-services/name-mappings or svm_name_mapping_config_info
       - name-services/nis or svm_nis_config_info
@@ -85,6 +97,8 @@ options:
       - network/ethernet/ports or network_ports_info or  net_port_info
       - network/ethernet/switch/ports
       - network/ethernet/switches or cluster_switch_info
+      - network/fc/fabrics
+      - network/fc/interfaces
       - network/fc/logins or san_fc_logins_info
       - network/fc/ports
       - network/fc/wwpn-aliases or san_fc_wppn-aliases or fcp_alias_info
@@ -98,12 +112,17 @@ options:
       - private/support/alerts or sys_cluster_alerts
       - private/cli/vserver/security/file-directory or file_directory_security
       - protocols/audit
+      - protocols/cifs/connections
       - protocols/cifs/domains
       - protocols/cifs/home-directory/search-paths or cifs_home_directory_info
       - protocols/cifs/local-groups
       - protocols/cifs/local-users
+      - protocols/cifs/netbios
       - protocols/cifs/services or cifs_services_info or cifs_options_info
+      - protocols/cifs/session/files
       - protocols/cifs/sessions
+      - protocols/cifs/shadow-copies
+      - protocols/cifs/shadowcopy-sets
       - protocols/cifs/shares or cifs_share_info
       - protocols/cifs/users-and-groups/privileges
       - protocols/cifs/unix-symlink-mapping
@@ -114,6 +133,7 @@ options:
       - protocols/ndmp/sessions
       - protocols/ndmp/svms
       - protocols/nfs/connected-clients
+      - protocols/nfs/connected-client-maps
       - protocols/nfs/export-policies or export_policy_info
       - protocols/nfs/export-policies/rules B(Requires the owning_resource to be set)
       - protocols/nfs/kerberos/interfaces
@@ -139,6 +159,7 @@ options:
       - protocols/vscan/on-demand-policies B(Requires the owning_resource to be set)
       - protocols/vscan/scanner-pools B(Requires the owning_resource to be set)
       - protocols/vscan/server-status or vscan_connection_status_all_info
+      - security
       - security/accounts or security_login_info or security_login_account_info
       - security/anti-ransomware/suspects
       - security/audit
@@ -160,6 +181,10 @@ options:
       - security/key-managers
       - security/key-stores
       - security/login/messages
+      - security/multi-admin-verify
+      - security/multi-admin-verify/approval-groups
+      - security/multi-admin-verify/requests
+      - security/multi-admin-verify/rules
       - security/roles or security_login_rest_role_info
       - security/ssh
       - security/ssh/svms
@@ -172,10 +197,12 @@ options:
       - storage/file/clone/split-loads
       - storage/file/clone/split-status
       - storage/file/clone/tokens
+      - storage/file/moves
       - storage/flexcache/flexcaches or storage_flexcaches_info
       - storage/flexcache/origins or storage_flexcaches_origin_info
       - storage/luns or storage_luns_info or lun_info (if serial_number is present, serial_hex and naa_id are computed)
       - storage/namespaces or storage_NVMe_namespaces or nvme_namespace_info
+      - storage/pools
       - storage/ports or storage_ports_info
       - storage/qos/policies or storage_qos_policies or qos_policy_info or qos_adaptive_policy_info
       - storage/qos/workloads
@@ -769,10 +796,14 @@ class NetAppONTAPGatherInfo(object):
             'cloud/targets': {},
             'cluster': {},
             'cluster/chassis': {},
+            'cluster/counter/tables': {'version': (9, 11, 1)},
             'cluster/fireware/history': {'version': (9, 8)},
             'cluster/jobs': {},
+            'cluster/licensing/capacity-pools': {'version': (9, 8)},
+            'cluster/licensing/license-managers': {'version': (9, 8)},
             'cluster/licensing/licenses': {},
             'cluster/mediators': {'version': (9, 8)},
+            'cluster/metrics': {},
             'cluster/metrocluster': {'version': (9, 8)},
             'cluster/metrocluster/diagnostics': {
                 'version': (9, 8),
@@ -782,19 +813,26 @@ class NetAppONTAPGatherInfo(object):
             'cluster/metrocluster/interconnects': {'version': (9, 8)},
             'cluster/metrocluster/nodes': {'version': (9, 8)},
             'cluster/metrocluster/operations': {'version': (9, 8)},
-            'cluster/metrics': {},
+            'cluster/metrocluster/svms': {'version': (9, 11, 1)},
             'cluster/nodes': {},
             'cluster/ntp/keys': {'version': (9, 7)},
             'cluster/ntp/servers': {'version': (9, 7)},
             'cluster/peers': {},
             'cluster/schedules': {},
+            'cluster/sensors': {'version': (9, 11, 1)},
             'cluster/software': {},
             'cluster/software/download': {'version': (9, 7)},
             'cluster/software/history': {},
             'cluster/software/packages': {},
             'cluster/web': {'version': (9, 10, 1)},
+            'name-services/cache/group-membership/settings': {'version': (9, 11, 1)},
+            'name-services/cache/host/settings': {'version': (9, 11, 1)},
+            'name-services/cache/netgroup/settings': {'version': (9, 11, 1)},
+            'name-services/cache/setting': {'version': (9, 11, 1)},
+            'name-services/cache/unix-group/settings': {'version': (9, 11, 1)},
             'name-services/dns': {},
             'name-services/ldap': {},
+            'name-services/ldap-schemas': {'version': (9, 11, 1)},
             'name-services/local-hosts': {'version': (9, 10, 1)},
             'name-services/name-mappings': {},
             'name-services/nis': {},
@@ -803,6 +841,9 @@ class NetAppONTAPGatherInfo(object):
             'network/ethernet/broadcast-domains': {},
             'network/ethernet/ports': {},
             'network/ethernet/switch/ports': {'version': (9, 8)},
+            'network/ethernet/switches': {'version': (9, 8)},
+            'network/fc/fabrics': {'version': (9, 11, 1)},
+            'network/fc/interfaces': {},
             'network/fc/logins': {},
             'network/fc/ports': {},
             'network/fc/wwpn-aliases': {},
@@ -813,15 +854,19 @@ class NetAppONTAPGatherInfo(object):
             'network/ip/service-policies': {},
             'network/ip/subnets': {'version': (9, 11, 1)},
             'network/ipspaces': {},
-            'network/ethernet/switches': {'version': (9, 8)},
             'private/support/alerts': {},
             'protocols/audit': {},
+            'protocols/cifs/connections': {'version': (9, 11, 1)},
             'protocols/cifs/domains': {'version': (9, 10, 1)},
             'protocols/cifs/home-directory/search-paths': {},
             'protocols/cifs/local-groups': {'version': (9, 9)},
             'protocols/cifs/local-users': {'version': (9, 9)},
+            'protocols/cifs/netbios': {'version': (9, 11, 1)},
             'protocols/cifs/services': {},
+            'protocols/cifs/session/files': {'version': (9, 11, 1)},
             'protocols/cifs/sessions': {'version': (9, 8)},
+            'protocols/cifs/shadow-copies': {'version': (9, 11, 1)},
+            'protocols/cifs/shadowcopy-sets': {'version': (9, 11, 1)},
             'protocols/cifs/shares': {},
             'protocols/cifs/unix-symlink-mapping': {},
             'protocols/cifs/users-and-groups/privileges': {'version': (9, 9)},
@@ -832,6 +877,7 @@ class NetAppONTAPGatherInfo(object):
             'protocols/ndmp/sessions': {'version': (9, 7)},
             'protocols/ndmp/svms': {'version': (9, 7)},
             'protocols/nfs/connected-clients': {'version': (9, 7)},
+            'protocols/nfs/connected-client-maps': {'version': (9, 11, 1)},
             'protocols/nfs/export-policies': {},
             'protocols/nfs/kerberos/interfaces': {},
             'protocols/nfs/kerberos/realms': {},
@@ -853,6 +899,7 @@ class NetAppONTAPGatherInfo(object):
             'protocols/san/vvol-bindings': {'version': (9, 10, 1)},
             'protocols/vscan/server-status': {},
             'protocols/vscan': {},
+            'security': {'version': (9, 7)},
             'security/accounts': {},
             'security/anti-ransomware/suspects': {'version': (9, 10, 1)},
             'security/audit': {},
@@ -874,6 +921,10 @@ class NetAppONTAPGatherInfo(object):
             'security/key-managers': {},
             'security/key-stores': {'version': (9, 10, 1)},
             'security/login/messages': {},
+            'security/multi-admin-verify': {'version': (9, 11, 1)},
+            'security/multi-admin-verify/approval-groups': {'version': (9, 11, 1)},
+            'security/multi-admin-verify/requests': {'version': (9, 11, 1)},
+            'security/multi-admin-verify/rules': {'version': (9, 11, 1)},
             'security/roles': {},
             'security/ssh': {'version': (9, 7)},
             'security/ssh/svms': {'version': (9, 10, 1)},
@@ -886,10 +937,12 @@ class NetAppONTAPGatherInfo(object):
             'storage/file/clone/split-loads': {'version': (9, 10, 1)},
             'storage/file/clone/split-status': {'version': (9, 10, 1)},
             'storage/file/clone/tokens': {'version': (9, 10, 1)},
+            'storage/file/moves': {'version': (9, 11, 1)},
             'storage/flexcache/flexcaches': {},
             'storage/flexcache/origins': {},
             'storage/luns': {},
             'storage/namespaces': {},
+            'storage/pools': {'version': (9, 11, 1)},
             'storage/ports': {},
             'storage/qos/policies': {},
             'storage/qos/workloads': {'version': (9, 10, 1)},
