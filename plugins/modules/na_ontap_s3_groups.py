@@ -150,8 +150,9 @@ class NetAppOntapS3Groups:
             # even with the above, the APi Returning _link which is causing modify to get called
             for each in self.na_helper.safe_get(record, ['users']):
                 each.pop('_links')
-            for each in self.na_helper.safe_get(record, ['policies']):
-                each.pop('_links')
+            if self.na_helper.safe_get(record, ['policies']):
+                for each in self.na_helper.safe_get(record, ['policies']):
+                    each.pop('_links')
         return record
 
     def create_s3_groups(self):
