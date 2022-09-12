@@ -1601,7 +1601,8 @@ def test_dns_domain_ddns_enabled():
         ('GET', 'cluster/nodes', SRR['nodes']),
         ('PATCH', 'network/ip/interfaces/54321', SRR['success']),
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
-        ('GET', 'network/fc/interfaces', SRR['zero_records'])
+        ('GET', 'network/fc/interfaces', SRR['zero_records']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0'])
     ])
     module_args = {
         'use_rest': 'always',
@@ -1618,3 +1619,4 @@ def test_dns_domain_ddns_enabled():
     args = {'data_protocol': 'fc_nvme', 'home_node': 'my_node', 'protocols': 'fc-nvme', 'interface_type': 'fc'}
     module_args.update(args)
     assert 'dns_domain_name, is_dns_update_enabled options only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for is_dns_update_enabled is (9, 9, 1).' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

@@ -185,7 +185,8 @@ options:
   dns_domain_name:
     description:
       - Specifies the unique, fully qualified domain name of the DNS zone of this LIF.
-      - Supported from ONTAP 9.9 in REST.
+      - Supported from ONTAP 9.9.0 or later in REST.
+      - Not supported for FC interfaces.
     version_added: 2.9.0
     type: str
 
@@ -199,7 +200,8 @@ options:
   is_dns_update_enabled:
     description:
       - Specifies if DNS update is enabled for this LIF. Dynamic updates will be sent for this LIF if updates are enabled at Vserver level.
-      - Supported from ONTAP 9.9.1 in REST.
+      - Supported from ONTAP 9.9.1 or later in REST.
+      - Not supported for FC interfaces.
     version_added: 2.9.0
     type: bool
 
@@ -347,7 +349,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Migrate an interface
-      na_ontap_interface:
+      netapp.ontap.na_ontap_interface:
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -369,7 +371,7 @@ EXAMPLES = '''
         admin_status: up
 
     - name: Delete interface
-      na_ontap_interface:
+      netapp.ontap.na_ontap_interface:
         state: absent
         interface_name: data2
         vserver: svm1
@@ -420,7 +422,7 @@ def netmask_to_netmask_length(ip, netmask):
     return str(get_network(ip, netmask).prefixlen)
 
 
-class NetAppOntapInterface():
+class NetAppOntapInterface:
     ''' object to describe  interface info '''
 
     def __init__(self):
@@ -481,14 +483,12 @@ class NetAppOntapInterface():
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = [key for key in REST_IGNORABLE_OPTIONS if key not in self.parameters['ignore_zapi_options']]
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
-        partially_supported_rest_properties = [['dns_domain_name', (9, 9)], ['is_dns_update_enabled', (9, 9, 1)]]
+        partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
-            if self.parameters['use_rest'].lower() == 'always':
-                self.module.fail_json(msg='Error: %s' % msg)
-            self.module.warn('Falling back to ZAPI: %s' % msg)
-            self.use_rest = False
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+
         if self.use_rest and not HAS_IPADDRESS_LIB:
             msg = "the python ipaddress package is required for this module: %s" % IMPORT_ERROR
             if self.parameters['use_rest'].lower() == 'always':
@@ -749,7 +749,7 @@ class NetAppOntapInterface():
             return_value['current_port'] = record['location']['port']['name']
         if self.na_helper.safe_get(record, ['dns_zone']):
             return_value['dns_domain_name'] = record['dns_zone']
-        if self.na_helper.safe_get(record, ['ddns_enabled']):
+        if 'ddns_enabled' in record:
             return_value['is_dns_update_enabled'] = record['ddns_enabled']
         return return_value
 
