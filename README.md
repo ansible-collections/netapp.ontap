@@ -100,6 +100,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - support added for storage/file/moves.
   - na_ontap_rest_info - support added for storage/pools.
 
+### Added REST support to existing modules
+  - na_ontap_net_subnet - added REST support.
+
 ## 21.23.0
 
 ### New Options

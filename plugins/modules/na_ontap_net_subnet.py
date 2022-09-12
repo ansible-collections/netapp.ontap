@@ -60,6 +60,10 @@ options:
     description:
       - Specify the subnet (ip and mask).
     type: str
+
+notes:
+  - supports ZAPI and REST. REST requires ONTAP 9.11.1 or later.
+  - supports check mode.
 """
 
 EXAMPLES = """
@@ -104,6 +108,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapSubnet:
@@ -132,11 +137,19 @@ class NetAppOntapSubnet:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.na_helper.module_deprecated(self.module)
+        # Set up Rest API
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.uuid = None
 
-        if not netapp_utils.has_netapp_lib():
-            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            msg = 'REST requires ONTAP 9.11.1 or later for network/ip/subnets APIs.'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_subnet(self, name=None):
         """
@@ -148,7 +161,8 @@ class NetAppOntapSubnet:
         """
         if name is None:
             name = self.parameters.get('name')
-
+        if self.use_rest:
+            return self.get_subnet_rest(name)
         subnet_iter = netapp_utils.zapi.NaElement('net-subnet-get-iter')
         subnet_info = netapp_utils.zapi.NaElement('net-subnet-info')
         subnet_info.add_new_child('subnet-name', name)
@@ -158,8 +172,10 @@ class NetAppOntapSubnet:
         query.add_child_elem(subnet_info)
 
         subnet_iter.add_child_elem(query)
-
-        result = self.server.invoke_successfully(subnet_iter, True)
+        try:
+            result = self.server.invoke_successfully(subnet_iter, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error fetching subnet %s: %s' % (name, to_native(error)))
         return_value = None
         # check if query returns the expected subnet
         if result.get_child_by_name('num-records') and \
@@ -192,6 +208,8 @@ class NetAppOntapSubnet:
         """
         Creates a new subnet
         """
+        if self.use_rest:
+            return self.create_subnet_rest()
         subnet_create = self.build_zapi_request_for_create_or_modify('net-subnet-create')
         try:
             self.server.invoke_successfully(subnet_create, True)
@@ -203,6 +221,8 @@ class NetAppOntapSubnet:
         """
         Deletes a subnet
         """
+        if self.use_rest:
+            return self.delete_subnet_rest()
         subnet_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'net-subnet-destroy', **{'subnet-name': self.parameters.get('name')})
         if self.parameters.get('ipspace'):
@@ -214,10 +234,12 @@ class NetAppOntapSubnet:
             self.module.fail_json(msg='Error deleting subnet %s: %s' % (self.parameters.get('name'), to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_subnet(self):
+    def modify_subnet(self, modify):
         """
         Modifies a subnet
         """
+        if self.use_rest:
+            return self.modify_subnet_rest(modify)
         subnet_modify = self.build_zapi_request_for_create_or_modify('net-subnet-modify')
         try:
             self.server.invoke_successfully(subnet_modify, True)
@@ -269,11 +291,88 @@ class NetAppOntapSubnet:
             self.module.fail_json(msg='Error renaming subnet %s: %s' % (self.parameters.get('name'), to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_subnet_rest(self, name):
+        api = 'network/ip/subnets'
+        params = {
+            'name': name,
+            'fields': 'available_ip_ranges,name,broadcast_domain,ipspace,gateway,subnet,uuid'
+        }
+        if self.parameters.get('ipspace'):
+            params['ipspace.name'] = self.parameters['ipspace']
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg="Error fetching subnet %s: %s" % (name, error))
+        current = None
+        if record:
+            self.uuid = record['uuid']
+            current = {
+                'name': record['name'],
+                'broadcast_domain': self.na_helper.safe_get(record, ['broadcast_domain', 'name']),
+                'gateway': self.na_helper.safe_get(record, ['gateway']),
+                'ipspace': self.na_helper.safe_get(record, ['ipspace', 'name']),
+                'subnet': record['subnet']['address'] + '/' + record['subnet']['netmask'],
+                'ip_ranges': []
+            }
+            for each_range in record.get('available_ip_ranges', []):
+                if each_range['start'] == each_range['end']:
+                    current['ip_ranges'].append(each_range['start'])
+                else:
+                    current['ip_ranges'].append(each_range['start'] + '-' + each_range['end'])
+        return current
+
+    def create_subnet_rest(self):
+        api = 'network/ip/subnets'
+        dummy, error = rest_generic.post_async(self.rest_api, api, self.form_create_modify_body_rest())
+        if error:
+            self.module.fail_json(msg='Error creating subnet %s: %s' % (self.parameters['name'], to_native(error)))
+
+    def modify_subnet_rest(self, modify):
+        api = 'network/ip/subnets'
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, self.form_create_modify_body_rest(modify))
+        if error:
+            self.module.fail_json(msg='Error modifying subnet %s: %s' % (self.parameters.get('name'), to_native(error)))
+
+    def delete_subnet_rest(self):
+        api = 'network/ip/subnets'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.uuid)
+        if error:
+            self.module.fail_json(msg='Error deleting subnet %s: %s' % (self.parameters.get('name'), to_native(error)))
+
+    def form_create_modify_body_rest(self, params=None):
+        if params is None:
+            params = self.parameters
+        body = {'name': self.parameters['name']}
+        if params.get('broadcast_domain'):
+            body['broadcast_domain.name'] = params['broadcast_domain']
+        if params.get('subnet'):
+            if '/' not in params['subnet']:
+                self.module.fail_json(msg="Error: Invalid value specified for subnet %s" % params['subnet'])
+            body['subnet.address'] = params['subnet'].split('/')[0]
+            body['subnet.netmask'] = params['subnet'].split('/')[1]
+        if params.get('gateway'):
+            body['gateway'] = params['gateway']
+        if params.get('ipspace'):
+            body['ipspace.name'] = params['ipspace']
+        ip_ranges = []
+        for each_range in params.get('ip_ranges', []):
+            if '-' in each_range:
+                ip_ranges.append({
+                    'start': each_range.split('-')[0],
+                    'end': each_range.split('-')[1]
+                })
+            else:
+                ip_ranges.append({
+                    'start': each_range,
+                    'end': each_range
+                })
+        if ip_ranges or params.get('ip_ranges') == []:
+            body['ip_ranges'] = ip_ranges
+        return body
+
     def apply(self):
         '''Apply action to subnet'''
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_net_subnet", cserver)
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_net_subnet", self.server, self.module)
         current = self.get_subnet()
         rename, modify = None, None
 
@@ -286,9 +385,13 @@ class NetAppOntapSubnet:
                                       self.parameters.get('from_name'))
             rename = True
             cd_action = None
+            if self.use_rest:
+                # patch takes care of renaming subnet too.
+                rename = False
 
         if self.parameters['state'] == 'present' and current:
-            current.pop('name', None)       # handled in rename
+            if not self.use_rest:
+                current.pop('name', None)      # handled in rename
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if 'broadcast_domain' in modify:
                 self.module.fail_json(msg='Error modifying subnet %s: cannot modify broadcast_domain parameter, desired "%s", currrent "%s"'
@@ -308,7 +411,7 @@ class NetAppOntapSubnet:
             elif cd_action == 'delete':
                 self.delete_subnet()
             elif modify:
-                self.modify_subnet()
+                self.modify_subnet(modify)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
