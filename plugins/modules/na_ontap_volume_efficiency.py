@@ -306,19 +306,17 @@ class NetAppOntapVolumeEfficiency(object):
                 self.module.fail_json(msg=error)
             if record is None:
                 return None
-            return_value = {
-                'path': record['path'],
-                'enabled': record['state'],
-                'status': record['op_status'],
-                'schedule': record['schedule'],
-                'enable_inline_compression': record['inline_compression'],
-                'enable_compression': record['compression'],
-                'enable_inline_dedupe': record['inline_dedupe'],
-                'enable_data_compaction': record['data_compaction'],
-                'enable_cross_volume_inline_dedupe': record['cross_volume_inline_dedupe'],
-                'enable_cross_volume_background_dedupe': record['cross_volume_background_dedupe']
-            }
-            return_value['policy'] = record.get('policy', '-')
+            return_value = {'path': self.na_helper.safe_get(record, ['path']),
+                            'enabled': self.na_helper.safe_get(record, ['state']),
+                            'status': self.na_helper.safe_get(record, ['op_status']),
+                            'schedule': self.na_helper.safe_get(record, ['schedule']),
+                            'enable_inline_compression': self.na_helper.safe_get(record, ['inline_compression']),
+                            'enable_compression': self.na_helper.safe_get(record, ['compression']),
+                            'enable_inline_dedupe': self.na_helper.safe_get(record, ['inline_dedupe']),
+                            'enable_data_compaction': self.na_helper.safe_get(record, ['data_compaction']),
+                            'enable_cross_volume_inline_dedupe': self.na_helper.safe_get(record, ['cross_volume_inline_dedupe']),
+                            'enable_cross_volume_background_dedupe': self.na_helper.safe_get(record, ['cross_volume_background_dedupe']),
+                            'policy': record.get('policy', '-')}
             if self.parameters.get('storage_efficiency_mode') is not None:
                 # force a value to force a change - and an error if the system is not AFF
                 return_value['storage_efficiency_mode'] = record.get('storage_efficiency_mode', '-')
