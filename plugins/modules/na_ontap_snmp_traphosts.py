@@ -3,15 +3,10 @@
 create SNMP module to add/delete/modify SNMP user
 """
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -24,31 +19,33 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
 - Whether the specified SNMP traphost should exist or not. Requires REST with 9.7 or higher
 options:
-  ip_address:
-    description:
-      - "The IP address of the SNMP traphost to manage."
-    required: true
-    type: str
   state:
     choices: ['present', 'absent']
     description:
       - "Whether the specified SNMP traphost should exist or not."
     default: 'present'
     type: str
+  host:
+    description:
+      - "Fully qualified domain name (FQDN), IPv4 address or IPv6 address of SNMP traphost."
+    aliases: ['ip_address']
+    required: true
+    type: str
+    version_added: 21.24.0
 '''
 
 EXAMPLES = """
     - name: Create SNMP traphost
-      na_ontap_snmp_traphosts:
+      netapp.ontap.na_ontap_snmp_traphosts:
         state: present
-        ip_address: '10.10.10.10'
+        host: example1.com
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
     - name: Delete SNMP traphost
-      na_ontap_snmp_traphosts:
+      netapp.ontap.na_ontap_snmp_traphosts:
         state: absent
-        ip_address: '10.10.10.10'
+        host: example1.com
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -59,10 +56,10 @@ RETURN = """
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppONTAPSnmpTraphosts(object):
+class NetAppONTAPSnmpTraphosts:
     """Class with SNMP methods"""
 
     def __init__(self):
@@ -70,7 +67,7 @@ class NetAppONTAPSnmpTraphosts(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            ip_address=dict(required=True, type='str'),
+            host=dict(required=True, type='str', aliases=['ip_address']),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -78,30 +75,29 @@ class NetAppONTAPSnmpTraphosts(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
-        if not self.rest_api.is_rest():
-            self.module.fail_json(msg="na_ontap_snmp_traphosts only support Rest and ONTAP 9.6+")
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_snmp_traphosts', 9, 7)
 
     def get_snmp_traphosts(self):
-        params = {'ip_address': self.parameters['ip_address']}
+        query = {'host': self.parameters.get('host'),
+                 'fields': 'host'}
         api = 'support/snmp/traphosts'
-        message, error = self.rest_api.get(api, params)
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
-            self.module.fail_json(msg=error)
-        if not message['records']:
-            return None
-        return message['records']
+            self.module.fail_json(msg="Error on fetching snmp traphosts info: %s" % error)
+        return record
 
     def create_snmp_traphost(self):
-        api = '/support/snmp/traphosts'
-        params = {'host': self.parameters['ip_address']}
-        dummy, error = self.rest_api.post(api, params)
+        api = 'support/snmp/traphosts'
+        params = {'host': self.parameters.get('host')}
+        dummy, error = rest_generic.post_async(self.rest_api, api, params)
         if error:
-            self.module.fail_json(msg=error)
+            self.module.fail_json(msg="Error creating traphost: %s" % error)
 
     def delete_snmp_traphost(self):
-        api = '/support/snmp/traphosts/' + self.parameters['ip_address']
-        dummy, error = self.rest_api.delete(api)
+        api = 'support/snmp/traphosts'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.parameters.get('host'))
         if error is not None:
             self.module.fail_json(msg="Error deleting traphost: %s" % error)
 
