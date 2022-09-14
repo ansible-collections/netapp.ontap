@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -82,7 +82,6 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -103,7 +102,7 @@ class NetAppOntapEmsDestination:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
@@ -124,15 +123,17 @@ class NetAppOntapEmsDestination:
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         self.fail_on_error(error)
         if record:
-            try:
-                current = {
-                    'name': record['name'],
-                    'type': record['type'],
-                    'destination': record['destination'],
-                    'filters': [filter['name'] for filter in record['filters']]
-                }
-            except KeyError as exc:
-                self.module.fail_json(msg='Error: unexpected ems destination body: %s, KeyError on %s' % (record, exc))
+            current = {
+                'name': self.na_helper.safe_get(record, ['name']),
+                'type': self.na_helper.safe_get(record, ['type']),
+                'destination': self.na_helper.safe_get(record, ['destination']),
+                'filters': None
+            }
+            # 9.9.0 and earlier versions returns rest-api, convert it to rest_api.
+            if current['type'] and '-' in current['type']:
+                current['type'] = current['type'].replace('-', '_')
+            if self.na_helper.safe_get(record, ['filters']):
+                current['filters'] = [filter['name'] for filter in record['filters']]
             return current
         return None
 

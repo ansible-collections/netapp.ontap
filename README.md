@@ -104,6 +104,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snmp_traphosts - Added `host` option in REST.
 
 ### Bug Fixes
+  - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
 

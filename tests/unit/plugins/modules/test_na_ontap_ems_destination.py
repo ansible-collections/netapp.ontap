@@ -1,3 +1,8 @@
+# (c) 2022, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+''' unit tests for Ansible module: na_ontap_ems_destination module '''
+
 from __future__ import (absolute_import, division, print_function)
 
 __metaclass__ = type
@@ -75,19 +80,6 @@ def test_get_ems_destination_error():
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
 
 
-def test_get_ems_destination_keyerror():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/destinations', SRR['missing_key'])
-    ])
-    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
-    my_module_object = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = expect_and_capture_ansible_exception(my_module_object.get_ems_destination, 'fail', 'test')['msg']
-    print('Info: %s' % error)
-    assert "Error: unexpected ems destination body:" in error
-    assert "KeyError on 'filters'" in error
-
-
 def test_create_ems_destination():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -135,7 +127,7 @@ def test_delete_ems_destination_error():
 def test_modify_ems_destination_filter():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('GET', 'support/ems/destinations', SRR['missing_key']),
         ('PATCH', 'support/ems/destinations/test', SRR['empty_good'])
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['other-filter']}
