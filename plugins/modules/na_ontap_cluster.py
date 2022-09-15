@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2021, NetApp, Inc
+# (c) 2017-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -19,40 +19,40 @@ extends_documentation_fragment:
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create ONTAP cluster.
-- Add or remove cluster nodes using cluster_ip_address.
-- Adding a node requires ONTAP 9.3 or better.
-- Removing a node requires ONTAP 9.4 or better.
+  - Create ONTAP cluster.
+  - Add or remove cluster nodes using cluster_ip_address.
+  - Adding a node requires ONTAP 9.3 or better.
+  - Removing a node requires ONTAP 9.4 or better.
 options:
   state:
     description:
-    - Whether the specified cluster should exist (deleting a cluster is not supported).
-    - Whether the node identified by its cluster_ip_address should be in the cluster or not.
+      - Whether the specified cluster should exist (deleting a cluster is not supported).
+      - Whether the node identified by its cluster_ip_address should be in the cluster or not.
     choices: ['present', 'absent']
     type: str
     default: present
   cluster_name:
     description:
-    - The name of the cluster to manage.
+      - The name of the cluster to manage.
     type: str
   cluster_ip_address:
     description:
-    - intra cluster IP address of the node to be added or removed.
+      - intra cluster IP address of the node to be added or removed.
     type: str
   single_node_cluster:
     description:
-    - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
-    - If present, it was observed that 'Cluster' interfaces were deleted, whatever the value with ZAPI.
+      - Whether the cluster is a single node cluster.  Ignored for 9.3 or older versions.
+      - If present, it was observed that 'Cluster' interfaces were deleted, whatever the value with ZAPI.
     version_added: 19.11.0
     type: bool
   cluster_location:
     description:
-    - Cluster location, only relevant if performing a modify action.
+      - Cluster location, only relevant if performing a modify action.
     version_added: 19.11.0
     type: str
   cluster_contact:
     description:
-    - Cluster contact, only relevant if performing a modify action.
+      - Cluster contact, only relevant if performing a modify action.
     version_added: 19.11.0
     type: str
   node_name:
@@ -66,19 +66,34 @@ options:
     type: str
   time_out:
     description:
-    - time to wait for cluster creation in seconds.
-    - Error out if task is not completed in defined time.
-    - if 0, the request is asynchronous.
-    - default is set to 3 minutes.
+      - time to wait for cluster creation in seconds.
+      - Error out if task is not completed in defined time.
+      - if 0, the request is asynchronous.
+      - default is set to 3 minutes.
     default: 180
     type: int
     version_added: 21.1.0
   force:
     description:
-    - forcibly remove a node that is down and cannot be brought online to remove its shared resources.
+      - forcibly remove a node that is down and cannot be brought online to remove its shared resources.
     default: false
     type: bool
     version_added: 21.13.0
+  timezone:
+    description: timezone for the cluster. Only supported by REST.
+    type: dict
+    version_added: 21.24.0
+    suboptions:
+      name:
+        type: str
+        description:
+          - The timezone name must be
+          - A geographic region, usually expressed as area/location
+          - Greenwich Mean Time (GMT) or the difference in hours from GMT
+          - A valid alias; that is, a term defined by the standard to refer to a geographic region or GMT
+          - A system-specific or other term not associated with a geographic region or GMT
+          - "full list of supported alias can be found here: https://library.netapp.com/ecmdocs/ECMP1155590/html/GUID-D3B8A525-67A2-4BEE-99DB-EF52D6744B5F.html"
+          - Only supported by REST
 
 notes:
   - supports REST and ZAPI
@@ -155,7 +170,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppONTAPCluster():
+class NetAppONTAPCluster:
     """
     object initialize and class methods
     """
@@ -170,7 +185,10 @@ class NetAppONTAPCluster():
             force=dict(required=False, type='bool', default=False),
             single_node_cluster=dict(required=False, type='bool'),
             node_name=dict(required=False, type='str'),
-            time_out=dict(required=False, type='int', default=180)
+            time_out=dict(required=False, type='int', default=180),
+            timezone=dict(required=False, type='dict', options=dict(
+                name=dict(type='str')
+            ))
         ))
 
         self.module = AnsibleModule(
@@ -197,6 +215,8 @@ class NetAppONTAPCluster():
             self.module.warn('switching back to ZAPI as DELETE is not supported on 9.6')
             self.use_rest = False
         if not self.use_rest:
+            if self.na_helper.safe_get(self.parameters, ['timezone', 'name']):
+                self.module.fail_json(msg='Timezone is only supported with REST')
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -207,7 +227,7 @@ class NetAppONTAPCluster():
                 None if the cluster cannot be reached
                 a dictionary of attributes
         '''
-        record, error = rest_generic.get_one_record(self.rest_api, 'cluster', fields='contact,location,name')
+        record, error = rest_generic.get_one_record(self.rest_api, 'cluster', fields='contact,location,name,timezone')
         if error:
             if 'are available in precluster.' in error:
                 # assuming precluster state
@@ -218,7 +238,8 @@ class NetAppONTAPCluster():
             return {
                 'cluster_contact': record.get('contact'),
                 'cluster_location': record.get('location'),
-                'cluster_name': record.get('name')
+                'cluster_name': record.get('name'),
+                'timezone': self.na_helper.safe_get(record, ['timezone'])
             }
         return None
 
@@ -367,7 +388,8 @@ class NetAppONTAPCluster():
             'cluster_contact': 'contact',
             'cluster_location': 'location',
             'cluster_name': 'name',
-            'single_node_cluster': 'single_node_cluster'
+            'single_node_cluster': 'single_node_cluster',
+            'timezone': 'timezone'
         }.items():
             if param_key in params:
                 body[rest_key] = params[param_key]

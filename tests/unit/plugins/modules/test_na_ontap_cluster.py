@@ -450,6 +450,26 @@ def test_rest_create(mock_request, patch_ansible):
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_create_timezone(mock_request, patch_ansible):
+    ''' create cluster '''
+    args = dict(set_default_args())
+    args['timezone'] = {'name': 'America/Los_Angeles'}
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['precluster'],      # get
+        SRR['empty_good'],      # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed'] is True
+    print(mock_request.mock_calls)
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_create_single(mock_request, patch_ansible):
     ''' create cluster '''
     args = dict(set_default_args())
@@ -475,6 +495,27 @@ def test_rest_create_single(mock_request, patch_ansible):
 def test_rest_modify(mock_request, patch_ansible):
     ''' modify cluster location '''
     args = dict(set_default_args())
+    args['cluster_location'] = 'Mars'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['cluster_identity'],        # get
+        SRR['empty_good'],              # post
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_modify_timezone(mock_request, patch_ansible):
+    ''' modify cluster location '''
+    args = dict(set_default_args())
+    args['timezone'] = {'name': 'America/Los_Angeles'}
     args['cluster_location'] = 'Mars'
     set_module_args(args)
     mock_request.side_effect = [

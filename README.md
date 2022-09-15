@@ -64,6 +64,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 21.24.0
 
+### New Options
+  - na_ontap_cluster - `timezone.name` to modify cluster timezone. REST only.
+  - na_ontap_snmp_traphosts - Added `host` option in REST.
+
 ### Minor Changes
   - na_ontap_interface - `dns_domain_name` is now supported from ONTAP 9.9.0 or later in REST.
   - na_ontap_interface - `is_dns_update_enabled` is now supported from ONTAP 9.9.1 or later in REST.
@@ -100,10 +104,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - support added for storage/file/moves.
   - na_ontap_rest_info - support added for storage/pools.
 
-### New Options
-  - na_ontap_snmp_traphosts - Added `host` option in REST.
 
-### Bug Fixes
   - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
