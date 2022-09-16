@@ -58,6 +58,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cg_snapshot
   - na_ontap_file_directory_policy
   - na_ontap_svm_options
+  - na_ontap_quota_policy
 
 
 # Release Notes
@@ -110,6 +111,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
 
 ### Added REST support to existing modules
+  - na_ontap_quotas - added REST support.
   - na_ontap_net_subnet - added REST support.
 
 

@@ -134,7 +134,7 @@ class NetAppOntapQuotaPolicy(object):
         # set up variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-
+        self.na_helper.module_deprecated(self.module)
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg='The python NetApp-Lib module is required')
         else:

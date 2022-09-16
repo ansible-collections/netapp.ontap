@@ -41,6 +41,8 @@ options:
     description:
       - The quota target of the type specified.
       - Required to create or modify a rule.
+      - users and group takes quota_target value in REST.
+      - For default user and group quota rules, the quota_target must be specified as "".
     type: str
   qtree:
     description:
@@ -58,6 +60,7 @@ options:
   policy:
     description:
       - Name of the quota policy from which the quota rule should be obtained.
+      - In REST default policy is always used.
     type: str
   set_quota_status:
     description:
@@ -68,6 +71,7 @@ options:
       - Whether quota management will perform user mapping for the user specified in quota-target.
       - User mapping can be specified only for a user quota rule.
     type: bool
+    aliases: ['user_mapping']
     version_added: 20.12.0
   file_limit:
     description:
@@ -76,9 +80,11 @@ options:
   disk_limit:
     description:
       - The amount of disk space that is reserved for the target.
-      - Expects a number followed with KB, MB, GB, TB.
-      - If the unit is not present KB is assumed.
-      - Examples - 10MB, 20GB, 1TB
+      - Expects a number followed with B (for bytes), KB, MB, GB, TB.
+      - If the unit is not present KB is used by default.
+      - Examples - 10MB, 20GB, 1TB, 20
+      - In REST, if limit is less than 1024 bytes, the value is rounded up to 1024 bytes.
+      - Use a value of -1 to clear the limit in REST.
     type: str
   soft_file_limit:
     description:
@@ -88,19 +94,24 @@ options:
     description:
       - The amount of disk space the target would have to exceed before a message is logged and an SNMP trap is generated.
       - See C(disk_limit) for format description.
+      - In REST, if limit is less than 1024 bytes, the value is rounded up to 1024 bytes.
+      - Use a value of -1 to clear the limit in REST.
     type: str
   threshold:
     description:
       - The amount of disk space the target would have to exceed before a message is logged.
       - See C(disk_limit) for format description.
+      - Only supported with ZAPI.
     type: str
   activate_quota_on_change:
     description:
       - Method to use to activate quota on a change.
+      - If no value is passed then 'resize' is being assigned.
+      - Only supported with ZAPI.
     choices: ['resize', 'reinitialize', 'none']
-    default: resize
     type: str
     version_added: 20.12.0
+
 '''
 
 EXAMPLES = """
@@ -187,6 +198,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
 class NetAppONTAPQuotas:
@@ -204,17 +217,18 @@ class NetAppONTAPQuotas:
             type=dict(required=False, type='str', choices=['user', 'group', 'tree']),
             policy=dict(required=False, type='str'),
             set_quota_status=dict(required=False, type='bool'),
-            perform_user_mapping=dict(required=False, type='bool'),
+            perform_user_mapping=dict(required=False, type='bool', aliases=['user_mapping']),
             file_limit=dict(required=False, type='str'),
             disk_limit=dict(required=False, type='str'),
             soft_file_limit=dict(required=False, type='str'),
             soft_disk_limit=dict(required=False, type='str'),
             threshold=dict(required=False, type='str'),
-            activate_quota_on_change=dict(required=False, type='str', choices=['resize', 'reinitialize', 'none'], default='resize')
+            activate_quota_on_change=dict(required=False, type='str', choices=['resize', 'reinitialize', 'none'])
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            supports_check_mode=True,
             required_by={
                 'policy': ['quota_target', 'type'],
                 'perform_user_mapping': ['quota_target', 'type'],
@@ -224,29 +238,56 @@ class NetAppONTAPQuotas:
                 'soft_disk_limit': ['quota_target', 'type'],
                 'threshold': ['quota_target', 'type'],
             },
-            required_together=[['quota_target', 'type']],
-            supports_check_mode=True
+            required_together=[
+                ('quota_target', 'type')
+            ],
         )
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        # Set up Rest API
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        # REST uses a policy of default and nothing else
+        unsupported_rest_properties = (['threshold', 'activate_quota_on_change'] if self.parameters.get('policy') == 'default'
+                                       else ['policy', 'threshold', 'activate_quota_on_change'])
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        self.volume_uuid = None   # volume UUID after quota rule creation, used for on or off quota status
+        self.validate_parameters_ZAPI_REST()
 
-        # converted blank parameter to * as shown in vsim
-        if self.parameters.get('quota_target') == "":
-            self.parameters['quota_target'] = '*'
-        size_format_error_message = "input string is not a valid size format. A valid size format is constructed as" \
-                                    "<integer><size unit>. For example, '10MB', '10KB'.  Only numeric input is also valid." \
-                                    "The default unit size is KB."
-        if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-' and not self.convert_to_kb('disk_limit'):
-            self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
-        if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-' and not self.convert_to_kb('soft_disk_limit'):
-            self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
-        if self.parameters.get('threshold') and self.parameters['threshold'] != '-' and not self.convert_to_kb('threshold'):
-            self.module.fail_json(msg='threshold %s' % size_format_error_message)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
-        if not netapp_utils.has_netapp_lib():
-            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+    def validate_parameters_ZAPI_REST(self):
+        if self.use_rest:
+            if self.parameters.get('quota_target') == "":
+                self.parameters['quota_target'] = '""'
+            size_format_error_message = "input string is not a valid size format. A valid size format is constructed as" \
+                                        "<integer><size unit>. For example, '10MB', '10KB'.  Only numeric input is also valid." \
+                                        "The default unit size for REST is Bytes."
+            if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-1' and not self.convert_to_kb_or_bytes('disk_limit'):
+                self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
+            if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-1' and not self.convert_to_kb_or_bytes('soft_disk_limit'):
+                self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
+            if self.parameters.get('type') == 'tree' and self.parameters.get('qtree') == "":
+                self.parameters['qtree'] = '""'
+        else:
+            # converted blank parameter to * as shown in vsim
+            if self.parameters.get('quota_target') == "":
+                self.parameters['quota_target'] = '*'
+            size_format_error_message = "input string is not a valid size format. A valid size format is constructed as" \
+                                        "<integer><size unit>. For example, '10MB', '10KB'.  Only numeric input is also valid." \
+                                        "The default unit size is KB."
+            if self.parameters.get('disk_limit') and self.parameters['disk_limit'] != '-' and not self.convert_to_kb_or_bytes('disk_limit'):
+                self.module.fail_json(msg='disk_limit %s' % size_format_error_message)
+            if self.parameters.get('soft_disk_limit') and self.parameters['soft_disk_limit'] != '-' and not self.convert_to_kb_or_bytes('soft_disk_limit'):
+                self.module.fail_json(msg='soft_disk_limit %s' % size_format_error_message)
+            if self.parameters.get('threshold') and self.parameters['threshold'] != '-' and not self.convert_to_kb_or_bytes('threshold'):
+                self.module.fail_json(msg='threshold %s' % size_format_error_message)
+            # Default value of 'activate_quota_on_change' is 'resize
+            if not self.parameters.get('activate_quota_on_change'):
+                self.parameters['activate_quota_on_change'] = 'resize'
 
     def get_quota_status(self):
         """
@@ -406,6 +447,8 @@ class NetAppONTAPQuotas:
         """
         Modifies a quota entry
         """
+        for key in list(modify_attrs):
+            modify_attrs[key.replace("_", "-")] = modify_attrs.pop(key)
         options = {'volume': self.parameters['volume'],
                    'quota-target': self.parameters['quota_target'],
                    'quota-type': self.parameters['type'],
@@ -473,20 +516,200 @@ class NetAppONTAPQuotas:
                                   % ('quota-resize', self.parameters['volume'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def get_quotas_rest(self):
+        """
+        Retrieves quotas with rest API.
+        If type is user then it returns all possible combinations of user name records.
+        Report api is used to fetch file and disk limit info
+        """
+        if not self.use_rest:
+            return self.get_quotas()
+        query = {'svm.name': self.parameters.get('vserver'),
+                 'volume.name': self.parameters.get('volume'),
+                 'type': self.parameters.get('type'),
+                 'fields': 'svm.uuid,'
+                           'svm.name,'
+                           'space.hard_limit,'
+                           'files.hard_limit,'
+                           'user_mapping,'
+                           'qtree.name,'
+                           'type,'
+                           'space.soft_limit,'
+                           'files.soft_limit,'
+                           'volume.uuid,'
+                           'users.name,'}
+
+        if self.parameters.get('type') == 'user':
+            query['users.name'] = self.parameters.get('quota_target')
+        elif self.parameters.get('type') == 'tree':
+            query['qtree.name'] = self.parameters.get('qtree')
+        elif self.parameters.get('type') == 'group':
+            query['group.name'] = self.parameters.get('quota_target')
+        api = 'storage/quota/rules'
+        # If type: user, get quota rules api returns users which has name starts with input target user names.
+        # Example of users list in a record:
+        # users: [{'name': 'quota_user'}], users: [{'name': 'quota_user'}, {'name': 'quota'}]
+        records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg="Error on getting quota rule info: %s" % error)
+        if records:
+            record = None
+            for item in records:
+                if self.parameters.get('type') == 'user':
+                    quota_record = '' if self.parameters.get('quota_target') == '""' else self.parameters.get('quota_target')
+                    quota_record_users = quota_record.split(',')
+                    if len(item['users']) == len(quota_record_users):
+                        record = item
+                else:
+                    record = item
+            if record:
+                return {
+                    'svm': {'uuid': self.na_helper.safe_get(record, ['svm', 'uuid'])},
+                    'uuid': self.na_helper.safe_get(record, ['uuid']),
+                    'soft_file_limit': str(self.na_helper.safe_get(record, ['files', 'soft_limit'])),
+                    'disk_limit': str(self.na_helper.safe_get(record, ['space', 'hard_limit'])),
+                    'soft_disk_limit': str(self.na_helper.safe_get(record, ['space', 'soft_limit'])),
+                    'file_limit': str(self.na_helper.safe_get(record, ['files', 'hard_limit'])),
+                    'perform_user_mapping': self.na_helper.safe_get(record, ['user_mapping']),
+                    'volume.uuid': self.na_helper.safe_get(record, ['volume', 'uuid']),
+                    'qtree.name': self.na_helper.safe_get(record, ['qtree', 'name']),
+                    'users': self.na_helper.safe_get(record, ['users']),
+                    'type': self.na_helper.safe_get(record, ['type']),
+                    'group': self.na_helper.safe_get(record, ['group']),
+                }
+        return None
+
+    def quota_entry_set_rest(self):
+        """
+        quota_entry_set with rest API.
+        for type: 'user' and 'group', quota_target is used.
+        value for user, group and qtree should be passed as ''
+        """
+        if not self.use_rest:
+            return self.quota_entry_set()
+        body = {'svm.name': self.parameters.get('vserver'),
+                'volume.name': self.parameters.get('volume'),
+                'type': self.parameters.get('type'),
+                'qtree.name': self.parameters.get('qtree')}
+        quota_target = self.parameters.get('quota_target')
+        if self.parameters.get('quota_target') == '""' or self.parameters.get('qtree') == '""':
+            quota_target = ''
+        if self.parameters.get('type') == 'user':
+            body['users.name'] = quota_target.split(',')
+        elif self.parameters.get('type') == 'group':
+            body['group.name'] = quota_target
+        if self.parameters.get('type') == 'tree':
+            body['qtree.name'] = quota_target
+        if 'file_limit' in self.parameters:
+            body['files.hard_limit'] = self.parameters.get('file_limit')
+        if 'soft_file_limit' in self.parameters:
+            body['files.soft_limit'] = self.parameters.get('soft_file_limit')
+        if 'disk_limit' in self.parameters:
+            body['space.hard_limit'] = self.parameters.get('disk_limit')
+        if 'soft_disk_limit' in self.parameters:
+            body['space.soft_limit'] = self.parameters.get('soft_disk_limit')
+        if 'perform_user_mapping' in self.parameters:
+            body['user_mapping'] = self.parameters.get('perform_user_mapping')
+        query = {'return_records': 'true'}    # in order to capture UUID
+        api = 'storage/quota/rules'
+        response, error = rest_generic.post_async(self.rest_api, api, body, query)
+        if error:
+            self.module.fail_json(msg="Error on creating quotas rule: %s" % error)
+        if response:
+            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
+            if not error and record and not record['volume']['uuid']:
+                error = 'volume uuid key not present in %s:' % record
+            if error:
+                self.module.fail_json(msg='Error: failed to fetch volume id: %s' % error)
+            if record:
+                self.volume_uuid = record['volume']['uuid']
+
+    def quota_entry_delete_rest(self, current):
+        """
+        quota_entry_delete with rest API.
+        """
+        if not self.use_rest:
+            return self.quota_entry_delete()
+        api = 'storage/quota/rules'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, current['uuid'])
+        if error is not None:
+            self.module.fail_json(msg="Error on deleting quotas rule: %s" % error)
+
+    def quota_entry_modify_rest(self, current, modify_quota):
+        """
+        quota_entry_modify with rest API.
+        User mapping cannot be turned on for multiuser quota rules.
+        """
+        if not self.use_rest:
+            return self.quota_entry_modify(modify_quota)
+        body = {}
+        if 'disk_limit' in modify_quota:
+            body['space.hard_limit'] = modify_quota['disk_limit']
+        if 'file_limit' in modify_quota:
+            body['files.hard_limit'] = modify_quota['file_limit']
+        if 'soft_disk_limit' in modify_quota:
+            body['space.soft_limit'] = modify_quota['soft_disk_limit']
+        if 'soft_file_limit' in modify_quota:
+            body['files.soft_limit'] = modify_quota['soft_file_limit']
+        if 'perform_user_mapping' in modify_quota:
+            body['user_mapping'] = modify_quota['perform_user_mapping']
+        api = 'storage/quota/rules'
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, api, current['uuid'], body)
+            if error is not None:
+                self.module.fail_json(msg="Error on modifying quotas rule: %s" % error)
+
+    def get_quota_status_rest(self):
+        """
+        Get the status info on or off
+        """
+        if not self.use_rest:
+            return self.get_quota_status()
+        api = 'storage/volumes'
+        params = {'name': self.parameters['volume'],
+                  'svm.name': self.parameters['vserver'],
+                  'fields': 'quota.state,'}
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg=error)
+        return record['quota']['state']
+
+    def on_or_off_quota_rest(self, current=None, modify_quota_status=None):
+        """
+        quota_entry_modify quota status with rest API.
+        """
+        if not self.use_rest:
+            return self.on_or_off_quota(modify_quota_status)
+        body = {}
+        body['quota.enabled'] = modify_quota_status == 'quota-on'
+        api = 'storage/volumes'
+        uuid = current['volume.uuid'] if current else self.volume_uuid
+        if body:
+            dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
+            if error is not None:
+                self.module.fail_json(msg="Error on modifying quotas rule: %s" % error)
+
     def apply(self):
         """
         Apply action to quotas
         """
-        netapp_utils.ems_log_event("na_ontap_quotas", self.server)
+        if not self.use_rest:
+            netapp_utils.ems_log_event("na_ontap_quotas", self.server)
         cd_action = None
         modify_quota_status = None
         modify_quota = None
-        current = self.get_quotas()
+        current = self.get_quotas_rest()
+        if current:
+            # 'soft_disk_limit' and 'disk_limit' uses '-1' to clear the limit.
+            if self.parameters.get('soft_disk_limit') == '-1' and current['soft_disk_limit'] == 'None':
+                self.parameters['soft_disk_limit'] = 'None'
+            if self.parameters.get('disk_limit') == '-1' and current['disk_limit'] == 'None':
+                self.parameters['disk_limit'] = 'None'
         if self.parameters.get('type') is not None:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
             if cd_action is None:
                 modify_quota = self.na_helper.get_modified_attributes(current, self.parameters)
-        quota_status = self.get_quota_status()
+        quota_status = self.get_quota_status_rest()
         if 'set_quota_status' in self.parameters and quota_status is not None:
             # if 'set_quota_status' == True in create, sometimes there is delay in status update from 'initializing' -> 'on'.
             # if quota_status == 'on' and options(set_quota_status == True and activate_quota_on_change == 'resize'),
@@ -495,32 +718,33 @@ class NetAppONTAPQuotas:
             quota_status_action = self.na_helper.get_modified_attributes({'set_quota_status': set_quota_status}, self.parameters)
             if quota_status_action:
                 modify_quota_status = 'quota-on' if quota_status_action['set_quota_status'] else 'quota-off'
-        if (self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']
-                and (cd_action is not None or modify_quota is not None)
-                and modify_quota_status is None
-                and quota_status in ('on', None)):
-            modify_quota_status = self.parameters['activate_quota_on_change']
+        if not self.use_rest:
+            if (self.parameters['activate_quota_on_change'] in ['resize', 'reinitialize']
+                    and (cd_action is not None or modify_quota is not None)
+                    and modify_quota_status is None
+                    and quota_status in ('on', None)):
+                modify_quota_status = self.parameters['activate_quota_on_change']
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                self.quota_entry_set()
+                self.quota_entry_set_rest()
             elif cd_action == 'delete':
-                self.quota_entry_delete()
+                self.quota_entry_delete_rest(current)
             elif modify_quota:
-                for key in list(modify_quota):
-                    modify_quota[key.replace("_", "-")] = modify_quota.pop(key)
-                self.quota_entry_modify(modify_quota)
+                self.quota_entry_modify_rest(current, modify_quota)
+                if quota_status == 'off':
+                    # The Quota status should be 'on' for resize to take effect.
+                    modify_quota_status = 'quota-on'
             if modify_quota_status in ['quota-off', 'quota-on']:
-                self.on_or_off_quota(modify_quota_status)
+                self.on_or_off_quota_rest(current, modify_quota_status)
             elif modify_quota_status == 'resize':
                 self.resize_quota(cd_action)
             elif modify_quota_status == 'reinitialize':
                 self.on_or_off_quota('quota-off')
                 time.sleep(10)  # status switch interval
                 self.on_or_off_quota('quota-on', cd_action)
-
         self.module.exit_json(changed=self.na_helper.changed)
 
-    def convert_to_kb(self, option):
+    def convert_to_kb_or_bytes(self, option):
         """
         convert input to kb, and set to self.parameters.
         :param option: disk_limit or soft_disk_limit.
@@ -532,10 +756,21 @@ class NetAppONTAPQuotas:
             return False
         if not slices[0].isdigit():
             return False
-        if len(slices) > 1 and slices[1].lower() not in ['kb', 'mb', 'gb', 'tb']:
+        if len(slices) > 1 and slices[1].lower() not in ['b', 'kb', 'mb', 'gb', 'tb']:
             return False
+        # force kb as the default unit for REST
+        if len(slices) == 1 and self.use_rest:
+            slices = (slices[0], 'kb')
         if len(slices) > 1:
-            self.parameters[option] = str(int(slices[0]) * netapp_utils.POW2_BYTE_MAP[slices[1].lower()] // 1024)
+            if not self.use_rest:
+                # conversion to KB
+                self.parameters[option] = str(int(slices[0]) * netapp_utils.POW2_BYTE_MAP[slices[1].lower()] // 1024)
+            else:
+                # conversion to Bytes
+                self.parameters[option] = str(int(slices[0]) * netapp_utils.POW2_BYTE_MAP[slices[1].lower()])
+        if self.use_rest:
+            # Rounding off the converted bytes
+            self.parameters[option] = str(((int(self.parameters[option]) + 1023) // 1024) * 1024)
         return True
 
 

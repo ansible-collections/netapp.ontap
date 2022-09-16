@@ -11,12 +11,79 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
     assert_warning_was_raised, call_main, patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_quotas \
     import NetAppONTAPQuotas as my_module, main as my_main
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+
+SRR = rest_responses({
+    # module specific responses
+    'quota_record': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansible"
+                    },
+                    "files": {
+                        "hard_limit": "100",
+                        "soft_limit": "80"
+                    },
+                    "qtree": {
+                        "id": "1",
+                        "name": "qt1"
+                    },
+                    "space": {
+                        "hard_limit": "1222800",
+                        "soft_limit": "51200"
+                    },
+                    "type": "user",
+                    "user_mapping": False,
+                    "users": [{"name": "quota_user"}],
+                    "uuid": "264a9e0b-2e03-11e9-a610-005056a7b72d",
+                    "volume": {"name": "fv", "uuid": "264a9e0b-2e03-11e9-a610-005056a7b72da"},
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    },
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    'quota_status': (
+        200,
+        {
+            "records": [
+                {
+                    "quota": {"state": "off"}
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    'quota_on': (
+        200,
+        {
+            "records": [
+                {
+                    "quota": {"state": "on"}
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+})
+
 
 quota_policy = {
     'num-records': 1,
@@ -49,7 +116,8 @@ DEFAULT_ARGS = {
     'volume': 'ansible',
     'vserver': 'ansible',
     'quota_target': '/vol/ansible',
-    'type': 'user'
+    'type': 'user',
+    'use_rest': 'never'
 }
 
 
@@ -265,19 +333,19 @@ def test_quota_on_warning():
 def test_convert_size_format():
     module_args = {'disk_limit': '10MB'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    assert my_obj.convert_to_kb('disk_limit')
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
     print(my_obj.parameters)
     assert my_obj.parameters['disk_limit'] == '10240'
     my_obj.parameters['disk_limit'] = '10'
-    assert my_obj.convert_to_kb('disk_limit')
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
     print(my_obj.parameters)
     assert my_obj.parameters['disk_limit'] == '10'
     my_obj.parameters['disk_limit'] = '10tB'
-    assert my_obj.convert_to_kb('disk_limit')
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
     print(my_obj.parameters)
     assert my_obj.parameters['disk_limit'] == str(10 * 1024 * 1024 * 1024)
     my_obj.parameters['disk_limit'] = ''
-    assert not my_obj.convert_to_kb('disk_limit')
+    assert not my_obj.convert_to_kb_or_bytes('disk_limit')
     print(my_obj.parameters)
     assert my_obj.parameters['disk_limit'] == ''
 
@@ -317,3 +385,205 @@ def create_from_main():
         ('ZAPI', 'quota-set-entry', ZRR['success']),
     ])
     assert call_main(my_main, DEFAULT_ARGS)['changed']
+
+
+ARGS_REST = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always',
+    'volume': 'ansible',
+    'vserver': 'ansible',
+    'quota_target': 'quota_user',
+    'type': 'user'
+}
+
+
+def test_rest_error_get():
+    '''Test error rest get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on getting quota rule info' in error
+
+
+def test_rest_successful_create():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['empty_good']),
+    ])
+    module_args = {
+        "users": [{"name": "quota_user"}],
+    }
+    assert create_and_apply(my_module, ARGS_REST)
+
+
+def test_rest_error_create():
+    '''Test error rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, ARGS_REST, fail=True)['msg']
+    assert 'Error on creating quotas rule:' in error
+
+
+def test_delete_rest():
+    ''' Test delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('DELETE', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_delete_rest():
+    ''' Test error delete with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('DELETE', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['generic_error']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on deleting quotas rule:' in error
+
+
+def test_modify_files_limit_rest():
+    ''' Test modify with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_on']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['empty_good']),
+    ])
+    module_args = {
+        "file_limit": "122", "soft_file_limit": "90"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_space_limit_rest():
+    ''' Test modify with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_on']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['empty_good']),
+    ])
+    module_args = {
+        "disk_limit": "1024", "soft_disk_limit": "80"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_rest_error():
+    ''' Test negative modify with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['generic_error']),
+    ])
+    module_args = {
+        'perform_user_mapping': True
+    }
+    error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Error on modifying quotas rule:' in error
+
+
+def test_rest_successful_create_idempotency():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+    ])
+    module_args = {'use_rest': 'always'}
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
+
+
+def test_rest_successful_delete_idempotency():
+    '''Test successful rest delete'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+    ])
+    module_args = {'use_rest': 'always', 'state': 'absent'}
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
+
+
+def test_modify_quota_status_rest():
+    ''' Test modify quota status with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('PATCH', 'storage/volumes/264a9e0b-2e03-11e9-a610-005056a7b72da', SRR['empty_good']),
+    ])
+    module_args = {
+        "set_quota_status": "on"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_error_convert_size_format_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    module_args = {
+        'disk_limit': '10MBi',
+        'quota_target': ''
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert error.startswith('disk_limit input string is not a valid size format')
+    module_args = {
+        'soft_disk_limit': 'MBi',
+        'quota_target': ''
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert error.startswith('soft_disk_limit input string is not a valid size format')
+    module_args = {
+        'soft_disk_limit': '10MB10',
+        'quota_target': ''
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert error.startswith('soft_disk_limit input string is not a valid size format')
+
+
+def test_convert_size_format_rest():
+    module_args = {'disk_limit': '10MB'}
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
+    print(my_obj.parameters)
+    assert my_obj.parameters['disk_limit'] == '10240'
+    my_obj.parameters['disk_limit'] = '10'
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
+    print(my_obj.parameters)
+    assert my_obj.parameters['disk_limit'] == '10'
+    my_obj.parameters['disk_limit'] = '10tB'
+    assert my_obj.convert_to_kb_or_bytes('disk_limit')
+    print(my_obj.parameters)
+    assert my_obj.parameters['disk_limit'] == str(10 * 1024 * 1024 * 1024)
+    my_obj.parameters['disk_limit'] = ''
+    assert not my_obj.convert_to_kb_or_bytes('disk_limit')
+    print(my_obj.parameters)
+    assert my_obj.parameters['disk_limit'] == ''
