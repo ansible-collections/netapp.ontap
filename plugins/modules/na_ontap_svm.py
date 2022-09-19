@@ -107,6 +107,7 @@ options:
       - C(enabled) is not supported for CIFS, to enable it use na_ontap_cifs_server.
       - If a service is not present, it is left unchanged.
     type: dict
+    version_added: 21.10.0
     suboptions:
       cifs:
         description:
@@ -160,8 +161,17 @@ options:
           enabled:
             description: If allowed, setting to true enables the NVMe service.
             type: bool
-    version_added: 21.10.0
-
+      ndmp:
+        description:
+          - Network Data Management Protocol service
+        type: dict
+        suboptions:
+          allowed:
+            description:
+              - If this is set to true, an SVM administrator can manage the NDMP service
+              - If it is false, only the cluster administrator can manage the service.
+            type: bool
+        version_added: 21.24.0
   aggr_list:
     description:
       - List of aggregates assigned for volume operations.
@@ -181,7 +191,6 @@ options:
     - Cannot be modified after creation.
     type: str
     version_added: 2.7.0
-
 
   snapshot_policy:
     description:
@@ -376,6 +385,7 @@ class NetAppOntapSVM():
                 fcp=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 nfs=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 nvme=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
+                ndmp=dict(type='dict', options=dict(allowed=dict(type='bool'))),
             )),
             web=dict(type='dict', options=dict(
                 certificate=dict(type='str'),
@@ -458,7 +468,9 @@ class NetAppOntapSVM():
             ]
             if errors:
                 self.module.fail_json(msg='Error - %s' % '  '.join(errors))
-
+        if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols'):
+            if self.parameters['services'].get('ndmp') and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 7):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.7', use_rest=use_rest))
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
         if self.parameters.get('web'):
@@ -583,6 +595,8 @@ class NetAppOntapSVM():
                 # certificate is available starting with 9.7 and is deprecated with 9.10.1.
                 # we don't use certificate with 9.7 as name is only supported with 9.8 in /security/certificates
                 fields += ',certificate'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+                fields += ',ndmp'
 
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:
@@ -815,6 +829,7 @@ class NetAppOntapSVM():
             'iscsi': 'protocols/san/iscsi/services',
             'nfs': 'protocols/nfs/services',
             'nvme': 'protocols/nvme/services',
+            'ndmp': 'protocols/ndmp/svms'
         }
         for protocol, config in modify['services'].items():
             enabled = config.get('enabled')
@@ -883,7 +898,6 @@ class NetAppOntapSVM():
                 current = old_svm
                 cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']
         msgs = ['%s - current: %s - desired: %s' % (attribute, current[attribute], self.parameters[attribute])
                 for attribute in fixed_attributes
