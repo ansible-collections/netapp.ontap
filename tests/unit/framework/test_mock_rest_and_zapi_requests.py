@@ -168,7 +168,7 @@ def test_fixture_exit_unregistered(patch_fixture):
     with pytest.raises(AssertionError) as exc:
         uut._patch_request_and_invoke_exit_checks('test_fixture_exit_unregistered')
     msg = 'Error: responses for ZAPI invoke or REST send requests are not registered.'
-    assert msg == exc.value.args[0]
+    assert msg in exc.value.args[0]
     uut.FORCE_REGISTRATION = False
 
 
@@ -180,7 +180,7 @@ def test_fixture_exit_unused_response(patch_fixture):
     with pytest.raises(AssertionError) as exc:
         uut._patch_request_and_invoke_exit_checks('test_fixture_exit_unused_response')
     msg = 'Error: not all responses were processed.  Use -s to see detailed error.  Ignore this error if there is an earlier error in the test.'
-    assert msg == exc.value.args[0]
+    assert msg in exc.value.args[0]
     # consume the response
     cx = netapp_utils.OntapZAPICx()
     cx.invoke_elem(netapp_utils.zapi.NaElement.create_node_with_children('get-version'))

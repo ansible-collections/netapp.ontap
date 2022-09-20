@@ -367,13 +367,18 @@ def is_zapi_missing_vserver_error(message):
 def ems_log_event_cserver(source, server, module):
     if has_feature(module, 'no_cserver_ems'):
         return
-    results = get_cserver(server)
+    try:
+        results = get_cserver(server)
+    except zapi.NaApiError as exc:
+        # we don't rely on EMS anymore, so ignore any error.
+        # The module will report an error on an actual call.
+        return
     cserver = setup_na_ontap_zapi(module=module, vserver=results)
     ems_log_event(source, cserver)
 
 
 def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
-                  category="Information", event="setup", autosupport="false"):
+                  category="Information", event="setup", autosupport="false", raise_on_error=False):
     ems_log = zapi.NaElement('ems-autosupport-log')
     # Host name invoking the API.
     ems_log.add_new_child("computer-name", name)
@@ -392,15 +397,10 @@ def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECT
     try:
         server.invoke_successfully(ems_log, True)
     except zapi.NaApiError as exc:
-        # Do not fail if we can't connect to the server.
-        # The module will report a better error when trying to get some data from ONTAP.
-        # Do not fail if we don't have write privileges.
-        # Do not fail if there is no cserver, as for FSx.
-        # Do not fail if the vserver does not exists - as it's not required when state==absent for some modules.
-        if not is_zapi_connection_error(exc.message) \
-           and not is_zapi_write_access_error(exc.message) \
-           and not is_zapi_missing_vserver_error(exc.message):
-            # raise on other errors, as it may be a bug in calling the ZAPI
+        # We don't rely on EMS anymore, so ignore any error by default.
+        # The module will report an error on an actual call.
+        # raise_on_error is used in na_ontap_debug to report complete diagnostics.
+        if raise_on_error:
             raise exc
 
 
@@ -984,9 +984,9 @@ class OntapRestAPI(object):
         return status_code
 
     def convert_parameter_keys_to_dot_notation(self, parameters):
-        # Get all variable set in a list and add them to a dict so that partially_supported_rest_properties works correctly
-        temp = {}
+        """ Get all variable set in a list and add them to a dict so that partially_supported_rest_properties works correctly """
         if isinstance(parameters, dict):
+            temp = {}
             for parameter in parameters:
                 if isinstance(parameters[parameter], list):
                     if parameter not in temp:
@@ -1016,7 +1016,7 @@ class OntapRestAPI(object):
             error = '\n'.join(
                 "Minimum version of ONTAP for %s is %s." % (property[0], str(property[1]))
                 for property in partially_supported_rest_properties
-                if self.get_ontap_version()[0:3] < property[1] and property[0] in temp_parameters
+                if self.get_ontap_version()[:3] < property[1] and property[0] in temp_parameters
             )
             if error != '':
                 return True, error
@@ -1037,8 +1037,7 @@ class OntapRestAPI(object):
             temp_parameters = parameters.copy()
             temp_parameters = self.convert_parameter_keys_to_dot_notation(temp_parameters)
             for property in partially_supported_rest_properties:
-                if self.get_ontap_version()[0:3] < property[1] and property[0] in temp_parameters:
-
+                if self.get_ontap_version()[:3] < property[1] and property[0] in temp_parameters:
                     self.fallback_to_zapi_reason =\
                         'because of unsupported option(s) or option value(s) "%s" in REST require %s' % (property[0], str(property[1]))
                     self.module.warn('Falling back to ZAPI %s' % self.fallback_to_zapi_reason)

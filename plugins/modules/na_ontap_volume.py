@@ -1161,7 +1161,7 @@ class NetAppOntapVolume:
                               else None)
 
             # snapshot_auto_delete options
-            auto_delete = dict()
+            auto_delete = {}
             self. get_snapshot_auto_delete_attributes(volume_attributes, auto_delete)
             result['snapshot_auto_delete'] = auto_delete
 
@@ -2691,10 +2691,7 @@ class NetAppOntapVolume:
     def apply(self):
         '''Call create/modify/delete operations'''
         if not self.use_rest:
-            try:
-                netapp_utils.ems_log_event("na_ontap_volume", self.server)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg="Error on vserver: %s: %s" % (self.parameters['vserver'], error))
+            netapp_utils.ems_log_event("na_ontap_volume", self.server)
         actions, current, modify = self.set_actions()
 
         response = None

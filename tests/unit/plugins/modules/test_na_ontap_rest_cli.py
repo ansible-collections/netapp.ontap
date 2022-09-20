@@ -1,151 +1,122 @@
-# (c) 2019, NetApp, Inc
+# (c) 2019-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_rest_cli'''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli \
-    import NetAppONTAPCommandREST as rest_cli_module, main  # module under test
-
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli import NetAppONTAPCommandREST as my_module, main as my_main   # module under test
 
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific response
+SRR = rest_responses({
     'allow': (200, {'Allow': ['GET', 'WHATEVER']}, None)
+}, False)
+
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'use_rest': 'auto',
+    'command': 'volume',
+    'verb': 'GET',
+    'params': {'fields': 'size,percent_used'}
 }
 
 
-class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_job_schedule '''
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    args = dict(DEFAULT_ARGS)
+    args.pop('verb')
+    error = 'missing required arguments: verb'
+    assert error in call_main(my_main, args, fail=True)['msg']
 
-    def mock_args(self):
-        return {
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'https': False,
-            'command': 'volume',
-            'verb': 'GET',
-            'params': {'fields': 'size,percent_used'}
-        }
 
-    def get_cli_mock_object(self):
-        # For rest, mocking is achieved through side_effect
-        return rest_cli_module()
+def test_rest_cli():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'private/cli/volume', SRR['empty_good']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS)['changed']
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            rest_cli_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_cli(self, mock_request):
-        data = dict(self.mock_args())
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_cli_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_rest_cli_options():
+    module_args = {'verb': 'OPTIONS'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('OPTIONS', 'private/cli/volume', SRR['allow']),
+    ])
+    exit_json = call_main(my_main, DEFAULT_ARGS, module_args)
+    assert exit_json['changed']
+    assert 'Allow' in exit_json['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_cli_options(self, mock_request):
-        data = dict(self.mock_args())
-        data['verb'] = 'OPTIONS'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['allow'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_cli_mock_object().apply()
-        assert exc.value.args[0]['changed']
-        assert 'Allow' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_connection_error(self, mock_request):
-        data = dict(self.mock_args())
-        data['verb'] = 'OPTIONS'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_cli_mock_object().apply()
-        msg = "failed to connect to REST over test: ['Expected error'].  Use na_ontap_command for non-rest CLI."
-        assert msg in exc.value.args[0]['msg']
+def test_negative_connection_error():
+    module_args = {'verb': 'OPTIONS'}
+    register_responses([
+        ('GET', 'cluster', SRR['generic_error']),
+    ])
+    msg = "failed to connect to REST over hostname: ['Expected error'].  Use na_ontap_command for non-rest CLI."
+    assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def check_verb(self, verb, mock_request):
-        data = dict(self.mock_args())
-        data['verb'] = verb
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['allow'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_cli_mock_object().apply()
-        assert exc.value.args[0]['changed']
-        assert 'Allow' in exc.value.args[0]['msg']
-        assert mock_request.call_args[0][0] == verb
 
-    def test_verbs(self):
-        for verb in ['POST', 'DELETE', 'PATCH', 'OPTIONS', 'PATCH']:
-            self.check_verb(verb)
+def check_verb(verb):
+    module_args = {'verb': verb}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        (verb, 'private/cli/volume', SRR['allow']),
+    ], "test_verbs")
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_verb(self, mock_request):
-        data = dict(self.mock_args())
-        data['verb'] = 'GET'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['end_of_sequence']
-        ]
-        uut = self.get_cli_mock_object()
-        with pytest.raises(AnsibleFailJson) as exc:
-            uut.verb = 'INVALID'
-            uut.run_command()
-        msg = 'Error: unexpected verb INVALID'
-        assert msg in exc.value.args[0]['msg']
+    exit_json = call_main(my_main, DEFAULT_ARGS, module_args)
+    assert exit_json['changed']
+    assert 'Allow' in exit_json['msg']
+    # assert mock_request.call_args[0][0] == verb
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_error(self, mock_request):
-        data = dict(self.mock_args())
-        data['verb'] = 'GET'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            main()
-        msg = 'Error: Expected error'
-        assert msg in exc.value.args[0]['msg']
+
+def test_verbs():
+    for verb in ['POST', 'DELETE', 'PATCH', 'OPTIONS', 'PATCH']:
+        check_verb(verb)
+
+
+def test_check_mode():
+    module_args = {'verb': 'GET'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    my_obj.module.check_mode = True
+    result = expect_and_capture_ansible_exception(my_obj.apply, 'exit')
+    assert result['changed']
+    msg = "Would run command: 'volume'"
+    assert msg in result['msg']
+
+
+def test_negative_verb():
+    module_args = {'verb': 'GET'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    my_obj.verb = 'INVALID'
+    msg = 'Error: unexpected verb INVALID'
+    assert msg in expect_and_capture_ansible_exception(my_obj.apply, 'fail')['msg']
+
+
+def test_negative_error():
+    module_args = {'verb': 'GET'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'private/cli/volume', SRR['generic_error']),
+    ])
+    msg = 'Error: Expected error'
+    assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

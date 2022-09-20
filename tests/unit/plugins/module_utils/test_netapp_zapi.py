@@ -189,7 +189,10 @@ def test_ems_log_event_cserver_other_error():
     module = create_ontap_module(DEFAULT_ARGS)
     server = netapp_utils.setup_na_ontap_zapi(module)
     source = 'unittest'
-    assert expect_and_capture_ansible_exception(netapp_utils.ems_log_event_cserver, netapp_utils.zapi.NaApiError, source, server, module)
+    netapp_utils.ems_log_event_cserver(source, server, module)
+    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
+    version = request.get_child_content('app-version')
+    assert version == netapp_utils.COLLECTION_VERSION
 
 
 def test_ems_log_event_cserver_disabled():

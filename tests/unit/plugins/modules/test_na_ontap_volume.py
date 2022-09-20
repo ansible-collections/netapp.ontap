@@ -2062,11 +2062,3 @@ def test_check_invoke_result():
     obj = create_module(vol_module, DEFAULT_ARGS, module_args)
     error = 'Error when testing volume: failure'
     assert error in expect_and_capture_ansible_exception(obj.check_invoke_result, 'fail', ZRR['async_results'][0], 'testing')['msg']
-
-
-def test_error_vserver_ems():
-    register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
-    ])
-    error = zapi_error_message('Error on vserver: test_vserver')
-    assert call_main(my_main, DEFAULT_ARGS, fail=True)['msg'] == error

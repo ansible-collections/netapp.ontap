@@ -106,8 +106,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
 
 class NetAppONTAPCommand():
     ''' calls a CLI command '''
@@ -148,26 +146,9 @@ class NetAppONTAPCommand():
                          'of ONTAP when ONTAPI is deprecated in CY22-Q4')
         self.module.warn('netapp.ontap.na_ontap_rest_cli should be used instead.')
 
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        try:
-            netapp_utils.ems_log_event(event_name, cserver)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Cluster Admin required if -vserver is not passed %s: %s' %
-                                  (self.command, to_native(error)),
-                                  exception=traceback.format_exc())
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)
 
     def run_command(self):
         ''' calls the ZAPI '''
@@ -206,14 +187,9 @@ class NetAppONTAPCommand():
         """
         if self.vserver:
             ems_server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
-            try:
-                netapp_utils.ems_log_event("na_ontap_command" + str(self.command), ems_server)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Vserver admin required if -vserver is given %s: %s' %
-                                          (self.command, to_native(error)),
-                                      exception=traceback.format_exc())
+            netapp_utils.ems_log_event("na_ontap_command" + str(self.command), ems_server)
         else:
-            self.asup_log_for_cserver("na_ontap_command: " + str(self.command))
+            netapp_utils.ems_log_event_cserver("na_ontap_command: " + str(self.command), self.server, self.module)
 
     def apply(self):
         ''' calls the command and returns raw output '''
@@ -270,9 +246,8 @@ class NetAppONTAPCommand():
                         if self.exclude_lines:
                             if self.include_lines in stripped_line and self.exclude_lines not in stripped_line:
                                 self.result_dict['stdout_lines_filter'].append(stripped_line)
-                        else:
-                            if self.include_lines and self.include_lines in stripped_line:
-                                self.result_dict['stdout_lines_filter'].append(stripped_line)
+                        elif self.include_lines and self.include_lines in stripped_line:
+                            self.result_dict['stdout_lines_filter'].append(stripped_line)
 
                 self.result_dict['xml_dict']['cli-output']['data'] = stdout_string
                 cli_result_value = self.result_dict['xml_dict']['cli-result-value']['data']

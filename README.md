@@ -107,14 +107,15 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - support added for storage/pools.
 
 ### Bug Fixes
+  - na_ontap_command - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
+  - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
 
 ### Added REST support to existing modules
   - na_ontap_quotas - added REST support.
   - na_ontap_net_subnet - added REST support.
-
 
 ## 21.23.0
 

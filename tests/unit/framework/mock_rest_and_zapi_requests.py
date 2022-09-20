@@ -49,10 +49,21 @@ def patch_request_and_invoke(request):
 
 
 def register_responses(responses, function_name=None):
+    ''' When patching, the pytest request identifies the UT test function
+        if the registration is happening in a helper function, function_name needs to identify the calling test function
+        EG:
+        test_me():
+            for x in range:
+                check_something()
+        if the registration happens in check_something, function_name needs to be set to test_me (as a string)
+    '''
     caller = inspect.currentframe().f_back.f_code.co_name
-    if function_name is not None and function_name != caller:
+    if DEBUG:
+        print('register_responses - caller:', caller, 'function_name:', function_name)
+    if function_name is not None and function_name != caller and (caller.startswith('test') or not function_name.startswith('test')):
         raise KeyError('inspect reported a different name: %s, received: %s' % (caller, function_name))
-    function_name = caller
+    if function_name is None:
+        function_name = caller
     fixed_records = []
     for record in responses:
         try:

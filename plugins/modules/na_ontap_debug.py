@@ -227,7 +227,7 @@ class NetAppONTAPDebug(object):
             self.note_list.append('cserver not found')
         else:
             server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=cserver)
-        netapp_utils.ems_log_event(event_name, server)
+        netapp_utils.ems_log_event(event_name, server, raise_on_error=True)
 
     def apply(self):
         """

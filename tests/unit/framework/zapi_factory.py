@@ -64,10 +64,8 @@ _DEFAULT_ERRORS = {
 
 
 def get_error_desc(error_code):
-    for err_num, err_desc in _DEFAULT_ERRORS.values():
-        if err_num == error_code:
-            return err_desc
-    return 'no registered error for %d' % error_code
+    return next((err_desc for err_num, err_desc in _DEFAULT_ERRORS.values() if err_num == error_code),
+                'no registered error for %d' % error_code)
 
 
 def zapi_error_message(error, error_code=12345, reason=None, addal=None):
