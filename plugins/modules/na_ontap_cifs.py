@@ -236,30 +236,33 @@ class NetAppONTAPCifsShare:
                    'path': self.parameters.get('path')}
         cifs_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'cifs-share-create', **options)
+        self.create_modify_cifs_share(cifs_create, 'creating')
+
+    def create_modify_cifs_share(self, zapi_request, action):
         if self.parameters.get('share_properties'):
             property_attrs = netapp_utils.zapi.NaElement('share-properties')
-            cifs_create.add_child_elem(property_attrs)
+            zapi_request.add_child_elem(property_attrs)
             for aproperty in self.parameters.get('share_properties'):
                 property_attrs.add_new_child('cifs-share-properties', aproperty)
         if self.parameters.get('symlink_properties'):
             symlink_attrs = netapp_utils.zapi.NaElement('symlink-properties')
-            cifs_create.add_child_elem(symlink_attrs)
+            zapi_request.add_child_elem(symlink_attrs)
             for symlink in self.parameters.get('symlink_properties'):
                 symlink_attrs.add_new_child('cifs-share-symlink-properties', symlink)
         if self.parameters.get('vscan_fileop_profile'):
             fileop_attrs = netapp_utils.zapi.NaElement('vscan-fileop-profile')
             fileop_attrs.set_content(self.parameters['vscan_fileop_profile'])
-            cifs_create.add_child_elem(fileop_attrs)
+            zapi_request.add_child_elem(fileop_attrs)
         if self.parameters.get('comment'):
-            cifs_create.add_new_child('comment', self.parameters['comment'])
+            zapi_request.add_new_child('comment', self.parameters['comment'])
 
         try:
-            self.server.invoke_successfully(cifs_create,
+            self.server.invoke_successfully(zapi_request,
                                             enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
 
-            self.module.fail_json(msg='Error creating cifs-share %s: %s'
-                                  % (self.parameters.get('name'), to_native(error)),
+            self.module.fail_json(msg='Error %s cifs-share %s: %s'
+                                  % (action, self.parameters.get('name'), to_native(error)),
                                   exception=traceback.format_exc())
 
     def delete_cifs_share(self):
@@ -285,29 +288,7 @@ class NetAppONTAPCifsShare:
             'cifs-share-modify', **options)
         if self.parameters.get('path'):
             cifs_modify.add_new_child('path', self.parameters.get('path'))
-        if self.parameters.get('share_properties'):
-            property_attrs = netapp_utils.zapi.NaElement('share-properties')
-            cifs_modify.add_child_elem(property_attrs)
-            for aproperty in self.parameters.get('share_properties'):
-                property_attrs.add_new_child('cifs-share-properties', aproperty)
-        if self.parameters.get('symlink_properties'):
-            symlink_attrs = netapp_utils.zapi.NaElement('symlink-properties')
-            cifs_modify.add_child_elem(symlink_attrs)
-            for aproperty in self.parameters.get('symlink_properties'):
-                symlink_attrs.add_new_child('cifs-share-symlink-properties', aproperty)
-        if self.parameters.get('vscan_fileop_profile'):
-            fileop_attrs = netapp_utils.zapi.NaElement('vscan-fileop-profile')
-            fileop_attrs.set_content(self.parameters['vscan_fileop_profile'])
-            cifs_modify.add_child_elem(fileop_attrs)
-        if self.parameters.get('comment'):
-            cifs_modify.add_new_child('comment', self.parameters['comment'])
-        try:
-            self.server.invoke_successfully(cifs_modify,
-                                            enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error modifying cifs-share %s:%s'
-                                  % (self.parameters.get('name'), to_native(error)),
-                                  exception=traceback.format_exc())
+        self.create_modify_cifs_share(cifs_modify, 'modifying')
 
     def get_cifs_share_rest(self):
         """
@@ -325,7 +306,7 @@ class NetAppONTAPCifsShare:
                 'svm': {'uuid': record['svm']['uuid']},
                 'path': record['path'],
                 'comment': record.get('comment', ''),
-                'unix_symlink': record['unix_symlink']
+                'unix_symlink': record.get('unix_symlink', '')
             }
         return None
 
@@ -382,13 +363,13 @@ class NetAppONTAPCifsShare:
             netapp_utils.ems_log_event("na_ontap_cifs", self.server)
         current = self.get_cifs_share()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if not self.use_rest and cd_action is None:
-            # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter
-            if 'show-previous-versions' in self.parameters.get('share_properties', []) and\
-               current and 'show_previous_versions' in current.get('share_properties', []):
-                self.parameters['share_properties'].remove('show-previous-versions')
-                self.parameters['share_properties'].append('show_previous_versions')
+        # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter
+        if not self.use_rest and cd_action is None and 'show-previous-versions' in self.parameters.get('share_properties', [])\
+           and current and 'show_previous_versions' in current.get('share_properties', []):
+            self.parameters['share_properties'].remove('show-previous-versions')
+            self.parameters['share_properties'].append('show_previous_versions')
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
+
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_cifs_share_rest()

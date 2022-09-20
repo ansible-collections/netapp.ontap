@@ -5,19 +5,18 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import copy
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    patch_ansible, call_main, create_module, create_and_apply, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs \
-    import NetAppONTAPCifsShare as my_module  # module under test
+    import NetAppONTAPCifsShare as my_module, main as my_main   # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -59,7 +58,7 @@ cifs_record_info = {
             'share-name': 'cifs_share_name',
             'path': '/test',
             'vscan-fileop-profile': 'standard',
-            'share-properties': [{'cifs-share-properties': 'browsable'}],
+            'share-properties': [{'cifs-share-properties': 'browsable'}, {'cifs-share-properties': 'show_previous_versions'}],
             'symlink-properties': [{'cifs-share-symlink-properties': 'enable'}]
         }
     }
@@ -75,7 +74,7 @@ DEFAULT_ARGS = {
     'password': 'netapp1!',
     'name': 'cifs_share_name',
     'path': '/test',
-    'share_properties': 'browsable',
+    'share_properties': ['browsable', 'show-previous-versions'],
     'symlink_properties': 'enable',
     'vscan_fileop_profile': 'standard',
     'vserver': 'abc',
@@ -85,10 +84,8 @@ DEFAULT_ARGS = {
 
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    with pytest.raises(AnsibleFailJson) as exc:
-        set_module_args({})
-        my_module()
-    print('Info: %s' % exc.value.args[0]['msg'])
+    error = 'missing required arguments:'
+    assert error in call_main(my_main, {}, fail=True)['msg']
 
 
 def test_get():
@@ -120,9 +117,10 @@ def test_create():
         ('cifs-share-create', ZRR['success']),
     ])
     module_args = {
-        'state': 'present'
+        'state': 'present',
+        'comment': 'some_comment'
     }
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_delete():
@@ -254,7 +252,7 @@ def test_if_all_methods_catch_exception():
     assert 'Error creating cifs-share cifs_share_name: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
 
     error = expect_and_capture_ansible_exception(my_obj.modify_cifs_share, 'fail')['msg']
-    assert 'Error modifying cifs-share cifs_share_name:NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
+    assert 'Error modifying cifs-share cifs_share_name: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
 
     error = expect_and_capture_ansible_exception(my_obj.delete_cifs_share, 'fail')['msg']
     assert 'Error deleting cifs-share cifs_share_name: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
@@ -421,3 +419,10 @@ def test_rest_successful_delete_idempotency():
     ])
     module_args = {'use_rest': 'always', 'state': 'absent'}
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_missing_netapp_lib(mock_has_netapp_lib):
+    mock_has_netapp_lib.return_value = False
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert msg == call_main(my_main, DEFAULT_ARGS, fail=True)['msg']

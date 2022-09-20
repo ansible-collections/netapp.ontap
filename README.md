@@ -107,6 +107,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - support added for storage/pools.
 
 ### Bug Fixes
+  - na_ontap_cifs - fix KeyError on `unix_symlink` field when using REST.
   - na_ontap_command - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
   - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
