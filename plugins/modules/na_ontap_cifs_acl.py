@@ -44,6 +44,7 @@ options:
   type:
     description:
       - The type (also known as user-group-type) of the user or group to add to the ACL.
+      - Type is required for create, delete and modify unix-user or unix-group to/from the ACL in ZAPI.
     type: str
     choices: [windows, unix_user, unix_group]
     version_added: 21.17.0
@@ -167,6 +168,7 @@ class NetAppONTAPCifsAcl:
             'user-or-group': self.parameters['user_or_group'],
             'permission': self.parameters['permission']
         }
+        # type is required for unix-user and unix-group
         if self.parameters.get('type') is not None:
             options['user-group-type'] = self.parameters['type']
 
@@ -184,9 +186,15 @@ class NetAppONTAPCifsAcl:
         """
         Delete access control for the given CIFS share/user-group
         """
+        options = {
+            'share': self.parameters['share_name'],
+            'user-or-group': self.parameters['user_or_group']
+        }
+        # type is required for unix-user and unix-group
+        if self.parameters.get('type') is not None:
+            options['user-group-type'] = self.parameters['type']
         cifs_acl_delete = netapp_utils.zapi.NaElement.create_node_with_children(
-            'cifs-share-access-control-delete', **{'share': self.parameters['share_name'],
-                                                   'user-or-group': self.parameters['user_or_group']})
+            'cifs-share-access-control-delete', **options)
         try:
             self.server.invoke_successfully(cifs_acl_delete,
                                             enable_tunneling=True)
@@ -204,6 +212,7 @@ class NetAppONTAPCifsAcl:
             'user-or-group': self.parameters['user_or_group'],
             'permission': self.parameters['permission']
         }
+        # type is required for unix-user and unix-group
         if self.parameters.get('type') is not None:
             options['user-group-type'] = self.parameters['type']
 

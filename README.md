@@ -113,6 +113,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
+  - na_ontap_cifs_acl - use `type` when deleting unix-user or unix-group from ACL in ZAPI.
 
 ### Added REST support to existing modules
   - na_ontap_quotas - added REST support.
