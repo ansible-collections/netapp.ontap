@@ -555,11 +555,11 @@ class NetAppOntapInterface:
                 unknown_protocols.append(protocol)
         errors = []
         if unknown_protocols:
-            errors.append('Unexpected value(s) for protocols: %s' % unknown_protocols)
+            errors.append('unexpected value(s) for protocols: %s' % unknown_protocols)
         if len(protocol_types) > 1:
-            errors.append('Incompatible value(s) for protocols: %s' % protocols)
+            errors.append('incompatible value(s) for protocols: %s' % protocols)
         if errors:
-            self.module.fail_json(msg='Error: ' + (' - '.join(errors)))
+            self.module.fail_json(msg='Error: unable to determine interface type, please set interface_type: %s' % (' - '.join(errors)))
         if protocol_types:
             self.set_interface_type(protocol_types.pop())
         return
@@ -963,9 +963,7 @@ class NetAppOntapInterface:
                 'is_auto_revert': 'auto_revert',
             })
         if self.parameters['interface_type'] == 'fc':
-            mapping_params_to_rest.update({
-                'data_protocol': 'data_protocol',
-            })
+            mapping_params_to_rest['data_protocol'] = 'data_protocol'
         ip_keys = ('address', 'netmask')
         location_keys = ('home_port', 'home_node', 'current_port', 'current_node', 'failover_scope', 'is_auto_revert', 'broadcast_domain')
 
@@ -1336,16 +1334,6 @@ class NetAppOntapInterface:
                                   % (self.parameters['from_name'], self.parameters['interface_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def autosupport_log(self):
-        if self.use_rest:
-            return
-        try:
-            netapp_utils.ems_log_event_cserver("na_ontap_interface", self.server, self.module)
-        except netapp_utils.zapi.NaApiError as error:
-            # Error 13003 denotes cluster does not exist. It happens when running operations on a node not in cluster.
-            # Ignore other errors as well.
-            pass
-
     def get_action(self):
         modify, rename, new_name = None, None, None
         current = self.get_interface()
@@ -1389,7 +1377,8 @@ class NetAppOntapInterface:
 
     def apply(self):
         ''' calling all interface features '''
-        self.autosupport_log()
+        if not self.use_rest:
+            netapp_utils.ems_log_event_cserver("na_ontap_interface", self.server, self.module)
         cd_action, modify, rename, current = self.get_action()
         uuid = current.get('uuid') if current else None
 

@@ -1172,7 +1172,7 @@ def test_negative_derive_interface_type_unknown():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    msg = "Error: Unexpected value(s) for protocols: ['unexpected']"
+    msg = "Error: unable to determine interface type, please set interface_type: unexpected value(s) for protocols: ['unexpected']"
     module_args = {
         'use_rest': 'always',
         'protocols': ['unexpected'],
@@ -1185,7 +1185,7 @@ def test_negative_derive_interface_type_multiple():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
     ])
-    msg = "Error: Incompatible value(s) for protocols: ['fc-nvme', 'cifs']"
+    msg = "Error: unable to determine interface type, please set interface_type: incompatible value(s) for protocols: ['fc-nvme', 'cifs']"
     module_args = {
         'use_rest': 'always',
         'protocols': ['fc-nvme', 'cifs'],

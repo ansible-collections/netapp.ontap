@@ -110,6 +110,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs - fix KeyError on `unix_symlink` field when using REST.
   - na_ontap_command - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
+  - na_ontap_interface - improve error message when interface type is required with REST.
+  - na_ontap_qtree - fix KeyError on unix_permissions.
   - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.

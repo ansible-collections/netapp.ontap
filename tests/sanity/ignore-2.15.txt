@@ -1,0 +1,7 @@
+plugins/modules/na_ontap_autosupport_invoke.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_login_messages.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_motd.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_nfs.py validate-modules:parameter-invalid
+plugins/modules/na_ontap_firmware_upgrade.py validate-modules:version-added-must-be-major-or-minor
+plugins/modules/na_ontap_iscsi_security.py validate-modules:version-added-must-be-major-or-minor
+plugins/modules/na_ontap_snapshot_policy.py validate-modules:version-added-must-be-major-or-minor

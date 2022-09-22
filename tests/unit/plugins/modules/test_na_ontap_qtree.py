@@ -4,16 +4,17 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible,\
-    create_module, create_and_apply, expect_and_capture_ansible_exception
+    call_main, create_module, create_and_apply, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
     register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree \
-    import NetAppOntapQTree as qtree_module  # module under test
+    import NetAppOntapQTree as qtree_module, main as my_main    # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -104,7 +105,10 @@ def test_successful_create():
         ('qtree-list-iter', ZRR['empty']),
         ('qtree-create', ZRR['success'])
     ])
-    assert create_and_apply(qtree_module, DEFAULT_ARGS)['changed']
+    module_args = {
+        'oplocks': 'enabled'
+    }
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_successful_delete():
@@ -135,7 +139,10 @@ def test_successful_modify():
         ('qtree-list-iter', ZRR['qtree_info']),
         ('qtree-modify', ZRR['success'])
     ])
-    args = {'export_policy': 'test'}
+    args = {
+        'export_policy': 'test',
+        'oplocks': 'enabled'
+    }
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
 
 
@@ -329,5 +336,48 @@ def test_successful_rename_and_modify_rest():
         ('GET', 'storage/qtrees', SRR['qtree_record']),
         ('PATCH', 'storage/qtrees/uuid/1', SRR['success'])
     ])
-    args = {'use_rest': 'always', 'from_name': 'abcde', 'name': 'qtree', 'unix_permissions': '744'}
-    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    args = {
+        'use_rest': 'always',
+        'from_name': 'abcde',
+        'name': 'qtree',
+        'unix_permissions': '744',
+        'unix_user': 'user',
+        'unix_group': 'group',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_missing_netapp_lib(mock_has_netapp_lib):
+    module_args = {
+        'use_rest': 'never'
+    }
+    mock_has_netapp_lib.return_value = False
+    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert error == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_force_delete_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'force_delete': False,
+        'state': 'absent'
+    }
+    error = 'Error: force_delete option is not supported for REST, unless set to true.'
+    assert error == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rename_qtree_not_used_with_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    my_obj = create_module(qtree_module, DEFAULT_ARGS, module_args)
+    error = 'Internal error, use modify with REST'
+    assert error in expect_and_capture_ansible_exception(my_obj.rename_qtree, 'fail')['msg']

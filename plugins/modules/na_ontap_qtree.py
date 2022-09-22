@@ -36,6 +36,7 @@ options:
   name:
     description:
       - The name of the qtree to manage.
+      - With REST, this can also be a path.
     required: true
     type: str
 
@@ -267,7 +268,7 @@ class NetAppOntapQTree:
                     'name': record['name'],
                     'export_policy': self.na_helper.safe_get(record, ['export_policy', 'name']),
                     'security_style': self.na_helper.safe_get(record, ['security_style']),
-                    'unix_permissions': str(record['unix_permissions']),
+                    'unix_permissions': str(self.na_helper.safe_get(record, ['unix_permissions'])),
                     'unix_user': self.na_helper.safe_get(record, ['user', 'name']),
                     'unix_group': self.na_helper.safe_get(record, ['group', 'name'])
                 }
@@ -311,24 +312,7 @@ class NetAppOntapQTree:
             if error:
                 self.module.fail_json(msg='Error creating qtree %s: %s' % (self.parameters['name'], error))
         else:
-            options = {'qtree': self.parameters['name'], 'volume': self.parameters['flexvol_name']}
-            if self.parameters.get('export_policy'):
-                options['export-policy'] = self.parameters['export_policy']
-            if self.parameters.get('security_style'):
-                options['security-style'] = self.parameters['security_style']
-            if self.parameters.get('oplocks'):
-                options['oplocks'] = self.parameters['oplocks']
-            if self.parameters.get('unix_permissions'):
-                options['mode'] = self.parameters['unix_permissions']
-            qtree_create = netapp_utils.zapi.NaElement.create_node_with_children(
-                'qtree-create', **options)
-            try:
-                self.server.invoke_successfully(qtree_create,
-                                                enable_tunneling=True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg="Error creating qtree %s: %s"
-                                      % (self.parameters['name'], to_native(error)),
-                                      exception=traceback.format_exc())
+            self.create_or_modify_qtree_zapi('qtree-create', "Error creating qtree %s: %s")
 
     def delete_qtree(self):
         """
@@ -392,23 +376,25 @@ class NetAppOntapQTree:
             if error:
                 self.module.fail_json(msg='Error modifying qtree %s: %s' % (self.parameters['name'], error))
         else:
-            options = {'qtree': self.parameters['name'], 'volume': self.parameters['flexvol_name']}
-            if self.parameters.get('export_policy'):
-                options['export-policy'] = self.parameters['export_policy']
-            if self.parameters.get('security_style'):
-                options['security-style'] = self.parameters['security_style']
-            if self.parameters.get('oplocks'):
-                options['oplocks'] = self.parameters['oplocks']
-            if self.parameters.get('unix_permissions'):
-                options['mode'] = self.parameters['unix_permissions']
-            qtree_modify = netapp_utils.zapi.NaElement.create_node_with_children(
-                'qtree-modify', **options)
-            try:
-                self.server.invoke_successfully(qtree_modify, enable_tunneling=True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error modifying qtree %s: %s'
-                                      % (self.parameters['name'], to_native(error)),
-                                      exception=traceback.format_exc())
+            self.create_or_modify_qtree_zapi('qtree-modify', 'Error modifying qtree %s: %s')
+
+    def create_or_modify_qtree_zapi(self, zapi_request_name, error_message):
+        options = {'qtree': self.parameters['name'], 'volume': self.parameters['flexvol_name']}
+
+        if self.parameters.get('export_policy'):
+            options['export-policy'] = self.parameters['export_policy']
+        if self.parameters.get('security_style'):
+            options['security-style'] = self.parameters['security_style']
+        if self.parameters.get('oplocks'):
+            options['oplocks'] = self.parameters['oplocks']
+        if self.parameters.get('unix_permissions'):
+            options['mode'] = self.parameters['unix_permissions']
+        zapi_request = netapp_utils.zapi.NaElement.create_node_with_children(zapi_request_name, **options)
+
+        try:
+            self.server.invoke_successfully(zapi_request, enable_tunneling=True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg=(error_message % (self.parameters['name'], to_native(error))), exception=traceback.format_exc())
 
     def form_create_modify_body_rest(self):
         body = {'name': self.parameters['name']}
@@ -435,11 +421,10 @@ class NetAppOntapQTree:
             current = self.get_qtree(self.parameters['from_name'])
             if current is None:
                 self.module.fail_json(msg="Error renaming: qtree %s does not exist" % self.parameters['from_name'])
-            rename = True
             cd_action = None
-            if self.use_rest:
+            if not self.use_rest:
                 # modify can change the name for REST, as UUID is the key.
-                rename = False
+                rename = True
 
         if cd_action is None:
             octal_value = current.get('unix_permissions') if current else None
