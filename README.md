@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_svm - Added `ndmp` option to services in REST.
 
 ### Minor Changes
+  - na_ontap_ems_destination - improve error messages - augment UT coverage (thanks to bielawb).
   - na_ontap_interface - `dns_domain_name` is now supported from ONTAP 9.9.0 or later in REST.
   - na_ontap_interface - `is_dns_update_enabled` is now supported from ONTAP 9.9.1 or later in REST.
 

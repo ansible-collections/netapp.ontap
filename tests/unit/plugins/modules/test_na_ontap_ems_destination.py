@@ -30,7 +30,7 @@ SRR = rest_responses({
         "records": [
             {
                 "name": "test",
-                "type": "rest_api",
+                "type": "rest-api",
                 "destination": "https://test.destination",
                 "filters": [
                     {
@@ -132,6 +132,16 @@ def test_modify_ems_destination_filter():
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['other-filter']}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ems_destination_rest_api_idempotent():
+    """ verify that rest-api is equivalent to rest_api """
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+    ])
+    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ems_destination_target():
