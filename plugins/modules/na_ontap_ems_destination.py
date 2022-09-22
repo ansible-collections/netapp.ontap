@@ -108,10 +108,10 @@ class NetAppOntapEmsDestination:
         if not self.use_rest:
             self.module.fail_json(msg='na_ontap_ems_destination is only supported with REST API')
 
-    def fail_on_error(self, error):
+    def fail_on_error(self, error, action):
         if error is None:
             return
-        self.module.fail_json(msg="Error: %s" % error)
+        self.module.fail_json(msg="Error %s: %s" % (action, error))
 
     def generate_filters_list(self, filters):
         return [{'name': filter} for filter in filters]
@@ -121,7 +121,7 @@ class NetAppOntapEmsDestination:
         fields = 'name,type,destination,filters.name'
         query = dict(name=name, fields=fields)
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
-        self.fail_on_error(error)
+        self.fail_on_error(error, 'fetching EMS destination for %s' % name)
         if record:
             current = {
                 'name': self.na_helper.safe_get(record, ['name']),
@@ -139,19 +139,20 @@ class NetAppOntapEmsDestination:
 
     def create_ems_destination(self):
         api = 'support/ems/destinations'
+        name = self.parameters['name']
         body = {
-            'name': self.parameters['name'],
+            'name': name,
             'type': self.parameters['type'],
             'destination': self.parameters['destination'],
             'filters': self.generate_filters_list(self.parameters['filters'])
         }
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
-        self.fail_on_error(error)
+        self.fail_on_error(error, 'creating EMS destinations for %s' % name)
 
     def delete_ems_destination(self, name):
         api = 'support/ems/destinations'
         dummy, error = rest_generic.delete_async(self.rest_api, api, name)
-        self.fail_on_error(error)
+        self.fail_on_error(error, 'deleting EMS destination for %s' % name)
 
     def modify_ems_destination(self, name, modify):
         if 'type' in modify:
@@ -168,7 +169,7 @@ class NetAppOntapEmsDestination:
             if body:
                 api = 'support/ems/destinations'
                 dummy, error = rest_generic.patch_async(self.rest_api, api, name, body)
-                self.fail_on_error(error)
+                self.fail_on_error(error, 'modifying EMS destination for %s' % name)
 
     def apply(self):
         name = None
@@ -185,7 +186,7 @@ class NetAppOntapEmsDestination:
                 self.modify_ems_destination(name, modify)
             elif cd_action == 'create':
                 self.create_ems_destination()
-            elif cd_action == 'delete':
+            else:
                 self.delete_ems_destination(name)
         self.module.exit_json(changed=self.na_helper.changed, current=current, modify=saved_modify)
 
