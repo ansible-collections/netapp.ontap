@@ -210,7 +210,7 @@ def test_patch_volume_async(mock_request):
     job['job_response'] = SRR['job_status_success'][1]['message']
     assert error is None
     assert response == job
-    expected = call('PATCH', 'storage/volumes/uuid', {'return_timeout': 30}, json=body, headers=None)
+    expected = call('PATCH', 'storage/volumes/uuid', {'return_timeout': 30}, json=body, headers=None, files=None)
     assert expected in mock_request.mock_calls
 
 
@@ -229,5 +229,5 @@ def test_patch_volume_async_with_query(mock_request):
     job['job_response'] = SRR['job_status_success'][1]['message']
     assert error is None
     assert response == job
-    expected = call('PATCH', 'storage/volumes/uuid', {'return_timeout': 20}, json=body, headers=None)
+    expected = call('PATCH', 'storage/volumes/uuid', {'return_timeout': 20}, json=body, headers=None, files=None)
     assert expected in mock_request.mock_calls

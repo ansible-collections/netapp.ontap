@@ -675,7 +675,7 @@ def test_rest_successfully_download(mock_request, patch_ansible):
     assert exc.value.args[0]['changed']
     print(mock_request.call_args)
     json = {'url': 'https://download.site.com'}
-    expected = call('POST', 'cluster/software/download', None, json=json, headers=None)
+    expected = call('POST', 'cluster/software/download', None, json=json, headers=None, files=None)
     assert mock_request.call_args == expected
     data['server_username'] = 'user'
     data['server_password'] = 'pass'
@@ -684,7 +684,7 @@ def test_rest_successfully_download(mock_request, patch_ansible):
         my_module().apply()
     print(mock_request.call_args)
     json = {'url': 'https://download.site.com', 'username': 'user', 'password': 'pass'}
-    expected = call('POST', 'cluster/software/download', None, json=json, headers=None)
+    expected = call('POST', 'cluster/software/download', None, json=json, headers=None, files=None)
     assert mock_request.call_args == expected
 
 

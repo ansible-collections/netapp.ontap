@@ -67,6 +67,21 @@ options:
     type: bool
     default: false
     version_added: 21.14.0
+  files:
+    description:
+      - A dictionary for the parameters when using multipart/form-data.
+      - This is very infrequently needed, but required to write a file (see examples)
+      - When present, requests will automatically set the Content-Type header to multipart/form-data.
+    type: dict
+    version_added: 21.24.0
+  accept_header:
+    description:
+      - Value for the Accept request HTTP header.
+      - This is very infrequently needed, but required to read a file (see examples).
+      - For most cases, omit this field.  Set it to "multipart/form-data" when expecting such a format.
+      - By default the module is using "application/json" or "application/hal+json" when hal_linking is true.
+    type: str
+    version_added: 21.24.0
 '''
 
 EXAMPLES = """
@@ -194,6 +209,22 @@ EXAMPLES = """
     - debug: var=result
     - assert: { that: result.status_code==200, quiet: True }
 
+    - name: create a file
+      # assuming credentials are set using module_defaults
+      na_ontap_restit:
+        api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
+        method: post
+        files: {'data': 'some data'}
+
+    - name: read a file
+      # assuming credentials are set using module_defaults
+      na_ontap_restit:
+        api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
+        method: get
+        accept_header: "multipart/form-data"
+        query:
+          length: 100
+
 # error cases
     - name: run ontap REST API command
       na_ontap_restit:
@@ -254,10 +285,13 @@ class NetAppONTAPRestAPI(object):
             vserver_uuid=dict(required=False, type='str'),
             hal_linking=dict(required=False, type='bool', default=False),
             wait_for_completion=dict(required=False, type='bool', default=False),
+            # to support very infrequent form-data format
+            files=dict(required=False, type='dict'),
+            accept_header=dict(required=False, type='str'),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=False
+            supports_check_mode=True,
         )
         parameters = self.module.params
         # set up state variables
@@ -269,12 +303,16 @@ class NetAppONTAPRestAPI(object):
         self.vserver_uuid = parameters['vserver_uuid']
         self.hal_linking = parameters['hal_linking']
         self.wait_for_completion = parameters['wait_for_completion']
+        self.files = parameters['files']
+        self.accept_header = parameters['accept_header']
 
         self.rest_api = OntapRestAPI(self.module)
 
+        if self.accept_header is None:
+            self.accept_header = 'application/hal+json' if self.hal_linking else 'application/json'
+
     def build_headers(self):
-        content_type = 'application/hal+json' if self.hal_linking else 'application/json'
-        return self.rest_api.build_headers(accept=content_type, vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
+        return self.rest_api.build_headers(accept=self.accept_header, vserver_name=self.vserver_name, vserver_uuid=self.vserver_uuid)
 
     def fail_on_error(self, status, response, error):
         if error:
@@ -294,8 +332,7 @@ class NetAppONTAPRestAPI(object):
     def run_api(self):
         ''' calls the REST API '''
         # TODO, log usage
-
-        status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body, self.build_headers())
+        status, response, error = self.rest_api.send_request(self.method, self.api, self.query, self.body, self.build_headers(), self.files)
         self.fail_on_error(status, response, error)
 
         return status, response
@@ -306,14 +343,16 @@ class NetAppONTAPRestAPI(object):
 
         args = [self.rest_api, self.api]
         kwargs = {}
-        if self.method == 'POST':
+        if self.method.upper() == 'POST':
             method = rest_generic.post_async
             kwargs['body'] = self.body
-        elif self.method == 'PATCH':
+            kwargs['files'] = self.files
+        elif self.method.upper() == 'PATCH':
             method = rest_generic.patch_async
             args.append(None)   # uuid should be provided in the API
             kwargs['body'] = self.body
-        elif self.method == 'DELETE':
+            kwargs['files'] = self.files
+        elif self.method.upper() == 'DELETE':
             method = rest_generic.delete_async
             args.append(None)   # uuid should be provided in the API
         else:
@@ -333,7 +372,9 @@ class NetAppONTAPRestAPI(object):
 
     def apply(self):
         ''' calls the api and returns json output '''
-        if self.wait_for_completion:
+        if self.module.check_mode:
+            status_code, response = None, {'check_mode': 'would run %s %s' % (self.method, self.api)}
+        elif self.wait_for_completion:
             status_code, response = self.run_api_async()
         else:
             status_code, response = self.run_api()

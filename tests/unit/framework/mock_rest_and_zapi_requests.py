@@ -179,11 +179,12 @@ class MockCalls:
                 return False
         return True
 
-    def _record_rest_request(self, method, api, params, json, headers):
+    def _record_rest_request(self, method, api, params, json, headers, files):
         record = {
             'params': params,
             'json': json,
-            'headers': headers
+            'headers': headers,
+            'files': files,
         }
         self._record_request(method, api, record)
 
@@ -243,11 +244,11 @@ def _get_or_create_mock_record(function_name):
     return _REQUESTS[function_name]
 
 
-def _mock_netapp_send_request(function_name, method, api, params, json=None, headers=None):
+def _mock_netapp_send_request(function_name, method, api, params, json=None, headers=None, files=None):
     if DEBUG:
         print('Inside _mock_netapp_send_request')
     mock_calls = _get_or_create_mock_record(function_name)
-    mock_calls._record_rest_request(method, api, params, json, headers)
+    mock_calls._record_rest_request(method, api, params, json, headers, files)
     return mock_calls._get_response(method, api)
 
 

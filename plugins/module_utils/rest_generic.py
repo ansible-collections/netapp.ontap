@@ -74,19 +74,19 @@ def get_0_or_more_records(rest_api, api, query=None, fields=None):
     return records, error
 
 
-def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
+def post_async(rest_api, api, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False, files=None):
     # see delete_async for async and sync operations and status codes
-    response, error = rest_api.post(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
+    response, error = rest_api.post(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers, files=files)
     # limit the polling interval to something between 5 seconds and 60 seconds
     increment = min(max(job_timeout / 6, 5), 60)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error
 
 
-def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False):
+def patch_async(rest_api, api, uuid_or_name, body, query=None, timeout=30, job_timeout=30, headers=None, raw_error=False, files=None):
     # cluster does not use uuid or name, and query based PATCH does not use UUID (for restit)
     api = '%s/%s' % (api, uuid_or_name) if uuid_or_name is not None else api
-    response, error = rest_api.patch(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers)
+    response, error = rest_api.patch(api, body=body, params=build_query_with_timeout(query, timeout), headers=headers, files=files)
     increment = min(max(job_timeout / 6, 5), 60)
     response, error = rrh.check_for_error_and_job_results(api, response, error, rest_api, increment=increment, timeout=job_timeout, raw_error=raw_error)
     return response, error

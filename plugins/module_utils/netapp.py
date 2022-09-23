@@ -699,7 +699,7 @@ class OntapRestAPI(object):
             headers['X-Dot-SVM-UUID'] = vserver_uuid
         return headers
 
-    def send_request(self, method, api, params, json=None, headers=None):
+    def send_request(self, method, api, params, json=None, headers=None, files=None):
         ''' send http request and process reponse, including error conditions '''
         url = self.url + api
 
@@ -715,11 +715,11 @@ class OntapRestAPI(object):
                 raise KeyError(self.auth_method)
             return kwargs
 
-        status_code, json_dict, error_details = self._send_request(method, url, params, json, headers, get_auth_args())
+        status_code, json_dict, error_details = self._send_request(method, url, params, json, headers, files, get_auth_args())
 
         return status_code, json_dict, error_details
 
-    def _send_request(self, method, url, params, json, headers, auth_args):
+    def _send_request(self, method, url, params, json, headers, files, auth_args):
         status_code = None
         json_dict = None
         json_error = None
@@ -750,7 +750,7 @@ class OntapRestAPI(object):
                                             timeout=self.timeout, json=json, headers=headers, auth_args=auth_args)))
         try:
             response = requests.request(method, url, verify=self.verify, params=params,
-                                        timeout=self.timeout, json=json, headers=headers, **auth_args)
+                                        timeout=self.timeout, json=json, headers=headers, files=files, **auth_args)
             self.log_debug(status_code, response.content)
             status_code = response.status_code
             # If the response was successful, no Exception will be raised
@@ -775,9 +775,14 @@ class OntapRestAPI(object):
         if json_error is not None:
             self.log_error(status_code, 'Endpoint error: %d: %s' % (status_code, json_error))
             error_details = json_error
-        if not error_details and not json_dict and method == 'OPTIONS':
-            # OPTIONS provides the list of supported verbs
-            json_dict['Allow'] = response.headers.get('Allow')
+        if not error_details and not json_dict:
+            if json_dict is None:
+                json_dict = {}
+            if method == 'OPTIONS':
+                # OPTIONS provides the list of supported verbs
+                json_dict['Allow'] = response.headers.get('Allow')
+            if response.headers.get('Content-Type', '').startswith("multipart/form-data"):
+                json_dict['text'] = response.text
         return status_code, json_dict, error_details
 
     def _is_job_done(self, job_json, job_state, job_error, timed_out):
@@ -866,14 +871,14 @@ class OntapRestAPI(object):
         dummy, message, error = self.send_request(method, api, params, json=None, headers=headers)
         return message, error
 
-    def post(self, api, body, params=None, headers=None):
+    def post(self, api, body, params=None, headers=None, files=None):
         method = 'POST'
-        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers)
+        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
         return message, error
 
-    def patch(self, api, body, params=None, headers=None):
+    def patch(self, api, body, params=None, headers=None, files=None):
         method = 'PATCH'
-        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers)
+        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
         return message, error
 
     def delete(self, api, body=None, params=None, headers=None):

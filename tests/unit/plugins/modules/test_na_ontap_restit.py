@@ -108,6 +108,7 @@ def test_rest_run_any(mock_request, patch_ansible):
     args['method'] = 'ANY'
     args['body'] = {'bkey1': 'bitem1', 'bkey2': 'bitem2'}
     args['query'] = {'qkey1': 'qitem1', 'qkey2': 'qitem2'}
+    args['files'] = {'fkey1': 'fitem1', 'fkey2': 'fitem2'}
     set_module_args(args)
     mock_request.side_effect = [
         SRR['empty_good'],
@@ -120,7 +121,7 @@ def test_rest_run_any(mock_request, patch_ansible):
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 1
     headers = my_obj.rest_api.build_headers(accept='application/json')
-    expected_call = call('ANY', 'abc', args['query'], args['body'], headers)
+    expected_call = call('ANY', 'abc', args['query'], args['body'], headers, args['files'])
     assert expected_call in mock_request.mock_calls
 
 
@@ -187,7 +188,7 @@ def test_rest_run_post_async_no_job(mock_request, patch_ansible):
     assert len(mock_request.mock_calls) == 1
     headers = my_obj.rest_api.build_headers(accept='application/json')
     args['query'].update({'return_timeout': 30})
-    expected_call = call('POST', 'abc', args['query'], json=args['body'], headers=headers)
+    expected_call = call('POST', 'abc', args['query'], json=args['body'], headers=headers, files=None)
     assert expected_call in mock_request.mock_calls
 
 
@@ -213,7 +214,7 @@ def test_rest_run_post_async_with_job(mock_request, patch_ansible):
     assert len(mock_request.mock_calls) == 2
     headers = my_obj.rest_api.build_headers(accept='application/json')
     args['query'].update({'return_timeout': 30})
-    expected_call = call('POST', 'abc', args['query'], json=args['body'], headers=headers)
+    expected_call = call('POST', 'abc', args['query'], json=args['body'], headers=headers, files=None)
     assert expected_call in mock_request.mock_calls
 
 
@@ -242,7 +243,7 @@ def test_rest_run_patch_async_with_job_loop(mock_request, mock_sleep, patch_ansi
     assert len(mock_request.mock_calls) == 3
     headers = my_obj.rest_api.build_headers(accept='application/json')
     args['query'].update({'return_timeout': 30})
-    expected_call = call('PATCH', 'abc', args['query'], json=args['body'], headers=headers)
+    expected_call = call('PATCH', 'abc', args['query'], json=args['body'], headers=headers, files=None)
     assert expected_call in mock_request.mock_calls
 
 
@@ -284,6 +285,7 @@ def test_rest_run_any_async(mock_request, patch_ansible):
     args['method'] = 'ANY'
     args['body'] = {'bkey1': 'bitem1', 'bkey2': 'bitem2'}
     args['query'] = {'qkey1': 'qitem1', 'qkey2': 'qitem2'}
+    args['files'] = {'fkey1': 'fitem1', 'fkey2': 'fitem2'}
     args['wait_for_completion'] = True
     set_module_args(args)
     mock_request.side_effect = [
@@ -297,7 +299,7 @@ def test_rest_run_any_async(mock_request, patch_ansible):
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 1
     headers = my_obj.rest_api.build_headers(accept='application/json')
-    expected_call = call('ANY', 'abc', args['query'], args['body'], headers)
+    expected_call = call('ANY', 'abc', args['query'], args['body'], headers, args['files'])
     assert expected_call in mock_request.mock_calls
 
 
@@ -335,3 +337,9 @@ def test_rest_build_headers(mock_request, patch_ansible):
     my_obj = my_module()
     headers = my_obj.build_headers()
     assert headers == {'X-Dot-Client-App': 'basic.py/%s' % netapp_utils.COLLECTION_VERSION, 'accept': 'application/hal+json'}
+    # Accept header
+    args['accept_header'] = "multipart/form-data"
+    set_module_args(args)
+    my_obj = my_module()
+    headers = my_obj.build_headers()
+    assert headers == {'X-Dot-Client-App': 'basic.py/%s' % netapp_utils.COLLECTION_VERSION, 'accept': 'multipart/form-data'}

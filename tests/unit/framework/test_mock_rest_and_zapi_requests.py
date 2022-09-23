@@ -77,8 +77,9 @@ def test_record_rest_request():
     params = 'PARAMS'
     json = {'record': {'key': 'value'}}
     headers = {}
+    files = {'data': 'value'}
     calls = uut.MockCalls(function_name)
-    calls._record_rest_request(method, api, params, json, headers)
+    calls._record_rest_request(method, api, params, json, headers, files)
     uut.print_requests(function_name)
     assert len([calls.get_requests(method, api)]) == 1
     assert calls.is_record_in_json({'record': {'key': 'value'}}, 'METHOD', 'API')

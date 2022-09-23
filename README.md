@@ -67,6 +67,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Options
   - na_ontap_cluster - `timezone.name` to modify cluster timezone. REST only.
+  - na_ontap_restit - `files` and `accept_header` to support multipart/form-data for write and read.
   - na_ontap_snmp_traphosts - Added `host` option in REST.
   - na_ontap_svm - Added `ndmp` option to services in REST.
 

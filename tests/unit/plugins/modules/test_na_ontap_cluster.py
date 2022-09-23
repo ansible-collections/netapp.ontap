@@ -487,7 +487,7 @@ def test_rest_create_single(mock_request, patch_ansible):
     assert exc.value.args[0]['changed'] is True
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 3
-    post_call = call('POST', 'cluster', {'return_timeout': 30, 'single_node_cluster': True}, json={'name': 'abc'}, headers=None)
+    post_call = call('POST', 'cluster', {'return_timeout': 30, 'single_node_cluster': True}, json={'name': 'abc'}, headers=None, files=None)
     assert post_call in mock_request.mock_calls
 
 
