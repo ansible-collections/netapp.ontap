@@ -398,20 +398,22 @@ class NetAppOntapUser:
             'fields': 'role,applications,locked'
         }
         api = "security/accounts/%s/%s" % (owner_uuid, name)
-        message, error = self.rest_api.get(api, query)
+        response, error = self.rest_api.get(api, query)
         if error:
             self.module.fail_json(msg='Error while fetching user details: %s' % error)
-        if message:
+        if response:
             # replace "none" values with None for comparison
-            for application in message['applications']:
+            for application in response['applications']:
                 if application.get('second_authentication_method') == 'none':
                     application['second_authentication_method'] = None
+                # new read-only attribute in 9.11, breaks idempotency when present
+                application.pop('is_ldap_fastbind', None)
             return_value = {
-                'role_name': message['role']['name'],
-                'applications': message['applications']
+                'role_name': response['role']['name'],
+                'applications': response['applications']
             }
-            if "locked" in message:
-                return_value['lock_user'] = message['locked']
+            if "locked" in response:
+                return_value['lock_user'] = response['locked']
         return return_value
 
     def get_user(self):

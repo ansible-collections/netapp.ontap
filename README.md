@@ -118,6 +118,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_qtree - fix KeyError on unix_permissions.
   - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
+  - na_ontap_user - fix idempotency issue with 9.11 because of new is_ldap_fastbind field.
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
 
 ### Added REST support to existing modules
