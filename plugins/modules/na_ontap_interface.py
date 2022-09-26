@@ -537,7 +537,7 @@ class NetAppOntapInterface:
 
     def derive_interface_type(self):
         protocols = self.parameters.get('protocols')
-        if protocols is None:
+        if protocols in (None, ["none"]):
             if self.parameters.get('role') in ('cluster', 'intercluster'):
                 self.set_interface_type('ip')
             if 'address' in self.parameters or 'netmask' in self.parameters:

@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_ems_destination - improve error messages - augment UT coverage (thanks to bielawb).
   - na_ontap_interface - `dns_domain_name` is now supported from ONTAP 9.9.0 or later in REST.
   - na_ontap_interface - `is_dns_update_enabled` is now supported from ONTAP 9.9.1 or later in REST.
+  - na_ontap_interface - attempt to set interface_type to `ip` when `protocols` is set to "none".
 
 ### New Rest Info
   - All REST GET's up to and including 9.11.1 that do not require a UUID/KEY to be past in are now supported
@@ -110,6 +111,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_cifs - fix KeyError on `unix_symlink` field when using REST.
+  - na_ontap_cifs_acl - use `type` when deleting unix-user or unix-group from ACL in ZAPI.
   - na_ontap_command - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_ems_destination - fix idempotency issue when `type` value is rest_api.
   - na_ontap_interface - improve error message when interface type is required with REST.
@@ -117,7 +119,6 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
   - na_ontap_s3_groups - if `policies` is None module should no longer fail
   - na_ontap_volume_efficiency -- Missing fields in REST get should return None and not crash module.
-  - na_ontap_cifs_acl - use `type` when deleting unix-user or unix-group from ACL in ZAPI.
 
 ### Added REST support to existing modules
   - na_ontap_quotas - added REST support.
