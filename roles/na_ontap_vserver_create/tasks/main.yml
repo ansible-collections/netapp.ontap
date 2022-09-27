@@ -59,21 +59,25 @@
   with_items:
     "{{ fcp }}"
   when: fcp != None
-- name: Create Interface
+- name: Create IP Interface
   na_ontap_interface:
     state: present
     interface_name: "{{ item.name }}"
     home_port: "{{ item.port }}"
     home_node: "{{ item.node }}"
-    role: data
-    protocols: "{{ item.protocol }}"
+    # role and protocols are deprecated
+    role: "{{ omit if item.protocol is not defined else 'data' }}"
+    protocols: "{{ item.protocol | default(omit) }}"
     admin_status: up
-    failover_policy: "{{ omit if item.protocol.lower() is search('iscsi') else 'system-defined' }}"
-    firewall_policy: data
-    is_auto_revert: "{{ 'true' if item.protocol.lower() is not search('iscsi') else omit }}"
+    failover_policy: "{{ omit if (item.protocol is defined and item.protocol.lower() is search('iscsi')) else 'system-defined' }}"
+    # service_policy is prefered over firewall_policy
+    firewall_policy: "{{ omit if item.service_policy is defined else 'data' }}"
+    is_auto_revert: "{{ omit if (item.protocol is defined and item.protocol.lower() is search('iscsi')) else 'true' }}"
     ipspace: "{{ item.ipspace | default(omit) }}"
     broadcast_domain: "{{ item.broadcast_domain | default(omit) }}"
     service_policy: "{{ item.service_policy | default(omit) }}"
+    # only a value of IP is supported for now.  But leave it open for FC.
+    interface_type: "{{ item.interface_type | default(omit) }}"
     address: "{{ item.address }}"
     netmask: "{{ item.netmask }}"
     vserver: "{{ item.vserver }}"

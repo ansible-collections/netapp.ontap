@@ -76,6 +76,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_interface - `dns_domain_name` is now supported from ONTAP 9.9.0 or later in REST.
   - na_ontap_interface - `is_dns_update_enabled` is now supported from ONTAP 9.9.1 or later in REST.
   - na_ontap_interface - attempt to set interface_type to `ip` when `protocols` is set to "none".
+  - na_ontap_vserver_create - `protocol` is now optional.  `role` is not set when protocol is absent.
+  - na_ontap_vserver_create - `firewall_policy` is not set when `service_policy` is present, as `service_policy` is preferred.
+  - na_ontap_vserver_create - added `interface_type`.  Only a value of `ip` is currently supported.
+  - na_ontap_vserver_create - added support for vserver management interface when using REST.
 
 ### New Rest Info
   - All REST GET's up to and including 9.11.1 that do not require a UUID/KEY to be past in are now supported
