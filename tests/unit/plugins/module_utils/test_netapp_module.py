@@ -16,6 +16,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     assert_no_warnings, assert_warning_was_raised, clear_warnings, patch_ansible, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response
+from ansible_collections.netapp.ontap.tests.unit.framework import ut_utilities
 
 
 class MockONTAPModule(object):
@@ -272,7 +273,7 @@ def test_get_modified_attributes_exceptions():
     error = expect_and_capture_ansible_exception(my_obj.na_helper.get_modified_attributes, TypeError, current, desired)
     assert "Expecting dict, got: weekly with current: {'name': 'weekly'}" in error
     # mismatch in types
-    if sys.version_info[0:2] > (3, 0):
+    if sys.version_info[:2] > (3, 0):
         # our cmp function reports an exception.  But python 2.x has it's own version.
         desired = {'schedule': {'name': 12345}, 'state': 'present'}
         error = expect_and_capture_ansible_exception(my_obj.na_helper.get_modified_attributes, TypeError, current, desired)
@@ -386,7 +387,7 @@ def test_filter_typeerror_on_none():
     arg = None
     with pytest.raises(TypeError) as exc:
         my_obj.filter_out_none_entries(arg)
-    if sys.version_info[0:2] < (3, 0):
+    if sys.version_info[:2] < (3, 0):
         # the assert fails on 2.x
         return
     msg = "unexpected type <class 'NoneType'>"
@@ -399,7 +400,7 @@ def test_filter_typeerror_on_str():
     arg = ""
     with pytest.raises(TypeError) as exc:
         my_obj.filter_out_none_entries(arg)
-    if sys.version_info[0:2] < (3, 0):
+    if sys.version_info[:2] < (3, 0):
         # the assert fails on 2.x
         return
     msg = "unexpected type <class 'str'>"
@@ -506,7 +507,7 @@ def get_zapi_info():
 
 def get_zapi_na_element(zapi_info):
     na_element, valid = build_zapi_response(zapi_info)
-    if valid != 'valid' and sys.version_info[0:2] < (2, 7):
+    if valid != 'valid' and sys.version_info[:2] < (2, 7):
         pytest.skip('Skipping Unit Tests on 2.6 as netapp-lib is not available')
     assert valid == 'valid'
     return na_element
@@ -548,24 +549,6 @@ def test_safe_get_dict_of_list():
     assert my_obj.safe_get(my_dict, ['a', 3]) is None
 
 
-def is_indexerror_exception_formatted():
-    """ some versions of python do not format IndexError exception properly
-        the error message is not reported in str() or repr()
-        - fails on 3.5.7 but works on 3.5.10
-        - fails on 3.6.8 but works on 3.6.9
-        - fails on 3.7.4 but works on 3.7.5
-        - fails on 3.8.0 but works on 3.8.1
-    """
-    return (
-        sys.version_info[0:2] == (2, 7)
-        or sys.version_info[0:2] == (3, 5) and sys.version_info[0:3] > (3, 5, 7)
-        or sys.version_info[0:2] == (3, 6) and sys.version_info[0:3] > (3, 6, 8)
-        or sys.version_info[0:2] == (3, 7) and sys.version_info[0:3] > (3, 7, 4)
-        or sys.version_info[0:2] == (3, 8) and sys.version_info[0:3] > (3, 8, 0)
-        or sys.version_info[0:2] >= (3, 9)
-    )
-
-
 def test_safe_get_with_exception():
     na_element = get_zapi_na_element(get_zapi_info())
     my_obj = create_ontap_module({'hostname': None})
@@ -576,12 +559,12 @@ def test_safe_get_with_exception():
     assert 'c' == error
     # IndexError
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', 4], allow_sparse_dict=False)
-    print('EXC', str(error))
-    if is_indexerror_exception_formatted():
+    print('EXC', error)
+    if ut_utilities.is_indexerror_exception_formatted():
         assert 'list index out of range' in str(error)
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, IndexError, get_zapi_info(), ['a', 'bad_stuff', -4], allow_sparse_dict=False)
-    print('EXC', str(error))
-    if is_indexerror_exception_formatted():
+    print('EXC', error)
+    if ut_utilities.is_indexerror_exception_formatted():
         assert 'list index out of range' in str(error)
     # TypeError - not sure I can build a valid ZAPI NaElement that can give a type error, but using a dict worked.
     error = expect_and_capture_ansible_exception(my_obj.na_helper.safe_get, TypeError, get_zapi_info(), ['a', 'bad_stuff', 'extra'], allow_sparse_dict=False)

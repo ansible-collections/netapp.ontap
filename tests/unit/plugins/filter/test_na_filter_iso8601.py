@@ -12,6 +12,7 @@ import sys
 from ansible.errors import AnsibleFilterError
 from ansible_collections.netapp.ontap.plugins.filter import na_filter_iso8601
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+from ansible_collections.netapp.ontap.tests.unit.framework import ut_utilities
 
 if na_filter_iso8601.IMPORT_ERROR and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as isodate is not available')
@@ -36,7 +37,9 @@ def test_negative_iso8601_duration_to_seconds():
     with pytest.raises(AnsibleFilterError) as exc:
         my_obj.filters()['iso8601_duration_to_seconds']('BAD_DATE')
     print('EXC', exc)
-    assert 'BAD_DATE' in str(exc)
+    # exception is not properly formatted with older 3.x versions, assuming same issue as for IndexError
+    if ut_utilities.is_indexerror_exception_formatted():
+        assert 'BAD_DATE' in str(exc)
 
 
 def test_iso8601_duration_from_seconds():
@@ -49,7 +52,8 @@ def test_negative_iso8601_duration_from_seconds_str():
     with pytest.raises(AnsibleFilterError) as exc:
         my_obj.filters()['iso8601_duration_from_seconds']('BAD_INT')
     print('EXC', exc)
-    assert 'BAD_INT' in str(exc)
+    if ut_utilities.is_indexerror_exception_formatted():
+        assert 'BAD_INT' in str(exc)
 
 
 @patch('ansible_collections.netapp.ontap.plugins.filter.na_filter_iso8601.IMPORT_ERROR', 'import failed')
@@ -58,4 +62,5 @@ def test_negative_check_for_import():
     with pytest.raises(AnsibleFilterError) as exc:
         my_obj.filters()['iso8601_duration_to_seconds'](ISO_DURATION)
     print('EXC', exc)
-    assert 'import failed' in str(exc)
+    if ut_utilities.is_indexerror_exception_formatted():
+        assert 'import failed' in str(exc)
