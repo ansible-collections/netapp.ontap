@@ -80,6 +80,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_vserver_create - `firewall_policy` is not set when `service_policy` is present, as `service_policy` is preferred.
   - na_ontap_vserver_create - added `interface_type`.  Only a value of `ip` is currently supported.
   - na_ontap_vserver_create - added support for vserver management interface when using REST.
+  - na_ontap_rest_info - Allowed the support of multiple subsets and warn when using `**` in fields.
 
 ### New Rest Info
   - All REST GET's up to and including 9.11.1 that do not require a UUID/KEY to be past in are now supported

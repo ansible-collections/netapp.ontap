@@ -266,9 +266,13 @@ options:
     elements: str
     description:
       - Request specific fields from subset.
-        '*' to return all the fields, one or more subsets are allowed.
-        '<list of fields>'  to return specified fields, only one subset will be allowed.
-      - If the option is not present, return default REST subset of Api Fields for that API.
+      - Recommended - '<list of fields>' to return specified fields, only one subset will be allowed.
+      - Discouraged - '*' to return all the fields, one or more subsets are allowed. This option can be used for discovery, but is discouraged in production.
+      - Stongly discouraged - '**' to return all the fields, one or more subsets are allowed.
+        This option can put an extra load on the system and should not be used in production.
+      - Limited - '' to return default fields, generally the properties that uniquely identify the record (keys).
+        Other data is not returned by default and need to be explicitly called for using the field name or *.
+      - If the option is not present, return default fields for that API (see '' above).
     version_added: '20.6.0'
   parameters:
     description:
@@ -568,7 +572,7 @@ class NetAppONTAPGatherInfo(object):
         If fields is entered into the playbook the fields entered will be parsed into the API.
         '''
         if api == 'support/autosupport/check':
-            if 'fields' not in self.parameters or '*' in self.parameters['fields']:
+            if 'fields' not in self.parameters or '*' in self.parameters['fields'] or '**' in self.parameters['fields']:
                 fields = '?fields=node,corrective-action,status,error-detail,check-type,check-category'
             else:
                 fields = '?fields=' + ','.join(self.parameters.get('fields'))
@@ -1004,8 +1008,10 @@ class NetAppONTAPGatherInfo(object):
         if self.parameters.get('fields') is not None:
             # If multiple fields specified to return, convert list to string
             self.fields = ','.join(self.parameters.get('fields'))
+            if self.fields == '**':
+                self.module.warn('Using %s can put an extra load on the system and should not be used in production' % self.fields)
 
-            if self.fields != '*' and length_of_subsets > 1:
+            if self.fields not in ('*', '**') and length_of_subsets > 1:
                 # Restrict gather subsets to one subset if fields section is list_of_fields
                 self.module.fail_json(msg="Error: fields: %s, only one subset will be allowed." % self.parameters.get('fields'))
         converted_subsets = self.convert_subsets()
