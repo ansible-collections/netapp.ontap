@@ -28,9 +28,9 @@ options:
     type: str
     default: present
   vserver:
-    required: true
     description:
-      - Name of the vserver to use.
+      - Name of the vserver to use for vserver scope.
+      - If absent or null, cluster scope is assumed.
     type: str
   ciphers:
     description:
@@ -69,7 +69,28 @@ EXAMPLES = """
         ciphers: ["aes256_ctr", "aes192_ctr"]
         key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
         mac_algorithms: ["hmac_sha1"]
-        max_authentication_retry_count": "2"
+        max_authentication_retry_count: 6
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Modify SSH algorithms at cluster level
+      netapp.ontap.na_ontap_security_ssh:
+        vserver:
+        ciphers: ["aes256_ctr", "aes192_ctr"]
+        key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
+        mac_algorithms: ["hmac_sha1"]
+        max_authentication_retry_count: 6
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Modify SSH algorithms at cluster level
+      netapp.ontap.na_ontap_security_ssh:
+        ciphers: ["aes256_ctr", "aes192_ctr"]
+        key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
+        mac_algorithms: ["hmac_sha1"]
+        max_authentication_retry_count: 6
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -77,7 +98,6 @@ EXAMPLES = """
 
 RETURN = """
 """
-import traceback
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -92,7 +112,7 @@ class NetAppOntapSecuritySSH:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
-            vserver=dict(required=True, type='str'),
+            vserver=dict(required=False, type='str'),
             ciphers=dict(required=False, type='list', elements='str'),
             key_exchange_algorithms=dict(required=False, type='list', elements='str', no_log=False),
             mac_algorithms=dict(required=False, type='list', elements='str'),
@@ -103,7 +123,7 @@ class NetAppOntapSecuritySSH:
             argument_spec=self.argument_spec,
             supports_check_mode=True
         )
-        self.na_helper = NetAppModule()
+        self.na_helper = NetAppModule(self)
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.svm_uuid = None
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
@@ -123,11 +143,17 @@ class NetAppOntapSecuritySSH:
 
     def get_security_ssh_rest(self):
         '''
-        Retrieves the SSH server configuration for the SVM.
+        Retrieves the SSH server configuration for the SVM or cluster.
         '''
-        api = 'security/ssh/svms'
-        query = {'svm.name': self.parameters['vserver'],
-                 'fields': 'svm.uuid,key_exchange_algorithms,ciphers,mac_algorithms,max_authentication_retry_count'}
+        fields = ['key_exchange_algorithms', 'ciphers', 'mac_algorithms', 'max_authentication_retry_count']
+        query = {}
+        if self.parameters.get('vserver'):
+            api = 'security/ssh/svms'
+            query['svm.name'] = self.parameters['vserver']
+            fields.append('svm.uuid')
+        else:
+            api = 'security/ssh'
+        query['fields'] = ','.join(fields)
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg=error)
@@ -137,13 +163,16 @@ class NetAppOntapSecuritySSH:
         '''
         Updates the SSH server configuration for the specified SVM.
         '''
-        if self.svm_uuid is None:
-            self.module.fail_json(msg="No uuid found for the SVM")
+        if self.parameters.get('vserver'):
+            if self.svm_uuid is None:
+                self.module.fail_json(msg="Error: no uuid found for the SVM")
+            api = 'security/ssh/svms'
+        else:
+            api = 'security/ssh'
         body = {}
         for option in ('ciphers', 'key_exchange_algorithms', 'mac_algorithms', 'max_authentication_retry_count'):
             if option in modify:
                 body[option] = modify[option]
-        api = 'security/ssh/svms'
         if body:
             dummy, error = rest_generic.patch_async(self.rest_api, api, self.svm_uuid, body)
             if error:
@@ -151,7 +180,7 @@ class NetAppOntapSecuritySSH:
 
     def apply(self):
         current = self.get_security_ssh_rest()
-        self.svm_uuid = current['svm']['uuid'] if current else None
+        self.svm_uuid = self.na_helper.safe_get(current, ['svm', 'uuid']) if current and self.parameters.get('vserver') else None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_security_ssh_rest(modify)
