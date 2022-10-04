@@ -130,6 +130,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_quotas - added REST support.
   - na_ontap_net_subnet - added REST support.
 
+### New Module
+  - na_ontap_security_ssh - Updates the SSH server configuration for the specified SVM - REST only.
+
 ### New Filters
   - iso8601_duration_to_seconds - to convert a duration in ISO 8601 format to seconds.
   - iso8601_duration_from_seconds - to convert seconds to a duration in ISO 8601 format.
