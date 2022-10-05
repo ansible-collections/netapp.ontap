@@ -5,6 +5,79 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.24.0
+========
+
+Minor Changes
+-------------
+
+- All REST GET's up to and including 9.11.1 that do not require a UUID/KEY to be past in are now supported
+- na_ontap_cluster - ``timezone.name`` to modify cluster timezone. REST only.
+- na_ontap_ems_destination - improve error messages - augment UT coverage (thanks to bielawb).
+- na_ontap_interface - ``dns_domain_name`` is now supported from ONTAP 9.9 or later in REST.
+- na_ontap_interface - ``is_dns_update_enabled`` is now supported from ONTAP 9.9.1 or later in REST.
+- na_ontap_interface - attempt to set interface_type to ``ip`` when ``protocols`` is set to "none".
+- na_ontap_net_subnet - added REST support.
+- na_ontap_quotas - Added REST support.
+- na_ontap_rest_info - Allowed the support of multiple subsets and warn when using ``**`` in fields.
+- na_ontap_rest_info - added support for ``network/ip/subnets``.
+- na_ontap_rest_info - support added for cluster.
+- na_ontap_rest_info - support added for cluster/counter/tables.
+- na_ontap_rest_info - support added for cluster/licensing/capacity-pools.
+- na_ontap_rest_info - support added for cluster/licensing/license-managers.
+- na_ontap_rest_info - support added for cluster/metrocluster/svms.
+- na_ontap_rest_info - support added for cluster/sensors.
+- na_ontap_rest_info - support added for name-services/cache/group-membership/settings.
+- na_ontap_rest_info - support added for name-services/cache/host/settings.
+- na_ontap_rest_info - support added for name-services/cache/netgroup/settings.
+- na_ontap_rest_info - support added for name-services/cache/setting.
+- na_ontap_rest_info - support added for name-services/cache/unix-group/settings.
+- na_ontap_rest_info - support added for name-services/ldap-schemas.
+- na_ontap_rest_info - support added for network/fc/fabrics.
+- na_ontap_rest_info - support added for network/fc/interfaces.
+- na_ontap_rest_info - support added for network/fc/interfaces.
+- na_ontap_rest_info - support added for network/ip/subnets.
+- na_ontap_rest_info - support added for protocols/cifs/connections.
+- na_ontap_rest_info - support added for protocols/cifs/netbios.
+- na_ontap_rest_info - support added for protocols/cifs/session/files.
+- na_ontap_rest_info - support added for protocols/cifs/shadow-copies.
+- na_ontap_rest_info - support added for protocols/cifs/shadowcopy-sets.
+- na_ontap_rest_info - support added for protocols/nfs/connected-client-maps.
+- na_ontap_rest_info - support added for security.
+- na_ontap_rest_info - support added for security/multi-admin-verify.
+- na_ontap_rest_info - support added for security/multi-admin-verify/approval-groups.
+- na_ontap_rest_info - support added for security/multi-admin-verify/requests.
+- na_ontap_rest_info - support added for security/multi-admin-verify/rules.
+- na_ontap_rest_info - support added for storage/file/moves.
+- na_ontap_rest_info - support added for storage/pools.
+- na_ontap_restit - support multipart/form-data for read and write.
+- na_ontap_security_ssh - Updates the SSH server configuration for the specified SVM - REST only.
+- na_ontap_snmp_traphosts - Added ``host`` option in REST.
+- na_ontap_svm - Added ``ndmp`` option to services in REST.
+- na_ontap_vserver_create - ``firewall_policy`` is not set when ``service_policy`` is present, as ``service_policy`` is preferred.
+- na_ontap_vserver_create - ``protocol`` is now optional.  ``role`` is not set when protocol is absent.
+- na_ontap_vserver_create - added ``interface_type``.  Only a value of ``ip`` is currently supported.
+- na_ontap_vserver_create - added support for vserver management interface when using REST.
+
+Bugfixes
+--------
+
+- na_ontap_cifs - fix KeyError on ``unix_symlink`` field when using REST.
+- na_ontap_cifs_acl - use ``type`` when deleting unix-user or unix-group from ACL in ZAPI.
+- na_ontap_command - do not run command in check_mode (thanks to darksoul42).
+- na_ontap_ems_destination - fix idempotency issue when ``type`` value is rest_api.
+- na_ontap_interface - improve error message when interface type is required with REST.
+- na_ontap_qtree - fix KeyError on unix_permissions.
+- na_ontap_rest_cli - do not run command in check_mode (thanks to darksoul42).
+- na_ontap_s3_groups - if `policies` is None module should no longer fail
+- na_ontap_user - fix idempotency issue with 9.11 because of new is_ldap_fastbind field.
+- na_ontap_volume_efficiency - Missing fields in REST get should return None and not crash module.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_security_ssh - NetApp ONTAP security ssh
+
 v21.23.0
 ========
 
