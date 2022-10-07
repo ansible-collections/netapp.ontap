@@ -48,7 +48,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.24.0"
+COLLECTION_VERSION = "21.24.1"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
@@ -751,8 +751,8 @@ class OntapRestAPI(object):
         try:
             response = requests.request(method, url, verify=self.verify, params=params,
                                         timeout=self.timeout, json=json, headers=headers, files=files, **auth_args)
-            self.log_debug(status_code, response.content)
             status_code = response.status_code
+            self.log_debug(status_code, response.content)
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
             json_dict, json_error = get_json(response)

@@ -63,6 +63,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 21.24.1
+
+### Bug Fixes
+  - new meta/execution-environment.yml is failing ansible-builder sanitize step.
+
 ## 21.24.0
 
 ### New Options

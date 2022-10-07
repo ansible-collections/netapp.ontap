@@ -5,6 +5,14 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v21.24.1
+========
+
+Bugfixes
+--------
+
+- new meta/execution-environment.yml is failing ansible-builder sanitize step.
+
 v21.24.0
 ========
 
