@@ -281,6 +281,23 @@ def test_rest_successfully_deleted():
     ])
     module_args = {'state': 'absent'}
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+    assert_no_warnings()
+
+
+def test_rest_successfully_deleted_with_warning():
+    ''' delete volume using REST - no app - unmount failed
+    '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume']),              # Get Volume
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # PATCH storage/volumes - unmount
+        ('DELETE', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['empty_good']),      # DELETE storage/volumes
+    ])
+    module_args = {'state': 'absent'}
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised('Volume was successfully deleted though unmount failed with: calling: '
+                              'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.')
 
 
 def test_rest_successfully_deleted_with_app():

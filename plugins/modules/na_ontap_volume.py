@@ -954,7 +954,7 @@ class NetAppOntapVolume:
             ],
             supports_check_mode=True
         )
-        self.na_helper = NetAppModule(self.module)
+        self.na_helper = NetAppModule(self)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
         self.volume_style = None
         self.volume_created = False
@@ -1395,7 +1395,8 @@ class NetAppOntapVolume:
         unmount_error = self.volume_unmount_rest(fail_on_error=False) if current.get('junction_path') else None
         dummy, error = rest_generic.delete_async(self.rest_api, 'storage/volumes', uuid, job_timeout=self.parameters['time_out'])
         self.na_helper.fail_on_error(error, previous_errors=(['Error unmounting volume: %s' % unmount_error] if unmount_error else None))
-        self.module.warn('Volume was successfully deleted though unmount failed with %s' % unmount_error)
+        if unmount_error:
+            self.module.warn('Volume was successfully deleted though unmount failed with: %s' % unmount_error)
 
     def delete_volume_async(self, current):
         '''Delete ONTAP volume for infinite or flexgroup types '''
@@ -1437,8 +1438,8 @@ class NetAppOntapVolume:
         if error:
             errors.append('volume delete failed with unmount-and-offline option: %s' % to_native(error))
             error = self.delete_volume_sync(current, False)
-            if error:
-                errors.append('volume delete failed without unmount-and-offline option: %s' % to_native(error))
+        if error:
+            errors.append('volume delete failed without unmount-and-offline option: %s' % to_native(error))
         if errors:
             self.module.fail_json(msg='Error deleting volume %s: %s'
                                   % (self.parameters['name'], ' - '.join(errors)),
@@ -2285,9 +2286,7 @@ class NetAppOntapVolume:
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg=error)
-        if record:
-            return self.format_get_volume_rest(record)
-        return None
+        return self.format_get_volume_rest(record) if record else None
 
     def rename_volume_rest(self):
         # volume-rename-async and volume-rename are the same in rest
@@ -2420,11 +2419,10 @@ class NetAppOntapVolume:
             ('state', 'is_online', self.bool_to_online),
         ]:
             value = self.parameters.get(option)
+            if value is not None and transform:
+                value = transform(value)
             if value is not None:
-                if transform:
-                    value = transform(value)
-                if value is not None:
-                    body[key] = value
+                body[key] = value
 
         # not too sure why we don't always set them
         # one good reason are fields that are not supported on all releases

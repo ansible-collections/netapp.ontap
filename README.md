@@ -63,6 +63,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.0.0
+
+### Bug Fixes
+  - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
+
 ## 21.24.1
 
 ### Bug Fixes

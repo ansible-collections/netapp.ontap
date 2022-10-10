@@ -26,7 +26,16 @@ class MockONTAPModule(object):
         self.na_helper.set_parameters(self.module.params)
 
 
-def create_ontap_module(args=None):
+class MockONTAPModuleV2(object):
+    def __init__(self):
+        self.module = basic.AnsibleModule(netapp_utils.na_ontap_host_argument_spec())
+        self.na_helper = na_helper(self)
+        self.na_helper.set_parameters(self.module.params)
+
+
+def create_ontap_module(args=None, version=1):
+    if version == 2:
+        return create_module(MockONTAPModuleV2, args)
     return create_module(MockONTAPModule, args)
 
 
@@ -771,9 +780,9 @@ def test_fail_on_error():
     exc = expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, 'fail', 'error_msg', 'api', True)
     assert exc['msg'] == 'Error in expect_and_capture_ansible_exception: calling api: api: error_msg'
     assert exc['stack']
-    delattr(my_obj.na_helper, 'module')
+    delattr(my_obj.na_helper, 'ansible_module')
     assert expect_and_capture_ansible_exception(my_obj.na_helper.fail_on_error, AttributeError, 'error_message') ==\
-        "Expecting self.module to be set when reporting {'msg': 'Error in expect_and_capture_ansible_exception: error_message'}"
+        "Expecting self.ansible_module to be set when reporting {'msg': 'Error in expect_and_capture_ansible_exception: error_message'}"
 
 
 def test_cmp():
@@ -790,25 +799,25 @@ def test_cmp():
 
 
 def test_fall_back_to_zapi():
-    my_obj = create_ontap_module({'hostname': 'abc'})
+    my_obj = create_ontap_module({'hostname': 'abc'}, version=2)
     parameters = {'use_rest': 'never'}
-    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.module, 'some message', parameters) is None
+    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.ansible_module, 'some message', parameters) is None
     assert_no_warnings()
 
     parameters = {'use_rest': 'auto'}
-    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.module, 'some message', parameters) is False
+    assert my_obj.na_helper.fall_back_to_zapi(my_obj.na_helper.ansible_module, 'some message', parameters) is False
     assert_warning_was_raised('Falling back to ZAPI: some message')
 
     parameters = {'use_rest': 'always'}
     clear_warnings()
-    assert expect_and_capture_ansible_exception(my_obj.na_helper.fall_back_to_zapi, 'fail', my_obj.na_helper.module, 'some message', parameters)['msg'] ==\
-        'Error: some message'
+    assert 'Error: some message' in expect_and_capture_ansible_exception(
+        my_obj.na_helper.fall_back_to_zapi, 'fail', my_obj.na_helper.ansible_module, 'some message', parameters)['msg']
     assert_no_warnings()
 
 
 def test_module_deprecated():
     my_obj = create_ontap_module({'hostname': 'abc'})
-    assert my_obj.na_helper.module_deprecated(my_obj.na_helper.module) is None
+    assert my_obj.na_helper.module_deprecated(my_obj.na_helper.ansible_module) is None
     assert_warning_was_raised('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
                               'of ONTAP when ONTAPI is deprecated in CY22-Q4')
 
@@ -816,7 +825,7 @@ def test_module_deprecated():
 def test_module_replaces():
     my_obj = create_ontap_module({'hostname': 'abc'})
     new_module = 'na_ontap_new_modules'
-    assert my_obj.na_helper.module_replaces(new_module, my_obj.na_helper.module) is None
+    assert my_obj.na_helper.module_replaces(new_module, my_obj.na_helper.ansible_module) is None
     assert_warning_was_raised('netapp.ontap.%s should be used instead.' % new_module)
 
 

@@ -67,7 +67,17 @@ class NetAppModule(object):
     '''
 
     def __init__(self, module=None):
-        self.module = module
+        # we can call this with module set to self or self.module
+        # self is a NetApp module, while self.module is the AnsibleModule object
+        self.netapp_module = None
+        self.ansible_module = module
+        if module and getattr(module, 'module', None) is not None:
+            self.netapp_module = module
+            self.ansible_module = module.module
+        # When using self or self.module, this gives access to:
+        #       self.ansible_module.fail_json
+        # When using self, this gives access to:
+        #       self.netapp_module.rest_api.log_debug
         self.log = []
         self.changed = False
         self.parameters = {'name': 'not initialized'}
@@ -271,6 +281,8 @@ class NetAppModule(object):
 
         # collect changed attributes
         for key, value in current.items():
+            # if self.netapp_module:
+            #     self.netapp_module.rest_api.log_debug('KDV', "%s:%s:%s" % (key, desired.get(key), value))
             if desired.get(key) is not None:
                 modified_value = None
                 if isinstance(value, list):
@@ -282,6 +294,8 @@ class NetAppModule(object):
                         result = cmp(value, desired[key])
                     except TypeError as exc:
                         raise TypeError("%s, key: %s, value: %s, desired: %s" % (repr(exc), key, repr(value), repr(desired[key])))
+                    # if self.netapp_module:
+                    #     self.netapp_module.rest_api.log_debug('RESULT', result)
                     if result != 0:
                         modified_value = desired[key]
                 if modified_value is not None:
@@ -386,7 +400,7 @@ class NetAppModule(object):
             return value == 'true', None
         if convert_to == 'bool_online':
             return value == 'online', None
-        self.module.fail_json(msg='Error: Unexpected value for convert_to: %s' % convert_to)
+        self.ansible_module.fail_json(msg='Error: Unexpected value for convert_to: %s' % convert_to)
 
     def zapi_get_value(self, na_element, key_list, required=False, default=None, convert_to=None):
         """ read a value from na_element using key_list
@@ -396,7 +410,7 @@ class NetAppModule(object):
             If convert_to is set to str, bool, int, the ZAPI value is converted from str to the desired type.
                 suported values: None, the python types int, str, bool, special 'bool_online'
 
-        Errors: self.module.fail_json is called for:
+        Errors: fail_json is called for:
             - a key is not found and required=True,
             - a format conversion error
         """
@@ -410,7 +424,7 @@ class NetAppModule(object):
         else:
             value, error = self.convert_value(value, convert_to) if value is not None else (default, None)
         if error:
-            self.module.fail_json(msg='Error reading %s from %s: %s' % (saved_key_list, na_element.to_string(), error))
+            self.ansible_module.fail_json(msg='Error reading %s from %s: %s' % (saved_key_list, na_element.to_string(), error))
         return value
 
     def zapi_get_attrs(self, na_element, attr_dict, result):
@@ -428,7 +442,7 @@ class NetAppModule(object):
             When the value is None, if omitnone is False, a None value is recorded, if True, the key is not set.
         result: an existing dictionary.  keys are added or updated based on attrs.
 
-        Errors: self.module.fail_json is called for:
+        Errors: fail_json is called for:
             - a key is not found and required=True,
             - a format conversion error
         """
@@ -519,9 +533,9 @@ class NetAppModule(object):
             results['stack'] = traceback.format_stack()
         if previous_errors:
             results['previous_errors'] = ' - '.join(previous_errors)
-        if getattr(self, 'module', None) is not None:
-            self.module.fail_json(**results)
-        raise AttributeError('Expecting self.module to be set when reporting %s' % repr(results))
+        if getattr(self, 'ansible_module', None) is not None:
+            self.ansible_module.fail_json(**results)
+        raise AttributeError('Expecting self.ansible_module to be set when reporting %s' % repr(results))
 
     def compare_chmod_value(self, current_permissions, desired_permissions):
         """
@@ -575,7 +589,8 @@ class NetAppModule(object):
             return False
         if vserver_name is None:
             if self.parameters.get('vserver') is None:
-                self.module.fail_json(msg='Internal error, vserver name is required, when processing error: %s' % error, exception=traceback.format_exc())
+                self.ansible_module.fail_json(
+                    msg='Internal error, vserver name is required, when processing error: %s' % error, exception=traceback.format_exc())
             vserver_name = self.parameters['vserver']
         if isinstance(error, str):
             pass
@@ -583,9 +598,11 @@ class NetAppModule(object):
             if 'message' in error:
                 error = error['message']
             else:
-                self.module.fail_json(msg='Internal error, error should contain "message" key, found: %s' % error, exception=traceback.format_exc())
+                self.ansible_module.fail_json(
+                    msg='Internal error, error should contain "message" key, found: %s' % error, exception=traceback.format_exc())
         else:
-            self.module.fail_json(msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
+            self.ansible_module.fail_json(
+                msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
         return 'SVM "%s" does not exist.' % self.parameters['vserver'] in error
 
     def remove_hal_links(self, records):
