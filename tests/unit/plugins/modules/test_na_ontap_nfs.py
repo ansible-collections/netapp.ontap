@@ -10,15 +10,16 @@ import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import create_and_apply, set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_no_warnings, assert_warning_was_raised, call_main, create_and_apply, print_warnings, set_module_args,\
+    AnsibleExitJson, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_nfs \
-    import NetAppONTAPNFS as nfs_module  # module under test
+    import NetAppONTAPNFS as nfs_module, main as my_main    # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -196,10 +197,8 @@ class TestMyModule(unittest.TestCase):
 
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            nfs_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+        error = 'missing required arguments'
+        assert error in call_main(my_main, {}, fail=True)['msg']
 
     def test_get_nonexistent_nfs(self):
         ''' Test if get_nfs_service returns None for non-existent nfs '''
@@ -322,3 +321,21 @@ def test_modify_tcp_max_xfer_size():
     assert not create_and_apply(nfs_module, DEFAULT_ARGS, module_args)['changed']
     error = 'Error: tcp_max_xfer_size is not supported on ONTAP 9.3 or earlier.'
     assert create_and_apply(nfs_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
+    assert_no_warnings()
+
+
+def test_warning_on_nfsv41_alias():
+    ''' if ZAPI returned a None value, a modify is attempted '''
+    register_responses([
+        # ONTAP 9.4 and later, tcp_max_xfer_size is an INT
+        ('ZAPI', 'ems-autosupport-log', SRR['success']),
+        ('ZAPI', 'nfs-service-get-iter', SRR['nfs_info']),
+        ('ZAPI', 'nfs-status', SRR['success']),
+        ('ZAPI', 'nfs-service-modify', SRR['success']),
+    ])
+    module_args = {
+        'nfsv4.1': 'disabled'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')

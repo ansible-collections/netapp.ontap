@@ -24,18 +24,19 @@ description:
 options:
     banner:
         description:
-        - Login banner Text message.
+          - Login banner Text message.
         type: str
     vserver:
         description:
-        - The name of the SVM login messages should be set for.
-        - With ZAPI, this option is required.  This a cluster or data SVM.
-        - With REST, this is a data SVM.
-        - With REST, cluster scope is assumed when this option is absent.
+          - The name of the SVM login messages should be set for.
+          - With ZAPI, this option is required.  This a cluster or data SVM.
+          - With REST, this is a data SVM.
+          - With REST, cluster scope is assumed when this option is absent.
         type: str
     motd_message:
         description:
-        - MOTD Text message.
+          - MOTD Text message.
+          - message is deprecated and will be removed to avoid a conflict with an Ansible internal variable.
         type: str
         aliases:
           - message
@@ -124,6 +125,8 @@ class NetAppOntapLoginMessages:
             if not self.parameters.get('vserver'):
                 self.module.fail_json(msg="Error: vserver is a required parameter when using ZAPI.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        if 'message' in self.parameters:
+            self.module.warn('Error: "message" option conflicts with Ansible internal variable - please use "motd_message".')
 
     def get_banner_motd(self):
         if self.use_rest:
@@ -208,7 +211,6 @@ class NetAppOntapLoginMessages:
         return '', False
 
     def modify_rest(self, modify, uuid):
-        api = 'security/login/messages'
         body = {
         }
         if 'banner' in modify:
@@ -218,6 +220,7 @@ class NetAppOntapLoginMessages:
         if modify.get('show_cluster_motd') is not None:
             body['show_cluster_message'] = modify['show_cluster_motd']
         if body:
+            api = 'security/login/messages'
             dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
             if error:
                 keys = list(body.keys())

@@ -66,7 +66,7 @@ options:
       - Can not be modified. If want to change password, delete and re-create the initiator.
     type: str
 short_description: "NetApp ONTAP Manage iscsi security."
-version_added: "19.10.1"
+version_added: "19.11.0"
 '''
 
 EXAMPLES = """
@@ -169,8 +169,7 @@ class NetAppONTAPIscsiSecurity():
             self.module.fail_json(msg="Error on fetching initiator: %s" % error)
         if message['num_records'] > 0:
             record = message['records'][0]
-            initiator_details = dict()
-            initiator_details['auth_type'] = record['authentication_type']
+            initiator_details = {'auth_type': record['authentication_type']}
             if initiator_details['auth_type'] == 'chap':
                 if record['chap'].get('inbound'):
                     initiator_details['inbound_username'] = record['chap']['inbound']['user']
@@ -190,9 +189,9 @@ class NetAppONTAPIscsiSecurity():
                             ranges.append(address_range['start'] + '-' + address_range['end'])
                     initiator_details['address_ranges'] = ranges
                 else:
-                    initiator_details['address_ranges'] = list()
+                    initiator_details['address_ranges'] = []
             else:
-                initiator_details['address_ranges'] = list()
+                initiator_details['address_ranges'] = []
             return initiator_details
 
     def create_initiator(self):
@@ -200,21 +199,23 @@ class NetAppONTAPIscsiSecurity():
         Create initiator.
         :return: None.
         """
-        params = dict()
-        params['authentication_type'] = self.parameters['auth_type']
-        params['initiator'] = self.parameters['initiator']
+        body = {
+            'authentication_type': self.parameters['auth_type'],
+            'initiator': self.parameters['initiator']
+        }
+
         if self.parameters['auth_type'] == 'chap':
-            chap_info = dict()
-            chap_info['inbound'] = {'user': self.parameters['inbound_username'], 'password': self.parameters['inbound_password']}
+            chap_info = {'inbound': {'user': self.parameters['inbound_username'], 'password': self.parameters['inbound_password']}}
+
             if self.parameters.get('outbound_username'):
                 chap_info['outbound'] = {'user': self.parameters['outbound_username'], 'password': self.parameters['outbound_password']}
-            params['chap'] = chap_info
+            body['chap'] = chap_info
         address_info = self.get_address_info(self.parameters.get('address_ranges'))
         if address_info is not None:
-            params['initiator_address'] = {'ranges': address_info}
-        params['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
+            body['initiator_address'] = {'ranges': address_info}
+        body['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
         api = '/protocols/san/iscsi/credentials'
-        dummy, error = self.rest_api.post(api, params)
+        dummy, error = self.rest_api.post(api, body)
         if error is not None:
             self.module.fail_json(msg="Error on creating initiator: %s" % error)
 
@@ -234,14 +235,14 @@ class NetAppONTAPIscsiSecurity():
         :param modify: dict of modify attributes.
         :return: None.
         """
-        params = dict()
+        body = {}
         use_chap = False
         chap_update = False
         chap_update_inbound = False
         chap_update_outbound = False
 
         if modify.get('auth_type'):
-            params['authentication_type'] = modify.get('auth_type')
+            body['authentication_type'] = modify.get('auth_type')
             if modify['auth_type'] == 'chap':
                 # change in auth_type
                 chap_update = True
@@ -278,33 +279,32 @@ class NetAppONTAPIscsiSecurity():
                 chap_info['inbound'] = {'user': current.get('inbound_username'), 'password': current.get('inbound_password')}
             if chap_update_outbound:
                 chap_info['outbound'] = {'user': self.parameters['outbound_username'], 'password': self.parameters['outbound_password']}
-            params['chap'] = chap_info
+            body['chap'] = chap_info
             # PATCH fails if this is not present, even though there is no change
-            params['authentication_type'] = 'chap'
+            body['authentication_type'] = 'chap'
 
         address_info = self.get_address_info(modify.get('address_ranges'))
         if address_info is not None:
-            params['initiator_address'] = {'ranges': address_info}
+            body['initiator_address'] = {'ranges': address_info}
         api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
-        dummy, error = self.rest_api.patch(api, params)
+        dummy, error = self.rest_api.patch(api, body)
         if error is not None:
-            self.module.fail_json(msg="Error on modifying initiator: %s - params: %s" % (error, params))
+            self.module.fail_json(msg="Error on modifying initiator: %s - params: %s" % (error, body))
 
     def get_address_info(self, address_ranges):
         if address_ranges is None:
             return None
-        else:
-            address_info = []
-            for address in address_ranges:
-                address_range = {}
-                if '-' in address:
-                    address_range['end'] = address.split('-')[1]
-                    address_range['start'] = address.split('-')[0]
-                else:
-                    address_range['end'] = address
-                    address_range['start'] = address
-                address_info.append(address_range)
-            return address_info
+        address_info = []
+        for address in address_ranges:
+            address_range = {}
+            if '-' in address:
+                address_range['end'] = address.split('-')[1]
+                address_range['start'] = address.split('-')[0]
+            else:
+                address_range['end'] = address
+                address_range['start'] = address
+            address_info.append(address_range)
+        return address_info
 
     def apply(self):
         """

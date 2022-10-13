@@ -52,7 +52,7 @@ options:
       - Once the package file is downloaded to a node, the firmware update will happen automatically in background.
       - For SP, the upgrade will happen automatically when a node is rebooted.
       - For SP, the upgrade will happen automatically if autoupdate is enabled (which is the recommended setting).
-    version_added: "20.4.1"
+    version_added: "20.5.0"
     type: str
   force_disruptive_update:
     description:
@@ -61,7 +61,7 @@ options:
       - It will force an update even if the resource is not ready for it, and can be disruptive.
       - Not supported with REST when set to true.
     type: bool
-    version_added: "20.4.1"
+    version_added: "20.5.0"
     default: false
   shelf_module_fw:
     description:
@@ -122,14 +122,14 @@ options:
       - Only available if 'firmware_type' is 'service-processor'.
       - Not supported with REST.
     type: str
-    version_added: "20.6.1"
+    version_added: "20.7.0"
   replace_package:
     description:
       - Replace the local package.
       - Only available if 'firmware_type' is 'service-processor'.
       - Not supported with REST when set to false.
     type: bool
-    version_added: "20.6.1"
+    version_added: "20.7.0"
   reboot_sp:
     description:
       - Reboot service processor before downloading package.
@@ -138,7 +138,7 @@ options:
       - Set this explictly to true to avoid a warning, and to false to not reboot the SP.
       - Rebooting the SP before download is strongly recommended.
     type: bool
-    version_added: "20.6.1"
+    version_added: "20.7.0"
   reboot_sp_after_download:
     description:
       - Reboot service processor after downloading package.
@@ -339,15 +339,12 @@ class NetAppONTAPFirmwareUpgrade:
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = ['package', 'update_type', 'rename_package', 'shelf_module_fw', 'disk_fw']
         # only accept default value for these 5 options (2 True and 3 False)
-        for option in ('clear_logs', 'replace_package'):
-            # accept the default value (for replace_package, this is implicit for REST)
-            # but switch to ZAPI or error out if set to False
-            if self.parameters.get(option) is False:
-                unsupported_rest_properties.append('clear_logs')
-        for option in ('install_baseline_image', 'force_disruptive_update', 'fail_on_502_error'):
-            # accept the default value of False, but switch to ZAPI or error out if set to True
-            if self.parameters[option]:
-                unsupported_rest_properties.append(option)
+        # accept the default value (for replace_package, this is implicit for REST) but switch to ZAPI or error out if set to False
+        unsupported_rest_properties.extend(option for option in ('clear_logs', 'replace_package') if self.parameters.get(option) is False)
+        # accept the default value of False, but switch to ZAPI or error out if set to True
+        unsupported_rest_properties.extend(option for option in ('install_baseline_image', 'force_disruptive_update', 'fail_on_502_error')
+                                           if self.parameters[option])
+
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
 
         if self.parameters.get('firmware_type') == 'storage' and self.parameters.get('force_disruptive_update'):
@@ -366,8 +363,8 @@ class NetAppONTAPFirmwareUpgrade:
             if self.parameters.get('install_baseline_image') and self.parameters.get('package') is not None:
                 self.module.fail_json(msg=msg + 'do not specify both package and install_baseline_image: true.')
             if self.parameters.get('force_disruptive_update') \
-               and self.parameters.get('install_baseline_image') is False \
-               and self.parameters.get('package') is None:
+                    and self.parameters.get('install_baseline_image') is False \
+                    and self.parameters.get('package') is None:
                 self.module.fail_json(msg=msg + 'specify at least one of package or install_baseline_image: true.')
 
         if not self.use_rest:
@@ -760,11 +757,10 @@ class NetAppONTAPFirmwareUpgrade:
         api = 'cluster/nodes'
         body = {'service_processor.action': 'reboot'}
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
-        if error:
-            if 'Unexpected argument "service_processor.action"' in error:
-                error = self.reboot_sp_rest_cli()
-                if error:
-                    error = 'reboot_sp requires ONTAP 9.10.1 or newer, falling back to CLI passthrough failed: ' + error
+        if error and 'Unexpected argument "service_processor.action"' in error:
+            error = self.reboot_sp_rest_cli()
+            if error:
+                error = 'reboot_sp requires ONTAP 9.10.1 or newer, falling back to CLI passthrough failed: ' + error
         if error:
             self.module.fail_json(msg='Error rebooting node SP: %s' % error)
 
@@ -847,11 +843,12 @@ class NetAppONTAPFirmwareUpgrade:
 
         elif self.parameters.get('firmware_type') == 'shelf':
             # shelf firmware upgrade
-            if self.parameters.get('shelf_module_fw') and self.shelf_firmware_update_required():
-                changed = self.shelf_firmware_upgrade() if not self.module.check_mode else True
+            if self.parameters.get('shelf_module_fw'):
+                if self.shelf_firmware_update_required():
+                    changed = True if self.module.check_mode else self.shelf_firmware_upgrade()
             else:
                 # with check_mode, we don't know until we try the upgrade -- assuming the worst
-                changed = self.shelf_firmware_upgrade() if not self.module.check_mode else True
+                changed = True if self.module.check_mode else self.shelf_firmware_upgrade()
         elif self.parameters.get('firmware_type') == 'acp' and self.acp_firmware_update_required():
             # acp firmware upgrade
             if not self.module.check_mode:
@@ -859,11 +856,12 @@ class NetAppONTAPFirmwareUpgrade:
             changed = True
         elif self.parameters.get('firmware_type') == 'disk':
             # Disk firmware upgrade
-            if self.parameters.get('disk_fw') and self.disk_firmware_update_required():
-                changed = self.disk_firmware_upgrade() if not self.module.check_mode else True
+            if self.parameters.get('disk_fw'):
+                if self.disk_firmware_update_required():
+                    changed = True if self.module.check_mode else self.disk_firmware_upgrade()
             else:
                 # with check_mode, we don't know until we try the upgrade -- assuming the worst
-                changed = self.disk_firmware_upgrade() if not self.module.check_mode else True
+                changed = True if self.module.check_mode else self.disk_firmware_upgrade()
         self.module.exit_json(changed=changed, msg='forced update for %s' % self.parameters.get('firmware_type'))
 
 

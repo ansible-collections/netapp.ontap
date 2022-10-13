@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -32,28 +32,29 @@ options:
 
   name:
     description:
-    - The name of the node to send the message to.
-    - Not specifying this option invokes AutoSupport on all nodes in the cluster.
+      - The name of the node to send the message to.
+      - Not specifying this option invokes AutoSupport on all nodes in the cluster.
     type: str
 
   autosupport_message:
     description:
-    - Text sent in the subject line of the AutoSupport message.
+      - Text sent in the subject line of the AutoSupport message.
+      - message is deprecated and will be removed to avoid a conflict with an Ansible internal variable.
     type: str
     aliases:
-    - message
+      - message
     version_added: 20.8.0
 
   type:
     description:
-    - Type of AutoSupport Collection to Issue.
+      - Type of AutoSupport Collection to Issue.
     choices: ['test', 'performance', 'all']
     default: 'all'
     type: str
 
   uri:
     description:
-    - send the AutoSupport message to the destination you specify instead of the configured destination.
+      - send the AutoSupport message to the destination you specify instead of the configured destination.
     type: str
 
 '''
@@ -62,7 +63,7 @@ EXAMPLES = '''
     - name: Send message
       na_ontap_autosupport_invoke:
         name: node1
-        message: invoked test autosupport rest
+        autosupport_message: invoked test autosupport rest
         uri: http://1.2.3.4/delivery_uri
         type: test
         hostname: "{{ hostname }}"
@@ -103,19 +104,20 @@ class NetAppONTAPasupInvoke(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        if 'message' in self.parameters:
+            self.module.warn('Error: "message" option conflicts with Ansible internal variable - please use "autosupport_message".')
 
         # REST API should be used for ONTAP 9.6 or higher.
         self.rest_api = OntapRestAPI(self.module)
         if self.rest_api.is_rest():
             self.use_rest = True
         else:
-            if not HAS_NETAPP_LIB:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def get_nodes(self):
-        nodes = list()
+        nodes = []
         node_obj = netapp_utils.zapi.NaElement('system-node-get-iter')
         desired_attributes = netapp_utils.zapi.NaElement('desired-attributes')
         node_details_info = netapp_utils.zapi.NaElement('node-details-info')
@@ -126,8 +128,7 @@ class NetAppONTAPasupInvoke(object):
             result = self.server.invoke_successfully(node_obj, True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg=to_native(error), exception=traceback.format_exc())
-        if result.get_child_by_name('num-records') and \
-                int(result.get_child_content('num-records')) > 0:
+        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
             node_info = result.get_child_by_name('attributes-list')
             if node_info is not None:
                 nodes = [node_details.get_child_content('node') for node_details in node_info.get_children()]
@@ -144,7 +145,7 @@ class NetAppONTAPasupInvoke(object):
                                   exception=traceback.format_exc())
 
     def send_message(self):
-        params = dict()
+        params = {}
         if self.parameters.get('autosupport_message'):
             params['message'] = self.parameters['autosupport_message']
         if self.parameters.get('type'):
@@ -180,9 +181,7 @@ class NetAppONTAPasupInvoke(object):
     def apply(self):
         if not self.use_rest:
             self.ems_log_event()
-        if self.module.check_mode:
-            pass
-        else:
+        if not self.module.check_mode:
             self.send_message()
         self.module.exit_json(changed=True)
 

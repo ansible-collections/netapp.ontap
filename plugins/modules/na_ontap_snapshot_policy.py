@@ -62,7 +62,7 @@ options:
     type: list
     elements: str
     required: false
-    version_added: '19.10.1'
+    version_added: '19.11.0'
   snapmirror_label:
     description:
     - SnapMirror label assigned to each schedule inside the policy. Use an empty

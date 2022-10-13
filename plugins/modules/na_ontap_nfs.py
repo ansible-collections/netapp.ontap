@@ -58,6 +58,8 @@ options:
   nfsv41:
     description:
       - status of NFSv41.
+      - usage of C(nfsv4.1) is deprecated as it does not match Ansible naming convention.  The alias will be removed.
+      - please use C(nfsv41) exclusively for this option.
     aliases: ['nfsv4.1']
     choices: ['enabled', 'disabled']
     type: str
@@ -184,9 +186,6 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
-
 class NetAppONTAPNFS:
     """ object initialize and class methods """
 
@@ -260,12 +259,13 @@ class NetAppONTAPNFS:
                                        'tcp_max_xfer_size']
         partially_supported_rest_properties = [['showmount', (9, 8)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        if 'nfsv4.1' in self.parameters:
+            self.module.warn('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')
         self.svm_uuid = None
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_nfs_service(self):
         if self.use_rest:
@@ -407,9 +407,7 @@ class NetAppONTAPNFS:
         if error:
             self.module.fail_json(msg='Error getting nfs services for SVM %s: %s' % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
-        if record:
-            return self.format_get_nfs_service_rest(record)
-        return record
+        return self.format_get_nfs_service_rest(record) if record else record
 
     def format_get_nfs_service_rest(self, record):
         return {

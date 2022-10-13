@@ -15,4 +15,4 @@ collections:
   # Install a collection from GitHub.
   - source: https://github.com/ansible-collections/netapp.ontap.git
     type: git
-    version: test_ee_24
+    version: 21.24.1
