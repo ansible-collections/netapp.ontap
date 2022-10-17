@@ -52,14 +52,14 @@ MOCK_VOL = {
 }
 
 
-def volume_info(style, vol_details=None, remove_keys=None):
+def volume_info(style, vol_details=None, remove_keys=None, encrypt='false'):
     if not vol_details:
         vol_details = MOCK_VOL
     info = copy.deepcopy({
         'num-records': 1,
         'attributes-list': {
             'volume-attributes': {
-                'encrypt': 'false',
+                'encrypt': encrypt,
                 'volume-id-attributes': {
                     'aggr-list': vol_details['aggregate'],
                     'containing-aggregate-name': vol_details['aggregate'],
@@ -201,6 +201,7 @@ def sis_info():
 ZRR = zapi_responses({
     'get_flexgroup': build_zapi_response(volume_info('flexgroup')),
     'get_flexvol': build_zapi_response(volume_info('flexvol')),
+    'get_flexvol_encrypted': build_zapi_response(volume_info('flexvol', encrypt='true')),
     'get_flexvol_no_online_key': build_zapi_response(volume_info('flexvol', remove_keys=['is_online'])),
     'job_failure': build_zapi_response(job_info('failure', 'failure')),
     'job_other': build_zapi_response(job_info('other', 'other_error')),
@@ -838,8 +839,33 @@ def test_successful_move():
         'aggregate_name': 'different_aggr',
         'cutover_action': 'abort_on_failure',
         'encrypt': True,
-        'wait_for_completion': True,
+        'wait_for_completion': True
     }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_unencrypt_volume():
+    ''' Test successful modify aggregate '''
+    register_responses([
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol_encrypted']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-move-start', ZRR['success']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_idle']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'volume-get-iter', ZRR['get_flexvol_encrypted']),
+        ('ZAPI', 'sis-get-iter', ZRR['no_records']),
+        ('ZAPI', 'volume-move-start', ZRR['success']),
+        ('ZAPI', 'volume-move-get-iter', ZRR['vol_move_status_idle']),
+    ])
+    # without aggregate
+    module_args = {
+        'encrypt': False,
+        'wait_for_completion': True
+    }
+    assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
+    # with aggregate.
+    module_args['aggregate_name'] = 'test_aggr'
     assert create_and_apply(vol_module, DEFAULT_ARGS, module_args)['changed']
 
 
@@ -1807,7 +1833,8 @@ def test_start_encryption_conversion(skip_sleep):
         ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['vol_encryption_conversion_status_idle']),
     ])
     module_args = {
-        'wait_for_completion': True
+        'wait_for_completion': True,
+        'max_wait_time': 120
     }
     my_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
     assert my_obj.start_encryption_conversion(True) is None
@@ -1828,7 +1855,8 @@ def test_error_on_wait_for_start_encryption_conversion(skip_sleep):
         ('ZAPI', 'volume-encryption-conversion-get-iter', ZRR['error']),
     ])
     module_args = {
-        'wait_for_completion': True
+        'wait_for_completion': True,
+        'max_wait_time': 280
     }
     my_obj = create_module(vol_module, DEFAULT_ARGS, module_args)
     error = expect_and_capture_ansible_exception(my_obj.start_encryption_conversion, 'fail', True)['msg']

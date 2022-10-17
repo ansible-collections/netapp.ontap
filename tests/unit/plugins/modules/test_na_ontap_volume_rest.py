@@ -133,6 +133,10 @@ SRR = rest_responses({
                                   {'records': ['one']}, None),
     'get_aggr_two_object_stores': (200,
                                    {'records': ['two']}, None),
+    'move_state_replicating': (200, {'movement': {'state': 'replicating'}}, None),
+    'move_state_success': (200, {'movement': {'state': 'success'}}, None),
+    'encrypting': (200, {'encryption': {'status': {'message': 'initializing'}}}, None),
+    'encrypted': (200, {'encryption': {'state': 'encrypted'}}, None)
 })
 
 DEFAULT_APP_ARGS = {
@@ -665,14 +669,37 @@ def test_rest_successfully_create_volume_encrypt():
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
-def test_rest_successfully_modify_volume_encrypt():
+@patch('time.sleep')
+def test_rest_successfully_modify_volume_encrypt(sleep):
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['get_volume_encrypt_off']),  # Get Volume
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),  # Set Encryption
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume_encrypt_off']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+        ('GET', 'storage/volumes', SRR['encrypting']),
+        ('GET', 'storage/volumes', SRR['encrypting']),
+        ('GET', 'storage/volumes', SRR['encrypting']),
+        ('GET', 'storage/volumes', SRR['encrypted']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume_encrypt_off']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume'])
     ])
     module_args = {'encrypt': True}
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    module_args = {'encrypt': True, 'wait_for_completion': True}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    error = 'Error getting volume encryption_conversion status'
+    assert error in create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    error = 'unencrypting volume is only supported when moving the volume to another aggregate in REST'
+    assert error in create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'encrypt': False}, fail=True)['msg']
 
 
 def test_rest_error_modify_volume_encrypt():
@@ -1280,3 +1307,26 @@ def test_set_efficiency_rest_empty_body():
     obj = create_module(volume_module, DEFAULT_VOLUME_ARGS)
     # no action
     assert obj.set_efficiency_rest() is None
+
+
+@patch('time.sleep')
+def test_volume_move_rest(sleep):
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'storage/volumes', SRR['get_volume_mount']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+        ('GET', 'storage/volumes', SRR['move_state_replicating']),
+        ('GET', 'storage/volumes', SRR['move_state_success']),
+        # error when trying to get volume status
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'storage/volumes', SRR['get_volume_mount']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'storage/volumes', SRR['generic_error'])
+    ])
+    args = {'aggregate_name': 'aggr2', 'wait_for_completion': True, 'max_wait_time': 280}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args)['changed']
+    error = "Error getting volume move status"
+    assert error in create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args, fail=True)['msg']

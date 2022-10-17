@@ -65,7 +65,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.0.0
 
+### Minor Changes
+  - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
+
+### New Options
+  - na_ontap_volume - new option `max_wait_time` added.
+
 ### Bug Fixes
+  - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
+  - na_ontap_volume - fix error when trying to unencrypt volume in REST.
+  - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
 
 ## 21.24.1

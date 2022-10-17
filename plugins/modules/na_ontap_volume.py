@@ -327,10 +327,21 @@ options:
     - With REST - time to wait for any volume creation, modification, or deletion in seconds.
     - Error out if task is not completed in defined time.
     - With ZAPI - if 0, the request is asynchronous.
-    - default is set to 3 minutes.
+    - Default is set to 3 minutes.
+    - Use C(max_wait_time) and C(wait_for_completion) for volume move and encryption operations.
     default: 180
     type: int
     version_added: 2.8.0
+
+  max_wait_time:
+    description:
+      - Volume move and encryption operations might take longer time to complete.
+      - With C(wait_for_completion) set, module will wait for time set in this option for volume move and encryption to complete.
+      - If time exipres, module exit and the operation may still running.
+      - Default is set to 10 minutes.
+    default: 600
+    type: int
+    version_added: 22.0.0
 
   language:
     description:
@@ -887,6 +898,7 @@ class NetAppOntapVolume:
             auto_provision_as=dict(choices=['flexgroup'], required=False, type='str'),
             wait_for_completion=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=180),
+            max_wait_time=dict(required=False, type='int', default=600),
             language=dict(type='str', required=False),
             qos_policy_group=dict(required=False, type='str'),
             qos_adaptive_policy_group=dict(required=False, type='str'),
@@ -1293,7 +1305,7 @@ class NetAppOntapVolume:
                     errors.append(repr(err))
                 if not is_online:
                     time.sleep(10)
-                retries = retries - 1
+                retries -= 1
             if not is_online:
                 errors.append("Timeout after %s seconds" % self.parameters['time_out'])
                 self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
@@ -1448,7 +1460,7 @@ class NetAppOntapVolume:
     def move_volume(self, encrypt_destination=None):
         '''Move volume from source aggregate to destination aggregate'''
         if self.use_rest:
-            return self.move_volume_rest()
+            return self.move_volume_rest(encrypt_destination)
         volume_move = netapp_utils.zapi.NaElement.create_node_with_children(
             'volume-move-start', **{'source-volume': self.parameters['name'],
                                     'vserver': self.parameters['vserver'],
@@ -1488,12 +1500,17 @@ class NetAppOntapVolume:
         return error
 
     def check_volume_move_state(self, result):
-        volume_move_status = result.get_child_by_name('attributes-list').get_child_by_name('volume-move-info').get_child_content('state')
+        if self.use_rest:
+            volume_move_status = self.na_helper.safe_get(result, ['movement', 'state'])
+        else:
+            volume_move_status = result.get_child_by_name('attributes-list').get_child_by_name('volume-move-info').get_child_content('state')
         # We have 5 states that can be returned.
         # warning and healthy are state where the move is still going so we don't need to do anything for thouse.
-        if volume_move_status == 'done':
+        # success - volume move is completed in REST.
+        if volume_move_status in ['success', 'done']:
             return False
-        if volume_move_status in ['failed', 'alert']:
+        # ZAPI returns failed or alert, REST returns failed or aborted.
+        if volume_move_status in ['failed', 'alert', 'aborted']:
             self.module.fail_json(msg='Error moving volume %s: %s' %
                                   (self.parameters['name'], result.get_child_by_name('attributes-list').get_child_by_name('volume-move-info')
                                    .get_child_content('details')))
@@ -1511,17 +1528,36 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error getting volume move status: %s' % (to_native(error)),
                                   exception=traceback.format_exc())
 
+    def wait_for_volume_move_rest(self):
+        api = "storage/volumes"
+        query = {
+            'name': self.parameters['name'],
+            'movement.destination_aggregate.name': self.parameters['aggregate_name'],
+            'fields': 'movement.state'
+        }
+        error = self.wait_for_task_completion_rest(api, query, self.check_volume_move_state)
+        if error:
+            self.module.fail_json(msg='Error getting volume move status: %s' % (to_native(error)),
+                                  exception=traceback.format_exc())
+
     def check_volume_encryption_conversion_state(self, result):
-        volume_encryption_conversion_status = result.get_child_by_name('attributes-list').get_child_by_name('volume-encryption-conversion-info')\
-                                                    .get_child_content('status')
-        if volume_encryption_conversion_status == 'running':
+        if self.use_rest:
+            volume_encryption_conversion_status = self.na_helper.safe_get(result, ['encryption', 'status', 'message'])
+        else:
+            volume_encryption_conversion_status = result.get_child_by_name('attributes-list').get_child_by_name('volume-encryption-conversion-info')\
+                                                        .get_child_content('status')
+        # REST returns running or initializing, ZAPI returns running if encryption in progress.
+        if volume_encryption_conversion_status in ['running', 'initializing']:
             return True
-        if volume_encryption_conversion_status == 'Not currently going on.':
+        # If encryprion is completed, REST do have encryption status message.
+        if volume_encryption_conversion_status in ['Not currently going on.', None]:
             return False
         self.module.fail_json(msg='Error converting encryption for volume %s: %s' %
                               (self.parameters['name'], volume_encryption_conversion_status))
 
     def wait_for_volume_encryption_conversion(self):
+        if self.use_rest:
+            return self.wait_for_volume_encryption_conversion_rest()
         volume_encryption_conversion_iter = netapp_utils.zapi.NaElement('volume-encryption-conversion-get-iter')
         volume_encryption_conversion_info = netapp_utils.zapi.NaElement('volume-encryption-conversion-info')
         volume_encryption_conversion_info.add_new_child('volume', self.parameters['name'])
@@ -1534,15 +1570,27 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error getting volume encryption_conversion status: %s' % (to_native(error)),
                                   exception=traceback.format_exc())
 
+    def wait_for_volume_encryption_conversion_rest(self):
+        api = "storage/volumes"
+        query = {
+            'name': self.parameters['name'],
+            'fields': 'encryption'
+        }
+        error = self.wait_for_task_completion_rest(api, query, self.check_volume_encryption_conversion_state)
+        if error:
+            self.module.fail_json(msg='Error getting volume encryption_conversion status: %s' % (to_native(error)),
+                                  exception=traceback.format_exc())
+
     def wait_for_task_completion(self, zapi_iter, check_state):
-        waiting = True
+        retries = self.parameters['max_wait_time'] // (self.parameters['check_interval'] + 1)
         fail_count = 0
-        while waiting:
+        while retries > 0:
             try:
                 result = self.cluster.invoke_successfully(zapi_iter, enable_tunneling=True)
             except netapp_utils.zapi.NaApiError as error:
                 if fail_count < 3:
                     fail_count += 1
+                    retries -= 1
                     time.sleep(self.parameters['check_interval'])
                     continue
                 return error
@@ -1550,9 +1598,33 @@ class NetAppOntapVolume:
                 return None
             # reset fail count to 0
             fail_count = 0
-            waiting = check_state(result)
-            if waiting:
-                time.sleep(self.parameters['check_interval'])
+            retry_required = check_state(result)
+            if not retry_required:
+                return None
+            time.sleep(self.parameters['check_interval'])
+            retries -= 1
+
+    def wait_for_task_completion_rest(self, api, query, check_state):
+        retries = self.parameters['max_wait_time'] // (self.parameters['check_interval'] + 1)
+        fail_count = 0
+        while retries > 0:
+            record, error = rest_generic.get_one_record(self.rest_api, api, query)
+            if error:
+                if fail_count < 3:
+                    fail_count += 1
+                    retries -= 1
+                    time.sleep(self.parameters['check_interval'])
+                    continue
+                return error
+            if record is None:
+                return None
+            # reset fail count to 0
+            fail_count = 0
+            retry_required = check_state(record)
+            if not retry_required:
+                return None
+            time.sleep(self.parameters['check_interval'])
+            retries -= 1
 
     def rename_volume(self):
         """
@@ -1854,7 +1926,8 @@ class NetAppOntapVolume:
         if 'aggregate_name' in attributes:
             # keep it last, as it may take some time
             # handle change in encryption as part of the move
-            self.move_volume(self.parameters.get('encrypt'))
+            # allow for encrypt/decrypt only if encrypt present in attributes.
+            self.move_volume(modify.get('encrypt'))
         elif 'encrypt' in attributes:
             self.start_encryption_conversion(self.parameters['encrypt'])
 
@@ -2500,6 +2573,8 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error enabling encryption for volume %s: %s' % (self.parameters['name'],
                                                                                        to_native(error)),
                                   exception=traceback.format_exc())
+        if self.parameters.get('wait_for_completion'):
+            self.wait_for_volume_encryption_conversion_rest()
 
     def resize_volume_rest(self):
         query = None
@@ -2513,14 +2588,18 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error resizing volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def move_volume_rest(self):
+    def move_volume_rest(self, encrypt_destination):
         body = {
-            'movement.destination_aggregate.name': self.parameters['aggregate_name']
+            'movement.destination_aggregate.name': self.parameters['aggregate_name'],
         }
+        if encrypt_destination is not None:
+            body['encryption.enabled'] = encrypt_destination
         dummy, error = self.volume_rest_patch(body)
         if error:
             self.module.fail_json(msg='Error moving volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        if self.parameters.get('wait_for_completion'):
+            self.wait_for_volume_move_rest()
 
     def volume_rest_patch(self, body, query=None, uuid=None):
         if not uuid:
@@ -2674,6 +2753,11 @@ class NetAppOntapVolume:
             # or maybe we could, using a cluster ZAPI, but since ZAPI is going away, is it worth it?
             modify = self.set_modify_dict(current)
             if modify:
+                # ZAPI decrypts volume using volume move api and aggregate name is required.
+                if not self.use_rest and modify.get('encrypt') is False and not self.parameters.get('aggregate_name'):
+                    self.parameters['aggregate_name'] = current['aggregate_name']
+                if self.use_rest and modify.get('encrypt') is False and not modify.get('aggregate_name'):
+                    self.module.fail_json(msg="Error: unencrypting volume is only supported when moving the volume to another aggregate in REST.")
                 actions.append('modify')
         if self.parameters.get('nas_application_template') is not None:
             application = self.get_application()
@@ -2691,7 +2775,6 @@ class NetAppOntapVolume:
         if not self.use_rest:
             netapp_utils.ems_log_event("na_ontap_volume", self.server)
         actions, current, modify = self.set_actions()
-
         response = None
         if self.na_helper.changed and not self.module.check_mode:
             if 'rename' in actions:
