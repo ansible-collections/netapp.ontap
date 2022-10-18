@@ -1619,4 +1619,4 @@ def test_dns_domain_ddns_enabled():
     args = {'data_protocol': 'fc_nvme', 'home_node': 'my_node', 'protocols': 'fc-nvme', 'interface_type': 'fc'}
     module_args.update(args)
     assert 'dns_domain_name, is_dns_update_enabled options only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert 'Minimum version of ONTAP for is_dns_update_enabled is (9, 9, 1).' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error: Minimum version of ONTAP for is_dns_update_enabled is (9, 9, 1).' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -144,7 +144,6 @@ class NetAppOntapNtfsSd(object):
         """
             Initialize the Ontap NTFS Security Descriptor class
         """
-
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
@@ -267,16 +266,13 @@ class NetAppOntapNtfsSd(object):
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
-            else:
-                if cd_action == 'create':
-                    self.add_ntfs_sd()
-                elif cd_action == 'delete':
-                    self.remove_ntfs_sd()
-                elif modify:
-                    self.modify_ntfs_sd()
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.add_ntfs_sd()
+            elif cd_action == 'delete':
+                self.remove_ntfs_sd()
+            elif modify:
+                self.modify_ntfs_sd()
         self.module.exit_json(changed=self.na_helper.changed)
 
 

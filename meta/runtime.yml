@@ -34,6 +34,7 @@ action_groups:
     - na_ontap_fdspt
     - na_ontap_fdss
     - na_ontap_file_directory_policy
+    - na_ontap_file_security_permissions
     - na_ontap_firewall_policy
     - na_ontap_firmware_upgrade
     - na_ontap_flexcache

@@ -671,6 +671,8 @@ class OntapRestAPI(object):
         msgs = []
         if self.use_rest == 'never':
             msgs.append('Error: REST is required for this module, found: "use_rest: %s".' % self.use_rest)
+        # The module only supports REST, so make it required
+        self.use_rest = 'always'
         if self.is_rest_error:
             msgs.append('Error using REST for version, error: %s.' % self.is_rest_error)
         if status_code != 200:
@@ -1013,7 +1015,8 @@ class OntapRestAPI(object):
         if self.use_rest == 'never':
             # force ZAPI if requested
             return False, None
-        status_code = self.get_ontap_version_using_rest()
+        # don't send a new request if we already know the version
+        status_code = self.get_ontap_version_using_rest() if self.get_ontap_version() == (-1, -1, -1) else 200
         if self.use_rest == "always" and partially_supported_rest_properties:
             # If a variable is on a list we need to move it to a dict for this check to work correctly.
             temp_parameters = parameters.copy()
@@ -1024,7 +1027,7 @@ class OntapRestAPI(object):
                 if self.get_ontap_version()[:3] < property[1] and property[0] in temp_parameters
             )
             if error != '':
-                return True, error
+                return True, 'Error: %s  Current version: %s.' % (error, self.get_ontap_version())
         if self.use_rest == 'always':
             # ignore error, it will show up later when calling another REST API
             return True, None

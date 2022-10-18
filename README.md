@@ -77,6 +77,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
 
+### New Module
+  - na_ontap_file_security_permissions - Update SD and ACLs.
+
 ## 21.24.1
 
 ### Bug Fixes

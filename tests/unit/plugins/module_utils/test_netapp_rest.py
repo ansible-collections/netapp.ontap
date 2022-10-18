@@ -456,13 +456,10 @@ def test__is_rest():
     # we need the version
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
-        ('GET', 'cluster', SRR['is_rest_96']),
-        ('GET', 'cluster', SRR['is_rest_96']),
-        ('GET', 'cluster', SRR['is_rest_96']),
     ])
     # testing always unconditionnally and with partially_supported_rest_properties
     rest_api.use_rest = 'always'
-    msg = 'Minimum version of ONTAP for xyz is (9, 7).'
+    msg = 'Error: Minimum version of ONTAP for xyz is (9, 7).  Current version: (9, 6, 0).'
     assert rest_api._is_rest(partially_supported_rest_properties=[('xyz', (9, 7))], parameters=['xyz']) == (True, msg)
     # No error when version requirement is matched
     assert rest_api._is_rest(partially_supported_rest_properties=[('xyz', (9, 6))], parameters=['xyz']) == (True, None)
@@ -481,7 +478,6 @@ def test_is_rest_supported_properties():
         "REST API currently does not support 'xyz'"
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
-        ('GET', 'cluster', SRR['is_rest_96']),
     ])
     assert rest_api.is_rest_supported_properties(['abc'], ['xyz'])
     assert rest_api.is_rest_supported_properties(['abc'], ['xyz'], report_error=True) == (True, None)
@@ -498,6 +494,8 @@ def test_is_rest_partially_supported_properties():
     rest_api.use_rest = 'auto'
     assert not rest_api.is_rest_supported_properties(['xyz'], None, [('xyz', (9, 8, 1))])
     assert_warning_was_raised('Falling back to ZAPI because of unsupported option(s) or option value(s) "xyz" in REST require (9, 8, 1)')
+    rest_api = create_restapi_object(DEFAULT_ARGS)
+    rest_api.use_rest = 'auto'
     assert rest_api.is_rest_supported_properties(['xyz'], None, [('xyz', (9, 8, 1))])
 
 
