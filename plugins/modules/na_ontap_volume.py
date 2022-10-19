@@ -991,7 +991,7 @@ class NetAppOntapVolume:
                                        'force_restore',
                                        'nvfail_enabled',
                                        'preserve_lun_ids',
-                                       'snapdir-access-enabled',
+                                       'snapdir_access',
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']

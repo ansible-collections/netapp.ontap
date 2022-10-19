@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
   - na_ontap_volume - fix error when trying to unencrypt volume in REST.
   - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.
+  - na_ontap_volume - `snapdir_access` is not supported by REST and will currently inform you now if you try to use it with REST.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
 
 ### New Module
