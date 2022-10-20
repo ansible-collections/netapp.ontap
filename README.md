@@ -66,6 +66,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.0.0
 
 ### Minor Changes
+  - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
 
 ### New Options
@@ -73,6 +74,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - new REST option `analytics` added.
 
 ### Bug Fixes
+  - na_ontap_info - Added vserver in key_fields of net_interface_info.
   - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
   - na_ontap_volume - fix error when trying to unencrypt volume in REST.
   - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.

@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
-# GNU General Public License v3.0+
-# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2018-2022, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
 na_ontap_net_routes
@@ -49,7 +48,8 @@ options:
   metric:
     description:
       - Specify the route metric.  If this field is not provided, ONTAP will default to 20.
-      - Not supported with REST
+      - Supported from ONTAP 9.11.0 in REST.
+      - With REST, trying to modify destination or gateway will also reset metric to 20 in ONTAP 9.10.1 or earlier.
     type: int
   from_destination:
     description:
@@ -112,7 +112,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -145,17 +144,15 @@ class NetAppOntapNetRoutes:
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
 
-        # some attributes are not supported in earlier REST implementation
-        unsupported_rest_properties = ['metric', 'from_metric']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        # metric supported from ONTAP 9.11.0 version.
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, ['from_metric'], [['metric', (9, 11, 0)]])
         self.validate_options()
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def validate_options(self):
         errors = []
@@ -199,6 +196,8 @@ class NetAppOntapNetRoutes:
                 body['destination'] = {'address': dest[0], 'netmask': dest[1]}
             if current.get('vserver') is not None:
                 body['svm.name'] = current['vserver']
+            if current.get('metric') is not None:
+                body['metric'] = current['metric']
             __, error = rest_generic.post_async(self.rest_api, api, body)
         else:
             route_obj = netapp_utils.zapi.NaElement('net-routes-create')
@@ -247,7 +246,7 @@ class NetAppOntapNetRoutes:
         """
         self.delete_net_route(current)
         # use existing metric if not specified
-        if not self.use_rest and self.parameters.get('metric') is None:
+        if current.get('metric') is not None and self.parameters.get('metric') is None:
             self.parameters['metric'] = current['metric']
         error = self.create_net_route(fail=False)
         if error:
@@ -267,6 +266,8 @@ class NetAppOntapNetRoutes:
         if self.use_rest:
             api = "network/ip/routes"
             fields = 'destination,gateway,svm,scope'
+            if self.parameters.get('metric') is not None:
+                fields += ',metric'
             query = {'destination.address': params['destination'].split('/')[0],
                      'gateway': params['gateway']}
             if params.get('vserver') is None:
@@ -276,7 +277,10 @@ class NetAppOntapNetRoutes:
                 query['svm.name'] = params['vserver']
             record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(msg='Error fetching net route: %s' % error)
+            # even if metric not set, 20 is set by default.
+            if record and 'metric' not in record:
+                record['metric'] = None
             return record
         else:
             route_obj = netapp_utils.zapi.NaElement('net-routes-get')
@@ -318,15 +322,13 @@ class NetAppOntapNetRoutes:
                            'destination': self.parameters.get('from_destination', self.parameters['destination'])}
             if self.parameters.get('vserver'):
                 from_params['vserver'] = self.parameters['vserver']
-            from_route = self.get_net_route(from_params)
-            rename = self.na_helper.is_rename_action(from_route, current)
-            if rename is None:
+            current = self.get_net_route(from_params)
+            if current is None:
                 self.module.fail_json(msg="Error modifying: route %s does not exist" % self.parameters['from_destination'])
-            if rename:
-                current = from_route
-                cd_action = None
+            rename = True
+            cd_action = None
 
-        if cd_action is None and not self.use_rest and self.parameters.get('metric') is not None and current:
+        if cd_action is None and self.parameters.get('metric') is not None and current:
             modify = self.parameters['metric'] != current['metric']
             if modify:
                 self.na_helper.changed = True

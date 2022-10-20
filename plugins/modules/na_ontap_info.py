@@ -615,7 +615,7 @@ class NetAppONTAPGatherInfo:
                 'kwargs': {
                     'call': 'net-interface-get-iter',
                     'attribute': 'net-interface-info',
-                    'key_fields': 'interface-name',
+                    'key_fields': ('interface-name', 'vserver'),
                     'query': {'max-records': self.max_records},
                 },
                 'min_version': '0',
