@@ -85,6 +85,9 @@ volume_info = {
     },
     "snaplock": {
         "type": "non_snaplock"
+    },
+    "analytics": {
+        "state": "on"
     }
 }
 
@@ -96,6 +99,10 @@ volume_info_encrypt_off['encryption']['enabled'] = False
 volume_info_sl_enterprise = copy.deepcopy(volume_info)
 volume_info_sl_enterprise['snaplock']['type'] = 'enterprise'
 volume_info_sl_enterprise['snaplock']['retention'] = {'default': 'P30Y'}
+volume_analytics_disabled = copy.deepcopy(volume_info)
+volume_analytics_disabled['analytics']['state'] = 'off'
+volume_analytics_initializing = copy.deepcopy(volume_info)
+volume_analytics_initializing['analytics']['state'] = 'initializing'
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -136,7 +143,9 @@ SRR = rest_responses({
     'move_state_replicating': (200, {'movement': {'state': 'replicating'}}, None),
     'move_state_success': (200, {'movement': {'state': 'success'}}, None),
     'encrypting': (200, {'encryption': {'status': {'message': 'initializing'}}}, None),
-    'encrypted': (200, {'encryption': {'state': 'encrypted'}}, None)
+    'encrypted': (200, {'encryption': {'state': 'encrypted'}}, None),
+    'analytics_off': (200, {'records': [volume_analytics_disabled]}, None),
+    'analytics_initializing': (200, {'records': [volume_analytics_initializing]}, None),
 })
 
 DEFAULT_APP_ARGS = {
@@ -1330,3 +1339,31 @@ def test_volume_move_rest(sleep):
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args)['changed']
     error = "Error getting volume move status"
     assert error in create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args, fail=True)['msg']
+
+
+def test_analytics_option():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('POST', 'storage/volumes', SRR['success']),
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        # Disable analytics
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['get_volume']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+        # Enable analytics
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['analytics_off']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+        # Try to Enable analytics which is initializing(no change required.)
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['analytics_initializing'])
+    ])
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'off'})['changed']
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']

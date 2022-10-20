@@ -22,40 +22,40 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Create or destroy or modify volumes on NetApp ONTAP.
+  - Create or destroy or modify volumes on NetApp ONTAP.
 
 options:
 
   state:
     description:
-    - Whether the specified volume should exist or not.
+      - Whether the specified volume should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
 
   name:
     description:
-    - The name of the volume to manage.
+      - The name of the volume to manage.
     type: str
     required: true
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     type: str
     required: true
 
   from_name:
     description:
-    - Name of the existing volume to be renamed to name.
+      - Name of the existing volume to be renamed to name.
     type: str
     version_added: 2.7.0
 
   is_infinite:
     type: bool
     description:
-      Set True if the volume is an Infinite Volume.
-      Deleting an infinite volume is asynchronous.
+      - Set True if the volume is an Infinite Volume.
+      - Deleting an infinite volume is asynchronous.
     default: false
 
   is_online:
@@ -166,39 +166,39 @@ options:
 
   size:
     description:
-    - The size of the volume in (size_unit). Required when C(state=present).
+      - The size of the volume in (size_unit). Required when C(state=present).
     type: int
 
   size_unit:
     description:
-    - The unit used to interpret the size parameter.
+      - The unit used to interpret the size parameter.
     choices: ['bytes', 'b', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb']
     type: str
     default: 'gb'
 
   size_change_threshold:
     description:
-    - Percentage in size change to trigger a resize.
-    - When this parameter is greater than 0, a difference in size between what is expected and what is configured is ignored if it is below the threshold.
-    - For instance, the nas application allocates a larger size than specified to account for overhead.
-    - Set this to 0 for an exact match.
+      - Percentage in size change to trigger a resize.
+      - When this parameter is greater than 0, a difference in size between what is expected and what is configured is ignored if it is below the threshold.
+      - For instance, the nas application allocates a larger size than specified to account for overhead.
+      - Set this to 0 for an exact match.
     type: int
     default: 10
     version_added: 20.12.0
 
   sizing_method:
     description:
-    - Represents the method to modify the size of a FlexGroup.
-    - use_existing_resources - Increases or decreases the size of the FlexGroup by increasing or decreasing the size of the current FlexGroup resources.
-    - add_new_resources - Increases the size of the FlexGroup by adding new resources. This is limited to two new resources per available aggregate.
-    - This is only supported if REST is enabled (ONTAP 9.6 or later) and only for FlexGroups.  ONTAP defaults to use_existing_resources.
+      - Represents the method to modify the size of a FlexGroup.
+      - use_existing_resources - Increases or decreases the size of the FlexGroup by increasing or decreasing the size of the current FlexGroup resources.
+      - add_new_resources - Increases the size of the FlexGroup by adding new resources. This is limited to two new resources per available aggregate.
+      - This is only supported if REST is enabled (ONTAP 9.6 or later) and only for FlexGroups.  ONTAP defaults to use_existing_resources.
     type: str
     choices: ['add_new_resources', 'use_existing_resources']
     version_added: 20.12.0
 
   type:
     description:
-    - The volume type, either read-write (RW) or data-protection (DP).
+      - The volume type, either read-write (RW) or data-protection (DP).
     type: str
 
   export_policy:
@@ -210,125 +210,125 @@ options:
 
   junction_path:
     description:
-    - Junction path of the volume.
-    - To unmount, use junction path C('').
+      - Junction path of the volume.
+      - To unmount, use junction path C('').
     type: str
 
   space_guarantee:
     description:
-    - Space guarantee style for the volume.
+      - Space guarantee style for the volume.
     choices: ['none', 'file', 'volume']
     type: str
 
   percent_snapshot_space:
     description:
-    - Amount of space reserved for snapshot copies of the volume.
+      - Amount of space reserved for snapshot copies of the volume.
     type: int
 
   volume_security_style:
     description:
-    - The security style associated with this volume.
+      - The security style associated with this volume.
     choices: ['mixed', 'ntfs', 'unified', 'unix']
     type: str
 
   encrypt:
     type: bool
     description:
-    - Whether or not to enable Volume Encryption.
-    - If not present, ONTAP defaults to false at volume creation.
-    - Changing encrypt value after creation requires ONTAP 9.3 or later.
+      - Whether or not to enable Volume Encryption.
+      - If not present, ONTAP defaults to false at volume creation.
+      - Changing encrypt value after creation requires ONTAP 9.3 or later.
     version_added: 2.7.0
 
   efficiency_policy:
     description:
-    - Allows a storage efficiency policy to be set on volume creation.
+      - Allows a storage efficiency policy to be set on volume creation.
     type: str
     version_added: 2.7.0
 
   unix_permissions:
     description:
-    - Unix permission bits in octal or symbolic format.
-    - For example, 0 is equivalent to ------------, 777 is equivalent to ---rwxrwxrwx,both formats are accepted.
-    - The valid octal value ranges between 0 and 777 inclusive.
+      - Unix permission bits in octal or symbolic format.
+      - For example, 0 is equivalent to ------------, 777 is equivalent to ---rwxrwxrwx,both formats are accepted.
+      - The valid octal value ranges between 0 and 777 inclusive.
     type: str
     version_added: 2.8.0
 
   group_id:
     description:
-    - The UNIX group ID for the volume. The default value is 0 ('root').
+      - The UNIX group ID for the volume. The default value is 0 ('root').
     type: int
     version_added: '20.1.0'
 
   user_id:
     description:
-    - The UNIX user ID for the volume. The default value is 0 ('root').
+      - The UNIX user ID for the volume. The default value is 0 ('root').
     type: int
     version_added: '20.1.0'
 
   snapshot_policy:
     description:
-    - The name of the snapshot policy.
-    - The default policy name is 'default'.
-    - If present, this will set the protection_type when using C(nas_application_template).
+      - The name of the snapshot policy.
+      - The default policy name is 'default'.
+      - If present, this will set the protection_type when using C(nas_application_template).
     type: str
     version_added: 2.8.0
 
   aggr_list:
     description:
-    -  an array of names of aggregates to be used for FlexGroup constituents.
+      - an array of names of aggregates to be used for FlexGroup constituents.
     type: list
     elements: str
     version_added: 2.8.0
 
   aggr_list_multiplier:
     description:
-    -  The number of times to iterate over the aggregates listed with the aggr_list parameter when creating a FlexGroup.
+      - The number of times to iterate over the aggregates listed with the aggr_list parameter when creating a FlexGroup.
     type: int
     version_added: 2.8.0
 
   auto_provision_as:
     description:
-    - Automatically provision a FlexGroup volume.
+      - Automatically provision a FlexGroup volume.
     version_added: 2.8.0
     choices: ['flexgroup']
     type: str
 
   snapdir_access:
     description:
-    - This is an advanced option, the default is False.
-    - Enable the visible '.snapshot' directory that is normally present at system internal mount points.
-    - This value also turns on access to all other '.snapshot' directories in the volume.
+      - This is an advanced option, the default is False.
+      - Enable the visible '.snapshot' directory that is normally present at system internal mount points.
+      - This value also turns on access to all other '.snapshot' directories in the volume.
     type: bool
     version_added: 2.8.0
 
   atime_update:
     description:
-    - This is an advanced option, the default is True.
-    - If false, prevent the update of inode access times when a file is read.
-    - This value is useful for volumes with extremely high read traffic,
-      since it prevents writes to the inode file for the volume from contending with reads from other files.
-    - This field should be used carefully.
-    - That is, use this field when you know in advance that the correct access time for inodes will not be needed for files on that volume.
+      - This is an advanced option, the default is True.
+      - If false, prevent the update of inode access times when a file is read.
+      - This value is useful for volumes with extremely high read traffic,
+        since it prevents writes to the inode file for the volume from contending with reads from other files.
+      - This field should be used carefully.
+      - That is, use this field when you know in advance that the correct access time for inodes will not be needed for files on that volume.
     type: bool
     version_added: 2.8.0
 
   wait_for_completion:
     description:
-    - Set this parameter to 'true' for synchronous execution during create (wait until volume status is online)
-    - Set this parameter to 'false' for asynchronous execution
-    - For asynchronous, execution exits as soon as the request is sent, without checking volume status
+      - Set this parameter to 'true' for synchronous execution during create (wait until volume status is online)
+      - Set this parameter to 'false' for asynchronous execution
+      - For asynchronous, execution exits as soon as the request is sent, without checking volume status
     type: bool
     default: false
     version_added: 2.8.0
 
   time_out:
     description:
-    - With ZAPI - time to wait for Flexgroup creation, modification, or deletion in seconds.
-    - With REST - time to wait for any volume creation, modification, or deletion in seconds.
-    - Error out if task is not completed in defined time.
-    - With ZAPI - if 0, the request is asynchronous.
-    - Default is set to 3 minutes.
-    - Use C(max_wait_time) and C(wait_for_completion) for volume move and encryption operations.
+      - With ZAPI - time to wait for Flexgroup creation, modification, or deletion in seconds.
+      - With REST - time to wait for any volume creation, modification, or deletion in seconds.
+      - Error out if task is not completed in defined time.
+      - With ZAPI - if 0, the request is asynchronous.
+      - Default is set to 3 minutes.
+      - Use C(max_wait_time) and C(wait_for_completion) for volume move and encryption operations.
     default: 180
     type: int
     version_added: 2.8.0
@@ -345,225 +345,225 @@ options:
 
   language:
     description:
-    - Language to use for Volume
-    - Default uses SVM language
-    - Possible values   Language
-    - c                 POSIX
-    - ar                Arabic
-    - cs                Czech
-    - da                Danish
-    - de                German
-    - en                English
-    - en_us             English (US)
-    - es                Spanish
-    - fi                Finnish
-    - fr                French
-    - he                Hebrew
-    - hr                Croatian
-    - hu                Hungarian
-    - it                Italian
-    - ja                Japanese euc-j
-    - ja_v1             Japanese euc-j
-    - ja_jp.pck         Japanese PCK (sjis)
-    - ja_jp.932         Japanese cp932
-    - ja_jp.pck_v2      Japanese PCK (sjis)
-    - ko                Korean
-    - no                Norwegian
-    - nl                Dutch
-    - pl                Polish
-    - pt                Portuguese
-    - ro                Romanian
-    - ru                Russian
-    - sk                Slovak
-    - sl                Slovenian
-    - sv                Swedish
-    - tr                Turkish
-    - zh                Simplified Chinese
-    - zh.gbk            Simplified Chinese (GBK)
-    - zh_tw             Traditional Chinese euc-tw
-    - zh_tw.big5        Traditional Chinese Big 5
-    - To use UTF-8 as the NFS character set, append '.UTF-8' to the language code
+      - Language to use for Volume
+      - Default uses SVM language
+      - Possible values   Language
+      - c                 POSIX
+      - ar                Arabic
+      - cs                Czech
+      - da                Danish
+      - de                German
+      - en                English
+      - en_us             English (US)
+      - es                Spanish
+      - fi                Finnish
+      - fr                French
+      - he                Hebrew
+      - hr                Croatian
+      - hu                Hungarian
+      - it                Italian
+      - ja                Japanese euc-j
+      - ja_v1             Japanese euc-j
+      - ja_jp.pck         Japanese PCK (sjis)
+      - ja_jp.932         Japanese cp932
+      - ja_jp.pck_v2      Japanese PCK (sjis)
+      - ko                Korean
+      - no                Norwegian
+      - nl                Dutch
+      - pl                Polish
+      - pt                Portuguese
+      - ro                Romanian
+      - ru                Russian
+      - sk                Slovak
+      - sl                Slovenian
+      - sv                Swedish
+      - tr                Turkish
+      - zh                Simplified Chinese
+      - zh.gbk            Simplified Chinese (GBK)
+      - zh_tw             Traditional Chinese euc-tw
+      - zh_tw.big5        Traditional Chinese Big 5
+      - To use UTF-8 as the NFS character set, append '.UTF-8' to the language code
     type: str
     version_added: 2.8.0
 
   qos_policy_group:
     description:
-    - Specifies a QoS policy group to be set on volume.
+      - Specifies a QoS policy group to be set on volume.
     type: str
     version_added: 2.9.0
 
   qos_adaptive_policy_group:
     description:
-    - Specifies a QoS adaptive policy group to be set on volume.
+      - Specifies a QoS adaptive policy group to be set on volume.
     type: str
     version_added: 2.9.0
 
   tiering_policy:
     description:
-    - The tiering policy that is to be associated with the volume.
-    - This policy decides whether the blocks of a volume will be tiered to the capacity tier.
-    - snapshot-only policy allows tiering of only the volume snapshot copies not associated with the active file system.
-    - auto policy allows tiering of both snapshot and active file system user data to the capacity tier.
-    - backup policy on DP volumes allows all transferred user data blocks to start in the capacity tier.
-    - all is the REST equivalent for backup.
-    - When set to none, the Volume blocks will not be tiered to the capacity tier.
-    - If no value specified, the volume is assigned snapshot only by default.
-    - Requires ONTAP 9.4 or later.
+      - The tiering policy that is to be associated with the volume.
+      - This policy decides whether the blocks of a volume will be tiered to the capacity tier.
+      - snapshot-only policy allows tiering of only the volume snapshot copies not associated with the active file system.
+      - auto policy allows tiering of both snapshot and active file system user data to the capacity tier.
+      - backup policy on DP volumes allows all transferred user data blocks to start in the capacity tier.
+      - all is the REST equivalent for backup.
+      - When set to none, the Volume blocks will not be tiered to the capacity tier.
+      - If no value specified, the volume is assigned snapshot only by default.
+      - Requires ONTAP 9.4 or later.
     choices: ['snapshot-only', 'auto', 'backup', 'none', 'all']
     type: str
     version_added: 2.9.0
 
   space_slo:
     description:
-    - Specifies the space SLO type for the volume. The space SLO type is the Service Level Objective for space management for the volume.
-    - The space SLO value is used to enforce existing volume settings so that sufficient space is set aside on the aggregate to meet the space SLO.
-    - This parameter is not supported on Infinite Volumes.
+      - Specifies the space SLO type for the volume. The space SLO type is the Service Level Objective for space management for the volume.
+      - The space SLO value is used to enforce existing volume settings so that sufficient space is set aside on the aggregate to meet the space SLO.
+      - This parameter is not supported on Infinite Volumes.
     choices: ['none', 'thick', 'semi-thick']
     type: str
     version_added: 2.9.0
 
   nvfail_enabled:
     description:
-    - If true, the controller performs additional work at boot and takeover times if it finds that there has been any potential data loss in the volume's
-      constituents due to an NVRAM failure.
-    - The volume's constituents would be put in a special state called 'in-nvfailed-state' such that protocol access is blocked.
-    - This will cause the client applications to crash and thus prevent access to stale data.
-    - To get out of this situation, the admin needs to manually clear the 'in-nvfailed-state' on the volume's constituents.
+      - If true, the controller performs additional work at boot and takeover times if it finds that there has been any potential data loss in the volume's
+        constituents due to an NVRAM failure.
+      - The volume's constituents would be put in a special state called 'in-nvfailed-state' such that protocol access is blocked.
+      - This will cause the client applications to crash and thus prevent access to stale data.
+      - To get out of this situation, the admin needs to manually clear the 'in-nvfailed-state' on the volume's constituents.
     type: bool
     version_added: 2.9.0
 
   vserver_dr_protection:
     description:
-    - Specifies the protection type for the volume in a Vserver DR setup.
+      - Specifies the protection type for the volume in a Vserver DR setup.
     choices: ['protected', 'unprotected']
     type: str
     version_added: 2.9.0
 
   comment:
     description:
-    - Sets a comment associated with the volume.
+      - Sets a comment associated with the volume.
     type: str
     version_added: 2.9.0
 
   snapshot_auto_delete:
     description:
-    - A dictionary for the auto delete options and values.
-    - Supported options include 'state', 'commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
-      'prefix', 'destroy_list'.
-    - Option 'state' determines if the snapshot autodelete is currently enabled for the volume. Possible values are 'on' and 'off'.
-    - Option 'commitment' determines the snapshots which snapshot autodelete is allowed to delete to get back space.
-      Possible values are 'try', 'disrupt' and 'destroy'.
-    - Option 'trigger' determines the condition which starts the automatic deletion of snapshots.
-      Possible values are 'volume', 'snap_reserve' and DEPRECATED 'space_reserve'.
-    - Option 'target_free_space' determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger,
-      snapshots are deleted till we reach the target free space percentage. Accepts int type.
-    - Option 'delete_order' determines if the oldest or newest snapshot is deleted first. Possible values are 'newest_first' and 'oldest_first'.
-    - Option 'defer_delete' determines which kind of snapshots to delete in the end. Possible values are 'scheduled', 'user_created',
-      'prefix' and 'none'.
-    - Option 'prefix' can be set to provide the prefix string for the 'prefix' value of the 'defer_delete' option.
-      The prefix string length can be 15 char long.
-    - Option 'destroy_list' is a comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.
-      For 7-mode, the possible values for this option are a combination of 'lun_clone', 'vol_clone', 'cifs_share', 'file_clone' or 'none'.
-      For cluster-mode, the possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
-      'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
+      - A dictionary for the auto delete options and values.
+      - Supported options include 'state', 'commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
+        'prefix', 'destroy_list'.
+      - Option 'state' determines if the snapshot autodelete is currently enabled for the volume. Possible values are 'on' and 'off'.
+      - Option 'commitment' determines the snapshots which snapshot autodelete is allowed to delete to get back space.
+        Possible values are 'try', 'disrupt' and 'destroy'.
+      - Option 'trigger' determines the condition which starts the automatic deletion of snapshots.
+        Possible values are 'volume', 'snap_reserve' and DEPRECATED 'space_reserve'.
+      - Option 'target_free_space' determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger,
+        snapshots are deleted till we reach the target free space percentage. Accepts int type.
+      - Option 'delete_order' determines if the oldest or newest snapshot is deleted first. Possible values are 'newest_first' and 'oldest_first'.
+      - Option 'defer_delete' determines which kind of snapshots to delete in the end. Possible values are 'scheduled', 'user_created',
+        'prefix' and 'none'.
+      - Option 'prefix' can be set to provide the prefix string for the 'prefix' value of the 'defer_delete' option.
+        The prefix string length can be 15 char long.
+      - Option 'destroy_list' is a comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.
+        For 7-mode, the possible values for this option are a combination of 'lun_clone', 'vol_clone', 'cifs_share', 'file_clone' or 'none'.
+        For cluster-mode, the possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
+        'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
     type: dict
     version_added: '20.4.0'
 
   cutover_action:
     description:
-    - Specifies the action to be taken for cutover.
-    - Possible values are 'abort_on_failure', 'defer_on_failure', 'force' and 'wait'. Default is 'defer_on_failure'.
+      - Specifies the action to be taken for cutover.
+      - Possible values are 'abort_on_failure', 'defer_on_failure', 'force' and 'wait'. Default is 'defer_on_failure'.
     choices: ['abort_on_failure', 'defer_on_failure', 'force', 'wait']
     type: str
     version_added: '20.5.0'
 
   check_interval:
     description:
-    - The amount of time in seconds to wait between checks of a volume to see if it has moved successfully.
+      - The amount of time in seconds to wait between checks of a volume to see if it has moved successfully.
     default: 30
     type: int
     version_added: '20.6.0'
 
   from_vserver:
     description:
-    - The source vserver of the volume is rehosted.
+      - The source vserver of the volume is rehosted.
     type: str
     version_added: '20.6.0'
 
   auto_remap_luns:
     description:
-    - Flag to control automatic map of LUNs.
+      - Flag to control automatic map of LUNs.
     type: bool
     version_added: '20.6.0'
 
   force_unmap_luns:
     description:
-    - Flag to control automatic unmap of LUNs.
+      - Flag to control automatic unmap of LUNs.
     type: bool
     version_added: '20.6.0'
 
   force_restore:
     description:
-    - If this field is set to "true", the Snapshot copy is restored even if the volume has one or more newer Snapshot
-      copies which are currently used as reference Snapshot copy by SnapMirror. If a restore is done in this
-      situation, this will cause future SnapMirror transfers to fail.
-    - Option should only be used along with snapshot_restore.
+      - If this field is set to "true", the Snapshot copy is restored even if the volume has one or more newer Snapshot
+        copies which are currently used as reference Snapshot copy by SnapMirror. If a restore is done in this
+        situation, this will cause future SnapMirror transfers to fail.
+      - Option should only be used along with snapshot_restore.
     type: bool
     version_added: '20.6.0'
 
   preserve_lun_ids:
     description:
-    - If this field is set to "true", LUNs in the volume being restored will remain mapped and their identities
-      preserved such that host connectivity will not be disrupted during the restore operation. I/O's to the LUN will
-      be fenced during the restore operation by placing the LUNs in an unavailable state. Once the restore operation
-      has completed, hosts will be able to resume I/O access to the LUNs.
-    - Option should only be used along with snapshot_restore.
+      - If this field is set to "true", LUNs in the volume being restored will remain mapped and their identities
+        preserved such that host connectivity will not be disrupted during the restore operation. I/O's to the LUN will
+        be fenced during the restore operation by placing the LUNs in an unavailable state. Once the restore operation
+        has completed, hosts will be able to resume I/O access to the LUNs.
+      - Option should only be used along with snapshot_restore.
     type: bool
     version_added: '20.6.0'
 
   snapshot_restore:
     description:
-    - Name of snapshot to restore from.
-    - Not supported on Infinite Volume.
+      - Name of snapshot to restore from.
+      - Not supported on Infinite Volume.
     type: str
     version_added: '20.6.0'
 
   compression:
     description:
-    - Whether to enable compression for the volume (HDD and Flash Pool aggregates).
-    - If this option is not present, it is automatically set to true if inline_compression is true.
+      - Whether to enable compression for the volume (HDD and Flash Pool aggregates).
+      - If this option is not present, it is automatically set to true if inline_compression is true.
     type: bool
     version_added: '20.12.0'
 
   inline_compression:
     description:
-    - Whether to enable inline compression for the volume (HDD and Flash Pool aggregates, AFF platforms).
+      - Whether to enable inline compression for the volume (HDD and Flash Pool aggregates, AFF platforms).
     type: bool
     version_added: '20.12.0'
 
   tiering_minimum_cooling_days:
     description:
-    - Determines how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is
-      considered cold and eligible for tiering.
-    - This option is only supported in REST 9.8 or later.
+      - Determines how many days must pass before inactive data in a volume using the Auto or Snapshot-Only policy is
+        considered cold and eligible for tiering.
+      - This option is only supported in REST 9.8 or later.
     type: int
     version_added: '20.16.0'
 
   logical_space_enforcement:
     description:
-    - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
-      logically, ONTAP enforces volume settings such that all the physical space saved by the storage efficiency
-      features will be calculated as used.
-    - This is only supported with REST.
+      - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
+        logically, ONTAP enforces volume settings such that all the physical space saved by the storage efficiency
+        features will be calculated as used.
+      - This is only supported with REST.
     type: bool
     version_added: '20.16.0'
 
   logical_space_reporting:
     description:
-    - This optionally specifies whether to report space logically on the volume. When space is reported logically,
-      ONTAP reports the volume space such that all the physical space saved by the storage efficiency features are also
-      reported as used.
-    - This is only supported with REST.
+      - This optionally specifies whether to report space logically on the volume. When space is reported logically,
+        ONTAP reports the volume space such that all the physical space saved by the storage efficiency features are also
+        reported as used.
+      - This is only supported with REST.
     type: bool
     version_added: '20.16.0'
 
@@ -625,11 +625,20 @@ options:
 
   max_files:
     description:
-    - The maximum number of files (inodes) for user-visible data allowed on the volume.
-    - Note - ONTAP allocates a slightly different value, for instance 3990 when asking for 4000.
-      Tp preserve idempotency, small variations in size are ignored.
+      - The maximum number of files (inodes) for user-visible data allowed on the volume.
+      - Note - ONTAP allocates a slightly different value, for instance 3990 when asking for 4000.
+        Tp preserve idempotency, small variations in size are ignored.
     type: int
     version_added: '20.18.0'
+
+  analytics:
+    description:
+      - Set file system analytics state of the volume.
+      - Only supported with REST and requires ONTAP 9.8 or later version.
+      - Cannot enable analytics for volume that contains luns.
+    type: str
+    version_added: '22.0.0'
+    choices: ['on', 'off']
 
 notes:
   - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
@@ -644,7 +653,7 @@ notes:
 EXAMPLES = """
 
     - name: Create FlexVol
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume12
         is_infinite: False
@@ -668,7 +677,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Volume Delete
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: absent
         name: ansibleVolume12
         aggregate_name: ansible_aggr
@@ -678,7 +687,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Make FlexVol offline
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume
         is_infinite: False
@@ -689,7 +698,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Create Flexgroup volume manually
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume
         is_infinite: False
@@ -709,7 +718,7 @@ EXAMPLES = """
         time_out: 0
 
     - name: Create Flexgroup volume auto provsion as flex group
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume
         is_infinite: False
@@ -728,7 +737,7 @@ EXAMPLES = """
         time_out: 0
 
     - name: Create FlexVol with QoS adaptive
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume15
         is_infinite: False
@@ -746,7 +755,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Modify volume dr protection (vserver of the volume must be in a snapmirror relationship)
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume
         vserver_dr_protection: protected
@@ -757,7 +766,7 @@ EXAMPLES = """
         https: False
 
     - name: Modify volume with snapshot auto delete options
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: vol_auto_delete
         snapshot_auto_delete:
@@ -775,7 +784,7 @@ EXAMPLES = """
         https: False
 
     - name: Move volume with force cutover action
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         name: ansible_vol
         aggregate_name: aggr_ansible
         cutover_action: force
@@ -786,7 +795,7 @@ EXAMPLES = """
         https: false
 
     - name: Rehost volume to another vserver auto remap luns
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         name: ansible_vol
         from_vserver: ansible
         auto_remap_luns: true
@@ -797,7 +806,7 @@ EXAMPLES = """
         https: false
 
     - name: Rehost volume to another vserver force unmap luns
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         name: ansible_vol
         from_vserver: ansible
         force_unmap_luns: true
@@ -808,7 +817,7 @@ EXAMPLES = """
         https: false
 
     - name: Snapshot restore volume
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         name: ansible_vol
         vserver: ansible
         snapshot_restore: 2020-05-24-weekly
@@ -821,7 +830,7 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Volume create using application/applications nas template
-      na_ontap_volume:
+      netapp.ontap.na_ontap_volume:
         state: present
         name: ansibleVolume12
         vserver: ansibleSVM
@@ -857,7 +866,6 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.rest_application import RestApplication
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
@@ -957,6 +965,7 @@ class NetAppOntapVolume:
                 type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock'])
             )),
             max_files=dict(required=False, type='int'),
+            analytics=dict(required=False, type='str', choices=['on', 'off'])
         ))
 
         self.module = AnsibleModule(
@@ -984,7 +993,7 @@ class NetAppOntapVolume:
             self.parameters['size'] = self.parameters['size'] * \
                 netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
         self.validate_snapshot_auto_delete()
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         unsupported_rest_properties = ['atime_update',
                                        'cutover_action',
                                        'encrypt-destination',
@@ -995,8 +1004,8 @@ class NetAppOntapVolume:
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']
-        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)]]
-        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock']
+        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)], ['analytics', (9, 8)]]
+        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock', 'analytics']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -1908,7 +1917,7 @@ class NetAppOntapVolume:
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
-                             'snaplock', 'max_files']:
+                             'snaplock', 'max_files', 'analytics']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2355,6 +2364,8 @@ class NetAppOntapVolume:
             params['fields'] += 'efficiency.policy.name,'
         if self.parameters.get('tiering_minimum_cooling_days'):
             params['fields'] += 'tiering.min_cooling_days,'
+        if self.parameters.get('analytics'):
+            params['fields'] += 'analytics,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2449,6 +2460,8 @@ class NetAppOntapVolume:
             body['efficiency.policy.name'] = self.parameters['efficiency_policy']
         if self.get_compression():
             body['efficiency.compression'] = self.get_compression()
+        if self.parameters.get('analytics'):
+            body['analytics.state'] = self.parameters['analytics']
         body['state'] = self.bool_to_online(self.parameters['is_online'])
         return body
 
@@ -2475,6 +2488,7 @@ class NetAppOntapVolume:
     def modify_volume_body_rest(self, params):
         body = {}
         for key, option, transform in [
+            ('analytics.state', 'analytics', None),
             ('guarantee.type', 'space_guarantee', None),
             ('space.snapshot.reserve_percent', 'percent_snapshot_space', None),
             ('snapshot_policy.name', 'snapshot_policy', None),
@@ -2649,8 +2663,12 @@ class NetAppOntapVolume:
         junction_path = self.na_helper.safe_get(record, ['nas', 'path'])
         if junction_path is None:
             junction_path = ''
+        # if analytics.state is initializing it will be ON once completed.
+        state = self.na_helper.safe_get(record, ['analytics', 'state'])
+        analytics = 'on' if state == 'initializing' else state
         return {
             'name': record.get('name', None),
+            'analytics': analytics,
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
             'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
             'export_policy': self.na_helper.safe_get(record, ['nas', 'export_policy', 'name']),

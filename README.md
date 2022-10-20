@@ -70,6 +70,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Options
   - na_ontap_volume - new option `max_wait_time` added.
+  - na_ontap_volume - new REST option `analytics` added.
 
 ### Bug Fixes
   - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
