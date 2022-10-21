@@ -82,6 +82,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
 
 ### New Module
+  - na_ontap_bgp_peer_group - Create, modify and delete BGP peer groups.
   - na_ontap_file_security_permissions - Update SD and ACLs.
 
 ## 21.24.1
