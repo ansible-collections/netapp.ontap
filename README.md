@@ -81,9 +81,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - `snapdir_access` is not supported by REST and will currently inform you now if you try to use it with REST.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
 
-### New Module
+### New Modules
   - na_ontap_bgp_peer_group - Create, modify and delete BGP peer groups.
   - na_ontap_file_security_permissions - Update SD and ACLs.
+  - na_ontap_name_mappings - added REST only support for create, update and delete name mappings configuration.
 
 ## 21.24.1
 

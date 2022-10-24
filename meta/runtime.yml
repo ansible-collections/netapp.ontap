@@ -66,6 +66,7 @@ action_groups:
     - na_ontap_metrocluster_dr_group
     - na_ontap_metrocluster
     - na_ontap_motd
+    - na_ontap_name_mappings
     - na_ontap_name_service_switch
     - na_ontap_ndmp
     - na_ontap_net_ifgrp
