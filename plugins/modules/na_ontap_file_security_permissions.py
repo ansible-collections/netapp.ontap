@@ -15,6 +15,8 @@ version_added: 22.0.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create, delete, or modify NTFS file security and audit policies of file or directory on NetApp ONTAP.
+  - Note that ACLs are mached based on ('user', 'access', 'access_control', 'apply_to').
+    In order to modify any of these 4 properties, the module deletes the ACL and creates a new one.
 
 options:
   state:
@@ -57,6 +59,12 @@ options:
       - Specifies the owner's primary group.
       - Specify the owner group using either a group name or SID.
     type: str
+
+  ignore_paths:
+    description:
+      - For each file or directory in the list, specifies that permissions on this file or directory cannot be replaced.
+    type: list
+    elements: str
 
   propagation_mode:
     description:
@@ -112,8 +120,10 @@ options:
         description:
           - Specifies the account to which the ACE applies. Specify either name or SID.
           - As of 21.24.0, the module is not idempotent when using a SID.
+          - To make it easier when also using C(na_ontap_file_security_permissions_acl), this is aliased to C(acl_user).
         type: str
         required: true
+        aliases: ['acl_user']
       rights:
         description:
           - Specifies the access right controlled by the ACE for the account specified.
@@ -128,7 +138,7 @@ options:
           - At least one suboption must be set to true.  Suboptions that are not set are assumed to be false.
           - With SLAGs, ONTAP accepts the three suboptions to be set to true, but creates 2 ACLs.
             This module requires the 2 ACLs to be present to preserve idempotency.
-            See alco C(validate_changes).
+            See also C(validate_changes).
         type: dict
         required: true
         suboptions:
@@ -208,6 +218,11 @@ options:
             description:
               - Write Permission.
             type: bool
+      ignore_paths:
+        description:
+          - For each file or directory in the list, specifies that permissions on this file or directory cannot be replaced.
+        type: list
+        elements: str
       propagation_mode:
         description:
           - Specifies how to propagate security settings to child subfolders and files.
@@ -311,6 +326,7 @@ class NetAppOntapFileSecurityPermissions:
             control_flags=dict(required=False, type='str'),
             group=dict(required=False, type='str'),
             access_control=dict(required=False, type='str', choices=['file_directory', 'slag']),
+            ignore_paths=dict(required=False, type='list', elements='str'),
             propagation_mode=dict(required=False, type='str', choices=['propagate', 'replace']),
             acls=dict(type='list', elements='dict', options=dict(
                 access=dict(required=True, type='str', choices=[
@@ -319,7 +335,7 @@ class NetAppOntapFileSecurityPermissions:
                     'system_audit_callback', 'system_audit_callback_object', 'system_resource_attribute', 'system_scoped_policy_id',
                     'audit_failure', 'audit_success', 'audit_success_and_failure']),
                 access_control=dict(required=False, type='str', choices=['file_directory', 'slag']),
-                user=dict(required=True, type='str'),
+                user=dict(required=True, type='str', aliases=['acl_user']),
                 rights=dict(required=False,
                             choices=['no_access', 'full_control', 'modify', 'read_and_execute', 'read', 'write'],
                             type='str'),
@@ -344,6 +360,7 @@ class NetAppOntapFileSecurityPermissions:
                     write_owner=dict(required=False, type='bool'),
                     write_perm=dict(required=False, type='bool'),
                 )),
+                ignore_paths=dict(required=False, type='list', elements='str'),
                 propagation_mode=dict(required=False, type='str', choices=['propagate', 'replace']),
             )),
             validate_changes=dict(required=False, type='str', choices=['ignore', 'warn', 'error'], default='error'),
@@ -369,17 +386,18 @@ class NetAppOntapFileSecurityPermissions:
             self.validate_acls()
 
     def validate_acls(self):
-        if 'acls' in self.parameters:
-            self.parameters['acls'] = self.na_helper.filter_out_none_entries(self.parameters['acls'])
-            for acl in self.parameters['acls']:
-                if 'rights' in acl:
-                    if 'advanced_rights' in acl:
-                        self.module.fail_json(msg="Error: suboptions 'rights' and 'advanced_rights' are mutually exclusive.")
-                    self.module.warn('This module is not idempotent when "rights" is used, make sure to use "advanced_rights".')
-                # validate that at least one suboption is true
-                if not any(self.na_helper.safe_get(acl, ['apply_to', key]) for key in self.apply_to_keys):
-                    self.module.fail_json(msg="Error: at least one suboption must be true for apply_to.  Got: %s" % acl)
-        for option in ('access_control', 'propagation_mode'):
+        if 'acls' not in self.parameters:
+            return
+        self.parameters['acls'] = self.na_helper.filter_out_none_entries(self.parameters['acls'])
+        for acl in self.parameters['acls']:
+            if 'rights' in acl:
+                if 'advanced_rights' in acl:
+                    self.module.fail_json(msg="Error: suboptions 'rights' and 'advanced_rights' are mutually exclusive.")
+                self.module.warn('This module is not idempotent when "rights" is used, make sure to use "advanced_rights".')
+            # validate that at least one suboption is true
+            if not any(self.na_helper.safe_get(acl, ['apply_to', key]) for key in self.apply_to_keys):
+                self.module.fail_json(msg="Error: at least one suboption must be true for apply_to.  Got: %s" % acl)
+        for option in ('access_control', 'ignore_paths', 'propagation_mode'):
             value = self.parameters.get(option)
             if value is not None:
                 for acl in self.parameters['acls']:
@@ -455,7 +473,8 @@ class NetAppOntapFileSecurityPermissions:
         current['acls'] = acls or None
         return current
 
-    def has_acl(self, current):
+    @staticmethod
+    def has_acls(current):
         return bool(current and current.get('acls'))
 
     def set_option(self, body, option):
@@ -479,7 +498,7 @@ class NetAppOntapFileSecurityPermissions:
     def create_file_security_permissions(self):
         api = 'protocols/file-security/permissions/%s/%s' % (self.svm_uuid, self.url_encode(self.parameters['path']))
         body = {}
-        for option in ('access_control', 'control_flags', 'group', 'owner', 'propagation_mode'):
+        for option in ('access_control', 'control_flags', 'group', 'owner', 'ignore_paths', 'propagation_mode'):
             self.set_option(body, option)
         body['acls'] = self.sanitize_acls_for_post(self.parameters.get('acls', []))
         dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
@@ -556,6 +575,9 @@ class NetAppOntapFileSecurityPermissions:
 
     def get_acl_actions_on_modify(self, modify, current):
         acl_actions = {'patch-acls': [], 'post-acls': [], 'delete-acls': []}
+        if not self.has_acls(current):
+            acl_actions['post-acls'] = modify['acls']
+            return acl_actions
         for acl in modify['acls']:
             current_acl = self.match_acl_with_acls(acl, current['acls'])
             if current_acl:
@@ -659,10 +681,6 @@ class NetAppOntapFileSecurityPermissions:
 
     def get_actions(self):
         current = self.get_file_security_permissions()
-        # if path not found and state is present, it will be errored out in get method.
-        # if no acls configured in the path, allow create file security permissions.
-        if not self.has_acl(current):
-            current = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify, acl_actions = self.get_modify_actions(current) if cd_action is None else (None, {})
         if cd_action == 'create' and self.parameters.get('access_control') is None:

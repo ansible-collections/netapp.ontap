@@ -180,15 +180,36 @@ def test_create_file_directory_acl():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_id']),
-        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['zero_records']),
         ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['success']),
         ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_multiple_user']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_id']),
-        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_multiple_user'])
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_multiple_user']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_id']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
+        ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt/acl', SRR['success']),
+        ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt/acl', SRR['success']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_multiple_user']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_id']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['zero_records']),
+        ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['success']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_id']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS)['changed']
     assert not create_and_apply(my_module, DEFAULT_ARGS)['changed']
+    # Add ACLs to an SD only record
+    assert create_and_apply(my_module, DEFAULT_ARGS)['changed']
+    # create SD only
+    args = dict(DEFAULT_ARGS)
+    args.pop('acls')
+    assert create_and_apply(my_module, args)['changed']
+    assert not create_and_apply(my_module, args)['changed']
 
 
 def test_add_file_directory_acl():
@@ -268,7 +289,7 @@ def test_create_file_directory_slag():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'svm/svms', SRR['svm_id']),
-        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['zero_records']),
         ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['success']),
         ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['slag_acl_same_user']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),

@@ -84,6 +84,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Modules
   - na_ontap_bgp_peer_group - Create, modify and delete BGP peer groups.
   - na_ontap_file_security_permissions - Update SD and ACLs.
+  - na_ontap_file_security_permissions_acl - Add, update, or delete a single ACL.
   - na_ontap_name_mappings - added REST only support for create, update and delete name mappings configuration.
 
 ## 21.24.1
