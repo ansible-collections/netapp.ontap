@@ -14,7 +14,7 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_debug \
     import NetAppONTAPDebug as my_module, main as uut_main      # module under test
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
-    assert_no_warnings, call_main, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
+    assert_no_warnings, assert_no_warnings_except_zapi, call_main, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, zapi_responses
@@ -102,7 +102,7 @@ def test_success_no_vserver():
     args.pop('vserver')
     results = create_and_apply(my_module, args)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert 'msg' in results
     assert "NOTE: application console not found for user: user1: ['http', 'ontapi']" in results['notes']
@@ -120,7 +120,7 @@ def test_success_with_vserver():
     results = create_and_apply(my_module, DEFAULT_ARGS)
     print('Info: %s' % results)
     # assert results['changed'] is False
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' not in results
 
 
@@ -136,7 +136,7 @@ def test_fail_with_vserver_locked():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert 'user: user1 is locked on vserver: vserver' in results['notes'][0]
 
@@ -154,7 +154,7 @@ def test_fail_with_vserver_missing_app():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert 'application ontapi not found for user: user1' in results['notes'][0]
     assert 'Error: no unlocked user for ontapi on vserver: vserver' in results['msg']
@@ -170,7 +170,7 @@ def test_fail_with_vserver_list_user_not_found():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'Error getting accounts for: vserver: none found' in results['msg']
 
 
@@ -184,7 +184,7 @@ def test_fail_with_vserver_list_user_error_on_get_users():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'Error getting accounts for: vserver: calling: security/accounts: got Expected error.' in results['msg']
 
 
@@ -198,7 +198,7 @@ def test_success_with_vserver_list_user_not_authorized():
 
     results = create_and_apply(my_module, DEFAULT_ARGS)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'Not autorized to get accounts for: vserver: calling: security/accounts: got not authorized for that command.' in results['msg']
 
 
@@ -214,7 +214,7 @@ def test_fail_with_vserver_no_interface():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert "NOTE: application console not found for user: user1: ['http', 'ontapi']" in results['notes']
     assert 'Error vserver is not associated with a network interface: vserver' in results['msg']
@@ -230,7 +230,7 @@ def test_fail_with_vserver_not_found():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert "NOTE: application console not found for user: user1: ['http', 'ontapi']" in results['notes']
     assert 'Error getting vserver in list_interfaces: vserver: not found' in results['msg']
@@ -246,7 +246,7 @@ def test_fail_with_vserver_error_on_get_svms():
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert "NOTE: application console not found for user: user1: ['http', 'ontapi']" in results['notes']
     assert 'Error getting vserver in list_interfaces: vserver: calling: svm/svms: got Expected error.' in results['msg']
@@ -264,7 +264,7 @@ def test_note_with_vserver_no_management_service():
 
     results = create_and_apply(my_module, DEFAULT_ARGS)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' in results
     assert 'no management policy in services' in results['notes'][2]
 
@@ -290,7 +290,7 @@ def test_fail_zapi_error():
     ])
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' not in results
     assert 'Unclassified, see msg' in results['msg']
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
@@ -317,7 +317,7 @@ def test_fail_rest_error():
     ])
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' not in results
     assert 'Other error for hostname: 10.10.10.10 using REST: Unreachable.' in results['msg']
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
@@ -340,7 +340,7 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
 
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
     assert 'notes' not in results
     assert 'Install the python netapp-lib module or a missing dependency' in results['msg'][0]
 

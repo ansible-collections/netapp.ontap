@@ -14,7 +14,7 @@ DOCUMENTATION = '''
 module: na_ontap_vserver_cifs_security
 short_description: NetApp ONTAP vserver CIFS security modification
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 version_added: 2.9.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
@@ -172,7 +172,7 @@ class NetAppONTAPCifsSecurity(object):
     '''
     def __init__(self):
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             vserver=dict(required=True, type='str'),
             kerberos_clock_skew=dict(required=False, type='int'),

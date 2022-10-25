@@ -19,7 +19,7 @@ module: na_ontap_volume_snaplock
 
 short_description: NetApp ONTAP manage volume snaplock retention.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 version_added: '20.2.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -134,7 +134,7 @@ class NetAppOntapVolumeSnaplock(object):
     def __init__(self):
         '''Initialize module parameters'''
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             name=dict(required=True, type='str'),
             vserver=dict(required=True, type='str'),

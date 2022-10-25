@@ -14,7 +14,7 @@ module: na_ontap_ldap
 
 short_description: NetApp ONTAP LDAP
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 version_added: 2.9.0
 author: Milan Zink (@zeten30) <zeten30@gmail.com>/<mzink@redhat.com>
 
@@ -78,7 +78,7 @@ class NetAppOntapLDAP:
     '''
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             name=dict(required=True, type='str'),
             skip_config_validation=dict(required=False, default=None, choices=['true', 'false']),

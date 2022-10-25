@@ -14,7 +14,7 @@ author:
   - Piotr Olczak (@dprts) <polczak@redhat.com>
   - NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 short_description: Setup motd
 description:
   - This module allows you to manipulate motd for a vserver
@@ -98,7 +98,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import 
 class NetAppONTAPMotd:
 
     def __init__(self):
-        argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         argument_spec.update(dict(
             state=dict(required=False, type='str', default='present', choices=['present', 'absent']),
             vserver=dict(required=True, type='str'),

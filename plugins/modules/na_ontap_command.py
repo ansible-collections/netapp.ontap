@@ -17,7 +17,7 @@ description:
     "Insufficient privileges" and "user 'xxxxx' does not have write access to this resource"
     for a readonly user.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 module: na_ontap_command
 short_description: NetApp ONTAP Run any cli command, the username provided needs to have console login permission.
 version_added: 2.7.0
@@ -111,7 +111,7 @@ class NetAppONTAPCommand():
     ''' calls a CLI command '''
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             command=dict(required=True, type='list', elements='str'),
             privilege=dict(required=False, type='str', choices=['admin', 'advanced'], default='admin'),

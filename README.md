@@ -47,6 +47,8 @@ return values differently than ZAPI you will need to update your playbooks to wo
   - na_ontap_info -> na_ontap_rest_info
   - na_ontap_ldap -> na_ontap_ldap_client
   - na_ontap_motd -> na_ontap_login_messages
+  - na_ontap_ntfs_dacl -> na_ontap_file_security_permissions
+  - na_ontap_ntfs_sd -> na_ontap_file_security_permissions
   - na_ontap_qos_adaptive_policy_group -> na_ontap_qos_policy_group
   - na_ontap_volume_snaplock -> na_ontap_volume
   - na_ontap_vserver_cifs_security -> na_ontap_cifs_server
@@ -65,13 +67,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.0.0
 
+### Major Changes
+  - With this release all modules except for the modules called up above now support REST.
+  - ZAPI calls will continue to work, but will return a warning that they are deprecated and users should migrate to REST.
+
 ### Minor Changes
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
-
-### New Options
   - na_ontap_volume - new option `max_wait_time` added.
   - na_ontap_volume - new REST option `analytics` added.
+
 
 ### Bug Fixes
   - na_ontap_info - Added vserver in key_fields of net_interface_info.
@@ -81,6 +86,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.
   - na_ontap_volume - `snapdir_access` is not supported by REST and will currently inform you now if you try to use it with REST.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
+  - ZAPI only modules -- no longer have `use_rest` as an option.
 
 ### New Modules
   - na_ontap_bgp_peer_group - Create, modify and delete BGP peer groups.

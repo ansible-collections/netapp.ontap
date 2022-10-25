@@ -14,7 +14,7 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Configure firewall on an ONTAP node and manage firewall policy for an ONTAP SVM
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 requirements:
   - Python package ipaddress. Install using 'pip install ipaddress'
 options:
@@ -132,7 +132,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 class NetAppONTAPFirewallPolicy():
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             allow_list=dict(required=False, type='list', elements='str'),

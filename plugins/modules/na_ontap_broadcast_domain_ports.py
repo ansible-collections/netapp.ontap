@@ -14,7 +14,7 @@ DOCUMENTATION = '''
 module: na_ontap_broadcast_domain_ports
 short_description: NetApp ONTAP manage broadcast domain ports
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -86,7 +86,7 @@ class NetAppOntapBroadcastDomainPorts(object):
         """
             Initialize the Ontap Net Route class
         """
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             broadcast_domain=dict(required=True, type='str'),

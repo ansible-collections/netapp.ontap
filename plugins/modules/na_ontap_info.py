@@ -15,7 +15,7 @@ DOCUMENTATION = '''
 module: na_ontap_info
 author: Piotr Olczak (@dprts) <polczak@redhat.com>
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 short_description: NetApp information gatherer
 description:
     - This module allows you to gather various information about ONTAP configuration
@@ -402,7 +402,7 @@ class NetAppONTAPGatherInfo:
 
     def __init__(self):
         ''' create module, set up context'''
-        argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         argument_spec.update(dict(
             state=dict(type='str'),
             gather_subset=dict(default=['all'], type='list', elements='str'),

@@ -18,7 +18,7 @@ description:
   - and the call is reported as an error ('failed').
   - Other errors (eg connection issues) are reported as Ansible error.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 module: na_ontap_zapit
 short_description: NetApp ONTAP Run any ZAPI on ONTAP
 version_added: "20.4.0"
@@ -186,7 +186,7 @@ class NetAppONTAPZapi:
     ''' calls a ZAPI command '''
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             zapi=dict(required=True, type='dict'),
             vserver=dict(required=False, type='str'),

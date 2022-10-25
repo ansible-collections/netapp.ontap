@@ -10,6 +10,7 @@ from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp import ZAPI_DEPRECATION_MESSAGE
 
 VERBOSE = True
 
@@ -156,6 +157,16 @@ def print_warnings(framed=True):
 
 def assert_no_warnings():
     assert not WARNINGS
+
+
+def assert_no_warnings_except_zapi():
+    # Deprecation message can appear more than once. Remove will only remove the first instance.
+    local_warning = list(set(WARNINGS))
+    tmp_warnings = local_warning[:]
+    for warning in tmp_warnings:
+        if warning in ZAPI_DEPRECATION_MESSAGE:
+            local_warning.remove(ZAPI_DEPRECATION_MESSAGE)
+    assert not local_warning
 
 
 def assert_warning_was_raised(warning, partial_match=False):

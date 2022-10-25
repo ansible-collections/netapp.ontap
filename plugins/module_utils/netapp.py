@@ -108,6 +108,10 @@ ERROR_MSG = dict(
 
 LOG = logging.getLogger(__name__)
 LOG_FILE = '/tmp/ontap_apis.log'
+ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. ONTAP last version to support ONTAPI is shipping end of 2022. " \
+                           "ZAPI calls in these modules will continue to work for ONTAP versions that supports ZAPI. " \
+                           "You can update your playbook to use REST by adding use_rest: always to your playbook. "\
+                           "More information can be found at: https://github.com/ansible-collections/netapp.ontap"
 
 try:
     from solidfire.factory import ElementFactory
@@ -128,7 +132,26 @@ def has_sf_sdk():
     return HAS_SF_SDK
 
 
+def na_ontap_zapi_only_spec():
+    # This is used for Zapi only Modules.
+
+    return dict(
+        hostname=dict(required=True, type='str'),
+        username=dict(required=False, type='str', aliases=['user']),
+        password=dict(required=False, type='str', aliases=['pass'], no_log=True),
+        https=dict(required=False, type='bool', default=False),
+        validate_certs=dict(required=False, type='bool', default=True),
+        http_port=dict(required=False, type='int'),
+        ontapi=dict(required=False, type='int'),
+        use_rest=dict(required=False, type='str', default='never'),
+        feature_flags=dict(required=False, type='dict', default=dict()),
+        cert_filepath=dict(required=False, type='str'),
+        key_filepath=dict(required=False, type='str', no_log=False),
+    )
+
+
 def na_ontap_host_argument_spec():
+    # This is used for Zapi + REST, and REST only Modules.
 
     return dict(
         hostname=dict(required=True, type='str'),
@@ -289,6 +312,7 @@ def set_zapi_port_and_transport(server, https, port, validate_certs):
 
 
 def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None):
+    module.warn(ZAPI_DEPRECATION_MESSAGE)
     if host_options is None:
         host_options = module.params
     hostname = host_options.get('hostname')

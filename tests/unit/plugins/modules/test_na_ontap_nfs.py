@@ -11,7 +11,7 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
-    assert_no_warnings, assert_warning_was_raised, call_main, create_and_apply, print_warnings, set_module_args,\
+    assert_no_warnings, assert_no_warnings_except_zapi, assert_warning_was_raised, call_main, create_and_apply, print_warnings, set_module_args,\
     AnsibleExitJson, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
@@ -321,7 +321,7 @@ def test_modify_tcp_max_xfer_size():
     assert not create_and_apply(nfs_module, DEFAULT_ARGS, module_args)['changed']
     error = 'Error: tcp_max_xfer_size is not supported on ONTAP 9.3 or earlier.'
     assert create_and_apply(nfs_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
-    assert_no_warnings()
+    assert_no_warnings_except_zapi()
 
 
 def test_warning_on_nfsv41_alias():
