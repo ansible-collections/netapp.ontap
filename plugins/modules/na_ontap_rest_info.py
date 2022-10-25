@@ -1071,12 +1071,11 @@ class NetAppONTAPGatherInfo(object):
                 self.add_vserver_owning_resource('protocols/vscan/on-demand-policies', params, 'protocols/vscan/%s/on-demand-policies', get_ontap_subset_info)
             if 'protocols/vscan/scanner-pools' in self.parameters['gather_subset']:
                 self.add_vserver_owning_resource('protocols/vscan/scanner-pools', params, 'protocols/vscan/%s/scanner-pools', get_ontap_subset_info)
-
         return get_ontap_subset_info
 
     def add_vserver_owning_resource(self, subset, params, api, get_ontap_subset_info):
         self.check_error_values(subset, params, ['svm_name'])
-        svm_uuid, dummy = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['owning_resource']['svm_name'])
+        svm_uuid, dummy = rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['owning_resource']['svm_name'], self.module, True)
         if svm_uuid:
             get_ontap_subset_info[subset] = {'api_call': api % svm_uuid}
 

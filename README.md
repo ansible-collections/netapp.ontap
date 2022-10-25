@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_info - Added vserver in key_fields of net_interface_info.
+  - na_ontap_rest_info - fixed error where module would fail silently when using `owning_resouce` and a non-existent vserver.
   - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
   - na_ontap_volume - fix error when trying to unencrypt volume in REST.
   - na_ontap_volume - fix KeyError on `aggregate_name` when trying to unencrypt volume in ZAPI.
