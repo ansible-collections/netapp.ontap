@@ -13,7 +13,7 @@
     - name: convert duration in ISO 8601 format to seconds
       set_fact:
         input: "{{ iso_duration }}"
-        out: "{{ iso_duration | iso8601_duration_to_seconds }}"
+        out: "{{ iso_duration | netapp.ontap.iso8601_duration_to_seconds }}"
 
     - name: validate results
       assert:
@@ -23,7 +23,7 @@
     - name: convert seconds to duration in ISO 8601 format
       set_fact:
         input: "{{ seconds_duration }}"
-        out: "{{ seconds_duration | iso8601_duration_from_seconds }}"
+        out: "{{ seconds_duration | netapp.ontap.iso8601_duration_from_seconds }}"
 
     - name: validate results
       assert:
@@ -33,7 +33,7 @@
     - name: convert seconds to duration in ISO 8601 format, using format specifier
       set_fact:
         input: "{{ seconds_duration }}"
-        out: "{{ seconds_duration | iso8601_duration_from_seconds(format='P%P') }}"
+        out: "{{ seconds_duration | netapp.ontap.iso8601_duration_from_seconds(format='P%P') }}"
 
     - name: validate results
       assert:
@@ -43,7 +43,7 @@
     - name: convert seconds to duration in ISO 8601 format, using format specifier for weeks
       set_fact:
         input: "{{ seconds_duration }}"
-        out: "{{ seconds_duration | iso8601_duration_from_seconds(format='P%p') }}"
+        out: "{{ seconds_duration | netapp.ontap.iso8601_duration_from_seconds(format='P%p') }}"
 
     - name: validate results
       assert:
@@ -52,7 +52,7 @@
 
     - name: input error, input does not match ISO format
       set_fact:
-        out: "{{ 'dummy' | iso8601_duration_to_seconds }}"
+        out: "{{ 'dummy' | netapp.ontap.iso8601_duration_to_seconds }}"
       ignore_errors: true
       register: results
 
@@ -65,7 +65,7 @@
 
     - name: input error, input does not match int or float format
       set_fact:
-        out: "{{ 'dummy' | iso8601_duration_from_seconds }}"
+        out: "{{ 'dummy' | netapp.ontap.iso8601_duration_from_seconds }}"
       ignore_errors: true
       register: results
 
