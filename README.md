@@ -71,6 +71,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - With this release all modules except for the modules called up above now support REST.
   - ZAPI calls will continue to work, but will return a warning that they are deprecated and users should migrate to REST.
 
+### New Rest Info
+  - na_ontap_rest_info - support added for protocols/active-directory.
+  - na_ontap_rest_info - support added for protocols/cifs/group-policies.
+  - na_ontap_rest_info - support added for protocols/nfs/connected-client-settings.
+  - na_ontap_rest_info - support added for security/aws-kms.
+
 ### Minor Changes
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.

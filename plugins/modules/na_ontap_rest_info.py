@@ -111,9 +111,11 @@ options:
       - network/ipspaces or network_ipspaces_info or net_ipspaces_info
       - private/support/alerts or sys_cluster_alerts
       - private/cli/vserver/security/file-directory or file_directory_security
+      - protocols/active-directory
       - protocols/audit
       - protocols/cifs/connections
       - protocols/cifs/domains
+      - protocols/cifs/group-policies
       - protocols/cifs/home-directory/search-paths or cifs_home_directory_info
       - protocols/cifs/local-groups
       - protocols/cifs/local-users
@@ -134,6 +136,7 @@ options:
       - protocols/ndmp/svms
       - protocols/nfs/connected-clients
       - protocols/nfs/connected-client-maps
+      - protocols/nfs/connected-client-settings
       - protocols/nfs/export-policies or export_policy_info
       - protocols/nfs/export-policies/rules B(Requires the owning_resource to be set)
       - protocols/nfs/kerberos/interfaces
@@ -170,6 +173,7 @@ options:
       - security/authentication/cluster/nis
       - security/authentication/cluster/saml-sp
       - security/authentication/publickeys
+      - security/aws-kms
       - security/azure-key-vaults
       - security/certificates
       - security/gcp-kms
@@ -859,9 +863,11 @@ class NetAppONTAPGatherInfo(object):
             'network/ip/subnets': {'version': (9, 11, 1)},
             'network/ipspaces': {},
             'private/support/alerts': {},
+            'protocols/active-directory': {'version': (9, 12, 1)},
             'protocols/audit': {},
             'protocols/cifs/connections': {'version': (9, 11, 1)},
             'protocols/cifs/domains': {'version': (9, 10, 1)},
+            'protocols/cifs/group-policies': {'version': (9, 12, 1)},
             'protocols/cifs/home-directory/search-paths': {},
             'protocols/cifs/local-groups': {'version': (9, 9)},
             'protocols/cifs/local-users': {'version': (9, 9)},
@@ -882,6 +888,7 @@ class NetAppONTAPGatherInfo(object):
             'protocols/ndmp/svms': {'version': (9, 7)},
             'protocols/nfs/connected-clients': {'version': (9, 7)},
             'protocols/nfs/connected-client-maps': {'version': (9, 11, 1)},
+            'protocols/nfs/connected-client-settings': {'version': (9, 12, 1)},
             'protocols/nfs/export-policies': {},
             'protocols/nfs/kerberos/interfaces': {},
             'protocols/nfs/kerberos/realms': {},
@@ -914,6 +921,7 @@ class NetAppONTAPGatherInfo(object):
             'security/authentication/cluster/nis': {},
             'security/authentication/cluster/saml-sp': {},
             'security/authentication/publickeys': {'version': (9, 7)},
+            'security/aws-kms': {'version': (9, 12, 1)},
             'security/azure-key-vaults': {'version': (9, 8)},
             'security/certificates': {},
             'security/gcp-kms': {'version': (9, 9)},
