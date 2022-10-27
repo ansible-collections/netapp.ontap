@@ -74,13 +74,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
+
+### New Options
+  - na_ontap_ldap_client - new option `skip_config_validation`.
   - na_ontap_volume - new option `max_wait_time` added.
   - na_ontap_volume - new REST option `analytics` added.
-
 
 ### Bug Fixes
   - iso8601 filters - fix documentation generation issue.
   - na_ontap_info - Added vserver in key_fields of net_interface_info.
+  - na_ontap_ldap_client - `servers` not accepted when using ZAPI and `ldap_servers` not handling a single server properly.
   - na_ontap_rest_info - fixed error where module would fail silently when using `owning_resouce` and a non-existent vserver.
   - na_ontap_volume - fix error when trying to move encrypted volume and `encrypt` is True in REST.
   - na_ontap_volume - fix error when trying to unencrypt volume in REST.

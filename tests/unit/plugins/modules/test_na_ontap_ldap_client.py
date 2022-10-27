@@ -12,12 +12,12 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
+    patch_ansible, call_main, create_module, expect_and_capture_ansible_exception, AnsibleFailJson
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ldap_client \
-    import NetAppOntapLDAPClient as client_module  # module under test
+    import NetAppOntapLDAPClient as client_module, main as my_main      # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -71,7 +71,6 @@ DEFAULT_ARGS = {
     'password': 'password',
     'vserver': 'vserver',
     'name': 'test_ldap',
-    'ldap_servers': ['10.193.115.116'],
     'schema': 'RFC-2307',
     'use_rest': 'never',
 }
@@ -116,7 +115,7 @@ def test_successfully_create_zapi():
         'ldap_servers': ['10.193.115.116'],
         'schema': 'RFC-2307'
     }
-    assert create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_error_create_zapi():
@@ -130,7 +129,24 @@ def test_error_create_zapi():
         'ldap_servers': ['10.193.115.116'],
         'schema': 'RFC-2307'
     }
-    error = create_and_apply(client_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error creating LDAP client"
+    assert msg in error
+
+
+def test_error_create_ad_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('ldap-client-get-iter', ZRR['empty']),
+        ('ldap-client-create', ZRR['error']),
+    ])
+    module_args = {
+        'name': 'test_ldap',
+        'ad_domain': 'ad.netapp.com',
+        'preferred_ad_servers': ['10.193.115.116'],
+        'schema': 'RFC-2307'
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     msg = "Error creating LDAP client"
     assert msg in error
 
@@ -142,11 +158,11 @@ def test_create_idempotency():
     ])
     module_args = {
         'name': 'test_ldap',
-        'ldap_servers': ['10.193.115.116'],
+        'servers': ['10.193.115.116'],
         'schema': 'RFC-2307',
         'state': 'present'
     }
-    assert not create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_successfully_delete():
@@ -161,7 +177,7 @@ def test_successfully_delete():
         'schema': 'RFC-2307',
         'state': 'absent'
     }
-    assert create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_error_delete_zapi():
@@ -176,7 +192,7 @@ def test_error_delete_zapi():
         'schema': 'RFC-2307',
         'state': 'absent'
     }
-    error = create_and_apply(client_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     msg = "Error deleting LDAP client configuration"
     assert msg in error
 
@@ -189,7 +205,7 @@ def test_delete_idempotency():
     module_args = {
         'state': 'absent'
     }
-    assert not create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ldap_servers():
@@ -202,8 +218,25 @@ def test_modify_ldap_servers():
         'name': 'test_ldap',
         'ldap_servers': ['10.195.64.121'],
         'schema': 'RFC-2307',
+        'ldaps_enabled': True,
     }
-    assert create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ldap_ad_servers():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('ldap-client-get-iter', ZRR['ldap_client_info']),
+        ('ldap-client-modify', ZRR['success']),
+    ])
+    module_args = {
+        'name': 'test_ldap',
+        'ad_domain': 'ad.netapp.com',
+        'preferred_ad_servers': ['10.195.64.121'],
+        'schema': 'RFC-2307',
+        'ldaps_enabled': True,
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ldap_schema_zapi():
@@ -214,9 +247,10 @@ def test_modify_ldap_schema_zapi():
     ])
     module_args = {
         'name': 'test_ldap',
+        'ldap_servers': ['10.195.64.121'],
         'schema': 'MS-AD-BIS',
     }
-    assert create_and_apply(client_module, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_if_all_methods_catch_exception():
@@ -252,7 +286,7 @@ ARGS_REST = {
 def test_get_nonexistent_ldap_config_rest():
     ''' Test if get_unix_user returns None for non-existent user '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records']),
     ])
     ldap_obj = create_module(client_module, ARGS_REST)
@@ -263,7 +297,7 @@ def test_get_nonexistent_ldap_config_rest():
 def test_get_existent_ldap_config_rest():
     ''' Test if get_unix_user returns existent user '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
     ])
     ldap_obj = create_module(client_module, ARGS_REST)
@@ -274,17 +308,17 @@ def test_get_existent_ldap_config_rest():
 def test_get_error_ldap_config_rest():
     ''' Test if get_unix_user returns existent user '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['generic_error']),
     ])
-    error = create_and_apply(client_module, ARGS_REST, fail=True)['msg']
+    error = call_main(my_main, ARGS_REST, fail=True)['msg']
     msg = "Error on getting idap client info:"
     assert msg in error
 
 
 def test_create_ldap_client_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records']),
         ('POST', 'name-services/ldap', SRR['empty_good']),
     ])
@@ -292,12 +326,12 @@ def test_create_ldap_client_rest():
         'ldap_servers': ['10.193.115.116'],
         'schema': 'RFC-2307'
     }
-    assert create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
 
 
 def test_error_create_ldap_client_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records']),
         ('POST', 'name-services/ldap', SRR['generic_error']),
     ])
@@ -305,14 +339,14 @@ def test_error_create_ldap_client_rest():
         'servers': ['10.193.115.116'],
         'schema': 'RFC-2307'
     }
-    error = create_and_apply(client_module, ARGS_REST, module_args, fail=True)['msg']
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
     msg = "Error on creating ldap client:"
     assert msg in error
 
 
 def test_delete_ldap_client_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
         ('DELETE', 'name-services/ldap/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
     ])
@@ -321,12 +355,12 @@ def test_delete_ldap_client_rest():
         'schema': 'RFC-2307',
         'state': 'absent'
     }
-    assert create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
 
 
 def test_error_delete_ldap_client_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
         ('DELETE', 'name-services/ldap/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error']),
     ])
@@ -335,14 +369,14 @@ def test_error_delete_ldap_client_rest():
         'schema': 'RFC-2307',
         'state': 'absent'
     }
-    error = create_and_apply(client_module, ARGS_REST, module_args, fail=True)['msg']
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
     msg = "Error on deleting ldap client rest:"
     assert msg in error
 
 
 def test_create_idempotent_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
     ])
     module_args = {
@@ -350,23 +384,23 @@ def test_create_idempotent_rest():
         'servers': ['10.193.115.116'],
         'schema': 'RFC-2307',
     }
-    assert not create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert not call_main(my_main, ARGS_REST, module_args)['changed']
 
 
 def test_delete_idempotent_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records'])
     ])
     module_args = {
         'state': 'absent'
     }
-    assert not create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert not call_main(my_main, ARGS_REST, module_args)['changed']
 
 
 def test_modify_schema_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
         ('PATCH', 'name-services/ldap/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
@@ -375,12 +409,12 @@ def test_modify_schema_rest():
         'servers': ['10.193.115.116'],
         'schema': 'AD-IDMU',
     }
-    assert create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
 
 
 def test_modify_ldap_servers_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
         ('PATCH', 'name-services/ldap/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
@@ -388,13 +422,15 @@ def test_modify_ldap_servers_rest():
         'state': 'present',
         'servers': ['10.195.64.121'],
         'schema': 'AD-IDMU',
+        'ldaps_enabled': True,
+        'skip_config_validation': True
     }
-    assert create_and_apply(client_module, ARGS_REST, module_args)['changed']
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
 
 
-def test_modify_ldap_servers_rest():
+def test_negative_modify_ldap_servers_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['ldap_record']),
         ('PATCH', 'name-services/ldap/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['generic_error'])
     ])
@@ -403,6 +439,26 @@ def test_modify_ldap_servers_rest():
         'servers': ['10.195.64.121'],
         'schema': 'AD-IDMU',
     }
-    error = create_and_apply(client_module, ARGS_REST, module_args, fail=True)['msg']
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
     msg = "Error on modifying ldap client config:"
     assert msg in error
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.HAS_NETAPP_LIB', False)
+def test_module_fail_when_netapp_lib_missing():
+    ''' required lib missing '''
+    module_args = {
+        'use_rest': 'never',
+    }
+    assert 'Error: the python NetApp-Lib module is required.  Import error: None' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_error_no_server():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'name-services/ldap', SRR['ldap_record']),
+    ])
+    args = dict(ARGS_REST)
+    args.pop('servers')
+    error = 'Required one of servers or ad_domain'
+    assert error in call_main(my_main, args, fail=True)['msg']
