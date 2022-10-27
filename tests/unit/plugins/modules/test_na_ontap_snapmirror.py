@@ -1001,7 +1001,8 @@ def test_negative_rest_create():
         "schedule": "abc",
         "relationship_type": "data_protection",
     }
-    msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"
+    msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"\
+          " - With REST use the policy option to define a schedule."
     assert create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 

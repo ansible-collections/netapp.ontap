@@ -80,6 +80,7 @@ options:
     description:
       - Specify the name of the current schedule, which is used to update the SnapMirror relationship.
       - Optional for create, modifiable.
+      - With REST, use C(policy) to define a schedule.   The C(schedule) option is not supported.
     type: str
   policy:
     description:
@@ -633,6 +634,8 @@ class NetAppONTAPSnapmirror(object):
         if error is not None:
             if 'relationship_type' in error:
                 error = error.replace('relationship_type', 'relationship_type: %s' % rtype)
+            if 'schedule' in error:
+                error += ' - With REST use the policy option to define a schedule.'
             self.module.fail_json(msg=error)
 
         if not use_rest and any(x in self.parameters for x in ontap_97_options):
@@ -758,9 +761,7 @@ class NetAppONTAPSnapmirror(object):
             self.module.fail_json(msg='Error fetching source volume details %s: %s'
                                   % (self.parameters['source_volume'], to_native(error)),
                                   exception=traceback.format_exc())
-        if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0:
-            return True
-        return False
+        return bool(result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) > 0)
 
     def get_svm_from_destination_vserver_or_path(self):
         svm_name = self.parameters.get('destination_vserver')

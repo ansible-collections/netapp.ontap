@@ -160,9 +160,9 @@ class TestMyModule(unittest.TestCase):
         set_module_args(data)
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_mock_object().validate_ip_addresses()
-        msg = 'Error: Invalid IP address value for allow_list parameter.' \
-              'Please specify a network address without host bits set: ' \
-              '1.2.0.10/16 has host bits set'
+        msg = 'Error: Invalid IP network value 1.2.0.10/16.' \
+              '  Please specify a network address without host bits set: ' \
+              '1.2.0.10/16 has host bits set.'
         assert exc.value.args[0]['msg'] == msg
 
     def test_get_nonexistent_policy(self):

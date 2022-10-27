@@ -79,10 +79,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
+  - na_ontap_snapmirror - `schedule` is handled through `policy` for REST.
+  - na_ontap_snapmirror_policy - improve error reporting and report errors in check_mode.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
 
 ### New Options
   - na_ontap_ldap_client - new option `skip_config_validation`.
+  - na_ontap_snapmirror_policy - new option `identity_preservation` added.
+  - na_ontap_snapmirror_policy - `name` added as an alias for `policy_name`.
   - na_ontap_volume - new option `max_wait_time` added.
   - na_ontap_volume - new REST option `analytics` added.
 

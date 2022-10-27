@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -115,22 +115,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-try:
-    import ipaddress
-    HAS_IPADDRESS_LIB = True
-except ImportError:
-    HAS_IPADDRESS_LIB = False
-
-import sys
-# Python 3 merged unicode in to str, this is to make sure nothing breaks
-# https://stackoverflow.com/questions/19877306/nameerror-global-name-unicode-is-not-defined-in-python-3
-if sys.version_info[0] >= 3:
-    unicode = str
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils import netapp_ipaddress
 
 
-class NetAppONTAPFirewallPolicy():
+class NetAppONTAPFirewallPolicy:
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
@@ -155,14 +143,9 @@ class NetAppONTAPFirewallPolicy():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.na_helper.module_replaces('na_ontap_service_policy', self.module)
-        if HAS_NETAPP_LIB is False:
-            self.module.fail_json(msg="the python NetApp-Lib module is required")
-        else:
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
-
-        if HAS_IPADDRESS_LIB is False:
-            self.module.fail_json(msg="the python ipaddress lib is required for this module")
-        return
+        if not netapp_utils.has_netapp_lib():
+            self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def validate_ip_addresses(self):
         '''
@@ -173,18 +156,7 @@ class NetAppONTAPFirewallPolicy():
             :return: None
         '''
         for ip in self.parameters['allow_list']:
-            # create an IPv4 object for current IP address
-            if sys.version_info[0] >= 3:
-                ip_addr = str(ip)
-            else:
-                ip_addr = unicode(ip)  # pylint: disable=undefined-variable
-            # get network address from netmask, throw exception if address is not a network address
-            try:
-                ipaddress.ip_network(ip_addr)
-            except ValueError as exc:
-                self.module.fail_json(msg='Error: Invalid IP address value for allow_list parameter.'
-                                          'Please specify a network address without host bits set: %s'
-                                      % (to_native(exc)))
+            netapp_ipaddress.validate_ip_address_is_network_address(ip, self.module)
 
     def get_firewall_policy(self):
         """
@@ -276,9 +248,8 @@ class NetAppONTAPFirewallPolicy():
         Get firewall configuration on the node
         :return: dict() with firewall config details
         """
-        if self.parameters.get('logging'):
-            if self.parameters.get('node') is None:
-                self.module.fail_json(msg='Error: Missing parameter \'node\' to modify firewall logging')
+        if self.parameters.get('logging') and self.parameters.get('node') is None:
+            self.module.fail_json(msg='Error: Missing parameter \'node\' to modify firewall logging')
         net_firewall_config_obj = netapp_utils.zapi.NaElement("net-firewall-config-get")
         net_firewall_config_obj.add_new_child('node-name', self.parameters['node'])
         try:
@@ -333,19 +304,16 @@ class NetAppONTAPFirewallPolicy():
             # firewall config for a node is always present, we cannot create or delete a firewall on a node
             modify_config = self.na_helper.get_modified_attributes(current_config, self.parameters)
 
-        if self.na_helper.changed:
-            if self.module.check_mode:
-                pass
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_firewall_policy()
+            elif cd_action == 'delete':
+                self.destroy_firewall_policy()
             else:
-                if cd_action == 'create':
-                    self.create_firewall_policy()
-                elif cd_action == 'delete':
-                    self.destroy_firewall_policy()
-                else:
-                    if modify:
-                        self.modify_firewall_policy(modify)
-                    if modify_config:
-                        self.modify_firewall_config(modify_config)
+                if modify:
+                    self.modify_firewall_policy(modify)
+                if modify_config:
+                    self.modify_firewall_config(modify_config)
         self.module.exit_json(changed=self.na_helper.changed)
 
 
