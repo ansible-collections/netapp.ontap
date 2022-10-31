@@ -57,6 +57,7 @@ action_groups:
     - na_ontap_ldap_client
     - na_ontap_ldap
     - na_ontap_license
+    - na_ontap_local_hosts
     - na_ontap_log_forward
     - na_ontap_login_messages
     - na_ontap_lun_copy

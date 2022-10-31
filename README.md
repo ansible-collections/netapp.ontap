@@ -105,6 +105,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - ZAPI only modules -- no longer have `use_rest` as an option.
 
 ### New Modules
+  - na_ontap_local_hosts - added REST only support for create, update and delete IP to hostname mappings for SVM of the cluster.
   - na_ontap_bgp_peer_group - Create, modify and delete BGP peer groups.
   - na_ontap_file_security_permissions - Update SD and ACLs.
   - na_ontap_file_security_permissions_acl - Add, update, or delete a single ACL.
