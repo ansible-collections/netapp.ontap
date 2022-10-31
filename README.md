@@ -78,6 +78,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - support added for security/aws-kms.
 
 ### Minor Changes
+  - na_ontap_debug - report python executable version and path.
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
   - na_ontap_snapmirror - `schedule` is handled through `policy` for REST.
   - na_ontap_snapmirror_policy - improve error reporting and report errors in check_mode.
@@ -91,6 +92,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapmirror_policy - `name` added as an alias for `policy_name`.
   - na_ontap_volume - new option `max_wait_time` added.
   - na_ontap_volume - new REST option `analytics` added.
+  - tracing - allow to selectively trace headers and authentication.
 
 ### Bug Fixes
   - iso8601 filters - fix documentation generation issue.
@@ -104,6 +106,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - `snapdir_access` is not supported by REST and will currently inform you now if you try to use it with REST.
   - na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
   - ZAPI only modules -- no longer have `use_rest` as an option.
+  - tracing - redact headers and authentication secrets by default.
 
 ### New Modules
   - na_ontap_local_hosts - added REST only support for create, update and delete IP to hostname mappings for SVM of the cluster.

@@ -71,17 +71,18 @@ class NetAppONTAPDebug(object):
     def list_versions(self):
         self.log_list.append('Ansible version: %s' % netapp_utils.ansible_version)
         self.log_list.append('ONTAP collection version: %s' % netapp_utils.COLLECTION_VERSION)
+        self.log_list.append('Python version: %s' % sys.version[:3])
+        self.log_list.append('Python executable path: %s' % sys.executable)
 
     def import_lib(self):
         if not netapp_utils.has_netapp_lib():
-            syspath = ','.join(sys.path)
             msgs = [
                 'Error importing netapp-lib or a dependency: %s.' % str(netapp_utils.IMPORT_EXCEPTION),
                 'Install the python netapp-lib module or a missing dependency.',
                 'Additional diagnostic information:',
                 'Python Executable Path: %s.' % sys.executable,
                 'Python Version: %s.' % sys.version,
-                'System Path: %s.' % syspath,
+                'System Path: %s.' % ','.join(sys.path),
             ]
             self.error_list.append('  '.join(msgs))
             return

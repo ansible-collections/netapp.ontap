@@ -191,8 +191,10 @@ def get_feature(module, feature_name):
         otherwise, use our default
     '''
     default_flags = dict(
-        strict_json_check=True,                 # if true, fail if response.content in not empty and is not valid json
-        trace_apis=False,                       # if true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
+        strict_json_check=True,                 # when true, fail if response.content in not empty and is not valid json
+        trace_apis=False,                       # when true, append ZAPI and REST requests/responses to /tmp/ontap_zapi.txt
+        trace_headers=False,                    # when true, headers are not redacted in send requests
+        trace_auth_args=False,                  # when true, auth_args are not redacted in send requests
         check_required_params_for_none=True,
         classic_basic_authorization=False,      # use ZAPI wrapper to send Authorization header
         deprecation_warning=True,
@@ -677,6 +679,8 @@ class OntapRestAPI(object):
         self.check_required_library()
         if has_feature(module, 'trace_apis'):
             logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
+        self.log_headers = has_feature(module, 'trace_headers')
+        self.log_auth_args = has_feature(module, 'trace_auth_args')
 
     def requires_ontap_9_6(self, module_name):
         return self.requires_ontap_version(module_name)
@@ -786,7 +790,9 @@ class OntapRestAPI(object):
             return json, json.get('error')
 
         self.log_debug('sending', repr(dict(method=method, url=url, verify=self.verify, params=params,
-                                            timeout=self.timeout, json=json, headers=headers, auth_args=auth_args)))
+                                            timeout=self.timeout, json=json,
+                                            headers=headers if self.log_headers else 'redacted',
+                                            auth_args=auth_args if self.log_auth_args else 'redacted')))
         try:
             response = requests.request(method, url, verify=self.verify, params=params,
                                         timeout=self.timeout, json=json, headers=headers, files=files, **auth_args)
