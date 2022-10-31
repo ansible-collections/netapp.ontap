@@ -438,7 +438,7 @@ class NetAppOntapUserRole(object):
         if self.parameters.get('query'):
             temp_dict['query'] = self.parameters['query']
             self.parameters.pop('query')
-        self.parameters['privileges'] = temp_dict
+        self.parameters['privileges'] = [temp_dict]
 
     def apply(self):
         if not self.use_rest:
