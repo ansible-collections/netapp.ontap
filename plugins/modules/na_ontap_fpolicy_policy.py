@@ -353,6 +353,7 @@ class NetAppOntapFpolicyPolicy():
             netapp_utils.ems_log_event("na_ontap_fpolicy_policy", self.server)
 
         current = self.get_fpolicy_policy()
+        modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
@@ -364,8 +365,8 @@ class NetAppOntapFpolicyPolicy():
                     self.delete_fpolicy_policy()
                 elif modify:
                     self.modify_fpolicy_policy(modify)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

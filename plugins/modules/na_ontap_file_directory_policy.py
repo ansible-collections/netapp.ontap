@@ -346,7 +346,9 @@ class NetAppOntapFilePolicy(object):
                         self.set_sd()
                     elif cd_action == 'delete':
                         self.remove_policy()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, extra_responses={'task action': task_cd_action,
+                                                                                                  'task modify': task_modify})
+        self.module.exit_json(**result)
 
 
 def main():

@@ -321,7 +321,8 @@ class NetAppONTAPIscsiSecurity():
                 self.delete_initiator()
             elif modify:
                 self.modify_initiator(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify, current=current)
+        result = netapp_utils.generate_result(self.na_helper.changed, action, modify)
+        self.module.exit_json(**result)
 
     def get_svm_uuid(self):
         """

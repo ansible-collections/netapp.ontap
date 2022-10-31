@@ -188,7 +188,8 @@ class NetAppOntapEmsDestination:
                 self.create_ems_destination()
             else:
                 self.delete_ems_destination(name)
-        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=saved_modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, saved_modify)
+        self.module.exit_json(**result)
 
 
 def main():

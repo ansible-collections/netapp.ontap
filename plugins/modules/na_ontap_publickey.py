@@ -289,7 +289,8 @@ class NetAppOntapPublicKey:
                 # there is exactly 1 record for modify
                 self.modify_public_key(records[0], modify)
 
-        self.module.exit_json(changed=self.na_helper.changed, cd_action=cd_action, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

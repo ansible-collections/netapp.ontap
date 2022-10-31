@@ -446,7 +446,8 @@ class NetAppOntapQTree:
                     self.rename_qtree()
                 if modify:
                     self.modify_qtree()
-        self.module.exit_json(changed=self.na_helper.changed, current=current)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

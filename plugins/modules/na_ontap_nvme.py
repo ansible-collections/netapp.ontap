@@ -238,8 +238,8 @@ class NetAppONTAPNVMe:
                 self.delete_nvme()
             elif modify:
                 self.modify_nvme()
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

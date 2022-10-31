@@ -796,7 +796,8 @@ class NetAppONTAPQuotas:
             # if warn message and quota not reinitialize, throw warnings to reinitialize in REST.
             if self.warn_msg and modify_quota_status != 'reinitialize':
                 self.module.warn(self.warn_msg)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify_quota, extra_responses={'modify_quota_status': modify_quota_status})
+        self.module.exit_json(**result)
 
     def convert_to_kb_or_bytes(self, option):
         """

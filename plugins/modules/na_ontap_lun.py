@@ -1258,10 +1258,9 @@ class NetAppOntapLUN:
 
         if app_modify_warning:
             self.module.warn(app_modify_warning)
-        results['changed'] = self.na_helper.changed
-        results['actions'] = actions
-        results.update(self.debug)
-        self.module.exit_json(**results)
+        result = netapp_utils.generate_result(self.na_helper.changed, actions,
+                                              extra_responses={'debug': self.debug} if self.debug else None)
+        self.module.exit_json(**result)
 
 
 def main():

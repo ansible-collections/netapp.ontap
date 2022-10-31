@@ -295,7 +295,8 @@ class NetAppOntapNetPort:
             self.module.fail_json(changed=self.na_helper.changed, modify=modified,
                                   msg='Error: port%s: %s not found on node: %s%s'
                                   % (plural, ', '.join(missing_ports), self.parameters['node'], suffix))
-        self.module.exit_json(changed=self.na_helper.changed, modify=modified)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modified)
+        self.module.exit_json(**result)
 
 
 def main():

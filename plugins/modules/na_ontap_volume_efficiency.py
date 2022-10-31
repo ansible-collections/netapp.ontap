@@ -639,7 +639,8 @@ class NetAppOntapVolumeEfficiency(object):
             elif ve_status == 'idle':
                 self.stop_volume_efficiency()
 
-        self.module.exit_json(changed=self.na_helper.changed, modify=to_modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=to_modify)
+        self.module.exit_json(**result)
 
 
 def main():

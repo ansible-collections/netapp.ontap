@@ -527,7 +527,8 @@ class NetAppONTAPNFS:
                 self.delete_nfs_service()
             elif modify:
                 self.modify_nfs_service(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

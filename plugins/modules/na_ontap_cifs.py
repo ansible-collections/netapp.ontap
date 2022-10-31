@@ -377,7 +377,8 @@ class NetAppONTAPCifsShare:
                 self.delete_cifs_share_rest(current)
             elif modify:
                 self.modify_cifs_share_rest(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

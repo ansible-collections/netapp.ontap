@@ -221,7 +221,8 @@ class NetAppOntapCifsLocalUserModify():
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_cifs_local_user(modify)
 
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():

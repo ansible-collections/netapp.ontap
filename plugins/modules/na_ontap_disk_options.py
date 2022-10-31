@@ -160,7 +160,8 @@ class NetAppOntapDiskOptions:
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_disk_options(modify)
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():

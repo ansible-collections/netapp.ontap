@@ -345,7 +345,8 @@ class NetAppOntapObjectStoreConfig():
                 self.delete_aggr_object_store(uuid)
             elif modify:
                 self.modify_aggr_object_store(body, uuid)
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -376,7 +376,8 @@ class NetAppOntapServiceProcessorNetwork:
             self.validate_rest(modify) if self.use_rest else self.validate_zapi(modify)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_service_processor_network(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():

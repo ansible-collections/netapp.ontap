@@ -1402,10 +1402,8 @@ class NetAppOntapInterface:
             if migrate_body:
                 self.migrate_interface_rest(uuid, migrate_body)
 
-        results = {'changed': self.na_helper.changed}
-        if netapp_utils.has_feature(self.module, 'show_modified'):
-            results['modify'] = str(modify)
-        self.module.exit_json(**results)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

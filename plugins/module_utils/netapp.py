@@ -493,6 +493,19 @@ def get_cserver(connection, is_rest=False):
     return None
 
 
+def generate_result(changed, actions=None, modify=None, response=None, extra_responses=None):
+    result = dict(changed=changed)
+    if response is not None:
+        result['response'] = response
+    if modify:
+        result['modify'] = modify
+    if actions:
+        result['actions'] = actions
+    if extra_responses:
+        result.update(extra_responses)
+    return result
+
+
 if HAS_NETAPP_LIB:
     class OntapZAPICx(zapi.NaServer):
         ''' override zapi NaServer class to:

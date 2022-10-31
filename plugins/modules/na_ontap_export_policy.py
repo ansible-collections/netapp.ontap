@@ -263,7 +263,8 @@ class NetAppONTAPExportPolicy():
                 self.create_export_policy()
             elif cd_action == 'delete':
                 self.delete_export_policy(current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

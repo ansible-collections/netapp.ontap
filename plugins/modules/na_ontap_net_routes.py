@@ -340,7 +340,8 @@ class NetAppOntapNetRoutes:
                 self.delete_net_route(current)
             elif rename or modify:
                 self.recreate_net_route(current)
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify, rename=rename)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, extra_responses={'rename': rename})
+        self.module.exit_json(**result)
 
 
 def main():

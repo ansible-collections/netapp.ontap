@@ -273,7 +273,8 @@ class NetAppOntapNtfsSd(object):
                 self.remove_ntfs_sd()
             elif modify:
                 self.modify_ntfs_sd()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

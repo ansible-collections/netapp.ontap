@@ -221,7 +221,8 @@ class NetAppOntapActiveDirectory:
                 self.delete_active_directory()
             elif modify:
                 self.modify_active_directory()
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

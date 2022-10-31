@@ -345,7 +345,8 @@ class NetAppOntapNtfsDacl(object):
                     self.remove_dacl()
                 elif modify:
                     self.modify_dacl()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

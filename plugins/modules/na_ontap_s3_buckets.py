@@ -558,7 +558,8 @@ class NetAppOntapS3Buckets:
                 self.delete_s3_bucket()
             if modify:
                 self.modify_s3_bucket(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -284,8 +284,8 @@ class NetAppOntapLoginMessages:
                     self.modify_banner(modify)
                 if modify.get('show_cluster_motd') is not None or modify.get('motd_message') is not None:
                     self.modify_motd(modify)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():

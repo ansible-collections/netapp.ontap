@@ -145,7 +145,8 @@ class NetAppOntapNTPKey:
                 self.delete_ntp_key()
             elif modify:
                 self.modify_ntp_key(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

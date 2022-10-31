@@ -280,8 +280,8 @@ class NetAppOntapVscanScannerPool(object):
         self.asup_log_for_cserver("na_ontap_vscan_scanner_pool")
         scanner_pool_obj = self.get_scanner_pool()
         cd_action = self.na_helper.get_cd_action(scanner_pool_obj, self.parameters)
+        modify = None
         if self.parameters['state'] == 'present' and cd_action is None:
-            # TODO We need to update the module to support modify
             modify = self.na_helper.get_modified_attributes(scanner_pool_obj, self.parameters)
         if self.na_helper.changed:
             if self.module.check_mode:
@@ -297,7 +297,8 @@ class NetAppOntapVscanScannerPool(object):
                     self.modify_scanner_pool(modify)
                     if self.parameters.get('scanner_policy') is not None:
                         self.apply_policy()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

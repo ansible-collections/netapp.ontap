@@ -436,9 +436,7 @@ class NetAppOntapSecurityCertificates:
             elif cd_action == 'delete':
                 message = self.delete_certificate(current['uuid'])
 
-        results = {'changed': self.na_helper.changed}
-        if message:
-            results['ontap_info'] = message
+        results = netapp_utils.generate_result(self.na_helper.changed, cd_action, extra_responses={'ontap_info': message})
         self.module.exit_json(**results)
 
 

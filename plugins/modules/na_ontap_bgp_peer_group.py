@@ -321,16 +321,15 @@ class NetAppOntapBgpPeerGroup:
     def apply(self):
         current = self.get_bgp_peer_group()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        modify = None
         if cd_action == 'create':
             if self.parameters.get('from_name'):
                 current = self.get_bgp_peer_group(self.parameters['from_name'])
                 if not current:
                     self.module.fail_json(msg="Error renaming BGP peer group, %s does not exist." % self.parameters['from_name'])
                 cd_action = None
-            else:
-                # local and peer options are required when creating the BGP peer groups.
-                if not self.parameters.get('local') or not self.parameters.get('peer'):
-                    self.module.fail_json(msg="Error creating BGP peer group %s, local and peer are required in create." % self.parameters['name'])
+            elif not self.parameters.get('local') or not self.parameters.get('peer'):
+                self.module.fail_json(msg="Error creating BGP peer group %s, local and peer are required in create." % self.parameters['name'])
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if self.na_helper.safe_get(modify, ['peer', 'asn']):
@@ -342,7 +341,8 @@ class NetAppOntapBgpPeerGroup:
                 self.delete_bgp_peer_group()
             else:
                 self.modify_bgp_peer_group(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -239,7 +239,8 @@ class NetAppONTAPNsswitch:
                 self.delete_name_service_switch()
             elif modify:
                 self.modify_name_service_switch(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

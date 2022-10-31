@@ -2822,15 +2822,7 @@ class NetAppOntapVolume:
                 self.parameters['uuid'] = current['uuid']
                 self.take_modify_actions(modify, current.get('is_online'))
 
-        result = dict(
-            changed=self.na_helper.changed
-        )
-        if response is not None:
-            result['response'] = response
-        if modify:
-            result['modify'] = modify
-        if actions:
-            result['actions'] = actions
+        result = netapp_utils.generate_result(self.na_helper.changed, actions, modify, response)
         self.module.exit_json(**result)
 
 

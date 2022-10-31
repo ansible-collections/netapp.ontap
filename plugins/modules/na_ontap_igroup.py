@@ -689,7 +689,8 @@ class NetAppOntapIgroup:
                 self.delete_igroup(uuid)
             if modify:
                 self.modify_igroup(uuid, current, modify)
-        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=saved_modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify=saved_modify)
+        self.module.exit_json(**result)
 
 
 def main():

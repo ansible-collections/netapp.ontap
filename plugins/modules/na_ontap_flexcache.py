@@ -662,7 +662,8 @@ class NetAppONTAPFlexCache:
                     self.rest_mount_volume(current, mount_unmount)
                 if modify:
                     response = self.flexcache_rest_modify(current['uuid'])
-        self.module.exit_json(changed=self.na_helper.changed, response=response, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, response)
+        self.module.exit_json(**result)
 
 
 def main():

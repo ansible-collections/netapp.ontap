@@ -411,7 +411,9 @@ class NetAppONTAPClusterPeer:
                     self.cluster_peer_delete('destination', uuid)
                 self.na_helper.changed = True
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, extra_responses={'source_action': source_action,
+                                                                                       'destination_action': destination_action})
+        self.module.exit_json(**result)
 
 
 def main():

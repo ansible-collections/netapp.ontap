@@ -509,7 +509,9 @@ class NetAppOntapVscanOnAccessPolicy:
                 self.delete_on_access_policy()
             if modify:
                 self.modify_on_access_policy(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify,
+                                              extra_responses={'modify_policy_state': modify_policy_state})
+        self.module.exit_json(**result)
 
 
 def main():

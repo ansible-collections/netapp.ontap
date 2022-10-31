@@ -465,7 +465,8 @@ class NetAppONTAPJob:
                 self.delete_job_schedule()
             elif modify:
                 self.modify_job_schedule(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

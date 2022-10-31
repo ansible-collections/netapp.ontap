@@ -531,7 +531,8 @@ class NetAppOntapIfGrp:
                     self.modify_ports_rest(modify, uuid)
                 else:
                     self.modify_ports(current_ports['ports'])
-        self.module.exit_json(changed=self.na_helper.changed, modify=modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

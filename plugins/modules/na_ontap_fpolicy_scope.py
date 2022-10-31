@@ -502,8 +502,8 @@ is-file-extension-check-on-directories-enabled,is-monitoring-of-objects-with-no-
                 self.delete_fpolicy_scope()
             elif modify:
                 self.modify_fpolicy_scope(modify)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -922,13 +922,9 @@ class NetAppOntapSVM():
                 self.delete_vserver(current)
             if modify:
                 self.modify_vserver(modify, current)
-
-        results = dict(changed=self.na_helper.changed)
-        if modify:
-            if netapp_utils.has_feature(self.module, 'show_modified'):
-                results['modify'] = str(modify)
-            if 'aggr_list' in modify and '*' in modify['aggr_list']:
-                results['warnings'] = "Changed always 'True' when aggr_list is '*'."
+            if modify and 'aggr_list' in modify and '*' in modify['aggr_list']:
+                self.module.warn("na_ontap_svm: changed always 'True' when aggr_list is '*'.")
+        results = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**results)
 
 

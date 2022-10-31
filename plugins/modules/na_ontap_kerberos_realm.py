@@ -427,7 +427,8 @@ class NetAppOntapKerberosRealm:
                 self.delete_krbrealm()
             elif modify:
                 self.modify_krbrealm(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

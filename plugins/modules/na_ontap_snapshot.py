@@ -423,7 +423,8 @@ class NetAppOntapSnapshot:
                 self.delete_snapshot(volume_id=volume_id, uuid=uuid)
             elif modify:
                 self.modify_snapshot(volume_id=volume_id, uuid=uuid, rename=rename)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

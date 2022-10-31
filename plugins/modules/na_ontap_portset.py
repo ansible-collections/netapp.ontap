@@ -409,7 +409,8 @@ class NetAppONTAPPortset:
                 else:
                     self.add_ports(add_ports)
                     self.remove_ports(remove_ports)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

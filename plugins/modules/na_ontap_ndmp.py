@@ -381,7 +381,8 @@ class NetAppONTAPNdmp(object):
             else:
                 if modify:
                     self.modify_ndmp(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
     def asup_log_for_cserver(self, event_name):
         """

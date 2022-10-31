@@ -451,8 +451,8 @@ class NetAppONTAPNVMESubsystem:
                 self.delete_subsystem()
             elif cd_action is None:
                 self.modify_host_map(add_host_map, remove_host_map)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

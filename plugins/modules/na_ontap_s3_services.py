@@ -205,8 +205,8 @@ class NetAppOntapS3Services:
                 self.delete_s3_service()
             if modify:
                 self.modify_s3_service(modify)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

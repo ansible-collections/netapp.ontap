@@ -272,8 +272,8 @@ class NetAppOntapFpolicyStatus(object):
                     self.enable_fpolicy_policy()
                 elif not modify['status']:
                     self.disable_fpolicy_policy()
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -297,8 +297,8 @@ class NetAppOntapServicePolicy:
                 self.delete_service_policy(current)
             elif modify:
                 self.modify_service_policy(current, modify)
-
-        self.module.exit_json(changed=self.na_helper.changed, cd_action=cd_action, modify=modify, scope=self.module.params)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, extra_responses={'scope': self.module.params})
+        self.module.exit_json(**result)
 
 
 def main():

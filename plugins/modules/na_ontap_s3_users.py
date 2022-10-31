@@ -178,7 +178,9 @@ class NetAppOntapS3Users:
             if modify:
                 self.modify_s3_user(modify)
         secret_key, access_key = self.parse_response(response)
-        self.module.exit_json(changed=self.na_helper.changed, secret_key=secret_key, access_key=access_key)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, extra_responses={'secret_key': secret_key,
+                                                                                                          'access_key': access_key})
+        self.module.exit_json(**result)
 
 
 def main():

@@ -618,7 +618,6 @@ class NetAppOntapcifsServer:
             self.zapiapply()
         current = self.get_cifs_server_rest()
         cd_action, rename = None, None
-        modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and 'from_name' in self.parameters:
             cifs_info = self.get_cifs_server_rest(self.parameters['from_name'])
@@ -646,7 +645,8 @@ class NetAppOntapcifsServer:
 
             if modify:
                 self.modify_cifs_server_rest(current, modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

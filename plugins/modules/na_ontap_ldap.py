@@ -206,7 +206,8 @@ class NetAppOntapLDAP:
                     self.delete_ldap()
                 elif modify:
                     self.modify_ldap(modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 #

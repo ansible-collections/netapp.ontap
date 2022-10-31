@@ -434,7 +434,8 @@ class NetAppONTAPVserverPeer:
                     self.vserver_peer_accept()
             elif cd_action == 'delete':
                 self.vserver_peer_delete(current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

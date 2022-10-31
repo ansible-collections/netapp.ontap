@@ -112,8 +112,8 @@ class NetAppONTAPSnmpTraphosts:
                 self.create_snmp_traphost()
             elif cd_action == 'delete':
                 self.delete_snmp_traphost()
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

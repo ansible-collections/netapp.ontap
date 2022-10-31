@@ -244,6 +244,7 @@ class NetAppOntapFCP:
         current = self.get_fcp()
         if not self.use_rest:
             changed = self.zapi_apply(current)
+            result = netapp_utils.generate_result(changed)
         else:
             cd_action = self.na_helper.get_cd_action(current, self.parameters)
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
@@ -260,7 +261,8 @@ class NetAppOntapFCP:
                     if current['status'] == 'up':
                         self.start_stop_fcp_rest(False, current)
                     self.destroy_fcp_rest(current)
-        self.module.exit_json(changed=changed)
+            result = netapp_utils.generate_result(changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

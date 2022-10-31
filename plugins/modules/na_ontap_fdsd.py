@@ -157,7 +157,8 @@ class NetAppOntapFDSD():
                 elif cd_action == 'delete':
                     self.remove_fdsd()
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

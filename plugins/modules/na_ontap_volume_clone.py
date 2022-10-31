@@ -341,7 +341,8 @@ class NetAppONTAPVolumeClone:
                     self.modify_volume_clone()
             if modify:
                 self.modify_volume_clone()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

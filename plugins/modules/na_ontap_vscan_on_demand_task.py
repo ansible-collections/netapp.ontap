@@ -404,7 +404,8 @@ class NetAppOntapVscanOnDemandTask:
                     self.create_demand_task()
                 elif cd_action == 'delete':
                     self.delete_demand_task()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

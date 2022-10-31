@@ -291,6 +291,7 @@ class NetAppOntapLogForward(object):
 
         current = self.get_log_forward_config()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        modify = None
 
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
@@ -303,8 +304,8 @@ class NetAppOntapLogForward(object):
                     self.destroy_log_forward_config()
                 elif modify:
                     self.modify_log_forward_config()
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

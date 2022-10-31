@@ -137,7 +137,8 @@ class NetAppOntapClusterHA:
             elif cd_action == 'delete':
                 self.modify_cluster_ha("false")
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

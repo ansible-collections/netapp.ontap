@@ -314,7 +314,8 @@ class NetAppONTAPFirewallPolicy:
                     self.modify_firewall_policy(modify)
                 if modify_config:
                     self.modify_firewall_config(modify_config)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, extra_responses={'modify_config': modify_config})
+        self.module.exit_json(**result)
 
 
 def main():

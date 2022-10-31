@@ -437,7 +437,8 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
         sanitized_modify = self.idempotency_check(current, modify)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_autosupport_config(modify)
-        self.module.exit_json(changed=self.na_helper.changed, modify=sanitized_modify, current=current)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=sanitized_modify)
+        self.module.exit_json(**result)
 
 
 def main():

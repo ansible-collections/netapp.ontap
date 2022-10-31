@@ -240,7 +240,8 @@ class NetAppOntapQuotaPolicy(object):
                 self.delete_quota_policy()
             if assign_policy:
                 zapis_svm.modify_vserver(self.server, self.module, self.parameters['vserver'], modify=dict(quota_policy=self.parameters['name']))
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

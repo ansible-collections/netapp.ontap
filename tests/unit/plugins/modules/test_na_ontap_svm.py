@@ -449,7 +449,7 @@ def test_successful_modify_aggr_list_star():
     }
     results = create_and_apply(svm_module, DEFAULT_ARGS, module_args)
     assert results['changed']
-    assert results['warnings'] == "Changed always 'True' when aggr_list is '*'."
+    assert_warning_was_raised("na_ontap_svm: changed always 'True' when aggr_list is '*'.")
 
 
 def _modify_options_with_expected_change(arg0, arg1):

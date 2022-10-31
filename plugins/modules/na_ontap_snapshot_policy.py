@@ -728,7 +728,8 @@ class NetAppOntapSnapshotPolicy(object):
             if modify:
                 self.modify_snapshot_policy_rest(modify, current)
                 self.modify_snapshot_policy_schedule_rest(modify, current)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():
