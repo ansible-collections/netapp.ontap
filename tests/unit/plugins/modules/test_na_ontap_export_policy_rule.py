@@ -48,6 +48,8 @@ policy_rule = {
             'is-allow-set-uid-enabled': 'false',
             'rule-index': 123,
             'anonymous-user-id': 'anonymous_user_id',
+            'is-allow-dev-is-enabled': 'false',
+            'export-chown-mode': 'restricted'
         }}}
 
 policy_rule_two_records = {
@@ -70,6 +72,8 @@ policy_rule_two_records = {
             'is-allow-set-uid-enabled': 'false',
             'rule-index': 123,
             'anonymous-user-id': 'anonymous_user_id',
+            'is-allow-dev-is-enabled': 'false',
+            'export-chown-mode': 'restricted'
         }},
         {'export-rule-info': {
             'policy-name': 'policy_name',
@@ -89,6 +93,8 @@ policy_rule_two_records = {
             'is-allow-set-uid-enabled': 'false',
             'rule-index': 123,
             'anonymous-user-id': 'anonymous_user_id',
+            'is-allow-dev-is-enabled': 'false',
+            'export-chown-mode': 'restricted'
         }}]
 }
 
@@ -288,7 +294,9 @@ def test_successful_modify():
     module_args = {
         'protocol': ['cifs'],
         'allow_suid': True,
-        'rule_index': 3
+        'rule_index': 3,
+        'allow_device_creation': True,
+        'chown_mode': 'unrestricted'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 

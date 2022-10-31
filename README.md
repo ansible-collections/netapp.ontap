@@ -84,6 +84,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
 
 ### New Options
+  - na_ontap_export_policy_rule - `allow_suid`, `allow_device_creation` and `chown_mode` is now supported from ONTAP 9.9.1 or later in REST.
+  - na_ontap_export_policy_rule - `allow_device_creation` and `chown_mode` is now supported in ZAPI.
   - na_ontap_ldap_client - new option `skip_config_validation`.
   - na_ontap_snapmirror_policy - new option `identity_preservation` added.
   - na_ontap_snapmirror_policy - `name` added as an alias for `policy_name`.

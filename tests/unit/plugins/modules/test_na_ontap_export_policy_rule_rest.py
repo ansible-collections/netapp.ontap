@@ -103,6 +103,9 @@ DEFAULT_ARGS = {
     'ntfs_unix_security': 'fail',
     'ro_rule': 'any',
     'rw_rule': 'any',
+    'allow_device_creation': True,
+    'allow_suid': True,
+    'chown_mode': 'restricted',
     'hostname': 'test',
     'username': 'test_user',
     'password': 'test_pass!',
@@ -258,7 +261,10 @@ def test_rest_successful_modify():
         'ntfs_unix_security': 'ignore',
         'ro_rule': ['never'],
         'rw_rule': ['never'],
-        'rule_index': 10
+        'rule_index': 10,
+        'allow_device_creation': False,
+        'allow_suid': False,
+        'chown_mode': 'unrestricted'
     }
     assert create_and_apply(policy_rule, DEFAULT_ARGS, module_args)['changed']
 
@@ -300,7 +306,10 @@ def test_rest_successful_rename():
         'ro_rule': ['never'],
         'rw_rule': ['never'],
         'rule_index': 2,
-        'from_rule_index': 10
+        'from_rule_index': 10,
+        'allow_device_creation': False,
+        'allow_suid': False,
+        'chown_mode': 'unrestricted'
     }
     assert create_and_apply(policy_rule, DEFAULT_ARGS, module_args)['changed']
 
@@ -321,7 +330,7 @@ def test_rest_successful_rename_no_from_index():
         'ntfs_unix_security': 'fail',
         'ro_rule': ['any'],
         'rw_rule': ['any'],
-        'rule_index': 2,
+        'rule_index': 2
     }
     assert create_and_apply(policy_rule, DEFAULT_ARGS, module_args)['changed']
 

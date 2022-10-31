@@ -127,6 +127,22 @@ options:
     type: bool
     default: false
     version_added: 21.23.0
+
+  chown_mode:
+    description:
+      - Specifies who is authorized to change the ownership mode of a file.
+      - With REST, supported from ONTAP 9.9.1 version.
+    type: str
+    choices: ['restricted', 'unrestricted']
+    version_added: 22.0.0
+
+  allow_device_creation:
+    description:
+      - Specifies whether or not device creation is allowed.
+      - default is true.
+      - With REST, supported from ONTAP 9.9.1 version.
+    type: bool
+    version_added: 22.0.0
 '''
 
 EXAMPLES = """
@@ -202,7 +218,6 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
@@ -236,6 +251,8 @@ class NetAppontapExportRule:
             vserver=dict(required=True, type='str'),
             ntfs_unix_security=dict(required=False, type='str', choices=['fail', 'ignore']),
             force_delete_on_first_match=dict(required=False, type='bool', default=False),
+            chown_mode=dict(required=False, type='str', choices=['restricted', 'unrestricted']),
+            allow_device_creation=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -248,10 +265,10 @@ class NetAppontapExportRule:
         self.set_playbook_zapi_key_map()
         self.policy_id = None
 
-        unsupported_rest_properties = ['allow_suid']
-        self.rest_api = OntapRestAPI(self.module)
-        partially_supported_rest_properties = [['ntfs_unix_security', (9, 9, 1)]]
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        partially_supported_rest_properties = [['ntfs_unix_security', (9, 9, 1)], ['allow_suid', (9, 9, 1)],
+                                               ['allow_device_creation', (9, 9, 1)], ['chown_mode', (9, 9, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
@@ -270,7 +287,8 @@ class NetAppontapExportRule:
             'anonymous_user_id': 'anonymous-user-id',
             'client_match': 'client-match',
             'name': 'policy-name',
-            'ntfs_unix_security': 'export-ntfs-unix-security-ops'
+            'ntfs_unix_security': 'export-ntfs-unix-security-ops',
+            'chown_mode': 'export-chown-mode'
         }
         self.na_helper.zapi_list_keys = {
             'protocol': ('protocol', 'access-protocol'),
@@ -279,7 +297,8 @@ class NetAppontapExportRule:
             'super_user_security': ('super-user-security', 'security-flavor'),
         }
         self.na_helper.zapi_bool_keys = {
-            'allow_suid': 'is-allow-set-uid-enabled'
+            'allow_suid': 'is-allow-set-uid-enabled',
+            'allow_device_creation': 'is-allow-dev-is-enabled'
         }
         self.na_helper.zapi_int_keys = {
             'rule_index': 'rule-index'
@@ -572,8 +591,8 @@ class NetAppontapExportRule:
         if not self.policy_id:
             return None
         query = {'fields': 'anonymous_user,clients,index,protocols,ro_rule,rw_rule,superuser'}
-        if 'ntfs_unix_security' in self.parameters:
-            query['fields'] += ',ntfs_unix_security'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            query['fields'] += ',ntfs_unix_security,allow_suid,chown_mode,allow_device_creation'
         if rule_index is None:
             return self.get_export_policy_rule_exact_match(query)
         api = 'protocols/nfs/export-policies/%s/rules/%s' % (self.policy_id, rule_index)
@@ -660,6 +679,12 @@ class NetAppontapExportRule:
             result['anonymous_user'] = self.parameters['anonymous_user_id']
         if params.get('ntfs_unix_security') is not None:
             result['ntfs_unix_security'] = self.parameters['ntfs_unix_security']
+        if params.get('allow_suid') is not None:
+            result['allow_suid'] = self.parameters['allow_suid']
+        if params.get('chown_mode') is not None:
+            result['chown_mode'] = self.parameters['chown_mode']
+        if params.get('allow_device_creation') is not None:
+            result['allow_device_creation'] = self.parameters['allow_device_creation']
         return result
 
     def modify_export_policy_rule_rest(self, params, rule_index, rename=False):
