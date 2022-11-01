@@ -45,11 +45,11 @@ options:
   services:
     description:
       - List of services to associate to this service policy.
-      - To remove all services, use "no_service".  No other value is allowed if no_service is present.
+      - To remove all services, use "no_service".  No other value is allowed when no_service is present.
+      - Note - not all versions of ONTAP support all values, and new ones may be added.
+      - See C(known_services) and C(additional_services) to address unknow service errors.
     type: list
     elements: str
-    choices: ['cluster_core', 'intercluster_core', 'management_core', 'management_autosupport', 'management_bgp', 'management_ems', 'management_https',
-              'management_ssh', 'management_portmap', 'data_core', 'data_nfs', 'data_cifs', 'data_flexcache', 'data_iscsi', 'data_s3_server', 'no_service']
   vserver:
     description:
       - The name of the vserver to use.
@@ -62,6 +62,24 @@ options:
       - cluster is assumed is vserver is not set.
     type: str
     choices: ['cluster', 'svm']
+  known_services:
+    description:
+      - List of known services in 9.11.1
+      - An error is raised if any service in C(services) is not in this list or C(new_services).
+      - Modify this list to restrict the services you want to support if needed.
+    default: [cluster_core, intercluster_core, management_core, management_autosupport, management_bgp, management_ems, management_https, management_http,
+              management_ssh, management_portmap, data_core, data_nfs, data_cifs, data_flexcache, data_iscsi, data_s3_server, data_dns_server,
+              data_fpolicy_client, management_ntp_client, management_dns_client, management_ad_client, management_ldap_client, management_nis_client,
+              management_snmp_server, management_rsh_server, management_telnet_server, management_ntp_server, data_nvme_tcp, backup_ndmp_control]
+    type: list
+    elements: str
+    version_added: 22.0.0
+  additional_services:
+    description:
+      - As an alternative to updating the C(known_services), new services can be specified here.
+    type: list
+    elements: str
+    version_added: 22.0.0
 
 notes:
   - This module supports check_mode.
@@ -158,11 +176,16 @@ class NetAppOntapServicePolicy:
             name=dict(required=True, type='str'),
             ipspace=dict(type='str'),
             scope=dict(type='str', choices=['cluster', 'svm']),
-            services=dict(type='list', elements='str',
-                          choices=['cluster_core', 'intercluster_core', 'management_core', 'management_autosupport', 'management_bgp', 'management_ems',
-                                   'management_https', 'management_ssh', 'management_portmap', 'data_core', 'data_nfs', 'data_cifs', 'data_flexcache',
-                                   'data_iscsi', 'data_s3_server', 'no_service']),
+            services=dict(type='list', elements='str'),
             vserver=dict(type='str'),
+            known_services=dict(type='list', elements='str',
+                                default=['cluster_core', 'intercluster_core', 'management_core', 'management_autosupport', 'management_bgp', 'management_ems',
+                                         'management_https', 'management_http', 'management_ssh', 'management_portmap', 'data_core', 'data_nfs', 'data_cifs',
+                                         'data_flexcache', 'data_iscsi', 'data_s3_server', 'data_dns_server', 'data_fpolicy_client', 'management_ntp_client',
+                                         'management_dns_client', 'management_ad_client', 'management_ldap_client', 'management_nis_client',
+                                         'management_snmp_server', 'management_rsh_server', 'management_telnet_server', 'management_ntp_server',
+                                         'data_nvme_tcp', 'backup_ndmp_control']),
+            additional_services=dict(type='list', elements='str')
         ))
 
         self.module = AnsibleModule(
@@ -193,6 +216,12 @@ class NetAppOntapServicePolicy:
             if len(services) > 1:
                 self.module.fail_json(msg='Error: no other service can be present when no_service is specified.  Got: %s' % services)
             self.parameters['services'] = []
+        known_services = self.parameters.get('known_services', []) + self.parameters.get('additional_services', [])
+        unknown_services = [service for service in self.parameters.get('services', []) if service not in known_services]
+        if unknown_services:
+            plural = 's' if len(services) > 1 else ''
+            self.module.fail_json(msg='Error: unknown service%s: %s.  New services may need to be added to "additional_services".'
+                                  % (plural, ','.join(unknown_services)))
 
         scope = self.parameters.get('scope')
         if scope is None:
@@ -255,7 +284,7 @@ class NetAppOntapServicePolicy:
         modify_copy = dict(modify)
         body = {}
         for key in modify:
-            if key in ('services'):
+            if key in ('services',):
                 body[key] = modify_copy.pop(key)
         if modify_copy:
             msg = 'Error: attributes not supported in modify: %s' % modify_copy

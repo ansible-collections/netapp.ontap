@@ -19,7 +19,7 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface \
-    import NetAppOntapInterface as interface_module, netmask_length_to_netmask, netmask_to_netmask_length, main as my_main
+    import NetAppOntapInterface as interface_module, main as my_main
 
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
@@ -129,8 +129,8 @@ def test_successful_create():
         'home_node': 'node',
         'role': 'data',
         # 'subnet_name': 'subnet_name',
-        'address': 'address',
-        'netmask': 'netmask',
+        'address': '10.10.10.13',
+        'netmask': '255.255.255.0',
         'failover_policy': 'system-defined',
         'failover_group': 'failover_group',
         'firewall_policy': 'firewall_policy',
@@ -1026,16 +1026,6 @@ def test_rest_delete_idempotent_ip_no_svm():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_netmask_to_len():
-    # note the address has host bits set
-    assert netmask_to_netmask_length('10.10.10.10', '255.255.0.0') == '16'
-
-
-def test_len_to_netmask():
-    # note the address has host bits set
-    assert netmask_length_to_netmask('10.10.10.10', '16') == '255.255.0.0'
-
-
 def test_derive_fc_protocol_fcp():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
@@ -1331,29 +1321,6 @@ def test_rest_auto_falls_back_to_zapi_if_ip_9_6():
     assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     print_warnings
     assert_warning_was_raised('Falling back to ZAPI: REST requires ONTAP 9.7 or later for interface APIs.')
-
-
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
-def test_rest_auto_falls_back_to_zapi_if_ip_address_library_is_missing():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_97'])
-    ])
-    module_args = {'use_rest': 'auto'}
-    # vserver is a required parameter with ZAPI
-    msg = "missing required argument with ZAPI: vserver"
-    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    print_warnings
-    assert_warning_was_raised('Falling back to ZAPI: the python ipaddress package is required for this module: None')
-
-
-@patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_interface.HAS_IPADDRESS_LIB', False)
-def test_rest_always_fail_if_ip_address_library_is_missing():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_97'])
-    ])
-    module_args = {'use_rest': 'always'}
-    error = create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert error == 'Error: the python ipaddress package is required for this module: None'
 
 
 def test_fix_errors():

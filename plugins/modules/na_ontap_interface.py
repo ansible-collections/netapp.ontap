@@ -385,14 +385,6 @@ RETURN = """
 
 """
 
-try:
-    import ipaddress
-    HAS_IPADDRESS_LIB = True
-    IMPORT_ERROR = None
-except ImportError as exc:
-    HAS_IPADDRESS_LIB = False
-    IMPORT_ERROR = str(exc)
-
 import time
 import traceback
 from ansible.module_utils.basic import AnsibleModule
@@ -400,26 +392,12 @@ from ansible.module_utils._text import to_native
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, netapp_ipaddress
 
 FAILOVER_POLICIES = ['disabled', 'system-defined', 'local-only', 'sfo-partner-only', 'broadcast-domain-wide']
 FAILOVER_SCOPES = ['home_port_only', 'default', 'home_node_only', 'sfo_partners_only', 'broadcast_domain_only']
 REST_UNSUPPORTED_OPTIONS = ['is_ipv4_link_local', 'subnet_name', ]
 REST_IGNORABLE_OPTIONS = ['failover_group', 'force_subnet_association', 'listen_for_dns_query']
-
-
-def get_network(ip, mask):
-    # python 2.7 requires the address to be in unicode format (which is the default for 3.x)
-    net = u'%s/%s' % (ip, mask)
-    return ipaddress.ip_network(net, strict=False)
-
-
-def netmask_length_to_netmask(ip, length):
-    return str(get_network(ip, length).netmask)
-
-
-def netmask_to_netmask_length(ip, netmask):
-    return str(get_network(ip, netmask).prefixlen)
 
 
 class NetAppOntapInterface:
@@ -483,18 +461,14 @@ class NetAppOntapInterface:
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = [key for key in REST_IGNORABLE_OPTIONS if key not in self.parameters['ignore_zapi_options']]
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
+        if self.na_helper.safe_get(self.parameters, ['address']):
+            self.parameters['address'] = netapp_ipaddress.validate_and_compress_ip_address(self.parameters['address'], self.module)
         partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
-        if self.use_rest and not HAS_IPADDRESS_LIB:
-            msg = "the python ipaddress package is required for this module: %s" % IMPORT_ERROR
-            if self.parameters['use_rest'].lower() == 'always':
-                self.module.fail_json(msg='Error: %s' % msg)
-            self.module.warn('Falling back to ZAPI: %s' % msg)
-            self.use_rest = False
         if self.use_rest:
             self.cluster_nodes = None       # cached value to limit number of API calls.
             self.home_node = None           # cached value to limit number of API calls.
@@ -738,9 +712,9 @@ class NetAppOntapInterface:
         # if interface_attributes.get_child_by_name('failover-group'):
         #     return_value['failover_group'] = interface_attributes['failover-group']
         if self.na_helper.safe_get(record, ['ip', 'address']):
-            return_value['address'] = record['ip']['address']
-            if self.na_helper.safe_get(record, ['ip', 'netmask']):
-                return_value['netmask'] = netmask_length_to_netmask(record['ip']['address'], record['ip']['netmask'])
+            return_value['address'] = netapp_ipaddress.validate_and_compress_ip_address(record['ip']['address'], self.module)
+            if self.na_helper.safe_get(record, ['ip', 'netmask']) is not None:
+                return_value['netmask'] = record['ip']['netmask']
         if self.na_helper.safe_get(record, ['service_policy', 'name']):
             return_value['service_policy'] = record['service_policy']['name']
         if self.na_helper.safe_get(record, ['location', 'node', 'name']):
@@ -806,7 +780,7 @@ class NetAppOntapInterface:
             if interface_attributes.get_child_by_name('failover-group'):
                 return_value['failover_group'] = interface_attributes['failover-group']
             if interface_attributes.get_child_by_name('address'):
-                return_value['address'] = interface_attributes['address']
+                return_value['address'] = netapp_ipaddress.validate_and_compress_ip_address(interface_attributes['address'], self.module)
             if interface_attributes.get_child_by_name('netmask'):
                 return_value['netmask'] = interface_attributes['netmask']
             if interface_attributes.get_child_by_name('firewall-policy'):

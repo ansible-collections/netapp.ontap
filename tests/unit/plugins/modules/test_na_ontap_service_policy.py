@@ -1,50 +1,40 @@
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP service policy Ansible module '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
+
 import pytest
 import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+    assert_no_warnings, expect_and_capture_ansible_exception, call_main, create_module, patch_ansible
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_service_policy \
-    import NetAppOntapServicePolicy as my_module, main as uut_main      # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_service_policy import NetAppOntapServicePolicy as my_module, main as my_main
 
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
-def default_args():
-    return {
-        'state': 'present',
-        'hostname': '10.10.10.10',
-        'username': 'admin',
-        'https': 'true',
-        'validate_certs': 'false',
-        'password': 'password',
-        'name': 'sp123',
-        'vserver': 'vserver',
-    }
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'use_rest': 'always',
+    'name': 'sp123',
+}
 
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
-    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'zero_record': (200, dict(records=[], num_records=0), None),
-    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     'one_sp_record': (200, {
         "records": [{
             'name': 'sp123',
@@ -66,483 +56,348 @@ SRR = {
             }],
         'num_records': 2
     }, None),
-}
+}, False)
 
 
-def test_module_fail_when_required_args_missing(patch_ansible):
+def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
-    with pytest.raises(AnsibleFailJson) as exc:
-        set_module_args(dict(hostname=''))
-        my_module()
-    print('Info: %s' % exc.value.args[0]['msg'])
-    msg = 'missing required arguments: name'
-    assert msg == exc.value.args[0]['msg']
+    module_args = {
+        'hostname': ''
+    }
+    error = 'missing required arguments: name'
+    assert error == call_main(my_main, module_args, fail=True)['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_get_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['services'] = ['data_core']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],     # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is False
+def test_ensure_get_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+    ])
+    module_args = {
+        'services': ['data_core'],
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is False
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['services'] = ['data_core']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['zero_record'],         # get
-        SRR['empty_good'],          # create
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
+def test_ensure_create_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['zero_records']),
+        ('POST', 'network/ip/service-policies', SRR['empty_good']),
+    ])
+    module_args = {
+        'services': ['data_core'],
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_called_cluster(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['services'] = ['data_core']
-    args.pop('vserver')
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['zero_record'],         # get
-        SRR['empty_good'],          # create
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
+def test_ensure_create_called_cluster():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['zero_records']),
+        ('POST', 'network/ip/service-policies', SRR['empty_good']),
+    ])
+    module_args = {
+        'ipspace': 'ipspace',
+        'services': ['data_core']
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_idempotent(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'always'
-    args['services'] = ['data_core']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is False
+def test_ensure_create_idempotent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+    ])
+    module_args = {
+        'services': ['data_core'],
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is False
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_modify_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['services'] = ['data_nfs']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['empty_good'],          # modify
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
+def test_ensure_modify_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+        ('PATCH', 'network/ip/service-policies/uuid123', SRR['empty_good']),
+    ])
+    module_args = {
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_modify_called_no_service(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['services'] = ['no_service']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['empty_good'],          # modify
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
+def test_ensure_modify_called_no_service():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+        ('PATCH', 'network/ip/service-policies/uuid123', SRR['empty_good']),
+    ])
+    module_args = {
+        'services': ['no_service'],
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['services'] = ['data_core']
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['empty_good'],          # delete
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    print(mock_request.mock_calls)
-    assert exc.value.args[0]['changed'] is True
+def test_ensure_delete_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+        ('DELETE', 'network/ip/service-policies/uuid123', SRR['empty_good']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_idempotent(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'always'
-    args['services'] = ['data_core']
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['zero_record'],         # get
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is False
+def test_ensure_delete_idempotent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['zero_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is False
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_extra_record(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['two_sp_records'],      # get
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error in get_service_policy: calling: network/ip/service-policies: unexpected response'
-    assert msg in exc.value.args[0]['msg']
+def test_negative_extra_record():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['two_sp_records']),
+    ])
+    module_args = {
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    error = 'Error in get_service_policy: calling: network/ip/service-policies: unexpected response'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-def test_negative_ipspace_required_1(patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args['vserver'] = None      # cluster scope
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "vserver is None but all of the following are missing: ipspace"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_ipspace_required_1():
+    module_args = {
+        'services': ['data_nfs'],
+        'vserver': None,
+    }
+    error = "vserver is None but all of the following are missing: ipspace"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-def test_negative_ipspace_required_2(patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args['scope'] = 'cluster'   # cluster scope
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "scope is cluster but all of the following are missing: ipspace"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_ipspace_required_2():
+    module_args = {
+        'scope': 'cluster',
+        'services': ['data_nfs'],
+        'vserver': None,
+    }
+    error = "scope is cluster but all of the following are missing: ipspace"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-def test_negative_ipspace_required_3(patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args.pop('vserver')         # cluster scope
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "one of the following is required: ipspace, vserver"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_ipspace_required_3():
+    module_args = {
+        'services': ['data_nfs'],
+    }
+    error = "one of the following is required: ipspace, vserver"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-def test_negative_vserver_required_1(patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args.pop('vserver')
-    args['scope'] = 'svm'
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "one of the following is required: ipspace, vserver"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_vserver_required_1():
+    module_args = {
+        'scope': 'svm',
+        'services': ['data_nfs'],
+    }
+    error = "one of the following is required: ipspace, vserver"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-def test_negative_vserver_required_2(patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args.pop('vserver')
-    args['scope'] = 'svm'
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "scope is svm but all of the following are missing: vserver"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_vserver_required_2():
+    module_args = {
+        'ipspace': None,
+        'scope': 'svm',
+        'services': ['data_nfs'],
+    }
+    error = "scope is svm but all of the following are missing: vserver"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_vserver_required_3(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args['vserver'] = None
-    args['scope'] = 'svm'
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error: vserver cannot be None when "scope: svm" is specified.'
-    print(mock_request.mock_calls)
-    assert msg in exc.value.args[0]['msg']
+def test_negative_vserver_required_3():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'ipspace': None,
+        'scope': 'svm',
+        'services': ['data_nfs'],
+        'vserver': None,
+    }
+    error = 'Error: vserver cannot be None when "scope: svm" is specified.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_vserver_not_required(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args['scope'] = 'cluster'
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error: vserver cannot be set when "scope: cluster" is specified.  Got: vserver'
-    assert msg in exc.value.args[0]['msg']
+def test_negative_vserver_not_required():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'ipspace': None,
+        'scope': 'cluster',
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    error = 'Error: vserver cannot be set when "scope: cluster" is specified.  Got: vserver'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_no_service_not_alone(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs', 'no_service']
-    args['scope'] = 'svm'
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "Error: no other service can be present when no_service is specified."
-    assert msg in exc.value.args[0]['msg']
+def test_negative_no_service_not_alone():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'scope': 'svm',
+        'services': ['data_nfs', 'no_service'],
+        'vserver': 'vserver',
+    }
+    error = "Error: no other service can be present when no_service is specified."
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_vserver_set_with_cluster_scope(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs', 'no_service']
-    args['scope'] = 'cluster'
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "Error: no other service can be present when no_service is specified."
-    assert msg in exc.value.args[0]['msg']
+def test_negative_no_service_not_alone_with_cluster_scope():
+    module_args = {
+        'ipspace': 'ipspace',
+        'scope': 'cluster',
+        'services': ['data_nfs', 'no_service'],
+        'vserver': 'vserver',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    error = "Error: no other service can be present when no_service is specified."
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_extra_arg_in_modify(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'present'
-    args['services'] = ['data_nfs']
-    args['vserver'] = None      # cluster scope
-    args['ipspace'] = 'ipspace'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['end_of_sequence']
-    ]
-    with pytest.raises(AnsibleFailJson) as exc:
-        uut_main()
-    print('Info: %s' % exc.value.args[0])
-    msg = "Error: attributes not supported in modify: {'scope': 'cluster'}"
-    assert msg in exc.value.args[0]['msg']
+def test_negative_extra_arg_in_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+    ])
+    module_args = {
+        'ipspace': 'ipspace',
+        'scope': 'cluster',
+        'services': ['data_nfs'],
+    }
+    error = "Error: attributes not supported in modify: {'scope': 'cluster'}"
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_empty_body_in_modify(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    set_module_args(args)
+def test_negative_empty_body_in_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'scope': 'svm',
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     current = dict(uuid='')
     modify = {}
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.modify_service_policy(current, modify)
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error: nothing to change - modify called with: {}'
-    assert msg in exc.value.args[0]['msg']
+    error = 'Error: nothing to change - modify called with: {}'
+    assert error in expect_and_capture_ansible_exception(my_obj.modify_service_policy, 'fail', current, modify)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_create_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['zero_record'],         # get
-        SRR['generic_error'],       # create
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error in create_service_policy: calling: network/ip/service-policies: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
+def test_negative_create_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['zero_records']),
+        ('POST', 'network/ip/service-policies', SRR['generic_error']),
+    ])
+    module_args = {
+        'scope': 'svm',
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    error = rest_error_message('Error in create_service_policy', 'network/ip/service-policies')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_delete_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['state'] = 'absent'
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['generic_error'],       # delete
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error in delete_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
+def test_negative_delete_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+        ('DELETE', 'network/ip/service-policies/uuid123', SRR['generic_error']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'vserver': 'vserver',
+    }
+    error = rest_error_message('Error in delete_service_policy', 'network/ip/service-policies/uuid123')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_negative_modify_called(mock_request, patch_ansible):
-    ''' test get'''
-    args = dict(default_args())
-    args['use_rest'] = 'auto'
-    args['services'] = ['data_nfs']
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['one_sp_record'],       # get
-        SRR['generic_error'],       # modify
-        SRR['end_of_sequence']
-    ]
-    my_obj = my_module()
-    with pytest.raises(AnsibleFailJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    msg = 'Error in modify_service_policy: calling: network/ip/service-policies/uuid123: got Expected error.'
-    assert msg in exc.value.args[0]['msg']
+def test_negative_modify_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/service-policies', SRR['one_sp_record']),
+        ('PATCH', 'network/ip/service-policies/uuid123', SRR['generic_error']),
+    ])
+    module_args = {
+        'services': ['data_nfs'],
+        'vserver': 'vserver',
+    }
+    error = rest_error_message('Error in modify_service_policy', 'network/ip/service-policies/uuid123')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_no_warnings()
+
+
+def test_negative_unknown_services():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        'services': ['data_nfs9'],
+        'vserver': 'vserver',
+    }
+    error = 'Error: unknown service: data_nfs9.  New services may need to be added to "additional_services".'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_no_warnings()
+    error = 'Error: unknown service: data_nfs9.  New services may need to be added to "additional_services".'
+    module_args = {
+        'services': ['data_nfs9', 'data_cifs', 'dummy'],
+        'vserver': 'vserver',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    for needle in ['Error: unknown services:', 'data_nfs9', 'dummy']:
+        assert needle in error
+    assert 'data_cifs' not in error
     assert_no_warnings()

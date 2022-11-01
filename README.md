@@ -80,6 +80,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_debug - report python executable version and path.
   - na_ontap_net_routes - `metric` option is supported from ONTAP 9.11.0 or later in REST.
+  - na_ontap_service_policy - update services for 9.11.1 - make it easier to add new services.
   - na_ontap_snapmirror - `schedule` is handled through `policy` for REST.
   - na_ontap_snapmirror_policy - improve error reporting and report errors in check_mode.
   - na_ontap_volume - `wait_for_completion` and `check_interval` is now supported for volume move and encryption in REST.
@@ -88,6 +89,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_export_policy_rule - `allow_suid`, `allow_device_creation` and `chown_mode` is now supported from ONTAP 9.9.1 or later in REST.
   - na_ontap_export_policy_rule - `allow_device_creation` and `chown_mode` is now supported in ZAPI.
   - na_ontap_ldap_client - new option `skip_config_validation`.
+  - na_ontap_service_policy - new options ``known_services`` and ``additional_services``.
   - na_ontap_snapmirror_policy - new option `identity_preservation` added.
   - na_ontap_snapmirror_policy - `name` added as an alias for `policy_name`.
   - na_ontap_volume - new option `max_wait_time` added.
@@ -97,6 +99,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug Fixes
   - iso8601 filters - fix documentation generation issue.
   - na_ontap_info - Added vserver in key_fields of net_interface_info.
+  - na_ontap_interface - fix error where an `address` with an IPV6 ip would try to modify each time playbook was run.
   - na_ontap_ldap_client - `servers` not accepted when using ZAPI and `ldap_servers` not handling a single server properly.
   - na_ontap_rest_info - fixed error where module would fail silently when using `owning_resouce` and a non-existent vserver.
   - na_ontap_user_role - fixed Invalid JSON input. Expecting "privileges" to be an array.
