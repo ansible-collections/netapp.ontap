@@ -5,6 +5,62 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.0.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_autosupport_invoke - warn when ``message`` alias is used as it will be removed - it conflicts with Ansible internal variable.
+- na_ontap_debug - report python executable version and path.
+- na_ontap_export_policy_rule - ``allow_device_creation`` and ``chown_mode`` is now supported in ZAPI.
+- na_ontap_export_policy_rule - ``allow_suid``, ``allow_device_creation`` and ``chown_mode`` is now supported from ONTAP 9.9.1 or later in REST.
+- na_ontap_ldap_client - new option ``skip_config_validation``.
+- na_ontap_login_message - warn when ``message`` alias is used as it will be removed - it conflicts with Ansible internal variable.
+- na_ontap_motd - warn when ``message`` alias is used as it will be removed - it conflicts with Ansible internal variable.
+- na_ontap_net_routes - ``metric`` option is supported from ONTAP 9.11.0 or later in REST.
+- na_ontap_nfs - warn when ``nfsv4.1`` alias is used as it will be removed - it does not match Ansible naming convention.
+- na_ontap_rest_info - support added for protocols/active-directory.
+- na_ontap_rest_info - support added for protocols/cifs/group-policies.
+- na_ontap_rest_info - support added for protocols/nfs/connected-client-settings.
+- na_ontap_rest_info - support added for security/aws-kms.
+- na_ontap_service_policy - new options ``known_services`` and ``additional_services``.
+- na_ontap_service_policy - update services for 9.11.1 - make it easier to add new services.
+- na_ontap_snapmirror - ``schedule`` is handled through ``policy`` for REST.
+- na_ontap_snapmirror_policy - ``name`` added as an alias for ``policy_name``.
+- na_ontap_snapmirror_policy - improve error reporting and report errors in check_mode.
+- na_ontap_snapmirror_policy - new option ``identity_preservation`` added.
+- na_ontap_volume - ``wait_for_completion`` and ``check_interval`` is now supported for volume move and encryption in REST.
+- na_ontap_volume - new REST option ``analytics`` added.
+- na_ontap_volume - new option ``max_wait_time`` added.
+- tracing - allow to selectively trace headers and authentication.
+
+Bugfixes
+--------
+
+- iso8601 filters - fix documentation generation issue.
+- na_ontap_firmware_upgrade - when enabled, disruptive_update would always update even when update is not required.
+- na_ontap_info - Added vserver in key_fields of net_interface_info.
+- na_ontap_interface - fix error where an ``address`` with an IPV6 ip would try to modify each time playbook was run.
+- na_ontap_ldap_client - ``servers`` not accepted when using ZAPI and ``ldap_servers`` not handling a single server properly.
+- na_ontap_rest_info - fixed error where module would fail silently when using ``owning_resouce`` and a non-existent vserver.
+- na_ontap_user_role - fixed Invalid JSON input. Expecting "privileges" to be an array.
+- na_ontap_volume - ``snapdir_access`` is not supported by REST and will currently inform you now if you try to use it with REST.
+- na_ontap_volume - fix KeyError on ``aggregate_name`` when trying to unencrypt volume in ZAPI.
+- na_ontap_volume - fix error when trying to move encrypted volume and ``encrypt`` is True in REST.
+- na_ontap_volume - fix error when trying to unencrypt volume in REST.
+- na_ontap_volume - when deleting a volume, don't report a warning when unmount is successful (error is None).
+- tracing - redact headers and authentication secrets by default.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_bgp_peer_group - NetApp ONTAP module to create, modify or delete bgp peer group.
+- netapp.ontap.na_ontap_file_security_permissions - NetApp ONTAP NTFS file security permissions
+- netapp.ontap.na_ontap_file_security_permissions_acl - NetApp ONTAP file security permissions ACL
+- netapp.ontap.na_ontap_local_hosts - NetApp ONTAP local hosts
+- netapp.ontap.na_ontap_name_mappings - NetApp ONTAP name mappings
+
 v21.24.1
 ========
 

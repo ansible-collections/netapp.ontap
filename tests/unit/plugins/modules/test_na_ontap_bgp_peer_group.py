@@ -76,7 +76,23 @@ SRR = rest_responses({
             "peer": {"address": "10.10.10.8", "asn": 0},
             "state": "up",
             "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
-        }], "num_records": 1}, None)
+        }], "num_records": 1}, None),
+    'bgp_peer_info_ipv6': (200, {"records": [
+        {
+            "ipspace": {"name": "exchange"},
+            "name": "bgpv6peer",
+            "peer": {"address": "2402:940::45", "asn": 0},
+            "state": "up",
+            "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+        }], "num_records": 1}, None),
+    'bgp_modified_ipv6': (200, {"records": [
+        {
+            "ipspace": {"name": "exchange"},
+            "name": "bgpv6peer",
+            "peer": {"address": "2402:940::46", "asn": 0},
+            "state": "up",
+            "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
+        }], "num_records": 1}, None),
 })
 
 
@@ -107,9 +123,18 @@ def test_modify_bgp_peer_group():
         ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_peer_info']),
         ('PATCH', 'network/ip/bgp/peer-groups/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['success']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_modified'])
+        ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_modified']),
+        # ipv6 modify
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_peer_info_ipv6']),
+        ('PATCH', 'network/ip/bgp/peer-groups/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['success']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_modified_ipv6'])
     ])
     args = {'peer': {'address': '10.10.10.8'}}
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    args = {'name': 'bgpv6peer', 'peer': {'address': '2402:0940:000:000:00:00:0000:0046'}}
     assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
     assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
 

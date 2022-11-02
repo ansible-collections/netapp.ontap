@@ -10,11 +10,11 @@ DOCUMENTATION = """
 module: na_ontap_bgp_peer_group
 short_description: NetApp ONTAP module to create, modify or delete bgp peer group.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap
 version_added: '22.0.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create, modify or delete bgp peer group.
+  - Create, modify or delete bgp peer group.
 options:
   state:
     description:
@@ -207,7 +207,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, netapp_ipaddress
 
 
 class NetAppOntapBgpPeerGroup:
@@ -246,6 +246,8 @@ class NetAppOntapBgpPeerGroup:
         self.uuid = None
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
+        if self.na_helper.safe_get(self.parameters, ['peer', 'address']):
+            self.parameters['peer']['address'] = netapp_ipaddress.validate_and_compress_ip_address(self.parameters['peer']['address'], self.module)
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_bgp_peer_group', 9, 7)
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
