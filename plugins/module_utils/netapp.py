@@ -48,7 +48,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "22.0.0"
+COLLECTION_VERSION = "22.1.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
@@ -144,7 +144,7 @@ def na_ontap_zapi_only_spec():
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
         use_rest=dict(required=False, type='str', default='never'),
-        feature_flags=dict(required=False, type='dict', default=dict()),
+        feature_flags=dict(required=False, type='dict'),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
     )
@@ -162,7 +162,7 @@ def na_ontap_host_argument_spec():
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
         use_rest=dict(required=False, type='str', default='auto'),
-        feature_flags=dict(required=False, type='dict', default=dict()),
+        feature_flags=dict(required=False, type='dict'),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
         force_ontap_version=dict(required=False, type='str')

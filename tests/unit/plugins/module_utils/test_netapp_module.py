@@ -344,7 +344,7 @@ def test_required_is_not_set_to_none():
     # force a value different than None
     my_obj.module.params['hostname'] = 1
     my_params = my_obj.na_helper.check_and_set_parameters(my_obj.module)
-    assert set(my_params.keys()) == set(['hostname', 'feature_flags', 'https', 'validate_certs', 'use_rest'])
+    assert set(my_params.keys()) == set(['hostname', 'https', 'validate_certs', 'use_rest'])
 
 
 def test_sanitize_wwn_no_action():

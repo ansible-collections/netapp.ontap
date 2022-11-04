@@ -65,6 +65,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.1.0
+
 ## 22.0.0
 
 ### Major Changes
