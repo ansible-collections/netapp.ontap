@@ -136,8 +136,7 @@ class NetAppOntapMccipMediator(object):
         params = {
             'ip_address': self.parameters['mediator_address'],
             'password': self.parameters['mediator_password'],
-            'user': self.parameters['mediator_user'],
-            'uuid': current_uuid
+            'user': self.parameters['mediator_user']
         }
         dummy, error = self.rest_api.delete(api, params)
         if error:

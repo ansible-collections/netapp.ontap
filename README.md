@@ -67,6 +67,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.0.1
 
+### Bug Fixes
+  - na_ontap_mcc_mediator - Fix error that would prevent mediator deletion.
+
 ## 22.0.0
 
 ### Major Changes
