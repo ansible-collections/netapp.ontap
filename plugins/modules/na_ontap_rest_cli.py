@@ -91,8 +91,8 @@ class NetAppONTAPCommandREST():
         self.argument_spec.update(dict(
             command=dict(required=True, type='str'),
             verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']),
-            params=dict(required=False, type='dict', default={}),
-            body=dict(required=False, type='dict', default={})
+            params=dict(required=False, type='dict'),
+            body=dict(required=False, type='dict')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,

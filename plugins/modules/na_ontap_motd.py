@@ -32,6 +32,7 @@ options:
           - MOTD Text message.
           - message is deprecated and will be removed to avoid a conflict with an Ansible internal variable.
         type: str
+        default: ''
         aliases:
           - message
     vserver:
