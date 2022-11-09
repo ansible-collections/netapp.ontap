@@ -30,7 +30,7 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-def interface_info(dns=True):
+def interface_info(dns=True, address='2.2.2.2', netmask='1.1.1.1'):
     info = {
         'attributes-list': {
             'net-interface-info': {
@@ -44,8 +44,8 @@ def interface_info(dns=True):
                 'current-node': 'node',
                 'home-port': 'e0c',
                 'current-port': 'e0c',
-                'address': '2.2.2.2',
-                'netmask': '1.1.1.1',
+                'address': address,
+                'netmask': netmask,
                 'role': 'data',
                 'listen-for-dns-query': 'true',
                 'is-dns-update-enabled': 'true',
@@ -70,6 +70,7 @@ node_info = {
 
 ZRR = zapi_responses({
     'interface_info': build_zapi_response(interface_info(), 1),
+    'interface_ipv4': build_zapi_response(interface_info(address='10.10.10.13', netmask='255.255.255.0'), 1),
     'interface_info_no_dns': build_zapi_response(interface_info(dns=False), 1),
     'node_info': build_zapi_response(node_info, 1),
     'error_17': build_zapi_error(17, 'A LIF with the same name already exists'),
@@ -121,7 +122,7 @@ def test_successful_create():
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
-        ('ZAPI', 'net-interface-create', ZRR['success']),
+        ('ZAPI', 'net-interface-create', ZRR['success'])
     ])
     module_args = {
         'use_rest': 'never',
@@ -144,6 +145,29 @@ def test_successful_create():
         'service_policy': 'service_policy'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ip_subnet_cidr_mask():
+    ''' Test successful modify ip/subnet mask '''
+    register_responses([
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
+        ('ZAPI', 'net-interface-modify', ZRR['success']),
+        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
+        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+        ('ZAPI', 'net-interface-get-iter', ZRR['interface_ipv4']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'vserver',
+        'home_node': 'node',
+        'role': 'data',
+        'address': '10.10.10.13',
+        'netmask': '24'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_successful_create_for_NVMe():
@@ -483,7 +507,7 @@ SRR = rest_responses({
         'ddns_enabled': True,
         'data_protocol': ['nfs'],
         'enabled': True,
-        'ip': {'address': '10.11.12.13', 'netmask': '255.192.0.0'},
+        'ip': {'address': '10.11.12.13', 'netmask': '10'},
         'location': {
             'home_port': {'name': 'e0c'},
             'home_node': {'name': 'node2'},

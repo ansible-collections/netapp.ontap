@@ -474,12 +474,20 @@ class NetAppOntapInterface:
             self.home_node = None           # cached value to limit number of API calls.
             self.map_failover_policy()
             self.validate_rest_input_parameters()
+            # REST supports both netmask and cidr for ipv4 but cidr only for ipv6.
+            if self.parameters.get('netmask'):
+                self.parameters['netmask'] = str(netapp_ipaddress.netmask_to_netmask_length(self.parameters.get('address'),
+                                                                                            self.parameters['netmask'], self.module))
         elif netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
             if 'vserver' not in self.parameters:
                 self.module.fail_json(msg='missing required argument with ZAPI: vserver')
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+            # ZAPI supports only netmask.
+            if self.parameters.get('netmask'):
+                self.parameters['netmask'] = netapp_ipaddress.netmask_length_to_netmask(self.parameters.get('address'),
+                                                                                        self.parameters['netmask'], self.module)
 
     def map_failover_policy(self):
         if self.use_rest and 'failover_policy' in self.parameters:
@@ -1354,8 +1362,6 @@ class NetAppOntapInterface:
         if not self.use_rest:
             netapp_utils.ems_log_event_cserver("na_ontap_interface", self.server, self.module)
         cd_action, modify, rename, current = self.get_action()
-        uuid = current.get('uuid') if current else None
-
         # build the payloads even in check_mode, to perform validations
         uuid, body, migrate_body = self.build_rest_payloads(cd_action, modify, current)
         if self.na_helper.changed and not self.module.check_mode:
