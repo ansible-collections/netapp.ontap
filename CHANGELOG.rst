@@ -5,6 +5,20 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.0.1
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_interface - allow setting ``netmask`` with netmask length in ZAPI.
+
+Bugfixes
+--------
+
+- na_ontap_interface - fix ``netmask`` not idempotent in REST.
+- na_ontap_mcc_mediator - Fix error that would prevent mediator deletion,
+
 v22.0.0
 =======
 

@@ -2645,3 +2645,14 @@ releases:
       name: na_ontap_name_mappings
       namespace: ''
     release_date: '2022-11-02'
+  22.0.1:
+    changes:
+      bugfixes:
+      - na_ontap_interface - fix ``netmask`` not idempotent in REST.
+      - na_ontap_mcc_mediator - Fix error that would prevent mediator deletion,
+      minor_changes:
+      - na_ontap_interface - allow setting ``netmask`` with netmask length in ZAPI.
+    fragments:
+    - DEVOPS-5589.yaml
+    - DEVOPS-5662.yaml
+    release_date: '2022-11-10'
