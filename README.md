@@ -65,6 +65,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.1.0
+
+### Minor Changes
+  - na_ontap_cifs_local_group_member - Added REST API support to retrieve, add and remove CIFS group member.
+  - na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
+
 ## 22.0.1
 
 ### Bug Fixes

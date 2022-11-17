@@ -1,260 +1,344 @@
+# (c) 2018-2022, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 ''' unit tests ONTAP Ansible module: na_ontap_cifs_local_group_member '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
-
+    patch_ansible, call_main, create_module, expect_and_capture_ansible_exception, AnsibleFailJson
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_local_group_member \
-    import NetAppOntapCifsLocalGroupMember as group_member_module  # module under test
-
+    import NetAppOntapCifsLocalGroupMember as group_member_module, main as my_main  # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     # module specific responses
-    'group_member_record': (200, {
-        "records": [{
-            'vserver': 'ansible',
+    'group_member_record': (200, {"records": [
+        {
+            "svm": {
+                "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                "name": "vserver"
+            },
             'group_name': 'BUILTIN\\Guests',
-            'member': 'test'
-        }]
-    }, None)
+            'member': 'test',
+            'sid': 'S-1-5-21-256008430-3394229847-3930036330-1001',
+        }
+    ], "num_records": 1}, None),
+    'group_record': (200, {"records": [
+        {
+            "svm": {
+                "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                "name": "vserver"
+            },
+            'group_name': 'BUILTIN\\Guests',
+            'sid': 'S-1-5-21-256008430-3394229847-3930036330-1001',
+        }
+    ], "num_records": 1}, None),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+})
+
+group_member_info = {'num-records': 1,
+                     'attributes-list':
+                         {'cifs-local-group-members':
+                             {'group-name': 'BUILTIN\\GUESTS',
+                              'member': 'test',
+                              'vserver': 'ansible'
+                              }
+                          },
+                     }
+
+ZRR = zapi_responses({
+    'group_member_info': build_zapi_response(group_member_info)
+})
+
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'ansible',
+    'group': 'BUILTIN\\GUESTS',
+    'member': 'test',
+    'use_rest': 'never',
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'group_member':
-            xml = self.build_group_member_info()
-        elif self.type == 'group_member_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_group_member_info():
-        ''' build xml data for cifs-local-group-members '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {'attributes-list': {'cifs-local-group-members': {'group-name': 'BUILTIN\\GUESTS', 'member': 'test', 'vserver': 'ansible'}}}
-        xml.translate_struct(data)
-        return xml
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args({})
+        group_member_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+def test_get_nonexistent_cifs_group_member():
+    register_responses([
+        ('cifs-local-group-members-get-iter', ZRR['empty'])
+    ])
+    cifs_obj = create_module(group_member_module, DEFAULT_ARGS)
+    result = cifs_obj.get_cifs_local_group_member()
+    assert result is None
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self, use_rest=None):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'ansible'
-            group = 'BUILTIN\\Guests'
-            member = 'test'
+def test_get_existent_cifs_group_member():
+    register_responses([
+        ('cifs-local-group-members-get-iter', ZRR['group_member_info'])
+    ])
+    cifs_obj = create_module(group_member_module, DEFAULT_ARGS)
+    result = cifs_obj.get_cifs_local_group_member()
+    assert result
 
-        else:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'ansible'
-            group = 'BUILTIN\\Guests'
-            member = 'test'
 
-        args = dict({
-            'state': 'present',
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'vserver': vserver,
-            'group': group,
-            'member': member
-        })
+def test_successfully_add_members_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['empty']),
+        ('cifs-local-group-members-add-members', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-        if use_rest is not None:
-            args['use_rest'] = use_rest
 
-        return args
+def test_error_add_members_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['empty']),
+        ('cifs-local-group-members-add-members', ZRR['error']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error adding member"
+    assert msg in error
 
-    @staticmethod
-    def get_group_member_mock_object(cx_type='zapi', kind=None):
-        group_member_obj = group_member_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                group_member_obj.server = MockONTAPConnection()
-            else:
-                group_member_obj.server = MockONTAPConnection(kind=kind)
-        return group_member_obj
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            group_member_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+def test_successfully_remove_members_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
+        ('cifs-local-group-members-remove-members', ZRR['success']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+        'state': 'absent'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_get_called(self):
-        ''' test get_cifs_local_group_member for non-existent config'''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        print('starting')
-        my_obj = group_member_module()
-        print('use_rest:', my_obj.use_rest)
-        my_obj.server = self.server
-        assert my_obj.get_cifs_local_group_member is not None
 
-    def test_ensure_get_called_existing(self):
-        ''' test get_cifs_local_group_member for existing config'''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = group_member_module()
-        my_obj.server = MockONTAPConnection(kind='group_member')
-        assert my_obj.get_cifs_local_group_member()
+def test_error_remove_members_zapi():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
+        ('cifs-local-group-members-remove-members', ZRR['error']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+        'state': 'absent'
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error removing member"
+    assert msg in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_local_group_member.NetAppOntapCifsLocalGroupMember.add_cifs_local_group_member')
-    def test_successful_create(self, add_cifs_local_group_member):
-        ''' adding member to local-group and testing idempotency '''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = group_member_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        add_cifs_local_group_member.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = group_member_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('group_member')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_local_group_member.NetAppOntapCifsLocalGroupMember.remove_cifs_local_group_member')
-    def test_successful_delete(self, remove_cifs_local_group_member):
-        ''' removing member from local-group and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['state'] = 'absent'
-        set_module_args(data)
-        my_obj = group_member_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('group_member')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # remove_cifs_local_group_member.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = group_member_module()
-        if not self.onbox:
-            my_obj.server = self.server
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successfully_add_members_zapi_idempotency():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args(use_rest='Never')
-        set_module_args(data)
-        my_obj = group_member_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('group_member_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.add_cifs_local_group_member()
-        assert 'Error adding member ' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.remove_cifs_local_group_member()
-        assert 'Error removing member ' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_group_member_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+def test_successfully_remove_members_zapi_idempotency():
+    register_responses([
+        ('ems-autosupport-log', ZRR['empty']),
+        ('cifs-local-group-members-get-iter', ZRR['empty']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_create_rest(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['empty_good'],  # post
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_group_member_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_create_rest(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['group_member_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_group_member_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+ARGS_REST = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'ansible',
+    'group': 'BUILTIN\\GUESTS',
+    'member': 'test',
+    'use_rest': 'always',
+}
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_delete_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['group_member_record'],  # get
-            SRR['empty_good'],  # delete
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_group_member_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_delete_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_group_member_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_get_nonexistent_cifs_local_group_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'nogroup',
+        'member': 'test',
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    msg = 'CIFS local group nogroup does not exist on vserver ansible'
+    assert msg in error
+
+
+def test_get_existent_cifs_local_group_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['group_member_record']),
+    ])
+    cifs_obj = create_module(group_member_module, ARGS_REST)
+    result = cifs_obj.get_cifs_local_group_member()
+    assert result
+
+
+def test_error_get_existent_cifs_local_group_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['generic_error']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    msg = 'Error getting CIFS local group members for group BUILTIN\\GUESTS on vserver ansible'
+    assert msg in error
+
+
+def test_add_cifs_group_member_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['empty_records']),
+        ('POST', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                 'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['empty_good']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_error_add_cifs_group_member_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['empty_records']),
+        ('POST', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                 'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['generic_error']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    msg = "Error adding member test to cifs local group BUILTIN\\GUESTS on vserver"
+    assert msg in error
+
+
+def test_remove_cifs_group_member_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['group_member_record']),
+        ('DELETE', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                   'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['empty_good']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+        'state': 'absent'
+    }
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_error_remove_cifs_group_member_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['group_member_record']),
+        ('DELETE', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                   'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['generic_error']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+        'state': 'absent'
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    msg = "Error removing member test from cifs local group BUILTIN\\GUESTS on vserver ansible"
+    assert msg in error
+
+
+def test_successfully_add_members_rest_idempotency():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['group_member_record']),
+    ])
+    module_args = {
+        'vserver': 'ansible',
+        'group': 'BUILTIN\\GUESTS',
+        'member': 'test',
+    }
+    assert not call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_successfully_remove_members_rest_idempotency():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
+                'S-1-5-21-256008430-3394229847-3930036330-1001/members', SRR['empty_records']),
+    ])
+    module_args = {
+        'state': 'absent'
+    }
+    assert not call_main(my_main, ARGS_REST, module_args)['changed']

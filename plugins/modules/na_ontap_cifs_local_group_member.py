@@ -1,14 +1,11 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2022, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = """
 module: na_ontap_cifs_local_group_member
@@ -22,33 +19,38 @@ description:
 options:
   state:
     description:
-    - Whether the specified member should be part of the CIFS local group
+      - Whether the specified member should be part of the CIFS local group
     choices: ['present', 'absent']
     default: present
     type: str
 
   vserver:
     description:
-    - Specifies the vserver that owns the CIFS local group
+      - Specifies the vserver that owns the CIFS local group
     required: true
     type: str
 
   group:
     description:
-    - Specifies name of the CIFS local group
+      - Specifies name of the CIFS local group
     required: true
     type: str
 
   member:
     description:
-    - Specifies the name of the member
+      - Specifies the name of the member
     required: true
     type: str
+
+notes:
+  - Supports check_mode.
+  - Supported with ZAPI.
+  - Supported with REST starting with ONTAP 9.10.1.
 """
 
 EXAMPLES = """
     - name: Add member to CIFS local group
-      na_ontap_cifs_local_group_member:
+      netapp.ontap.na_ontap_cifs_local_group_member:
         state: present
         vserver: svm1
         group: BUILTIN\\administrators
@@ -61,7 +63,7 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Remove member from CIFS local group
-      na_ontap_cifs_local_group_member:
+      netapp.ontap.na_ontap_cifs_local_group_member:
         state: absent
         vserver: svm1
         group: BUILTIN\\administrators
@@ -84,12 +86,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-class NetAppOntapCifsLocalGroupMember(object):
+class NetAppOntapCifsLocalGroupMember:
     """
         Add or remove CIFS local group members
     """
@@ -115,43 +115,69 @@ class NetAppOntapCifsLocalGroupMember(object):
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
 
+        if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            msg = 'REST requires ONTAP 9.10.1 or later for cifs_local_group_member APIs.'
+            self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+        self.svm_uuid = None
+        self.sid = None
+
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
+            if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+    def get_cifs_local_group_rest(self):
+        """
+        Retrieves the local group of an SVM.
+        """
+        api = "protocols/cifs/local-groups"
+        query = {
+            'name': self.parameters['group'],
+            'svm.name': self.parameters['vserver'],
+            'fields': 'svm.uuid,sid'
+        }
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg="Error on fetching cifs local-group: %s" % error)
+        if record:
+            self.svm_uuid = self.na_helper.safe_get(record, ['svm', 'uuid'])
+            self.sid = self.na_helper.safe_get(record, ['sid'])
+        if record is None:
+            self.module.fail_json(
+                msg='CIFS local group %s does not exist on vserver %s' %
+                (self.parameters['group'], self.parameters['vserver'])
+            )
 
     def get_cifs_local_group_member(self):
+        """
+        Retrieves local users, Active Directory users and
+        Active Directory groups which are members of the specified local group and SVM.
+        """
         return_value = None
 
         if self.use_rest:
-            api = "private/cli/vserver/cifs/users-and-groups/local-group/members"
+            self.get_cifs_local_group_rest()
+            api = 'protocols/cifs/local-groups/%s/%s/members' % (self.svm_uuid, self.sid)
             query = {
-                'group-name': self.parameters['group'],
-                'fields': 'member',
-                'vserver': self.parameters['vserver'],
-                'member': self.parameters['member']
+                'name': self.parameters['member'],
+                'svm.name': self.parameters['vserver'],
+                'fields': 'name',
             }
-            message, error = self.rest_api.get(api, query)
-
+            record, error = rest_generic.get_one_record(self.rest_api, api, query)
             if error:
-                self.module.fail_json(msg=error)
-            if len(message.keys()) == 0:
-                return None
-            elif 'records' in message and len(message['records']) == 0:
-                return None
-            elif 'records' not in message:
-                error = "Unexpected response in get_cifs_local_group_member from %s: %s" % (api, repr(message))
-                self.module.fail_json(msg=error)
-            return_value = {
-                'group': message['records'][0]['group_name'],
-                'member': message['records'][0]['member'],
-                'vserver': message['records'][0]['vserver']
-            }
-            return return_value
+                self.module.fail_json(
+                    msg='Error getting CIFS local group members for group %s on vserver %s: %s' %
+                    (self.parameters['group'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
+                )
+
+            if record:
+                return {
+                    'member': self.na_helper.safe_get(record, ['name'])
+                }
+            return record
 
         else:
             group_members_get_iter = netapp_utils.zapi.NaElement('cifs-local-group-members-get-iter')
@@ -187,15 +213,14 @@ class NetAppOntapCifsLocalGroupMember(object):
         Adds a member to a CIFS local group
         """
         if self.use_rest:
-            api = "private/cli/vserver/cifs/users-and-groups/local-group/add-members"
-            body = {
-                "vserver": self.parameters['vserver'],
-                "group-name": self.parameters['group'],
-                "member-names": [self.parameters['member']]
-            }
-            dummy, error = self.rest_api.post(api, body)
+            api = 'protocols/cifs/local-groups/%s/%s/members' % (self.svm_uuid, self.sid)
+            body = {'name': self.parameters['member']}
+            dummy, error = rest_generic.post_async(self.rest_api, api, body)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(
+                    msg='Error adding member %s to cifs local group %s on vserver %s: %s' %
+                    (self.parameters['member'], self.parameters['group'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
+                )
 
         else:
             group_members_obj = netapp_utils.zapi.NaElement("cifs-local-group-members-add-members")
@@ -217,16 +242,14 @@ class NetAppOntapCifsLocalGroupMember(object):
         Removes a member from a CIFS local group
         """
         if self.use_rest:
-            api = "private/cli/vserver/cifs/users-and-groups/local-group/remove-members"
-            body = {
-                "vserver": self.parameters['vserver'],
-                "group-name": self.parameters['group'],
-                "member-names": [self.parameters['member']]
-            }
-
-            dummy, error = self.rest_api.post(api, body)
+            api = 'protocols/cifs/local-groups/%s/%s/members' % (self.svm_uuid, self.sid)
+            body = {'name': self.parameters['member']}
+            dummy, error = rest_generic.delete_async(self.rest_api, api, None, body)
             if error:
-                self.module.fail_json(msg=error)
+                self.module.fail_json(
+                    msg='Error removing member %s from cifs local group %s on vserver %s: %s' %
+                    (self.parameters['member'], self.parameters['group'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
+                )
 
         else:
             group_members_obj = netapp_utils.zapi.NaElement("cifs-local-group-members-remove-members")
@@ -248,7 +271,6 @@ class NetAppOntapCifsLocalGroupMember(object):
             netapp_utils.ems_log_event("na_ontap_cifs_local_group_member", self.server)
 
         current = self.get_cifs_local_group_member()
-
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
 
         if self.na_helper.changed:
