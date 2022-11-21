@@ -326,10 +326,10 @@ class NetAppOntapcifsServer:
         if not self.use_rest:
             unsupported_zapi_properties = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
-                                           'use_ldaps', 'use_start_tls']
+                                           'use_ldaps', 'use_start_tls', 'from_name']
             used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
             if used_unsupported_zapi_properties:
-                self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(unsupported_zapi_properties))
+                self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -358,19 +358,20 @@ class NetAppOntapcifsServer:
 
             cifs_server_attributes = result.get_child_by_name('attributes-list').\
                 get_child_by_name('cifs-server-config')
+            service_state = cifs_server_attributes.get_child_content('administrative-status')
             return_value = {
                 'cifs_server_name': self.parameters['cifs_server_name'],
-                'administrative-status': cifs_server_attributes.get_child_content('administrative-status')
+                'service_state': 'started' if service_state == 'up' else 'stopped'
             }
-
         return return_value
 
     def create_cifs_server(self):
         """
         calling zapi to create cifs_server
         """
-        options = {'cifs-server': self.parameters['cifs_server_name'], 'administrative-status': 'up'
-                   if self.parameters.get('service_state') == 'started' else 'down'}
+        options = {'cifs-server': self.parameters['cifs_server_name']}
+        if 'service_state' in self.parameters:
+            options['administrative-status'] = 'up' if self.parameters['service_state'] == 'started' else 'down'
         if 'workgroup' in self.parameters:
             options['workgroup'] = self.parameters['workgroup']
         if 'domain' in self.parameters:
@@ -447,6 +448,8 @@ class NetAppOntapcifsServer:
         """
         get details of the cifs_server.
         """
+        if not self.use_rest:
+            return self.get_cifs_server()
         query = {'svm.name': self.parameters['vserver'],
                  'fields': 'svm.uuid,'
                            'enabled,'
@@ -474,7 +477,7 @@ class NetAppOntapcifsServer:
             record['service_state'] = 'started' if record.pop('enabled') else 'stopped'
             return {
                 'svm': {'uuid': self.na_helper.safe_get(record, ['svm', 'uuid'])},
-                'name': self.na_helper.safe_get(record, ['name']),
+                'cifs_server_name': self.na_helper.safe_get(record, ['name']),
                 'service_state': self.na_helper.safe_get(record, ['service_state']),
                 'smb_signing': self.na_helper.safe_get(record, ['security', 'smb_signing']),
                 'encrypt_dc_connection': self.na_helper.safe_get(record, ['security', 'encrypt_dc_connection']),
@@ -490,12 +493,6 @@ class NetAppOntapcifsServer:
             }
         return record
 
-    def service_state_to_bool(self, modify=None):
-        if modify and 'service_state' in modify:
-            return modify['service_state'] == 'started'
-        else:
-            return self.parameters.get('service_state') == 'started'
-
     def build_ad_domain(self):
         ad_domain = {}
         if 'admin_user_name' in self.parameters:
@@ -508,36 +505,40 @@ class NetAppOntapcifsServer:
             ad_domain['fqdn'] = self.parameters['domain']
         return ad_domain
 
-    def create_modify_body_rest(self, body, modify=None):
+    def create_modify_body_rest(self, params=None):
         """
         Function to define body for create and modify cifs server
         """
+        body, query, security = {}, {}, {}
+        if params is None:
+            params = self.parameters
         security_options = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                             'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security', 'use_ldaps', 'use_start_tls']
         ad_domain = self.build_ad_domain()
         if ad_domain:
             body['ad_domain'] = ad_domain
-        query = {}
         if 'force' in self.parameters:
             query['force'] = self.parameters['force']
-        security = {}
         for key in security_options:
-            if not modify and key in self.parameters:
-                security[key] = self.parameters[key]
-            elif modify and key in modify:
-                security[key] = modify[key]
+            if key in params:
+                security[key] = params[key]
         if security:
             body['security'] = security
+        if 'vserver' in params:
+            body['svm.name'] = params['vserver']
+        if 'cifs_server_name' in params:
+            body['name'] = self.parameters['cifs_server_name']
+        if 'service_state' in params:
+            body['enabled'] = params['service_state'] == 'started'
         return body, query
 
     def create_cifs_server_rest(self):
         """
         create the cifs_server.
         """
-        body = {'svm.name': self.parameters['vserver'],
-                'name': self.parameters['cifs_server_name'],
-                'enabled': self.service_state_to_bool()}
-        body, query = self.create_modify_body_rest(body)
+        if not self.use_rest:
+            return self.create_cifs_server()
+        body, query = self.create_modify_body_rest()
         api = 'protocols/cifs/services'
         dummy, error = rest_generic.post_async(self.rest_api, api, body, query)
         if error is not None:
@@ -547,6 +548,8 @@ class NetAppOntapcifsServer:
         """
         delete the cifs_server.
         """
+        if not self.use_rest:
+            return self.delete_cifs_server()
         ad_domain = self.build_ad_domain()
         body = {'ad_domain': ad_domain} if ad_domain else None
         query = {}
@@ -562,89 +565,48 @@ class NetAppOntapcifsServer:
         Modify the state of CIFS server.
         rename: cifs server should be in stopped state
         """
-        body = {}
-        body, query = self.create_modify_body_rest(body, modify)
-        body['enabled'] = self.service_state_to_bool(modify)
-        if 'name' in modify:
-            body['name'] = self.parameters['name']
+        if not self.use_rest:
+            return self.modify_cifs_server()
+        body, query = self.create_modify_body_rest(modify)
         api = 'protocols/cifs/services'
         dummy, error = rest_generic.patch_async(self.rest_api, api, current['svm']['uuid'], body, query)
         if error is not None:
             self.module.fail_json(msg="Error on modifying cifs server: %s" % error)
 
-    def zapiapply(self):
+    def modify_cifs_server(self):
         """
-        calling all cifs_server features
+        Start or stop cifs server in ZAPI.
         """
-
-        changed = False
-        cifs_server_exists = False
-        netapp_utils.ems_log_event("na_ontap_cifs_server", self.server)
-        cifs_server_detail = self.get_cifs_server()
-
-        if cifs_server_detail:
-            cifs_server_exists = True
-
-            if self.parameters['state'] == 'present':
-                administrative_status = cifs_server_detail['administrative-status']
-                if self.parameters.get('service_state') == 'started' and administrative_status == 'down':
-                    changed = True
-                if self.parameters.get('service_state') == 'stopped' and administrative_status == 'up':
-                    changed = True
-            else:
-                # we will delete the CIFs server
-                changed = True
-        elif self.parameters['state'] == 'present':
-            changed = True
-
-        if changed and not self.module.check_mode:
-            if self.parameters['state'] == 'present':
-                if not cifs_server_exists:
-                    self.create_cifs_server()
-
-                elif self.parameters.get('service_state') == 'stopped':
-                    self.stop_cifs_server()
-
-                elif self.parameters.get('service_state') == 'started':
-                    self.start_cifs_server()
-
-            elif self.parameters['state'] == 'absent':
-                self.delete_cifs_server()
-
-        self.module.exit_json(changed=changed)
+        if self.parameters.get('service_state') == 'stopped':
+            self.stop_cifs_server()
+        else:
+            self.start_cifs_server()
 
     def apply(self):
-        if not self.use_rest:
-            self.zapiapply()
         current = self.get_cifs_server_rest()
         cd_action, rename = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and 'from_name' in self.parameters:
-            cifs_info = self.get_cifs_server_rest(self.parameters['from_name'])
-            rename = self.na_helper.is_rename_action(cifs_info, current)
-            if rename is None:
+            current = self.get_cifs_server_rest(self.parameters['from_name'])
+            if current is None:
                 self.module.fail_json(msg='Error renaming cifs server: %s - no cifs server with from_name: %s.'
                                       % (self.parameters['name'], self.parameters['from_name']))
-            elif rename:
-                if 'force' in self.parameters and self.parameters.get('force') is True:
-                    current = cifs_info
-                    cd_action = None
-                else:
-                    self.module.fail_json(msg='Error renaming cifs server from %s to %s without force.'
-                                          % (self.parameters['from_name'], self.parameters['name']))
+            if not self.parameters.get('force'):
+                self.module.fail_json(msg='Error: cannot rename cifs server from %s to %s without force.'
+                                      % (self.parameters['from_name'], self.parameters['name']))
+            # rename is handled in modify in REST.
+            cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
-            if rename:
-                current['name'] = self.parameters.get('name')
-                self.modify_cifs_server_rest(current, modify)
-
             if cd_action == 'create':
                 self.create_cifs_server_rest()
             elif cd_action == 'delete':
                 self.delete_cifs_server_rest(current)
-
-            if modify:
+            else:
                 self.modify_cifs_server_rest(current, modify)
+                # rename will enable the cifs server also, so disable it if service_state is stopped.
+                if 'cifs_server_name' in modify and self.parameters.get('service_state') == 'stopped':
+                    self.modify_cifs_server_rest(current, {'service_state': 'stopped'})
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 

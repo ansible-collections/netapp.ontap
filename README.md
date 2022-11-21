@@ -67,12 +67,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.1.0
 
-### New Modules
-  - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.
-
 ### Minor Changes
   - na_ontap_cifs_local_group_member - Added REST API support to retrieve, add and remove CIFS group member.
   - na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
+  - na_ontap_cifs_server - skip `service_state` option in create if not set.
+
+### Bug Fixes
+  - na_ontap_cifs_server - fix `service_state` is stopped when trying to modify cifs server in REST.
+
+### New Modules
+  - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.
 
 ## 22.0.1
 

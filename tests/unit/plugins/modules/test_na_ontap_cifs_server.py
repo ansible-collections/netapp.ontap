@@ -178,19 +178,6 @@ def test_get():
     assert result
 
 
-def test_error_create():
-    register_responses([
-        ('ems-autosupport-log', ZRR['success']),
-        ('cifs-server-get-iter', ZRR['empty']),
-        ('cifs-server-create', ZRR['error']),
-    ])
-    module_args = {
-        'state': 'present'
-    }
-    error = create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
-    assert 'Error Creating cifs_server' in error
-
-
 def test_create_unsupport_zapi():
     """ check for zapi unsupported options """
     module_args = {
@@ -200,16 +187,14 @@ def test_create_unsupport_zapi():
         "kdc_encryption": "false",
         "smb_signing": "false"
     }
-    msg = 'Error: smb_signing ,encrypt_dc_connection ,kdc_encryption ,smb_encryption ,restrict_anonymous ,' + \
-          'aes_netlogon_enabled ,ldap_referral_enabled ,try_ldap_channel_binding ,session_security ,use_ldaps ,use_start_tls options supported only with REST.'
+    msg = 'Error: smb_signing ,encrypt_dc_connection ,kdc_encryption ,smb_encryption options supported only with REST.'
     assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['empty']),
-        ('cifs-server-create', ZRR['success']),
+        ('cifs-server-create', ZRR['success'])
     ])
     module_args = {
         'workgroup': 'test',
@@ -221,9 +206,46 @@ def test_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_create_with_service_state_started():
+    register_responses([
+        ('cifs-server-get-iter', ZRR['empty']),
+        ('cifs-server-create', ZRR['success']),
+        # idempotent check
+        ('cifs-server-get-iter', ZRR['cifs_record_info'])
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'admin_user_name': 'user1',
+        'admin_password': 'password',
+        'service_state': 'started'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_with_service_state_stopped():
+    register_responses([
+        ('cifs-server-get-iter', ZRR['empty']),
+        ('cifs-server-create', ZRR['success']),
+        # idempotent check
+        ('cifs-server-get-iter', ZRR['cifs_record_disabled_info'])
+    ])
+    module_args = {
+        'workgroup': 'test',
+        'ou': 'ou',
+        'domain': 'test',
+        'admin_user_name': 'user1',
+        'admin_password': 'password',
+        'service_state': 'stopped'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_create_with_force():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['empty']),
         ('cifs-server-create', ZRR['success']),
     ])
@@ -240,7 +262,6 @@ def test_create_with_force():
 
 def test_create_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['cifs_record_info'])
     ])
     module_args = {
@@ -251,7 +272,6 @@ def test_create_idempotent():
 
 def test_delete_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['empty'])
     ])
     module_args = {
@@ -262,7 +282,6 @@ def test_delete_idempotent():
 
 def test_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['cifs_record_info']),
         ('cifs-server-delete', ZRR['success']),
     ])
@@ -278,25 +297,8 @@ def test_delete():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_error_delete():
-    register_responses([
-        ('cifs-server-delete', ZRR['error']),
-    ])
-    module_args = {
-        'workgroup': 'test',
-        'ou': 'ou',
-        'domain': 'test',
-        'force': 'false',
-        'state': 'absent'
-    }
-    my_module_object = create_module(my_module, DEFAULT_ARGS)
-    msg = "Error deleting cifs_server"
-    assert msg in expect_and_capture_ansible_exception(my_module_object.delete_cifs_server, 'fail')['msg']
-
-
 def test_start_service_state():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['cifs_record_info']),
         ('cifs-server-stop', ZRR['success']),
     ])
@@ -308,7 +310,6 @@ def test_start_service_state():
 
 def test_stop_service_state():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-server-get-iter', ZRR['cifs_record_disabled_info']),
         ('cifs-server-start', ZRR['success']),
     ])
@@ -400,12 +401,35 @@ def test_rest_successful_create_with_user():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('POST', 'protocols/cifs/services', SRR['empty_good']),
+        # idempotent check.
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record']),
     ])
     module_args = {
         'admin_user_name': 'test_user',
         'admin_password': 'pwd'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+    assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_create_with_service_state():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+        # idempotent check.
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+    ])
+    module_args = {
+        'admin_user_name': 'test_user',
+        'admin_password': 'pwd',
+        'service_state': 'stopped'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+    assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_create_with_ou():
@@ -418,7 +442,7 @@ def test_rest_successful_create_with_ou():
     module_args = {
         'ou': 'ou'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_create_with_domain():
@@ -431,7 +455,7 @@ def test_rest_successful_create_with_domain():
     module_args = {
         'domain': 'domain'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_create_with_security():
@@ -448,7 +472,7 @@ def test_rest_successful_create_with_security():
         'encrypt_dc_connection': True,
         'restrict_anonymous': 'no_enumeration'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_version_error_with_security_encryption():
@@ -497,7 +521,7 @@ def test_delete_rest():
         'admin_user_name': 'test_user',
         'admin_password': 'pwd'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_delete_with_force_rest():
@@ -513,7 +537,7 @@ def test_delete_with_force_rest():
         'admin_user_name': 'test_user',
         'admin_password': 'pwd'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_error_delete_rest():
@@ -540,7 +564,7 @@ def test_rest_successful_disable():
     module_args = {
         'service_state': 'stopped'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_enable():
@@ -553,7 +577,7 @@ def test_rest_successful_enable():
     module_args = {
         'service_state': 'started'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_security_modify():
@@ -569,10 +593,10 @@ def test_rest_successful_security_modify():
         'kdc_encryption': True,
         'restrict_anonymous': "no_enumeration"
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
-def test_rest_successful_security_modify():
+def test_rest_successful_security_modify_encrypt():
     '''Test successful rest enable'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
@@ -582,7 +606,7 @@ def test_rest_successful_security_modify():
     module_args = {
         'encrypt_dc_connection': True
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_negative_security_options_modify():
@@ -615,7 +639,7 @@ def test_rest_successful_security_options_modify():
         "try_ldap_channel_binding": False,
         "use_ldaps": True
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_rename_cifs():
@@ -624,8 +648,7 @@ def test_rest_successful_rename_cifs():
         ('GET', 'cluster', SRR['is_rest_9_11_0']),
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
-        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
-        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
     module_args = {
         'from_name': 'cifs_server_name',
@@ -634,7 +657,7 @@ def test_rest_successful_rename_cifs():
         'admin_user_name': 'test_user',
         'admin_password': 'pwd'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_rename_modify_cifs():
@@ -644,7 +667,7 @@ def test_rest_successful_rename_modify_cifs():
         ('GET', 'protocols/cifs/services', SRR['empty_records']),
         ('GET', 'protocols/cifs/services', SRR['cifs_record']),
         ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
-        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
     module_args = {
         'from_name': 'cifs_server_name',
@@ -654,7 +677,7 @@ def test_rest_successful_rename_modify_cifs():
         'admin_password': 'pwd',
         'service_state': 'stopped'
     }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_error_rest_rename_cifs_without_force():
@@ -672,7 +695,7 @@ def test_error_rest_rename_cifs_without_force():
         'admin_password': 'pwd'
     }
     error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
-    assert 'Error renaming cifs server from cifs_servers to cifs1 without force.' in error
+    assert 'Error: cannot rename cifs server from cifs_servers to cifs1 without force.' in error
 
 
 def test_error_rest_rename_error_state():
