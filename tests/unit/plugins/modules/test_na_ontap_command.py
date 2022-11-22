@@ -84,8 +84,6 @@ def test_module_fail_when_required_args_missing():
 def test_default_priv():
     ''' make sure privilege is not required '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
     ])
     module_args = {
@@ -100,8 +98,6 @@ def test_default_priv():
 def test_admin_priv():
     ''' make sure admin is accepted '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
     ])
     module_args = {
@@ -117,8 +113,6 @@ def test_admin_priv():
 def test_advanced_priv():
     ''' make sure advanced is not required '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version_advanced']),
     ])
     module_args = {
@@ -148,8 +142,6 @@ def get_dict_output(extra_args=None):
 def test_dict_output_77():
     ''' make sure correct value is returned '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version_77']),
     ])
     result = '77'
@@ -159,8 +151,6 @@ def test_dict_output_77():
 def test_dict_output_b77():
     ''' make sure correct value is returned '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version_b77']),
     ])
     result = b'77'
@@ -170,8 +160,6 @@ def test_dict_output_b77():
 def test_dict_output_u77():
     ''' make sure correct value is returned '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version_u77']),
     ])
     result = "u'77'"
@@ -181,11 +169,7 @@ def test_dict_output_u77():
 def test_dict_output_exclude():
     ''' make sure correct value is returned '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
     ])
     dict_output = get_dict_output({'exclude_lines': 'NetApp Release'})
@@ -199,11 +183,7 @@ def test_dict_output_exclude():
 def test_dict_output_include():
     ''' make sure correct value is returned '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
     ])
     dict_output = get_dict_output({'include_lines': 'NetApp Release'})
@@ -242,18 +222,9 @@ def test_missing_netapp_lib(mock_has_netapp_lib):
 def test_zapi_errors():
     ''' make sure nothing is done '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-cli', ZRR['error']),
-        # EMS cannot get be logged
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
-        # EMS cserver cannot be found
-        ('ZAPI', 'vserver-get-iter', ZRR['error']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
-        # EMS vserver error
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
         ('ZAPI', 'system-cli', ZRR['cli_version']),
 
     ])

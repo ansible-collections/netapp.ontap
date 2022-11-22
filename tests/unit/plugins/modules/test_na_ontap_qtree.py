@@ -101,7 +101,6 @@ def test_ensure_get_called_existing():
 def test_successful_create():
     ''' creating qtree '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['empty']),
         ('qtree-create', ZRR['success'])
     ])
@@ -114,7 +113,6 @@ def test_successful_create():
 def test_successful_delete():
     ''' deleting qtree '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['qtree_info']),
         ('qtree-delete', ZRR['success'])
     ])
@@ -125,7 +123,6 @@ def test_successful_delete():
 def test_successful_delete_idempotency():
     ''' deleting qtree idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['empty'])
     ])
     args = {'state': 'absent'}
@@ -135,7 +132,6 @@ def test_successful_delete_idempotency():
 def test_successful_modify():
     ''' modifying qtree '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['qtree_info']),
         ('qtree-modify', ZRR['success'])
     ])
@@ -149,7 +145,6 @@ def test_successful_modify():
 def test_failed_rename():
     ''' test error rename qtree '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['empty']),
         ('qtree-list-iter', ZRR['empty'])
     ])
@@ -161,7 +156,6 @@ def test_failed_rename():
 def test_successful_rename():
     ''' rename qtree '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('qtree-list-iter', ZRR['empty']),
         ('qtree-list-iter', ZRR['qtree_info']),
         ('qtree-rename', ZRR['success'])

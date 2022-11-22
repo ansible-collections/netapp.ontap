@@ -67,7 +67,6 @@ def test_get():
 
 def test_modify_int_option():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-security-get-iter', ZRR['cifs_security_info']),
         ('cifs-security-modify', ZRR['success']),
     ])
@@ -79,7 +78,6 @@ def test_modify_int_option():
 
 def test_modify_bool_option():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-security-get-iter', ZRR['cifs_security_info']),
         ('cifs-security-modify', ZRR['success']),
     ])
@@ -91,7 +89,6 @@ def test_modify_bool_option():
 
 def test_error_modify_bool_option():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-security-get-iter', ZRR['cifs_security_info']),
         ('cifs-security-modify', ZRR['error']),
     ])

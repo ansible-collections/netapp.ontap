@@ -1013,8 +1013,6 @@ class NetAppOntapAggregate:
         Apply action to the aggregate
         :return: None
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_aggregate", self.server, self.module)
         current, cd_action, rename, modify = self.get_aggr_actions()
         if current:
             self.uuid = current.get('uuid')

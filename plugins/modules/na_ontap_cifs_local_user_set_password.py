@@ -147,8 +147,6 @@ class NetAppONTAPCifsSetPassword:
 
     def apply(self):
         changed = True
-        if not self.use_rest:
-            netapp_utils.ems_log_event('na_ontap_cifs_local_user_set_password', self.server)
         if not self.module.check_mode:
             self.cifs_local_set_passwd()
 

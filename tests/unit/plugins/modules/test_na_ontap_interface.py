@@ -101,8 +101,6 @@ def test_module_fail_when_required_args_missing():
 def test_create_error_missing_param():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -119,8 +117,6 @@ def test_create_error_missing_param():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-interface-create', ZRR['success'])
     ])
@@ -150,12 +146,8 @@ def test_successful_create():
 def test_modify_ip_subnet_cidr_mask():
     ''' Test successful modify ip/subnet mask '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_ipv4']),
     ])
     module_args = {
@@ -173,8 +165,6 @@ def test_modify_ip_subnet_cidr_mask():
 def test_successful_create_for_NVMe():
     ''' Test successful create for NVMe protocol'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-node-get-iter', ZRR['node_info']),
         ('ZAPI', 'net-interface-create', ZRR['success']),
@@ -193,8 +183,6 @@ def test_successful_create_for_NVMe():
 def test_create_idempotency_for_NVMe():
     ''' Test successful create for NVMe protocol'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
     ])
     module_args = {
@@ -210,8 +198,6 @@ def test_create_idempotency_for_NVMe():
 def test_create_error_for_NVMe():
     ''' Test if create throws an error if required param 'protocols' uses NVMe'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
     ])
     msg = 'Error: Following parameters for creating interface are not supported for data-protocol fc-nvme:'
@@ -230,7 +216,6 @@ def test_create_error_for_NVMe():
 def test_create_idempotency():
     ''' Test create idempotency, and ignore EMS logging error '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['error']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
     ])
     module_args = {
@@ -243,8 +228,6 @@ def test_create_idempotency():
 def test_successful_delete():
     ''' Test delete existing interface, and ignore EMS logging error '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info_no_dns']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),               # offline
         ('ZAPI', 'net-interface-delete', ZRR['success']),
@@ -260,8 +243,6 @@ def test_successful_delete():
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -275,8 +256,6 @@ def test_delete_idempotency():
 def test_successful_modify():
     ''' Test successful modify interface_minutes '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
     ])
@@ -295,8 +274,6 @@ def test_successful_modify():
 def test_modify_idempotency():
     ''' Test modify idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
     ])
     module_args = {
@@ -309,54 +286,38 @@ def test_modify_idempotency():
 def test_error_message():
     register_responses([
         # create, missing params
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-node-get-iter', ZRR['no_records']),
 
         # create - get home_node error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-node-get-iter', ZRR['error']),
 
         # create error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-node-get-iter', ZRR['error_13003']),
         ('ZAPI', 'net-interface-create', ZRR['error']),
 
         # create error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-node-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-interface-create', ZRR['error_17']),
 
         # modify error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['error']),
 
         # rename error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-rename', ZRR['error']),
 
         # delete error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
         ('ZAPI', 'net-interface-delete', ZRR['error']),
 
         # get error
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['error']),
     ])
     module_args = {
@@ -391,8 +352,6 @@ def test_error_message():
 def test_successful_rename():
     ''' Test successful '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-rename', ZRR['success']),
@@ -413,8 +372,6 @@ def test_successful_rename():
 def test_negative_rename_not_found():
     ''' Test from interface not found '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-interface-get-iter', ZRR['no_records']),
     ])
@@ -434,8 +391,6 @@ def test_negative_rename_not_found():
 def test_successful_migrate():
     ''' Test successful '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
         ('ZAPI', 'net-interface-migrate', ZRR['success']),
@@ -455,21 +410,15 @@ def test_successful_migrate():
 def test_negative_migrate():
     ''' Test successful '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
 
         # 2nd try
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
         ('ZAPI', 'net-interface-migrate', ZRR['error']),
 
         # 3rd try
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-interface-get-iter', ZRR['interface_info']),
         ('ZAPI', 'net-interface-modify', ZRR['success']),
         ('ZAPI', 'net-interface-migrate', ZRR['success']),

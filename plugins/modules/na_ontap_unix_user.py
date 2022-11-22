@@ -306,8 +306,6 @@ class NetAppOntapUnixUser:
 
         :return: None
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_unix_user", self.server)
         cd_action = None
         current = self.get_unix_user_rest()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

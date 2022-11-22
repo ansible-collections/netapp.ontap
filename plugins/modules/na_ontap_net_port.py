@@ -272,8 +272,6 @@ class NetAppOntapNetPort:
         """
         Run Module based on play book
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_net_port", self.server, self.module)
         # Run the task for all ports in the list of 'ports'
         missing_ports = list()
         modified = dict()

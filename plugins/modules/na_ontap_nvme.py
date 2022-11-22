@@ -221,8 +221,6 @@ class NetAppONTAPNVMe:
         """
         Apply action to NVMe service
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_nvme", self.server)
         modify = None
         current = self.get_nvme()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

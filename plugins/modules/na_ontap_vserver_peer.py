@@ -422,8 +422,6 @@ class NetAppONTAPVserverPeer:
         """
         Apply action to create/delete or accept vserver peer
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_vserver_peer", self.server, self.module)
         current = self.vserver_peer_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:

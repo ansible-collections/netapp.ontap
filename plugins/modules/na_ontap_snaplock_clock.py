@@ -156,9 +156,6 @@ class NetAppOntapSnaplockClock:
             return result
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_snaplock_clock", self.server, self.module)
-
         current = self.get_snaplock_node_compliance_clock()
 
         if current['compliance_clock_time'] == "ComplianceClock is not configured.":

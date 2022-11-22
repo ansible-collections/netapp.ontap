@@ -707,8 +707,6 @@ class NetAppOntapSnapshotPolicy(object):
         """
         Check to see which play we should run
         """
-        if not self.use_rest:
-            self.asup_log_for_cserver("na_ontap_snapshot_policy")
         current = self.get_snapshot_policy_rest()
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

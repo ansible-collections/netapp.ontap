@@ -97,13 +97,11 @@ def test_module_fail_when_netapp_lib_missing():
 
 def test_successful_create():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-subnet-create', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
     ])
     assert call_main(my_main, DEFAULT_ARGS)['changed']
@@ -113,13 +111,9 @@ def test_successful_create():
 
 def test_successful_delete():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
         ('ZAPI', 'net-subnet-destroy', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
     ])
     assert call_main(my_main, DEFAULT_ARGS, {'state': 'absent'})['changed']
@@ -129,13 +123,9 @@ def test_successful_delete():
 
 def test_successful_modify():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
         ('ZAPI', 'net-subnet-modify', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
     ])
     module_args = {'ip_ranges': ['10.0.0.10-10.0.0.25', '10.0.0.30']}
@@ -147,14 +137,10 @@ def test_successful_modify():
 
 def test_successful_rename():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
         ('ZAPI', 'net-subnet-rename', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
     ])
     module_args = {'from_name': DEFAULT_ARGS['name'], 'name': 'new_test_subnet'}
@@ -165,8 +151,6 @@ def test_successful_rename():
 
 def test_negative_modify_broadcast_domain():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['subnet_info']),
     ])
     module_args = {'broadcast_domain': 'cannot change'}
@@ -176,8 +160,6 @@ def test_negative_modify_broadcast_domain():
 
 def test_negative_rename():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
     ])
@@ -187,16 +169,10 @@ def test_negative_rename():
 
 def test_negative_create():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
         # second test
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
         # third test
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'net-subnet-get-iter', ZRR['no_records']),
     ])
     args = dict(DEFAULT_ARGS)

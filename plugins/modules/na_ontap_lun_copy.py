@@ -198,8 +198,6 @@ class NetAppOntapLUNCopy:
                                       (self.parameters['source_vserver'], self.parameters['destination_vserver'], to_native(error)))
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_lun_copy", self.server)
         if self.get_lun():  # lun already exists at destination
             changed = False
         else:

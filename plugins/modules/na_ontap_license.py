@@ -343,8 +343,6 @@ class NetAppOntapLicense:
         changed_keys = None
         create_license = False
         remove_license = False
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_license", self.server, self.module)
         # Add / Update licenses.
         license_status = self.get_licensing_status()
         if self.parameters['state'] == 'absent':  # delete

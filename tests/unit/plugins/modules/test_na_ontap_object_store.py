@@ -176,9 +176,8 @@ class TestMyModule(unittest.TestCase):
         assert 'name' in object_store
         assert object_store['name'] == 'ansible'
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_object_store_create(self, mock_request, mock_ems):
+    def test_object_store_create(self, mock_request):
         ''' test for creating object store'''
         mock_request.side_effect = [
             SRR['is_zapi'],
@@ -204,9 +203,8 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_object_store_negative_create_bad_owner(self, mock_request, mock_ems):
+    def test_object_store_negative_create_bad_owner(self, mock_request):
         ''' test for creating object store'''
         mock_request.side_effect = [
             SRR['is_zapi'],
@@ -243,9 +241,8 @@ class TestMyModule(unittest.TestCase):
         changed = self.call_command(module_args)
         assert changed
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_object_store_modify(self, mock_request, mock_ems):
+    def test_negative_object_store_modify(self, mock_request):
         ''' test for modifying object store'''
         mock_request.side_effect = [
             SRR['is_zapi'],

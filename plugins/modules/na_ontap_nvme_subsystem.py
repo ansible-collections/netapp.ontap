@@ -432,8 +432,6 @@ class NetAppONTAPNVMESubsystem:
         """
         Apply action to NVME subsystem
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_nvme_subsystem", self.server)
         types = ['hosts', 'paths']
         current = self.get_subsystem()
         add_host_map, remove_host_map = dict(), dict()

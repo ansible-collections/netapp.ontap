@@ -1209,8 +1209,6 @@ class NetAppOntapLUN:
 
     def apply(self):
         results = {}
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_lun", self.server)
         app_cd_action, app_modify, lun_cd_action, lun_modify, lun_rename = None, None, None, None, None
         app_modify_warning, app_current, lun_path, from_lun_path = None, None, None, None
         actions = []

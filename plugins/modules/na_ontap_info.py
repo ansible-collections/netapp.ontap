@@ -1610,19 +1610,6 @@ class NetAppONTAPGatherInfo:
 
         return out
 
-    def send_ems_event(self):
-        ''' use vserver if available, or cluster vserver '''
-        if self.module.params['vserver']:
-            server = self.server
-        else:
-            results = netapp_utils.get_cserver(self.server)
-            if results is None:
-                # most likely we're on a vserver interface already
-                server = self.server
-            else:
-                server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_info", server)
-
     def augment_subset(self, subset, info):
         if subset == 'lun_info' and info:
             for lun_info in info.values():
@@ -1637,8 +1624,6 @@ class NetAppONTAPGatherInfo:
 
     def get_all(self, gather_subset):
         '''Method to get all subsets'''
-
-        self.send_ems_event()
 
         self.netapp_info['ontapi_version'] = self.ontapi()
         self.netapp_info['ontap_version'] = self.netapp_info['ontapi_version']

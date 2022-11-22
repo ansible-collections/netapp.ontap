@@ -104,7 +104,6 @@ def test_get_existing_efficiency_policy():
 
 def test_successfully_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['empty']),
         ('sis-policy-create', ZRR['success'])
     ])
@@ -114,7 +113,6 @@ def test_successfully_create():
 
 def test_create_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['threshold_info'])
     ])
     args = {'policy_type': 'threshold'}
@@ -123,7 +121,6 @@ def test_create_idempotency():
 
 def test_threshold_duration_failure():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['threshold_info'])
     ])
     args = {'duration': 1}
@@ -133,7 +130,6 @@ def test_threshold_duration_failure():
 
 def test_threshold_schedule_failure():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['threshold_info'])
     ])
     args = {'schedule': 'test_job_schedule'}
@@ -143,7 +139,6 @@ def test_threshold_schedule_failure():
 
 def test_scheduled_threshold_percent_failure():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['schedule_info'])
     ])
     args = {'changelog_threshold_percent': 30}
@@ -153,7 +148,6 @@ def test_scheduled_threshold_percent_failure():
 
 def test_successfully_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['threshold_info']),
         ('sis-policy-delete', ZRR['success'])
     ])
@@ -163,7 +157,6 @@ def test_successfully_delete():
 
 def test_delete_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['empty'])
     ])
     args = {'state': 'absent'}
@@ -172,7 +165,6 @@ def test_delete_idempotency():
 
 def test_successful_modify():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['schedule_info']),
         ('sis-policy-modify', ZRR['success'])
     ])
@@ -209,7 +201,6 @@ def test_if_all_methods_catch_exception():
 def test_switch_to_zapi():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('sis-policy-get-iter', ZRR['schedule_info'])
     ])
     args = {'use_rest': 'auto'}

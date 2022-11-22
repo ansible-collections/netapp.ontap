@@ -138,7 +138,6 @@ class NetAppONTAPSvnOptions(object):
 
     def apply(self):
         changed = False
-        netapp_utils.ems_log_event("na_ontap_svm_options", self.server)
         is_set = self.is_option_set()
         if not is_set:
             if self.module.check_mode:

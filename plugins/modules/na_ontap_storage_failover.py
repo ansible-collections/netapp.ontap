@@ -185,9 +185,6 @@ class NetAppOntapStorageFailover:
                     self.parameters['node_name'], to_native(error)), exception=traceback.format_exc())
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_storage_failover", self.server, self.module)
-
         current = self.get_storage_failover()
         self.na_helper.get_modified_attributes(current, self.parameters)
         if self.parameters['is_enabled'] and 'is_enabled' not in current:

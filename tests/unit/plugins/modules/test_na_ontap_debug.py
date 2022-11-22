@@ -84,8 +84,6 @@ if netapp_utils.has_netapp_lib():
     REST_ZAPI_FLOW = [
         ('system-get-version', ZRR['version']),                 # get version
         ('GET', 'cluster', SRR['is_rest_9_8']),                 # get_version
-        ('vserver-get-iter', ZRR['cserver']),                   # for EMS event
-        ('ems-autosupport-log', ZRR['success']),                # EMS log
     ]
 else:
     REST_ZAPI_FLOW = [
@@ -304,16 +302,10 @@ def test_fail_rest_error():
     register_responses([
         ('system-get-version', ZRR['version']),
         ('GET', 'cluster', SRR['is_zapi']),                     # get_version
-        ('vserver-get-iter', ZRR['cserver']),                   # for EMS event
-        ('ems-autosupport-log', ZRR['success']),                # EMS log
         ('system-get-version', ZRR['version']),
         ('GET', 'cluster', SRR['ConnectTimeoutError']),         # get_version
-        ('vserver-get-iter', ZRR['cserver']),                   # for EMS event
-        ('ems-autosupport-log', ZRR['success']),                # EMS log
         ('system-get-version', ZRR['version']),
         ('GET', 'cluster', SRR['Name or service not known']),   # get_version
-        ('vserver-get-iter', ZRR['cserver']),                   # for EMS event
-        ('ems-autosupport-log', ZRR['success']),                # EMS log
     ])
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
     print('Info: %s' % results)
@@ -349,34 +341,3 @@ def test_check_connection_internal_error():
     ''' expecting REST or ZAPI '''
     error = 'Internal error, unexpected connection type: rest'
     assert error == expect_and_capture_ansible_exception(create_module(my_module, DEFAULT_ARGS).check_connection, 'fail', 'rest')['msg']
-
-
-def test_call_main_no_cserver():
-    register_responses([
-        ('system-get-version', ZRR['version']),
-        ('GET', 'cluster', SRR['is_rest_9_8']),                 # get_version
-        ('vserver-get-iter', ZRR['empty']),                     # for EMS event
-        ('ems-autosupport-log', ZRR['success']),                # EMS log
-        ('GET', 'security/accounts', SRR['one_user_record']),   # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_vservers
-        ('GET', 'security/accounts', SRR['one_user_record'])    # get_users
-    ])
-    results = call_main(uut_main, DEFAULT_ARGS)
-    assert 'notes' in results
-    assert 'cserver not found' in results['notes']
-
-
-def test_call_main_error_on_ems_log():
-    register_responses([
-        ('system-get-version', ZRR['version']),
-        ('GET', 'cluster', SRR['is_rest_9_8']),                 # get_version
-        ('vserver-get-iter', ZRR['empty']),                     # for EMS event
-        ('ems-autosupport-log', ZRR['error']),                  # EMS log
-        ('GET', 'security/accounts', SRR['one_user_record']),   # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_vservers
-        ('GET', 'security/accounts', SRR['one_user_record'])    # get_users
-    ])
-    results = call_main(uut_main, DEFAULT_ARGS, fail=True)
-    assert 'notes' in results
-    assert 'cserver not found' in results['notes']
-    assert 'Failed to log EMS message: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in results['msg']

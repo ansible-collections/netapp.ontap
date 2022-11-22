@@ -204,9 +204,6 @@ class NetAppOntapCifsLocalUserModify():
                                       (self.parameters['name'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_cifs_local_user_modify", self.server)
-
         current = self.get_cifs_local_user()
         if not current:
             error = "User %s does not exist on vserver %s" % (self.parameters['name'], self.parameters['vserver'])

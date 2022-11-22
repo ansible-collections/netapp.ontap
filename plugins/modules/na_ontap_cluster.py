@@ -710,15 +710,6 @@ class NetAppONTAPCluster:
             time.sleep(10)
         self.module.fail_json(msg='Timeout waiting for node to be removed from cluster.')
 
-    def autosupport_log(self):
-        """
-        Autosupport log for cluster
-        :return:
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_cluster", cserver)
-
     def get_cluster_action(self, cluster_identity):
         cluster_action = None
         if self.parameters.get('cluster_name') is not None:
@@ -765,13 +756,6 @@ class NetAppONTAPCluster:
                 self.node_remove_wait()
             if modify:
                 self.modify_cluster_identity(modify)
-
-        if not self.use_rest:
-            try:
-                self.autosupport_log()
-            except netapp_utils.zapi.NaApiError as error:
-                if error.message != "ZAPI is not enabled in pre-cluster mode.":
-                    self.module.fail_json(msg='Error: unable to call ZAPI: %s' % str(error))
 
         results = {'changed': self.na_helper.changed}
         if self.warnings:

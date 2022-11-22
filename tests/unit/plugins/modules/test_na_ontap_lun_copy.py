@@ -70,10 +70,8 @@ def test_create_error_missing_param():
 def test_successful_copy():
     ''' Test successful create and idempotent check '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-get-iter', ZRR['empty']),
         ('lun-copy-start', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-get-iter', ZRR['lun_info'])
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS)['changed']

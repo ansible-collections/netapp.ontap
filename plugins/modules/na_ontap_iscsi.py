@@ -264,8 +264,6 @@ class NetAppOntapISCSI:
                 self.stop_iscsi_service()
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_iscsi", self.server)
         current = self.get_iscsi()
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

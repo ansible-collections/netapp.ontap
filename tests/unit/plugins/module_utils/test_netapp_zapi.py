@@ -62,19 +62,6 @@ def create_ontapzapicx_object(default_args, module_args=None):
     return netapp_utils.OntapZAPICx(**my_args)
 
 
-def test_ems_log_event_version():
-    ''' validate Ansible version is correctly read '''
-    register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-    ])
-    server = netapp_utils.setup_na_ontap_zapi(module=create_ontap_module(DEFAULT_ARGS))
-    source = 'unittest'
-    netapp_utils.ems_log_event(source, server)
-    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
-    version = request.get_child_content('app-version')
-    assert version == netapp_utils.COLLECTION_VERSION
-
-
 def test_get_cserver():
     ''' validate cluster vserser name is correctly retrieved '''
     register_responses([
@@ -148,59 +135,6 @@ def test_set_zapi_port_and_transport():
     netapp_utils.set_zapi_port_and_transport(server, False, None, False)
     assert server.get_port() == '80'
     assert server.get_transport_type() == 'http'
-
-
-def test_ems_log_event_cserver():
-    ''' validate Ansible version is correctly read '''
-    register_responses([
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
-    ])
-    module = create_ontap_module(DEFAULT_ARGS)
-    server = netapp_utils.setup_na_ontap_zapi(module)
-    source = 'unittest'
-    netapp_utils.ems_log_event_cserver(source, server, module)
-    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
-    version = request.get_child_content('app-version')
-    assert version == netapp_utils.COLLECTION_VERSION
-
-
-def test_ems_log_event_cserver_no_admin():
-    ''' no error if a vserser missing error is reported '''
-    register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['success']),
-    ])
-    module = create_ontap_module(DEFAULT_ARGS)
-    server = netapp_utils.setup_na_ontap_zapi(module)
-    source = 'unittest'
-    netapp_utils.ems_log_event_cserver(source, server, module)
-    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
-    version = request.get_child_content('app-version')
-    assert version == netapp_utils.COLLECTION_VERSION
-
-
-def test_ems_log_event_cserver_other_error():
-    ''' exception is raised for other errors '''
-    register_responses([
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['error_other_error']),
-    ])
-    module = create_ontap_module(DEFAULT_ARGS)
-    server = netapp_utils.setup_na_ontap_zapi(module)
-    source = 'unittest'
-    netapp_utils.ems_log_event_cserver(source, server, module)
-    request = next(get_mock_record().get_requests(api='ems-autosupport-log'))['na_element']
-    version = request.get_child_content('app-version')
-    assert version == netapp_utils.COLLECTION_VERSION
-
-
-def test_ems_log_event_cserver_disabled():
-    ''' feature flag disables cserver EMS '''
-    module_args = {'feature_flags': {'no_cserver_ems': True}}
-    module = create_ontap_module(DEFAULT_ARGS, module_args)
-    source = 'unittest'
-    assert netapp_utils.ems_log_event_cserver(source, 'dummy', module) is None
 
 
 @patch('ssl.SSLContext.load_cert_chain')

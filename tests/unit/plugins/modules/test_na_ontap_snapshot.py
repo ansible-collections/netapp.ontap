@@ -124,7 +124,6 @@ def test_ensure_get_called_existing():
 def test_successful_create():
     ''' creating snapshot and testing idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['empty']),
         ('snapshot-create', ZRR['success']),
     ])
@@ -138,10 +137,8 @@ def test_successful_create():
 def test_successful_modify():
     ''' modifying snapshot and testing idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['get_snapshot']),
         ('snapshot-modify-iter', ZRR['success']),
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['get_snapshot']),
     ])
     module_args = {
@@ -161,7 +158,6 @@ def test_successful_modify():
 def test_successful_rename():
     ''' modifying snapshot and testing idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['empty']),
         ('snapshot-get-iter', ZRR['get_snapshot']),
         ('snapshot-rename', ZRR['success']),
@@ -178,10 +174,8 @@ def test_successful_rename():
 def test_successful_delete():
     ''' deleting snapshot and testing idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['get_snapshot']),
         ('snapshot-delete', ZRR['success']),
-        ('ems-autosupport-log', ZRR['success']),
         ('snapshot-get-iter', ZRR['empty']),
     ])
     module_args = {

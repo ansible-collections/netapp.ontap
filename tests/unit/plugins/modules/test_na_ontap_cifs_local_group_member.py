@@ -103,7 +103,6 @@ def test_get_existent_cifs_group_member():
 
 def test_successfully_add_members_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['empty']),
         ('cifs-local-group-members-add-members', ZRR['success']),
     ])
@@ -117,7 +116,6 @@ def test_successfully_add_members_zapi():
 
 def test_error_add_members_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['empty']),
         ('cifs-local-group-members-add-members', ZRR['error']),
     ])
@@ -133,7 +131,6 @@ def test_error_add_members_zapi():
 
 def test_successfully_remove_members_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
         ('cifs-local-group-members-remove-members', ZRR['success']),
     ])
@@ -148,7 +145,6 @@ def test_successfully_remove_members_zapi():
 
 def test_error_remove_members_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
         ('cifs-local-group-members-remove-members', ZRR['error']),
     ])
@@ -165,7 +161,6 @@ def test_error_remove_members_zapi():
 
 def test_successfully_add_members_zapi_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['group_member_info']),
     ])
     module_args = {
@@ -178,7 +173,6 @@ def test_successfully_add_members_zapi_idempotency():
 
 def test_successfully_remove_members_zapi_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-local-group-members-get-iter', ZRR['empty']),
     ])
     module_args = {

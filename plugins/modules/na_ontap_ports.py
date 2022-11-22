@@ -567,8 +567,6 @@ class NetAppOntapPorts:
         return record, error
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_ports", self.server, self.module)
         if self.parameters['resource_type'] == 'broadcast_domain':
             self.modify_broadcast_domain_ports()
         elif self.parameters['resource_type'] == 'portset':

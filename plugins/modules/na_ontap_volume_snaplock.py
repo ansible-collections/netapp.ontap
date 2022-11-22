@@ -208,7 +208,6 @@ class NetAppOntapVolumeSnaplock(object):
                                   exception=traceback.format_exc())
 
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_volume_snaplock", self.server)
         current, modify = self.get_volume_snaplock_attrs(), None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
 

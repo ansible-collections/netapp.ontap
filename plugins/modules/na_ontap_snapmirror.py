@@ -1302,25 +1302,6 @@ class NetAppONTAPSnapmirror(object):
                 msg.append('Last transfer error: %s' % current['last_transfer_error'])
             self.module.warn('  '.join(msg))
 
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        if results is None:
-            # We may be running on a vserser
-            try:
-                netapp_utils.ems_log_event(event_name, self.server)
-            except netapp_utils.zapi.NaApiError:
-                # Don't fail if we cannot log usage
-                pass
-        else:
-            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-            netapp_utils.ems_log_event(event_name, cserver)
-
     def check_if_remote_volume_exists_rest(self):
         """
         Check the remote volume exists using REST
@@ -1691,8 +1672,6 @@ class NetAppONTAPSnapmirror(object):
         """
         Apply action to SnapMirror
         """
-        if not self.use_rest:
-            self.asup_log_for_cserver("na_ontap_snapmirror")
         # source is ElementSW
         if self.parameters['state'] == 'present' and self.parameters.get('connection_type') == 'elementsw_ontap':
             self.check_elementsw_parameters()

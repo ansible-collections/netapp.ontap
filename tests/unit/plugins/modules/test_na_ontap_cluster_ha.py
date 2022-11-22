@@ -72,12 +72,8 @@ def test_module_fail_when_required_args_missing():
 def test_enable_cluster_ha():
     ''' enable cluster ha '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('cluster-ha-get', ZRR['cluster_ha_disabled']),
         ('cluster-ha-modify', ZRR['success']),
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('cluster-ha-get', ZRR['cluster_ha_enabled'])
     ])
     assert create_and_apply(cluster_ha, DEFAULT_ARGS)['changed']
@@ -87,12 +83,8 @@ def test_enable_cluster_ha():
 def test_disable_cluster_ha():
     ''' disable cluster ha '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('cluster-ha-get', ZRR['cluster_ha_enabled']),
         ('cluster-ha-modify', ZRR['success']),
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('cluster-ha-get', ZRR['cluster_ha_disabled']),
     ])
     assert create_and_apply(cluster_ha, DEFAULT_ARGS, {'state': 'absent'})['changed']

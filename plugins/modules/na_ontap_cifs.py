@@ -359,8 +359,6 @@ class NetAppONTAPCifsShare:
 
     def apply(self):
         '''Apply action to cifs share'''
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_cifs", self.server)
         current = self.get_cifs_share()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         # ZAPI accepts both 'show-previous-versions' and 'show_previous_versions', but only returns the latter

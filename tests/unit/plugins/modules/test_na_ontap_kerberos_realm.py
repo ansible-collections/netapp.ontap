@@ -116,7 +116,6 @@ def test_get_existing_realm():
 def test_successfully_modify_realm():
     ''' Test modify realm successful for modifying kdc_ip. '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('kerberos-realm-get-iter', ZRR['kerberos_info']),
         ('kerberos-realm-modify', ZRR['success'])
     ])
@@ -126,7 +125,6 @@ def test_successfully_modify_realm():
 def test_successfully_delete_realm():
     ''' Test successfully delete realm '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('kerberos-realm-get-iter', ZRR['kerberos_info']),
         ('kerberos-realm-delete', ZRR['success'])
     ])
@@ -136,7 +134,6 @@ def test_successfully_delete_realm():
 def test_successfully_create_realm():
     ''' Test successfully create realm '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('kerberos-realm-get-iter', ZRR['no_records']),
         ('kerberos-realm-create', ZRR['success'])
     ])

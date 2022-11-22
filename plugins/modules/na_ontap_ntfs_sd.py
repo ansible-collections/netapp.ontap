@@ -261,7 +261,6 @@ class NetAppOntapNtfsSd(object):
                 exception=traceback.format_exc())
 
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_ntfs_sd", self.server)
         current, modify = self.get_ntfs_sd(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':

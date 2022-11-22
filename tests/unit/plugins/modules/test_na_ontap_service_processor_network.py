@@ -99,8 +99,6 @@ def test_module_fail_when_required_args_missing():
 def test_modify_error_on_disabled_sp():
     ''' a more interesting test '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_disabled_info'])
     ])
     error = 'Error: Cannot modify a service processor network if it is disabled in ZAPI'
@@ -110,8 +108,6 @@ def test_modify_error_on_disabled_sp():
 def test_modify_error_on_disabe_dhcp_without_ip():
     ''' a more interesting test '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
     ])
     error = 'Error: To disable dhcp, configure ip-address, netmask and gateway details manually.'
@@ -121,8 +117,6 @@ def test_modify_error_on_disabe_dhcp_without_ip():
 def test_modify_error_of_params_disabled_false():
     ''' a more interesting test '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
     ])
     error = 'Error: Cannot modify any other parameter for a service processor network if option "is_enabled" is set to false.'
@@ -132,8 +126,6 @@ def test_modify_error_of_params_disabled_false():
 def test_modify_sp():
     ''' a more interesting test '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info']),
         ('service-processor-network-modify', ZRR['success'])
     ])
@@ -144,8 +136,6 @@ def test_modify_sp():
 def test_modify_sp_wait(sleep):
     ''' a more interesting test '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info']),
         ('service-processor-network-modify', ZRR['success']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
@@ -156,8 +146,6 @@ def test_modify_sp_wait(sleep):
 
 def test_non_existing_sp():
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['no_records'])
     ])
     error = 'Error No Service Processor for node: test-vsim1'
@@ -167,8 +155,6 @@ def test_non_existing_sp():
 @patch('time.sleep')
 def test_wait_on_sp_status(sleep):
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('service-processor-network-get-iter', ZRR['sp_enabled_info']),
         ('service-processor-network-modify', ZRR['success']),
         ('service-processor-network-get-iter', ZRR['sp_status_info']),

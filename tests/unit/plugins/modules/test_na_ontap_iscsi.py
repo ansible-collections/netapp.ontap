@@ -93,7 +93,6 @@ def test_get_existing_iscsi():
 
 def test_successfully_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['empty']),
         ('iscsi-service-create', ZRR['success'])
     ])
@@ -102,7 +101,6 @@ def test_successfully_create():
 
 def test_create_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['iscsi_started'])
     ])
     assert create_and_apply(iscsi_module, DEFAULT_ARGS)['changed'] is False
@@ -110,7 +108,6 @@ def test_create_idempotency():
 
 def test_successfully_create_stop_service():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['empty']),
         ('iscsi-service-create', ZRR['success'])
     ])
@@ -120,7 +117,6 @@ def test_successfully_create_stop_service():
 
 def test_successfully_delete_when_service_started():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['iscsi_started']),
         ('iscsi-service-stop', ZRR['success']),
         ('iscsi-service-destroy', ZRR['success'])
@@ -131,7 +127,6 @@ def test_successfully_delete_when_service_started():
 
 def test_delete_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['empty'])
     ])
     args = {'state': 'absent'}
@@ -140,7 +135,6 @@ def test_delete_idempotent():
 
 def test_start_iscsi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['iscsi_stopped']),
         ('iscsi-service-start', ZRR['success'])
     ])
@@ -149,7 +143,6 @@ def test_start_iscsi():
 
 def test_stop_iscsi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('iscsi-service-get-iter', ZRR['iscsi_started']),
         ('iscsi-service-stop', ZRR['success'])
     ])

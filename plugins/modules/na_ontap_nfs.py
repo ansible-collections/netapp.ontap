@@ -510,8 +510,6 @@ class NetAppONTAPNFS:
             self.module.fail_json(msg='Error: tcp_max_xfer_size is not supported on ONTAP 9.3 or earlier.')
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_nfs", self.server)
         current = self.get_nfs_service()
         if self.use_rest and current is not None:
             self.svm_uuid = current.get('svm_uuid')

@@ -226,15 +226,7 @@ class NetAppOntapStorageAutoGiveback(object):
                 self.module.fail_json(msg='Error modifying auto giveback for node %s: %s' % (self.parameters['name'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        return netapp_utils.ems_log_event("na_ontap_storage_auto_giveback", cserver)
-
     def apply(self):
-        if not self.use_rest:
-            self.ems_log_event()
-
         current = self.get_storage_auto_giveback()
         self.na_helper.get_modified_attributes(current, self.parameters)
 

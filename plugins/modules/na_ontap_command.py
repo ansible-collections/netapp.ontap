@@ -152,7 +152,6 @@ class NetAppONTAPCommand():
 
     def run_command(self):
         ''' calls the ZAPI '''
-        self.ems()
         command_obj = netapp_utils.zapi.NaElement("system-cli")
 
         args_obj = netapp_utils.zapi.NaElement("args")
@@ -179,17 +178,6 @@ class NetAppONTAPCommand():
             self.module.fail_json(msg='Error running command %s: %s' %
                                   (self.command, to_native(error)),
                                   exception=traceback.format_exc())
-
-    def ems(self):
-        """
-        Error out if Cluster Admin username is used with Vserver, or Vserver admin used with out vserver being set
-        :return:
-        """
-        if self.vserver:
-            ems_server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
-            netapp_utils.ems_log_event("na_ontap_command" + str(self.command), ems_server)
-        else:
-            netapp_utils.ems_log_event_cserver("na_ontap_command: " + str(self.command), self.server, self.module)
 
     def apply(self):
         ''' calls the command and returns raw output '''

@@ -93,10 +93,8 @@ def test_module_fail_when_required_args_missing():
 def test_successful_add_node():
     ''' Test successful add and idempotent check '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-map-get-iter', ZRR['node_info']),
         ('lun-map-add-reporting-nodes', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-map-get-iter', ZRR['nodes_info']),
     ])
     args = {'nodes': ['ontap910-01', 'ontap910-02']}
@@ -107,10 +105,8 @@ def test_successful_add_node():
 def test_successful_remove_node():
     ''' Test successful remove and idempotent check '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-map-get-iter', ZRR['nodes_info']),
         ('lun-map-remove-reporting-nodes', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-map-get-iter', ZRR['node_info']),
     ])
     args = {'nodes': 'ontap910-02', 'state': 'absent'}
@@ -120,7 +116,6 @@ def test_successful_remove_node():
 
 def test_if_all_methods_catch_exception():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('lun-map-get-iter', ZRR['no_records']),
         ('lun-map-get-iter', ZRR['error']),
         ('lun-map-add-reporting-nodes', ZRR['error']),

@@ -194,19 +194,7 @@ class NetAppOntapActiveDirectory:
             self.module.fail_json(msg='Error modifying vserver Active Directory %s: %s' %
                                       (self.parameters['account_name'], to_native(error)))
 
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
-
     def apply(self):
-        self.asup_log_for_cserver("na_ontap_active_directory")
         current = self.get_active_directory()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = None

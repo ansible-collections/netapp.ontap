@@ -159,8 +159,6 @@ def test_get_existing_job_multiple_minutes_1_offset():
 def test_create_error_missing_param():
     ''' Test if create throws an error if job_minutes is not specified'''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['no_records'])
     ])
     args = DEFAULT_ARGS.copy()
@@ -172,8 +170,6 @@ def test_create_error_missing_param():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['no_records']),
         ('job-schedule-cron-create', ZRR['success'])
     ])
@@ -183,8 +179,6 @@ def test_successful_create():
 def test_successful_create_0_offset():
     ''' Test successful create '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['no_records']),
         ('job-schedule-cron-create', ZRR['success'])
     ])
@@ -195,8 +189,6 @@ def test_successful_create_0_offset():
 def test_successful_create_1_offset():
     ''' Test successful create '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['no_records']),
         ('job-schedule-cron-create', ZRR['success'])
     ])
@@ -207,8 +199,6 @@ def test_successful_create_1_offset():
 def test_create_idempotency():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['cron_info'])
     ])
     assert not create_and_apply(job_module, DEFAULT_ARGS)['changed']
@@ -217,8 +207,6 @@ def test_create_idempotency():
 def test_successful_delete():
     ''' Test delete existing job '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['cron_info']),
         ('job-schedule-cron-destroy', ZRR['success'])
     ])
@@ -228,8 +216,6 @@ def test_successful_delete():
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['no_records'])
     ])
     assert not create_and_apply(job_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
@@ -238,8 +224,6 @@ def test_delete_idempotency():
 def test_successful_modify():
     ''' Test successful modify job_minutes '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['cron_info']),
         ('job-schedule-cron-modify', ZRR['success'])
     ])
@@ -249,8 +233,6 @@ def test_successful_modify():
 def test_modify_idempotency():
     ''' Test modify idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('job-schedule-cron-get-iter', ZRR['cron_info'])
     ])
     assert not create_and_apply(job_module, DEFAULT_ARGS)['changed']

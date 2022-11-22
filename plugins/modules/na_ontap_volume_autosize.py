@@ -327,8 +327,6 @@ class NetAppOntapVolumeAutosize:
         return self.convert_to_kb(variable, converted_parameters) * 1024
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume_autosize", self.server)
         current = self.get_volume_autosize()
         converted_parameters = copy.deepcopy(self.parameters)
         converted_parameters = self.modify_to_kb(converted_parameters)

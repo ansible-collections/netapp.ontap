@@ -67,7 +67,6 @@ def test_module_fail_when_required_args_missing():
 
 def test_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['empty']),
         ('cifs-share-access-control-create', ZRR['success']),
     ])
@@ -78,7 +77,6 @@ def test_create():
 
 def test_create_with_type():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['empty']),
         ('cifs-share-access-control-create', ZRR['success']),
     ])
@@ -90,7 +88,6 @@ def test_create_with_type():
 
 def test_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
         ('cifs-share-access-control-delete', ZRR['success']),
     ])
@@ -102,7 +99,6 @@ def test_delete():
 
 def test_delete_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['empty']),
     ])
     module_args = {
@@ -113,7 +109,6 @@ def test_delete_idempotent():
 
 def test_modify():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
         ('cifs-share-access-control-modify', ZRR['success']),
     ])
@@ -126,7 +121,6 @@ def test_modify():
 
 def test_create_modify_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
     ])
     module_args = {
@@ -138,7 +132,6 @@ def test_create_modify_idempotent():
 
 def test_negative_modify_with_type():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
     ])
     module_args = {
@@ -193,7 +186,6 @@ def test_missing_netapp_lib(mock_has_netapp_lib):
 
 def test_main():
     register_responses([
-        ('ems-autosupport-log', ZRR['success']),
         ('cifs-share-access-control-get-iter', ZRR['empty']),
         ('cifs-share-access-control-create', ZRR['success']),
     ])

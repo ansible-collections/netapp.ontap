@@ -277,7 +277,6 @@ class NetAppONTAPZapi:
                 zapi = zapi[0]
 
         # log first, then error out as needed
-        self.ems(zapi)
         if error:
             self.module.fail_json(msg='%s, received: %s' % (error, zapi))
 
@@ -294,20 +293,6 @@ class NetAppONTAPZapi:
                                   exception=traceback.format_exc())
 
         return self.jsonify_and_parse_output(output)
-
-    def ems(self, zapi):
-        """
-        Log EMS event, but ignore any error.
-        :return:
-        """
-        event = "na_ontap_zapi: " + str(zapi)
-        try:
-            if self.vserver:
-                netapp_utils.ems_log_event(event, self.server)
-            else:
-                netapp_utils.ems_log_event_cserver(event, self.server, self.module)
-        except netapp_utils.zapi.NaApiError:
-            pass
 
     def apply(self):
         ''' calls the zapi and returns json output '''

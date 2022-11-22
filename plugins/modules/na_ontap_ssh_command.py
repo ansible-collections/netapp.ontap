@@ -220,7 +220,6 @@ class NetAppONTAPSSHCommand(object):
 
     def run_command(self):
         ''' calls SSH '''
-        # self.ems()
         command = self.command
         if self.privilege is not None:
             if self.service_processor:

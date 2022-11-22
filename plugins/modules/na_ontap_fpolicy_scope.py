@@ -487,8 +487,6 @@ is-file-extension-check-on-directories-enabled,is-monitoring-of-objects-with-no-
                 )
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_fpolicy_scope", self.server)
         current, modify = self.get_fpolicy_scope(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
 

@@ -323,9 +323,6 @@ class NetAppOntapDns(object):
         return changed
 
     def apply(self):
-        # asup logging
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_dns", self.server)
         dns_attrs = self.get_dns()
         if self.use_rest and dns_attrs is None:
             # There is a chance we are working at the cluster level

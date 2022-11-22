@@ -217,8 +217,6 @@ def test_module_fail_unsuuported_rest_options():
 
 if netapp_utils.has_netapp_lib():
     zapi_create_responses = [
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),     # ONTAP to ONTAP
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
@@ -237,8 +235,6 @@ def test_successful_create_with_source(dont_sleep):
     responses = list(zapi_create_responses)
     responses.extend([
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # ONTAP to ONTAP
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # ONTAP to ONTAP, check for update
@@ -275,8 +271,6 @@ def test_successful_create_with_peer(dont_sleep):
 def test_negative_break(dont_sleep):
     ''' breaking snapmirror to test quiesce time-delay failure '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
@@ -300,8 +294,6 @@ def test_negative_break(dont_sleep):
 def test_successful_break(dont_sleep):
     ''' breaking snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
@@ -309,8 +301,6 @@ def test_successful_break(dont_sleep):
         ('ZAPI', 'snapmirror-break', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_broken_off']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
@@ -328,14 +318,10 @@ def test_successful_break(dont_sleep):
 def test_successful_create_without_initialize():
     ''' creating snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),             # ONTAP to ONTAP
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # ONTAP to ONTAP
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # ONTAP to ONTAP, check for update
@@ -389,8 +375,6 @@ def test_set_element_connection(mock_create_sf_cx):
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
 def test_successful_element_ontap_create(connection, dont_sleep):
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),             # element to ONTAP
         ('ZAPI', 'snapmirror-create', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
@@ -398,8 +382,6 @@ def test_successful_element_ontap_create(connection, dont_sleep):
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check status
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_from_element']),      # element to ONTAP
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # element to ONTAP, check for update
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
@@ -425,8 +407,6 @@ def test_successful_element_ontap_create(connection, dont_sleep):
 def test_successful_ontap_element_create(connection, dont_sleep):
     ''' check elementsw parameters for source '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # an existing relationship is required element to ONTAP
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),             # ONTAP to element
         ('ZAPI', 'snapmirror-create', ZRR['success']),
@@ -434,8 +414,6 @@ def test_successful_ontap_element_create(connection, dont_sleep):
         ('ZAPI', 'snapmirror-initialize', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check status
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # an existing relationship is required element to ONTAP
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_to_element']),    # ONTAP to element
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # ONTAP to element, check for update
@@ -460,8 +438,6 @@ def test_successful_ontap_element_create(connection, dont_sleep):
 def test_successful_delete(dont_sleep):
     ''' deleting snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
@@ -472,8 +448,6 @@ def test_successful_delete(dont_sleep):
         ('ZAPI', 'snapmirror-destroy', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),                # check health
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),             # check health
     ])
@@ -490,8 +464,6 @@ def test_successful_delete(dont_sleep):
 def test_successful_delete_without_source_hostname_check(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
@@ -511,8 +483,6 @@ def test_successful_delete_without_source_hostname_check(dont_sleep):
 def test_successful_delete_with_error_on_break(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
@@ -534,8 +504,6 @@ def test_successful_delete_with_error_on_break(dont_sleep):
 def test_negative_delete_error_with_error_on_break(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
@@ -555,8 +523,6 @@ def test_negative_delete_error_with_error_on_break(dont_sleep):
 def test_negative_delete_with_destination_path_missing():
     ''' with misisng destination_path'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
     ])
     args = dict(DEFAULT_ARGS)
     args.pop('destination_path')
@@ -605,15 +571,11 @@ def test_snapmirror_release():
 def test_snapmirror_resume():
     ''' resuming snapmirror '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
         ('ZAPI', 'snapmirror-resume', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
         # idempotency test
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
@@ -630,13 +592,9 @@ def test_snapmirror_resume():
 def test_snapmirror_restore():
     ''' restore snapmirror '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-restore', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
         # idempotency test - TODO
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-restore', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
     ])
@@ -655,8 +613,6 @@ def test_snapmirror_restore():
 def test_successful_abort(dont_sleep):
     ''' aborting snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_quiesced']),
@@ -664,8 +620,6 @@ def test_successful_abort(dont_sleep):
         ('ZAPI', 'snapmirror-destroy', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
         # idempotency test
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
     ])
@@ -681,15 +635,11 @@ def test_successful_abort(dont_sleep):
 def test_successful_modify():
     ''' modifying snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-modify', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
         # idempotency test
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
@@ -715,16 +665,12 @@ def test_successful_modify():
 def test_successful_initialize(dont_sleep):
     ''' initialize snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_uninitialized']),
         ('ZAPI', 'snapmirror-initialize', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check status
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # update reads mirror_state
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check health
         # 2nd run
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_uninitialized_load_sharing']),
         ('ZAPI', 'snapmirror-initialize-ls-set', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),    # check status
@@ -748,15 +694,11 @@ def test_successful_initialize(dont_sleep):
 def test_successful_update():
     ''' update snapmirror and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored']),   # update reads mirror_state
         ('ZAPI', 'snapmirror-update', ZRR['success']),                  # update
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # check health
         # 2nd run
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_load_sharing']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_load_sharing']),   # update reads mirror_state
         ('ZAPI', 'snapmirror-update-ls-set', ZRR['success']),           # update
@@ -780,8 +722,6 @@ def test_successful_update():
 def test_elementsw_no_source_path(connection):
     ''' elementsw_volume_exists '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['no_records']),
     ])
     mock_elem, mock_helper = Mock(), Mock()
@@ -1124,11 +1064,7 @@ def test_rest_sm_break_fails_if_uninit():
 def test_rest_sm_break_fails_if_load_sharing_or_vault():
     ''' testing snapmirror break fails for load_sharing or vault types '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_load_sharing']),
-        ('ZAPI', 'vserver-get-iter', ZRR['volume_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_vault']),
     ])
     module_args = {

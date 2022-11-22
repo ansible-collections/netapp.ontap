@@ -300,15 +300,12 @@ def test_modify_tcp_max_xfer_size():
     ''' if ZAPI returned a None value, a modify is attempted '''
     register_responses([
         # ONTAP 9.4 and later, tcp_max_xfer_size is an INT
-        ('ZAPI', 'ems-autosupport-log', SRR['success']),
         ('ZAPI', 'nfs-service-get-iter', SRR['nfs_info']),
         ('ZAPI', 'nfs-status', SRR['success']),
         ('ZAPI', 'nfs-service-modify', SRR['success']),
         # ONTAP 9.4 and later, tcp_max_xfer_size is an INT, idempotency
-        ('ZAPI', 'ems-autosupport-log', SRR['success']),
         ('ZAPI', 'nfs-service-get-iter', SRR['nfs_info']),
         # ONTAP 9.3 and earlier, tcp_max_xfer_size is not set
-        ('ZAPI', 'ems-autosupport-log', SRR['success']),
         ('ZAPI', 'nfs-service-get-iter', SRR['nfs_info_no_tcp_max_xfer_size']),
     ])
     module_args = {
@@ -328,7 +325,6 @@ def test_warning_on_nfsv41_alias():
     ''' if ZAPI returned a None value, a modify is attempted '''
     register_responses([
         # ONTAP 9.4 and later, tcp_max_xfer_size is an INT
-        ('ZAPI', 'ems-autosupport-log', SRR['success']),
         ('ZAPI', 'nfs-service-get-iter', SRR['nfs_info']),
         ('ZAPI', 'nfs-status', SRR['success']),
         ('ZAPI', 'nfs-service-modify', SRR['success']),

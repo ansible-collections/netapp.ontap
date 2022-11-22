@@ -173,14 +173,7 @@ class NetAppONTAPasupInvoke(object):
             for name in node_names:
                 self.send_zapi_message(params, name)
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        return netapp_utils.ems_log_event("na_ontap_autosupport_invoke", cserver)
-
     def apply(self):
-        if not self.use_rest:
-            self.ems_log_event()
         if not self.module.check_mode:
             self.send_message()
         self.module.exit_json(changed=True)

@@ -239,10 +239,6 @@ class NetAppONTAPExportPolicy():
         Apply action to export-policy
         """
         cd_action, rename, from_current = None, None, None
-
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_export_policy", self.server)
-
         current = self.get_export_policy()
         if self.parameters.get('from_name'):
             from_current = self.get_export_policy(self.parameters['from_name'])

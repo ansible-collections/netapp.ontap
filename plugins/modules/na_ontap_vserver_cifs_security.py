@@ -289,7 +289,6 @@ class NetAppONTAPCifsSecurity(object):
 
     def apply(self):
         """Call modify operations."""
-        netapp_utils.ems_log_event("na_ontap_vserver_cifs_security", self.server)
         current = self.cifs_security_get_iter()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed:

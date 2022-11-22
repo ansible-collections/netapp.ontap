@@ -349,9 +349,6 @@ class NetAppOntapFpolicyPolicy():
                 )
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_fpolicy_policy", self.server)
-
         current = self.get_fpolicy_policy()
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

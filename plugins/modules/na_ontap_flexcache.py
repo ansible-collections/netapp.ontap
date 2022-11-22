@@ -626,8 +626,6 @@ class NetAppONTAPFlexCache:
         """
         Apply action to FlexCache
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_flexcache", self.server)
         current = self.flexcache_get()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify, mount_unmount = None, None

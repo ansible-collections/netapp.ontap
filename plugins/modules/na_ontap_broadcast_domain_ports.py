@@ -196,7 +196,6 @@ class NetAppOntapBroadcastDomainPorts(object):
         broadcast_domain_details = self.get_broadcast_domain_ports()
         results = netapp_utils.get_cserver(self.server)
         cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_broadcast_domain_ports", cserver)
         if broadcast_domain_details is None:
             self.module.fail_json(msg='Error broadcast domain not found: %s' % self.broadcast_domain)
         if self.state == 'present':  # execute create

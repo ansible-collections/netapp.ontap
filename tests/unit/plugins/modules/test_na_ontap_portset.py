@@ -82,7 +82,6 @@ def test_ensure_portset_get_called():
 def test_create_portset():
     ''' Test successful create '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('portset-get-iter', ZRR['empty']),
         ('portset-create', ZRR['success']),
         ('portset-add', ZRR['success']),
@@ -94,7 +93,6 @@ def test_create_portset():
 def test_modify_ports():
     ''' Test modify_portset method '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('portset-get-iter', ZRR['portset_info']),
         ('portset-add', ZRR['success']),
         ('portset-add', ZRR['success']),
@@ -108,7 +106,6 @@ def test_modify_ports():
 def test_delete_portset():
     ''' Test successful delete '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('portset-get-iter', ZRR['portset_info']),
         ('portset-destroy', ZRR['success'])
     ])
@@ -118,7 +115,6 @@ def test_delete_portset():
 
 def test_error_type_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('portset-get-iter', ZRR['empty'])
     ])
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()

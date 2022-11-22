@@ -206,11 +206,6 @@ class NetAppONTAPSnmp(object):
         if error:
             self.module.fail_json(msg=error)
 
-    def autosupport_log(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_snmp", cserver)
-
     def apply(self):
         """
         Apply action to SNMP community
@@ -219,8 +214,6 @@ class NetAppONTAPSnmp(object):
         to add an already existing snmp community
         """
         # TODO: This module should of been called snmp_community has it only deals with community and not snmp
-        if not self.use_rest:
-            self.autosupport_log()
         current = self.get_snmp()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:

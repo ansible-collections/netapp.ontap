@@ -308,8 +308,6 @@ class NetAppOntapNetRoutes:
         """
         Run Module based on play book
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_net_routes", self.server)
         modify, rename = False, False
         current = self.get_net_route()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

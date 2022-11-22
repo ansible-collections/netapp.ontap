@@ -599,9 +599,6 @@ class NetAppOntapVolumeEfficiency(object):
                                       self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume_efficiency", self.server)
-
         current = self.get_volume_efficiency()
         ve_status = None
 

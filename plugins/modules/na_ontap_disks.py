@@ -311,16 +311,9 @@ class NetAppOntapDisks():
                 self.module.fail_json(msg='Error unassigning disks %s' % to_native(error))
             return True
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_disks", cserver)
-
     def apply(self):
         '''Apply action to disks'''
         changed = False
-        if not self.use_rest:
-            self.ems_log_event()
 
         owned_disks = self.get_disks(container_type='owned', node=self.parameters['node'])
         owned_disks_count = len(owned_disks)

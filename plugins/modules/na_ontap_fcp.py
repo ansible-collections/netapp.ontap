@@ -239,8 +239,6 @@ class NetAppOntapFCP:
         return changed
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_fcp", self.server, self.module)
         current = self.get_fcp()
         if not self.use_rest:
             changed = self.zapi_apply(current)

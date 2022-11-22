@@ -131,8 +131,7 @@ class TestMyModule(unittest.TestCase):
             self.get_dns_mock_object('zapi', 'enable', 'false').apply()
         assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
-    def test_idempotent_create_dns(self, mock_ems_log_event):
+    def test_idempotent_create_dns(self):
         data = self.mock_args()
         data['use_rest'] = 'never'
         set_module_args(data)
@@ -140,8 +139,7 @@ class TestMyModule(unittest.TestCase):
             self.get_dns_mock_object('zapi').apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
-    def test_successfully_create_dns(self, mock_ems_log_event):
+    def test_successfully_create_dns(self):
         data = self.mock_args()
         print("create dns")
         data['domains'] = ['new_test.com']

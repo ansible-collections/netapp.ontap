@@ -132,7 +132,6 @@ def test_get_error_existent_user():
 
 def test_create_unix_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['empty']),
         ('name-mapping-unix-user-create', ZRR['success']),
     ])
@@ -147,7 +146,6 @@ def test_create_unix_user_zapi():
 
 def test_error_create_unix_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['empty']),
         ('name-mapping-unix-user-create', ZRR['error']),
     ])
@@ -164,7 +162,6 @@ def test_error_create_unix_user_zapi():
 
 def test_delete_unix_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
         ('name-mapping-unix-user-destroy', ZRR['success']),
     ])
@@ -180,7 +177,6 @@ def test_delete_unix_user_zapi():
 
 def test_error_remove_unix_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
         ('name-mapping-unix-user-destroy', ZRR['error']),
     ])
@@ -198,7 +194,6 @@ def test_error_remove_unix_user_zapi():
 
 def test_modify_unix_user_id_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
         ('name-mapping-unix-user-modify', ZRR['success']),
     ])
@@ -211,7 +206,6 @@ def test_modify_unix_user_id_zapi():
 
 def test_modify_unix_user_full_name_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
         ('name-mapping-unix-user-modify', ZRR['success']),
     ])
@@ -223,7 +217,6 @@ def test_modify_unix_user_full_name_zapi():
 
 def test_error_modify_unix_user_full_name_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info']),
         ('name-mapping-unix-user-modify', ZRR['error']),
     ])
@@ -237,7 +230,6 @@ def test_error_modify_unix_user_full_name_zapi():
 
 def test_create_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['unix_user_info'])
     ])
     module_args = {
@@ -252,7 +244,6 @@ def test_create_idempotent():
 
 def test_delete_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-user-get-iter', ZRR['empty'])
     ])
     module_args = {

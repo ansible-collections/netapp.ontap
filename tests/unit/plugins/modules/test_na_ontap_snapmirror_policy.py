@@ -216,12 +216,8 @@ def test_ensure_get_called_existing():
 def test_successful_create():
     ''' creating snapmirror policy without rules and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['no_records']),
         ('ZAPI', 'snapmirror-policy-create', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['snapmirror-policy-info']),
     ])
     module_args = {
@@ -273,15 +269,11 @@ def test_successful_create_with_rest():
 def test_successful_create_with_rules():
     ''' creating snapmirror policy with rules and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['error_13001']),
         ('ZAPI', 'snapmirror-policy-create', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-add-rule', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-add-rule', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-add-rule', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['snapmirror-policy-info-with-rules']),
     ])
     module_args = {
@@ -321,12 +313,8 @@ def test_successful_create_with_rules_via_rest():
 def test_successful_delete():
     ''' deleting snapmirror policy and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['snapmirror-policy-info']),
         ('ZAPI', 'snapmirror-policy-delete', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -361,8 +349,6 @@ def test_successful_delete_with_rest():
 def test_successful_modify():
     ''' modifying snapmirror policy without rules.  idempotency was tested in create '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['snapmirror-policy-info']),
         ('ZAPI', 'snapmirror-policy-modify', ZRR['success']),
     ])
@@ -395,8 +381,6 @@ def test_successful_modify_with_rest():
 def test_successful_modify_with_rules():
     ''' modifying snapmirror policy with rules.  Idempotency was tested in create '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['snapmirror-policy-info']),
         ('ZAPI', 'snapmirror-policy-add-rule', ZRR['success']),
         ('ZAPI', 'snapmirror-policy-add-rule', ZRR['success']),

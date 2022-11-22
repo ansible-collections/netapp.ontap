@@ -625,10 +625,6 @@ class NetAppOntapIgroup:
                 modify_local.pop(option)
         self.report_error_in_modify(modify_local, 'REST')
 
-    def autosupport_log(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_igroup", self.server)
-
     def is_rename_action(self, cd_action, current):
         old = self.get_igroup(self.parameters['from_name'])
         rename = self.na_helper.is_rename_action(old, current)
@@ -659,7 +655,6 @@ class NetAppOntapIgroup:
             self.modify_igroup_rest(uuid, modify)
 
     def apply(self):
-        self.autosupport_log()
         uuid = None
         rename, modify = None, None
         current = self.get_igroup(self.parameters['name'])

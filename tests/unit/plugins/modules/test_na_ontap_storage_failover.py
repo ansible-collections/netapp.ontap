@@ -156,9 +156,8 @@ class TestMyModule(unittest.TestCase):
         my_obj.server = MockONTAPConnection(kind='storage_failover_enabled')
         assert my_obj.get_storage_failover()
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_storage_failover.NetAppOntapStorageFailover.modify_storage_failover')
-    def test_successful_enable(self, modify_storage_failover, mock_ems):
+    def test_successful_enable(self, modify_storage_failover):
         ''' enable storage_failover and testing idempotency '''
         set_module_args(self.set_default_args(use_rest='Never'))
         my_obj = storage_failover_module()
@@ -177,9 +176,8 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_storage_failover.NetAppOntapStorageFailover.modify_storage_failover')
-    def test_successful_disable(self, modify_storage_failover, mock_ems):
+    def test_successful_disable(self, modify_storage_failover):
         ''' disable storage_failover and testing idempotency '''
         data = self.set_default_args(use_rest='Never')
         data['state'] = 'absent'

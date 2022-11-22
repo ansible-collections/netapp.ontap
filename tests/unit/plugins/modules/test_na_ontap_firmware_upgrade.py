@@ -219,10 +219,9 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_acp_firmware_upgrade_required_get: %s' % repr(acp_firmware_update_required))
         assert acp_firmware_update_required is True
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.sp_firmware_image_update')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.sp_firmware_image_update_progress_get')
-    def test_ensure_apply_for_firmware_upgrade_called(self, get_mock, upgrade_mock, ems_log):
+    def test_ensure_apply_for_firmware_upgrade_called(self, get_mock, upgrade_mock):
         ''' updgrading firmware and checking idempotency '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -245,9 +244,8 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         upgrade_mock.assert_called_with()
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
-    def test_shelf_firmware_upgrade(self, upgrade_mock, ems_log):
+    def test_shelf_firmware_upgrade(self, upgrade_mock):
         ''' Test shelf firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -262,9 +260,8 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
-    def test_shelf_firmware_upgrade_force(self, upgrade_mock, ems_log):
+    def test_shelf_firmware_upgrade_force(self, upgrade_mock):
         ''' Test shelf firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -281,10 +278,9 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_update_required')
-    def test_shelf_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock, ems_log):
+    def test_shelf_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock):
         ''' Test shelf firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -303,9 +299,8 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_upgrade')
-    def test_acp_firmware_upgrade(self, upgrade_mock, ems_log):
+    def test_acp_firmware_upgrade(self, upgrade_mock):
         ''' Test ACP firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -320,9 +315,8 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_upgrade')
-    def test_acp_firmware_upgrade_force(self, upgrade_mock, ems_log):
+    def test_acp_firmware_upgrade_force(self, upgrade_mock):
         ''' Test ACP firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -338,9 +332,8 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
-    def test_disk_firmware_upgrade(self, upgrade_mock, ems_log):
+    def test_disk_firmware_upgrade(self, upgrade_mock):
         ''' Test disk firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -355,9 +348,8 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
-    def test_disk_firmware_upgrade_force(self, upgrade_mock, ems_log):
+    def test_disk_firmware_upgrade_force(self, upgrade_mock):
         ''' Test disk firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -373,10 +365,9 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_update_required')
-    def test_disk_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock, ems_log):
+    def test_disk_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock):
         ''' Test disk firmware upgrade '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -481,8 +472,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Error fetching shelf module firmware  details: NetApp API failed. Reason - None:None"
         assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download(self, ems_log):
+    def test_firmware_download(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -497,8 +487,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download completed.  Extra info: Download complete."
         assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_60(self, mock_ems_log):
+    def test_60(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -513,8 +502,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download completed, slowly."
         assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_502(self, mock_ems_log):
+    def test_firmware_download_502(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -529,8 +517,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download still in progress."
         assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_502_as_error(self, mock_ems_log):
+    def test_firmware_download_502_as_error(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -545,8 +532,7 @@ class TestMyModule(unittest.TestCase):
         msg = "NetApp API failed. Reason - 502:Bad GW"
         assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_no_num_error(self, mock_ems_log):
+    def test_firmware_download_no_num_error(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -560,8 +546,7 @@ class TestMyModule(unittest.TestCase):
         msg = "NetApp API failed. Reason - some error string:whatever"
         assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_no_status_attr(self, ems_log):
+    def test_firmware_download_no_status_attr(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -575,8 +560,7 @@ class TestMyModule(unittest.TestCase):
         msg = "unable to download package from dummy_url: 'status' attribute missing."
         assert exc.value.args[0]['msg'].startswith(msg)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_status_failed(self, ems_log):
+    def test_firmware_download_status_failed(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())
@@ -590,8 +574,7 @@ class TestMyModule(unittest.TestCase):
         msg = "unable to download package from dummy_url: check 'status' value."
         assert exc.value.args[0]['msg'].startswith(msg)
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
-    def test_firmware_download_empty_output(self, ems_log):
+    def test_firmware_download_empty_output(self):
         ''' Test firmware download '''
         module_args = {}
         module_args.update(self.set_default_args())

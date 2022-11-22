@@ -87,7 +87,6 @@ def test_get_existing_scanner():
 
 def test_successfully_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['empty']),
         ('vscan-on-access-policy-create', ZRR['success'])
     ])
@@ -96,7 +95,6 @@ def test_successfully_create():
 
 def test_create_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info'])
     ])
     assert create_and_apply(policy_module, DEFAULT_ARGS)['changed'] is False
@@ -104,7 +102,6 @@ def test_create_idempotency():
 
 def test_successfully_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
         ('vscan-on-access-policy-delete', ZRR['success'])
     ])
@@ -113,7 +110,6 @@ def test_successfully_delete():
 
 def test_delete_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['empty'])
     ])
     assert create_and_apply(policy_module, DEFAULT_ARGS, {'state': 'absent'})['changed'] is False
@@ -121,7 +117,6 @@ def test_delete_idempotency():
 
 def test_successfully_create_and_enable_policy():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['empty']),
         ('vscan-on-access-policy-create', ZRR['success']),
         ('vscan-on-access-policy-status-modify', ZRR['success'])
@@ -132,7 +127,6 @@ def test_successfully_create_and_enable_policy():
 
 def test_disable_policy_and_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
         ('vscan-on-access-policy-status-modify', ZRR['success']),
         ('vscan-on-access-policy-delete', ZRR['success'])
@@ -143,7 +137,6 @@ def test_disable_policy_and_delete():
 
 def test_modify_policy():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
         ('vscan-on-access-policy-modify', ZRR['success'])
     ])
@@ -159,7 +152,6 @@ def test_modify_files_to_incluse_empty_error():
 
 def module_error_disable_policy():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('vscan-on-access-policy-get-iter', ZRR['vscan_info']),
         ('vscan-on-access-policy-status-modify', ZRR['error'])
     ])

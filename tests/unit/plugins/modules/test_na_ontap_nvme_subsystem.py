@@ -85,12 +85,10 @@ def test_ensure_get_called_existing():
 def test_successful_create():
     ''' creating subsystem and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['no_records']),
         ('ZAPI', 'nvme-subsystem-create', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
         # idempptency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
     ])
     module_args = {
@@ -104,11 +102,9 @@ def test_successful_create():
 def test_successful_delete():
     ''' deleting subsystem and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
         ('ZAPI', 'nvme-subsystem-delete', ZRR['success']),
         # idempptency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -146,7 +142,6 @@ def test_ensure_get_host_map_called_existing():
 def test_successful_add():
     ''' adding subsystem host/map and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
         ('ZAPI', 'nvme-subsystem-host-get-iter', ZRR['no_records']),
         ('ZAPI', 'nvme-subsystem-map-get-iter', ZRR['no_records']),
@@ -154,7 +149,6 @@ def test_successful_add():
         ('ZAPI', 'nvme-subsystem-map-add', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-map-add', ZRR['success']),
         # idempptency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
         ('ZAPI', 'nvme-subsystem-host-get-iter', ZRR['subsystem_info_one_host']),
         ('ZAPI', 'nvme-subsystem-map-get-iter', ZRR['subsystem_info']),
@@ -172,12 +166,10 @@ def test_successful_add():
 def test_successful_remove():
     ''' removing subsystem host/map and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info']),
         ('ZAPI', 'nvme-subsystem-map-get-iter', ZRR['subsystem_info']),
         ('ZAPI', 'nvme-subsystem-map-remove', ZRR['success']),
         # idempptency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'nvme-subsystem-get-iter', ZRR['subsystem_info_one_path']),
         ('ZAPI', 'nvme-subsystem-map-get-iter', ZRR['subsystem_info_one_path']),
     ])

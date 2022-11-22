@@ -800,8 +800,6 @@ class NetAppONTAPFirmwareUpgrade:
         """
         changed = False
         msg = MSGS['no_action']
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_firmware_upgrade", self.server, self.module)
         if self.parameters.get('package_url'):
             if not self.module.check_mode:
                 if self.parameters.get('firmware_type') == 'service-processor':

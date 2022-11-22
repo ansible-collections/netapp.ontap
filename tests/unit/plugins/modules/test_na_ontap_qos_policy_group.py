@@ -111,8 +111,6 @@ def test_error_if_fixed_qos_options_present():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty']),
         ('qos-policy-group-create', ZRR['success'])
     ])
@@ -122,8 +120,6 @@ def test_successful_create():
 def test_create_idempotency():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info'])
     ])
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS)['changed'] is False
@@ -132,8 +128,6 @@ def test_create_idempotency():
 def test_create_error():
     ''' Test create error '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty']),
         ('qos-policy-group-create', ZRR['error'])
     ])
@@ -144,8 +138,6 @@ def test_create_error():
 def test_successful_delete():
     ''' Test delete existing volume '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-delete', ZRR['success'])
     ])
@@ -159,8 +151,6 @@ def test_successful_delete():
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty'])
     ])
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, {'state': 'absent'})['changed'] is False
@@ -169,8 +159,6 @@ def test_delete_idempotency():
 def test_delete_error():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-delete', ZRR['error'])
     ])
@@ -181,8 +169,6 @@ def test_delete_error():
 def test_successful_modify_max_throughput():
     ''' Test successful modify max throughput '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-modify', ZRR['success'])
     ])
@@ -193,8 +179,6 @@ def test_successful_modify_max_throughput():
 def test_modify_max_throughput_idempotency():
     ''' Test modify idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info'])
     ])
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS)['changed'] is False
@@ -203,8 +187,6 @@ def test_modify_max_throughput_idempotency():
 def test_modify_error():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-modify', ZRR['error'])
     ])
@@ -216,8 +198,6 @@ def test_modify_error():
 def test_modify_is_shared_error():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info'])
     ])
     args = {
@@ -231,8 +211,6 @@ def test_modify_is_shared_error():
 def test_rename():
     ''' Test rename idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-rename', ZRR['success'])
@@ -247,8 +225,6 @@ def test_rename():
 def test_rename_idempotency():
     ''' Test rename idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info'])
     ])
     args = {
@@ -260,8 +236,6 @@ def test_rename_idempotency():
 def test_rename_error():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['qos_policy_info']),
         ('qos-policy-group-rename', ZRR['error'])
@@ -277,8 +251,6 @@ def test_rename_error():
 def test_rename_non_existent_policy():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['empty'])
     ])
@@ -293,8 +265,6 @@ def test_rename_non_existent_policy():
 def test_get_policy_error():
     ''' Test create idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('qos-policy-group-get-iter', ZRR['error'])
     ])
     error = create_and_apply(qos_policy_group_module, DEFAULT_ARGS, fail=True)['msg']

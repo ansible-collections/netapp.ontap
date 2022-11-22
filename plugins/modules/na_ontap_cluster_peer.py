@@ -384,8 +384,6 @@ class NetAppONTAPClusterPeer:
         Apply action to cluster peer
         :return: None
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_cluster_peer", self.server, self.module)
         source = self.cluster_peer_get('source')
         destination = self.cluster_peer_get('destination')
         source_action = self.na_helper.get_cd_action(source, self.parameters)

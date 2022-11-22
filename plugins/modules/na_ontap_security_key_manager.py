@@ -601,7 +601,6 @@ class NetAppOntapSecurityKeyManager:
 
     def apply(self):
         if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_security_key_manager", self.cluster, self.module)
             self.key_manager_setup()
         current = self.get_key_manager()
         if current:

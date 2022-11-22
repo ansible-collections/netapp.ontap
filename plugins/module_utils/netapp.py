@@ -390,46 +390,6 @@ def is_zapi_missing_vserver_error(message):
     return isinstance(message, str) and message in ('Vserver API missing vserver parameter.', 'Specified vserver not found')
 
 
-def ems_log_event_cserver(source, server, module):
-    if has_feature(module, 'no_cserver_ems'):
-        return
-    try:
-        results = get_cserver(server)
-    except zapi.NaApiError as exc:
-        # we don't rely on EMS anymore, so ignore any error.
-        # The module will report an error on an actual call.
-        return
-    cserver = setup_na_ontap_zapi(module=module, vserver=results)
-    ems_log_event(source, cserver)
-
-
-def ems_log_event(source, server, name="Ansible", ident="12345", version=COLLECTION_VERSION,
-                  category="Information", event="setup", autosupport="false", raise_on_error=False):
-    ems_log = zapi.NaElement('ems-autosupport-log')
-    # Host name invoking the API.
-    ems_log.add_new_child("computer-name", name)
-    # ID of event. A user defined event-id, range [0..2^32-2].
-    ems_log.add_new_child("event-id", ident)
-    # Name of the application invoking the API.
-    ems_log.add_new_child("event-source", source)
-    # Version of application invoking the API.
-    ems_log.add_new_child("app-version", version)
-    # Application defined category of the event.
-    ems_log.add_new_child("category", category)
-    # Description of event to log. An application defined message to log.
-    ems_log.add_new_child("event-description", event)
-    ems_log.add_new_child("log-level", "6")
-    ems_log.add_new_child("auto-support", autosupport)
-    try:
-        server.invoke_successfully(ems_log, True)
-    except zapi.NaApiError as exc:
-        # We don't rely on EMS anymore, so ignore any error by default.
-        # The module will report an error on an actual call.
-        # raise_on_error is used in na_ontap_debug to report complete diagnostics.
-        if raise_on_error:
-            raise exc
-
-
 def get_cserver_zapi(server):
     ''' returns None if not run on the management or cluster IP '''
     vserver_info = zapi.NaElement('vserver-get-iter')

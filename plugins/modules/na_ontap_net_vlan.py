@@ -335,8 +335,6 @@ class NetAppOntapVlan:
         :return:
         """
         modify = None
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_net_vlan", self.server, self.module)
         current = self.get_vlan()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.use_rest and cd_action is None:

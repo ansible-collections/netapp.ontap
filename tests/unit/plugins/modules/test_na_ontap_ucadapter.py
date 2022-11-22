@@ -103,14 +103,10 @@ def test_ensure_ucadapter_get_called():
 def test_change_mode_from_cna_to_fc():
     ''' configuring ucadaptor and checking idempotency '''
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('ucm-adapter-get', ZRR['ucm_info_cna']),
         ('fcp-adapter-config-down', ZRR['success']),
         ('ucm-adapter-modify', ZRR['success']),
         ('fcp-adapter-config-up', ZRR['success']),
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('ucm-adapter-get', ZRR['ucm_info_cna'])
     ])
     assert create_and_apply(ucadapter_module, DEFAULT_ARGS)['changed']
@@ -120,8 +116,6 @@ def test_change_mode_from_cna_to_fc():
 
 def test_change_mode_from_fc_to_cna():
     register_responses([
-        ('vserver-get-iter', ZRR['empty']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('ucm-adapter-get', ZRR['ucm_info']),
         ('fcp-adapter-config-down', ZRR['success']),
         ('ucm-adapter-modify', ZRR['success']),

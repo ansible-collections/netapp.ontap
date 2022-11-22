@@ -362,8 +362,6 @@ class NetAppOntapServiceProcessorNetwork:
         """
         Run Module based on play book
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_service_processor_network", self.server, self.module)
         current = self.get_service_processor_network()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if not current:

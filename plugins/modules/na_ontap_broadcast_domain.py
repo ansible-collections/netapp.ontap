@@ -634,8 +634,6 @@ class NetAppOntapBroadcastDomain(object):
         """
         Run Module based on play book
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_broadcast_domain", self.server, self.module)
         current = self.get_broadcast_domain()
         cd_action, split = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

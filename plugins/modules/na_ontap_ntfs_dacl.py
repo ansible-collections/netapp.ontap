@@ -323,13 +323,7 @@ class NetAppOntapNtfsDacl(object):
                 self.parameters['access_type'], self.parameters['account'], self.parameters['security_descriptor'],
                 to_native(error)), exception=traceback.format_exc())
 
-    def autosupport_log(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_ntfs_dacl", cserver)
-
     def apply(self):
-        self.autosupport_log()
         current, modify = self.get_dacl(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':

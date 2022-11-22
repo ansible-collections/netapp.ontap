@@ -75,10 +75,9 @@ class TestMyModule(unittest.TestCase):
         port_obj.server = MockONTAPConnection()
         return port_obj
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_successfully_add_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
+    def test_successfully_add_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
         ''' Test successful add broadcast domain ports '''
         data = self.mock_args('broadcast_domain')
         set_module_args(data)
@@ -89,10 +88,9 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_add_broadcast_domain_ports_idempotency(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
+    def test_add_broadcast_domain_ports_idempotency(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
         ''' Test add broadcast domain ports idempotency '''
         data = self.mock_args('broadcast_domain')
         set_module_args(data)
@@ -103,10 +101,9 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_successfully_add_portset_ports(self, portset_get, add_portset_ports, ignored):
+    def test_successfully_add_portset_ports(self, portset_get, add_portset_ports):
         ''' Test successful add portset ports '''
         data = self.mock_args('portset')
         set_module_args(data)
@@ -117,10 +114,9 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_add_portset_ports_idempotency(self, portset_get, add_portset_ports, ignored):
+    def test_add_portset_ports_idempotency(self, portset_get, add_portset_ports):
         ''' Test add portset ports idempotency '''
         data = self.mock_args('portset')
         set_module_args(data)
@@ -131,10 +127,9 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_broadcast_domain_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.get_broadcast_domain_ports')
-    def test_successfully_remove_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports, ignored):
+    def test_successfully_remove_broadcast_domain_ports(self, get_broadcast_domain_ports, add_broadcast_domain_ports):
         ''' Test successful remove broadcast domain ports '''
         data = self.mock_args('broadcast_domain')
         data['state'] = 'absent'
@@ -146,10 +141,9 @@ class TestMyModule(unittest.TestCase):
             self.get_port_mock_object().apply()
         assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event_cserver')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.add_portset_ports')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_ports.NetAppOntapPorts.portset_get')
-    def test_remove_add_portset_ports(self, portset_get, add_portset_ports, ignored):
+    def test_remove_add_portset_ports(self, portset_get, add_portset_ports):
         ''' Test successful remove portset ports '''
         data = self.mock_args('portset')
         data['state'] = 'absent'

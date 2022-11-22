@@ -191,7 +191,6 @@ def test_get_existing_policy():
 def test_create_missing_param_error():
     ''' Test validation error from create '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
@@ -208,7 +207,6 @@ def test_create_missing_param_error():
 def test_successful_create_with_index():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['no_records']),
@@ -228,7 +226,6 @@ def test_successful_create_with_index():
 def test_successful_create_no_index():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
         ('ZAPI', 'export-rule-create', ZRR['success']),
@@ -244,7 +241,6 @@ def test_successful_create_no_index():
 def test_create_idempotency():
     ''' Test create idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['one_rule_record']),
     ])
     module_args = {
@@ -258,7 +254,6 @@ def test_create_idempotency():
 def test_delete():
     ''' Test delete '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['one_rule_record']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
         ('ZAPI', 'export-rule-destroy', ZRR['success']),
@@ -273,7 +268,6 @@ def test_delete():
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -286,7 +280,6 @@ def test_delete_idempotency():
 def test_successful_modify():
     ''' Test successful modify protocol '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['one_rule_record']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
         ('ZAPI', 'export-rule-modify', ZRR['success']),
@@ -304,7 +297,6 @@ def test_successful_modify():
 def test_error_on_ambiguous_delete():
     ''' Test error if multiple entries match for a delete '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['two_rule_records']),
     ])
     module_args = {
@@ -379,7 +371,6 @@ def test_error_calling_zapis():
 def test_index_existing_entry():
     """ validate entry can be found without index, and add index """
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-rule-get-iter', ZRR['one_rule_record']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
@@ -397,7 +388,6 @@ def test_index_existing_entry():
 def test_delete_no_index():
     """ validate entry can be found without index, and deleted """
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'export-rule-get-iter', ZRR['two_rule_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
         ('ZAPI', 'export-rule-destroy', ZRR['success']),

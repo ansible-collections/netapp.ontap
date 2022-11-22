@@ -142,10 +142,8 @@ def test_create_error_missing_param():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
         ('net-routes-create', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
     ])
     assert create_and_apply(net_route_module, DEFAULT_ARGS)['changed']
@@ -155,7 +153,6 @@ def test_successful_create():
 def test_create_zapi_ignore_route_exist():
     ''' Test NaApiError on create '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
         ('net-routes-create', ZRR['error_13001'])
     ])
@@ -165,7 +162,6 @@ def test_create_zapi_ignore_route_exist():
 def test_successful_create_zapi_no_metric():
     ''' Test successful create '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
         ('net-routes-create', ZRR['success'])
     ])
@@ -177,10 +173,8 @@ def test_successful_create_zapi_no_metric():
 def test_successful_delete():
     ''' Test successful delete '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
         ('net-routes-destroy', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
     ])
     assert create_and_apply(net_route_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
@@ -190,7 +184,6 @@ def test_successful_delete():
 def test_successful_modify_metric():
     ''' Test successful modify metric '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
         ('net-routes-destroy', ZRR['success']),
         ('net-routes-create', ZRR['success'])
@@ -201,12 +194,10 @@ def test_successful_modify_metric():
 def test_successful_modify_gateway():
     ''' Test successful modify gateway '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
         ('net-routes-destroy', ZRR['success']),
         ('net-routes-create', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info_gateway'])
     ])
     args = {'from_gateway': '10.193.72.1', 'gateway': '10.193.0.1', 'metric': 40}
@@ -217,12 +208,10 @@ def test_successful_modify_gateway():
 def test_successful_modify_destination():
     ''' Test successful modify destination '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
         ('net-routes-destroy', ZRR['success']),
         ('net-routes-create', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info_gateway'])
     ])
     args = {'from_destination': '176.0.0.0/24', 'destination': '178.0.0.1/24', 'metric': 40}
@@ -238,7 +227,6 @@ def test_if_all_methods_catch_exception_zapi():
         ('net-routes-create', ZRR['error']),
         ('net-routes-destroy', ZRR['error']),
         # ZAPI modify error.
-        ('ems-autosupport-log', ZRR['empty']),
         ('net-routes-get', ZRR['net_route_info']),
         ('net-routes-destroy', ZRR['success']),
         ('net-routes-create', ZRR['error']),

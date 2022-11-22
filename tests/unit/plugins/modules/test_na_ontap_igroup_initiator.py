@@ -86,7 +86,6 @@ def test_get_existing_initiator():
 def test_successful_add():
     ''' Test successful add'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['initiator_info']),
         ('igroup-add', ZRR['success'])
     ])
@@ -97,7 +96,6 @@ def test_successful_add():
 def test_successful_add_idempotency():
     ''' Test successful add idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['initiator_info'])
     ])
     assert create_and_apply(initiator, DEFAULT_ARGS)['changed'] is False
@@ -106,7 +104,6 @@ def test_successful_add_idempotency():
 def test_successful_remove():
     ''' Test successful remove '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['initiator_info']),
         ('igroup-remove', ZRR['success'])
     ])
@@ -117,7 +114,6 @@ def test_successful_remove():
 def test_successful_remove_idempotency():
     ''' Test successful remove idempotency'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['initiator_info'])
     ])
     args = {'state': 'absent', 'name': 'alreadyremoved'}

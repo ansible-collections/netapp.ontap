@@ -82,7 +82,6 @@ def test_module_fail_when_required_args_missing():
 def test_create_error_missing_param():
     ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -98,11 +97,9 @@ def test_create_error_missing_param():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
         ('ZAPI', 'lun-create-by-size', ZRR['success']),
         # second create
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
         ('ZAPI', 'lun-create-by-size', ZRR['success']),
     ])
@@ -132,7 +129,6 @@ def test_successful_create():
 def test_create_rename_idempotency():
     ''' Test create idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
     ])
     module_args = {
@@ -146,11 +142,9 @@ def test_create_rename_idempotency():
 def test_delete_lun():
     ''' Test delete and idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         ('ZAPI', 'lun-destroy', ZRR['success']),
         # idempotency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -178,10 +172,8 @@ def test_delete_lun_no_input():
 def test_successful_resize():
     ''' Test successful resize '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         ('ZAPI', 'lun-resize', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         ('ZAPI', 'lun-resize', ZRR['error_9042']),
     ])
@@ -197,13 +189,11 @@ def test_successful_resize():
 def test_successful_modify():
     ''' Test successful modify '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         ('ZAPI', 'lun-set-comment', ZRR['success']),
         ('ZAPI', 'lun-set-qos-policy-group', ZRR['success']),
         ('ZAPI', 'lun-set-space-alloc', ZRR['success']),
         # second call
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         ('ZAPI', 'lun-set-comment', ZRR['success']),
         ('ZAPI', 'lun-set-qos-policy-group', ZRR['success']),
@@ -231,7 +221,6 @@ def test_successful_modify():
 def test_negative_modify():
     ''' Test successful modify '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
     ])
     module_args = {
@@ -246,7 +235,6 @@ def test_negative_modify():
 def test_successful_rename():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info_from']),
         ('ZAPI', 'lun-move', ZRR['success']),
@@ -262,7 +250,6 @@ def test_successful_rename():
 def test_failed_rename():
     ''' Test failed rename '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
     ])

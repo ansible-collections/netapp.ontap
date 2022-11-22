@@ -224,8 +224,6 @@ class NetAppONTAPNsswitch:
                                   % (self.parameters['vserver'], to_native(error)))
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_name_service_switch", self.server)
         current = self.get_name_service_switch()
         cd_action, modify = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

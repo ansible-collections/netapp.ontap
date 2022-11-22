@@ -107,7 +107,6 @@ def test_get_existing_igroup_without_initiators():
 def test_modify_initiator_calls_add_and_remove():
     '''Test remove_initiator() is called followed by add_initiator() on modify operation'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_with_initiator_info']),
         ('igroup-remove', ZRR['success']),
         ('igroup-remove', ZRR['success']),
@@ -119,7 +118,6 @@ def test_modify_initiator_calls_add_and_remove():
 def test_modify_called_from_add():
     '''Test remove_initiator() and add_initiator() calls modify'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_without_initiator_info']),
         ('igroup-add', ZRR['success'])
     ])
@@ -129,7 +127,6 @@ def test_modify_called_from_add():
 def test_modify_called_from_remove():
     '''Test remove_initiator() and add_initiator() calls modify'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_with_initiator_info']),
         ('igroup-remove', ZRR['success']),
         ('igroup-remove', ZRR['success'])
@@ -140,7 +137,6 @@ def test_modify_called_from_remove():
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['empty']),
         ('igroup-create', ZRR['success']),
         ('igroup-add', ZRR['success'])
@@ -151,7 +147,6 @@ def test_successful_create():
 def test_successful_delete():
     ''' Test successful delete '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_with_initiator_info']),
         ('igroup-destroy', ZRR['success'])
     ])
@@ -161,7 +156,6 @@ def test_successful_delete():
 def test_successful_rename():
     '''Test successful rename'''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_with_initiator_info']),
         ('igroup-rename', ZRR['success']),
@@ -177,7 +171,6 @@ def test_successful_rename():
 def test_negative_modify_anything_zapi():
     ''' Test ZAPI option not currently supported in REST is rejected '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('igroup-get-iter', ZRR['igroup_with_initiator_info']),
     ])
     args = {

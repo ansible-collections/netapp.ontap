@@ -267,9 +267,6 @@ class NetAppOntapCifsLocalGroupMember:
                 )
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_cifs_local_group_member", self.server)
-
         current = self.get_cifs_local_group_member()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
 

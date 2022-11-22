@@ -88,14 +88,10 @@ def test_get_existing_key_manager():
 def test_successfully_add_key_manager():
     ''' Test successfully add key manager'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-key-manager-setup', ZRR['success']),
         ('ZAPI', 'security-key-manager-get-iter', ZRR['no_records']),
         ('ZAPI', 'security-key-manager-add', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-key-manager-setup', ZRR['success']),
         ('ZAPI', 'security-key-manager-get-iter', ZRR['security_key_info']),
     ])
@@ -110,8 +106,6 @@ def test_successfully_add_key_manager():
 def test_error_modify_key_manager():
     ''' Test successfully add key manager'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-key-manager-setup', ZRR['success']),
         ('ZAPI', 'security-key-manager-get-iter', ZRR['security_key_info']),
     ])
@@ -126,14 +120,10 @@ def test_error_modify_key_manager():
 def test_successfully_delete_key_manager():
     ''' Test successfully delete key manager'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-key-manager-setup', ZRR['success']),
         ('ZAPI', 'security-key-manager-get-iter', ZRR['security_key_info']),
         ('ZAPI', 'security-key-manager-delete', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-key-manager-setup', ZRR['success']),
         ('ZAPI', 'security-key-manager-get-iter', ZRR['no_records']),
     ])

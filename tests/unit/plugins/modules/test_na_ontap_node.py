@@ -116,8 +116,7 @@ class TestMyModule(unittest.TestCase):
         my_obj.cluster = MockONTAPConnection('node')
         assert my_obj.get_node is not None
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
-    def test_successful_rename(self, mock_ems_log_event):
+    def test_successful_rename(self):
         ''' renaming node and testing idempotency '''
         data = self.set_default_args(use_rest='Never')
         data['from_name'] = 'node1'
@@ -137,8 +136,7 @@ class TestMyModule(unittest.TestCase):
             my_obj.apply()
         assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.ems_log_event')
-    def test_successful_modify(self, mock_ems_log_event):
+    def test_successful_modify(self):
         ''' modifying node and testing idempotency '''
         data = self.set_default_args(use_rest='Never')
         data['location'] = 'myloc1'

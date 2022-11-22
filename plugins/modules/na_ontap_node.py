@@ -217,11 +217,6 @@ class NetAppOntapNode(object):
             return None
 
     def apply(self):
-        # logging ems event
-        if not self.use_rest:
-            results = netapp_utils.get_cserver(self.cluster)
-            cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-            netapp_utils.ems_log_event("na_ontap_node", cserver)
         from_exists = None
         modify = None
         uuid = None

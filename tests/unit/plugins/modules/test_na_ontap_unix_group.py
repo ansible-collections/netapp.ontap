@@ -117,7 +117,6 @@ def test_get_error_existent_user_group():
 
 def test_create_unix_group_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
         ('name-mapping-unix-group-create', ZRR['success']),
     ])
@@ -130,7 +129,6 @@ def test_create_unix_group_zapi():
 
 def test_create_unix_group_with_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
         ('name-mapping-unix-group-create', ZRR['success']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
@@ -146,7 +144,6 @@ def test_create_unix_group_with_user_zapi():
 
 def test_error_create_unix_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['empty']),
         ('name-mapping-unix-group-create', ZRR['error']),
     ])
@@ -162,7 +159,6 @@ def test_error_create_unix_user_zapi():
 
 def test_delete_unix_group_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-destroy', ZRR['success']),
     ])
@@ -175,7 +171,6 @@ def test_delete_unix_group_zapi():
 
 def test_error_remove_unix_group_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-destroy', ZRR['error']),
     ])
@@ -190,7 +185,6 @@ def test_error_remove_unix_group_zapi():
 
 def test_create_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info'])
     ])
     module_args = {
@@ -203,7 +197,6 @@ def test_create_idempotent():
 
 def test_delete_idempotent():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['empty'])
     ])
     module_args = {
@@ -215,7 +208,6 @@ def test_delete_idempotent():
 
 def test_modify_unix_group_id_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-modify', ZRR['success']),
     ])
@@ -228,7 +220,6 @@ def test_modify_unix_group_id_zapi():
 
 def test_error_modify_unix_group_id_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-modify', ZRR['error']),
     ])
@@ -243,7 +234,6 @@ def test_error_modify_unix_group_id_zapi():
 
 def test_add_unix_group_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-add-user', ZRR['success'])
@@ -257,7 +247,6 @@ def test_add_unix_group_user_zapi():
 
 def test_error_add_unix_group_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-add-user', ZRR['error'])
@@ -273,7 +262,6 @@ def test_error_add_unix_group_user_zapi():
 
 def test_delete_unix_group_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-delete-user', ZRR['success'])
@@ -287,7 +275,6 @@ def test_delete_unix_group_user_zapi():
 
 def test_error_delete_unix_group_user_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-get-iter', ZRR['unix_group_info']),
         ('name-mapping-unix-group-delete-user', ZRR['error'])

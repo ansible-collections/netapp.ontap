@@ -489,9 +489,6 @@ class NetAppOntapFpolicyExtEngine():
         return return_value
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_fpolicy_ext_engine", self.server)
-
         current, modify = self.get_fpolicy_ext_engine(), None
 
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

@@ -381,8 +381,6 @@ class NetAppONTAPPortset:
         """
         Applies action from playbook
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_autosupport", self.server)
         current, modify = self.portset_get(), None
         # get lifs type and uuid which is not present in current.
         if self.use_rest and self.parameters['state'] == 'present':

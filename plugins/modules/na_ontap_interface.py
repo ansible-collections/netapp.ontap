@@ -1359,8 +1359,6 @@ class NetAppOntapInterface:
 
     def apply(self):
         ''' calling all interface features '''
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_interface", self.server, self.module)
         cd_action, modify, rename, current = self.get_action()
         # build the payloads even in check_mode, to perform validations
         uuid, body, migrate_body = self.build_rest_payloads(cd_action, modify, current)

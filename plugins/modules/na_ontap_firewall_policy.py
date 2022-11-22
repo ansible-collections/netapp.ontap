@@ -286,13 +286,7 @@ class NetAppONTAPFirewallPolicy:
         else:
             return 'enable' if input == 'true' else 'disable'
 
-    def autosupport_log(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_firewall_policy", cserver)
-
     def apply(self):
-        self.autosupport_log()
         cd_action, modify, modify_config = None, None, None
         if self.parameters.get('policy'):
             current = self.get_firewall_policy()

@@ -81,8 +81,6 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
 def test_module_add_license_zapi():
     ''' Test add license '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_none']),
         ('ZAPI', 'license-v2-add', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
@@ -98,8 +96,6 @@ def test_module_add_license_zapi():
 def test_module_add_license_idempotent_zapi():
     ''' Test add license idempotent '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
         ('ZAPI', 'license-v2-add', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
@@ -114,8 +110,6 @@ def test_module_add_license_idempotent_zapi():
 def test_module_remove_license_zapi():
     ''' Test remove license '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
         ('ZAPI', 'license-v2-delete', ZRR['success']),
         ('ZAPI', 'license-v2-delete', ZRR['success']),
@@ -132,8 +126,6 @@ def test_module_remove_license_zapi():
 def test_module_remove_license_idempotent_zapi():
     ''' Test remove license idempotent '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
         ('ZAPI', 'license-v2-delete', ZRR['error_object_not_found']),
         ('ZAPI', 'license-v2-delete', ZRR['error_object_not_found']),
@@ -150,8 +142,6 @@ def test_module_remove_license_idempotent_zapi():
 def test_module_remove_unused_expired_zapi():
     ''' Test remove unused expired license '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'license-v2-status-list-info', ZRR['license_status_fcp_site']),
         ('ZAPI', 'license-v2-delete-unused', ZRR['success']),
         ('ZAPI', 'license-v2-delete-expired', ZRR['success']),

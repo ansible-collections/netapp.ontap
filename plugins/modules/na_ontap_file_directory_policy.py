@@ -314,7 +314,6 @@ class NetAppOntapFilePolicy(object):
                                   exception=traceback.format_exc())
 
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_file_directory_policy", self.server)
         current = self.get_policy_iter()
         cd_action, task_cd_action, task_modify = None, None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

@@ -110,7 +110,6 @@ def test_module_fail_when_required_args_missing():
 def test_missing_parameters():
     ''' fail if origin volume and origin verser are missing '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -123,7 +122,6 @@ def test_missing_parameters():
 def test_missing_parameter():
     ''' fail if origin verser parameter is missing '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -168,7 +166,6 @@ def test_get_flexcache_double():
 def test_create_flexcache():
     ''' create flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['job_success']),
@@ -187,7 +184,6 @@ def test_create_flexcache():
 def test_create_flexcach_no_wait():
     ''' create flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
     ])
@@ -206,16 +202,13 @@ def test_create_flexcach_no_wait():
 def test_error_create_flexcache():
     ''' create flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_error']),
         # 2nd run
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['error']),
         # 3rd run
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['job_error']),
@@ -239,7 +232,6 @@ def test_error_create_flexcache():
 def test_create_flexcache_idempotent():
     ''' create flexcache - already exists '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
     ])
     module_args = {
@@ -254,7 +246,6 @@ def test_create_flexcache_idempotent():
 def test_create_flexcache_autoprovision():
     ''' create flexcache with autoprovision'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['job_success']),
@@ -273,7 +264,6 @@ def test_create_flexcache_autoprovision():
 def test_create_flexcache_autoprovision_idempotent():
     ''' create flexcache with autoprovision - already exists '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
     ])
     module_args = {
@@ -288,7 +278,6 @@ def test_create_flexcache_autoprovision_idempotent():
 def test_create_flexcache_multiplier():
     ''' create flexcache with aggregate multiplier'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['job_success']),
@@ -308,7 +297,6 @@ def test_create_flexcache_multiplier():
 def test_create_flexcache_multiplier_idempotent():
     ''' create flexcache with aggregate multiplier - already exists '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
     ])
     module_args = {
@@ -324,7 +312,6 @@ def test_create_flexcache_multiplier_idempotent():
 def test_delete_flexcache_exists_no_force():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['error_13001']),
     ])
@@ -339,7 +326,6 @@ def test_delete_flexcache_exists_no_force():
 def test_delete_flexcache_exists_with_force():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
@@ -356,7 +342,6 @@ def test_delete_flexcache_exists_with_force():
 def test_delete_flexcache_exists_with_force_no_wait():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
@@ -373,7 +358,6 @@ def test_delete_flexcache_exists_with_force_no_wait():
 def test_delete_flexcache_exists_junctionpath_no_force():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['error_160']),
@@ -392,7 +376,6 @@ def test_delete_flexcache_exists_junctionpath_no_force():
 def test_delete_flexcache_exists_junctionpath_with_force():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-unmount', ZRR['success']),
         ('ZAPI', 'volume-offline', ZRR['success']),
@@ -412,7 +395,6 @@ def test_delete_flexcache_exists_junctionpath_with_force():
 def test_delete_flexcache_not_exist():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -425,18 +407,15 @@ def test_delete_flexcache_not_exist():
 def test_error_delete_flexcache_exists_with_force():
     ''' delete flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['result_error']),
         # 2nd run
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['error']),
         # 3rd run
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['flexcache_get_info']),
         ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'flexcache-destroy-async', ZRR['result_async']),
@@ -458,7 +437,6 @@ def test_error_delete_flexcache_exists_with_force():
 def test_create_flexcache_size_error():
     ''' create flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['error_size']),
     ])
@@ -478,7 +456,6 @@ def test_create_flexcache_size_error():
 def test_create_flexcache_time_out(dont_sleep):
     ''' create flexcache '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'flexcache-get-iter', ZRR['no_records']),
         ('ZAPI', 'flexcache-create-async', ZRR['result_async']),
         ('ZAPI', 'job-get', ZRR['job_running']),

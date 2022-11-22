@@ -92,10 +92,8 @@ def test_ensure_get_called_no_clone_error():
 def test_successful_create():
     ''' test creating volume_clone without split and testing idempotency '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['empty']),
         ('volume-clone-create', ZRR['success']),
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['clone_info']),
     ])
     module_args = {
@@ -114,16 +112,13 @@ def test_successful_create_with_split():
     ''' test creating volume_clone with split and testing idempotency '''
     register_responses([
         # first test, create and split
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['empty']),
         ('volume-clone-create', ZRR['success']),
         ('volume-clone-split-start', ZRR['success']),
         # second test, clone already exists but is not split
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['clone_info']),
         ('volume-clone-split-start', ZRR['success']),
         # third test, clone already exists, split already in progress
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['clone_info_split_in_progress']),
     ])
     module_args = {
@@ -144,16 +139,13 @@ def test_successful_create_with_parent_vserver():
     ''' test creating volume_clone with split and testing idempotency '''
     register_responses([
         # first test, create and split
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['empty']),
         ('volume-clone-create', ZRR['success']),
         ('volume-clone-split-start', ZRR['success']),
         # second test, clone already exists but is not split
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['clone_info']),
         ('volume-clone-split-start', ZRR['success']),
         # third test, clone already exists, split already in progress
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['clone_info_split_in_progress']),
     ])
     module_args = {
@@ -211,7 +203,6 @@ def test_fail_missing_netapp_lib(mock_has_netapp_lib):
 def test_main():
     ''' validate call to main() '''
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('volume-clone-get', ZRR['empty']),
         ('volume-clone-create', ZRR['success']),
     ])

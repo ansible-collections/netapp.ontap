@@ -131,13 +131,9 @@ def test_ensure_get_called():
 def test_successful_modify():
     ''' modifying asup and testing idempotency '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'autosupport-config-get', ZRR['autosupport_info']),
         ('ZAPI', 'autosupport-config-modify', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'autosupport-config-get', ZRR['autosupport_info']),
     ])
     module_args = {
@@ -175,12 +171,8 @@ def test_successful_modify():
 
 def test_if_all_methods_catch_exception():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'autosupport-config-get', ZRR['error']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'autosupport-config-get', ZRR['autosupport_info']),
         ('ZAPI', 'autosupport-config-modify', ZRR['error']),
     ])

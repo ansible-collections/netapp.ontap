@@ -539,9 +539,6 @@ class NetAppontapExportRule:
                                           % (self.parameters['from_rule_index'], to_native(error)),
                                       exception=traceback.format_exc())
 
-    def autosupport_log(self):
-        netapp_utils.ems_log_event("na_ontap_export_policy_rules", self.server)
-
     def set_export_policy_id_rest(self):
         if self.policy_id is not None:
             return
@@ -697,8 +694,6 @@ class NetAppontapExportRule:
 
     def apply(self):
         ''' Apply required action from the play'''
-        if not self.use_rest:
-            self.autosupport_log()
         current = self.get_export_policy_rule(self.parameters.get('rule_index'))
         cd_action, rename, modify = None, None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

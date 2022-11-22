@@ -84,14 +84,11 @@ def test_ensure_get_called_existing():
 def test_motd_create():
     ''' test for creating motd'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
         # idempotency
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         # modify
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
     ])
@@ -107,12 +104,9 @@ def test_motd_create():
 def test_motd_delete():
     ''' test for deleting motd'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['motd_info']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_none']),
     ])
     module_args = {
@@ -143,10 +137,8 @@ def test_rest_required():
     error_msg = 'netapp.ontap.na_ontap_motd is deprecated and only supports ZAPI.  Please use netapp.ontap.na_ontap_login_messages.'
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'Error: %s' % error_msg
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
     ])

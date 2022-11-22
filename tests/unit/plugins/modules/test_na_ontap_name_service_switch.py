@@ -79,7 +79,6 @@ def test_get_existing_nss():
 
 def test_successfully_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('nameservice-nsswitch-get-iter', ZRR['no_records']),
         ('nameservice-nsswitch-create', ZRR['success'])
     ])
@@ -88,7 +87,6 @@ def test_successfully_create():
 
 def test_successfully_modify():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('nameservice-nsswitch-get-iter', ZRR['nss_info']),
         ('nameservice-nsswitch-modify', ZRR['success'])
     ])
@@ -97,7 +95,6 @@ def test_successfully_modify():
 
 def test_successfully_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('nameservice-nsswitch-get-iter', ZRR['nss_info']),
         ('nameservice-nsswitch-destroy', ZRR['success'])
     ])

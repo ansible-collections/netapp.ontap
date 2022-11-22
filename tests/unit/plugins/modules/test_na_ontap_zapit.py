@@ -83,8 +83,7 @@ DEFAULT_ARGS = {
 
 def test_ensure_zapi_called_cluster():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
+
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
     ])
     module_args = {
@@ -95,7 +94,6 @@ def test_ensure_zapi_called_cluster():
 
 def test_ensure_zapi_called_vserver():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
     ])
     module_args = {
@@ -108,8 +106,6 @@ def test_ensure_zapi_called_vserver():
 
 def test_negative_zapi_called_attributes():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['error']),
     ])
     module_args = {
@@ -123,8 +119,6 @@ def test_negative_zapi_called_attributes():
 
 def test_negative_zapi_called_element_no_errno():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['error_no_errno']),
     ])
     module_args = {
@@ -138,8 +132,6 @@ def test_negative_zapi_called_element_no_errno():
 
 def test_negative_zapi_called_element_no_reason():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['error_no_reason']),
     ])
     module_args = {
@@ -153,8 +145,6 @@ def test_negative_zapi_called_element_no_reason():
 
 def test_negative_zapi_unexpected_error():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', (netapp_utils.zapi.NaApiError(), 'valid')),
     ])
     module_args = {
@@ -166,8 +156,6 @@ def test_negative_zapi_unexpected_error():
 
 def test_negative_two_zapis():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
     ])
     module_args = {
         "use_rest": "never",
@@ -179,10 +167,6 @@ def test_negative_two_zapis():
 
 def test_negative_bad_zapi_type():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
     ])
     module_args = {
         "use_rest": "never",
@@ -204,8 +188,6 @@ BYTES_TYPE = 'bytes' if sys.version_info >= (3, 0) else 'str'
 
 def test_negative_zapi_called_element_no_results():
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['error_no_results']),
     ])
     module_args = {
@@ -254,21 +236,6 @@ def test_negative_bad_zapi_response_bad_json():
     xml = xml_mock(b'<bad_json><elemX-1>elem_value</elemX-1><elem-2>elem_value</elem-2></bad_json>')
     error = "Error running zapi, no results field"
     assert error in expect_and_capture_ansible_exception(obj.jsonify_and_parse_output, 'fail', xml)['msg']
-
-
-def test_ems_errors_are_ignored():
-    register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['error']),
-        ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['error']),
-        ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
-    ])
-    module_args = {
-        "use_rest": "never",
-    }
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')

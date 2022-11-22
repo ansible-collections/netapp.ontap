@@ -193,8 +193,6 @@ class NetAppOntapLDAP:
         current = self.get_ldap()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        #  create an ems log event for users with auto support turned on
-        netapp_utils.ems_log_event("na_ontap_ldap", self.server)
 
         if self.na_helper.changed:
             if self.module.check_mode:

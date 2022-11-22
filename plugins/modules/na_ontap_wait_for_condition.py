@@ -381,8 +381,6 @@ class NetAppONTAPWFC:
     def apply(self):
         ''' calls the ZAPI and check conditions '''
         changed = False
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_wait_for_condition: %s" % self.parameters['name'], self.server, self.module)
         name = self.parameters['name']
         self.validate_resource(name)
         self.validate_attributes(name)

@@ -784,11 +784,6 @@ class NetAppOntapSnapMirrorPolicy:
                                   (self.parameters['policy_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def asup_log_for_cserver(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_snapmirror_policy", cserver)
-
     def get_actions(self):
         current, modify = self.get_snapmirror_policy(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
@@ -808,8 +803,6 @@ class NetAppOntapSnapMirrorPolicy:
         return cd_action, modify, current, body
 
     def apply(self):
-        if not self.use_rest:
-            self.asup_log_for_cserver()
         cd_action, modify, current, body = self.get_actions()
 
         if self.na_helper.changed and not self.module.check_mode:

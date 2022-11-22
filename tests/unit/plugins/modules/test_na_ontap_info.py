@@ -120,8 +120,6 @@ def test_module_fail_when_required_args_missing():
 def test_ensure_command_called():
     ''' calling get_all will raise a KeyError exception '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['version']),
         ('ZAPI', 'net-interface-get-iter', ZRR['success']),
     ])
@@ -583,13 +581,9 @@ def test_get_subset_missing_key():
 def test_get_lun_with_serial():
     '''calling lun_info with serial-number key'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info']),
         # no records
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['no_records']),
     ])
@@ -611,8 +605,6 @@ def test_get_lun_with_serial():
 def test_get_nothing():
     '''calling with !all'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
     ])
     obj = create_module(my_module, DEFAULT_ARGS)
@@ -624,8 +616,6 @@ def test_get_nothing():
 def test_deprecation_ontap_version():
     '''calling ontap_version'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
     ])
@@ -639,8 +629,6 @@ def test_deprecation_ontap_version():
 def test_help():
     '''calling help'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
     ])
     obj = create_module(my_module, DEFAULT_ARGS)
@@ -652,12 +640,8 @@ def test_help():
 def test_desired_attributes():
     '''desired_attributes option'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
     ])
     module_args = {'desired_attributes': {'attr': 'value'}}
@@ -672,12 +656,8 @@ def test_desired_attributes():
 def test_query():
     '''query option'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
     ])
     module_args = {'query': {'attr': 'value', 'a_b': 'val'}}
@@ -704,8 +684,6 @@ def test_get_all_with_summary(mock_get_all):
 def test_repeated_get():
     '''query option'''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info_next_2']),
         ('ZAPI', 'lun-get-iter', ZRR['lun_info_next_3']),
@@ -734,7 +712,6 @@ def test_repeated_get_error():
 
 def test_attribute_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'license-v2-list-info', ZRR['no_records']),
     ])
@@ -745,10 +722,8 @@ def test_attribute_error():
 
 def test_continue_on_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'license-v2-list-info', ZRR['error']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'system-get-ontapi-version', ZRR['success']),
         ('ZAPI', 'license-v2-list-info', ZRR['error']),
     ])

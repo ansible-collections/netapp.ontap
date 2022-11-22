@@ -413,9 +413,6 @@ class NetAppOntapKerberosRealm:
 
     def apply(self):
         '''Call create/modify/delete operations.'''
-        if not self.use_rest:
-            #  create an ems log event for users with auto support turned on
-            netapp_utils.ems_log_event("na_ontap_kerberos_realm", self.server)
         current = self.get_krbrealm()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)

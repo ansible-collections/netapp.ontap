@@ -104,7 +104,6 @@ def test_module_fail_when_netapp_lib_missing():
 
 def test_successfully_create_banner():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-login-banner-modify-iter', ZRR['success']),
@@ -119,7 +118,6 @@ def test_successfully_create_banner():
 
 def test_create_banner_idempotency():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
     ])
@@ -133,7 +131,6 @@ def test_create_banner_idempotency():
 
 def test_successfully_create_motd():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info_empty']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info_empty']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
@@ -149,7 +146,6 @@ def test_successfully_create_motd():
 
 def test_create_motd_idempotency():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
     ])
@@ -163,7 +159,6 @@ def test_create_motd_idempotency():
 
 def test_create_motd_modify():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['success']),
@@ -179,7 +174,6 @@ def test_create_motd_modify():
 
 def test_get_banner_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['error']),
     ])
@@ -192,7 +186,6 @@ def test_get_banner_error():
 
 def test_get_motd_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['error']),
     ])
     module_args = {
@@ -204,7 +197,6 @@ def test_get_motd_error():
 
 def test_modify_banner_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
         ('ZAPI', 'vserver-login-banner-modify-iter', ZRR['error']),
@@ -219,7 +211,6 @@ def test_modify_banner_error():
 
 def test_modify_motd_error():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-motd-get-iter', ZRR['motd_info']),
         ('ZAPI', 'vserver-login-banner-get-iter', ZRR['banner_info']),
         ('ZAPI', 'vserver-motd-modify-iter', ZRR['error']),

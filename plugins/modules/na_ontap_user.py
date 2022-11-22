@@ -767,7 +767,6 @@ class NetAppOntapUser:
                 current = self.get_user_details_rest(name, owner_uuid)
                 self.change_sp_application(current['applications'])
         else:
-            netapp_utils.ems_log_event("na_ontap_user", self.server)
             current = self.get_user()
         return current, owner_uuid, name
 

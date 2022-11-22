@@ -259,8 +259,6 @@ def test_rest_negative_wait_for_sp_version_timeout(dont_sleep):
 def test_zapi_successful_wait_for_sp_upgrade(dont_sleep):
     ''' Test successful sp_upgrade check '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'service-processor-image-update-progress-get', ZRR['sp_image_update_progress_info_idle']),
         ('ZAPI', 'service-processor-image-update-progress-get', ZRR['sp_image_update_progress_info_idle']),
         ('ZAPI', 'service-processor-image-update-progress-get', ZRR['sp_image_update_progress_info_in_progress']),
@@ -280,8 +278,6 @@ def test_zapi_successful_wait_for_sp_upgrade(dont_sleep):
 def test_zapi_successful_wait_for_sp_version(dont_sleep):
     ''' Test successful sp_version check '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'service-processor-get', ZRR['sp_info_3_09']),
         ('ZAPI', 'service-processor-get', ZRR['error']),
         ('ZAPI', 'service-processor-get', ZRR['sp_info_3_09']),
@@ -301,8 +297,6 @@ def test_zapi_successful_wait_for_sp_version(dont_sleep):
 def test_zapi_negative_wait_for_snapmirror_relationship_error():
     ''' Test negative snapmirror_relationship check '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
     ])
     module_args = {
         'use_rest': 'never',
@@ -321,8 +315,6 @@ def test_zapi_negative_wait_for_snapmirror_relationship_error():
 def test_zapi_negative_wait_for_sp_version_error(dont_sleep):
     ''' Test negative sp_version check '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'service-processor-get', ZRR['no_records']),
         ('ZAPI', 'service-processor-get', ZRR['no_records']),
         ('ZAPI', 'service-processor-get', ZRR['no_records']),
@@ -340,8 +332,6 @@ def test_zapi_negative_wait_for_sp_version_error(dont_sleep):
 def test_zapi_negative_wait_for_sp_version_timeout(dont_sleep):
     ''' Test negative sp_version check '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'service-processor-get', ZRR['sp_info_3_09']),
         ('ZAPI', 'service-processor-get', ZRR['error']),
         ('ZAPI', 'service-processor-get', ZRR['sp_info_3_09']),
@@ -438,8 +428,6 @@ def test_get_condition_other(mock_extract_condition, mock_get_record_rest):
 def test_invalid_condition():
     ''' Test that condition is valid '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('GET', 'cluster', SRR['is_rest_97']),
     ])
     module_args = {
@@ -460,8 +448,6 @@ def test_invalid_condition():
 def test_missing_attribute():
     ''' Test that required attributes are present '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('GET', 'cluster', SRR['is_rest_97']),
     ])
     module_args = {

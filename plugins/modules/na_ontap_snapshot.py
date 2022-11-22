@@ -391,7 +391,6 @@ class NetAppOntapSnapshot:
         uuid = None
         current = None
         if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_snapshot", self.server)
             current = self.get_snapshot()
         else:
             volume_id = self.get_volume_uuid()

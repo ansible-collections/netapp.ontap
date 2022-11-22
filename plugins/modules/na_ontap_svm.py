@@ -883,8 +883,6 @@ class NetAppOntapSVM():
 
     def apply(self):
         '''Call create/modify/delete operations.'''
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_svm", self.server, self.module)
         current = self.get_vserver()
         cd_action, rename = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

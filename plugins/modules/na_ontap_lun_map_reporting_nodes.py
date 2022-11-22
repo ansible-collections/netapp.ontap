@@ -238,8 +238,6 @@ class NetAppOntapLUNMapReportingNodes:
                                   (self.parameters['initiator_group_name'], to_native(error)))
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_lun_map_reporting_nodes", self.server)
         reporting_nodes = self.get_lun_map_reporting_nodes()
         if reporting_nodes is None:
             self.module.fail_json(msg='Error: LUN map not found for vserver %s, LUN path: %s, igroup: %s' %

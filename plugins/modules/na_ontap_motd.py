@@ -186,7 +186,6 @@ class NetAppONTAPMotd:
         """
         Applies action from playbook
         """
-        netapp_utils.ems_log_event("na_ontap_motd", self.server)
         current = self.motd_get()
         if self.parameters['state'] == 'absent':
             # Just make sure it is empty

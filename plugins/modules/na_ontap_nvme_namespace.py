@@ -235,8 +235,6 @@ class NetAppONTAPNVMENamespace:
         """
         Apply action to NVME Namespace
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_nvme_namespace", self.server)
         current = self.get_namespace()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:

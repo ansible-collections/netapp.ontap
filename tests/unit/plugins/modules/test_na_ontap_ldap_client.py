@@ -106,7 +106,6 @@ def test_get_existing_client():
 
 def test_successfully_create_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['empty']),
         ('ldap-client-create', ZRR['success']),
     ])
@@ -120,7 +119,6 @@ def test_successfully_create_zapi():
 
 def test_error_create_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['empty']),
         ('ldap-client-create', ZRR['error']),
     ])
@@ -136,7 +134,6 @@ def test_error_create_zapi():
 
 def test_error_create_ad_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['empty']),
         ('ldap-client-create', ZRR['error']),
     ])
@@ -153,7 +150,6 @@ def test_error_create_ad_zapi():
 
 def test_create_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
     ])
     module_args = {
@@ -167,7 +163,6 @@ def test_create_idempotency():
 
 def test_successfully_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
         ('ldap-client-delete', ZRR['success']),
     ])
@@ -182,7 +177,6 @@ def test_successfully_delete():
 
 def test_error_delete_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
         ('ldap-client-delete', ZRR['error']),
     ])
@@ -199,7 +193,6 @@ def test_error_delete_zapi():
 
 def test_delete_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['empty']),
     ])
     module_args = {
@@ -210,7 +203,6 @@ def test_delete_idempotency():
 
 def test_modify_ldap_servers():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
         ('ldap-client-modify', ZRR['success']),
     ])
@@ -225,7 +217,6 @@ def test_modify_ldap_servers():
 
 def test_modify_ldap_ad_servers():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
         ('ldap-client-modify', ZRR['success']),
     ])
@@ -241,7 +232,6 @@ def test_modify_ldap_ad_servers():
 
 def test_modify_ldap_schema_zapi():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
         ('ldap-client-modify', ZRR['success']),
     ])

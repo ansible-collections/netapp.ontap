@@ -102,7 +102,6 @@ def test_module_fail_when_required_args_missing():
 
 def test_idempotent_modify():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
     ])
     module_args = {
@@ -113,7 +112,6 @@ def test_idempotent_modify():
 
 def test_successful_modify():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
         ('ZAPI', 'volume-autosize-set', ZRR['success']),
     ])
@@ -135,7 +133,6 @@ def test_zapi__create_get_volume_return_no_data():
 
 def test_error_get():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-autosize-get', ZRR['error']),
     ])
     module_args = {
@@ -147,7 +144,6 @@ def test_error_get():
 
 def test_error_modify():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
         ('ZAPI', 'volume-autosize-set', ZRR['error']),
     ])
@@ -162,7 +158,6 @@ def test_error_modify():
 
 def test_successful_reset():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'volume-autosize-get', ZRR['get_autosize']),
         ('ZAPI', 'volume-autosize-set', ZRR['success']),
     ])

@@ -229,14 +229,7 @@ class NetAppOntapSecurityConfig(object):
                     exception=traceback.format_exc()
                 )
 
-    def ems_log_event(self):
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event("na_ontap_security_config", cserver)
-
     def apply(self):
-        if not self.use_rest:
-            self.ems_log_event()
         current = self.get_security_config()
         self.na_helper.get_modified_attributes(current, self.parameters)
 

@@ -320,8 +320,6 @@ class NetAppONTAPVolumeClone:
         """
         Run Module based on playbook
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume_clone", self.vserver)
         current = self.get_volume_clone()
         if self.use_rest and current:
             self.uuid = current['uuid']

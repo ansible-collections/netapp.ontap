@@ -140,10 +140,8 @@ def test_ensure_user_get_called_not_found():
 def test_ensure_user_apply_called():
     ''' creating user and checking idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['success']),
         ('ZAPI', 'security-login-create', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_http']),
     ])
     module_args = {
@@ -160,15 +158,11 @@ def test_ensure_user_apply_called():
 def test_ensure_user_sp_apply_called():
     ''' creating user with service_processor application and idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
         ('ZAPI', 'security-login-create', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_service_processor']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
         ('ZAPI', 'security-login-create', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user_service_processor']),
     ])
     module_args = {
@@ -188,10 +182,8 @@ def test_ensure_user_sp_apply_called():
 def test_ensure_user_apply_for_delete_called():
     ''' deleting user and checking idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-delete', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -209,9 +201,7 @@ def test_ensure_user_apply_for_delete_called():
 def test_ensure_user_lock_called():
     ''' changing user_lock to True and checking idempotency'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-lock', ZRR['success']),
     ])
@@ -231,9 +221,7 @@ def test_ensure_user_lock_called():
 def test_ensure_user_unlock_called():
     ''' changing user_lock to False and checking idempotency'''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_locked_user']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_locked_user']),
         ('ZAPI', 'security-login-unlock', ZRR['success']),
     ])
@@ -253,7 +241,6 @@ def test_ensure_user_unlock_called():
 def test_ensure_user_set_password_called():
     ''' set password '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-modify-password', ZRR['success']),
     ])
@@ -305,7 +292,6 @@ def test_set_password_reused():
 def test_ensure_user_role_update_called():
     ''' set password '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-modify', ZRR['success']),
         ('ZAPI', 'security-login-modify-password', ZRR['success']),
@@ -324,7 +310,6 @@ def test_ensure_user_role_update_called():
 def test_ensure_user_role_update_additional_application_called():
     ''' set password '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['login_unlocked_user']),
         ('ZAPI', 'security-login-create', ZRR['success']),
         ('ZAPI', 'security-login-delete', ZRR['success']),
@@ -374,7 +359,6 @@ def test_create_user_with_usm_auth():
     ''' switching back to ZAPI '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'security-login-get-iter', ZRR['no_records']),
         ('ZAPI', 'security-login-create', ZRR['success']),
     ])

@@ -2790,8 +2790,6 @@ class NetAppOntapVolume:
 
     def apply(self):
         '''Call create/modify/delete operations'''
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_volume", self.server)
         actions, current, modify = self.set_actions()
         response = None
         if self.na_helper.changed and not self.module.check_mode:

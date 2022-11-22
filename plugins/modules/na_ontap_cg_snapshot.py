@@ -212,7 +212,6 @@ class NetAppONTAPCGSnapshot(object):
 
     def apply(self):
         '''Applies action from playbook'''
-        netapp_utils.ems_log_event("na_ontap_cg_snapshot", self.server)
         if not self.module.check_mode:
             changed = self.cgcreate()
         self.module.exit_json(changed=changed)

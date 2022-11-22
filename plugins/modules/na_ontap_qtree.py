@@ -412,8 +412,6 @@ class NetAppOntapQTree:
 
     def apply(self):
         '''Call create/delete/modify/rename operations'''
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_qtree", self.server)
         current = self.get_qtree()
         rename, cd_action, modify = None, None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

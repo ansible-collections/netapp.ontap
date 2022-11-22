@@ -246,8 +246,6 @@ class NetAppOntapNTPServer:
         """Apply action to ntp-server"""
 
         modify = None
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_ntp", self.server, self.module)
         current = self.get_ntp_server()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':

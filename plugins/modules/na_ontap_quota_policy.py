@@ -205,7 +205,6 @@ class NetAppOntapQuotaPolicy(object):
                                   exception=traceback.format_exc())
 
     def apply(self):
-        netapp_utils.ems_log_event("na_ontap_quota_policy", self.server)
         current = self.get_quota_policy()
         # rename and create are mutually exclusive
         rename, cd_action = None, None

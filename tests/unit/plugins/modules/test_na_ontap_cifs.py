@@ -99,7 +99,6 @@ def test_get():
 
 def test_error_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['empty']),
         ('cifs-share-create', ZRR['error']),
     ])
@@ -112,7 +111,6 @@ def test_error_create():
 
 def test_create():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['empty']),
         ('cifs-share-create', ZRR['success']),
     ])
@@ -125,7 +123,6 @@ def test_create():
 
 def test_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-delete', ZRR['success']),
     ])
@@ -137,7 +134,6 @@ def test_delete():
 
 def test_error_delete():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-delete', ZRR['error']),
     ])
@@ -150,7 +146,6 @@ def test_error_delete():
 
 def test_modify_path():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['success']),
     ])
@@ -162,7 +157,6 @@ def test_modify_path():
 
 def test_modify_comment():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['success']),
     ])
@@ -174,7 +168,6 @@ def test_modify_comment():
 
 def test_modify_share_properties():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['success']),
     ])
@@ -186,7 +179,6 @@ def test_modify_share_properties():
 
 def test_modify_symlink_properties():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['success']),
     ])
@@ -198,7 +190,6 @@ def test_modify_symlink_properties():
 
 def test_modify_vscan_fileop_profile():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['success']),
     ])
@@ -210,7 +201,6 @@ def test_modify_vscan_fileop_profile():
 
 def test_error_modify():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
         ('cifs-share-modify', ZRR['error']),
     ])
@@ -223,7 +213,6 @@ def test_error_modify():
 
 def test_create_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['cifs_record_info'])
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS)['changed'] is False
@@ -231,7 +220,6 @@ def test_create_idempotency():
 
 def test_delete_idempotency():
     register_responses([
-        ('ems-autosupport-log', ZRR['empty']),
         ('cifs-share-get-iter', ZRR['empty'])
     ])
     module_args = {'state': 'absent'}

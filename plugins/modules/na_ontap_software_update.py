@@ -676,8 +676,6 @@ class NetAppONTAPSoftwareUpdate:
         """
         # TODO: cluster image update only works for HA configurations.
         # check if node image update can be used for other cases.
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver('na_ontap_software_update', self.server, self.module)
         versions, error = self.cluster_image_packages_get_rest()
         already_downloaded = not error and self.parameters['package_version'] in versions
         if self.parameters['state'] == 'absent':

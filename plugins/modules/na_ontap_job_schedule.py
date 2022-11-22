@@ -448,8 +448,6 @@ class NetAppONTAPJob:
         Apply action to job-schedule
         """
         modify = None
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_job_schedule", self.server, self.module)
         current = self.get_job_schedule()
         action = self.na_helper.get_cd_action(current, self.parameters)
         if action is None and self.parameters['state'] == 'present':

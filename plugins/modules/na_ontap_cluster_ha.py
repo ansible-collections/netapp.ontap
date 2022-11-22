@@ -127,8 +127,6 @@ class NetAppOntapClusterHA:
         """
         Apply action to cluster HA
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_cluster_ha", self.server, self.module)
         current = self.get_cluster_ha_enabled()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if not self.module.check_mode:

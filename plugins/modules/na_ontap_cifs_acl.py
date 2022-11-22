@@ -324,8 +324,6 @@ class NetAppONTAPCifsAcl:
         """
         Apply action to cifs-share-access-control
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_cifs_acl", self.server)
         svm_uuid = self.get_cifs_share_rest() if self.use_rest else None
         current = self.get_cifs_acl_rest(svm_uuid)
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

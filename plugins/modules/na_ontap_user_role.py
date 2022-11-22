@@ -441,9 +441,7 @@ class NetAppOntapUserRole(object):
         self.parameters['privileges'] = [temp_dict]
 
     def apply(self):
-        if not self.use_rest:
-            self.asup_log_for_cserver('na_ontap_user_role')
-        else:
+        if self.use_rest:
             # if rest convert parameters to rest format if zapi format is used
             self.convert_parameters()
         current = self.get_role()
@@ -464,15 +462,6 @@ class NetAppOntapUserRole(object):
                 self.modify_role(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        netapp_utils.ems_log_event(event_name, self.server)
 
 
 def main():

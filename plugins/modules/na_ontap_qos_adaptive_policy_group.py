@@ -290,7 +290,6 @@ class NetAppOntapAdaptiveQosPolicyGroup:
         """
         Run module based on playbook
         """
-        self.autosupport_log("na_ontap_qos_policy_group")
         current = self.get_policy_group()
         rename, cd_action = None, None
         if self.parameters.get('from_name'):
@@ -309,13 +308,6 @@ class NetAppOntapAdaptiveQosPolicyGroup:
                 self.modify_helper(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
-
-    def autosupport_log(self, event_name):
-        """
-        Create a log event against the provided vserver
-        """
-        server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-        netapp_utils.ems_log_event(event_name, server)
 
 
 def main():

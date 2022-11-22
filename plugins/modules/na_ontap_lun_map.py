@@ -324,8 +324,6 @@ class NetAppOntapLUNMap:
                                   exception=traceback.format_exc())
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_lun_map", self.server)
         lun_details = self.get_lun()
         # why do we do this, it never used in the module, and has nothing to do with lun_map (it probably should be in
         # the lun module

@@ -271,9 +271,6 @@ class NetAppOntapLoginMessages:
         return uuid
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_login_banner", self.server)
-
         current = self.get_banner_motd()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:

@@ -38,7 +38,6 @@ DEFAULT_ARGS = {
 def test_successful_set_password(patch_ansible):
     ''' successful set '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cifs-local-user-set-password', ZRR['success']),
     ])
     assert call_main(my_main, DEFAULT_ARGS)['changed']
@@ -54,7 +53,6 @@ def test_module_fail_when_required_args_missing(patch_ansible):
 
 def test_if_all_methods_catch_exception(patch_ansible):
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cifs-local-user-set-password', ZRR['error']),
     ])
     assert 'Error setting password ' in call_main(my_main, DEFAULT_ARGS, fail=True)['msg']

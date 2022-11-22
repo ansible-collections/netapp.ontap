@@ -367,8 +367,6 @@ class NetAppONTAPNdmp(object):
     def apply(self):
         """Call modify operations."""
         uuid = None
-        if not self.use_rest:
-            self.asup_log_for_cserver("na_ontap_ndmp")
         if self.use_rest:
             # we only have the svm name, we need to the the uuid for the svm
             uuid = self.get_ndmp_svm_uuid()
@@ -383,17 +381,6 @@ class NetAppONTAPNdmp(object):
                     self.modify_ndmp(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
         self.module.exit_json(**result)
-
-    def asup_log_for_cserver(self, event_name):
-        """
-        Fetch admin vserver for the given cluster
-        Create and Autosupport log event with the given module name
-        :param event_name: Name of the event log
-        :return: None
-        """
-        results = netapp_utils.get_cserver(self.server)
-        cserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=results)
-        netapp_utils.ems_log_event(event_name, cserver)
 
 
 def main():

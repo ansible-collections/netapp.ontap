@@ -483,8 +483,6 @@ class NetAppOntapVscanOnAccessPolicy:
                                       (self.parameters['policy_name'], to_native(error)))
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_vscan_on_access_policy", self.server)
         modify_policy_state, modify = None, None
         current = self.get_on_access_policy()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

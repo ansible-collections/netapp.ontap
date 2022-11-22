@@ -262,8 +262,6 @@ class NetAppOntapadapter:
 
     def apply(self):
         ''' calling all adapter features '''
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_ucadapter", self.server, self.module)
         changed = False
         current = self.get_adapter()
 

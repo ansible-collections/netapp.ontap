@@ -201,8 +201,6 @@ DEFAULT_ARGS = {
 @patch('time.sleep')
 def test_ensure_apply_for_update_called(dont_sleep):
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -223,8 +221,6 @@ def test_ensure_apply_for_update_called(dont_sleep):
 @patch('time.sleep')
 def test_ensure_apply_for_update_called_node(dont_sleep):
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -247,8 +243,6 @@ def test_ensure_apply_for_update_called_node(dont_sleep):
 def test_ensure_apply_for_update_called_idempotent(dont_sleep):
     # image already installed
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
 
@@ -263,8 +257,6 @@ def test_ensure_apply_for_update_called_idempotent(dont_sleep):
 def test_ensure_apply_for_update_called_idempotent_node(dont_sleep):
     # image already installed
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get', ZRR['cluster_image_info']),
 
@@ -280,8 +272,6 @@ def test_ensure_apply_for_update_called_idempotent_node(dont_sleep):
 def test_ensure_apply_for_update_called_with_validation(dont_sleep):
     # for validation before update
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -305,8 +295,6 @@ def test_ensure_apply_for_update_called_with_validation(dont_sleep):
 def test_negative_download_error(dont_sleep):
     ''' downloading software - error while downloading the image - first request '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['error']),
@@ -323,8 +311,6 @@ def test_negative_download_error(dont_sleep):
 def test_negative_download_progress_error(dont_sleep):
     ''' downloading software - error while downloading the image - progress error '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -344,8 +330,6 @@ def test_negative_download_progress_error(dont_sleep):
 def test_negative_download_progress_error_no_status(dont_sleep):
     ''' downloading software - error while downloading the image - progress error '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -368,8 +352,6 @@ def test_negative_download_progress_error_no_status(dont_sleep):
 def test_negative_download_progress_error_fetching_status(dont_sleep):
     ''' downloading software - error while downloading the image - progress error '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -389,8 +371,6 @@ def test_negative_download_progress_error_fetching_status(dont_sleep):
 def test_negative_update_error_zapi(dont_sleep):
     ''' updating software - error while updating the image '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -413,8 +393,6 @@ def test_negative_update_error_zapi(dont_sleep):
 def test_negative_update_error(dont_sleep):
     ''' updating software - error while updating the image '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -437,8 +415,6 @@ def test_negative_update_error(dont_sleep):
 def test_negative_update_error_timeout(dont_sleep):
     ''' updating software - error while updating the image '''
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
         ('ZAPI', 'cluster-image-get-iter', ZRR['cluster_image_info']),
         ('ZAPI', 'cluster-image-package-download', ZRR['success']),
@@ -582,13 +558,9 @@ def test_cluster_image_update_progress_get_error():
 def test_delete_package_zapi():
     # deleting a package
     register_responses([
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['cluster_image_package_local_info']),
         ('ZAPI', 'cluster-image-package-delete', ZRR['success']),
         # idempotency
-        ('ZAPI', 'vserver-get-iter', ZRR['cserver']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'cluster-image-package-local-get-iter', ZRR['no_records']),
     ])
     module_args = {

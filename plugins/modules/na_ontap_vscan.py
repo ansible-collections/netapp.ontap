@@ -140,22 +140,8 @@ class NetAppOntapVscan(object):
             except netapp_utils.zapi.NaApiError as error:
                 self.module.fail_json(msg="Error Enable/Disabling Vscan: %s" % to_native(error), exception=traceback.format_exc())
 
-    def asup_log(self):
-        if self.use_rest:
-            # TODO: logging for Rest
-            return
-        else:
-            # Either we are using ZAPI, or REST failed when it should not
-            try:
-                netapp_utils.ems_log_event("na_ontap_vscan", self.server)
-            except Exception:
-                # TODO: we may fail to connect to REST or ZAPI, the line below shows REST issues only
-                # self.module.fail_json(msg=repr(self.rest_api.errors), log=repr(self.rest_api.debug_logs))
-                pass
-
     def apply(self):
         changed = False
-        self.asup_log()
         current = self.get_vscan()
         if self.use_rest:
             if current['enabled'] != self.parameters['enable']:

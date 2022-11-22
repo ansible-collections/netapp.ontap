@@ -61,8 +61,6 @@ def test_success_create():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['success']),
         ('active-directory-account-create', ZRR['success']),
     ])
@@ -79,8 +77,6 @@ def test_fail_create_zapi_error():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['success']),
         ('active-directory-account-create', ZRR['error']),
     ])
@@ -100,8 +96,6 @@ def test_success_delete():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['ad']),
         ('active-directory-account-delete', ZRR['success']),
     ])
@@ -120,8 +114,6 @@ def test_fail_delete_zapi_error():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['ad']),
         ('active-directory-account-delete', ZRR['error']),
     ])
@@ -142,8 +134,6 @@ def test_success_modify():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['ad']),
         ('active-directory-account-modify', ZRR['success']),
     ])
@@ -162,8 +152,6 @@ def test_fail_modify_zapi_error():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['ad']),
         ('active-directory-account-modify', ZRR['error']),
     ])
@@ -183,8 +171,6 @@ def test_fail_modify_on_ou():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['ad']),
     ])
 
@@ -202,8 +188,6 @@ def test_fail_on_get_zapi_error():
     set_module_args(args)
     register_responses([
         # list of tuples: (expected ZAPI, response)
-        ('vserver-get-iter', ZRR['cserver']),
-        ('ems-autosupport-log', ZRR['success']),
         ('active-directory-account-get-iter', ZRR['error']),
     ])
     my_obj = my_module()

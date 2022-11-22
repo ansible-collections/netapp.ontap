@@ -197,8 +197,6 @@ class NetAppOntapIgroupInitiator(object):
             self.module.fail_json(msg="Error modifying igroup initiator %s: %s" % (initiator_name, error))
 
     def apply(self):
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_igroup_initiator", self.server)
         initiators = self.get_initiators()
         for initiator in self.parameters['names']:
             present = None

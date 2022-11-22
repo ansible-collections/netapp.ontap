@@ -371,8 +371,6 @@ class NetAppOntapSubnet:
 
     def apply(self):
         '''Apply action to subnet'''
-        if not self.use_rest:
-            netapp_utils.ems_log_event_cserver("na_ontap_net_subnet", self.server, self.module)
         current = self.get_subnet()
         rename, modify = None, None
 

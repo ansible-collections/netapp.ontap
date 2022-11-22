@@ -169,8 +169,6 @@ def test_successful_create_zapi():
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-create', ZRR['success']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
@@ -181,8 +179,6 @@ def test_create_idempotency():
     '''Test API create'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
     ])
     assert not create_and_apply(svm_module, DEFAULT_ARGS)['changed']
@@ -192,8 +188,6 @@ def test_create_error():
     '''Test successful create'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-create', ZRR['error']),
     ])
@@ -205,8 +199,6 @@ def test_successful_delete():
     '''Test successful delete'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-destroy', ZRR['success']),
     ])
@@ -218,8 +210,6 @@ def test_error_delete():
     '''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-destroy', ZRR['error']),
     ])
@@ -234,8 +224,6 @@ def test_delete_idempotency():
     '''Test delete idempotency '''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
     ])
     module_args = {
@@ -292,8 +280,6 @@ def test_successful_rename():
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-rename', ZRR['success']),
     ])
@@ -308,8 +294,6 @@ def test_error_rename_no_from():
     '''Test error rename'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
     ])
@@ -326,8 +310,6 @@ def test_error_rename_zapi():
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-rename', ZRR['error']),
     ])
@@ -343,8 +325,6 @@ def test_successful_modify_language():
     '''Test successful modify language'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
@@ -355,8 +335,6 @@ def test_error_modify_language():
     '''Test error modify language'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['error']),
     ])
@@ -371,12 +349,8 @@ def test_error_modify_fixed_properties():
     '''Test error modifying a fixed property'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
     ])
     module_args = {
@@ -397,8 +371,6 @@ def test_successful_modify_snapshot_policy():
     '''Test successful modify language'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
@@ -411,8 +383,6 @@ def test_successful_modify_allowed_protocols():
     '''Test successful modify allowed protocols'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
@@ -425,8 +395,6 @@ def test_successful_modify_aggr_list():
     '''Test successful modify aggr-list'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
@@ -439,8 +407,6 @@ def test_successful_modify_aggr_list_star():
     '''Test successful modify aggr-list'''
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
-        ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
