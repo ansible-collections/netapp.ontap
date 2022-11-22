@@ -290,10 +290,15 @@ class NetAppONTAPQuotas:
 
     def validate_parameters_ZAPI_REST(self):
         if self.use_rest:
-            if self.parameters.get('type') == 'tree' and self.parameters.get('qtree') == "":
+            if self.parameters.get('type') == 'tree':
+                if self.parameters['qtree']:
+                    self.module.fail_json(msg="Error: Qtree cannot be specified for a tree type rule, it should be ''.")
                 self.parameters['qtree'] = '""'
             if self.parameters.get('quota_target') == "":
                 self.parameters['quota_target'] = '""'
+            # valid qtree name for ZAPI is /vol/vol_name/qtree_name and REST is qtree_name.
+            if '/' in self.parameters.get('quota_target', ''):
+                self.parameters['quota_target'] = self.parameters['quota_target'].split('/')[-1]
             for quota_limit in ['file_limit', 'disk_limit', 'soft_file_limit', 'soft_disk_limit']:
                 if self.parameters.get(quota_limit) == '-1':
                     self.parameters[quota_limit] = '-'
@@ -367,7 +372,8 @@ class NetAppONTAPQuotas:
                     'volume': self.parameters['volume'],
                     'quota-target': self.parameters['quota_target'],
                     'quota-type': self.parameters['type'],
-                    'vserver': self.parameters['vserver']
+                    'vserver': self.parameters['vserver'],
+                    'qtree': self.parameters['qtree'] or '""'
                 }
             }
         }
@@ -565,10 +571,16 @@ class NetAppONTAPQuotas:
 
         if self.parameters.get('type') == 'user':
             query['users.name'] = self.parameters.get('quota_target')
+            # set qtree name in query for type user and group if not ''.
+            if self.parameters['qtree']:
+                query['qtree.name'] = self.parameters['qtree']
+        # if type is qtree, qtree.name should be quota target to get the current quota.
         elif self.parameters.get('type') == 'tree':
-            query['qtree.name'] = self.parameters.get('qtree')
+            query['qtree.name'] = self.parameters.get('quota_target')
         elif self.parameters.get('type') == 'group':
             query['group.name'] = self.parameters.get('quota_target')
+            if self.parameters['qtree']:
+                query['qtree.name'] = self.parameters['qtree']
         api = 'storage/quota/rules'
         # If type: user, get quota rules api returns users which has name starts with input target user names.
         # Example of users list in a record:
@@ -753,8 +765,6 @@ class NetAppONTAPQuotas:
         """
         Apply action to quotas
         """
-        if not self.use_rest:
-            netapp_utils.ems_log_event("na_ontap_quotas", self.server)
         cd_action = None
         modify_quota_status = None
         modify_quota = None

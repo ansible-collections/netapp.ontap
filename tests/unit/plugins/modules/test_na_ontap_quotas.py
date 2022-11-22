@@ -180,12 +180,10 @@ def test_ensure_get_called_existing():
 def test_successful_create():
     ''' creating quota and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['no_records']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
         ('ZAPI', 'quota-set-entry', ZRR['success']),
         ('ZAPI', 'quota-resize', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
     ])
@@ -205,12 +203,10 @@ def test_successful_create():
 def test_successful_delete():
     ''' deleting quota and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
         ('ZAPI', 'quota-delete-entry', ZRR['success']),
         ('ZAPI', 'quota-resize', ZRR['success']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['no_records']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
     ])
@@ -226,7 +222,6 @@ def test_successful_delete():
 def test_successful_modify(dont_sleep):
     ''' modifying quota and testing idempotency '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
         ('ZAPI', 'quota-modify-entry', ZRR['success']),
@@ -244,10 +239,8 @@ def test_successful_modify(dont_sleep):
 def test_quota_on_off():
     ''' quota set on or off '''
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
         ('ZAPI', 'quota-status', ZRR['quota_off']),
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
         ('ZAPI', 'quota-off', ZRR['success']),
@@ -402,7 +395,6 @@ def test_has_netapp_lib(has_netapp_lib):
 
 def create_from_main():
     register_responses([
-        ('ZAPI', 'ems-autosupport-log', ZRR['success']),
         ('ZAPI', 'quota-list-entries-iter', ZRR['no_records']),
         ('ZAPI', 'quota-status', ZRR['quota_on']),
         ('ZAPI', 'quota-set-entry', ZRR['success']),
@@ -776,7 +768,8 @@ def test_if_all_methods_catch_exception_rest():
         ('POST', 'storage/quota/rules', SRR['generic_error']),
         ('DELETE', 'storage/quota/rules/abdcdef', SRR['generic_error']),
         ('PATCH', 'storage/quota/rules/abdcdef', SRR['generic_error']),
-        ('PATCH', 'storage/volumes/ghijklmn', SRR['generic_error'])
+        ('PATCH', 'storage/volumes/ghijklmn', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
 
     ])
     my_obj = create_module(my_module, ARGS_REST)
@@ -790,3 +783,5 @@ def test_if_all_methods_catch_exception_rest():
     assert 'Error on deleting quotas rule' in expect_and_capture_ansible_exception(my_obj.quota_entry_delete_rest, 'fail')['msg']
     assert 'Error on modifying quotas rule' in expect_and_capture_ansible_exception(my_obj.quota_entry_modify_rest, 'fail', {})['msg']
     assert 'Error setting quota-on for ansible' in expect_and_capture_ansible_exception(my_obj.on_or_off_quota_rest, 'fail', 'quota-on')['msg']
+    error = "Error: Qtree cannot be specified for a tree type rule"
+    assert error in create_module(my_module, ARGS_REST, {'qtree': 'qtree1', 'type': 'tree'}, fail=True)['msg']

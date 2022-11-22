@@ -71,12 +71,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs_local_group_member - Added REST API support to retrieve, add and remove CIFS group member.
   - na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
   - na_ontap_cifs_server - skip `service_state` option in create if not set.
+  - na_ontap_quotas - for qtree type, allow quota_target in path format /vol/vol_name/qtree_name in REST.
 
 ### Bug Fixes
   - na_ontap_cifs_server - fix `service_state` is stopped when trying to modify cifs server in REST.
-
-### New Modules
-  - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.
+  - na_ontap_quotas - fix default tree quota rule gets modified when `quota_target` is set in REST.
+  - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
 
 ### New Modules
   - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.
