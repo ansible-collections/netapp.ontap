@@ -325,6 +325,20 @@ def test_rename_aggr():
     assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'PATCH', 'storage/aggregates/aggr_uuid')
 
 
+def test_offline_online_aggr_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['generic_error']),
+        ('PATCH', 'storage/aggregates/aggr_uuid', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.uuid = 'aggr_uuid'
+    error = 'Error: failed to make service state online for aggregate'
+    assert error in expect_and_capture_ansible_exception(my_obj.aggregate_online, 'fail')['msg']
+    error = 'Error: failed to make service state offline for aggregate'
+    assert error in expect_and_capture_ansible_exception(my_obj.aggregate_offline, 'fail')['msg']
+
+
 def test_rename_aggr_error_remote():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -422,6 +436,17 @@ def test_apply_create():
         ('POST', 'storage/aggregates', SRR['empty_good']),      # create (POST)
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS)['changed']
+    assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
+
+
+def test_apply_create_and_modify_service_state():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'storage/aggregates', SRR['empty_records']),    # get
+        ('POST', 'storage/aggregates', SRR['empty_good']),      # create (POST)
+        ('PATCH', 'storage/aggregates', SRR['success']),        # modify service state
+    ])
+    assert create_and_apply(my_module, DEFAULT_ARGS, {'service_state': 'offline'})['changed']
     assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
 
 
@@ -541,15 +566,10 @@ def test_apply_delete():
 
 def test_get_aggr_actions_error_service_state_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/aggregates', SRR['one_record']),  # get
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
     ])
-    my_obj = create_module(my_module, DEFAULT_ARGS)
-    my_obj.parameters['service_state'] = 'offline'
-
-    error = expect_and_capture_ansible_exception(my_obj.get_aggr_actions, 'fail')['msg']
-    print('Info: %s' % error)
-    assert 'Error: modifying state is not supported with REST.  Cannot change to: offline.' == error
+    error = 'Error: Minimum version of ONTAP for service_state is (9, 11, 1)'
+    assert error in create_module(my_module, DEFAULT_ARGS, {'service_state': 'online', 'use_rest': 'always'}, fail=True)['msg']
 
 
 def test_get_aggr_actions_error_snaplock():

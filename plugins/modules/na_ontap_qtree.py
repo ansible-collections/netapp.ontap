@@ -252,7 +252,7 @@ class NetAppOntapQTree:
             query = {'fields': 'export_policy,unix_permissions,security_style,volume',
                      'svm.name': self.parameters['vserver'],
                      'volume': self.parameters['flexvol_name'],
-                     'name': name}
+                     'name': '"' + name + '"'}
             if 'unix_user' in self.parameters:
                 query['fields'] += ',user.name'
             if 'unix_group' in self.parameters:

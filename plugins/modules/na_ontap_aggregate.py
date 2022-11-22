@@ -34,8 +34,7 @@ options:
   service_state:
     description:
       - Whether the specified aggregate should be enabled or disabled. Creates aggregate if doesnt exist.
-      - Not supported with REST when set to offline.
-      - REST does not support changing the state from offline to online, and reciprocally.
+      - Supported from 9.11.1 or later in REST.
     choices: ['online', 'offline']
     type: str
 
@@ -125,10 +124,10 @@ options:
 
   unmount_volumes:
     description:
-      - If set to "TRUE", this option specifies that all of the volumes hosted by the given aggregate are to be unmounted
+      - If set to "true", this option specifies that all of the volumes hosted by the given aggregate are to be unmounted
         before the offline operation is executed.
       - By default, the system will reject any attempt to offline an aggregate that hosts one or more online volumes.
-      - Ignored with REST as offlining an aggregate is not supported.
+      - Not supported with REST, by default REST unmount volumes when trying to offline aggregate.
     type: bool
 
   disks:
@@ -220,26 +219,51 @@ notes:
 '''
 
 EXAMPLES = """
-- name: Create Aggregates and wait 5 minutes until aggregate is online
+- name: Create Aggregates and wait 5 minutes until aggregate is online in ZAPI.
   netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: online
     name: ansibleAggr
-    disk_count: 1
+    disk_count: 10
     wait_for_online: True
     time_out: 300
     snaplock_type: non_snaplock
+    use_rest: never
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
-- name: Manage Aggregates
+- name: Create Aggregates in REST.
+  netapp.ontap.na_ontap_aggregate:
+    state: present
+    service_state: online
+    name: ansibleAggr
+    disk_count: 10
+    nodes: ontap-node
+    snaplock_type: non_snaplock
+    use_rest: always
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Manage Aggregates in ZAPI, modify service state.
   netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: offline
     unmount_volumes: true
     name: ansibleAggr
-    disk_count: 1
+    disk_count: 10
+    use_rest: never
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Manage Aggregates in REST, increase disk count.
+  netapp.ontap.na_ontap_aggregate:
+    state: present
+    name: ansibleAggr
+    disk_count: 20
+    nodes: ontap-node
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -259,7 +283,7 @@ EXAMPLES = """
     service_state: online
     from_name: ansibleAggr
     name: ansibleAggr2
-    disk_count: 1
+    disk_count: 20
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -326,9 +350,6 @@ class NetAppOntapAggregate:
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[
-                ('service_state', 'offline', ['unmount_volumes']),
-            ],
             mutually_exclusive=[
                 ('is_mirrored', 'disks'),
                 ('is_mirrored', 'mirror_disks'),
@@ -340,20 +361,18 @@ class NetAppOntapAggregate:
             ],
             supports_check_mode=True
         )
-
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = OntapRestAPI(self.module)
         self.uuid = None
         # some attributes are not supported in earlier REST implementation
-        unsupported_rest_properties = ['disks', 'disk_type', 'mirror_disks', 'spare_pool']
-        if self.parameters.get('service_state') != 'online':
-            unsupported_rest_properties.append('service_state')
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        unsupported_rest_properties = ['disks', 'disk_type', 'mirror_disks', 'spare_pool', 'unmount_volumes']
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, [['service_state', (9, 11, 1)]])
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
+
         if self.parameters['state'] == 'present':
             self.validate_options()
 
@@ -517,6 +536,8 @@ class NetAppOntapAggregate:
         Set state of an offline aggregate to online
         :return: None
         """
+        if self.use_rest:
+            return self.patch_aggr_rest('make service state online for', {'state': 'online'})
         online_aggr = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-online', **{'aggregate': self.parameters['name'],
                               'force-online': 'true'})
@@ -533,6 +554,8 @@ class NetAppOntapAggregate:
         Set state of an online aggregate to offline
         :return: None
         """
+        if self.use_rest:
+            return self.patch_aggr_rest('make service state offline for', {'state': 'offline'})
         offline_aggr = netapp_utils.zapi.NaElement.create_node_with_children(
             'aggr-offline', **{'aggregate': self.parameters['name'],
                                'force-offline': 'false',
@@ -663,17 +686,19 @@ class NetAppOntapAggregate:
         :param modify: dictionary of parameters to be modified
         :return: None
         """
+        # online aggregate first, so disk can be added after online.
+        if modify.get('service_state') == 'online':
+            self.aggregate_online()
+        # add disk before taking aggregate offline.
+        disk_size = self.parameters.get('disk_size', 0)
+        disk_size_with_unit = self.parameters.get('disk_size_with_unit')
+        if modify.get('disk_count'):
+            self.add_disks(modify['disk_count'], disk_size=disk_size, disk_size_with_unit=disk_size_with_unit)
+        if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
+            self.add_disks(0, modify.get('disks_to_add'), modify.get('mirror_disks_to_add'))
+        # offline aggregate after adding additional disks.
         if modify.get('service_state') == 'offline':
             self.aggregate_offline()
-        else:
-            if modify.get('service_state') == 'online':
-                self.aggregate_online()
-            disk_size = self.parameters.get('disk_size', 0)
-            disk_size_with_unit = self.parameters.get('disk_size_with_unit')
-            if modify.get('disk_count'):
-                self.add_disks(modify['disk_count'], disk_size=disk_size, disk_size_with_unit=disk_size_with_unit)
-            if modify.get('disks_to_add') or modify.get('mirror_disks_to_add'):
-                self.add_disks(0, modify.get('disks_to_add'), modify.get('mirror_disks_to_add'))
 
     def attach_object_store_to_aggr(self):
         """
@@ -831,8 +856,6 @@ class NetAppOntapAggregate:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if 'encryption' in modify and not self.use_rest:
                 self.module.fail_json(msg='Error: modifying encryption is not supported with ZAPI.')
-            if 'service_state' in modify and self.use_rest:
-                self.module.fail_json(msg='Error: modifying state is not supported with REST.  Cannot change to: %s.' % modify['service_state'])
             if 'snaplock_type' in modify:
                 self.module.fail_json(msg='Error: snaplock_type is not modifiable.  Cannot change to: %s.' % modify['snaplock_type'])
             if self.parameters.get('disks'):
@@ -1025,6 +1048,9 @@ class NetAppOntapAggregate:
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_aggr()
+                # offine aggregate after create.
+                if self.parameters.get('service_state') == 'offline':
+                    self.modify_aggr({'service_state': 'offline'})
             elif cd_action == 'delete':
                 self.delete_aggr()
             else:
@@ -1034,6 +1060,8 @@ class NetAppOntapAggregate:
                     self.modify_aggr(modify)
             if object_store_cd_action == 'create':
                 self.attach_object_store_to_aggr()
+        if rename:
+            modify['name'] = self.parameters['name']
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 
