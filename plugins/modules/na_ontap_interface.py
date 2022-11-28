@@ -260,6 +260,14 @@ options:
     elements: str
     default: ['force_subnet_association']
     version_added: 21.13.0
+
+  probe_port:
+    description:
+      - Probe port for Cloud load balancer - only valid in the Azure environment.
+      - Not supported with ZAPI or with FC interfaces.
+      - Requires ONTAP 9.10.1 or later.
+    type: int
+    version_added: 22.1.0
 notes:
   - REST support requires ONTAP 9.7 or later.
   - Support check_mode.
@@ -441,7 +449,8 @@ class NetAppOntapInterface:
             is_dns_update_enabled=dict(required=False, type='bool'),
             service_policy=dict(required=False, type='str', default=None),
             from_name=dict(required=False, type='str'),
-            ignore_zapi_options=dict(required=False, type='list', elements='str', default=['force_subnet_association'], choices=REST_IGNORABLE_OPTIONS)
+            ignore_zapi_options=dict(required=False, type='list', elements='str', default=['force_subnet_association'], choices=REST_IGNORABLE_OPTIONS),
+            probe_port=dict(required=False, type='int'),
         ))
 
         self.module = AnsibleModule(
@@ -463,7 +472,7 @@ class NetAppOntapInterface:
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
         if self.na_helper.safe_get(self.parameters, ['address']):
             self.parameters['address'] = netapp_ipaddress.validate_and_compress_ip_address(self.parameters['address'], self.module)
-        partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)]]
+        partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)], ['probe_port', (9, 10, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
@@ -481,6 +490,8 @@ class NetAppOntapInterface:
         elif netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
+            if self.parameters.get('probe_port') is not None:
+                self.module.fail_json(msg='probe_port requires REST.')
             if 'vserver' not in self.parameters:
                 self.module.fail_json(msg='missing required argument with ZAPI: vserver')
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -663,6 +674,8 @@ class NetAppOntapInterface:
         fields_ip = fields + ',ip,service_policy'
         if self.parameters.get('dns_domain_name'):
             fields_ip += ',dns_zone'
+        if self.parameters.get('probe_port') is not None:
+            fields_ip += ',probe_port'
         if 'is_dns_update_enabled' in self.parameters:
             fields_ip += ',ddns_enabled'
         records, error, records2, error2 = None, None, None, None
@@ -731,6 +744,8 @@ class NetAppOntapInterface:
             return_value['current_port'] = record['location']['port']['name']
         if self.na_helper.safe_get(record, ['dns_zone']):
             return_value['dns_domain_name'] = record['dns_zone']
+        if self.na_helper.safe_get(record, ['probe_port']) is not None:
+            return_value['probe_port'] = record['probe_port']
         if 'ddns_enabled' in record:
             return_value['is_dns_update_enabled'] = record['ddns_enabled']
         return return_value
@@ -936,6 +951,7 @@ class NetAppOntapInterface:
                 'service_policy': 'service_policy',
                 'dns_domain_name': 'dns_zone',
                 'is_dns_update_enabled': 'ddns_enabled',
+                'probe_port': 'probe_port',
                 # IP
                 'address': 'address',
                 'netmask': 'netmask',
@@ -1053,7 +1069,7 @@ class NetAppOntapInterface:
             if 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
                 errors.append('ipspace name must be provided if scope is cluster, or vserver for svm scope.')
             if self.parameters['interface_type'] == 'fc':
-                unsupported_fc_options = ['broadcast_domain', 'dns_domain_name', 'is_dns_update_enabled']
+                unsupported_fc_options = ['broadcast_domain', 'dns_domain_name', 'is_dns_update_enabled', 'probe_port']
                 used_unsupported_fc_options = [option for option in unsupported_fc_options if option in self.parameters]
                 if used_unsupported_fc_options:
                     plural = 's' if len(used_unsupported_fc_options) > 1 else ''
@@ -1108,6 +1124,8 @@ class NetAppOntapInterface:
                     errors.append("'service_policy' is not supported for FC interfaces.")
                 if 'role' in self.parameters and self.parameters.get('role') != 'data':
                     errors.append("'role' is deprecated, and 'data' is the only value supported for FC interfaces: found %s." % self.parameters.get('role'))
+                if 'probe_port' in self.parameters:
+                    errors.append("'probe_port' is not supported for FC interfaces.")
         if errors:
             self.module.fail_json(msg='Error: %s' % '  '.join(errors))
 

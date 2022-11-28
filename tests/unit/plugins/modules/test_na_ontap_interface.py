@@ -465,7 +465,8 @@ SRR = rest_responses({
             'auto_revert': True,
             'failover': True
         },
-        'service_policy': {'name': 'data-mgmt'}
+        'service_policy': {'name': 'data-mgmt'},
+        'probe_port': 65431
     }]}, None),
     'two_records': (200, {'records': [{'name': 'node2_abc_if'}, {'name': 'node2_abc_if'}]}, None),
     'error_precluster': (500, None, {'message': 'are available in precluster.'}),
@@ -589,7 +590,7 @@ def test_rest_create_fc_with_svm_no_home_port():
 def test_rest_create_ip_with_cluster_svm(dont_sleep):
     ''' create cluster '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'network/ip/interfaces', SRR['zero_records']),                  # get IP
         ('GET', 'cluster/nodes', SRR['nodes']),                                 # get nodes
         ('POST', 'network/ip/interfaces', SRR['one_record_vserver']),           # post
@@ -605,7 +606,8 @@ def test_rest_create_ip_with_cluster_svm(dont_sleep):
         'vserver': 'vserver',
         'address': '10.12.12.13',
         'netmask': '255.255.192.0',
-        'role': 'intercluster'
+        'role': 'intercluster',
+        'probe_port': 65431,
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     print_warnings()
@@ -1244,6 +1246,19 @@ def test_rest_negative_unsupported_zapi_option_fail():
     assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+def test_rest_negative_rest_only_option():
+    ''' create cluster '''
+    register_responses([
+    ])
+    msg = "probe_port requires REST."
+    module_args = {
+        'use_rest': 'never',
+        'ipspace': 'cluster',
+        'probe_port': 65431,
+    }
+    assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
 def test_rest_negative_unsupported_zapi_option_force_zapi_1():
     ''' create cluster '''
     register_responses([
@@ -1510,6 +1525,10 @@ def test_error_messages_build_rest_body_and_validations():
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
     my_obj.parameters['service_policy'] = 'svc_pol'
     error = "Error: 'service_policy' is not supported for FC interfaces."
+    assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
+    del my_obj.parameters['service_policy']
+    my_obj.parameters['probe_port'] = 65431
+    error = "Error: 'probe_port' is not supported for FC interfaces."
     assert error in expect_and_capture_ansible_exception(my_obj.build_rest_body, 'fail', None)['msg']
     print_warnings()
     assert_warning_was_raised('Ignoring force_subnet_association')

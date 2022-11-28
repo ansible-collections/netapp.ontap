@@ -67,6 +67,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.1.0
 
+### New Options
+  - na_ontap_interface - new option `probe_port` for Azure load balancer.
+
 ### Minor Changes
   - na_ontap_aggregate - add support for `service_state` option from ONTAP 9.11.1 or later in REST.
   - na_ontap_aggregate - add `name` to modify in module output if aggregate is renamed.
