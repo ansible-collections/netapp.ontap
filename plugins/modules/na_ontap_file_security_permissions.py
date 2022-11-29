@@ -244,7 +244,8 @@ options:
 
 notes:
   - Supports check_mode.
-  - Only supported with REST.
+  - Only supported with REST and requires ONTAP 9.9.1 or later..
+  - SLAG requires ONTAP 9.10.1 or later.
   - When state is present, if an ACL is inherited, and a desired ACL matches, a new ACL is created as the inherited cannot be modified.
   - When state is absent, inherited ACLs are ignored.
 '''

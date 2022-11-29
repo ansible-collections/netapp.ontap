@@ -90,6 +90,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_qtree - fix cannot get current qtree if enclosed in curly braces.
   - na_ontap_quotas - fix default tree quota rule gets modified when `quota_target` is set in REST.
   - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
+  - na_ontap_file_security_permissions - updated notes to indicate ONTAP 9.9.1 or later is required.
+  - na_ontap_file_security_permissions_acl - updated notes to indicate ONTAP 9.9.1 or later is required.
 
 ### New Modules
   - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.

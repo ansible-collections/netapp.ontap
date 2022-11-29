@@ -193,6 +193,11 @@ options:
     choices: ['ignore', 'warn', 'error']
     type: str
     default: error
+
+notes:
+  - Supports check_mode.
+  - Only supported with REST and requires ONTAP 9.9.1 or later.
+  - SLAG requires ONTAP 9.10.1 or later.
 '''
 
 EXAMPLES = """
