@@ -237,6 +237,7 @@ options:
     description:
       - IPspace name is required with REST for cluster-scoped interfaces.  It is optional with SVM scope.
       - ignored with ZAPI.
+      - ignored for FC interface.
     type: str
     version_added: 21.13.0
 
@@ -583,7 +584,10 @@ class NetAppOntapInterface:
 
     def get_interface_records_rest(self, if_type, query, fields):
         if 'ipspace' in self.parameters:
-            query['ipspace.name'] = self.parameters['ipspace']
+            if if_type == 'ip':
+                query['ipspace.name'] = self.parameters['ipspace']
+            else:
+                self.module.warn("ipspace is ignored for FC interfaces.")
         records, error = rest_generic.get_0_or_more_records(self.rest_api, self.get_net_int_api(if_type), query, fields)
         if error and 'are available in precluster.' in error:
             # in precluster mode, network APIs are not available!
@@ -900,7 +904,6 @@ class NetAppOntapInterface:
 
     def set_options_rest(self, parameters):
         """ set attributes for create or modify """
-
         def add_ip(options, key, value):
             if 'ip' not in options:
                 options['ip'] = {}
@@ -940,10 +943,8 @@ class NetAppOntapInterface:
             'interface_name': 'name',
             'vserver': 'svm.name',
             # LOCATION
-            'current_node': 'node',
             'current_port': 'port',
-            'home_node': 'home_node',
-            'home_port': 'home_port',
+            'home_port': 'home_port'
         }
         if self.parameters['interface_type'] == 'ip':
             mapping_params_to_rest.update({
@@ -959,6 +960,9 @@ class NetAppOntapInterface:
                 'broadcast_domain': 'broadcast_domain',
                 'failover_scope': 'failover',
                 'is_auto_revert': 'auto_revert',
+                # home_node/current_node supported only in ip interfaces.
+                'home_node': 'home_node',
+                'current_node': 'node'
             })
         if self.parameters['interface_type'] == 'fc':
             mapping_params_to_rest['data_protocol'] = 'data_protocol'
@@ -1370,6 +1374,14 @@ class NetAppOntapInterface:
             if cd_action == 'create':
                 body, migrate_body = self.build_rest_body()
             elif modify:
+                # fc interface supports only home_port and port in POST/PATCH.
+                # add home_port and current_port in modify for home_node and current_node respectively to form home_port/port.
+                if modify.get('home_node') and not modify.get('home_port') and self.parameters['interface_type'] == 'fc':
+                    modify['home_port'] = current['home_port']
+                # above will modify home_node of fc interface, after modify if requires to update current_node, it will error out for fc interface.
+                # migrate not supported for fc interface.
+                if modify.get('current_node') and not modify.get('current_port') and self.parameters['interface_type'] == 'fc':
+                    modify['current_port'] = current['current_port']
                 body, migrate_body = self.build_rest_body(modify)
             if (modify or cd_action == 'delete') and uuid is None:
                 self.module.fail_json(msg='Error, expecting uuid in existing record')
@@ -1396,6 +1408,9 @@ class NetAppOntapInterface:
             elif modify:
                 self.modify_interface(modify, uuid, body)
             if migrate_body:
+                # for 9.7 or earlier, allow modify current node/port for fc interface.
+                if self.parameters.get('interface_type') == 'fc' and self.use_rest and self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
+                    self.module.fail_json(msg="Error: cannot migrate FC interface")
                 self.migrate_interface_rest(uuid, migrate_body)
 
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)

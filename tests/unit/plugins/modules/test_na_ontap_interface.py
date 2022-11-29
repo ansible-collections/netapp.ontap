@@ -468,6 +468,20 @@ SRR = rest_responses({
         'service_policy': {'name': 'data-mgmt'},
         'probe_port': 65431
     }]}, None),
+    'one_record_fcp': (200, {'records': [{
+        'data_protocol': 'fcp',
+        'enabled': False,
+        'location': {
+            'home_node': {'name': 'ontap910-01', 'uuid': 'ecb4061b'},
+            'home_port': {'name': '1a', 'node': {'name': 'ontap910-01'}, 'uuid': '1c9a72de'},
+            'is_home': True,
+            'node': {'name': 'ontap910-01', 'uuid': 'ecb4061b'},
+            'port': {'name': '1a', 'node': {'name': 'ontap910-01'}, 'uuid': '1c9a72de'}
+        },
+        'name': 'abc_if',
+        'svm': {'name': 'svm0_iscsi', 'uuid': 'a59e775d'},
+        'uuid': 'a3935ab5'
+    }]}, None),
     'two_records': (200, {'records': [{'name': 'node2_abc_if'}, {'name': 'node2_abc_if'}]}, None),
     'error_precluster': (500, None, {'message': 'are available in precluster.'}),
     'cluster_identity': (200, {'location': 'Oz', 'name': 'abc'}, None),
@@ -945,6 +959,25 @@ def test_rest_migrate_ip_timeout(sleep_mock):
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     assert_warning_was_raised('Failed to confirm interface is migrated after 120 seconds')
+
+
+def test_rest_migrate_fc_error():
+    ''' create cluster '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/fc/interfaces', SRR['one_record_fcp'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'home_node': 'ontap910-01',
+        'home_port': '1a',
+        'current_node': 'ontap910-02',
+        'current_port': '1b',
+        'interface_type': 'fc',
+        'vserver': 'svm0_iscsi'
+    }
+    error = 'Error: cannot migrate FC interface'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_delete_ip_no_svm():
