@@ -93,6 +93,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Modules
   - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS locl group of an SVM.
+  - na_ontap_security_ipsec_ca_certificate - add or delete IPsec CA certificate.
   - na_ontap_security_ipsec_policy - Create, modify and delete security IPsec policy.
 
 ## 22.0.1

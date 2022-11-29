@@ -117,6 +117,10 @@ options:
       - The name of the SVM.
       - Required when creating security IPsec policy.
     type: str
+
+notes:
+  - Supports check_mode.
+  - Only supported with REST and requires ONTAP 9.8 or later.
 """
 
 EXAMPLES = """
