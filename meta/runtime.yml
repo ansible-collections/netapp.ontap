@@ -107,6 +107,7 @@ action_groups:
     - na_ontap_security_certificates
     - na_ontap_security_config
     - na_ontap_security_ipsec_ca_certificate
+    - na_ontap_security_ipsec_config
     - na_ontap_security_ipsec_policy
     - na_ontap_security_key_manager
     - na_ontap_security_ssh
