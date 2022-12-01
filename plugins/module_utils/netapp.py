@@ -108,9 +108,9 @@ ERROR_MSG = dict(
 
 LOG = logging.getLogger(__name__)
 LOG_FILE = '/tmp/ontap_apis.log'
-ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. ONTAP last version to support ONTAPI is shipping end of 2022. " \
-                           "ZAPI calls in these modules will continue to work for ONTAP versions that supports ZAPI. " \
-                           "You can update your playbook to use REST by adding use_rest: always to your playbook. "\
+ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. The final ONTAP version to support ZAPI is ONTAP 9.12.1.  "\
+                           "ZAPI calls in these modules will continue to work for ONTAP versions that supports ZAPI.  "\
+                           "You can update your playbook to use REST by adding use_rest: always to your playbook.  "\
                            "More information can be found at: https://github.com/ansible-collections/netapp.ontap"
 
 try:

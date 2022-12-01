@@ -35,7 +35,7 @@ https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
 # Deprecation warning
-The 2022-Q4 will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
+The ONTAP 9.12.1 release will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
 This change will effect the modules listed below.
 
 ### Replaced Modules
@@ -56,12 +56,14 @@ return values differently than ZAPI you will need to update your playbooks to wo
 
 ### Deprecated Modules
 The following modules do not have REST equivalent APIs. They will stop working on any ONTAP release after CY22-Q4 release.
-  - na_ontap_active_directory
   - na_ontap_cg_snapshot
   - na_ontap_file_directory_policy
   - na_ontap_svm_options
   - na_ontap_quota_policy
 
+### Module to be updated
+The following module only supports ZAPI at present.  New REST APIs are available with 9.12.1 and the module will be updated.
+  - na_ontap_active_directory
 
 # Release Notes
 
@@ -74,25 +76,30 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_aggregate - add support for `service_state` option from ONTAP 9.11.1 or later in REST.
   - na_ontap_aggregate - add `name` to modify in module output if aggregate is renamed.
-  - na_ontap_aggregate - error if `unmount_volumes` set in REST, by default REST unmount volumes when trying to offline aggregate.
-  - na_ontap_aggregate - fix examples in documentation.
   - na_ontap_cifs_local_group_member - Added REST API support to retrieve, add and remove CIFS group member.
   - na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
   - na_ontap_cifs_server - skip `service_state` option in create if not set.
-  - na_ontap_interface - error when try to migrate fc interface in REST.
   - na_ontap_quotas - for qtree type, allow quota_target in path format /vol/vol_name/qtree_name in REST.
 
 ### Bug Fixes
+  - na_ontap_active_directory - updated doc as only ZAPI is supported at present, force an error with use_rest always.
+  - na_ontap_aggregate - fix examples in documentation.
   - na_ontap_aggregate - allow adding disks before trying to offline aggregate.
+  - na_ontap_aggregate - error if `unmount_volumes` set in REST, by default REST unmount volumes when trying to offline aggregate.
   - na_ontap_aggregate - fix `service_state` option skipped if its set to offline in create.
+  - na_ontap_cg_snapshot - updated doc with deprecation warning as it is a ZAPI only module.
   - na_ontap_cifs_server - fix `service_state` is stopped when trying to modify cifs server in REST.
-  - na_ontap_interface - fix cannot set `location.home_node.name` and `location.node.name` error when trying to create or modify fc interface.
-  - na_ontap_interface - fix unexpected argument error with `ipspace` when trying to get fc interface.
-  - na_ontap_qtree - fix cannot get current qtree if enclosed in curly braces.
-  - na_ontap_quotas - fix default tree quota rule gets modified when `quota_target` is set in REST.
-  - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
+  - na_ontap_file_directory_policy - updated doc with deprecation warning as it is a ZAPI only module.
   - na_ontap_file_security_permissions - updated notes to indicate ONTAP 9.9.1 or later is required.
   - na_ontap_file_security_permissions_acl - updated notes to indicate ONTAP 9.9.1 or later is required.
+  - na_ontap_interface - fix cannot set `location.home_node.name` and `location.node.name` error when trying to create or modify fc interface.
+  - na_ontap_interface - fix unexpected argument error with `ipspace` when trying to get fc interface.
+  - na_ontap_interface - fix error when trying to migrate fc interface in REST.
+  - na_ontap_qtree - fix cannot get current qtree if enclosed in curly braces.
+  - na_ontap_quota_policy - updated doc with deprecation warning as it is a ZAPI only module.
+  - na_ontap_quotas - fix default tree quota rule gets modified when `quota_target` is set in REST.
+  - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
+  - na_ontap_svm_options - updated doc with deprecation warning as it is a ZAPI only module.
   - na_ontap_snapmirror_policy - fixed idempotency issue on `identity_preservation` option when using REST.
 
 ### New Modules

@@ -19,68 +19,69 @@ module: na_ontap_file_directory_policy
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 short_description: NetApp ONTAP create, delete, or modify vserver security file-directory policy
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_zapi
 version_added: 20.8.0
 description:
-    - Create, modify, or destroy vserver security file-directory policy
-    - Add or remove task from policy.
-    - Each time a policy/task is created/modified, automatically apply policy to vserver.
-
+  - Create, modify, or destroy vserver security file-directory policy
+  - Add or remove task from policy.
+  - Each time a policy/task is created/modified, automatically apply policy to vserver.
+  - This module only supports ZAPI and is deprecated.
+  - The final version of ONTAP to support ZAPI is 9.12.1.
 options:
   state:
     description:
-    - Whether the specified policy or task should exist or not.
+      - Whether the specified policy or task should exist or not.
     choices: ['present', 'absent']
     default: present
     type: str
 
   vserver:
     description:
-    - Specifies the vserver for the policy.
+      - Specifies the vserver for the policy.
     required: true
     type: str
 
   policy_name:
     description:
-    - Specifies the name of the policy.
+      - Specifies the name of the policy.
     type: str
     required: true
 
   access_control:
     description:
-    - Specifies the access control of task to be applied.
+      - Specifies the access control of task to be applied.
     choices: ['file_directory', 'slag']
     type: str
 
   ntfs_mode:
     description:
-    - Specifies NTFS Propagation Mode.
+      - Specifies NTFS Propagation Mode.
     choices: ['propagate', 'ignore', 'replace']
     type: str
 
   ntfs_sd:
     description:
-    - Specifies NTFS security descriptor identifier.
+      - Specifies NTFS security descriptor identifier.
     type: list
     elements: str
 
   path:
     description:
-    - Specifies the file or folder path of the task.
-    - If path is specified and the policy which the task is adding to, does not exist, it will create the policy first then add the task to it.
-    - If path is specified, delete operation only removes task from policy.
+      - Specifies the file or folder path of the task.
+      - If path is specified and the policy which the task is adding to, does not exist, it will create the policy first then add the task to it.
+      - If path is specified, delete operation only removes task from policy.
     type: str
 
   security_type:
     description:
-    - Specifies the type of security.
+      - Specifies the type of security.
     type: str
     choices: ['ntfs', 'nfsv4']
 
   ignore_broken_symlinks:
     description:
-    - Skip Broken Symlinks.
-    - Options used when applying the policy to vserver.
+      - Skip Broken Symlinks.
+      - Options used when applying the policy to vserver.
     type: bool
 
 """
@@ -151,7 +152,7 @@ class NetAppOntapFilePolicy(object):
             Initialize the Ontap file directory policy class
         """
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

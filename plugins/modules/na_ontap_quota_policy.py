@@ -19,11 +19,13 @@ DOCUMENTATION = """
 module: na_ontap_quota_policy
 short_description: NetApp Ontap create, assign, rename or delete quota policy
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 version_added: '19.11.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create, assign, rename or delete the quota policy
+  - Create, assign, rename or delete the quota policy
+  - This module only supports ZAPI and is deprecated.
+  - The final version of ONTAP to support ZAPI is 9.12.1.
 options:
   state:
     description:
@@ -114,7 +116,7 @@ class NetAppOntapQuotaPolicy(object):
             Initialize the ONTAP quota policy class
         """
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

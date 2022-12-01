@@ -12,11 +12,12 @@ module: na_ontap_active_directory
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 short_description: NetApp ONTAP configure active directory
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap
 version_added: 20.9.0
 description:
-    - Configure Active Directory
-
+  - Configure Active Directory
+  - This module only supports ZAPI at present.  REST support is being added.
+  - The final version of ONTAP to support ZAPI is 9.12.1.
 options:
   state:
     description:
@@ -66,7 +67,7 @@ options:
 
 notes:
   - Supports check_mode.
-  - Only supported with ZAPI.
+  - Only supported with ZAPI at present.  REST support is being added.
 '''
 EXAMPLES = """
 -
@@ -120,7 +121,10 @@ class NetAppOntapActiveDirectory:
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.na_helper.module_deprecated(self.module)
+        msg = "Only ZAPI is supported at present.  REST support is being added."
+        if self.parameters['use_rest'] == 'always':
+            self.module.fail_json(msg="Error, cannot force REST with use_rest: always.  %s" % msg)
+        self.module.warn(msg)
         if netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:

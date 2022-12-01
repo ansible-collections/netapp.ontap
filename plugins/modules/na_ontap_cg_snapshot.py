@@ -15,8 +15,10 @@ short_description: NetApp ONTAP manage consistency group snapshot
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create consistency group snapshot for ONTAP volumes.
+  - This module only supports ZAPI and is deprecated.
+  - The final version of ONTAP to support ZAPI is 9.12.1.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 module: na_ontap_cg_snapshot
 options:
   state:
@@ -74,6 +76,7 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -84,7 +87,7 @@ class NetAppONTAPCGSnapshot(object):
     """
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', default='present'),
             vserver=dict(required=True, type='str'),
@@ -110,8 +113,7 @@ class NetAppONTAPCGSnapshot(object):
         self.timeout = parameters['timeout']
         self.snapmirror_label = parameters['snapmirror_label']
         self.cgid = None
-        self.module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
-                         'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+        NetAppModule().module_deprecated(self.module)
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(
                 msg="the python NetApp-Lib module is required")

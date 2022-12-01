@@ -36,6 +36,10 @@ import re
 import traceback
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
+ZAPI_ONLY_DEPRECATION_MESSAGE = "This module only supports ZAPI and is deprecated.   "\
+                                "It will no longer work with newer versions of ONTAP.  "\
+                                "The final ONTAP version to support ZAPI is ONTAP 9.12.1."
+
 
 def cmp(obj1, obj2):
     """
@@ -89,8 +93,7 @@ class NetAppModule(object):
         self.params_to_rest_api_keys = {}
 
     def module_deprecated(self, module):
-        module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
-                    'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+        module.warn(ZAPI_ONLY_DEPRECATION_MESSAGE)
 
     def module_replaces(self, new_module, module):
         self.module_deprecated(module)

@@ -16,8 +16,10 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Modify ONTAP SVM Options
   - Only Options that appear on "vserver options show" can be set
+  - This module only supports ZAPI and is deprecated.
+  - The final version of ONTAP to support ZAPI is 9.12.1.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_zapi
 module: na_ontap_svm_options
 version_added: 2.7.0
 options:
@@ -64,7 +66,7 @@ HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 class NetAppONTAPSvnOptions(object):
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_zapi_only_spec()
         self.argument_spec.update(dict(
             name=dict(required=False, type="str", default=None),
             value=dict(required=False, type='str', default=None),

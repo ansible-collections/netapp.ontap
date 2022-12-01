@@ -818,8 +818,8 @@ def test_fall_back_to_zapi():
 def test_module_deprecated():
     my_obj = create_ontap_module({'hostname': 'abc'})
     assert my_obj.na_helper.module_deprecated(my_obj.na_helper.ansible_module) is None
-    assert_warning_was_raised('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
-                              'of ONTAP when ONTAPI is deprecated in CY22-Q4')
+    assert_warning_was_raised('This module only supports ZAPI and is deprecated.   It will no longer work with newer versions of ONTAP.  '
+                              'The final ONTAP version to support ZAPI is ONTAP 9.12.1.')
 
 
 def test_module_replaces():

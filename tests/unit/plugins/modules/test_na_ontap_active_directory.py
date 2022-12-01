@@ -207,3 +207,15 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
     with pytest.raises(AnsibleFailJson) as exc:
         my_module()
     assert 'Error: the python NetApp-Lib module is required.  Import error: None' == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_fail_use_rest_always(mock_has_netapp_lib):
+    ''' test get'''
+    args = dict(default_args())
+    args['use_rest'] = 'always'
+    set_module_args(args)
+    mock_has_netapp_lib.return_value = False
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_module()
+    assert 'Error, cannot force REST with use_rest: always.' in exc.value.args[0]['msg']
