@@ -12,7 +12,7 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
-    call_main, create_module, patch_ansible, expect_and_capture_ansible_exception
+    call_main, create_module, patch_ansible, expect_and_capture_ansible_exception, create_and_apply
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy import NetAppOntapSnapMirrorPolicy as my_module, main as my_main
 
@@ -852,6 +852,22 @@ def test_validate_parameters():
     error = "Error: Missing 'schedule' parameter. When specifying the 'prefix' parameter, the 'schedule' parameter must also be supplied"
     assert error in expect_and_capture_ansible_exception(my_obj.validate_parameters, 'fail')['msg']
 
+    module_args = {
+        'use_rest': 'never',
+        'identity_preservation': 'full',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = 'Error: identity_preservation is not supported in ZAPI and it is REST only'
+    assert error in expect_and_capture_ansible_exception(my_obj.validate_parameters, 'fail')['msg']
+
+    module_args = {
+        'use_rest': 'never',
+        'copy_all_source_snapshots': True,
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = 'Error: copy_all_source_snapshots is not supported in ZAPI and it is REST only'
+    assert error in expect_and_capture_ansible_exception(my_obj.validate_parameters, 'fail')['msg']
+
 
 def test_validate_parameters_rest():
     ''' test test_validate_parameters '''
@@ -930,3 +946,19 @@ def test_errors_in_create():
     }
     error = 'Error: policy type cannot be changed: current=async_mirror, expected=sync_mirror'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_errors_in_create_with_copy_snapshots():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'snapmirror/policies', SRR['empty_records']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'copy_all_source_snapshots': True,
+        'policy_type': 'sync_mirror'
+    }
+    msg = 'Error: copy_all_source_snapshots is only supported with async (async_mirror) policy_type ' \
+          'and "retention" is not valid for SnapMirror policy'
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error

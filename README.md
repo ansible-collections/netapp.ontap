@@ -69,6 +69,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Options
   - na_ontap_interface - new option `probe_port` for Azure load balancer.
+  - na_ontap_snapmirror_policy - new option `copy_all_source_snapshots` added in REST.
 
 ### Minor Changes
   - na_ontap_aggregate - add support for `service_state` option from ONTAP 9.11.1 or later in REST.
@@ -92,6 +93,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
   - na_ontap_file_security_permissions - updated notes to indicate ONTAP 9.9.1 or later is required.
   - na_ontap_file_security_permissions_acl - updated notes to indicate ONTAP 9.9.1 or later is required.
+  - na_ontap_snapmirror_policy - fixed idempotency issue on `identity_preservation` option when using REST.
 
 ### New Modules
   - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS local group of an SVM.
