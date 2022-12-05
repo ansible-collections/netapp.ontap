@@ -146,6 +146,7 @@ SRR = rest_responses({
     'encrypted': (200, {'encryption': {'state': 'encrypted'}}, None),
     'analytics_off': (200, {'records': [volume_analytics_disabled]}, None),
     'analytics_initializing': (200, {'records': [volume_analytics_initializing]}, None),
+    'one_svm_record': (200, {'records': [{'uuid': 'svm_uuid'}]}, None),
 })
 
 DEFAULT_APP_ARGS = {
@@ -196,6 +197,7 @@ def test_missing_size():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),           # GET volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),             # GET svm
         ('GET', 'application/applications', SRR['no_record']),  # GET application/applications
     ])
     data = dict(DEFAULT_APP_ARGS)
@@ -221,6 +223,7 @@ def test_rest_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),                   # GET volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),                     # GET svm
         ('GET', 'application/applications', SRR['no_record']),          # GET application/applications
         ('POST', 'application/applications', SRR['generic_error']),     # POST application/applications
     ])
@@ -232,6 +235,7 @@ def test_rest_successfully_created():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),                 # GET svm
         ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
         ('GET', 'storage/volumes', SRR['get_volume']),
@@ -350,7 +354,8 @@ def test_rest_error_move_volume():
 def test_rest_error_rehost_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['zero_records']),                                              # Get Volume
+        ('GET', 'storage/volumes', SRR['zero_records']),                                            # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),                                                 # GET svm
     ])
     module_args = {'from_vserver': 'svm_orig'}
     msg = "Error: ONTAP REST API does not support Rehosting Volumes"
@@ -475,6 +480,7 @@ def test_rest_successfully_create_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
     ])
@@ -494,6 +500,7 @@ def test_rest_error_create_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),       # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),         # GET svm
         ('POST', 'storage/volumes', SRR['generic_error']),  # Create Volume
     ])
     msg = "Error creating volume test_svm: calling: storage/volumes: got Expected error."
@@ -519,7 +526,8 @@ def test_rest_successfully_create_volume_with_options():
     }
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['no_record']),  # Get Volume
+        ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         # TODO - force a patch after create
@@ -554,7 +562,8 @@ def test_rest_error_snapshot_restore_volume():
 def test_rest_error_snapshot_restore_volume_no_parent():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['zero_records']),  # Get Volume
+        ('GET', 'storage/volumes', SRR['zero_records']),    # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),         # GET svm
     ])
     module_args = {'snapshot_restore': 'snapshot_copy'}
     msg = "Error restoring volume: cannot find parent: test_svm"
@@ -565,6 +574,7 @@ def test_rest_successfully_rename_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),                                           # Get Volume name
+        ('GET', 'svm/svms', SRR['one_svm_record']),                                             # GET svm
         ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume from
         ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume from
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Patch
@@ -580,6 +590,7 @@ def test_rest_error_rename_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),                                               # Get Volume name
+        ('GET', 'svm/svms', SRR['one_svm_record']),                                                 # GET svm
         ('GET', 'storage/volumes', SRR['get_volume']),                                              # Get Volume from
         ('GET', 'storage/volumes', SRR['get_volume']),                                              # Get Volume from
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),    # Patch
@@ -610,6 +621,7 @@ def test_rest_successfully_create_volume_with_unix_permissions():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),  # add unix permissions
@@ -622,6 +634,7 @@ def test_rest_successfully_create_volume_with_qos_policy():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),                                           # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),                                             # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),                                          # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Set policy name
@@ -634,6 +647,7 @@ def test_rest_successfully_create_volume_with_qos_adaptive_policy_group():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),  # Set policy name
@@ -657,7 +671,8 @@ def test_rest_successfully_create_volume_with_qos_adaptive_policy_error():
 def test_rest_successfully_create_volume_with_tiering_policy():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['no_record']),  # Get Volume
+        ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),  # Set Tiering_policy
@@ -669,7 +684,8 @@ def test_rest_successfully_create_volume_with_tiering_policy():
 def test_rest_successfully_create_volume_encrypt():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['no_record']),  # Get Volume
+        ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),  # Set Encryption
@@ -795,6 +811,7 @@ def test_rest_successfully_created_with_logical_space():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),     # GET svm
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
     ])
@@ -893,6 +910,7 @@ def test_error_snaplock_volume_create_sl_type_not_changed():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('POST', 'storage/volumes', SRR['empty_records']),
         ('GET', 'storage/volumes', SRR['get_volume']),
     ])
@@ -905,6 +923,7 @@ def test_error_snaplock_volume_create_sl_type_not_supported():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
         ('GET', 'storage/volumes', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
     ])
     module_args = {'snaplock': {'type': 'enterprise'}}
     error = 'Error: using snaplock type requires ONTAP 9.10.1 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
@@ -915,8 +934,10 @@ def test_error_snaplock_volume_create_sl_options_not_supported_when_non_snaplock
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
         ('GET', 'storage/volumes', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'cluster', SRR['is_rest_96']),
         ('GET', 'storage/volumes', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
     ])
     module_args = {'snaplock': {
         'type': 'non_snaplock',
@@ -936,6 +957,7 @@ def test_snaplock_volume_create():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('POST', 'storage/volumes', SRR['empty_records']),
         ('GET', 'storage/volumes', SRR['get_volume_sl_enterprise']),
     ])
@@ -1041,6 +1063,7 @@ def test_create_nas_app_nfs_access():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
         ('GET', 'storage/volumes', SRR['get_volume']),
@@ -1061,6 +1084,7 @@ def test_create_nas_app_tiering_object_store():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
         ('GET', 'storage/volumes', SRR['get_volume']),
@@ -1091,6 +1115,7 @@ def test_create_nas_app_tiering_policy_flexcache():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
         ('GET', 'storage/volumes', SRR['get_volume']),
@@ -1116,6 +1141,7 @@ def test_create_nas_app_tiering_flexcache():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
         ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
         ('GET', 'storage/volumes', SRR['get_volume']),
@@ -1197,6 +1223,7 @@ def test_error_modify_app_not_supported_no_volume_but_app():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('GET', 'application/applications', SRR['nas_app_record']),
         ('GET', 'application/applications/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['nas_app_record_by_uuid']),
     ])
@@ -1231,6 +1258,7 @@ def test_create_flexgroup_volume_from_main():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),   # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # offline
@@ -1345,6 +1373,7 @@ def test_analytics_option():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
         ('POST', 'storage/volumes', SRR['success']),
         ('GET', 'storage/volumes', SRR['get_volume']),
         # idempotency check

@@ -80,6 +80,7 @@ The following module only supports ZAPI at present.  New REST APIs are available
   - na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
   - na_ontap_cifs_server - skip `service_state` option in create if not set.
   - na_ontap_quotas - for qtree type, allow quota_target in path format /vol/vol_name/qtree_name in REST.
+  - na_ontap_volume - report error if vserver does not exist or is not a data vserver on create.
 
 ### Bug Fixes
   - na_ontap_active_directory - updated doc as only ZAPI is supported at present, force an error with use_rest always.

@@ -299,7 +299,7 @@ def test_get_vserver_not_found():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/svms', SRR['empty_records'])
     ])
-    msg = 'Error vserver vscan-test not found'
+    msg = 'Error vserver vscan-test does not exist or is not a data vserver.'
     assert msg in create_and_apply(policy_module, DEFAULT_ARGS_REST, fail=True)['msg']
 
 

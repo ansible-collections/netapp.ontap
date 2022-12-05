@@ -55,7 +55,7 @@ def get_vserver_uuid(rest_api, name, module=None, error_on_none=False):
     if error and module:
         module.fail_json(msg="Error fetching vserver %s: %s" % (name, error))
     if not error and record is None and error_on_none:
-        error = "vserver %s not found." % name
+        error = "vserver %s does not exist or is not a data vserver." % name
         if module:
             module.fail_json(msg="Error %s" % error)
     return record['uuid'] if not error and record else None, error

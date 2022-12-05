@@ -114,6 +114,6 @@ def test_negative_get_vserver_uuid():
     assert rest_vserver.get_vserver_uuid(rest_api, 'svm_name') == (None, rest_error_message('', 'svm/svms'))
     assert expect_and_capture_ansible_exception(rest_vserver.get_vserver_uuid, 'fail', rest_api, 'svm_name', rest_api.module)['msg'] ==\
         rest_error_message('Error fetching vserver svm_name', 'svm/svms')
-    assert rest_vserver.get_vserver_uuid(rest_api, 'svm_name', error_on_none=True) == (None, 'vserver svm_name not found.')
+    assert rest_vserver.get_vserver_uuid(rest_api, 'svm_name', error_on_none=True) == (None, 'vserver svm_name does not exist or is not a data vserver.')
     assert expect_and_capture_ansible_exception(rest_vserver.get_vserver_uuid, 'fail', rest_api, 'svm_name', rest_api.module, error_on_none=True)['msg'] ==\
-        'Error vserver svm_name not found.', 'svm/svms'
+        'Error vserver svm_name does not exist or is not a data vserver.'
