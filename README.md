@@ -61,11 +61,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_svm_options
   - na_ontap_quota_policy
 
-### Module to be updated
-The following module only supports ZAPI at present.  New REST APIs are available with 9.12.1 and the module will be updated.
-  - na_ontap_active_directory
-
 # Release Notes
+
+## 22.2.0
+
+### Added REST support to existing modules
+  - na_ontap_active_directory - REST requires ONTAP 9.12.1 or later.
 
 ## 22.1.0
 
