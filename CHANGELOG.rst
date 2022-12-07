@@ -5,6 +5,53 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.1.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_aggregate - add ``name`` to modify in module output if aggregate is renamed.
+- na_ontap_aggregate - add support for ``service_state`` option from ONTAP 9.11.1 or later in REST.
+- na_ontap_aggregate - error if ``unmount_volumes`` set in REST, by default REST unmount volumes when trying to offline aggregate.
+- na_ontap_aggregate - fix examples in documentation.
+- na_ontap_cifs_local_group_member - Added REST API support to retrieve, add and remove CIFS group member.
+- na_ontap_cifs_local_group_member - REST support is from ONTAP 9.10.1 or later.
+- na_ontap_cifs_server - skip ``service_state`` option if not set in create.
+- na_ontap_interface - error when try to migrate fc interface in REST.
+- na_ontap_interface - new option ``probe_port`` for Azure load balancer.
+- na_ontap_quotas - for qtree type, allow quota_target in path format /vol/vol_name/qtree_name in REST.
+- na_ontap_snapmirror_policy - new option ``copy_all_source_snapshots`` added in REST.
+- na_ontap_volume - report error if vserver does not exist or is not a data vserver on create.
+
+Bugfixes
+--------
+
+- na_ontap_active_directory - updated doc as only ZAPI is supported at present, force an error with use_rest always.
+- na_ontap_aggregate - allow adding disks before trying to offline aggregate.
+- na_ontap_aggregate - fix ``service_state`` option skipped if its set to offline in create.
+- na_ontap_cg_snapshot - updated doc with deprecation warning as it is a ZAPI only module.
+- na_ontap_cifs_server - fix ``service_state`` is stopped when trying to modify cifs server in REST.
+- na_ontap_file_directory_policy - updated doc with deprecation warning as it is a ZAPI only module.
+- na_ontap_file_security_permissions - updated notes to indicate ONTAP 9.9.1 or later is required.
+- na_ontap_file_security_permissions_acl - updated notes to indicate ONTAP 9.9.1 or later is required.
+- na_ontap_interface - fix cannot set ``location.node.name`` and ``location.home_node.name`` error when creating or modifying fc interface.
+- na_ontap_interface - fix unexpected argument error with ``ipspace`` when trying to get fc interface.
+- na_ontap_qtree - fix cannot get current qtree if enclosed in curly braces.
+- na_ontap_quota_policy - updated doc with deprecation warning as it is a ZAPI only module.
+- na_ontap_quotas - fix default tree quota rule gets modified when ``quota_target`` is set in REST.
+- na_ontap_quotas - fix user/group quota rule without qtree gets modified when ``qtree`` is set.
+- na_ontap_snapmirror_policy - fixed idempotency issue on ``identity_preservation`` option when using REST.
+- na_ontap_svm_options - updated doc with deprecation warning as it is a ZAPI only module.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_cifs_local_group - NetApp Ontap - create, delete or modify CIFS local group.
+- netapp.ontap.na_ontap_security_ipsec_ca_certificate - NetApp ONTAP module to add or delete ipsec ca certificate.
+- netapp.ontap.na_ontap_security_ipsec_config - NetApp ONTAP module to configure IPsec config.
+- netapp.ontap.na_ontap_security_ipsec_policy - NetApp ONTAP module to create, modify or delete security IPsec policy.
+
 v22.0.1
 =======
 
