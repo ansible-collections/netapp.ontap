@@ -80,8 +80,10 @@ options:
     description:
       - Specify the name of the current schedule, which is used to update the SnapMirror relationship.
       - Optional for create, modifiable.
-      - With REST, use C(policy) to define a schedule.   The C(schedule) option is not supported.
+      - With REST, this option requires ONTAP 9.11.1 or later.
     type: str
+    aliases: ['transfer_schedule']
+    version_added: 22.2.0
   policy:
     description:
       - Specify the name of the SnapMirror policy that applies to this relationship.
@@ -518,7 +520,7 @@ class NetAppONTAPSnapmirror(object):
             destination_volume=dict(required=False, type='str'),
             source_path=dict(required=False, type='str'),
             destination_path=dict(required=False, type='str'),
-            schedule=dict(required=False, type='str'),
+            schedule=dict(required=False, type='str', aliases=['transfer_schedule']),
             policy=dict(required=False, type='str'),
             relationship_type=dict(required=False, type='str',
                                    choices=['data_protection', 'load_sharing',
@@ -620,7 +622,7 @@ class NetAppONTAPSnapmirror(object):
                 netapp_utils.na_ontap_host_argument_spec_peer().keys())
 
     def setup_rest(self):
-        unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate', 'schedule']
+        unsupported_rest_properties = ['identity_preserve', 'max_transfer_rate']
         host_options = self.parameters['peer_options'] if self.parameters.get('connection_type') == 'ontap_elementsw' else None
         rest_api = netapp_utils.OntapRestAPI(self.module, host_options=host_options)
         rtype = self.parameters.get('relationship_type')
@@ -629,6 +631,7 @@ class NetAppONTAPSnapmirror(object):
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
         ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
         partially_supported_rest_properties = [(property, (9, 7)) for property in ontap_97_options]
+        partially_supported_rest_properties.append(('schedule', (9, 11, 1)))
         use_rest, error = rest_api.is_rest_supported_properties(
             self.parameters, used_unsupported_rest_properties, partially_supported_rest_properties, report_error=True)
         if error is not None:
@@ -681,7 +684,6 @@ class NetAppONTAPSnapmirror(object):
             return self.snapmirror_get_rest(destination)
 
         snapmirror_get_iter = self.snapmirror_get_iter(destination)
-        snap_info = {}
         try:
             result = self.server.invoke_successfully(snapmirror_get_iter, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
@@ -691,6 +693,7 @@ class NetAppONTAPSnapmirror(object):
                 int(result.get_child_content('num-records')) > 0:
             snapmirror_info = result.get_child_by_name('attributes-list').get_child_by_name(
                 'snapmirror-info')
+            snap_info = {}
             snap_info['mirror_state'] = snapmirror_info.get_child_content('mirror-state')
             snap_info['status'] = snapmirror_info.get_child_content('relationship-status')
             snap_info['schedule'] = snapmirror_info.get_child_content('schedule')
@@ -795,6 +798,11 @@ class NetAppONTAPSnapmirror(object):
                 self.module.fail_json(msg=error)
         return 'snapmirrored' if policy_type == 'async' else 'in_sync'
 
+    @staticmethod
+    def string_or_none(value):
+        """ REST expect null for "" """
+        return value or None
+
     def get_create_body(self):
         """
         It gathers the required information for snapmirror create
@@ -810,7 +818,9 @@ class NetAppONTAPSnapmirror(object):
                 body['state'] = self.set_initialization_state()
                 initialized = True
         if self.na_helper.safe_get(self.parameters, ['policy']) is not None:
-            body['policy'] = self.parameters['policy']
+            body['policy'] = {'name': self.parameters['policy']}
+        if self.na_helper.safe_get(self.parameters, ['schedule']) is not None:
+            body['transfer_schedule'] = {'name': self.string_or_none(self.parameters['schedule'])}
         return body, initialized
 
     def snapmirror_create(self):
@@ -1078,7 +1088,7 @@ class NetAppONTAPSnapmirror(object):
         Modify SnapMirror schedule or policy
         """
         if self.use_rest:
-            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(policy=modify)
+            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(modify=modify)
 
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_modify = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -1347,7 +1357,7 @@ class NetAppONTAPSnapmirror(object):
             self.snapmirror_get()
         return self.parameters.get('uuid')
 
-    def snapmirror_mod_init_resync_break_quiesce_resume_rest(self, state=None, policy=None, before_delete=False):
+    def snapmirror_mod_init_resync_break_quiesce_resume_rest(self, state=None, modify=None, before_delete=False):
         """
         To perform SnapMirror modify, init, resume, resync and break.
         1. Modify only update SnapMirror policy which passes the policy in body.
@@ -1357,19 +1367,25 @@ class NetAppONTAPSnapmirror(object):
         5. To perform SnapMirror quiesce - state=pause and mirror_state not broken_off.
         6. To perform SnapMirror resume - state=snapmirrored.
         """
-        body = {}
         uuid = self.get_relationship_uuid()
         if uuid is None:
             self.module.fail_json(msg="Error in updating SnapMirror relationship: unable to get UUID for the SnapMirror relationship.")
 
-        api = 'snapmirror/relationships'
+        body = {}
         if state is not None:
             body["state"] = state
-        elif policy is not None:
-            body["policy"] = {"name": policy["policy"]}
+        elif modify:
+            for key in modify:
+                if key == 'policy':
+                    body[key] = {"name": modify[key]}
+                elif key == 'schedule':
+                    body['transfer_schedule'] = {"name": self.string_or_none(modify[key])}
+                else:
+                    self.module.warn(msg="Unexpected key in modify: %s, value: %s" % (key, modify[key]))
         else:
             self.na_helper.changed = False
             return
+        api = 'snapmirror/relationships'
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
         if error:
             msg = 'Error patching SnapMirror: %s: %s' % (body, to_native(error))
@@ -1453,14 +1469,16 @@ class NetAppONTAPSnapmirror(object):
             destination = self.parameters['destination_path']
 
         api = 'snapmirror/relationships'
-        snap_info = {}
-        options = {'destination.path': destination, 'fields':
-                   '_links.self.href,uuid,state,transfer.state,transfer.uuid,policy.name,unhealthy_reason.message,healthy,source'}
+        fields = 'uuid,state,transfer.state,transfer.uuid,policy.name,unhealthy_reason.message,healthy,source'
+        if 'schedule' in self.parameters:
+            fields += ',transfer_schedule'
+        options = {'destination.path': destination, 'fields': fields}
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
             self.module.fail_json(msg="Error getting SnapMirror %s: %s" % (destination, to_native(error)),
                                   exception=traceback.format_exc())
         if record is not None:
+            snap_info = {}
             self.parameters['uuid'] = self.na_helper.safe_get(record, ['uuid'])
             self.parameters['transfer_uuid'] = self.na_helper.safe_get(record, ['transfer', 'uuid'])
             self.parameters['current_mirror_state'] = self.na_helper.safe_get(record, ['state'])
@@ -1478,6 +1496,8 @@ class NetAppONTAPSnapmirror(object):
                 snap_info['unhealthy_reason'] = self.na_helper.safe_get(record, ['unhealthy_reason'])
             snap_info['is_healthy'] = self.na_helper.safe_get(record, ['healthy'])
             snap_info['source_path'] = self.na_helper.safe_get(record, ['source', 'path'])
+            # if the field is absent, assume ""
+            snap_info['schedule'] = self.na_helper.safe_get(record, ['transfer_schedule', 'name']) or ""
             return snap_info
         return None
 

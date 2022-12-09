@@ -68,6 +68,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Added REST support to existing modules
   - na_ontap_active_directory - REST requires ONTAP 9.12.1 or later.
 
+### New Options
+  - na_ontap_snapmirror - support `schedule` with REST and ONTAP 9.11.1, add alias `transfer_schedule`.
+
 ## 22.1.0
 
 ### New Options

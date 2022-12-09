@@ -24,7 +24,10 @@ Since this uses the NetApp ONTAP modules it will require the python library neta
 Role Variables
 --------------
 ```
+# For ZAPI:
 cluster: <short ONTAP name of cluster>
+# For REST, cluster should be null
+cluster:
 netapp_hostname: <ONTAP mgmt ip or fqdn>
 netapp_username: <ONTAP admin account>
 netapp_password: <ONTAP admin account password>

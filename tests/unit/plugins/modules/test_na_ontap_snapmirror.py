@@ -62,6 +62,7 @@ def sm_rest_info(state, healthy, transfer_state=None, destination_path=DEFAULT_A
             record['transfer']['uuid'] = 'xfer_uuid'
     if healthy is False:
         record['unhealthy_reason'] = 'this is why the relationship is not healthy.'
+    record['transfer_schedule'] = {'name': 'abc'}
 
     return {
         'records': [record],
@@ -919,18 +920,24 @@ def test_if_all_methods_catch_exception(dont_sleep):
 def test_successful_rest_create(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'snapmirror/relationships', SRR['zero_records']),
         ('POST', 'snapmirror/relationships', SRR['success']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_uninitialized']),
         ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check initialized
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check health
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),    # check health
     ])
     module_args = {
         "use_rest": "always",
+        "schedule": "abc"
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['update'] = False
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_negative_rest_create():
@@ -941,7 +948,20 @@ def test_negative_rest_create():
         "schedule": "abc",
         "relationship_type": "data_protection",
     }
-    msg = "REST API currently does not support 'identity_preserve, schedule, relationship_type: data_protection'"\
+    msg = "REST API currently does not support 'identity_preserve, relationship_type: data_protection'"
+    assert create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_negative_rest_create_schedule_not_supported():
+    ''' creating snapmirror with unsupported REST options '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "schedule": "abc",
+    }
+    msg = "Error: Minimum version of ONTAP for schedule is (9, 11, 1).  Current version: (9, 8, 0)."\
           " - With REST use the policy option to define a schedule."
     assert create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
@@ -1249,7 +1269,7 @@ def test_rest_snapmirror_delete_calls_abort(dont_sleep):
 def test_rest_snapmirror_modify():
     ''' snapmirror modify'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get
         ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm modify response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get to check mirror state
@@ -1259,8 +1279,26 @@ def test_rest_snapmirror_modify():
     module_args = {
         "use_rest": "always",
         "policy": "Asynchronous",
+        "schedule": "abcdef",
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_snapmirror_modify_warning():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # apply first sm_get
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm modify response
+    ])
+    module_args = {
+        "use_rest": "always",
+        "policy": "Asynchronous",
+        "schedule": "abcdef",
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.snapmirror_mod_init_resync_break_quiesce_resume_rest(modify=module_args) is None
+    print_warnings()
+    assert_warning_was_raised('Unexpected key in modify: use_rest, value: always')
 
 
 def test_rest_snapmirror_restore():
