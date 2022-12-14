@@ -903,13 +903,12 @@ class NetAppONTAPSnapmirror(object):
         if self.use_rest:
             return self.snapmirror_quiesce_rest()
 
-        result = None
         options = {'destination-location': self.parameters['destination_path']}
 
         snapmirror_quiesce = netapp_utils.zapi.NaElement.create_node_with_children(
             'snapmirror-quiesce', **options)
         try:
-            result = self.server.invoke_successfully(snapmirror_quiesce, enable_tunneling=True)
+            self.server.invoke_successfully(snapmirror_quiesce, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error quiescing SnapMirror: %s'
                                   % (to_native(error)), exception=traceback.format_exc())

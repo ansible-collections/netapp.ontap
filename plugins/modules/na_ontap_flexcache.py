@@ -501,7 +501,6 @@ class NetAppONTAPFlexCache:
         """
         Offline the volume using REST PATCH method.
         """
-        response = None
         uuid = current.get('uuid')
         if uuid is None:
             error = 'Error, no uuid in current: %s' % str(current)
@@ -531,7 +530,6 @@ class NetAppONTAPFlexCache:
         Mount the volume using REST PATCH method.
         If path is empty string, unmount the volume.
         """
-        response = None
         uuid = current.get('uuid')
         if uuid is None:
             error = 'Error, no uuid in current: %s' % str(current)

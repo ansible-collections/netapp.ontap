@@ -220,6 +220,7 @@ class NetAppOntapSecurityKeyManager:
         self.use_rest = self.rest_api.is_rest()
 
         if self.use_rest:
+            self.rest_api.fail_if_not_rest_minimum_version('na_ontap_security_key_manager', 9, 7)
             self.uuid = None
             self.scope, self.resource = self.set_scope(self.parameters.get('vserver'))
             # expand parameters to match REST returned info
@@ -327,7 +328,6 @@ class NetAppOntapSecurityKeyManager:
         except netapp_utils.zapi.NaApiError as error:
             self.module.fail_json(msg='Error creating key manager: %s' % to_native(error),
                                   exception=traceback.format_exc())
-        return None
 
     def delete_key_manager(self):
         """
@@ -617,7 +617,7 @@ class NetAppOntapSecurityKeyManager:
             self.validate_modify(current, modify)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
-                current = self.create_key_manager()
+                self.create_key_manager()
             elif cd_action == 'delete':
                 self.delete_key_manager()
             elif modify:

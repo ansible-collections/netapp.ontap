@@ -369,7 +369,6 @@ class NetAppOntapLicense:
                 if create_license or remove_license:
                     changed_keys = self.compare_license_status(license_status)
             else:  # execute delete
-                license_deleted = False
                 # not able to detect which license is required to delete until we try it.
                 changed_keys = [package for package in self.parameters['license_names'] if self.remove_licenses(package)]
             if not changed_keys:

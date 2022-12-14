@@ -71,6 +71,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Options
   - na_ontap_snapmirror - support `schedule` with REST and ONTAP 9.11.1, add alias `transfer_schedule`.
 
+### Bug Fixes
+  - na_ontap_security_key_manager - requires 9.7+ to work with REST.
+  - na_ontap_volume -- fixed bug preventing unmount and taking a volume off line at the same time
+
 ## 22.1.0
 
 ### New Options

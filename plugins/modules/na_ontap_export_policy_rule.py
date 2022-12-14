@@ -357,7 +357,7 @@ class NetAppontapExportRule:
         """
         if self.use_rest:
             return self.get_export_policy_rule_rest(rule_index)
-        current, result = None, None
+        result = None
         rule_iter = netapp_utils.zapi.NaElement('export-rule-get-iter')
         query = self.set_query_parameters(rule_index)
         rule_iter.translate_struct(query)

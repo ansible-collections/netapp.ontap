@@ -117,7 +117,6 @@ class NetAppOntapDiskOptions:
         Return a the current storage disk options for the node
         :return: a dict of storage disk options
         """
-        return_value = None
         api = "private/cli/storage/disk/option"
         query = {
             'fields': 'node,autoassign,bkg-firmware-update,autocopy,autoassign-policy',

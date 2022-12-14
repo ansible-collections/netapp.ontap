@@ -247,9 +247,11 @@ def test_successfully_add_key_manager_old_style_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
         ('POST', 'security/key-managers', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record']),
     ])
@@ -265,11 +267,13 @@ def test_successfully_add_key_manager_external_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
         ('POST', 'security/key-managers', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
@@ -291,11 +295,13 @@ def test_successfully_add_key_manager_external_rest_svm():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
         ('POST', 'security/key-managers', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
@@ -318,9 +324,11 @@ def test_successfully_add_key_manager_onboard_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
         ('POST', 'security/key-managers', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
@@ -356,9 +364,11 @@ def test_successfully_delete_key_manager_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('DELETE', 'security/key-managers/a1b2c3', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
     ])
@@ -374,16 +384,19 @@ def test_successfully_change_passphrase_onboard_key_manager_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # both passphrases are incorrect
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         # unexpected success on check passphrase
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
@@ -391,17 +404,20 @@ def test_successfully_change_passphrase_onboard_key_manager_rest():
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # unexpected success on check passphrase
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # unexpected success on check passphrase
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # unexpected error on check passphrase
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['generic_error']),
@@ -409,17 +425,20 @@ def test_successfully_change_passphrase_onboard_key_manager_rest():
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # unexpected error on check passphrase
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['generic_error']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # unexpected error on check passphrase
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['generic_error']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['generic_error']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
@@ -453,11 +472,13 @@ def test_successfully_change_passphrase_and_sync_onboard_key_manager_rest():
     ''' Test successfully modify onboard key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_incorrect']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['success']),
         # idempotency - sync is always sent!
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
@@ -480,6 +501,7 @@ def test_successfully_change_external_key_manager_rest():
     ''' Test successfully add key manager'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record_2_servers']),
         ('DELETE', 'security/key-managers/a1b2c3/key-servers/1.2.3.4:5696', SRR['success']),
         ('DELETE', 'security/key-managers/a1b2c3/key-servers/0.1.2.3:5696', SRR['success']),
@@ -487,8 +509,10 @@ def test_successfully_change_external_key_manager_rest():
         ('POST', 'security/key-managers/a1b2c3/key-servers', SRR['success']),
         # same servers but different order
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record_2_servers']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record_2_servers']),
     ])
@@ -520,6 +544,7 @@ def test_successfully_change_external_key_manager_rest():
 def test_error_external_key_manager_rest():
     ''' Test error add key manager'''
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['generic_error']),
         ('GET', 'security/certificates', SRR['generic_error']),
@@ -554,12 +579,14 @@ def test_get_security_certificate_uuid_rest_by_name_then_common_name():
     ''' Use name first, then common_name'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/certificates', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
         # not found
         ('GET', 'security/certificates', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['zero_records']),
         # with 9.7 or earlier, name is not supported
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
     ])
@@ -582,6 +609,7 @@ def test_get_security_certificate_uuid_rest_by_name_then_common_name_svm():
     ''' With SVM, retry at cluster scope if not found or error at SVM scope '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/certificates', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
@@ -591,6 +619,7 @@ def test_get_security_certificate_uuid_rest_by_name_then_common_name_svm():
         ('GET', 'security/certificates', SRR['generic_error']),
         ('GET', 'security/certificates', SRR['zero_records']),
         # with 9.7 or earlier, name is not supported
+        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
     ])
@@ -615,8 +644,10 @@ def test_warn_when_onboard_exists_and_only_one_passphrase_present():
     register_responses([
         # idempotency
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
         # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
     ])
@@ -642,7 +673,9 @@ def test_error_cannot_change_key_manager_type_rest():
     ''' Warn if only one passphrase is present '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_external_seckey_record']),
     ])
@@ -668,6 +701,7 @@ def test_error_sync_repquires_passphrase_rest():
     ''' Warn if only one passphrase is present '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
     ])
     module_args = {
@@ -682,6 +716,7 @@ def test_error_sync_repquires_passphrase_rest():
 
 def test_return_not_present_when_svm_not_found_error():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['error_svm_not_found']),
     ])
@@ -698,6 +733,7 @@ def test_retry_on_create_error(dont_sleep):
     """ when no key server is present, REST does not return a record """
     ''' Test successfully add key manager'''
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['zero_records']),
         ('GET', 'security/certificates', SRR['one_security_certificate_record']),
@@ -724,6 +760,7 @@ def test_retry_on_create_error(dont_sleep):
 def test_update_key_server_list():
     ''' Validate servers are added/removed '''
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         # add/remove
         ('DELETE', 'security/key-managers/123/key-servers/s1', SRR['success']),

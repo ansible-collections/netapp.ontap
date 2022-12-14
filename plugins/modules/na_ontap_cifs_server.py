@@ -584,7 +584,6 @@ class NetAppOntapcifsServer:
 
     def apply(self):
         current = self.get_cifs_server_rest()
-        cd_action, rename = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'create' and 'from_name' in self.parameters:
             current = self.get_cifs_server_rest(self.parameters['from_name'])

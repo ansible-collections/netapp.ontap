@@ -1447,7 +1447,7 @@ class NetAppOntapVolume:
         volume_delete = netapp_utils.zapi.NaElement.create_node_with_children(
             'volume-destroy', **options)
         try:
-            result = self.server.invoke_successfully(volume_delete, enable_tunneling=True)
+            self.server.invoke_successfully(volume_delete, enable_tunneling=True)
         except netapp_utils.zapi.NaApiError as error:
             return error
         return None
@@ -1914,6 +1914,9 @@ class NetAppOntapVolume:
         attributes = modify.keys()
         # order matters here, if both is_online and mount in modify, must bring the volume online first.
         if 'is_online' in attributes:
+            #  If is_online is false and junction_path is '' we need unmount first, and then bring volume offline
+            if 'junction_path' in attributes and modify.get('junction_path') == '' and not modify.get('is_online'):
+                self.volume_unmount()
             state, dummy = self.change_volume_state()
             is_online = state == 'online'
         for attribute in attributes:
