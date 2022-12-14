@@ -65,6 +65,18 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.2.0
 
+### New Options
+  - na_ontap_snapmirror_policy - new option ``copy_latest_source_snapshot``, ``create_snapshot_on_source`` and ``sync_type`` added in REST.
+  - na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
+
+### Minor Changes
+  - na_ontap_snapmirror_policy - warn when replacing policy type `mirror_vault` and `vault` with policy type `async_mirror` and `strict_sync_mirror` with `sync_mirror` in REST.
+  - na_ontap_snapmirror_policy - Added unsupported options in ZAPI.
+
+### Bug Fixes
+  - na_ontap_snapmirror_policy - fixed idempotency issue on `identity_preservation` option when using REST.
+  - na_ontap_snapmirror_policy - fix policy type issue by replacing policy type `strict_sync_mirror` with `sync_mirror` and also warn in ZAPI.
+
 ### Added REST support to existing modules
   - na_ontap_active_directory - REST requires ONTAP 9.12.1 or later.
 
@@ -109,7 +121,6 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_quotas - fix default tree quota rule gets modified when `quota_target` is set in REST.
   - na_ontap_quotas - fix user/group quota rule without qtree gets modified when `qtree` is set.
   - na_ontap_svm_options - updated doc with deprecation warning as it is a ZAPI only module.
-  - na_ontap_snapmirror_policy - fixed idempotency issue on `identity_preservation` option when using REST.
 
 ### New Modules
   - na_ontap_cifs_local_group - added REST only support for create, modify, rename and delete CIFS local group of an SVM.

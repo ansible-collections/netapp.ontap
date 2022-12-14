@@ -42,6 +42,20 @@ SRR = rest_responses({
         'network_compression_enabled': True,
         'identity_preservation': 'exclude_network_config'
     }, None),
+    'get_snapmirror_policy_async_with_options': (200, {
+        'svm': {'name': 'ansible'},
+        'name': 'ansible',
+        'uuid': 'abcdef12-3456-7890-abcd-ef1234567890',
+        'comment': 'created by ansible',
+        'type': 'async',
+        'snapmirror_label': [],
+        'keep': [],
+        'schedule': [],
+        'prefix': [],
+        'copy_latest_source_snapshot': True,
+        'network_compression_enabled': True,
+        'identity_preservation': 'exclude_network_config'
+    }, None),
     'get_snapmirror_policy_sync': (200, {
         'svm': {'name': 'ansible'},
         'name': 'ansible',
@@ -109,6 +123,30 @@ SRR = rest_responses({
             },
         ],
         'network_compression_enabled': False
+    }, None),
+    'get_snapmirror_policy_async_with_create_snapshot_on_source': (200, {
+        'svm': {'name': 'ansible'},
+        'name': 'ansible',
+        'uuid': 'abcdef12-3456-7890-abcd-ef1234567890',
+        'comment': 'created by ansible',
+        'type': 'async',
+        'retention': [
+            {
+                'label': 'daily',
+                'count': 7,
+                'creation_schedule': {'name': ''},
+                'prefix': '',
+            },
+        ],
+        'create_snapshot_on_source': False
+    }, None),
+    'get_snapmirror_policy_sync_with_sync_type': (200, {
+        'svm': {'name': 'ansible'},
+        'name': 'ansible',
+        'uuid': 'abcdef12-3456-7890-abcd-ef1234567890',
+        'comment': 'created by ansible',
+        'type': 'sync',
+        'sync_type': 'automated_failover'
     }, None),
 })
 
@@ -242,9 +280,9 @@ def test_successful_create_with_rest():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
-        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_options']),
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_options']),
         # sync
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
@@ -856,17 +894,15 @@ def test_validate_parameters():
         'use_rest': 'never',
         'identity_preservation': 'full',
     }
-    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = 'Error: identity_preservation is not supported in ZAPI and it is REST only'
-    assert error in expect_and_capture_ansible_exception(my_obj.validate_parameters, 'fail')['msg']
+    error = 'Error: identity_preservation option is not supported with ZAPI.  It can only be used with REST.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
     module_args = {
         'use_rest': 'never',
         'copy_all_source_snapshots': True,
     }
-    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = 'Error: copy_all_source_snapshots is not supported in ZAPI and it is REST only'
-    assert error in expect_and_capture_ansible_exception(my_obj.validate_parameters, 'fail')['msg']
+    error = 'Error: copy_all_source_snapshots option is not supported with ZAPI.  It can only be used with REST.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_validate_parameters_rest():
@@ -878,18 +914,9 @@ def test_validate_parameters_rest():
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
     ])
-
-    module_args = {
-        'use_rest': 'always',
-        'policy_type': 'vault',
-    }
-    error = 'Error: policy type in REST only supports options async_mirror or sync_mirror, given vault'
-    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
     module_args = {
         'use_rest': 'always',
@@ -904,7 +931,7 @@ def test_validate_parameters_rest():
         'policy_type': 'sync_mirror',
         'identity_preservation': 'full'
     }
-    error = 'Error: identity_preservation is only supported with async (async_mirror) policy_type, got: sync_mirror'
+    error = 'Error: identity_preservation is only supported with async (async) policy_type, got: sync'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
     module_args = {
@@ -938,27 +965,88 @@ def test_errors_in_create():
         'use_rest': 'always',
         'policy_type': 'async_mirror',
     }
-    error = 'Error: policy type cannot be changed: current=sync_mirror, expected=async_mirror'
+    error = 'Error: The policy property policy_type cannot be modified from sync to async'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     module_args = {
         'use_rest': 'always',
         'policy_type': 'sync_mirror',
     }
-    error = 'Error: policy type cannot be changed: current=async_mirror, expected=sync_mirror'
+    error = 'Error: The policy property policy_type cannot be modified from async to sync'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_errors_in_create_with_copy_snapshots():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'snapmirror/policies', SRR['empty_records']),
     ])
     module_args = {
         'use_rest': 'always',
         'copy_all_source_snapshots': True,
         'policy_type': 'sync_mirror'
     }
-    msg = 'Error: copy_all_source_snapshots is only supported with async (async_mirror) policy_type ' \
-          'and "retention" is not valid for SnapMirror policy'
+    msg = 'Error: the policy type should be async to set copy_all_source_snapshots or copy_latest_source_snapshot properties'
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert msg in error
+
+
+def test_errors_in_create_with_copy_latest_snapshots():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'copy_latest_source_snapshot': True,
+        'policy_type': 'async',
+        'snapmirror_label': ["daily", "weekly"],
+    }
+    msg = 'Error: Retention properties cannot be specified along with copy_all_source_snapshots or copy_latest_source_snapshot properties'
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error
+
+
+def test_errors_in_create_snapshot_on_source():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'create_snapshot_on_source': False,
+        'policy_type': 'sync_mirror',
+        'snapmirror_label': ["daily", "weekly"],
+        'keep': ["7", "2"],
+    }
+    msg = 'Error: the policy type should be async to set create_snapshot_on_source'
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error
+
+
+def test_async_create_snapshot_on_source():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'snapmirror/policies', SRR['empty_records']),
+        ('POST', 'snapmirror/policies', SRR['success']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_create_snapshot_on_source']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'create_snapshot_on_source': False,
+        'policy_type': 'vault',
+        'snapmirror_label': ["daily", "weekly"],
+        'keep': ["7", "2"],
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def get_snapmirror_policy_sync_with_sync_type():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'snapmirror/policies', SRR['empty_records']),
+        ('POST', 'snapmirror/policies', SRR['success']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_create_snapshot_on_source']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'policy_type': 'sync_mirror',
+        'sync_type': 'automated_failover'
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']

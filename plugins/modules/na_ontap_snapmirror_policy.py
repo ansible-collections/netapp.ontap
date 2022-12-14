@@ -48,8 +48,9 @@ options:
     version_added: '22.0.0'
   policy_type:
     description:
-      - Specifies the SnapMirror policy type. Modifying the type of an existing SnapMirror policy is not supported
-    choices: ['vault', 'async_mirror', 'mirror_vault', 'strict_sync_mirror', 'sync_mirror']
+      - Specifies the SnapMirror policy type. Modifying the type of an existing SnapMirror policy is not supported.
+      - The Policy types 'sync' and 'async' are only supported in REST.
+    choices: ['vault', 'async_mirror', 'mirror_vault', 'strict_sync_mirror', 'sync_mirror', 'sync', 'async']
     type: str
   comment:
     description:
@@ -132,10 +133,51 @@ options:
     description:
       - Specifies whether all source Snapshot copies should be copied to the destination on a transfer rather than specifying specific retentions.
       - This property is applicable only to async policies.
+      - Property can only be set to 'true'.
       - Only supported with REST and requires ONTAP 9.10.1 or later.
     type: bool
     version_added: '22.1.0'
+  copy_latest_source_snapshot:
+    description:
+      - Specifies that the latest source Snapshot copy (created by SnapMirror before the transfer begins) should be copied to the destination on a transfer.
+      - Retention properties cannot be specified along with this property.
+      - Property can only be set to 'true'.
+      - Only supported with REST and requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: '22.2.0'
+  create_snapshot_on_source:
+    description:
+      - Specifies whether a new Snapshot copy should be created on the source at the beginning of an update or resync operation.
+      - This property is applicable only to async policies.
+      - Property can only be set to 'false'.
+      - Only supported with REST and requires ONTAP 9.11.1 or later.
+    type: bool
+    version_added: '22.2.0'
+  sync_type:
+    description:
+      - This property is only applicable to sync policy types.
+      - If the "sync_type" is "sync" then a write success is returned to the client
+        after writing the data to the primary endpoint and before writing the data to the secondary endpoint.
+      - If the "sync_type" is "strict_sync" then a write success is returned to the client after writing the data to the both primary and secondary endpoints.
+      - The "sync_type" of "automated_failover" can be associated with a SnapMirror relationship that has Consistency Group as the endpoint and
+        it requires ONTAP 9.7 or later.
+      - Only supported with REST.
+    type: str
+    choices: ['sync', 'strict_sync', 'automated_failover']
+    version_added: '22.2.0'
 
+notes:
+  - In REST, policy types 'mirror_vault', 'vault' and 'async_mirror' are mapped to 'async' policy_type.
+  - In REST, policy types 'sync_mirror' and 'strict_sync_mirror' are mapped to 'sync' policy_type.
+  - In REST, use policy_type 'async' to configure 'mirror-vault' in CLI.
+  - In REST, use policy_type 'async' with 'copy_all_source_snapshots' to configure 'async-mirror' with
+    'all_source_snapshots' in CLI.
+  - In REST, use policy_type 'async' with 'copy_latest_source_snapshot' to configure 'async-mirror' without
+    'all_source_snapshots' in CLI.
+  - In REST, use policy_type 'async' with 'create_snapshot_on_source' to configure 'vault' in CLI.
+  - In REST, use policy_type 'sync' with sync_type 'sync' to configure 'sync-mirror' in CLI.
+  - In REST, use policy_type 'sync' with sync_type 'strict_sync' to configure 'strict-sync-mirror' in CLI.
+  - In REST, use policy_type 'sync' with sync_type 'automated_failover' to configure 'automated-failover' in CLI.
 """
 
 EXAMPLES = """
@@ -267,7 +309,7 @@ class NetAppOntapSnapMirrorPolicy:
             policy_name=dict(required=True, type='str', aliases=['name']),
             comment=dict(required=False, type='str'),
             policy_type=dict(required=False, type='str',
-                             choices=['vault', 'async_mirror', 'mirror_vault', 'strict_sync_mirror', 'sync_mirror']),
+                             choices=['vault', 'async_mirror', 'mirror_vault', 'strict_sync_mirror', 'sync_mirror', 'sync', 'async']),
             tries=dict(required=False, type='str'),
             transfer_priority=dict(required=False, type='str', choices=['low', 'normal']),
             common_snapshot_schedule=dict(required=False, type='str'),
@@ -281,11 +323,15 @@ class NetAppOntapSnapMirrorPolicy:
             schedule=dict(required=False, type="list", elements="str"),
             identity_preservation=dict(required=False, type="str", choices=['full', 'exclude_network_config', 'exclude_network_and_protocol_config']),
             copy_all_source_snapshots=dict(required=False, type='bool'),
+            copy_latest_source_snapshot=dict(required=False, type='bool'),
+            create_snapshot_on_source=dict(required=False, type='bool'),
+            sync_type=dict(required=False, type="str", choices=['sync', 'strict_sync', 'automated_failover']),
         ))
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            mutually_exclusive=[('copy_all_source_snapshots', 'copy_latest_source_snapshot', 'create_snapshot_on_source', 'sync_type')]
         )
 
         # set up variables
@@ -297,11 +343,18 @@ class NetAppOntapSnapMirrorPolicy:
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['owner', 'restart', 'transfer_priority', 'tries', 'ignore_atime',
                                        'common_snapshot_schedule']
-        partially_supported_rest_properties = [['copy_all_source_snapshots', (9, 10, 1)]]
+        partially_supported_rest_properties = [['copy_all_source_snapshots', (9, 10, 1)], ['copy_latest_source_snapshot', (9, 11, 1)],
+                                               ['create_snapshot_on_source', (9, 11, 1)]]
+        self.unsupported_zapi_properties = ['identity_preservation', 'copy_all_source_snapshots', 'copy_latest_source_snapshot', 'sync_type']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        self.validate_policy_type()
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            for unsupported_zapi_property in self.unsupported_zapi_properties:
+                if self.parameters.get(unsupported_zapi_property) is not None:
+                    msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_snapmirror_policy(self):
@@ -375,11 +428,13 @@ class NetAppOntapSnapMirrorPolicy:
 
     def get_snapmirror_policy_rest(self):
 
-        query = {'fields': 'uuid,name,svm.name,comment,network_compression_enabled,type,retention,identity_preservation,',
+        query = {'fields': 'uuid,name,svm.name,comment,network_compression_enabled,type,retention,identity_preservation,sync_type,',
                  'name': self.parameters['policy_name'],
                  'svm.name': self.parameters['vserver']}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
-            query['fields'] += 'copy_all_source_snapshots'
+            query['fields'] += 'copy_all_source_snapshots,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            query['fields'] += 'copy_latest_source_snapshot,create_snapshot_on_source'
         api = "snapmirror/policies"
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
@@ -390,21 +445,19 @@ class NetAppOntapSnapMirrorPolicy:
                 'vserver': record['svm']['name'],
                 'policy_name': record['name'],
                 'comment': '',
-                'is_network_compression_enabled': record['network_compression_enabled'],
+                'is_network_compression_enabled': False,
                 'snapmirror_label': [],
                 'keep': [],
                 'prefix': [],
                 'schedule': [],
                 'identity_preservation': '',
-                'copy_all_source_snapshots': False
+                'copy_all_source_snapshots': False,
+                'copy_latest_source_snapshot': False,
             }
             if 'type' in record:
-                policy_type = record['type']
-                if policy_type == 'async':
-                    policy_type = 'async_mirror'
-                elif policy_type == 'sync':
-                    policy_type = 'sync_mirror'
-                return_value['policy_type'] = policy_type
+                return_value['policy_type'] = record['type']
+            if 'is_network_compression_enabled' in record:
+                return_value['is_network_compression_enabled'] = record['is_network_compression_enabled']
             if 'comment' in record:
                 return_value['comment'] = record['comment']
             if 'retention' in record:
@@ -421,10 +474,16 @@ class NetAppOntapSnapMirrorPolicy:
                             return_value['schedule'].append('')
                         else:
                             return_value['schedule'].append(rule['creation_schedule']['name'])
-            if 'copy_all_source_snapshots' in record:
-                return_value['copy_all_source_snapshots'] = record['copy_all_source_snapshots']
             if 'identity_preservation' in record:
                 return_value['identity_preservation'] = record['identity_preservation']
+            if 'sync_type' in record:
+                return_value['sync_type'] = record['sync_type']
+            if 'copy_all_source_snapshots' in record:
+                return_value['copy_all_source_snapshots'] = record['copy_all_source_snapshots']
+            if 'copy_latest_source_snapshot' in record:
+                return_value['copy_latest_source_snapshot'] = record['copy_latest_source_snapshot']
+            if 'create_snapshot_on_source' in record:
+                return_value['create_snapshot_on_source'] = record['create_snapshot_on_source']
             return return_value
         return None
 
@@ -474,11 +533,17 @@ class NetAppOntapSnapMirrorPolicy:
             self.module.fail_json(msg="Error: Missing 'schedule' parameter. When "
                                       "specifying the 'prefix' parameter, the 'schedule' "
                                       "parameter must also be supplied")
-        if not self.use_rest:
-            if 'identity_preservation' in self.parameters:
-                self.module.fail_json(msg="Error: identity_preservation is not supported in ZAPI and it is REST only")
+
+        if self.use_rest:
             if 'copy_all_source_snapshots' in self.parameters:
-                self.module.fail_json(msg="Error: copy_all_source_snapshots is not supported in ZAPI and it is REST only")
+                if self.parameters.get('copy_all_source_snapshots') is not True:
+                    self.module.fail_json(msg='Error: the property copy_all_source_snapshots can only be set to True when present')
+            if 'copy_latest_source_snapshot' in self.parameters:
+                if self.parameters.get('copy_latest_source_snapshot') is not True:
+                    self.module.fail_json(msg='Error: the property copy_latest_source_snapshot can only be set to True when present')
+            if 'create_snapshot_on_source' in self.parameters:
+                if self.parameters['create_snapshot_on_source'] is not False:
+                    self.module.fail_json(msg='Error: the property create_snapshot_on_source can only be set to False when present')
 
     def create_snapmirror_policy(self, body=None):
         """
@@ -529,15 +594,30 @@ class NetAppOntapSnapMirrorPolicy:
         # if policy type is omitted, REST assumes async
         policy_type = 'async'
         if 'policy_type' in self.parameters:
-            if 'async_mirror' in self.parameters['policy_type']:
+            if 'async' in self.parameters['policy_type']:
                 policy_type = 'async'
-            elif 'sync_mirror' in self.parameters['policy_type']:
+            elif 'sync' in self.parameters['policy_type']:
                 policy_type = 'sync'
                 body['sync_type'] = 'sync'
-            else:
-                self.module.fail_json(msg='Error: policy type in REST only supports options async_mirror or sync_mirror, given %s'
-                                      % (self.parameters['policy_type']))
+                if 'sync_type' in self.parameters:
+                    body['sync_type'] = self.parameters['sync_type']
             body['type'] = policy_type
+        if 'copy_all_source_snapshots' in self.parameters:
+            body["copy_all_source_snapshots"] = self.parameters['copy_all_source_snapshots']
+        if 'copy_latest_source_snapshot' in self.parameters:
+            body["copy_latest_source_snapshot"] = self.parameters['copy_latest_source_snapshot']
+        if 'create_snapshot_on_source' in self.parameters:
+            # To set 'create_snapshot_on_source' as 'False' requires retention objects label(snapmirror_label) and count(keep)
+            snapmirror_policy_retention_objs = []
+            for index, rule in enumerate(self.parameters['snapmirror_label']):
+                retention = {'label': rule, 'count': str(self.parameters['keep'][index])}
+                if 'prefix' in self.parameters and self.parameters['prefix'] != '':
+                    retention['prefix'] = self.parameters['prefix'][index]
+                if 'schedule' in self.parameters and self.parameters['schedule'] != '':
+                    retention['creation_schedule'] = {'name': self.parameters['schedule'][index]}
+                snapmirror_policy_retention_objs.append(retention)
+            body['retention'] = snapmirror_policy_retention_objs
+            body["create_snapshot_on_source"] = self.parameters['create_snapshot_on_source']
 
         return self.build_body_for_create_or_modify(policy_type, body)
 
@@ -553,14 +633,9 @@ class NetAppOntapSnapMirrorPolicy:
             body["network_compression_enabled"] = self.parameters['is_network_compression_enabled']
         if 'identity_preservation' in self.parameters:
             if policy_type == 'sync':
-                self.module.fail_json(msg='Error: identity_preservation is only supported with async (async_mirror) policy_type, got: %s'
+                self.module.fail_json(msg='Error: identity_preservation is only supported with async (async) policy_type, got: %s'
                                       % (self.parameters['policy_type']))
             body['identity_preservation'] = self.parameters['identity_preservation']
-        if 'copy_all_source_snapshots' in self.parameters:
-            if policy_type == 'sync' or 'snapmirror_label' in self.parameters:
-                self.module.fail_json(msg='Error: copy_all_source_snapshots is only supported with async (async_mirror) policy_type'
-                                          ' and "retention" is not valid for SnapMirror policy')
-            body["copy_all_source_snapshots"] = self.parameters['copy_all_source_snapshots']
         return body
 
     def create_snapmirror_policy_retention_obj_for_rest(self, rules=None):
@@ -760,7 +835,6 @@ class NetAppOntapSnapMirrorPolicy:
         if self.use_rest:
             api = "snapmirror/policies"
             body = {'retention': []}
-
             # As rule 'prefix' can't be unset, have to delete existing rules first.
             # Builtin rules remain.
             dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
@@ -808,19 +882,61 @@ class NetAppOntapSnapMirrorPolicy:
                                   (self.parameters['policy_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
+    def validate_policy_type(self):
+        if 'policy_type' in self.parameters:
+            if self.use_rest:
+                # Policy types 'mirror_vault', 'vault', 'async_mirror' are mapped to async policy type
+                if self.parameters['policy_type'] == 'vault':
+                    self.parameters['create_snapshot_on_source'] = False
+                    if 'copy_latest_source_snapshot' in self.parameters:
+                        self.parameters.pop('copy_latest_source_snapshot')
+                    self.parameters['policy_type'] = 'async'
+                    self.module.warn("policy type changed to 'async' with 'create_snapshot_on_source' set to False")
+                if self.parameters['policy_type'] == 'async_mirror':
+                    # async_mirror accepts two choices with copy_all_source_snapshots or copy_latest_source_snapshot
+                    self.parameters['policy_type'] = 'async'
+                    self.module.warn("policy type changed to 'async', set copy_latest_source_snapshot, copy_all_source_snapshots "
+                                     "async-mirror with or without all_source_snapshots or use 'async_mirror' alone to configure mirror-vault")
+                if 'copy_all_source_snapshots' in self.parameters or 'copy_latest_source_snapshot' in self.parameters:
+                    if self.parameters['policy_type'] != 'async':
+                        self.module.fail_json(msg='Error: the policy type should be async to set copy_all_source_snapshots or '
+                                                  'copy_latest_source_snapshot properties')
+                    if 'snapmirror_label' in self.parameters or 'keep' in self.parameters or 'prefix' in self.parameters or 'schedule' in self.parameters:
+                        self.module.fail_json(msg='Error: Retention properties cannot be specified along with copy_all_source_snapshots or '
+                                                  'copy_latest_source_snapshot properties')
+
+                if 'create_snapshot_on_source' in self.parameters:
+                    if self.parameters['policy_type'] != 'async':
+                        self.module.fail_json(msg='Error: the policy type should be async to set create_snapshot_on_source')
+                    if 'snapmirror_label' not in self.parameters and 'keep' not in self.parameters:
+                        self.module.fail_json(msg="Error: The properties snapmirror_label and keep must be specified with"
+                                                  "create_snapshot_on_source set to false")
+                if self.parameters['policy_type'] == 'mirror_vault':
+                    self.parameters['policy_type'] = 'async'
+                # Policy types ''sync_mirror', 'strict_sync_mirror' are mapped to sync policy type
+                if self.parameters['policy_type'] in ('sync_mirror', 'strict_sync_mirror', 'sync'):
+                    self.parameters['sync_type'] = 'sync' if self.parameters['policy_type'] in ('sync', 'sync_mirror') else 'strict_sync'
+                    self.parameters['policy_type'] = 'sync'
+                if self.parameters['policy_type'] != 'sync' and 'sync_type' in self.parameters:
+                    self.module.fail_json(msg="Error: 'sync_type' is only applicable for sync policy_type")
+
+            elif not self.use_rest:
+                if self.parameters['policy_type'] == 'async' or self.parameters['policy_type'] == 'sync':
+                    self.module.fail_json(msg='Error: The Policy types async and sync are not supported in ZAPI')
+
     def get_actions(self):
         current, modify = self.get_snapmirror_policy(), None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if current and cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            if 'policy_type' in modify:
-                self.module.fail_json(msg='Error: policy type cannot be changed: current=%s, expected=%s' %
-                                      (current.get('policy_type'), modify['policy_type']))
-            if 'copy_all_source_snapshots' in modify:
-                self.module.fail_json(msg='Error: The policy property copy_all_source_snapshots cannot be modified to %s' %
-                                      (modify['copy_all_source_snapshots']))
+            for property in ('policy_type', 'copy_all_source_snapshots', 'copy_latest_source_snapshot', 'sync_type', 'create_snapshot_on_source'):
+                if property in modify:
+                    self.module.fail_json(msg='Error: The policy property %s cannot be modified from %s to %s'
+                                          % (property, current.get(property), modify[property]))
+
         body = None
-        modify_body = any(key not in ('keep', 'prefix', 'schedule', 'snapmirror_label', 'copy_all_source_snapshots') for key in modify) if modify else False
+        modify_body = any(key not in ('keep', 'prefix', 'schedule', 'snapmirror_label', 'copy_all_source_snapshots', 'copy_latest_source_snapshot',
+                          'sync_type', 'create_snapshot_on_source') for key in modify) if modify else False
         if self.na_helper.changed and (cd_action == 'create' or modify):
             # report any error even in check_mode
             self.validate_parameters()
@@ -839,7 +955,8 @@ class NetAppOntapSnapMirrorPolicy:
                     if not current:
                         self.module.fail_json(msg="Error: policy %s not present after create." % self.parameters['policy_name'])
                     uuid = current['uuid']
-                self.modify_snapmirror_policy_rules(current, uuid)
+                if 'create_snapshot_on_source' not in self.parameters:
+                    self.modify_snapmirror_policy_rules(current, uuid)
             elif cd_action == 'delete':
                 if self.use_rest:
                     uuid = current['uuid']
