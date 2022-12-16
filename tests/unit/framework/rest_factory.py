@@ -62,6 +62,7 @@ _DEFAULT_RESPONSES = {
     'empty_records': (200, {'records': []}, None),
     'zero_records': (200, {'num_records': 0}, None),
     'one_record': (200, {'num_records': 1}, None),
+    'one_vserver_record': (200, {'num_records': 1, 'records': [{'svm': {'name': 'svm_name', 'uuid': 'svm_uuid'}}]}, None),
     'generic_error': (400, None, "Expected error"),
     'error_record': (400, None, {'code': 6, 'message': 'Expected error'}),
     'job_generic_response_success': _build_job('success'),

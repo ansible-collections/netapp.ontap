@@ -138,7 +138,9 @@ SRR = rest_responses({
                 'prefix': '',
             },
         ],
-        'create_snapshot_on_source': False
+        'create_snapshot_on_source': False,
+        'is_network_compression_enabled': True,
+        'transfer_schedule': 'yearly',
     }, None),
     'get_snapmirror_policy_sync_with_sync_type': (200, {
         'svm': {'name': 'ansible'},
@@ -146,7 +148,9 @@ SRR = rest_responses({
         'uuid': 'abcdef12-3456-7890-abcd-ef1234567890',
         'comment': 'created by ansible',
         'type': 'sync',
-        'sync_type': 'automated_failover'
+        'sync_type': 'automated_failover',
+        # does not make sense, but does not hurt
+        'copy_all_source_snapshots': False
     }, None),
 })
 
@@ -160,7 +164,8 @@ snapmirror_policy_info = {
     'restart': 'always',
     'is-network-compression-enabled': 'false',
     'ignore-atime': 'false',
-    'vserver-name': 'ansible'
+    'vserver-name': 'ansible',
+    'common-snapshot-schedule': 'monthly'
 }
 
 snapmirror_policy_rules = {
@@ -271,24 +276,30 @@ def test_successful_create_with_rest():
     register_responses([
         # default is async
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
         # explicitly async
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_options']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_options']),
         # sync
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_sync']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_sync']),
     ])
     module_args = {
@@ -329,12 +340,13 @@ def test_successful_create_with_rules_via_rest():
     ''' creating snapmirror policy with rules via rest and testing idempotency '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
         ('PATCH', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
-        ('PATCH', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_rules']),
     ])
     module_args = {
@@ -367,12 +379,15 @@ def test_successful_delete_with_rest():
     ''' deleting snapmirror policy via REST and testing idempotency '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_rules_dash']),
         ('DELETE', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_rules']),
         ('DELETE', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
     ])
     module_args = {
@@ -406,6 +421,7 @@ def test_successful_modify_with_rest():
     ''' modifying snapmirror policy without rules via REST.  Idempotency was tested in create '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
         ('PATCH', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
     ])
@@ -438,8 +454,8 @@ def test_successful_modify_with_rules_via_rest():
     ''' modifying snapmirror policy with rules via rest.  Idempotency was tested in create '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
-        ('PATCH', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
         ('PATCH', 'snapmirror/policies/abcdef12-3456-7890-abcd-ef1234567890', SRR['success']),
     ])
     module_args = {
@@ -495,15 +511,14 @@ def test_if_all_methods_catch_exception():
 def test_if_all_methods_catch_exception_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['generic_error']),
         ('POST', 'snapmirror/policies', SRR['generic_error']),
         ('DELETE', 'snapmirror/policies/uuid', SRR['generic_error']),
         ('PATCH', 'snapmirror/policies/uuid', SRR['generic_error']),
-        # deleting rules
+        # modifying rules
         ('GET', 'cluster', SRR['is_rest']),
-        ('PATCH', 'snapmirror/policies/uuid', SRR['generic_error']),
-        # adding rule
-        ('PATCH', 'snapmirror/policies/uuid', SRR['success']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('PATCH', 'snapmirror/policies/uuid', SRR['generic_error']),
     ])
     module_args = {
@@ -526,9 +541,7 @@ def test_if_all_methods_catch_exception_rest():
         'keep': [24],
     }
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    error = rest_error_message('Error deleting snapmirror policy rules', 'snapmirror/policies/uuid')
-    assert error in expect_and_capture_ansible_exception(my_obj.modify_snapmirror_policy_rules, 'fail', None, 'uuid')['msg']
-    error = rest_error_message('Error adding snapmirror policy rules', 'snapmirror/policies/uuid')
+    error = rest_error_message('Error modifying snapmirror policy rules', 'snapmirror/policies/uuid')
     assert error in expect_and_capture_ansible_exception(my_obj.modify_snapmirror_policy_rules, 'fail', None, 'uuid')['msg']
 
 
@@ -838,6 +851,14 @@ def test_validate_parameters():
     register_responses([
     ])
 
+    args = dict(DEFAULT_ARGS)
+    args.pop('vserver')
+    module_args = {
+        'use_rest': 'never',
+    }
+    error = 'Error: vserver is a required parameter when using ZAPI.'
+    assert error in create_module(my_module, args, module_args, fail=True)['msg']
+
     module_args = {
         'use_rest': 'never',
         'snapmirror_label': list(range(11)),
@@ -909,13 +930,22 @@ def test_validate_parameters_rest():
     ''' test test_validate_parameters '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
+        # copy_all_source_snapshots
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        # copy_latest_source_snapshot
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        # create_snapshot_on_source
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
     ])
 
     module_args = {
@@ -942,16 +972,43 @@ def test_validate_parameters_rest():
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
+    module_args = {
+        'use_rest': 'always',
+        'policy_type': 'async_mirror',
+        'copy_all_source_snapshots': False,
+    }
+    error = 'Error: the property copy_all_source_snapshots can only be set to true when present'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+    module_args = {
+        'use_rest': 'always',
+        'policy_type': 'async_mirror',
+        'copy_latest_source_snapshot': False,
+    }
+    error = 'Error: the property copy_latest_source_snapshot can only be set to true when present'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+    module_args = {
+        'use_rest': 'always',
+        'policy_type': 'vault',
+        'create_snapshot_on_source': True,
+    }
+    error = 'Error: the property create_snapshot_on_source can only be set to false when present'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
 
 def test_errors_in_create():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['zero_records']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_sync']),
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async']),
     ])
     module_args = {
@@ -984,7 +1041,7 @@ def test_errors_in_create_with_copy_snapshots():
         'copy_all_source_snapshots': True,
         'policy_type': 'sync_mirror'
     }
-    msg = 'Error: the policy type should be async to set copy_all_source_snapshots or copy_latest_source_snapshot properties'
+    msg = 'Error: option copy_all_source_snapshots is not supported with policy type sync_mirror.'
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert msg in error
 
@@ -1007,6 +1064,7 @@ def test_errors_in_create_with_copy_latest_snapshots():
 def test_errors_in_create_snapshot_on_source():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
     ])
     module_args = {
         'use_rest': 'always',
@@ -1015,7 +1073,17 @@ def test_errors_in_create_snapshot_on_source():
         'snapmirror_label': ["daily", "weekly"],
         'keep': ["7", "2"],
     }
-    msg = 'Error: the policy type should be async to set create_snapshot_on_source'
+    msg = 'Error: option create_snapshot_on_source is not supported with policy type sync_mirror.'
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert msg in error
+
+    module_args = {
+        'use_rest': 'always',
+        'create_snapshot_on_source': False,
+        'policy_type': 'async',
+        'snapmirror_label': ["daily", "weekly"],
+    }
+    msg = 'Error: The properties snapmirror_label and keep must be specified with'
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert msg in error
 
@@ -1023,6 +1091,7 @@ def test_errors_in_create_snapshot_on_source():
 def test_async_create_snapshot_on_source():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['empty_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
         ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_create_snapshot_on_source']),
@@ -1033,16 +1102,19 @@ def test_async_create_snapshot_on_source():
         'policy_type': 'vault',
         'snapmirror_label': ["daily", "weekly"],
         'keep': ["7", "2"],
+        'prefix': ["p1", "p2"],
+        'schedule': ["daily", "weekly"],
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-def get_snapmirror_policy_sync_with_sync_type():
+def test_get_snapmirror_policy_sync_with_sync_type():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
         ('GET', 'snapmirror/policies', SRR['empty_records']),
         ('POST', 'snapmirror/policies', SRR['success']),
-        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_async_with_create_snapshot_on_source']),
+        ('GET', 'snapmirror/policies', SRR['get_snapmirror_policy_sync_with_sync_type']),
     ])
     module_args = {
         'use_rest': 'always',
@@ -1050,3 +1122,144 @@ def get_snapmirror_policy_sync_with_sync_type():
         'sync_type': 'automated_failover'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_set_scope():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        # first test
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('GET', 'svm/svms', SRR['one_vserver_record']),
+        ('GET', 'svm/svms', SRR['generic_error']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # vserver not found
+    assert my_obj.set_scope() == 'cluster'
+    # vserver found
+    assert my_obj.set_scope() == 'svm'
+    # API error
+    error = rest_error_message('Error getting vserver ansible info', 'svm/svms')
+    assert error in expect_and_capture_ansible_exception(my_obj.set_scope, 'fail')['msg']
+    # no vserver
+    my_obj.parameters.pop('vserver')
+    assert my_obj.set_scope() == 'cluster'
+
+
+def check_mapping(my_obj, policy_type, expected_policy_type, copy_latest_source_snapshot, copy_all_source_snapshots, create_snapshot_on_source, retention):
+    my_obj.parameters['policy_type'] = policy_type
+    if copy_latest_source_snapshot is None:
+        my_obj.parameters.pop('copy_latest_source_snapshot', None)
+    else:
+        my_obj.parameters['copy_latest_source_snapshot'] = copy_latest_source_snapshot
+    if copy_all_source_snapshots is None:
+        my_obj.parameters.pop('copy_all_source_snapshots', None)
+    else:
+        my_obj.parameters['copy_all_source_snapshots'] = copy_all_source_snapshots
+    if create_snapshot_on_source is None:
+        my_obj.parameters.pop('create_snapshot_on_source', None)
+    else:
+        my_obj.parameters['create_snapshot_on_source'] = create_snapshot_on_source
+    if retention is None:
+        my_obj.parameters.pop('snapmirror_label', None)
+        my_obj.parameters.pop('keep', None)
+        my_obj.parameters.pop('prefix', None)
+        my_obj.parameters.pop('schedule', None)
+    else:
+        for key, value in retention.items():
+            my_obj.parameters[key] = value
+    my_obj.validate_policy_type()
+    assert my_obj.parameters['policy_type'] == expected_policy_type
+
+
+def check_options(my_obj, copy_latest_source_snapshot, copy_all_source_snapshots, create_snapshot_on_source):
+    if copy_latest_source_snapshot is None:
+        assert 'copy_latest_source_snapshot' not in my_obj.parameters
+    else:
+        assert my_obj.parameters['copy_latest_source_snapshot'] == copy_latest_source_snapshot
+    if copy_all_source_snapshots is None:
+        assert 'copy_all_source_snapshots' not in my_obj.parameters
+    else:
+        assert my_obj.parameters['copy_all_source_snapshots'] == copy_all_source_snapshots
+    if create_snapshot_on_source is None:
+        assert 'create_snapshot_on_source' not in my_obj.parameters
+    else:
+        assert my_obj.parameters['create_snapshot_on_source'] == create_snapshot_on_source
+
+
+def test_validate_policy_type():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        # first test
+    ])
+    module_args = {
+        'use_rest': 'always',
+    }
+    retention = {
+        'snapmirror_label': ["daily", "weekly"],
+        'keep': ["7", "2"]
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    check_mapping(my_obj, 'async', 'async', None, None, None, None)
+    check_options(my_obj, None, None, None)
+    check_mapping(my_obj, 'mirror_vault', 'async', None, None, None, None)
+    check_options(my_obj, None, None, None)
+    check_mapping(my_obj, 'vault', 'async', None, None, None, retention)
+    check_options(my_obj, None, None, False)
+    check_mapping(my_obj, 'async_mirror', 'async', None, None, None, None)
+    check_options(my_obj, True, None, None)
+    check_mapping(my_obj, 'sync', 'sync', None, None, None, None)
+    check_options(my_obj, None, None, None)
+    check_mapping(my_obj, 'sync_mirror', 'sync', None, None, None, None)
+    check_options(my_obj, None, None, None)
+    check_mapping(my_obj, 'strict_sync_mirror', 'sync', None, None, None, None)
+    check_options(my_obj, None, None, None)
+
+    my_obj.parameters['policy_type'] = 'async'
+    my_obj.parameters['sync_type'] = 'strict_sync'
+    error = "Error: 'sync_type' is only applicable for sync policy_type"
+    assert error in expect_and_capture_ansible_exception(my_obj.validate_policy_type, 'fail')['msg']
+
+    module_args = {
+        'use_rest': 'never',
+        'policy_type': 'sync'
+    }
+    error = 'Error: The policy types async and sync are not supported in ZAPI.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_build_body_for_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        # first test
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'snapmirror_label': ["daily", "weekly"],
+        'keep': ["7", "2"],
+        'copy_all_source_snapshots': True
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    body = my_obj.build_body_for_create()
+    assert 'copy_all_source_snapshots' in body
+
+
+def test_modify_snapmirror_policy_rules_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        # first test
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'snapmirror_label': ["daily", "weekly"],
+        'keep': ["7", "2"],
+        'copy_all_source_snapshots': True
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert my_obj.modify_snapmirror_policy_rules_rest('uuid', [], ['umod'], [], []) is None

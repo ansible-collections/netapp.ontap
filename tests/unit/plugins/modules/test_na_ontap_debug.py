@@ -36,7 +36,7 @@ DEFAULT_ARGS = {
 SRR = rest_responses({
     'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy_9_8_0')), None),
     'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
-    'one_vserver_record': (200, {
+    'one_vserver_record_with_intf': (200, {
         "records": [{
             'name': 'vserver1',
             'ip_interfaces': [
@@ -111,7 +111,7 @@ def test_success_with_vserver():
     ''' test get'''
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', SRR['one_user_record'])    # get_users
     ])
 
@@ -128,7 +128,7 @@ def test_fail_with_vserver_locked():
     user[1]['records'][0]['locked'] = True
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', user)                      # get_users
     ])
 
@@ -146,7 +146,7 @@ def test_fail_with_vserver_missing_app():
 
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', user)                      # get_users
     ])
 
@@ -162,7 +162,7 @@ def test_fail_with_vserver_list_user_not_found():
     ''' test get'''
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', SRR['empty_records'])      # get_users
     ])
 
@@ -176,7 +176,7 @@ def test_fail_with_vserver_list_user_error_on_get_users():
     ''' test get'''
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', SRR['generic_error'])      # get_users
     ])
 
@@ -190,7 +190,7 @@ def test_success_with_vserver_list_user_not_authorized():
     ''' test get'''
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record']),   # get user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),         # get_svms
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),         # get_svms
         ('GET', 'security/accounts', SRR['not_authorized'])     # get_users
     ])
 
@@ -202,7 +202,7 @@ def test_success_with_vserver_list_user_not_authorized():
 
 def test_fail_with_vserver_no_interface():
     ''' test get'''
-    vserver = copy.deepcopy(SRR['one_vserver_record'])
+    vserver = copy.deepcopy(SRR['one_vserver_record_with_intf'])
     vserver[1]['records'][0].pop('ip_interfaces')
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record_admin']),     # get user
@@ -252,7 +252,7 @@ def test_fail_with_vserver_error_on_get_svms():
 
 def test_note_with_vserver_no_management_service():
     ''' test get'''
-    vserver = copy.deepcopy(SRR['one_vserver_record'])
+    vserver = copy.deepcopy(SRR['one_vserver_record_with_intf'])
     vserver[1]['records'][0]['ip_interfaces'][0]['services'] = ['data_core']
     register_responses(REST_ZAPI_FLOW + [
         ('GET', 'security/accounts', SRR['one_user_record_admin']),     # get user
@@ -273,17 +273,17 @@ def test_fail_zapi_error():
         ('system-get-version', ZRR['error']),
         ('GET', 'cluster', SRR['is_rest_9_8']),                     # get_version
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),             # get_vservers
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),             # get_vservers
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_users
         ('system-get-version', ZRR['ConnectTimeoutError']),
         ('GET', 'cluster', SRR['is_rest_9_8']),                     # get_version
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),             # get_vservers
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),             # get_vservers
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_users
         ('system-get-version', ZRR['Name or service not known']),
         ('GET', 'cluster', SRR['is_rest_9_8']),                     # get_version
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),             # get_vservers
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),             # get_vservers
         ('GET', 'security/accounts', SRR['one_user_record'])        # get_users
     ])
     results = create_and_apply(my_module, DEFAULT_ARGS, fail=True)
@@ -324,7 +324,7 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8']),                     # get_version
         ('GET', 'security/accounts', SRR['one_user_record']),       # get_user
-        ('GET', 'svm/svms', SRR['one_vserver_record']),             # get_vservers
+        ('GET', 'svm/svms', SRR['one_vserver_record_with_intf']),             # get_vservers
         ('GET', 'security/accounts', SRR['one_user_record'])        # get_users
     ])
 
