@@ -53,6 +53,7 @@ options:
     description:
       - Fully qualified domain name.
     type: str
+    aliases: ['fqdn']
 
   force_account_overwrite:
     description:
@@ -140,7 +141,7 @@ class NetAppOntapActiveDirectory:
             account_name=dict(required=True, type='str'),
             admin_password=dict(required=True, type='str', no_log=True),
             admin_username=dict(required=True, type='str'),
-            domain=dict(type="str", default=None),
+            domain=dict(type="str", default=None, aliases=['fqdn']),
             force_account_overwrite=dict(type="bool", default=None),
             organizational_unit=dict(type="str", default=None)
         ))
@@ -153,6 +154,7 @@ class NetAppOntapActiveDirectory:
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         self.svm_uuid = None
+
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
             msg = 'REST requires ONTAP 9.12.1 or later for active directory APIs'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)

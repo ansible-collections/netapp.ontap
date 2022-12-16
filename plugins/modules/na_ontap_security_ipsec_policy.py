@@ -141,7 +141,7 @@ EXAMPLES = """
         netmask: 24
         port: 205
       protocol: tcp
-      enable: true
+      enabled: true
       hostname: "{{ netapp_hostname }}"
       username: "{{ netapp_username }}"
       password: "{{ netapp_password }}"
@@ -165,7 +165,7 @@ EXAMPLES = """
         netmask: 24
         port: 205
       protocol: tcp
-      enable: true
+      enabled: true
       hostname: "{{ netapp_hostname }}"
       username: "{{ netapp_username }}"
       password: "{{ netapp_password }}"
@@ -210,7 +210,7 @@ EXAMPLES = """
         netmask: 24
         port: 205
       protocol: tcp
-      enable: true
+      enabled: true
       hostname: "{{ netapp_hostname }}"
       username: "{{ netapp_username }}"
       password: "{{ netapp_password }}"
@@ -234,7 +234,7 @@ EXAMPLES = """
         netmask: 24
         port: 205
       protocol: udp
-      enable: false
+      enabled: false
       hostname: "{{ netapp_hostname }}"
       username: "{{ netapp_username }}"
       password: "{{ netapp_password }}"
@@ -244,7 +244,6 @@ EXAMPLES = """
   - name: Delete security IPsec policy.
     netapp.ontap.na_ontap_security_ipsec_policy:
       name: ipsec_policy_pki
-      ipspace: Default
       svm: ansibleSVM
       hostname: "{{ netapp_hostname }}"
       username: "{{ netapp_username }}"
@@ -327,7 +326,7 @@ class NetAppOntapSecurityIPsecPolicy:
         # so delete the authentication_method, secret_key and certificate to avoid idempotent issue.
         if self.parameters.get('action') in ['bypass', 'discard'] and self.parameters.get('authentication_method') != 'none':
             msg = "The IPsec action is %s, which does not provide packet protection. The authentication_method and " % self.parameters['action']
-            del self.parameters['authentication_method']
+            self.parameters.pop('authentication_method', None)
             if self.parameters.get('secret_key'):
                 del self.parameters['secret_key']
                 self.module.warn(msg + 'secret_key options are ignored')
@@ -356,8 +355,9 @@ class NetAppOntapSecurityIPsecPolicy:
             query['svm.name'] = self.parameters['svm']
         else:
             query['scope'] = 'cluster'
-        if self.parameters.get('ipspace'):
-            query['ipspace.name'] = self.parameters['ipspace']
+        # Cannot get current IPsec policy with ipspace - burt1519419
+        # if self.parameters.get('ipspace'):
+            # query['ipspace.name'] = self.parameters['ipspace']
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg='Error fetching security ipsec policy %s: %s' % (self.parameters['name'], to_native(error)),

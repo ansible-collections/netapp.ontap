@@ -65,27 +65,26 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.2.0
 
-### New Options
-  - na_ontap_snapmirror_policy - new option ``copy_latest_source_snapshot``, ``create_snapshot_on_source`` and ``sync_type`` added in REST.
-  - na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
-
 ### Minor Changes
-  - na_ontap_snapmirror_policy - warn when replacing policy type `mirror_vault` and `vault` with policy type `async_mirror` and `strict_sync_mirror` with `sync_mirror` in REST.
+  - na_ontap_active_directory - add `fqdn` as aliases for `domain`.
+  - na_ontap_snapmirror_policy - warn when replacing policy type `async_mirror`, `mirror_vault` and `vault` with policy type `async` and `strict_sync_mirror`, `sync_mirror` with `sync` in REST.
   - na_ontap_snapmirror_policy - Added unsupported options in ZAPI.
 
 ### Bug Fixes
+  - na_ontap_security_ipsec_policy - fix cannot get current security IPsec policy with ipspace.
+  - na_ontap_security_ipsec_policy - fix KeyError on `authentication_method`.
+  - na_ontap_security_key_manager - requires 9.7+ to work with REST.
   - na_ontap_snapmirror_policy - fixed idempotency issue on `identity_preservation` option when using REST.
-  - na_ontap_snapmirror_policy - fix policy type issue by replacing policy type `strict_sync_mirror` with `sync_mirror` and also warn in ZAPI.
+  - na_ontap_snapmirror_policy - fix desired policy type not configured in cli with REST.
+  - na_ontap_volume -- fixed bug preventing unmount and taking a volume off line at the same time
 
 ### Added REST support to existing modules
   - na_ontap_active_directory - REST requires ONTAP 9.12.1 or later.
 
 ### New Options
   - na_ontap_snapmirror - support `schedule` with REST and ONTAP 9.11.1, add alias `transfer_schedule`.
-
-### Bug Fixes
-  - na_ontap_security_key_manager - requires 9.7+ to work with REST.
-  - na_ontap_volume -- fixed bug preventing unmount and taking a volume off line at the same time
+  - na_ontap_snapmirror_policy - new option ``copy_latest_source_snapshot``, ``create_snapshot_on_source`` and ``sync_type`` added in REST.
+  - na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
 
 ## 22.1.0
 
