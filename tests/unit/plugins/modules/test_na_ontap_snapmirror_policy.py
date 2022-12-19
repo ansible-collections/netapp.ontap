@@ -140,7 +140,7 @@ SRR = rest_responses({
         ],
         'create_snapshot_on_source': False,
         'is_network_compression_enabled': True,
-        'transfer_schedule': 'yearly',
+        'transfer_schedule': {'name': 'yearly'},
     }, None),
     'get_snapmirror_policy_sync_with_sync_type': (200, {
         'svm': {'name': 'ansible'},

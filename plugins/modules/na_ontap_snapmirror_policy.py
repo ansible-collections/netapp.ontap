@@ -518,7 +518,7 @@ class NetAppOntapSnapMirrorPolicy:
         if 'create_snapshot_on_source' in record:
             return_value['create_snapshot_on_source'] = record['create_snapshot_on_source']
         if 'transfer_schedule' in record:
-            return_value['transfer_schedule'] = record['transfer_schedule']
+            return_value['transfer_schedule'] = record['transfer_schedule']['name']
         return return_value
 
     def validate_parameters(self):

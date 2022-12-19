@@ -108,6 +108,7 @@ class NetAppOntapCifsLocalUserModify():
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
 
+        self.module.warn('This module is deprecated and na_ontap_cifs_local_user should be used instead')
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
