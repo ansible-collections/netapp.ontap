@@ -66,15 +66,17 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.2.0
 
 ### New Options
+  - na_ontap_interface - new option `fail_if_subnet_conflicts` - requires REST and ONTAP 9.11.1 or later.
+  - na_ontap_interface - option `subnet_name` is now supported with REST with ONTAP 9.11.1 or later.
   - na_ontap_snapmirror - support `schedule` with REST and ONTAP 9.11.1, add alias `transfer_schedule`.
-  - na_ontap_snapmirror_policy - new option ``copy_latest_source_snapshot``, ``create_snapshot_on_source`` and ``sync_type`` added in REST.
+  - na_ontap_snapmirror_policy - new option `copy_latest_source_snapshot`, `create_snapshot_on_source` and `sync_type` added in REST.
+  - na_ontap_snapmirror_policy - new option `transfer_schedule` for async policy types.
   - na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
 
 ### Minor Changes
   - na_ontap_active_directory - add `fqdn` as aliases for `domain`.
   - na_ontap_snapmirror_policy - warn when replacing policy type `async_mirror`, `mirror_vault` and `vault` with policy type `async` and `strict_sync_mirror`, `sync_mirror` with `sync` in REST.
-  - na_ontap_snapmirror_policy - Added unsupported options in ZAPI.
-  - na_ontap_snapmirror_policy - new option `transfer_schedule` for async policy types.
+  - na_ontap_snapmirror_policy - add unsupported options in ZAPI.
   - na_ontap_snapmirror_policy - add support for cluster scoped policy with REST.
 
 ### Bug Fixes
@@ -169,7 +171,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_export_policy_rule - `allow_suid`, `allow_device_creation` and `chown_mode` is now supported from ONTAP 9.9.1 or later in REST.
   - na_ontap_export_policy_rule - `allow_device_creation` and `chown_mode` is now supported in ZAPI.
   - na_ontap_ldap_client - new option `skip_config_validation`.
-  - na_ontap_service_policy - new options ``known_services`` and ``additional_services``.
+  - na_ontap_service_policy - new options `known_services` and `additional_services`.
   - na_ontap_snapmirror_policy - new option `identity_preservation` added.
   - na_ontap_snapmirror_policy - `name` added as an alias for `policy_name`.
   - na_ontap_volume - new option `max_wait_time` added.
@@ -342,8 +344,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_service_processor_network - fix idempotency issue on `dhcp` option in ZAPI.
   - na_ontap_service_processor_network - fail module when trying to disable `dhcp` and not setting one of `ip_address`, `netmask`, `gateway_ip_address` different than current.
   - na_ontap_service_processor_network - allow manually configuring network if all of `ip_address`, `netmask`, `gateway_ip_address` set and `dhcp` not present in REST.
-  - na_ontap_service_processor_network - fix setting ``dhcp`` v4 takes more than ``wait_for_completion`` retries.
-  - na_ontap_service_processor_network - fix ``wait_for_completion`` ignored when trying to enable service processor network interface in ZAPI.
+  - na_ontap_service_processor_network - fix setting `dhcp` v4 takes more than `wait_for_completion` retries.
+  - na_ontap_service_processor_network - fix `wait_for_completion` ignored when trying to enable service processor network interface in ZAPI.
   - na_ontap_software_update - improve error handling if image file is already present.
   - na_ontap_software_update - improve error handling when node is rebooting with REST.
   - na_ontap_software_update - when using REST with ONTAP 9.9 or later, timeout value is properly set.
@@ -482,7 +484,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs with REST (ipspace is required).
-  - na_ontap_interface - ignore ``vserver`` when using REST if role is one of 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
+  - na_ontap_interface - ignore `vserver` when using REST if role is one of 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
   - na_ontap_nvme - fixed invalid boolean value error for `status_admin` when creating nvme service in ZAPI.
   - na_ontap_nvme - fixed `status_admin` option is ignored if set to False when creating nvme service in REST. 
   - na_ontap_service_policy - fixed error in modify by changing resulting json of an existing record in REST.
@@ -501,7 +503,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_qos_policy_group - Added REST only supported option `adaptive_qos_options` for configuring adaptive policy.
   - na_ontap_qos_policy_group - Added REST only supported option `fixed_qos_options` for configuring max/min throughput policy.
   - na_ontap_rest_info - new option `owning_resource` for REST info that requires an owning resource. For instance volume for a snapshot
-  - na_ontap_cifs - Added ``unix_symlink`` option in REST.
+  - na_ontap_cifs - Added `unix_symlink` option in REST.
 
 ### New Module
   - na_ontap_s3_bucket - Manage S3 Buckets.
@@ -631,7 +633,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Options
   - na_ontap_export_policy_rule - new option `ntfs_unix_security` for NTFS export UNIX security options added.
   - na_ontap_volume - add support for SnapLock - only for REST.
-  - na_ontap_volume - new option ``max_files`` to increase the inode count value.
+  - na_ontap_volume - new option `max_files` to increase the inode count value.
 
 ### Minor Changes
   - na_ontap_cluster_config role - use na_ontap_login_messages as na_ontap_motd is deprecated.
@@ -871,7 +873,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 21.10.0
 
 ### Minor Changes
-  - na_ontap_cifs_server - ``force`` option is supported when state is absent to ignore communication errors.
+  - na_ontap_cifs_server - `force` option is supported when state is absent to ignore communication errors.
 
 ### Bug Fixes
   - na_ontap_vserver_delete role - delete iSCSI igroups and CIFS server before deleting vserver.
@@ -939,7 +941,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_debug - additional checks when REST is available to help debug vserver connectivity issues.
   - na_ontap_net_port - change option types to bool and int respectively for `autonegotiate_admin` and `mtu`.
-  - na_ontap_rest_info - add examples for ``parameters`` option.
+  - na_ontap_rest_info - add examples for `parameters` option.
   - na_ontap_volume - show warning when resize is ignored because threshold is not reached.
     [WARNING]: resize request ignored: 2.5% is below the threshold: 10%
   - na_ontap_vserver_create role - add `nfsv3`, `nfsv4`, `nfsv41` options.
@@ -1136,25 +1138,25 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor changes
   - na_ontap_firmware_upgrade - Added a new 'storage' type as default firmware_type.
-  - na_ontap_info - deprecate ``state`` option.
+  - na_ontap_info - deprecate `state` option.
   - na_ontap_lun - support increasing lun_count and total_size when using SAN application template.
   - na_ontap_quota - allow to turn quota on/off without providing quota_target or type.
-  - na_ontap_rest_info - deprecate ``state`` option.
+  - na_ontap_rest_info - deprecate `state` option.
   - na_ontap_snapmirror - use REST API for create action if target supports it.  (ZAPIs are still used for all other actions).
   - na_ontap_volume - use REST API for delete operation if targets supports it.
   - general - improve error reporting when older version of netapp-lib is used.
 
 ### Bug fixes
   - na_ontap_lun - REST expects 'all' for tiering policy and not 'backup'.
-  - na_ontap_quotas - Handle blank string idempotency issue for ``quota_target`` in quotas module.
-  - na_ontap_rest_info - ``changed`` was set to "False" rather than boolean False.
+  - na_ontap_quotas - Handle blank string idempotency issue for `quota_target` in quotas module.
+  - na_ontap_rest_info - `changed` was set to "False" rather than boolean False.
   - na_ontap_snapmirror - report error when attempting to change relationship_type.
   - na_ontap_snapmirror - fix job update failures for load_sharing mirrors.
   - na_ontap_snapmirror - wait up to 5 minutes for abort to complete before issuing a delete.
   - na_ontap_snmp - SNMP module wrong access_control issue and error handling fix.
   - na_ontap_volume - REST expects 'all' for tiering policy and not 'backup'.
   - na_ontap_volume - detect and report error when attempting to change FlexVol into FlexGroup.
-  - na_ontap_volume - report error if ``aggregate_name`` option is used with a FlexGroup.
+  - na_ontap_volume - report error if `aggregate_name` option is used with a FlexGroup.
 
 ## 20.12.0
 
@@ -1185,7 +1187,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug fixes
   - na_ontap_broadcast_domain_ports - properly report check_mode `changed`.
   - na_ontap_cifs - fix for AttributeError - 'NoneType' object has no attribute 'get' on line 300
-  - na_ontap_user - application parameter expects only ``service_processor`` but module supports ``service-processor``.
+  - na_ontap_user - application parameter expects only `service_processor` but module supports `service-processor`.
   - na_ontap_volume - change in volume type was ignored and now reporting an error.
   - na_ontap_volume - checking for success before failure lead to 'NoneType' object has no attribute 'get_child_by_name' when modifying a Flexcache volume.
 

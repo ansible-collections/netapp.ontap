@@ -139,11 +139,20 @@ options:
 
   subnet_name:
     description:
-      - Subnet where the interface address is allocated from.
-      - If the option is not used, the IP address will need to be provided by the administrator during configuration.
-      - Not supported in REST.
+      - Subnet where the IP interface address is allocated from.
+      - If the option is not used, the IP address and netmask need to be provided.
+      - With REST, ONTAP 9.11.1 or later is required.
+      - With REST, ipspace must be set.
     version_added: 2.8.0
     type: str
+
+  fail_if_subnet_conflicts:
+    description:
+      - Creating or updating an IP Interface fails if the specified IP address falls within the address range of a named subnet.
+      - Set this value to false to use the specified IP address and to assign the subnet owning that address to the interface.
+      - This option is only supported with REST and requires ONTAP 9.11.1 or later.
+    version_added: 22.2.0
+    type: bool
 
   admin_status:
     choices: ['up', 'down']
@@ -405,7 +414,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, 
 
 FAILOVER_POLICIES = ['disabled', 'system-defined', 'local-only', 'sfo-partner-only', 'broadcast-domain-wide']
 FAILOVER_SCOPES = ['home_port_only', 'default', 'home_node_only', 'sfo_partners_only', 'broadcast_domain_only']
-REST_UNSUPPORTED_OPTIONS = ['is_ipv4_link_local', 'subnet_name', ]
+REST_UNSUPPORTED_OPTIONS = ['is_ipv4_link_local']
 REST_IGNORABLE_OPTIONS = ['failover_group', 'force_subnet_association', 'listen_for_dns_query']
 
 
@@ -452,6 +461,7 @@ class NetAppOntapInterface:
             from_name=dict(required=False, type='str'),
             ignore_zapi_options=dict(required=False, type='list', elements='str', default=['force_subnet_association'], choices=REST_IGNORABLE_OPTIONS),
             probe_port=dict(required=False, type='int'),
+            fail_if_subnet_conflicts=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -473,7 +483,8 @@ class NetAppOntapInterface:
         unsupported_rest_properties.extend(REST_UNSUPPORTED_OPTIONS)
         if self.na_helper.safe_get(self.parameters, ['address']):
             self.parameters['address'] = netapp_ipaddress.validate_and_compress_ip_address(self.parameters['address'], self.module)
-        partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)], ['probe_port', (9, 10, 1)]]
+        partially_supported_rest_properties = [['dns_domain_name', (9, 9, 0)], ['is_dns_update_enabled', (9, 9, 1)], ['probe_port', (9, 10, 1)],
+                                               ['subnet_name', (9, 11, 1)], ['fail_if_subnet_conflicts', (9, 11, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for interface APIs.'
@@ -491,8 +502,9 @@ class NetAppOntapInterface:
         elif netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
-            if self.parameters.get('probe_port') is not None:
-                self.module.fail_json(msg='probe_port requires REST.')
+            for option in ('probe_port', 'fail_if_subnet_conflicts'):
+                if self.parameters.get(option) is not None:
+                    self.module.fail_json(msg='Error option %s requires REST.' % option)
             if 'vserver' not in self.parameters:
                 self.module.fail_json(msg='missing required argument with ZAPI: vserver')
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -532,9 +544,7 @@ class NetAppOntapInterface:
     def derive_interface_type(self):
         protocols = self.parameters.get('protocols')
         if protocols in (None, ["none"]):
-            if self.parameters.get('role') in ('cluster', 'intercluster'):
-                self.set_interface_type('ip')
-            if 'address' in self.parameters or 'netmask' in self.parameters:
+            if self.parameters.get('role') in ('cluster', 'intercluster') or any(x in self.parameters for x in ('address', 'netmask', 'subnet_name')):
                 self.set_interface_type('ip')
             return
         protocol_types = set()
@@ -680,8 +690,10 @@ class NetAppOntapInterface:
             fields_ip += ',dns_zone'
         if self.parameters.get('probe_port') is not None:
             fields_ip += ',probe_port'
-        if 'is_dns_update_enabled' in self.parameters:
+        if self.parameters.get('is_dns_update_enabled') is not None:
             fields_ip += ',ddns_enabled'
+        if self.parameters.get('subnet_name') is not None:
+            fields_ip += ',subnet'
         records, error, records2, error2 = None, None, None, None
         if if_type in [None, 'ip']:
             records, error = self.get_interface_records_rest('ip', query_ip, fields_ip)
@@ -752,6 +764,8 @@ class NetAppOntapInterface:
             return_value['probe_port'] = record['probe_port']
         if 'ddns_enabled' in record:
             return_value['is_dns_update_enabled'] = record['ddns_enabled']
+        if self.na_helper.safe_get(record, ['subnet', 'name']):
+            return_value['subnet_name'] = record['subnet']['name']
         return return_value
 
     def get_node_port(self, uuid):
@@ -953,6 +967,8 @@ class NetAppOntapInterface:
                 'dns_domain_name': 'dns_zone',
                 'is_dns_update_enabled': 'ddns_enabled',
                 'probe_port': 'probe_port',
+                'subnet_name': 'subnet.name',
+                'fail_if_subnet_conflicts': 'fail_if_subnet_conflicts',
                 # IP
                 'address': 'address',
                 'netmask': 'netmask',
@@ -992,7 +1008,7 @@ class NetAppOntapInterface:
                 else:
                     options[rkey] = parameters[pkey]
 
-        keys_in_error = ('role', 'subnet_name', 'failover_group', 'firewall_policy', 'force_subnet_association',
+        keys_in_error = ('role', 'failover_group', 'firewall_policy', 'force_subnet_association',
                          'listen_for_dns_query', 'is_ipv4_link_local')
         for pkey in keys_in_error:
             if pkey in parameters:
@@ -1073,7 +1089,8 @@ class NetAppOntapInterface:
             if 'vserver' not in self.parameters and 'ipspace' not in self.parameters:
                 errors.append('ipspace name must be provided if scope is cluster, or vserver for svm scope.')
             if self.parameters['interface_type'] == 'fc':
-                unsupported_fc_options = ['broadcast_domain', 'dns_domain_name', 'is_dns_update_enabled', 'probe_port']
+                unsupported_fc_options = ['broadcast_domain', 'dns_domain_name', 'is_dns_update_enabled', 'probe_port', 'subnet_name',
+                                          'fail_if_subnet_conflicts']
                 used_unsupported_fc_options = [option for option in unsupported_fc_options if option in self.parameters]
                 if used_unsupported_fc_options:
                     plural = 's' if len(used_unsupported_fc_options) > 1 else ''
@@ -1137,7 +1154,8 @@ class NetAppOntapInterface:
         """ Only the following keys can be modified:
             enabled, ip, location, name, service_policy
         """
-        bad_keys = [key for key in body if key not in ['enabled', 'ip', 'location', 'name', 'service_policy', 'dns_zone', 'ddns_enabled']]
+        bad_keys = [key for key in body if key not in ['enabled', 'ip', 'location', 'name', 'service_policy', 'dns_zone', 'ddns_enabled', 'subnet.name',
+                                                       'fail_if_subnet_conflicts']]
         if bad_keys:
             plural = 's' if len(bad_keys) > 1 else ''
             self.module.fail_json(msg='The following option%s cannot be modified: %s' % (plural, ', '.join(bad_keys)))
@@ -1147,7 +1165,11 @@ class NetAppOntapInterface:
         # running validation twice, as interface_type dictates the second set of requirements
         self.validate_required_parameters(required_keys)
         self.validate_rest_input_parameters(action='modify' if modify else 'create')
-        if not modify:
+        if modify:
+            # force the value of fail_if_subnet_conflicts as it is writeOnly
+            if self.parameters.get('fail_if_subnet_conflicts') is not None:
+                modify['fail_if_subnet_conflicts'] = self.parameters['fail_if_subnet_conflicts']
+        else:
             required_keys = set()
             required_keys.add('interface_name')
             if self.parameters['interface_type'] == 'fc':
@@ -1157,8 +1179,9 @@ class NetAppOntapInterface:
                     # home_port is not supported with 9.7
                     required_keys.add('current_port')
             if self.parameters['interface_type'] == 'ip':
-                required_keys.add('address')
-                required_keys.add('netmask')
+                if 'subnet_name' not in self.parameters:
+                    required_keys.add('address')
+                    required_keys.add('netmask')
                 required_keys.add('broadcast_domain_home_port_or_home_node')
             self.validate_required_parameters(required_keys)
         body, migrate_body, errors = self.set_options_rest(modify)

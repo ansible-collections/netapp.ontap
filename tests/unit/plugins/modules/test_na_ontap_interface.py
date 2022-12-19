@@ -468,6 +468,26 @@ SRR = rest_responses({
         'service_policy': {'name': 'data-mgmt'},
         'probe_port': 65431
     }]}, None),
+    'one_record_vserver_subnet1': (200, {'records': [{
+        'name': 'abc_if',
+        'uuid': '54321',
+        'svm': {'name': 'vserver', 'uuid': 'svm_uuid'},
+        'dns_zone': 'netapp.com',
+        'ddns_enabled': True,
+        'data_protocol': ['nfs'],
+        'enabled': True,
+        'ip': {'address': '10.11.12.13', 'netmask': '10'},
+        'location': {
+            'home_port': {'name': 'e0c'},
+            'home_node': {'name': 'node2'},
+            'node': {'name': 'node2'},
+            'port': {'name': 'e0c'},
+            'auto_revert': True,
+            'failover': True
+        },
+        'service_policy': {'name': 'data-mgmt'},
+        'subnet': {'name': 'subnet1'}
+    }]}, None),
     'one_record_fcp': (200, {'records': [{
         'data_protocol': 'fcp',
         'enabled': False,
@@ -1612,3 +1632,113 @@ def test_dns_domain_ddns_enabled():
     module_args.update(args)
     assert 'dns_domain_name, is_dns_update_enabled options only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert 'Error: Minimum version of ONTAP for is_dns_update_enabled is (9, 9, 1).' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_subnet_name():
+    ''' domain and ddns enabled option test '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('POST', 'network/ip/interfaces', SRR['success']),
+        # idemptocency
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver_subnet1']),
+        # modify subnet
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver_subnet1']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),
+        # error cases
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/fc/interfaces', SRR['zero_records']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'Default',
+        'subnet_name': 'subnet1',
+        'vserver': 'vserver',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['subnet_name'] = 'subnet2'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert 'Minimum version of ONTAP for subnet_name is (9, 11, 1)' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    args = {'data_protocol': 'fc_nvme', 'home_node': 'my_node', 'protocols': 'fc-nvme', 'interface_type': 'fc'}
+    module_args.update(args)
+    assert 'subnet_name option only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_warning_was_raised('ipspace is ignored for FC interfaces.')
+
+
+def test_fail_if_subnet_conflicts():
+    ''' domain and ddns enabled option test '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('POST', 'network/ip/interfaces', SRR['success']),
+        # idemptocency
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),
+        # modify subnet
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),
+        # error cases
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'network/fc/interfaces', SRR['zero_records']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'ipspace': 'Default',
+        'fail_if_subnet_conflicts': False,
+        'vserver': 'vserver',
+        'address': '10.11.12.13',
+        'netmask': '255.192.0.0',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args['address'] = '10.11.12.14'
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert 'Minimum version of ONTAP for fail_if_subnet_conflicts is (9, 11, 1)' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    args = {'data_protocol': 'fc_nvme', 'home_node': 'my_node', 'protocols': 'fc-nvme', 'interface_type': 'fc'}
+    module_args.update(args)
+    assert 'fail_if_subnet_conflicts option only supported for IP interfaces' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert_warning_was_raised('ipspace is ignored for FC interfaces.')
+
+
+def check_options(my_obj, parameters, exp_options, exp_migrate_options, exp_errors):
+    options, migrate_options, errors = my_obj.set_options_rest(parameters)
+    assert options == exp_options
+    assert migrate_options == exp_migrate_options
+    assert errors == exp_errors
+
+
+def test_set_options_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        # ('GET', 'cluster/nodes', SRR['nodes']),
+    ])
+    module_args = {'use_rest': 'always'}
+    my_obj = create_module(interface_module, DEFAULT_ARGS, module_args)
+    parameters = None
+    my_obj.parameters = {
+        'interface_type': 'other'
+    }
+    check_options(my_obj, parameters, {}, {}, {})
+    # unknown modify options
+    check_options(my_obj, {'x': 'y'}, {}, {}, {})
+    # valid options
+    my_obj.parameters = {
+        'interface_type': 'ip',
+        'fail_if_subnet_conflicts': False
+    }
+    check_options(my_obj, parameters, {'fail_if_subnet_conflicts': False}, {}, {})
+    check_options(my_obj, {'subnet_name': 'subnet1'}, {'subnet.name': 'subnet1'}, {}, {})
+    my_obj.parameters['home_node'] = 'node1'
+    check_options(my_obj, {'home_node': 'node1', 'home_port': 'port1'}, {'location': {'home_port': {'name': 'port1', 'node': {'name': 'node1'}}}}, {}, {})
+    my_obj.parameters['current_node'] = 'node1'
+    check_options(my_obj, {'current_node': 'node1', 'current_port': 'port1'}, {}, {'location': {'port': {'name': 'port1', 'node': {'name': 'node1'}}}}, {})
