@@ -13,7 +13,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
-    assert_warning_was_raised, call_main, clear_warnings, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible
+    assert_warning_was_raised, call_main, clear_warnings, create_and_apply, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -77,7 +77,10 @@ SRR = rest_responses({
                                     "cifs": {"enabled": True, "allowed": True},
                                     "iscsi": {"enabled": True, "allowed": True},
                                     "fcp": {"enabled": False},
-                                    "nvme": {"enabled": False}}]}, None),
+                                    "nvme": {"enabled": False},
+                                    "language": "de.utf_8",
+                                    "uuid": "svm_uuid"
+                                    }]}, None),
     'cli_record': (200,
                    {'records': [{"max_volumes": 100, "allowed_protocols": ['nfs', 'iscsi']}]}, None),
     'certificate_record_1': (200,
@@ -257,6 +260,7 @@ def test_init_error():
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
         ('GET', 'cluster', SRR['is_zapi']),
+        ('GET', 'cluster', SRR['is_rest_96']),
     ])
     module_args = {
         'allowed_protocols': 'dummy,humpty,dumpty,cifs,nfs',
@@ -273,6 +277,11 @@ def test_init_error():
     }
     error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert error == 'using services requires ONTAP 9.6 or later and REST must be enabled - Unreachable - using ZAPI.'
+    module_args = {
+        'services': {'ndmp': {'allowed': True}},
+    }
+    error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error == 'using ndmp requires ONTAP 9.7 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
 
 
 def test_successful_rename():
@@ -1223,3 +1232,19 @@ def test_add_parameter_to_dict():
     assert test_dict['name'] == 'svm'
     assert test_dict['ipspace_key'] == 'ipspace'
     assert test_dict['max_volumes'] == '3333'
+
+
+def test_rest_language_match():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'svm/svms', SRR['svm_record_ap']),
+        ('GET', 'private/cli/vserver', SRR['cli_record']),
+        ('PATCH', 'svm/svms/svm_uuid', SRR['success']),
+    ])
+    module_args = {
+        'language': 'de.UTF-8'
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised(
+        'Attempting to change language from ONTAP value de.utf_8 to de.UTF-8.  Use de.utf_8 to suppress this warning and maintain idempotency.')

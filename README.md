@@ -72,15 +72,18 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapmirror_policy - new option `copy_latest_source_snapshot`, `create_snapshot_on_source` and `sync_type` added in REST.
   - na_ontap_snapmirror_policy - new option `transfer_schedule` for async policy types.
   - na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
+  - na_ontap_iscsi - new option `target_alias` added in REST.
 
 ### Minor Changes
   - na_ontap_active_directory - add `fqdn` as aliases for `domain`.
   - na_ontap_snapmirror_policy - warn when replacing policy type `async_mirror`, `mirror_vault` and `vault` with policy type `async` and `strict_sync_mirror`, `sync_mirror` with `sync` in REST.
   - na_ontap_snapmirror_policy - add unsupported options in ZAPI.
   - na_ontap_snapmirror_policy - add support for cluster scoped policy with REST.
+  - na_ontap_svm - warn in case of mismatch in language option spelling.
 
 ### Bug Fixes
-  - na_ontap_security_key_manager - requires 9.7+ to work with REST.
+  - na_ontap_quotas - fix duplicate entry error when trying to add quota rule in REST.
+  - na_ontap_quotas - fix entry does not exist error when trying to modify quota status in REST.
   - na_ontap_security_ipsec_policy - fix cannot get current security IPsec policy with ipspace.
   - na_ontap_security_ipsec_policy - fix KeyError on `authentication_method`.
   - na_ontap_security_key_manager - requires 9.7+ to work with REST.

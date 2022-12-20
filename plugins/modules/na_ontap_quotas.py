@@ -120,12 +120,12 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Add/Set quota policy is supported only in ZAPI.
-      na_ontap_quotas:
+    - name: Create quota rule in ZAPI.
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
-        quota_target: /vol/ansible
+        quota_target: user1
         type: user
         policy: ansible
         file_limit: 2
@@ -135,11 +135,11 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Resize quota
-      na_ontap_quotas:
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
-        quota_target: /vol/ansible
+        quota_target: user1
         type: user
         policy: ansible
         file_limit: 2
@@ -150,11 +150,11 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Reinitialize quota
-      na_ontap_quotas:
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
-        quota_target: /vol/ansible
+        quota_target: user1
         type: user
         policy: ansible
         file_limit: 2
@@ -165,11 +165,11 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: modify quota
-      na_ontap_quotas:
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
-        quota_target: /vol/ansible
+        quota_target: user1
         type: user
         policy: ansible
         file_limit: 2
@@ -180,7 +180,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Delete quota
-      na_ontap_quotas:
+      netapp.ontap.na_ontap_quotas:
         state: absent
         vserver: ansible
         volume: ansible
@@ -190,12 +190,13 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: Add/Set quota in REST.
-      na_ontap_quotas:
+    - name: Add/Set quota rule for type user in REST.
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
         quota_target: "user1,user2"
+        qtree: qtree
         type: user
         file_limit: 2
         disk_limit: 3
@@ -204,14 +205,42 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Modify quota reset file limit and modify disk limit.
-      na_ontap_quotas:
+      netapp.ontap.na_ontap_quotas:
         state: present
         vserver: ansible
         volume: ansible
         quota_target: "user1,user2"
+        qtree: qtree
         type: user
         file_limit: "-"
         disk_limit: 100
+        set_quota_status: True
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Add/Set quota rule for type group in REST.
+      netapp.ontap.na_ontap_quotas:
+        state: present
+        vserver: ansible
+        volume: ansible
+        quota_target: group1
+        qtree: qtree
+        type: group
+        file_limit: 2
+        disk_limit: 3
+        set_quota_status: True
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+    - name: Add/Set quota rule for type qtree in REST.
+      netapp.ontap.na_ontap_quotas:
+        state: present
+        vserver: ansible
+        volume: ansible
+        quota_target: qtree1
+        type: qtree
+        file_limit: 2
+        disk_limit: 3
         set_quota_status: True
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -293,9 +322,6 @@ class NetAppONTAPQuotas:
             if self.parameters.get('type') == 'tree':
                 if self.parameters['qtree']:
                     self.module.fail_json(msg="Error: Qtree cannot be specified for a tree type rule, it should be ''.")
-                self.parameters['qtree'] = '""'
-            if self.parameters.get('quota_target') == "":
-                self.parameters['quota_target'] = '""'
             # valid qtree name for ZAPI is /vol/vol_name/qtree_name and REST is qtree_name.
             if '/' in self.parameters.get('quota_target', ''):
                 self.parameters['quota_target'] = self.parameters['quota_target'].split('/')[-1]
@@ -567,20 +593,16 @@ class NetAppONTAPQuotas:
                            'space.soft_limit,'
                            'files.soft_limit,'
                            'volume.uuid,'
-                           'users.name,'}
+                           'users.name,'
+                           'group.name,'}
 
-        if self.parameters.get('type') == 'user':
-            query['users.name'] = self.parameters.get('quota_target')
-            # set qtree name in query for type user and group if not ''.
-            if self.parameters['qtree']:
-                query['qtree.name'] = self.parameters['qtree']
-        # if type is qtree, qtree.name should be quota target to get the current quota.
-        elif self.parameters.get('type') == 'tree':
-            query['qtree.name'] = self.parameters.get('quota_target')
-        elif self.parameters.get('type') == 'group':
-            query['group.name'] = self.parameters.get('quota_target')
-            if self.parameters['qtree']:
-                query['qtree.name'] = self.parameters['qtree']
+        # set qtree name in query for type user and group if not ''.
+        if self.parameters['qtree']:
+            query['qtree.name'] = self.parameters['qtree']
+        if self.parameters.get('quota_target'):
+            type = self.parameters['type']
+            field_name = 'users.name' if type == 'user' else 'group.name' if type == 'group' else 'qtree.name'
+            query[field_name] = self.parameters['quota_target']
         api = 'storage/quota/rules'
         # If type: user, get quota rules api returns users which has name starts with input target user names.
         # Example of users list in a record:
@@ -591,13 +613,27 @@ class NetAppONTAPQuotas:
         if records:
             record = None
             for item in records:
-                if self.parameters.get('type') == 'user':
-                    quota_record = '' if self.parameters.get('quota_target') == '""' else self.parameters.get('quota_target')
-                    quota_record_users = quota_record.split(',')
-                    if len(item['users']) == len(quota_record_users):
+                # along with user/group, qtree should also match to get current quota.
+                # for type user/group if qtree is not set in create, its not returned in GET, make desired qtree None if ''.
+                desired_qtree = self.parameters['qtree'] if self.parameters.get('qtree') else None
+                current_qtree = self.na_helper.safe_get(item, ['qtree', 'name'])
+                type = self.parameters.get('type')
+                if type in ['user', 'group']:
+                    if desired_qtree != current_qtree:
+                        continue
+                    if type == 'user':
+                        desired_users = self.parameters['quota_target'].split(',')
+                        current_users = [user['name'] for user in item['users']]
+                        if set(current_users) == set(desired_users):
+                            record = item
+                            break
+                    elif item['group']['name'] == self.parameters['quota_target']:
                         record = item
-                else:
+                        break
+                # for type tree, desired quota_target should match current tree.
+                elif type == 'tree' and current_qtree == self.parameters['quota_target']:
                     record = item
+                    break
             if record:
                 self.volume_uuid = record['volume']['uuid']
                 self.quota_uuid = record['uuid']
@@ -629,8 +665,6 @@ class NetAppONTAPQuotas:
                 'type': self.parameters.get('type'),
                 'qtree.name': self.parameters.get('qtree')}
         quota_target = self.parameters.get('quota_target')
-        if self.parameters.get('quota_target') == '""' or self.parameters.get('qtree') == '""':
-            quota_target = ''
         if self.parameters.get('type') == 'user':
             body['users.name'] = quota_target.split(',')
         elif self.parameters.get('type') == 'group':
@@ -744,6 +778,8 @@ class NetAppONTAPQuotas:
         body = {}
         body['quota.enabled'] = status == 'quota-on'
         api = 'storage/volumes'
+        if not self.volume_uuid:
+            self.volume_uuid = self.get_quota_status_or_volume_id_rest(get_volume=True)
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.volume_uuid, body)
         if error is not None:
             self.module.fail_json(msg='Error setting %s for %s: %s'

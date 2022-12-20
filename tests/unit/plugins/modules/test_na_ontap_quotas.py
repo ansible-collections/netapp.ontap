@@ -410,6 +410,7 @@ ARGS_REST = {
     'volume': 'ansible',
     'vserver': 'ansible',
     'quota_target': 'quota_user',
+    'qtree': 'qt1',
     'type': 'user'
 }
 

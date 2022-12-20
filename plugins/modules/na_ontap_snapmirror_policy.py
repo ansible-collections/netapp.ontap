@@ -966,8 +966,8 @@ class NetAppOntapSnapMirrorPolicy:
                 if self.parameters['policy_type'] == 'mirror_vault':
                     self.parameters['policy_type'] = 'async'
                 # Policy types ''sync_mirror', 'strict_sync_mirror' are mapped to sync policy type
-                if self.parameters['policy_type'] in ('sync_mirror', 'strict_sync_mirror', 'sync'):
-                    self.parameters['sync_type'] = 'sync' if self.parameters['policy_type'] in ('sync', 'sync_mirror') else 'strict_sync'
+                if self.parameters['policy_type'] in ('sync_mirror', 'strict_sync_mirror'):
+                    self.parameters['sync_type'] = 'sync' if self.parameters['policy_type'] == 'sync_mirror' else 'strict_sync'
                     self.parameters['policy_type'] = 'sync'
                 if self.parameters['policy_type'] != 'sync' and 'sync_type' in self.parameters:
                     self.module.fail_json(msg="Error: 'sync_type' is only applicable for sync policy_type")

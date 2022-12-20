@@ -181,16 +181,39 @@ SRR = rest_responses({
     'iscsi_started': (200, {"records": [
         {
             "svm": {"uuid": "d08434fae1-a8a8-11fg-aa26-005055fhs3e5"},
-            "enabled": True
+            "enabled": True,
+            'target': {'alias': 'ansibleSVM'}
+        }
+    ], "num_records": 1}, None),
+    'iscsi_record': (200, {"records": [
+        {
+            "svm": {"uuid": "d08434fae1-a8a8-11fg-aa26-005055fhs3e5"},
+            "enabled": True,
+            'target': {'alias': 'ansibleSVM'}
         }
     ], "num_records": 1}, None),
     'iscsi_stopped': (200, {"records": [
         {
             "svm": {"uuid": "d08434fae1-a8a8-11fg-aa26-005055fhs3e5"},
-            "enabled": False
+            "enabled": False,
+            'target': {'alias': 'ansibleSVM'}
         }
     ], "num_records": 1}, None),
 })
+
+
+ARGS_REST = {
+    "hostname": "10.10.10.10",
+    "username": "admin",
+    "password": "netapp1!",
+    "validate_certs": "no",
+    "https": "yes",
+    "state": "present",
+    "use_rest": "always",
+    "vserver": "svm1",
+    "service_state": "started",
+    "target_alias": "ansibleSVM"
+}
 
 
 def test_successfully_create_rest():
@@ -199,7 +222,7 @@ def test_successfully_create_rest():
         ('GET', 'protocols/san/iscsi/services', SRR['empty_records']),
         ('POST', 'protocols/san/iscsi/services', SRR['success'])
     ])
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
+    assert create_and_apply(iscsi_module, ARGS_REST, {'use_rest': 'always'})['changed']
 
 
 def test_create_idempotency_rest():
@@ -207,7 +230,7 @@ def test_create_idempotency_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'protocols/san/iscsi/services', SRR['iscsi_started']),
     ])
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed'] is False
+    assert create_and_apply(iscsi_module, ARGS_REST, {'use_rest': 'always'})['changed'] is False
 
 
 def test_successfully_create_stop_service_rest():
@@ -216,8 +239,8 @@ def test_successfully_create_stop_service_rest():
         ('GET', 'protocols/san/iscsi/services', SRR['empty_records']),
         ('POST', 'protocols/san/iscsi/services', SRR['success'])
     ])
-    args = {'service_state': 'stopped', 'use_rest': 'always'}
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
+    args = {'service_state': 'stopped'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
 
 
 def test_successfully_delete_when_service_started_rest():
@@ -227,8 +250,8 @@ def test_successfully_delete_when_service_started_rest():
         ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
         ('DELETE', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
     ])
-    args = {'state': 'absent', 'use_rest': 'always'}
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
+    args = {'state': 'absent'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
 
 
 def test_delete_idempotent_rest():
@@ -236,8 +259,8 @@ def test_delete_idempotent_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'protocols/san/iscsi/services', SRR['empty_records']),
     ])
-    args = {'state': 'absent', 'use_rest': 'always'}
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed'] is False
+    args = {'state': 'absent'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed'] is False
 
 
 def test_start_iscsi_rest():
@@ -246,7 +269,29 @@ def test_start_iscsi_rest():
         ('GET', 'protocols/san/iscsi/services', SRR['iscsi_stopped']),
         ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
     ])
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
+    args = {'service_state': 'started'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
+
+
+def test_modify_iscsi_target_alias_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'protocols/san/iscsi/services', SRR['iscsi_started']),
+        ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
+    ])
+    args = {"target_alias": "ansibleSVM_test"}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
+
+
+def test_modify_iscsi_target_alias_and_state_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'protocols/san/iscsi/services', SRR['iscsi_stopped']),
+        ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
+        ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
+    ])
+    args = {"target_alias": "ansibleSVM_test", 'service_state': 'started'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
 
 
 def test_stop_iscsi_rest():
@@ -255,8 +300,8 @@ def test_stop_iscsi_rest():
         ('GET', 'protocols/san/iscsi/services', SRR['iscsi_started']),
         ('PATCH', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['success']),
     ])
-    args = {'service_state': 'stopped', 'use_rest': 'always'}
-    assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
+    args = {'service_state': 'stopped'}
+    assert create_and_apply(iscsi_module, ARGS_REST, args)['changed']
 
 
 def test_if_all_methods_catch_exception_rest():
@@ -269,7 +314,7 @@ def test_if_all_methods_catch_exception_rest():
         ('DELETE', 'protocols/san/iscsi/services/d08434fae1-a8a8-11fg-aa26-005055fhs3e5', SRR['generic_error'])
     ])
 
-    iscsi_obj = create_module(iscsi_module, DEFAULT_ARGS, {'use_rest': 'always'})
+    iscsi_obj = create_module(iscsi_module, ARGS_REST, {'use_rest': 'always'})
     iscsi_obj.uuid = "d08434fae1-a8a8-11fg-aa26-005055fhs3e5"
 
     error = expect_and_capture_ansible_exception(iscsi_obj.get_iscsi_rest, 'fail')['msg']

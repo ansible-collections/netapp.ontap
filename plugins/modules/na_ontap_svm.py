@@ -115,7 +115,7 @@ options:
         type: dict
         suboptions:
           allowed:
-            description: If true, an SVM administrator can manage the FCP service. If false, only the cluster administrator can manage the service.
+            description: If true, an SVM administrator can manage the CIFS service. If false, only the cluster administrator can manage the service.
             type: bool
       iscsi:
         description:
@@ -123,7 +123,7 @@ options:
         type: dict
         suboptions:
           allowed:
-            description: If true, an SVM administrator can manage the FCP service. If false, only the cluster administrator can manage the service.
+            description: If true, an SVM administrator can manage the iSCSI service. If false, only the cluster administrator can manage the service.
             type: bool
           enabled:
             description: If allowed, setting to true enables the iSCSI service.
@@ -145,7 +145,7 @@ options:
         type: dict
         suboptions:
           allowed:
-            description: If true, an SVM administrator can manage the FCP service. If false, only the cluster administrator can manage the service.
+            description: If true, an SVM administrator can manage the NFS service. If false, only the cluster administrator can manage the service.
             type: bool
           enabled:
             description: If allowed, setting to true enables the NFS service.
@@ -156,7 +156,7 @@ options:
         type: dict
         suboptions:
           allowed:
-            description: If true, an SVM administrator can manage the FCP service. If false, only the cluster administrator can manage the service.
+            description: If true, an SVM administrator can manage the NVMe service. If false, only the cluster administrator can manage the service.
             type: bool
           enabled:
             description: If allowed, setting to true enables the NVMe service.
@@ -170,6 +170,7 @@ options:
             description:
               - If this is set to true, an SVM administrator can manage the NDMP service
               - If it is false, only the cluster administrator can manage the service.
+              - Requires ONTAP 9.7 or later.
             type: bool
         version_added: 21.24.0
   aggr_list:
@@ -468,9 +469,9 @@ class NetAppOntapSVM():
             ]
             if errors:
                 self.module.fail_json(msg='Error - %s' % '  '.join(errors))
-        if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols'):
-            if self.parameters['services'].get('ndmp') and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 7):
-                self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.7', use_rest=use_rest))
+        if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols') and self.parameters['services'].get('ndmp')\
+           and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 7):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.7', use_rest=use_rest))
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
         if self.parameters.get('web'):
@@ -493,9 +494,7 @@ class NetAppOntapSVM():
         vserver_details['root_volume'] = None
         vserver_details['root_volume_aggregate'] = None
         vserver_details['root_volume_security_style'] = None
-        vserver_details['aggr_list'] = []
-        for aggr in vserver_details['aggregates']:
-            vserver_details['aggr_list'].append(aggr['name'])
+        vserver_details['aggr_list'] = [aggr['name'] for aggr in vserver_details['aggregates']]
         vserver_details.pop('aggregates')
         vserver_details['ipspace'] = vserver_details['ipspace']['name']
         vserver_details['snapshot_policy'] = vserver_details['snapshot_policy']['name']
@@ -547,9 +546,7 @@ class NetAppOntapSVM():
         records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg='Error retrieving certificates: %s' % error)
-        if records:
-            return [record['name'] for record in records]
-        return []
+        return [record['name'] for record in records] if records else []
 
     def set_certificate_uuid(self):
         """Retrieve certicate uuid for 9.8 or later"""
@@ -662,9 +659,7 @@ class NetAppOntapSVM():
         if modify and 'admin_state' in keys_to_modify:
             body['state'] = self.parameters['admin_state']
         if 'aggr_list' in keys_to_modify:
-            body['aggregates'] = []
-            for aggr in self.parameters['aggr_list']:
-                body['aggregates'].append({'name': aggr})
+            body['aggregates'] = [{'name': aggr} for aggr in self.parameters['aggr_list']]
         if 'certificate' in keys_to_modify:
             body['certificate'] = modify['certificate']
         allowed_protocols = {}
@@ -881,6 +876,12 @@ class NetAppOntapSVM():
             else:
                 adict[key] = self.parameters.get(name)
 
+    def warn_when_possible_language_match(self, desired, current):
+        transformed = desired.lower().replace('-', '_')
+        if transformed == current:
+            self.module.warn("Attempting to change language from ONTAP value %s to %s.  Use %s to suppress this warning and maintain idempotency."
+                             % (current, desired, current))
+
     def apply(self):
         '''Call create/modify/delete operations.'''
         current = self.get_vserver()
@@ -896,6 +897,8 @@ class NetAppOntapSVM():
                 current = old_svm
                 cd_action = None
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        if 'language' in modify:
+            self.warn_when_possible_language_match(modify['language'], current['language'])
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']
         msgs = ['%s - current: %s - desired: %s' % (attribute, current[attribute], self.parameters[attribute])
                 for attribute in fixed_attributes

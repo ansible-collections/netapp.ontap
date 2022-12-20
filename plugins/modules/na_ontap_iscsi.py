@@ -44,6 +44,15 @@ options:
     description:
       - The name of the vserver to use.
 
+  target_alias:
+    type: str
+    description:
+      - The iSCSI target alias of the iSCSI service.
+      - The target alias can contain one (1) to 128 characters and feature any printable character except space (" ").
+      - A PATCH request with an empty alias ("") clears the alias.
+      - This option is REST only.
+    version_added: 22.2.0
+
 '''
 
 EXAMPLES = """
@@ -52,6 +61,7 @@ EXAMPLES = """
     state: present
     service_state: started
     vserver: ansibleVServer
+    target_alias: ansibleSVM
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -96,6 +106,7 @@ class NetAppOntapISCSI:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             service_state=dict(required=False, type='str', choices=['started', 'stopped'], default=None),
             vserver=dict(required=True, type='str'),
+            target_alias=dict(required=False, type='str')
         ))
 
         self.module = AnsibleModule(
@@ -109,11 +120,22 @@ class NetAppOntapISCSI:
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
-
+        self.unsupported_zapi_properties = ['target_alias']
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            for unsupported_zapi_property in self.unsupported_zapi_properties:
+                if self.parameters.get(unsupported_zapi_property) is not None:
+                    msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        self.safe_strip()
+
+    def safe_strip(self):
+        """ strip the left and right spaces of string """
+        if 'target_alias' in self.parameters:
+            self.parameters['target_alias'] = self.parameters['target_alias'].strip()
+        return
 
     def get_iscsi(self):
         """
@@ -150,7 +172,6 @@ class NetAppOntapISCSI:
                 return_value = {
                     'service_state': is_started
                 }
-
         return return_value
 
     def create_iscsi_service(self):
@@ -218,14 +239,17 @@ class NetAppOntapISCSI:
     def get_iscsi_rest(self):
         api = 'protocols/san/iscsi/services'
         query = {'svm.name': self.parameters['vserver']}
-        fields = 'svm,enabled'
+        fields = 'svm,enabled,target.alias'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error finding iscsi service in %s: %s" % (self.parameters['vserver'], error))
         if record:
             self.uuid = record['svm']['uuid']
             is_started = 'started' if record['enabled'] else 'stopped'
-            return {'service_state': is_started}
+            return {
+                'service_state': is_started,
+                'target_alias': "" if self.na_helper.safe_get(record, ['target', 'alias']) is None else record['target']['alias'],
+            }
         return None
 
     def create_iscsi_service_rest(self):
@@ -234,6 +258,8 @@ class NetAppOntapISCSI:
             'svm.name': self.parameters['vserver'],
             'enabled': True if self.parameters.get('service_state', 'started') == 'started' else False
         }
+        if 'target_alias' in self.parameters:
+            body['target.alias'] = self.parameters['target_alias']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg="Error creating iscsi service: % s" % error)
@@ -254,30 +280,43 @@ class NetAppOntapISCSI:
         if error:
             self.module.fail_json(msg="Error %s iscsi service on vserver %s: %s" % (service_state[0:5] + 'ing', self.parameters["vserver"], error))
 
-    def modify_iscsi_service(self, service_state):
+    def modify_iscsi_service_state_and_target(self, modify):
+        body = {}
+        api = 'protocols/san/iscsi/services'
+        if 'target_alias' in modify:
+            body['target.alias'] = self.parameters['target_alias']
+            dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
+            if error:
+                self.module.fail_json(msg="Error modifying iscsi service target alias on vserver %s: %s" % (self.parameters["vserver"], error))
+
+    def modify_iscsi_service_rest(self, modify, current):
         if self.use_rest:
-            self.start_or_stop_iscsi_service_rest(service_state)
+            if 'service_state' in modify:
+                self.start_or_stop_iscsi_service_rest(modify['service_state'])
+            if 'target_alias' in modify:
+                self.modify_iscsi_service_state_and_target(modify)
         else:
-            if service_state == 'started':
-                self.start_iscsi_service()
-            else:
-                self.stop_iscsi_service()
+            if 'service_state' in modify:
+                if modify['service_state'] == 'started':
+                    self.start_iscsi_service()
+                else:
+                    self.stop_iscsi_service()
 
     def apply(self):
         current = self.get_iscsi()
         modify = None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action is None and self.parameters['state'] == 'present':
-            modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
+
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_iscsi_service()
             elif cd_action == 'delete':
                 self.delete_iscsi_service(current)
             elif modify:
-                self.modify_iscsi_service(modify['service_state'])
+                self.modify_iscsi_service_rest(modify, current)
         # TODO: include other details about the lun (size, etc.)
-        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
         self.module.exit_json(**result)
 
 
