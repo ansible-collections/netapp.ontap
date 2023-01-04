@@ -5,6 +5,44 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.2.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_active_directory - REST requires ONTAP 9.12.1 or later.
+- na_ontap_active_directory - add ``fqdn`` as aliases for ``domain``.
+- na_ontap_interface - new option ``fail_if_subnet_conflicts`` - requires REST and ONTAP 9.11.1 or later.
+- na_ontap_interface - option ``subnet_name`` is now supported with REST with ONTAP 9.11.1 or later.
+- na_ontap_iscsi - new option ``target_alias`` added in REST.
+- na_ontap_snapmirror - support ``schedule`` with REST and ONTAP 9.11.1, add alias ``transfer_schedule``.
+- na_ontap_snapmirror_policy - Added new choices sync and async for policy type in REST.
+- na_ontap_snapmirror_policy - Added unsupported options in ZAPI.
+- na_ontap_snapmirror_policy - add support for cluster scoped policy with REST.
+- na_ontap_snapmirror_policy - new option ``copy_latest_source_snapshot``, ``create_snapshot_on_source`` and ``sync_type`` added in REST.
+- na_ontap_snapmirror_policy - new option ``transfer_schedule`` for async policy types.
+- na_ontap_snapmirror_policy - warn when replacing policy type ``async_mirror``, ``mirror_vault`` and ``vault`` with policy type ``async`` and ``strict_sync_mirror``, ``sync_mirror`` with ``sync`` in REST.
+- na_ontap_svm - warn in case of mismatch in language option spelling.
+
+Bugfixes
+--------
+
+- na_ontap_quotas - fix duplicate entry error when trying to add quota rule in REST.
+- na_ontap_quotas - fix entry does not exist error when trying to modify quota status in REST.
+- na_ontap_security_ipsec_policy - fix KeyError on ``authentication_method``.
+- na_ontap_security_ipsec_policy - fix cannot get current security IPsec policy with ipspace.
+- na_ontap_security_key_manager - requires 9.7+ to work with REST.
+- na_ontap_snapmirror_policy - deleting all retention rules would trigger an error when the existing policy requires at least one rule.
+- na_ontap_snapmirror_policy - fix desired policy type not configured in cli with REST.
+- na_ontap_snapmirror_policy - index error on rules with ONTAP 9.12.1 as not all fields are present.
+- na_ontap_volume -- fixed bug preventing unmount and taking a volume off line at the same time
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_cifs_local_user - NetApp ONTAP local CIFS user.
+
 v22.1.0
 =======
 
