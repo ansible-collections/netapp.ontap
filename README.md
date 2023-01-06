@@ -63,6 +63,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.3.0
+
+### Minor Changes
+  - na_ontap_interface - do not attempt to migrate FC interface if desired `home_port`, `home_node` and `current_port`, `current_node` are same.
+
+### Bug Fixes
+  - na_ontap_interface - fix idempotency issue when `home_port` not set in creating FC interface.
+
 ## 22.2.0
 
 ### New Options

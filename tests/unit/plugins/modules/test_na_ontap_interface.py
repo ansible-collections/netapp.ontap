@@ -981,21 +981,25 @@ def test_rest_migrate_ip_timeout(sleep_mock):
     assert_warning_was_raised('Failed to confirm interface is migrated after 120 seconds')
 
 
-def test_rest_migrate_fc_error():
+def test_rest_create_migrate_fc_error():
     ''' create cluster '''
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'network/fc/interfaces', SRR['empty_records']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'network/fc/interfaces', SRR['one_record_fcp'])
     ])
     module_args = {
         'use_rest': 'always',
         'home_node': 'ontap910-01',
-        'home_port': '1a',
         'current_node': 'ontap910-02',
         'current_port': '1b',
         'interface_type': 'fc',
         'vserver': 'svm0_iscsi'
     }
+    error = 'Error: Missing one or more required parameters for creating interface'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    module_args['home_port'] = '1a'
     error = 'Error: cannot migrate FC interface'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
