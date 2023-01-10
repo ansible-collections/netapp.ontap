@@ -152,14 +152,90 @@ options:
   tcp_max_xfer_size:
     description:
       - TCP Maximum Transfer Size (bytes). The default value is 65536.
+      - This option requires ONTAP 9.11.0 or later in REST.
     version_added: 2.8.0
     type: int
-
+  windows:
+    description:
+      - This option can be set or modified when using REST.
+      - It requires ONTAP 9.11.0 or later.
+    version_added: 22.3.0
+    type: dict
+    suboptions:
+      default_user:
+        description:
+          - Specifies the default Windows user for the NFS server.
+        type: str
+      map_unknown_uid_to_default_user:
+        description:
+          - Specifies whether or not the mapping of an unknown UID to the default Windows user is enabled.
+        type: bool
+      v3_ms_dos_client_enabled:
+        description:
+          - Specifies whether NFSv3 MS-DOS client support is enabled.
+        type: bool
+  root:
+    description:
+      - This option can be set or modified when using REST.
+      - It requires ONTAP 9.11.0 or later.
+    type: dict
+    version_added: 22.3.0
+    suboptions:
+      ignore_nt_acl:
+        description:
+          - Specifies whether Windows ACLs affect root access from NFS.
+          - If this option is enabled, root access from NFS ignores the NT ACL set on the file or directory.
+        type: bool
+      skip_write_permission_check:
+        description:
+          - Specifies if permission checks are to be skipped for NFS WRITE calls from root/owner.
+          - For copying read-only files to a destination folder which has inheritable ACLs, this option must be enabled.
+        type: bool
+  security:
+    description:
+      - This option can be set or modified when using REST.
+      - It requires ONTAP 9.11.0 or later.
+    type: dict
+    version_added: 22.3.0
+    suboptions:
+      chown_mode:
+        description:
+          - Specifies whether file ownership can be changed only by the superuser, or if a non-root user can also change file ownership.
+          - If this option is set to restricted, file ownership can be changed only by the superuser,
+            even though the on-disk permissions allow a non-root user to change file ownership.
+          - If this option is set to unrestricted, file ownership can be changed by the superuser and by the non-root user,
+            depending upon the access granted by on-disk permissions.
+          - If this option is set to use-export-policy, file ownership can be changed in accordance with the relevant export rules.
+        choices: ['restricted', 'unrestricted', 'use_export_policy']
+        type: str
+      nt_acl_display_permission:
+        description:
+          - Controls the permissions that are displayed to NFSv3 and NFSv4 clients on a file or directory that has an NT ACL set.
+          - When true, the displayed permissions are based on the maximum access granted by the NT ACL to any user.
+          - When false, the displayed permissions are based on the minimum access granted by the NT ACL to any user.
+        type: bool
+      ntfs_unix_security:
+        description:
+          - Specifies how NFSv3 security changes affect NTFS volumes.
+          - If this option is set to ignore, ONTAP ignores NFSv3 security changes.
+          - If this option is set to fail, this overrides the UNIX security options set in the relevant export rules.
+          - If this option is set to use_export_policy, ONTAP processes NFSv3 security changes in accordance with the relevant export rules.
+        choices: ['ignore', 'fail', 'use_export_policy']
+        type: str
+      permitted_encryption_types:
+        description:
+          - Specifies the permitted encryption types for Kerberos over NFS.
+        type: list
+        elements: str
+      rpcsec_context_idle:
+        description:
+          - Specifies, in seconds, the amount of time a RPCSEC_GSS context is permitted to remain unused before it is deleted.
+        type: int
 """
 
 EXAMPLES = """
     - name: change nfs status
-      na_ontap_nfs:
+      netapp.ontap.na_ontap_nfs:
         state: present
         service_state: stopped
         vserver: vs_hack
@@ -173,6 +249,51 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    - name: create nfs configuration - REST
+      netapp.ontap.na_ontap_nfs:
+        state: present
+        service_state: stopped
+        vserver: vs_hack
+        nfsv3: disabled
+        nfsv4: disabled
+        nfsv41: enabled
+        tcp: disabled
+        udp: disabled
+        vstorage_state: disabled
+        nfsv4_id_domain: example.com
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Modify nfs configuration - REST
+      netapp.ontap.na_ontap_nfs:
+        state: present
+        vserver: vs_hack
+        root:
+          ignore_nt_acl: true
+          skip_write_permission_check: true
+        security:
+          chown_mode: restricted
+          nt_acl_display_permission: true
+          ntfs_unix_security: fail
+          rpcsec_context_idle: 5
+        windows:
+          v3_ms_dos_client_enabled: true
+          map_unknown_uid_to_default_user: false
+          default_user: test_user
+        tcp_max_xfer_size: 16384
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Delete nfs configuration
+      netapp.ontap.na_ontap_nfs:
+        state: absent
+        vserver: vs_hack
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
@@ -182,7 +303,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -216,7 +336,27 @@ class NetAppONTAPNFS:
             nfsv41_referrals=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
             nfsv41_write_delegation=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
             showmount=dict(required=False, default=None, type='str', choices=['enabled', 'disabled']),
-            tcp_max_xfer_size=dict(required=False, default=None, type='int')
+            tcp_max_xfer_size=dict(required=False, default=None, type='int'),
+
+            # security
+            security=dict(type='dict', options=dict(
+                rpcsec_context_idle=dict(required=False, type='int'),
+                ntfs_unix_security=dict(required=False, type='str', choices=['ignore', 'fail', 'use_export_policy']),
+                chown_mode=dict(required=False, type='str', choices=['restricted', 'unrestricted', 'use_export_policy']),
+                nt_acl_display_permission=dict(required=False, type='bool'),
+                permitted_encryption_types=dict(type='list', elements='str', required=False),
+            )),
+            # root
+            root=dict(type='dict', options=dict(
+                ignore_nt_acl=dict(required=False, type='bool'),
+                skip_write_permission_check=dict(required=False, type='bool'),
+            )),
+            # windows
+            windows=dict(type='dict', options=dict(
+                map_unknown_uid_to_default_user=dict(required=False, type='bool'),
+                v3_ms_dos_client_enabled=dict(required=False, type='bool'),
+                default_user=dict(required=False, type='str'),
+            )),
         ))
 
         self.module = AnsibleModule(
@@ -250,21 +390,27 @@ class NetAppONTAPNFS:
             'tcp_max_xfer_size': 'tcp-max-xfer-size'
         }
 
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         unsupported_rest_properties = ['nfsv3_fsid_change',
                                        'nfsv4_fsid_change',
                                        'nfsv4_numeric_ids',
                                        'nfsv40_referrals',
-                                       'nfsv41_referrals',
-                                       'tcp_max_xfer_size']
-        partially_supported_rest_properties = [['showmount', (9, 8)]]
+                                       'nfsv41_referrals']
+        partially_supported_rest_properties = [['showmount', (9, 8)], ['root', (9, 11, 0)], ['windows', (9, 11, 0)], ['security', (9, 11, 0)],
+                                               ['tcp_max_xfer_size', (9, 11, 0)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if 'nfsv4.1' in self.parameters:
             self.module.warn('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')
         self.svm_uuid = None
+        self.unsupported_zapi_properties = ['root', 'windows', 'security']
+        self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            for unsupported_zapi_property in self.unsupported_zapi_properties:
+                if self.parameters.get(unsupported_zapi_property) is not None:
+                    msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_nfs_service(self):
@@ -402,6 +548,8 @@ class NetAppONTAPNFS:
                             'svm.uuid,'}
         if self.parameters.get('showmount'):
             params['fields'] += 'showmount_enabled,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
+            params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size'
         # TODO: might return more than 1 record, find out
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -419,6 +567,7 @@ class NetAppONTAPNFS:
             'nfsv4_id_domain': self.na_helper.safe_get(record, ['protocol', 'v4_id_domain']),
             'tcp': self.convert_from_bool(self.na_helper.safe_get(record, ['transport', 'tcp_enabled'])),
             'udp': self.convert_from_bool(self.na_helper.safe_get(record, ['transport', 'udp_enabled'])),
+            'tcp_max_xfer_size': self.na_helper.safe_get(record, ['transport', 'tcp_max_transfer_size']),
             'nfsv40_acl': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v40_features', 'acl_enabled'])),
             'nfsv40_read_delegation': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v40_features', 'read_delegation_enabled'])),
             'nfsv40_write_delegation': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v40_features', 'write_delegation_enabled'])),
@@ -427,7 +576,10 @@ class NetAppONTAPNFS:
             'nfsv41_write_delegation': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v41_features', 'write_delegation_enabled'])),
             'showmount': self.convert_from_bool(self.na_helper.safe_get(record, ['showmount_enabled'])),
             'svm_uuid': self.na_helper.safe_get(record, ['svm', 'uuid']),
-            'service_state': self.convert_from_bool_to_started(self.na_helper.safe_get(record, ['enabled']))
+            'service_state': self.convert_from_bool_to_started(self.na_helper.safe_get(record, ['enabled'])),
+            'root': self.na_helper.safe_get(record, ['root']),
+            'windows': self.na_helper.safe_get(record, ['windows']),
+            'security': self.na_helper.safe_get(record, ['security']),
         }
 
     def create_nfs_service_rest(self):
@@ -493,6 +645,14 @@ class NetAppONTAPNFS:
         # during both a create and modify.
         if params.get('service_state') is not None:
             body['enabled'] = self.convert_to_bool(params['service_state'])
+        if params.get('root') is not None:
+            body['root'] = params['root']
+        if params.get('windows') is not None:
+            body['windows'] = params['windows']
+        if params.get('security') is not None:
+            body['security'] = params['security']
+        if params.get('tcp_max_xfer_size') is not None:
+            body['transport.tcp_max_transfer_size'] = params['tcp_max_xfer_size']
         return body
 
     def convert_to_bool(self, value):
@@ -517,7 +677,8 @@ class NetAppONTAPNFS:
         modify = None
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            self.validate_modify(current, modify)
+            if not self.use_rest:
+                self.validate_modify(current, modify)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_nfs_service()

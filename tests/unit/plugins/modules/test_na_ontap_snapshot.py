@@ -190,11 +190,13 @@ def test_successful_delete():
 
 def test_if_all_methods_catch_exception():
     register_responses([
+        ('snapshot-get-iter', ZRR['error']),
         ('snapshot-create', ZRR['error']),
         ('snapshot-delete', ZRR['error']),
         ('snapshot-modify-iter', ZRR['error']),
         ('snapshot-rename', ZRR['error']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),           # get version
+        ('GET', 'storage/volumes/None/snapshots', SRR['generic_error']),
         ('POST', 'storage/volumes/None/snapshots', SRR['generic_error']),
         ('DELETE', 'storage/volumes/None/snapshots/None', SRR['generic_error']),
         ('PATCH', 'storage/volumes/None/snapshots/None', SRR['generic_error']),
@@ -204,12 +206,14 @@ def test_if_all_methods_catch_exception():
         'use_rest': 'never',
         'from_name': 'from_snapshot'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error fetching snapshot' in expect_and_capture_ansible_exception(my_obj.get_snapshot, 'fail')['msg']
     assert 'Error creating snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.create_snapshot, 'fail')['msg']
     assert 'Error deleting snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.delete_snapshot, 'fail')['msg']
     assert 'Error modifying snapshot test_snapshot:' in expect_and_capture_ansible_exception(my_obj.modify_snapshot, 'fail')['msg']
     assert 'Error renaming snapshot from_snapshot to test_snapshot:' in expect_and_capture_ansible_exception(my_obj.rename_snapshot, 'fail')['msg']
     module_args = {'use_rest': 'always'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    assert 'Error fetching snapshot' in expect_and_capture_ansible_exception(my_obj.get_snapshot, 'fail')['msg']
     assert 'Error when creating snapshot:' in expect_and_capture_ansible_exception(my_obj.create_snapshot, 'fail')['msg']
     assert 'Error when deleting snapshot:' in expect_and_capture_ansible_exception(my_obj.delete_snapshot, 'fail')['msg']
     assert 'Error when modifying snapshot:' in expect_and_capture_ansible_exception(my_obj.modify_snapshot, 'fail')['msg']
@@ -221,15 +225,15 @@ def test_module_fail_rest_ONTAP96():
         ('GET', 'cluster', SRR['is_rest_96'])      # get version
     ])
     module_args = {'use_rest': 'always'}
-    msg = 'snapmirror_label is supported with REST on Ontap 9.7 or higher'
-    assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = 'Error: Minimum version of ONTAP for snapmirror_label is (9, 7)'
+    assert msg in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_successfully_create():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/volumes', SRR['volume_uuid']),
-        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_good']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_records']),
         ('POST', 'storage/volumes/test_uuid/snapshots', SRR['create_response']),
         ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
     ])

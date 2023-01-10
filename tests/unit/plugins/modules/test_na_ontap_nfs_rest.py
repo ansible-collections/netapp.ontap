@@ -54,7 +54,24 @@ SRR = rest_responses({
                 }
             },
             "vstorage_enabled": False,
-            "showmount_enabled": True
+            "showmount_enabled": True,
+            "root": {
+                "ignore_nt_acl": False,
+                "skip_write_permission_check": False
+            },
+            "security": {
+                "chown_mode": "restricted",
+                "nt_acl_display_permission": False,
+                "ntfs_unix_security": "fail",
+                "permitted_encryption_types": ["des3"],
+                "rpcsec_context_idle": 5
+            },
+            "windows":{
+                "v3_ms_dos_client_enabled": False,
+                "map_unknown_uid_to_default_user": True,
+                "default_user": "test_user"
+            },
+            "tcp_max_xfer_size": "16384"
         }
     ]}, None),
 })
@@ -113,7 +130,7 @@ def test_get_nfs_rest_error():
 
 def test_get_nfs_rest_one_record():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
         ('GET', 'protocols/nfs/services', SRR['one_record'])
     ])
     set_module_args(set_default_args())
@@ -169,7 +186,7 @@ def test_create_nfs_error():
 
 def test_delete_nfs():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
         ('GET', 'protocols/nfs/services', SRR['one_record']),
         ('DELETE', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
@@ -209,7 +226,7 @@ def test_delete_nfs_no_uuid_error():
 
 def test_modify_nfs():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
         ('GET', 'protocols/nfs/services', SRR['one_record']),
         ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good'])
     ])
@@ -252,3 +269,56 @@ def test_modify_nfs_no_uuid_error():
     print('Info: %s' % exc.value.args[0]['msg'])
     msg = "Error modifying nfs service for SVM ansibleSVM: svm.uuid is None"
     assert msg == exc.value.args[0]['msg']
+
+
+def test_modify_nfs_root():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/nfs/services', SRR['one_record']),
+        ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['success'])
+    ])
+    module_args = {
+        "root":
+        {
+            "ignore_nt_acl": True,
+            "skip_write_permission_check": True
+        }
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_nfs_security():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/nfs/services', SRR['one_record']),
+        ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['success'])
+    ])
+    module_args = {
+        "security":
+        {
+            "chown_mode": "restricted",
+            "nt_acl_display_permission": "true",
+            "ntfs_unix_security": "fail",
+            "permitted_encryption_types": ["des3"],
+            "rpcsec_context_idle": 5
+        }
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_nfs_windows():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_0']),
+        ('GET', 'protocols/nfs/services', SRR['one_record']),
+        ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['success'])
+    ])
+    module_args = {
+        "windows":
+        {
+            "v3_ms_dos_client_enabled": True,
+            "map_unknown_uid_to_default_user": False,
+            "default_user": "test_user"
+        },
+        "tcp_max_xfer_size": "16384"
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
