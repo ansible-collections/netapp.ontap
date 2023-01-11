@@ -69,6 +69,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_nfs - new options `root`, `windows` and `security` added in REST.
 
 ### Minor Changes
+  - na_ontap_dns - support cluster scope for modify and delete.
   - na_ontap_interface - do not attempt to migrate FC interface if desired `home_port`, `home_node` and `current_port`, `current_node` are same.
 
 ### Bug Fixes

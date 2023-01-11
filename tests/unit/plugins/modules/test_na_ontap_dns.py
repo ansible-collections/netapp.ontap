@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_dns'''
@@ -10,20 +10,22 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception,\
+    patch_ansible
 
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_dns \
-    import NetAppOntapDns as dns_module  # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_dns import main as my_main, NetAppOntapDns as my_module      # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-HAS_NETAPP_ZAPI_MSG = "pip install netapp_lib is required"
 
 
 # REST API canned responses when mocking send_request
-SRR = {
+SRR = rest_responses({
     # common responses
     'is_rest': (200, {}, None),
     'is_zapi': (400, {}, "Unreachable"),
@@ -37,249 +39,330 @@ SRR = {
                            "name_servers": ['0.0.0.0'],
                            "name": "cserver",
                            "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None),
-    'cluster_name': (200, {"name": "cserver"}, None)
+    'cluster_name': (200, {"name": "cserver",
+                           "uuid": "C2c9e252-41be-11e9-81d5-00a0986138f7"}, None),
+})
+
+dns_info = {
+    'attributes': {
+        'net-dns-info': {
+            'name-servers': [{'ip-address': '0.0.0.0'}],
+            'domains': [{'string': 'test.com'}],
+            'skip-config-validation': 'true'
+        }
+    }
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        request = xml.to_string().decode('utf-8')
-        if request.startswith("<ems-autosupport-log>"):
-            xml = None  # or something that may the logger happy, and you don't need @patch anymore
-            # or
-            # xml = build_ems_log_response()
-        elif request == "<net-dns-get/>":
-            if self.kind == 'create':
-                raise netapp_utils.zapi.NaApiError(code="15661")
-            else:
-                xml = self.build_dns_status_info()
-        elif request.startswith("<net-dns-create>"):
-            xml = self.build_dns_status_info()
-        if self.kind == 'enable':
-            xml = self.build_dns_status_info()
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_dns_status_info():
-        xml = netapp_utils.zapi.NaElement('xml')
-        nameservers = [{'ip-address': '0.0.0.0'}]
-        domains = [{'string': 'test.com'}]
-        attributes = {'num-records': 1,
-                      'attributes': {'net-dns-info': {'name-servers': nameservers,
-                                                      'domains': domains,
-                                                      'skip-config-validation': 'false'}}}
-        xml.translate_struct(attributes)
-        return xml
+ZRR = zapi_responses({
+    'dns_info': build_zapi_response(dns_info),
+    'error_15661': build_zapi_error(15661, 'not_found'),
+})
 
 
-class TestMyModule(unittest.TestCase):
-    ''' Unit tests for na_ontap_job_schedule '''
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'nameservers': ['0.0.0.0'],
+    'domains': ['test.com'],
+}
 
-    def mock_args(self):
-        return {
-            'state': 'present',
-            'vserver': 'vserver',
-            'nameservers': ['0.0.0.0'],
-            'domains': ['test.com'],
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!'
-        }
 
-    def get_dns_mock_object(self, cx_type='zapi', kind=None, status=None):
-        dns_obj = dns_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                dns_obj.server = MockONTAPConnection()
-            else:
-                dns_obj.server = MockONTAPConnection(kind=kind, data=status)
-        return dns_obj
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never',
+    }
+    error = 'Error: vserver is a required parameter with ZAPI.'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            dns_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_idempotent_modify_dns(self):
-        data = self.mock_args()
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object('zapi', 'enable', 'false').apply()
-        assert not exc.value.args[0]['changed']
+def test_zapi_get_error():
+    register_responses([
+        ('ZAPI', 'net-dns-get', ZRR['error']),
+        ('ZAPI', 'net-dns-get', ZRR['error_15661']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # get
+    error = zapi_error_message('Error getting DNS info')
+    assert error in expect_and_capture_ansible_exception(my_obj.get_dns, 'fail')['msg']
+    assert my_obj.get_dns() is None
 
-    def test_successfully_modify_dns(self):
-        data = self.mock_args()
-        data['domains'] = ['new_test.com']
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object('zapi', 'enable', 'false').apply()
-        assert exc.value.args[0]['changed']
 
-    def test_idempotent_create_dns(self):
-        data = self.mock_args()
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object('zapi').apply()
-        assert not exc.value.args[0]['changed']
+def test_idempotent_modify_dns():
+    register_responses([
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
 
-    def test_successfully_create_dns(self):
-        data = self.mock_args()
-        print("create dns")
-        data['domains'] = ['new_test.com']
-        data['use_rest'] = 'never'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object('zapi', 'create').apply()
-        assert exc.value.args[0]['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.mock_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create(self, mock_request):
-        data = self.mock_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],    # get
-            SRR['cluster_data'],  # get cluster
-            SRR['empty_good'],    # post
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_zapi_modify_dns():
+    register_responses([
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        ('ZAPI', 'net-dns-modify', ZRR['success']),
+        # idempotency
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        # error
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        ('ZAPI', 'net-dns-modify', ZRR['error']),
+    ])
+    module_args = {
+        'domains': ['new_test.com'],
+        'nameservers': ['1.2.3.4'],
+        'skip_validation': True,
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        'domains': ['test.com'],
+        'skip_validation': True,
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    module_args = {
+        'domains': ['new_test.com'],
+        'nameservers': ['1.2.3.4'],
+        'skip_validation': True,
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    error = zapi_error_message('Error modifying dns')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_create_is_cluster_vserver(self, mock_request):
-        data = self.mock_args()
-        data['vserver'] = 'cvserver'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],    # get
-            SRR['cluster_name'],  # get cluster name
-            SRR['empty_good'],    # post
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_idempotent_create_dns(self, mock_request):
-        data = self.mock_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['dns_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_zapi_create_dns():
+    register_responses([
+        ('ZAPI', 'net-dns-get', ZRR['empty']),
+        ('ZAPI', 'net-dns-create', ZRR['success']),
+        # idempotency
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        # error
+        ('ZAPI', 'net-dns-get', ZRR['empty']),
+        ('ZAPI', 'net-dns-create', ZRR['error']),
+    ])
+    module_args = {
+        'domains': ['test.com'],
+        'skip_validation': True,
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    error = zapi_error_message('Error creating dns')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_destroy(self, mock_request):
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['dns_record'],  # get
-            SRR['empty_good'],  # delete
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_idempotently_destroy(self, mock_request):
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],    # get
-            SRR['cluster_data'],  # get cluster
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_zapi_delete_dns():
+    register_responses([
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        ('ZAPI', 'net-dns-destroy', ZRR['success']),
+        # idempotency
+        ('ZAPI', 'net-dns-get', ZRR['empty']),
+        # error
+        ('ZAPI', 'net-dns-get', ZRR['dns_info']),
+        ('ZAPI', 'net-dns-destroy', ZRR['error']),
+    ])
+    module_args = {
+        'domains': ['new_test.com'],
+        'state': 'absent',
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    error = zapi_error_message('Error destroying dns')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify(self, mock_request):
-        data = self.mock_args()
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],    # get
-            SRR['cluster_data'],  # get cluster
-            SRR['empty_good'],    # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_successfully_modify_is_cluster_vserver(self, mock_request):
-        data = self.mock_args()
-        data['vserver'] = 'cvserver'
-        data['state'] = 'present'
-        data['domains'] = 'new_test.com'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['empty_good'],    # get
-            SRR['cluster_data'],  # get cluster data
-            SRR['empty_good'],    # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_rest_error():
+    module_args = {
+        'use_rest': 'always',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        # create
+        ('PATCH', 'cluster', SRR['generic_error']),
+        ('PATCH', 'cluster', SRR['generic_error']),
+        ('POST', 'name-services/dns', SRR['generic_error']),
+        # delete
+        ('DELETE', 'name-services/dns/uuid', SRR['generic_error']),
+        # read
+        ('GET', 'name-services/dns', SRR['generic_error']),
+        # modify
+        ('PATCH', 'cluster', SRR['generic_error']),
+        ('PATCH', 'name-services/dns/uuid', SRR['generic_error']),
+    ])
+    error = rest_error_message('Error getting cluster info', 'cluster')
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    # create
+    my_obj.is_cluster = True
+    error = rest_error_message('Error updating cluster DNS options', 'cluster')
+    assert error in expect_and_capture_ansible_exception(my_obj.create_dns_rest, 'fail')['msg']
+    my_obj.is_cluster = False
+    # still cluster scope, as verserver is not set
+    assert error in expect_and_capture_ansible_exception(my_obj.create_dns_rest, 'fail')['msg']
+    my_obj.parameters['vserver'] = 'vserver'
+    error = rest_error_message('Error creating DNS service', 'name-services/dns')
+    assert error in expect_and_capture_ansible_exception(my_obj.create_dns_rest, 'fail')['msg']
+    # delete
+    my_obj.is_cluster = True
+    error = 'Error: cluster scope when deleting DNS with REST requires ONTAP 9.9.1 or later.'
+    assert error in expect_and_capture_ansible_exception(my_obj.destroy_dns_rest, 'fail', {})['msg']
+    my_obj.is_cluster = False
+    error = rest_error_message('Error deleting DNS service', 'name-services/dns/uuid')
+    assert error in expect_and_capture_ansible_exception(my_obj.destroy_dns_rest, 'fail', {'uuid': 'uuid'})['msg']
+    # read, cluster scope
+    del my_obj.parameters['vserver']
+    error = rest_error_message('Error getting DNS service', 'name-services/dns')
+    assert error in expect_and_capture_ansible_exception(my_obj.get_dns_rest, 'fail')['msg']
+    # modify
+    dns_attrs = {
+        'domains': [],
+        'nameservers': [],
+        'uuid': 'uuid',
+    }
+    my_obj.is_cluster = True
+    error = rest_error_message('Error updating cluster DNS options', 'cluster')
+    assert error in expect_and_capture_ansible_exception(my_obj.modify_dns_rest, 'fail', dns_attrs)['msg']
+    my_obj.is_cluster = False
+    error = rest_error_message('Error modifying DNS configuration', 'name-services/dns/uuid')
+    assert error in expect_and_capture_ansible_exception(my_obj.modify_dns_rest, 'fail', dns_attrs)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_idempotently_modify(self, mock_request):
-        data = self.mock_args()
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['dns_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_dns_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+
+def test_rest_successfully_create():
+    module_args = {
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'name-services/dns', SRR['zero_records']),
+        ('POST', 'name-services/dns', SRR['success']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_create_is_cluster_vserver():
+    module_args = {
+        'use_rest': 'always',
+        'vserver': 'cserver',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['zero_records']),
+        ('GET', 'cluster', SRR['cluster_name']),
+        ('PATCH', 'cluster', SRR['empty_good']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_idempotent_create_dns():
+    module_args = {
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['dns_record']),
+    ])
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_destroy():
+    module_args = {
+        'state': 'absent',
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['dns_record']),
+        ('DELETE', 'name-services/dns/02c9e252-41be-11e9-81d5-00a0986138f7', SRR['success']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_idempotently_destroy():
+    module_args = {
+        'state': 'absent',
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['zero_records']),
+        ('GET', 'cluster', SRR['cluster_data']),
+    ])
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify():
+    module_args = {
+        'domains': 'new_test.com',
+        'state': 'present',
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['dns_record']),
+        ('PATCH', 'name-services/dns/02c9e252-41be-11e9-81d5-00a0986138f7', SRR['success']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_is_cluster_vserver():
+    module_args = {
+        'domains': 'new_test.com',
+        'state': 'present',
+        'use_rest': 'always',
+        'vserver': 'cserver',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['zero_records']),
+        ('GET', 'cluster', SRR['cluster_data']),
+        ('PATCH', 'cluster', SRR['empty_good']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_idempotently_modify():
+    module_args = {
+        'state': 'present',
+        'use_rest': 'always',
+        'vserver': 'svm_abc',
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'name-services/dns', SRR['dns_record']),
+    ])
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+def test_has_netapp_lib(has_netapp_lib):
+    module_args = {
+        'state': 'present',
+        'use_rest': 'never',
+        'vserver': 'svm_abc',
+    }
+    has_netapp_lib.return_value = False
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'Error: the python NetApp-Lib module is required.  Import error: None'

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -9,11 +9,6 @@ na_ontap_dns
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = '''
 module: na_ontap_dns
@@ -28,15 +23,16 @@ description:
 options:
   state:
     description:
-    - Whether the DNS servers should be enabled for the given vserver.
+      - Whether the DNS servers should be enabled for the given vserver.
     choices: ['present', 'absent']
     type: str
     default: present
 
   vserver:
     description:
-    - The name of the vserver to use.
-    required: true
+      - The name of the vserver to use.
+      - With REST, for cluster scoped DNS, omit this option or set it to NULL.
+      - With ZAPI or REST, for cluster scoped DNS, this can also be set to the cluster vserver name.
     type: str
 
   domains:
@@ -57,12 +53,13 @@ options:
     - By default, all nameservers are checked to validate they are available to resolve.
     - If you DNS servers are not yet installed or momentarily not available, you can set this option to 'true'
     - to bypass the check for all servers specified in nameservers field.
+    - Not supported with REST.
     version_added: 2.8.0
 '''
 
 EXAMPLES = """
-    - name: create DNS
-      na_ontap_dns:
+    - name: create or modify DNS
+      netapp.ontap.na_ontap_dns:
         state: present
         hostname: "{{hostname}}"
         username: "{{username}}"
@@ -71,6 +68,15 @@ EXAMPLES = """
         domains: sales.bar.com
         nameservers: 10.193.0.250,10.192.0.250
         skip_validation: true
+
+    - name: create or modify cluster DNS with REST
+      netapp.ontap.na_ontap_dns:
+        state: present
+        hostname: "{{hostname}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        domains: sales.bar.com
+        nameservers: 10.193.0.250,10.192.0.250
 """
 
 RETURN = """
@@ -80,13 +86,11 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
-class NetAppOntapDns(object):
+class NetAppOntapDns:
     """
     Enable and Disable dns
     """
@@ -96,7 +100,7 @@ class NetAppOntapDns(object):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            vserver=dict(required=True, type='str'),
+            vserver=dict(required=False, type='str'),
             domains=dict(required=False, type='list', elements='str'),
             nameservers=dict(required=False, type='list', elements='str'),
             skip_validation=dict(required=False, type='bool')
@@ -114,16 +118,49 @@ class NetAppOntapDns(object):
         self.is_cluster = False
 
         # REST API should be used for ONTAP 9.6 or higher, ZAPI for lower version
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['skip_validation']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if not self.parameters.get('vserver'):
+                self.module.fail_json(msg="Error: vserver is a required parameter with ZAPI.")
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         return
+
+    def patch_cluster_dns(self):
+        api = 'cluster'
+        body = {
+            'dns_domains': self.parameters['domains'],
+            'name_servers': self.parameters['nameservers']
+        }
+        dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
+        if error:
+            self.module.fail_json(msg="Error updating cluster DNS options: %s" % error)
+
+    def create_dns_rest(self):
+        """
+        Create DNS server
+        :return: none
+        """
+        if self.is_cluster or not self.parameters.get('vserver'):
+            # with 9.13, using scope=cluster with POST on 'name-services/dns' does not work:
+            # "svm.uuid" is a required field
+            return self.patch_cluster_dns()
+
+        api = 'name-services/dns'
+        body = {
+            'domains': self.parameters['domains'],
+            'servers': self.parameters['nameservers'],
+            'svm': {
+                'name': self.parameters['vserver']
+            }
+        }
+        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        if error:
+            self.module.fail_json(msg="Error creating DNS service: %s" % error)
 
     def create_dns(self):
         """
@@ -131,51 +168,43 @@ class NetAppOntapDns(object):
         :return: none
         """
         if self.use_rest:
-            if self.is_cluster:
-                api = 'cluster'
-                params = {
-                    'dns_domains': self.parameters['domains'],
-                    'name_servers': self.parameters['nameservers']
-                }
-                dummy, error = self.rest_api.patch(api, params)
-                if error:
-                    self.module.fail_json(msg=error)
-            else:
-                api = 'name-services/dns'
-                params = {
-                    'domains': self.parameters['domains'],
-                    'servers': self.parameters['nameservers'],
-                    'svm': {
-                        'name': self.parameters['vserver']
-                    }
-                }
-                dummy, error = self.rest_api.post(api, params)
-                if error:
-                    self.module.fail_json(msg=error)
-        else:
-            dns = netapp_utils.zapi.NaElement('net-dns-create')
-            nameservers = netapp_utils.zapi.NaElement('name-servers')
-            domains = netapp_utils.zapi.NaElement('domains')
-            for each in self.parameters['nameservers']:
-                ip_address = netapp_utils.zapi.NaElement('ip-address')
-                ip_address.set_content(each)
-                nameservers.add_child_elem(ip_address)
-            dns.add_child_elem(nameservers)
-            for each in self.parameters['domains']:
-                domain = netapp_utils.zapi.NaElement('string')
-                domain.set_content(each)
-                domains.add_child_elem(domain)
-            dns.add_child_elem(domains)
-            if self.parameters.get('skip_validation'):
-                validation = netapp_utils.zapi.NaElement('skip-config-validation')
-                validation.set_content(str(self.parameters['skip_validation']))
-                dns.add_child_elem(validation)
-            try:
-                self.server.invoke_successfully(dns, True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error creating dns: %s' %
-                                      (to_native(error)),
-                                      exception=traceback.format_exc())
+            return self.create_dns_rest()
+
+        dns = netapp_utils.zapi.NaElement('net-dns-create')
+        nameservers = netapp_utils.zapi.NaElement('name-servers')
+        domains = netapp_utils.zapi.NaElement('domains')
+        for each in self.parameters['nameservers']:
+            ip_address = netapp_utils.zapi.NaElement('ip-address')
+            ip_address.set_content(each)
+            nameservers.add_child_elem(ip_address)
+        dns.add_child_elem(nameservers)
+        for each in self.parameters['domains']:
+            domain = netapp_utils.zapi.NaElement('string')
+            domain.set_content(each)
+            domains.add_child_elem(domain)
+        dns.add_child_elem(domains)
+        if self.parameters.get('skip_validation'):
+            validation = netapp_utils.zapi.NaElement('skip-config-validation')
+            validation.set_content(str(self.parameters['skip_validation']))
+            dns.add_child_elem(validation)
+        try:
+            self.server.invoke_successfully(dns, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error creating dns: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+
+    def destroy_dns_rest(self, dns_attrs):
+        """
+        Destroys an already created dns
+        :return:
+        """
+        if self.is_cluster:
+            error = 'Error: cluster scope when deleting DNS with REST requires ONTAP 9.9.1 or later.'
+            self.module.fail_json(msg=error)
+        api = 'name-services/dns'
+        dummy, error = rest_generic.delete_async(self.rest_api, api, dns_attrs['uuid'])
+        if error:
+            self.module.fail_json(msg="Error deleting DNS service: %s" % error)
 
     def destroy_dns(self, dns_attrs):
         """
@@ -183,34 +212,25 @@ class NetAppOntapDns(object):
         :return:
         """
         if self.use_rest:
-            if self.is_cluster:
-                error = 'cluster operation for deleting DNS is not supported with REST.'
-                self.module.fail_json(msg=error)
-            api = 'name-services/dns/' + dns_attrs['uuid']
-            dummy, error = self.rest_api.delete(api)
-            if error:
-                self.module.fail_json(msg=error)
-        else:
-            try:
-                self.server.invoke_successfully(netapp_utils.zapi.NaElement('net-dns-destroy'), True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error destroying dns %s' %
-                                      (to_native(error)),
-                                      exception=traceback.format_exc())
+            return self.destroy_dns_rest(dns_attrs)
+
+        try:
+            self.server.invoke_successfully(netapp_utils.zapi.NaElement('net-dns-destroy'), True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error destroying dns: %s' % to_native(error),
+                                  exception=traceback.format_exc())
 
     def get_cluster(self):
         api = "cluster"
-        message, error = self.rest_api.get(api, None)
+        record, error = rest_generic.get_one_record(self.rest_api, api)
         if error:
-            self.module.fail_json(msg=error)
-        if len(message.keys()) == 0:
-            self.module.fail_json(msg="no data from cluster %s" % str(message))
-        return message
+            self.module.fail_json(msg="Error getting cluster info: %s" % error)
+        return record
 
     def get_cluster_dns(self):
         cluster_attrs = self.get_cluster()
         dns_attrs = None
-        if self.parameters['vserver'] == cluster_attrs['name']:
+        if not self.parameters.get('vserver') or self.parameters['vserver'] == cluster_attrs['name']:
             dns_attrs = {
                 'domains': cluster_attrs.get('dns_domains'),
                 'nameservers': cluster_attrs.get('name_servers'),
@@ -221,126 +241,115 @@ class NetAppOntapDns(object):
                 dns_attrs = None
         return dns_attrs
 
+    def get_dns_rest(self):
+        if not self.parameters.get('vserver') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            # scope requires 9.9, so revert to cluster API
+            return self.get_cluster_dns()
+
+        api = "name-services/dns"
+        params = {'fields': 'domains,servers,svm'}
+        if self.parameters.get('vserver'):
+            # omit scope as vserver may be a cluster vserver
+            params['svm.name'] = self.parameters['vserver']
+        else:
+            params['scope'] = 'cluster'
+        record, error = rest_generic.get_one_record(self.rest_api, api, params)
+        if error:
+            self.module.fail_json(msg="Error getting DNS service: %s" % error)
+        if record:
+            return {
+                'domains': record['domains'],
+                'nameservers': record['servers'],
+                'uuid': record['svm']['uuid']
+            }
+        if self.parameters.get('vserver') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            # There is a chance we are working at the cluster level
+            return self.get_cluster_dns()
+        return None
+
     def get_dns(self):
         if self.use_rest:
-            api = "name-services/dns"
-            params = {'fields': 'domains,servers,svm',
-                      "svm.name": self.parameters['vserver']}
-            message, error = self.rest_api.get(api, params)
-            if error:
-                self.module.fail_json(msg=error)
-            if len(message.keys()) == 0:
-                message = None
-            elif 'records' in message and len(message['records']) == 0:
-                message = None
-            elif 'records' not in message or len(message['records']) != 1:
-                error = "Unexpected response from %s: %s" % (api, repr(message))
-                self.module.fail_json(msg=error)
-            if message is not None:
-                record = message['records'][0]
-                attrs = {
-                    'domains': record['domains'],
-                    'nameservers': record['servers'],
-                    'uuid': record['svm']['uuid']
-                }
-                return attrs
-            return None
-        else:
-            dns_obj = netapp_utils.zapi.NaElement('net-dns-get')
-            try:
-                result = self.server.invoke_successfully(dns_obj, True)
-            except netapp_utils.zapi.NaApiError as error:
-                if to_native(error.code) == "15661":
-                    # 15661 is object not found
-                    return None
-                else:
-                    self.module.fail_json(msg=to_native(
-                        error), exception=traceback.format_exc())
+            return self.get_dns_rest()
 
-            # read data for modify
-            attrs = dict()
-            attributes = result.get_child_by_name('attributes')
-            dns_info = attributes.get_child_by_name('net-dns-info')
-            nameservers = dns_info.get_child_by_name('name-servers')
-            attrs['nameservers'] = [each.get_content() for each in nameservers.get_children()]
-            domains = dns_info.get_child_by_name('domains')
-            attrs['domains'] = [each.get_content() for each in domains.get_children()]
-            attrs['skip_validation'] = dns_info.get_child_by_name('skip-config-validation')
-            return attrs
+        dns_obj = netapp_utils.zapi.NaElement('net-dns-get')
+        try:
+            result = self.server.invoke_successfully(dns_obj, True)
+        except netapp_utils.zapi.NaApiError as error:
+            if to_native(error.code) == "15661":
+                # 15661 is object not found
+                return None
+            else:
+                self.module.fail_json(msg="Error getting DNS info: %s." % to_native(error), exception=traceback.format_exc())
+
+        attributes = result.get_child_by_name('attributes')
+        if attributes is None:
+            return
+        dns_info = attributes.get_child_by_name('net-dns-info')
+        nameservers = dns_info.get_child_by_name('name-servers')
+        attrs = {
+            'nameservers': [
+                each.get_content() for each in nameservers.get_children()
+            ]
+        }
+        domains = dns_info.get_child_by_name('domains')
+        attrs['domains'] = [each.get_content() for each in domains.get_children()]
+        return attrs
+
+    def modify_dns_rest(self, dns_attrs):
+        if self.is_cluster:
+            return self.patch_cluster_dns()
+        body = {}
+        if dns_attrs['nameservers'] != self.parameters['nameservers']:
+            body['servers'] = self.parameters['nameservers']
+        if dns_attrs['domains'] != self.parameters['domains']:
+            body['domains'] = self.parameters['domains']
+        api = "name-services/dns"
+        dummy, error = rest_generic.patch_async(self.rest_api, api, dns_attrs['uuid'], body)
+        if error:
+            self.module.fail_json(msg="Error modifying DNS configuration: %s" % error)
 
     def modify_dns(self, dns_attrs):
         if self.use_rest:
-            changed = False
-            params = {}
-            if dns_attrs['nameservers'] != self.parameters['nameservers']:
-                changed = True
-                params['servers'] = self.parameters['nameservers']
-            if dns_attrs['domains'] != self.parameters['domains']:
-                changed = True
-                params['domains'] = self.parameters['domains']
-            if changed and not self.module.check_mode:
-                uuid = dns_attrs['uuid']
-                api = "name-services/dns/" + uuid
-                if self.is_cluster:
-                    api = 'cluster'
-                    params = {
-                        'dns_domains': self.parameters['domains'],
-                        'name_servers': self.parameters['nameservers']
-                    }
-                dummy, error = self.rest_api.patch(api, params)
-                if error:
-                    self.module.fail_json(msg=error)
-
-        else:
-            changed = False
-            dns = netapp_utils.zapi.NaElement('net-dns-modify')
-            if dns_attrs['nameservers'] != self.parameters['nameservers']:
-                changed = True
-                nameservers = netapp_utils.zapi.NaElement('name-servers')
-                for each in self.parameters['nameservers']:
-                    ip_address = netapp_utils.zapi.NaElement('ip-address')
-                    ip_address.set_content(each)
-                    nameservers.add_child_elem(ip_address)
-                dns.add_child_elem(nameservers)
-            if dns_attrs['domains'] != self.parameters['domains']:
-                changed = True
-                domains = netapp_utils.zapi.NaElement('domains')
-                for each in self.parameters['domains']:
-                    domain = netapp_utils.zapi.NaElement('string')
-                    domain.set_content(each)
-                    domains.add_child_elem(domain)
-                dns.add_child_elem(domains)
-            if changed and not self.module.check_mode:
-                if self.parameters.get('skip_validation'):
-                    validation = netapp_utils.zapi.NaElement('skip-config-validation')
-                    validation.set_content(str(self.parameters['skip_validation']))
-                    dns.add_child_elem(validation)
-                try:
-                    self.server.invoke_successfully(dns, True)
-                except netapp_utils.zapi.NaApiError as error:
-                    self.module.fail_json(msg='Error modifying dns %s' %
-                                          (to_native(error)), exception=traceback.format_exc())
-        return changed
+            return self.modify_dns_rest(dns_attrs)
+        dns = netapp_utils.zapi.NaElement('net-dns-modify')
+        if dns_attrs['nameservers'] != self.parameters['nameservers']:
+            nameservers = netapp_utils.zapi.NaElement('name-servers')
+            for each in self.parameters['nameservers']:
+                ip_address = netapp_utils.zapi.NaElement('ip-address')
+                ip_address.set_content(each)
+                nameservers.add_child_elem(ip_address)
+            dns.add_child_elem(nameservers)
+        if dns_attrs['domains'] != self.parameters['domains']:
+            domains = netapp_utils.zapi.NaElement('domains')
+            for each in self.parameters['domains']:
+                domain = netapp_utils.zapi.NaElement('string')
+                domain.set_content(each)
+                domains.add_child_elem(domain)
+            dns.add_child_elem(domains)
+        if self.parameters.get('skip_validation'):
+            validation = netapp_utils.zapi.NaElement('skip-config-validation')
+            validation.set_content(str(self.parameters['skip_validation']))
+            dns.add_child_elem(validation)
+        try:
+            self.server.invoke_successfully(dns, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error modifying dns: %s' % to_native(error), exception=traceback.format_exc())
 
     def apply(self):
         dns_attrs = self.get_dns()
-        if self.use_rest and dns_attrs is None:
-            # There is a chance we are working at the cluster level
-            dns_attrs = self.get_cluster_dns()
-        changed = False
-        if self.parameters['state'] == 'present':
-            if dns_attrs is not None:
-                changed = self.modify_dns(dns_attrs)
+        cd_action = self.na_helper.get_cd_action(dns_attrs, self.parameters)
+        modify = None
+        if cd_action is None:
+            modify = self.na_helper.get_modified_attributes(dns_attrs, self.parameters)
+        if self.na_helper.changed and not self.module.check_mode:
+            if cd_action == 'create':
+                self.create_dns()
+            elif cd_action == 'delete':
+                self.destroy_dns(dns_attrs)
             else:
-                if not self.module.check_mode:
-                    self.create_dns()
-                changed = True
-        else:
-            if dns_attrs is not None:
-                if not self.module.check_mode:
-                    self.destroy_dns(dns_attrs)
-                changed = True
-        self.module.exit_json(changed=changed)
+                self.modify_dns(dns_attrs)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():
