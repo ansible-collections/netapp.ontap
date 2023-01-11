@@ -487,10 +487,13 @@ class NetAppONTAPGatherInfo(object):
         if gather_subset_info.pop('post', False):
             self.run_post(gather_subset_info)
         if default_fields:
-            total_fields = default_fields + ',' + self.fields
-            data = {'max_records': self.parameters['max_records'], 'fields': total_fields}
+            fields = default_fields + ',' + self.fields
+        elif 'fields' in gather_subset_info:
+            fields = gather_subset_info['fields']
         else:
-            data = {'max_records': self.parameters['max_records'], 'fields': self.fields}
+            fields = self.fields
+
+        data = {'max_records': self.parameters['max_records'], 'fields': fields}
 
         #  Delete the fields record from data if it is a private/cli API call.
         #  The private_cli_fields method handles the fields for API calls using the private/cli endpoint.
@@ -573,18 +576,18 @@ class NetAppONTAPGatherInfo(object):
         '''
         The private cli endpoint does not allow '*' to be an entered.
         If fields='*' or fields are not included within the playbook, the API call will be populated to return all possible fields.
-        If fields is entered into the playbook the fields entered will be parsed into the API.
+        If fields is entered into the playbook the fields entered will be used when calling the API.
         '''
-        if api == 'support/autosupport/check':
-            if 'fields' not in self.parameters or '*' in self.parameters['fields'] or '**' in self.parameters['fields']:
-                fields = '?fields=node,corrective-action,status,error-detail,check-type,check-category'
+        if 'fields' not in self.parameters or '*' in self.parameters['fields'] or '**' in self.parameters['fields']:
+            if api == 'support/autosupport/check':
+                fields = 'node,corrective-action,status,error-detail,check-type,check-category'
+            elif api == 'private/cli/vserver/security/file-directory':
+                fields = 'acls'
             else:
-                fields = '?fields=' + ','.join(self.parameters.get('fields'))
-
-        if api == 'private/cli/vserver/security/file-directory':
-            fields = '?fields=acls'
-
-        return str(fields)
+                self.module.fail_json(msg='Internal error, no field for %s' % api)
+        else:
+            fields = ','.join(self.parameters['fields'])
+        return fields
 
     def convert_subsets(self):
         """
@@ -975,7 +978,8 @@ class NetAppONTAPGatherInfo(object):
             'storage/volume-efficiency-policies': {'version': (9, 8)},
             'support/autosupport': {},
             'support/autosupport/check': {
-                'api_call': '/private/cli/system/node/autosupport/check/details' + self.private_cli_fields('support/autosupport/check'),
+                'api_call': '/private/cli/system/node/autosupport/check/details',
+                'fields': self.private_cli_fields('support/autosupport/check'),
             },
             'support/autosupport/messages': {},
             'support/auto-update': {'version': (9, 10, 1)},
@@ -1002,7 +1006,9 @@ class NetAppONTAPGatherInfo(object):
                 or 'file_directory_security' in self.parameters['gather_subset']
         ):
             get_ontap_subset_info['private/cli/vserver/security/file-directory'] = {
-                'api_call': 'private/cli/vserver/security/file-directory' + self.private_cli_fields('private/cli/vserver/security/file-directory')}
+                'api_call': 'private/cli/vserver/security/file-directory',
+                'fields': self.private_cli_fields('private/cli/vserver/security/file-directory')
+            }
         if 'all' in self.parameters['gather_subset']:
             # If all in subset list, get the information of all subsets
             self.parameters['gather_subset'] = sorted(get_ontap_subset_info.keys())
@@ -1013,11 +1019,11 @@ class NetAppONTAPGatherInfo(object):
         length_of_subsets = len(self.parameters['gather_subset'])
         unsupported_subsets = self.subset_version_warning(get_ontap_subset_info)
 
-        if self.parameters.get('fields') is not None:
+        if self.parameters.get('fields'):
+            if '**' in self.parameters.get('fields'):
+                self.module.warn('Using ** can put an extra load on the system and should not be used in production')
             # If multiple fields specified to return, convert list to string
             self.fields = ','.join(self.parameters.get('fields'))
-            if self.fields == '**':
-                self.module.warn('Using %s can put an extra load on the system and should not be used in production' % self.fields)
 
             if self.fields not in ('*', '**') and length_of_subsets > 1:
                 # Restrict gather subsets to one subset if fields section is list_of_fields

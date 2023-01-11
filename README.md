@@ -73,6 +73,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_interface - fix idempotency issue when `home_port` not set in creating FC interface.
+  - na_ontap_rest_info - fix field issue with private/cli and support/autosupport/check APIs.
   - na_ontap_snapshot - fix cannot modify `snapmirror_label`, `expiry_time` and `comment` if not configured in create.
 
 ## 22.2.0

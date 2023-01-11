@@ -13,8 +13,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, \
-    expect_and_capture_ansible_exception, \
-    patch_ansible, create_and_apply, assert_warning_was_raised
+    expect_and_capture_ansible_exception, patch_ansible, create_and_apply, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -947,8 +946,7 @@ def test_private_cli_vserver_security_file_directory():
     args['use_python_keys'] = True
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
-        ('GET', 'private/cli/vserver/security/file-directory?fields=acls',
-         SRR['get_private_cli_vserver_security_file_directory_info']),
+        ('GET', 'private/cli/vserver/security/file-directory', SRR['get_private_cli_vserver_security_file_directory_info']),
     ])
     assert create_and_apply(ontap_rest_info_module, args)['ontap_info'] == {
         'private_cli_vserver_security_file_directory': [{'access_type': 'AT', 'user_or_group': 'user'}]}
@@ -1166,6 +1164,7 @@ def test_ignore_api_errors():
     args = set_default_args()
     args['gather_subset'] = 'storage/luns'
     args['ignore_api_errors'] = ['something', 'Expected error']
+    args['fields'] = ['**']
     register_responses([
         ('GET', 'cluster', SRR['validate_ontap_version_pass']),
         ('GET', 'storage/luns', SRR['error_record']),
@@ -1178,3 +1177,19 @@ def test_ignore_api_errors():
     assert error
     assert error['code'] == 6
     assert error['message'] == 'Expected error'
+    print_warnings()
+    assert_warning_was_raised('Using ** can put an extra load on the system and should not be used in production')
+
+
+def test_private_cli_fields():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    args = set_default_args()
+    my_obj = create_module(ontap_rest_info_module, args)
+    error = 'Internal error, no field for unknown_api'
+    assert error in expect_and_capture_ansible_exception(my_obj.private_cli_fields, 'fail', 'unknown_api')['msg']
+    assert my_obj.private_cli_fields('private/cli/vserver/security/file-directory') == 'acls'
+    assert my_obj.private_cli_fields('support/autosupport/check') == 'node,corrective-action,status,error-detail,check-type,check-category'
+    my_obj.parameters['fields'] = ['f1', 'f2']
+    assert my_obj.private_cli_fields('private/cli/vserver/security/file-directory') == 'f1,f2'
