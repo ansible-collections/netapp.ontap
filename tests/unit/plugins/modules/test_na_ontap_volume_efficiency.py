@@ -7,7 +7,11 @@ from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
+    register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency \
     import NetAppOntapVolumeEfficiency as volume_efficiency_module, main  # module under test
@@ -16,639 +20,322 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
-# REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_rest_9_10_0': (200, dict(version=dict(generation=9, major=10, minor=0, full='dummy_9_10_0')), None),
-    'is_rest_9_10_1': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {'num_records': 0}, None),
-    'nonempty_good': (200, {'num_records': 1, 'cli_output': 'Efficiency for volume "volTest" of Vserver "vs1" is enabled.'}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
-    # module specific responses
-    'volume_efficiency_enabled_record': (200, {
-        'num_records': 1,
-        'records': [{
-            'path': '/vol/volTest',
-            'state': 'enabled',
-            'op_status': 'idle',
-            'schedule': None,
-            'policy': 'auto',
-            'inline_compression': True,
-            'compression': True,
-            'inline_dedupe': True,
-            'data_compaction': True,
-            'cross_volume_inline_dedupe': True,
-            'cross_volume_background_dedupe': True
-        }]
-    }, None),
-    'volume_efficiency_disabled_record': (200, {
-        'num_records': 1,
-        'records': [{
-            'path': '/vol/volTest',
-            'state': 'disabled',
-            'op_status': 'idle',
-            'schedule': None,
-            'policy': 'auto',
-            'inline_compression': True,
-            'compression': True,
-            'inline_dedupe': True,
-            'data_compaction': True,
-            'cross_volume_inline_dedupe': True,
-            'cross_volume_background_dedupe': True
-        }]
-    }, None),
-    'volume_efficiency_running_record': (200, {
-        'num_records': 1,
-        'records': [{
-            'path': '/vol/volTest',
-            'state': 'enabled',
-            'op_status': 'running',
-            'schedule': None,
-            'policy': 'auto',
-            'inline_compression': True,
-            'compression': True,
-            'inline_dedupe': True,
-            'data_compaction': True,
-            'cross_volume_inline_dedupe': True,
-            'cross_volume_background_dedupe': True
-        }]
-    }, None)
+
+DEFAULT_ARGS = {
+    'hostname': '10.10.10.10',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'vs1',
+    'path': '/vol/volTest',
+    'policy': 'auto',
+    'use_rest': 'never',
+    'enable_compression': True,
+    'enable_inline_compression': True,
+    'enable_cross_volume_inline_dedupe': True,
+    'enable_inline_dedupe': True,
+    'enable_data_compaction': True,
+    'enable_cross_volume_background_dedupe': True
+}
+
+DEFAULT_ARGS_REST = {
+    'hostname': '10.10.10.10',
+    'username': 'username',
+    'password': 'password',
+    'vserver': 'vs1',
+    'path': '/vol/volTest',
+    'policy': 'auto',
+    'use_rest': 'always'
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'volume_efficiency_enabled':
-            xml = self.build_volume_efficiency_enabled_info()
-        elif self.type == 'volume_efficiency_disabled':
-            xml = self.build_volume_efficiency_disabled_info()
-        elif self.type == 'volume_efficiency_running':
-            xml = self.build_volume_efficiency_running_info()
-        elif self.type == 'volume_efficiency_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_volume_efficiency_enabled_info():
-        ''' build xml data for sis-status-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {
-            'num-records': 1,
-            'attributes-list': {
-                'sis-status-info': {
-                    'path': '/vol/volTest',
-                    'state': 'enabled',
-                    'schedule': None,
-                    'status': 'idle',
-                    'policy': 'auto',
-                    'is-inline-compression-enabled': 'true',
-                    'is-compression-enabled': 'true',
-                    'is-inline-dedupe-enabled': 'true',
-                    'is-data-compaction-enabled': 'true',
-                    'is-cross-volume-inline-dedupe-enabled': 'true',
-                    'is-cross-volume-background-dedupe-enabled': 'true'
-                }
+def return_vol_info(state='enabled', status='idle', policy='auto'):
+    return {
+        'num-records': 1,
+        'attributes-list': {
+            'sis-status-info': {
+                'path': '/vol/volTest',
+                'state': state,
+                'schedule': None,
+                'status': status,
+                'policy': policy,
+                'is-inline-compression-enabled': 'true',
+                'is-compression-enabled': 'true',
+                'is-inline-dedupe-enabled': 'true',
+                'is-data-compaction-enabled': 'true',
+                'is-cross-volume-inline-dedupe-enabled': 'true',
+                'is-cross-volume-background-dedupe-enabled': 'true'
             }
         }
+    }
 
-        xml.translate_struct(data)
-        return xml
 
-    @staticmethod
-    def build_volume_efficiency_disabled_info():
-        ''' build xml data for sis-status-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {
-            'num-records': 1,
-            'attributes-list': {
-                'sis-status-info': {
-                    'path': '/vol/volTest',
-                    'state': 'disabled',
-                    'status': 'idle',
-                    'schedule': None,
-                    'policy': 'auto',
-                    'is-inline-compression-enabled': 'true',
-                    'is-compression-enabled': 'true',
-                    'is-inline-dedupe-enabled': 'true',
-                    'is-data-compaction-enabled': 'true',
-                    'is-cross-volume-inline-dedupe-enabled': 'true',
-                    'is-cross-volume-background-dedupe-enabled': 'true'
-                }
+ZRR = zapi_responses({
+    'vol_eff_info': build_zapi_response(return_vol_info()),
+    'vol_eff_info_disabled': build_zapi_response(return_vol_info(state='disabled')),
+    'vol_eff_info_running': build_zapi_response(return_vol_info(status='running')),
+    'vol_eff_info_policy': build_zapi_response(return_vol_info(policy='default'))
+})
+
+
+def return_vol_info_rest(state='enabled', status='idle', policy='auto', compaction='inline'):
+    return {
+        "records": [{
+            "uuid": "25311eff",
+            "name": "test_e",
+            "efficiency": {
+                "compression": "both",
+                "storage_efficiency_mode": "default",
+                "dedupe": "both",
+                "cross_volume_dedupe": "both",
+                "compaction": compaction,
+                "schedule": "-",
+                "volume_path": "/vol/test_e",
+                "state": state,
+                "op_state": status,
+                "type": "regular",
+                "progress": "Idle for 02:06:26",
+                "last_op_begin": "Mon Jan 02 00:10:00 2023",
+                "last_op_end": "Mon Jan 02 00:10:00 2023",
+                "last_op_size": 0,
+                "last_op_state": "Success",
+                "policy": {"name": policy}
             }
-        }
-
-        xml.translate_struct(data)
-        return xml
-
-    @staticmethod
-    def build_volume_efficiency_running_info():
-        ''' build xml data for sis-status-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {
-            'num-records': 1,
-            'attributes-list': {
-                'sis-status-info': {
-                    'path': '/vol/volTest',
-                    'state': 'enabled',
-                    'schedule': None,
-                    'status': 'running',
-                    'policy': 'auto',
-                    'is-inline-compression-enabled': 'true',
-                    'is-compression-enabled': 'true',
-                    'is-inline-dedupe-enabled': 'true',
-                    'is-data-compaction-enabled': 'true',
-                    'is-cross-volume-inline-dedupe-enabled': 'true',
-                    'is-cross-volume-background-dedupe-enabled': 'true'
-                }
-            }
-        }
-
-        xml.translate_struct(data)
-        return xml
+        }],
+        "num_records": 1
+    }
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+# REST API canned responses when mocking send_request
+SRR = rest_responses({
+    'volume_efficiency_info': (200, return_vol_info_rest(), None),
+    'volume_efficiency_status_running': (200, return_vol_info_rest(status='active'), None),
+    'volume_efficiency_disabled': (200, return_vol_info_rest(state='disabled'), None),
+    'volume_efficiency_modify': (200, return_vol_info_rest(compaction='none'), None)
+})
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self, use_rest=None):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'vs1'
-            path = '/vol/volTest'
-            policy = 'auto'
-            enable_compression = True
-            enable_inline_compression = True
-            enable_cross_volume_inline_dedupe = True
-            enable_inline_dedupe = True
-            enable_data_compaction = True
-            enable_cross_volume_background_dedupe = True
-        else:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            vserver = 'vs1'
-            path = '/vol/volTest'
-            policy = 'auto'
-            enable_compression = True
-            enable_inline_compression = True
-            enable_cross_volume_inline_dedupe = True
-            enable_inline_dedupe = True
-            enable_data_compaction = True
-            enable_cross_volume_background_dedupe = True
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    # with python 2.6, dictionaries are not ordered
+    fragments = ["missing required arguments:", "hostname", "path", "vserver"]
+    error = create_module(volume_efficiency_module, {}, fail=True)['msg']
+    for fragment in fragments:
+        assert fragment in error
 
-        args = dict({
-            'state': 'present',
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'vserver': vserver,
-            'path': path,
-            'policy': policy,
-            'enable_compression': enable_compression,
-            'enable_inline_compression': enable_inline_compression,
-            'enable_cross_volume_inline_dedupe': enable_cross_volume_inline_dedupe,
-            'enable_inline_dedupe': enable_inline_dedupe,
-            'enable_data_compaction': enable_data_compaction,
-            'enable_cross_volume_background_dedupe': enable_cross_volume_background_dedupe
-        })
 
-        if use_rest is not None:
-            args['use_rest'] = use_rest
+def test_ensure_get_called_existing():
+    ''' test get_volume_efficiency for existing config '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info'])
+    ])
+    my_obj = create_module(volume_efficiency_module, DEFAULT_ARGS)
+    assert my_obj.get_volume_efficiency()
 
-        return args
 
-    @staticmethod
-    def get_volume_efficiency_mock_object(cx_type='zapi', kind=None):
-        volume_efficiency_obj = volume_efficiency_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                volume_efficiency_obj.server = MockONTAPConnection()
-            else:
-                volume_efficiency_obj.server = MockONTAPConnection(kind=kind)
-        return volume_efficiency_obj
+def test_successful_enable():
+    ''' enable volume_efficiency and testing idempotency '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info_disabled']),
+        ('sis-enable', ZRR['success']),
+        ('sis-get-iter', ZRR['vol_eff_info']),
+        # idempotency check
+        ('sis-get-iter', ZRR['vol_eff_info']),
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            volume_efficiency_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS)['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS)['changed']
 
-    def test_ensure_get_called_existing(self):
-        ''' test get_volume_efficiency for existing config '''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = volume_efficiency_module()
-        my_obj.server = MockONTAPConnection(kind='volume_efficiency_enabled')
-        assert my_obj.get_volume_efficiency()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.enable_volume_efficiency')
-    def test_successful_enable(self, enable_volume_efficiency):
-        ''' enable volume_efficiency and testing idempotency '''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_disabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        enable_volume_efficiency.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_disable():
+    ''' disable volume_efficiency and testing idempotency '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info']),
+        ('sis-disable', ZRR['success']),
+        # idempotency check
+        ('sis-get-iter', ZRR['vol_eff_info_disabled']),
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.disable_volume_efficiency')
-    def test_successful_disable(self, disable_volume_efficiency):
-        ''' disable volume_efficiency and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['state'] = 'absent'
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # disable_volume_efficiency.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_disabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.modify_volume_efficiency')
-    def test_successful_modify(self, modify_volume_efficiency):
-        ''' modifying volume_efficiency config and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['policy'] = 'default'
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # modify_volume_efficiency.assert_called_with()
-        # to reset na_helper from remembering the previous 'changed' value
-        data['policy'] = 'auto'
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.start_volume_efficiency')
-    def test_successful_start(self, start_volume_efficiency):
-        ''' start volume_efficiency and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['volume_efficiency'] = 'start'
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_running')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_modify():
+    ''' modifying volume_efficiency config and testing idempotency '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info']),
+        ('sis-set-config', ZRR['success']),
+        # idempotency check
+        ('sis-get-iter', ZRR['vol_eff_info_policy']),
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency.NetAppOntapVolumeEfficiency.stop_volume_efficiency')
-    def test_successful_stop(self, stop_volume_efficiency):
-        ''' stop volume_efficiency and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['volume_efficiency'] = 'stop'
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_running')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
-        # to reset na_helper from remembering the previous 'changed' value
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_enabled')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'policy': 'default'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'policy': 'default'})['changed']
 
-    def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args(use_rest='Never')
-        set_module_args(data)
-        my_obj = volume_efficiency_module()
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('volume_efficiency_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.enable_volume_efficiency()
-        assert 'Error enabling storage efficiency' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.disable_volume_efficiency()
-        assert 'Error disabling storage efficiency' in exc.value.args[0]['msg']
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.modify_volume_efficiency()
-        assert 'Error modifying storage efficiency' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'calling: private/cli/volume/efficiency: got %s.' % SRR['generic_error'][2]
-        assert exc.value.args[0]['msg'] == msg
+def test_successful_start():
+    ''' start volume_efficiency and testing idempotency '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info']),
+        ('sis-start', ZRR['success']),
+        # idempotency check
+        ('sis-get-iter', ZRR['vol_eff_info_running']),
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_enable_rest(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_disabled_record'],  # get
-            SRR['nonempty_good'],  # patch
-            SRR['empty_good'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'start'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'start'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_enable_rest(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_disable_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['empty_good'],  # disable
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_successful_stop():
+    ''' stop volume_efficiency and testing idempotency '''
+    register_responses([
+        ('sis-get-iter', ZRR['vol_eff_info_running']),
+        ('sis-stop', ZRR['success']),
+        # idempotency check
+        ('sis-get-iter', ZRR['vol_eff_info']),
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_disable_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_disabled_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'stop'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'stop'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_modify_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['policy'] = 'default'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_modify_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('sis-get-iter', ZRR['error']),
+        ('sis-set-config', ZRR['error']),
+        ('sis-start', ZRR['error']),
+        ('sis-stop', ZRR['error']),
+        ('sis-enable', ZRR['error']),
+        ('sis-disable', ZRR['error']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['generic_error']),
+        ('PATCH', 'storage/volumes', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS)
+    assert 'Error getting volume efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.get_volume_efficiency, 'fail')['msg']
+    assert 'Error modifying storage efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.modify_volume_efficiency, 'fail', {})['msg']
+    assert 'Error starting storage efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.start_volume_efficiency, 'fail')['msg']
+    assert 'Error stopping storage efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.stop_volume_efficiency, 'fail')['msg']
+    assert 'Error enabling storage efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.enable_volume_efficiency, 'fail')['msg']
+    assert 'Error disabling storage efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.disable_volume_efficiency, 'fail')['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_start_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['volume_efficiency'] = 'start'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+    args = {'state': 'absent', 'enable_compression': True}
+    modify = {'enabled': 'disabled'}
+    vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS_REST, args)
+    assert 'Error getting volume efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.get_volume_efficiency, 'fail')['msg']
+    assert 'Error in volume/efficiency patch' in expect_and_capture_ansible_exception(vol_eff_obj.modify_volume_efficiency, 'fail', {'arg': 1})['msg']
+    # Error: cannot set compression keys: ['enable_compression']
+    assert 'when volume efficiency already disabled' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', {}, {})['msg']
+    assert 'when trying to disable volume' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, {})['msg']
+    vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS_REST)
+    modify = {'enable_compression': False, 'enable_inline_compression': True}
+    error = 'Disabling compression and enabling inline compression simultaneously cannot be done.'
+    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, {})['msg']
+    error = 'Compression cannot be disabled when inline compression is enabled on the volume.'
+    modify, current = {'enable_compression': False}, {'enable_inline_compression': True}
+    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, current)['msg']
+    error = 'Inline compression cannot be enabled when compression is disabled. Enable compression and retry'
+    modify, current = {'enable_inline_compression': True}, {'enable_compression': False}
+    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, current)['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_start_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_start_rest_all_options(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['volume_efficiency'] = 'start'
-        data['start_ve_scan_all'] = True
-        data['start_ve_build_metadata'] = True
-        data['start_ve_delete_checkpoint'] = True
-        data['start_ve_queue_operation'] = True
-        data['start_ve_scan_old_data'] = True
-        data['start_ve_qos_policy'] = 'background'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_successful_enable_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_disabled']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'use_rest': 'always'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'use_rest': 'always'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_start_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['volume_efficiency'] = 'start'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['generic_error'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error in efficiency/start: Expected error'
-        assert msg in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_stop_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['volume_efficiency'] = 'stop'
-        data['stop_ve_all_operations'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_running_record'],  # get
-            SRR['empty_good'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
+def test_successful_disable_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_disabled']),
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'state': 'absent'})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'state': 'absent'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_stop_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_enabled_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_stop_rest(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['volume_efficiency'] = 'stop'
-        data['stop_ve_all_operations'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['volume_efficiency_running_record'],  # get
-            SRR['generic_error'],  # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error in efficiency/stop: Expected error'
-        assert msg in exc.value.args[0]['msg']
+def test_successful_modify_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_modify']),
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'enable_data_compaction': False})['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'enable_data_compaction': False})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_modify_rest_se_mode_no_version(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['storage_efficiency_mode'] = 'default'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],     # is_rest
-            SRR['is_rest'],     # fail_if_ calls version again!
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10.1 or later.  Found: -1.-1.-1.'
-        assert exc.value.args[0]['msg'] == msg
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_negative_modify_rest_se_mode_version(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['storage_efficiency_mode'] = 'default'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_9_10_0'],  # is_rest
-            SRR['is_rest_9_10_0'],  # fail_if_ calls version again!
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_volume_efficiency_mock_object(cx_type='rest').apply()
-        msg = 'Error: option storage_efficiency_mode only supports REST, and requires ONTAP 9.10.1 or later.  Found: 9.10.0.'
-        assert exc.value.args[0]['msg'] == msg
+def test_successful_enable_vol_efficiency_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_disabled']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST)['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_modify_rest_se_mode(self, mock_request):
-        data = self.set_default_args()
-        data['state'] = 'present'
-        data['storage_efficiency_mode'] = 'default'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest_9_10_1'],      # is_rest
-            SRR['is_rest_9_10_1'],      # fail_if_ calls version again!
-            SRR['empty_good'],          # get
-            SRR['nonempty_good'],       # enable
-            SRR['empty_good'],          # patch
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            main()
-        assert exc.value.args[0]['changed']
+
+def test_successful_start_rest_all_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_status_running']),
+    ])
+    args = {
+        'volume_efficiency': 'start',
+        'start_ve_scan_old_data': True
+    }
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
+
+
+def test_successful_stop_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_status_running']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success']),
+        # idempotency check
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+    ])
+    args = {'volume_efficiency': 'stop'}
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
+
+
+def test_negative_modify_rest_se_mode_no_version():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+    ])
+    error = 'Error: Minimum version of ONTAP for storage_efficiency_mode is (9, 10, 1)'
+    assert error in create_module(volume_efficiency_module, DEFAULT_ARGS_REST, {'storage_efficiency_mode': 'default'}, fail=True)['msg']
+    error = 'Error: cannot set storage_efficiency_mode in ZAPI'
+    assert error in create_module(volume_efficiency_module, DEFAULT_ARGS, {'storage_efficiency_mode': 'default'}, fail=True)['msg']
+
+
+def test_modify_rest_se_mode():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['success'])
+    ])
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'storage_efficiency_mode': 'efficient'})['changed']

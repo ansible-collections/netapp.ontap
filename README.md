@@ -66,11 +66,15 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.3.0
 
 ### New Options
+  - na_ontap_cifs - new options `access_based_enumeration`, `change_notify`, `encryption`,`home_directory`, `oplocks`, `show_snapshot`, `allow_unencrypted_access`, `namespace_caching` and `continuously_available` added in REST.
   - na_ontap_nfs - new options `root`, `windows` and `security` added in REST.
 
 ### Minor Changes
   - na_ontap_dns - support cluster scope for modify and delete.
   - na_ontap_interface - do not attempt to migrate FC interface if desired `home_port`, `home_node` and `current_port`, `current_node` are same.
+  - na_ontap_volume_efficiency - updated private cli with REST API.
+  - na_ontap_volume_efficiency - REST support for `policy` requires 9.7 or later, `path` requires 9.9.1 or later and `volume_efficiency` and `start_ve_scan_old_data` requires 9.11.1 or later.
+  - na_ontap_volume_efficiency - `schedule`, `start_ve_scan_all`, `start_ve_build_metadata`, `start_ve_delete_checkpoint`, `start_ve_queue_operation`, `start_ve_qos_policy` and `stop_ve_all_operations` options are not supported with REST.
 
 ### Bug Fixes
   - na_ontap_interface - fix idempotency issue when `home_port` not set in creating FC interface.

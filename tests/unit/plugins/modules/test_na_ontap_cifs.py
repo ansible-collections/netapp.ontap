@@ -39,7 +39,16 @@ SRR = rest_responses({
                     "unix_symlink": 'widelink',
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
-                    }
+                    },
+                    "access_based_enumeration": True,
+                    "change_notify": True,
+                    "encryption": False,
+                    "home_directory": True,
+                    "oplocks": False,
+                    "continuously_available": True,
+                    "show_snapshot": True,
+                    "namespace_caching": True,
+                    "allow_unencrypted_access": True
                 }
             ],
             "num_records": 1
@@ -355,6 +364,26 @@ def test_modify_cifs_share_comment():
     ])
     module_args = {
         'comment': "cifs comment modify"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_cifs_share_properties():
+    ''' test modify CIFS share properties '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        "access_based_enumeration": "False",
+        "change_notify": "False",
+        "encryption": "True",
+        "oplocks": "True",
+        "continuously_available": "False",
+        "show_snapshot": "False",
+        "namespace_caching": "False",
+        "allow_unencrypted_access": "False"
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 

@@ -87,6 +87,75 @@ options:
     default: local
     version_added: 21.19.0
 
+  access_based_enumeration:
+    description:
+      - If enabled, all folders inside this share are visible to a user based on that individual user access right;
+        prevents the display of folders or other shared resources that the user does not have access to.
+    type: bool
+    version_added: 22.3.0
+
+  allow_unencrypted_access:
+    description:
+      - Specifies whether or not the SMB2 clients are allowed to access the encrypted share.
+      - This option requires ONTAP 9.11.0 or later.
+    type: bool
+    version_added: 22.3.0
+
+  change_notify:
+    description:
+      - Specifies whether CIFS clients can request for change notifications for directories on this share.
+    type: bool
+    version_added: 22.3.0
+
+  encryption:
+    description:
+      - Specifies that SMB encryption must be used when accessing this share. Clients that do not support encryption are not
+        able to access this share.
+    type: bool
+    version_added: 22.3.0
+
+  home_directory:
+    description:
+      - Specifies whether or not the share is a home directory share, where the share and path names are dynamic.
+      - ONTAP home directory functionality automatically offer each user a dynamic share to their home directory without creating an
+        individual SMB share for each user.
+      - This feature enable us to configure a share that maps to different directories based on the user that connects to it
+      - Instead of creating a separate shares for each user, a single share with a home directory parameters can be created.
+      - In a home directory share, ONTAP dynamically generates the share-name and share-path by substituting
+        %w, %u, and %d variables with the corresponding Windows user name, UNIX user name, and domain name, respectively.
+    type: bool
+    version_added: 22.3.0
+
+  namespace_caching:
+    description:
+      - Specifies whether or not the SMB clients connecting to this share can cache the directory enumeration
+        results returned by the CIFS servers.
+      - This option requires ONTAP 9.10.1 or later.
+    type: bool
+    version_added: 22.3.0
+
+  oplocks:
+    description:
+      - Specify whether opportunistic locks are enabled on this share. "Oplocks" allow clients to lock files and cache content locally,
+        which can increase performance for file operations.
+    type: bool
+    version_added: 22.3.0
+
+  show_snapshot:
+    description:
+      - Specifies whether or not the Snapshot copies can be viewed and traversed by clients.
+      - This option requires ONTAP 9.10.1 or later.
+    type: bool
+    version_added: 22.3.0
+
+  continuously_available :
+    description:
+      - Specifies whether or not the clients connecting to this share can open files in a persistent manner.
+      - Files opened in this way are protected from disruptive events, such as, failover and giveback.
+      - This option requires ONTAP 9.10.1 or later.
+    type: bool
+    version_added: 22.3.0
+
 short_description: NetApp ONTAP Manage cifs-share
 version_added: 2.6.0
 
@@ -136,7 +205,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
@@ -156,7 +224,16 @@ class NetAppONTAPCifsShare:
             unix_symlink=dict(required=False, type='str', choices=['local', 'widelink', 'disable'], default='local'),
             share_properties=dict(required=False, type='list', elements='str'),
             symlink_properties=dict(required=False, type='list', elements='str'),
-            vscan_fileop_profile=dict(required=False, type='str', choices=['no_scan', 'standard', 'strict', 'writes_only'])
+            vscan_fileop_profile=dict(required=False, type='str', choices=['no_scan', 'standard', 'strict', 'writes_only']),
+            access_based_enumeration=dict(required=False, type='bool'),
+            change_notify=dict(required=False, type='bool'),
+            encryption=dict(required=False, type='bool'),
+            home_directory=dict(required=False, type='bool'),
+            oplocks=dict(required=False, type='bool'),
+            show_snapshot=dict(required=False, type='bool'),
+            allow_unencrypted_access=dict(required=False, type='bool'),
+            namespace_caching=dict(required=False, type='bool'),
+            continuously_available=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -168,13 +245,19 @@ class NetAppONTAPCifsShare:
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
         # Set up Rest API
-        self.rest_api = OntapRestAPI(self.module)
-        unsupported_rest_properties = ['share_properties', 'vscan_fileop_profile', 'symlink_properties']
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        unsupported_rest_properties = ['share_properties', 'symlink_properties', 'vscan_fileop_profile']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
-
+        self.unsupported_zapi_properties = ['access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
+                                            'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access']
+        self.svm_uuid = None
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            for unsupported_zapi_property in self.unsupported_zapi_properties:
+                if self.parameters.get(unsupported_zapi_property) is not None:
+                    msg = "Error: %s option is not supported with ZAPI.  It can only be used with REST." % unsupported_zapi_property
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_cifs_share(self):
@@ -295,20 +378,54 @@ class NetAppONTAPCifsShare:
         get details of the CIFS share with rest API.
         """
         options = {'svm.name': self.parameters.get('vserver'),
-                   'name': self.parameters.get('name')}
+                   'name': self.parameters.get('name'),
+                   'fields': 'svm.uuid,'
+                             'name,'
+                             'path,'
+                             'comment,'
+                             'unix_symlink,'
+                             'access_based_enumeration,'
+                             'change_notify,'
+                             'encryption,'
+                             'home_directory,'
+                             'oplocks,'
+                             'continuously_available,'}
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            options['fields'] += 'show_snapshot,namespace_caching,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
+            options['fields'] += 'allow_unencrypted_access,'
         api = 'protocols/cifs/shares'
-        fields = 'svm.uuid,name,path,comment,unix_symlink'
-        record, error = rest_generic.get_one_record(self.rest_api, api, options, fields)
+        record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
             self.module.fail_json(msg="Error on fetching cifs shares: %s" % error)
         if record:
+            self.svm_uuid = record['svm']['uuid']
             return {
-                'svm': {'uuid': record['svm']['uuid']},
                 'path': record['path'],
                 'comment': record.get('comment', ''),
-                'unix_symlink': record.get('unix_symlink', '')
+                'unix_symlink': record.get('unix_symlink', ''),
+                'access_based_enumeration': record.get('access_based_enumeration'),
+                'change_notify': record.get('change_notify'),
+                'encryption': record.get('encryption'),
+                'oplocks': record.get('oplocks'),
+                'continuously_available': record.get('continuously_available'),
+                'show_snapshot': record.get('show_snapshot'),
+                'namespace_caching': record.get('namespace_caching'),
+                'allow_unencrypted_access': record.get('allow_unencrypted_access'),
             }
         return None
+
+    def create_modify_body_rest(self, modify=None):
+        body = {}
+        options = ['path', 'comment', 'unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption',
+                   'home_directory', 'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching',
+                   'allow_unencrypted_access']
+        for key in options:
+            if not modify and key in self.parameters:
+                body[key] = self.parameters[key]
+            elif modify and key in modify:
+                body[key] = modify[key]
+        return body
 
     def create_cifs_share_rest(self):
         """
@@ -316,20 +433,19 @@ class NetAppONTAPCifsShare:
         """
         if not self.use_rest:
             return self.create_cifs_share()
-        body = {'svm.name': self.parameters.get('vserver'),
-                'name': self.parameters.get('name'),
-                'path': self.parameters.get('path')
-                }
-        if 'comment' in self.parameters:
-            body['comment'] = self.parameters.get('comment')
-        if 'unix_symlink' in self.parameters:
-            body['unix_symlink'] = self.parameters.get('unix_symlink')
+        body = self.create_modify_body_rest()
+        if 'vserver' in self.parameters:
+            body['svm.name'] = self.parameters['vserver']
+        if 'name' in self.parameters:
+            body['name'] = self.parameters['name']
+        if 'path' in self.parameters:
+            body['path'] = self.parameters['path']
         api = 'protocols/cifs/shares'
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
             self.module.fail_json(msg="Error on creating cifs shares: %s" % error)
 
-    def delete_cifs_share_rest(self, current):
+    def delete_cifs_share_rest(self):
         """
         delete CIFS share with rest API.
         """
@@ -337,21 +453,18 @@ class NetAppONTAPCifsShare:
             return self.delete_cifs_share()
         body = {'name': self.parameters.get('name')}
         api = 'protocols/cifs/shares'
-        dummy, error = rest_generic.delete_async(self.rest_api, api, current['svm']['uuid'], body)
+        dummy, error = rest_generic.delete_async(self.rest_api, api, self.svm_uuid, body)
         if error is not None:
             self.module.fail_json(msg=" Error on deleting cifs shares: %s" % error)
 
-    def modify_cifs_share_rest(self, modify, current=None):
+    def modify_cifs_share_rest(self, modify):
         """
         modilfy the given CIFS share with rest API.
         """
         if not self.use_rest:
             return self.modify_cifs_share()
-        api = 'protocols/cifs/shares/%s' % current['svm']['uuid']
-        body = {}
-        for key in ('path', 'comment', 'unix_symlink'):
-            if key in modify:
-                body[key] = modify[key]
+        api = 'protocols/cifs/shares/%s' % self.svm_uuid
+        body = self.create_modify_body_rest(modify)
         if body:
             dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body)
             if error is not None:
@@ -372,9 +485,9 @@ class NetAppONTAPCifsShare:
             if cd_action == 'create':
                 self.create_cifs_share_rest()
             elif cd_action == 'delete':
-                self.delete_cifs_share_rest(current)
+                self.delete_cifs_share_rest()
             elif modify:
-                self.modify_cifs_share_rest(modify, current)
+                self.modify_cifs_share_rest(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 

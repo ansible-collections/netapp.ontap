@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2022, NetApp, Inc
+# (c) 2021-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -18,119 +18,130 @@ description:
 options:
   state:
     description:
-    - Whether the specified volume efficiency should be enabled or not.
+      - Whether the specified volume efficiency should be enabled or not.
     choices: ['present', 'absent']
     default: present
     type: str
 
   vserver:
     description:
-    - Specifies the vserver for the volume.
+      - Specifies the vserver for the volume.
     required: true
     type: str
 
   path:
     description:
-    - Specifies the path for the volume.
+      - Specifies the path for the volume.
+      - Requires ONTAP 9.9.1 or later with REST.
     required: true
     type: str
 
   schedule:
     description:
-    - Specifies the storage efficiency schedule.
+      - Specifies the storage efficiency schedule.
+      - Only supported with ZAPI.
     type: str
 
   policy:
     description:
-    - Specifies the storage efficiency policy to use.
-    - By default, the following names are available 'auto', 'default', 'inline-only', '-'.
+      - Specifies the storage efficiency policy to use.
+      - By default, the following names are available 'auto', 'default', 'inline-only', '-'.
+      - Requires ONTAP 9.7 or later with REST.
     type: str
 
   enable_compression:
     description:
-    - Specifies if compression is to be enabled.
+      - Specifies if compression is to be enabled.
     type: bool
 
   enable_inline_compression:
     description:
-    - Specifies if in-line compression is to be enabled.
+      - Specifies if in-line compression is to be enabled.
     type: bool
 
   enable_inline_dedupe:
     description:
-    - Specifies if in-line deduplication is to be enabled, only supported on AFF systems or hybrid aggregates.
+      - Specifies if in-line deduplication is to be enabled, only supported on AFF systems or hybrid aggregates.
     type: bool
 
   enable_data_compaction:
     description:
-    - Specifies if compaction is to be enabled.
+      - Specifies if compaction is to be enabled.
     type: bool
 
   enable_cross_volume_inline_dedupe:
     description:
-    - Specifies if in-line cross volume inline deduplication is to be enabled, this can only be enabled when inline deduplication is enabled.
+      - Specifies if in-line cross volume inline deduplication is to be enabled, this can only be enabled when inline deduplication is enabled.
     type: bool
 
   enable_cross_volume_background_dedupe:
     description:
-    - Specifies if cross volume background deduplication is to be enabled, this can only be enabled when inline deduplication is enabled.
+      - Specifies if cross volume background deduplication is to be enabled, this can only be enabled when inline deduplication is enabled.
     type: bool
 
   volume_efficiency:
     description:
-    - Start or Stop a volume efficiency operation on a given volume path.
+      - Start or Stop a volume efficiency operation on a given volume path.
+      - Requires ONTAP 9.11.1 or later with REST.
     choices: ['start', 'stop']
     version_added: '21.4.0'
     type: str
 
   start_ve_scan_all:
     description:
-    - Specifies the scanner to scan the entire volume without applying share block optimization.
+      - Specifies the scanner to scan the entire volume without applying share block optimization.
+      - Only supported with ZAPI.
     version_added: '21.4.0'
     type: bool
 
   start_ve_build_metadata:
     description:
-    - Specifies the scanner to scan the entire and generate fingerprint database without attempting the sharing.
+      - Specifies the scanner to scan the entire and generate fingerprint database without attempting the sharing.
+      - Only supported with ZAPI.
     version_added: '21.4.0'
     type: bool
 
   start_ve_delete_checkpoint:
     description:
-    - Specifies the scanner to delete existing checkpoint and start the operation from the begining.
+      - Specifies the scanner to delete existing checkpoint and start the operation from the begining.
+      - Only supported with ZAPI.
     version_added: '21.4.0'
     type: bool
 
   start_ve_queue_operation:
     description:
-    - Specifies the operation to queue if an exisitng operation is already running on the volume and in the fingerprint verification phase.
+      - Specifies the operation to queue if an exisitng operation is already running on the volume and in the fingerprint verification phase.
+      - Only supported with ZAPI.
     version_added: '21.4.0'
     type: bool
 
   start_ve_scan_old_data:
     description:
-    - Specifies the operation to scan the file system to process all the existing data.
+      - Specifies the operation to scan the file system to process all the existing data.
+      - Requires ONTAP 9.11.1 or later with REST.
     version_added: '21.4.0'
     type: bool
 
   start_ve_qos_policy:
     description:
-    - Specifies the QoS policy for the operation.
+      - Specifies the QoS policy for the operation.
+      - Default is best-effort in ZAPI.
+      - Only supported with ZAPI.
     choices: ['background', 'best-effort']
-    default: best-effort
     version_added: '21.4.0'
     type: str
 
   stop_ve_all_operations:
     description:
-    - Specifies that all running and queued operations to be stopped.
+      - Specifies that all running and queued operations to be stopped.
+      - Only supported with ZAPI.
     version_added: '21.4.0'
     type: bool
 
   storage_efficiency_mode:
     description:
-    - Storage efficiency mode used by volume. This parameter is only supported on AFF platforms.
-    - Requires ONTAP 9.10.1 or later.
+      - Storage efficiency mode used by volume. This parameter is only supported on AFF platforms.
+      - Requires ONTAP 9.10.1 or later.
     choices: ['default', 'efficient']
     type: str
     version_added: '21.14.0'
@@ -142,7 +153,7 @@ notes:
 
 EXAMPLES = """
     - name: Enable Volume efficiency
-      na_ontap_volume_efficiency:
+      netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
         path: "/vol/test_sis"
@@ -153,7 +164,7 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Disable Volume efficiency test
-      na_ontap_volume_efficiency:
+      netapp.ontap.na_ontap_volume_efficiency:
         state: absent
         vserver: "TESTSVM"
         path: "/vol/test_sis"
@@ -163,8 +174,8 @@ EXAMPLES = """
         https: true
         validate_certs: false
 
-    - name: Modify storage efficiency schedule
-      na_ontap_volume_efficiency:
+    - name: Modify storage efficiency schedule with ZAPI.
+      netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
         path: "/vol/test_sis"
@@ -178,7 +189,7 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Start volume efficiency
-      na_ontap_volume_efficiency:
+      netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
         volume_efficiency: "start"
@@ -189,7 +200,7 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Stop volume efficiency
-      na_ontap_volume_efficiency:
+      netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
         volume_efficiency: "stop"
@@ -211,10 +222,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
 class NetAppOntapVolumeEfficiency(object):
@@ -245,7 +254,7 @@ class NetAppOntapVolumeEfficiency(object):
             start_ve_delete_checkpoint=dict(required=False, type='bool'),
             start_ve_queue_operation=dict(required=False, type='bool'),
             start_ve_scan_old_data=dict(required=False, type='bool'),
-            start_ve_qos_policy=dict(required=False, choices=['background', 'best-effort'], type='str', default='best-effort'),
+            start_ve_qos_policy=dict(required=False, choices=['background', 'best-effort'], type='str'),
             stop_ve_all_operations=dict(required=False, type='bool')
         ))
 
@@ -264,23 +273,32 @@ class NetAppOntapVolumeEfficiency(object):
         else:
             self.parameters['enabled'] = 'disabled'
 
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        partially_supported_rest_properties = [
+            ['policy', (9, 7)], ['storage_efficiency_mode', (9, 10, 1)], ['path', (9, 9, 1)],
+            # make op_state active/idle  is supported from 9.11.1 or later with REST.
+            ['volume_efficiency', (9, 11, 1)], ['start_ve_scan_old_data', (9, 11, 1)]
+        ]
+        unsupported_rest_properties = [
+            'schedule', 'start_ve_scan_all', 'start_ve_build_metadata', 'start_ve_delete_checkpoint',
+            'start_ve_queue_operation', 'start_ve_qos_policy', 'stop_ve_all_operations'
+        ]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        self.volume_uuid = None
         if 'volume_efficiency' in self.parameters:
             if self.parameters['volume_efficiency'] == 'start':
-                self.parameters['status'] = 'running'
+                self.parameters['status'] = 'running' if not self.use_rest else 'active'
             else:
                 self.parameters['status'] = 'idle'
-
-        self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
-
         if not self.use_rest:
-            if HAS_NETAPP_LIB is False:
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
-            else:
-                self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-
-        if self.parameters.get('storage_efficiency_mode') is not None:
-            self.rest_api.fail_if_not_rest_minimum_version('option storage_efficiency_mode', 9, 10, 1)
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if self.parameters.get('storage_efficiency_mode'):
+                self.module.fail_json(msg="Error: cannot set storage_efficiency_mode in ZAPI")
+            # set default value for ZAPI like before as REST currently not support this option.
+            if not self.parameters.get('start_ve_qos_policy'):
+                self.parameters['start_ve_qos_policy'] = 'best-effort'
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_volume_efficiency(self):
         """
@@ -291,35 +309,19 @@ class NetAppOntapVolumeEfficiency(object):
         return_value = None
 
         if self.use_rest:
-            api = 'private/cli/volume/efficiency'
+            api = 'storage/volumes'
             query = {
-                'fields': 'path,volume,state,op_status,schedule,compression,inline_compression,inline_dedupe,policy,data_compaction,'
-                          'cross_volume_inline_dedupe,cross_volume_background_dedupe',
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
+                'efficiency.volume_path': self.parameters['path'],
+                'svm.name': self.parameters['vserver'],
+                'fields': 'uuid,efficiency'
             }
-            if self.parameters.get('storage_efficiency_mode') is not None:
-                query['fields'] += ',storage_efficiency_mode'
-            message, error = self.rest_api.get(api, query)
-            record, error = rrh.check_for_0_or_1_records(api, message, error)
+            record, error = rest_generic.get_one_record(self.rest_api, api, query)
             if error:
-                self.module.fail_json(msg=error)
-            if record is None:
-                return None
-            return_value = {'path': self.na_helper.safe_get(record, ['path']),
-                            'enabled': self.na_helper.safe_get(record, ['state']),
-                            'status': self.na_helper.safe_get(record, ['op_status']),
-                            'schedule': self.na_helper.safe_get(record, ['schedule']),
-                            'enable_inline_compression': self.na_helper.safe_get(record, ['inline_compression']),
-                            'enable_compression': self.na_helper.safe_get(record, ['compression']),
-                            'enable_inline_dedupe': self.na_helper.safe_get(record, ['inline_dedupe']),
-                            'enable_data_compaction': self.na_helper.safe_get(record, ['data_compaction']),
-                            'enable_cross_volume_inline_dedupe': self.na_helper.safe_get(record, ['cross_volume_inline_dedupe']),
-                            'enable_cross_volume_background_dedupe': self.na_helper.safe_get(record, ['cross_volume_background_dedupe']),
-                            'policy': record.get('policy', '-')}
-            if self.parameters.get('storage_efficiency_mode') is not None:
-                # force a value to force a change - and an error if the system is not AFF
-                return_value['storage_efficiency_mode'] = record.get('storage_efficiency_mode', '-')
+                self.module.fail_json(msg='Error getting volume efficiency for path %s on vserver %s: %s' % (
+                    self.parameters['path'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
+                )
+            if record:
+                return_value = self.format_rest_record(record)
             return return_value
 
         else:
@@ -330,10 +332,8 @@ class NetAppOntapVolumeEfficiency(object):
             query = netapp_utils.zapi.NaElement('query')
             query.add_child_elem(sis_status_info)
             sis_get_iter.add_child_elem(query)
-            result = self.server.invoke_successfully(sis_get_iter, True)
-
             try:
-
+                result = self.server.invoke_successfully(sis_get_iter, True)
                 if result.get_child_by_name('attributes-list'):
                     sis_status_attributes = result['attributes-list']['sis-status-info']
                     return_value = {
@@ -373,93 +373,40 @@ class NetAppOntapVolumeEfficiency(object):
         """
         Enables Volume efficiency for a given volume by path
         """
+        sis_enable = netapp_utils.zapi.NaElement("sis-enable")
+        sis_enable.add_new_child("path", self.parameters['path'])
 
-        if self.use_rest:
-            api = 'private/cli/volume/efficiency/on'
-            body = dict()
-            query = {
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
-            }
-            message, error = self.rest_api.patch(api, body, query)
-
-            if error:
-                self.module.fail_json(msg=error)
-            elif message['num_records'] == 0:
-                error = 'Error enabling storage efficiency for path %s on vserver %s as the path provided does not exist.' % (self.parameters['path'],
-                                                                                                                              self.parameters['vserver'])
-                self.module.fail_json(msg=error)
-
-        else:
-            sis_enable = netapp_utils.zapi.NaElement("sis-enable")
-            sis_enable.add_new_child("path", self.parameters['path'])
-
-            try:
-                self.server.invoke_successfully(sis_enable, True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error enabling storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
-                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
+        try:
+            self.server.invoke_successfully(sis_enable, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error enabling storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                  self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
     def disable_volume_efficiency(self):
         """
         Disables Volume efficiency for a given volume by path
         """
-        if self.use_rest:
-            api = 'private/cli/volume/efficiency/off'
-            body = dict()
-            query = {
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
-            }
-            dummy, error = self.rest_api.patch(api, body, query)
-            if error:
-                self.module.fail_json(msg=error)
+        sis_disable = netapp_utils.zapi.NaElement("sis-disable")
+        sis_disable.add_new_child("path", self.parameters['path'])
 
-        else:
+        try:
+            self.server.invoke_successfully(sis_disable, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error disabling storage efficiency for path %s: %s' % (self.parameters['path'], to_native(error)),
+                                  exception=traceback.format_exc())
 
-            sis_disable = netapp_utils.zapi.NaElement("sis-disable")
-            sis_disable.add_new_child("path", self.parameters['path'])
-
-            try:
-                self.server.invoke_successfully(sis_disable, True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error disabling storage efficiency for path %s: %s' % (self.parameters['path'], to_native(error)),
-                                      exception=traceback.format_exc())
-
-    def modify_volume_efficiency(self):
+    def modify_volume_efficiency(self, body=None):
         """
         Modifies volume efficiency settings for a given volume by path
         """
 
         if self.use_rest:
-            api = 'private/cli/volume/efficiency'
-            body = dict()
-            query = {
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
-            }
-
-            if 'schedule' in self.parameters:
-                body['schedule'] = self.parameters['schedule']
-            if 'policy' in self.parameters:
-                body['policy'] = self.parameters['policy']
-            if 'enable_compression' in self.parameters:
-                body['compression'] = self.parameters['enable_compression']
-            if 'enable_inline_compression' in self.parameters:
-                body['inline_compression'] = self.parameters['enable_inline_compression']
-            if 'enable_inline_dedupe' in self.parameters:
-                body['inline_dedupe'] = self.parameters['enable_inline_dedupe']
-            if 'enable_data_compaction' in self.parameters:
-                body['data_compaction'] = self.parameters['enable_data_compaction']
-            if 'enable_cross_volume_inline_dedupe' in self.parameters:
-                body['cross_volume_inline_dedupe'] = self.parameters['enable_cross_volume_inline_dedupe']
-            if 'enable_cross_volume_background_dedupe' in self.parameters:
-                body['cross_volume_background_dedupe'] = self.parameters['enable_cross_volume_background_dedupe']
-            if 'storage_efficiency_mode' in self.parameters:
-                body['storage_efficiency_mode'] = self.parameters['storage_efficiency_mode']
-
-            dummy, error = self.rest_api.patch(api, body, query)
+            if not body:
+                return
+            dummy, error = rest_generic.patch_async(self.rest_api, 'storage/volumes', self.volume_uuid, body)
             if error:
+                if 'Unexpected argument "storage_efficiency_mode".' in error:
+                    error = "cannot modify storage_efficiency mode in non AFF platform."
                 self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
 
         else:
@@ -504,99 +451,181 @@ class NetAppOntapVolumeEfficiency(object):
         Starts volume efficiency for a given flex volume by path
         """
 
-        if self.use_rest:
-            api = 'private/cli/volume/efficiency/start'
-            body = dict()
-            query = {
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
-            }
+        sis_start = netapp_utils.zapi.NaElement('sis-start')
+        sis_start.add_new_child('path', self.parameters['path'])
 
-            if 'start_ve_scan_all' in self.parameters:
-                body['scan_all'] = self.parameters['start_ve_scan_all']
-            if 'start_ve_build_metadata' in self.parameters:
-                body['build_metadata'] = self.parameters['start_ve_build_metadata']
-            if 'start_ve_delete_checkpoint' in self.parameters:
-                body['delete_checkpoint'] = self.parameters['start_ve_delete_checkpoint']
-            if 'start_ve_queue_operation' in self.parameters:
-                body['queue'] = self.parameters['start_ve_queue_operation']
-            if 'start_ve_scan_old_data' in self.parameters:
-                body['scan_old_data'] = self.parameters['start_ve_scan_old_data']
-            if 'start_ve_qos_policy' in self.parameters:
-                body['qos-policy'] = self.parameters['start_ve_qos_policy']
+        if 'start_ve_scan_all' in self.parameters:
+            sis_start.add_new_child('scan-all', self.na_helper.get_value_for_bool(
+                False, self.parameters['start_ve_scan_all'])
+            )
+        if 'start_ve_build_metadata' in self.parameters:
+            sis_start.add_new_child('build-metadata', self.na_helper.get_value_for_bool(
+                False, self.parameters['start_ve_build_metadata'])
+            )
+        if 'start_ve_delete_checkpoint' in self.parameters:
+            sis_start.add_new_child('delete-checkpoint', self.na_helper.get_value_for_bool(
+                False, self.parameters['start_ve_delete_checkpoint'])
+            )
+        if 'start_ve_queue_operation' in self.parameters:
+            sis_start.add_new_child('queue-operation', self.na_helper.get_value_for_bool(
+                False, self.parameters['start_ve_queue_operation'])
+            )
+        if 'start_ve_scan_old_data' in self.parameters:
+            sis_start.add_new_child('scan', self.na_helper.get_value_for_bool(
+                False, self.parameters['start_ve_scan_old_data'])
+            )
+        if 'start_ve_qos_policy' in self.parameters:
+            sis_start.add_new_child('qos-policy', self.parameters['start_ve_qos_policy'])
 
-            dummy, error = self.rest_api.patch(api, body, query)
-            if error:
-                self.module.fail_json(msg='Error in efficiency/start: %s' % error)
-
-        else:
-
-            sis_start = netapp_utils.zapi.NaElement('sis-start')
-            sis_start.add_new_child('path', self.parameters['path'])
-
-            if 'start_ve_scan_all' in self.parameters:
-                sis_start.add_new_child('scan-all', self.na_helper.get_value_for_bool(
-                    False, self.parameters['start_ve_scan_all'])
-                )
-            if 'start_ve_build_metadata' in self.parameters:
-                sis_start.add_new_child('build-metadata', self.na_helper.get_value_for_bool(
-                    False, self.parameters['start_ve_build_metadata'])
-                )
-            if 'start_ve_delete_checkpoint' in self.parameters:
-                sis_start.add_new_child('delete-checkpoint', self.na_helper.get_value_for_bool(
-                    False, self.parameters['start_ve_delete_checkpoint'])
-                )
-            if 'start_ve_queue_operation' in self.parameters:
-                sis_start.add_new_child('queue-operation', self.na_helper.get_value_for_bool(
-                    False, self.parameters['start_ve_queue_operation'])
-                )
-            if 'start_ve_scan_old_data' in self.parameters:
-                sis_start.add_new_child('scan', self.na_helper.get_value_for_bool(
-                    False, self.parameters['start_ve_scan_old_data'])
-                )
-            if 'start_ve_qos_policy' in self.parameters:
-                sis_start.add_new_child('qos-policy', self.parameters['start_ve_qos_policy'])
-
-            try:
-                self.server.invoke_successfully(sis_start, True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error starting storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
-                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
+        try:
+            self.server.invoke_successfully(sis_start, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error starting storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                  self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
     def stop_volume_efficiency(self):
         """
         Stops volume efficiency for a given flex volume by path
         """
+        sis_stop = netapp_utils.zapi.NaElement('sis-stop')
+        sis_stop.add_new_child('path', self.parameters['path'])
+        if 'stop_ve_all_operations' in self.parameters:
+            sis_stop.add_new_child('all-operations', self.na_helper.get_value_for_bool(
+                False, self.parameters['stop_ve_all_operations'])
+            )
 
-        if self.use_rest:
-            api = 'private/cli/volume/efficiency/stop'
-            body = dict()
-            query = {
-                'path': self.parameters['path'],
-                'vserver': self.parameters['vserver']
-            }
+        try:
+            self.server.invoke_successfully(sis_stop, True)
+        except netapp_utils.zapi.NaApiError as error:
+            self.module.fail_json(msg='Error stopping storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
+                                  self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
 
-            if 'stop_ve_all_operations' in self.parameters:
-                body['all'] = self.parameters['stop_ve_all_operations']  # look and check parameter
+    def format_rest_record(self, record):
+        """
+        returns current efficiency values.
+        """
+        self.volume_uuid = record['uuid']
+        return_value = {
+            'enabled': self.na_helper.safe_get(record, ['efficiency', 'state']),
+            'status': self.na_helper.safe_get(record, ['efficiency', 'op_state']),
+            'enable_compression': self.na_helper.safe_get(record, ['efficiency', 'compression']),
+            'enable_inline_dedupe': self.na_helper.safe_get(record, ['efficiency', 'dedupe']),
+            'enable_data_compaction': self.na_helper.safe_get(record, ['efficiency', 'compaction']),
+            'enable_cross_volume_inline_dedupe': self.na_helper.safe_get(record, ['efficiency', 'cross_volume_dedupe'])
+        }
+        if self.parameters.get('storage_efficiency_mode'):
+            return_value['storage_efficiency_mode'] = self.na_helper.safe_get(record, ['efficiency', 'storage_efficiency_mode'])
+        if self.parameters.get('policy'):
+            return_value['policy'] = self.na_helper.safe_get(record, ['efficiency', 'policy', 'name'])
+        compression, inline_compression, cross_volume_inline_dedupe, cross_volume_background_dedupe = False, False, False, False
+        inline_dedupe, compaction = False, False
+        if return_value['enable_compression'] in ['background', 'both']:
+            compression = True
+        if return_value['enable_compression'] in ['inline', 'both']:
+            inline_compression = True
+        if return_value['enable_cross_volume_inline_dedupe'] in ['inline', 'both']:
+            cross_volume_inline_dedupe = True
+        if return_value['enable_cross_volume_inline_dedupe'] in ['background', 'both']:
+            cross_volume_background_dedupe = True
+        if return_value['enable_inline_dedupe'] in ['inline', 'both']:
+            inline_dedupe = True
+        if return_value['enable_data_compaction'] == 'inline':
+            compaction = True
+        return_value['enable_compression'] = compression
+        return_value['enable_inline_compression'] = inline_compression
+        return_value['enable_cross_volume_inline_dedupe'] = cross_volume_inline_dedupe
+        return_value['enable_cross_volume_background_dedupe'] = cross_volume_background_dedupe
+        return_value['enable_inline_dedupe'] = inline_dedupe
+        return_value['enable_data_compaction'] = compaction
+        return return_value
 
-            dummy, error = self.rest_api.patch(api, body, query)
-            if error:
-                self.module.fail_json(msg='Error in efficiency/stop: %s' % error)
+    def form_modify_body_rest(self, modify, current):
+        # disable volume efficiency requires dedupe and compression set to 'none'.
+        if modify.get('enabled') == 'disabled':
+            return {'efficiency': {'dedupe': 'none', 'compression': 'none'}}
+        body = {}
+        if modify.get('enabled') == 'enabled':
+            body['efficiency.dedupe'] = 'background'
+        # there are cases where ZAPI allows setting cross_volume_background_dedupe and inline_dedupe and REST not.
+        if 'enable_compression' in modify or 'enable_inline_compression' in modify:
+            body['efficiency.compression'] = self.derive_efficiency_type(modify.get('enable_compression'), modify.get('enable_inline_compression'),
+                                                                         current.get('enable_compression'), current.get('enable_inline_compression'))
 
-        else:
+        if 'enable_cross_volume_background_dedupe' in modify or 'enable_cross_volume_inline_dedupe' in modify:
+            body['efficiency.cross_volume_dedupe'] = self.derive_efficiency_type(modify.get('enable_cross_volume_background_dedupe'),
+                                                                                 modify.get('enable_cross_volume_inline_dedupe'),
+                                                                                 current.get('enable_cross_volume_background_dedupe'),
+                                                                                 current.get('enable_cross_volume_inline_dedupe'))
 
-            sis_stop = netapp_utils.zapi.NaElement('sis-stop')
-            sis_stop.add_new_child('path', self.parameters['path'])
-            if 'stop_ve_all_operations' in self.parameters:
-                sis_stop.add_new_child('all-operations', self.na_helper.get_value_for_bool(
-                    False, self.parameters['stop_ve_all_operations'])
-                )
+        if modify.get('enable_data_compaction'):
+            body['efficiency.compaction'] = 'inline'
+        elif modify.get('enable_data_compaction') is False:
+            body['efficiency.compaction'] = 'none'
 
-            try:
-                self.server.invoke_successfully(sis_stop, True)
-            except netapp_utils.zapi.NaApiError as error:
-                self.module.fail_json(msg='Error stopping storage efficiency for path %s on vserver %s: %s' % (self.parameters['path'],
-                                      self.parameters['vserver'], to_native(error)), exception=traceback.format_exc())
+        if modify.get('enable_inline_dedupe'):
+            body['efficiency.dedupe'] = 'both'
+        elif modify.get('enable_inline_dedupe') is False:
+            body['efficiency.dedupe'] = 'background'
+        # REST changes policy to default, so use policy in params.
+        if self.parameters.get('policy'):
+            body['efficiency.policy'] = self.parameters['policy']
+        if modify.get('storage_efficiency_mode'):
+            body['storage_efficiency_mode'] = modify['storage_efficiency_mode']
+
+        # start/stop vol efficiency
+        if modify.get('status'):
+            body['efficiency.scanner.state'] = modify['status']
+        if 'start_ve_scan_old_data' in self.parameters:
+            body['efficiency.scanner.scan_old_data'] = self.parameters['start_ve_scan_old_data']
+        return body
+
+    @staticmethod
+    def derive_efficiency_type(desired_background, desired_inline, current_background, current_inline):
+        if ((desired_background and desired_inline) or
+           (desired_background and desired_inline is None and current_inline) or
+           (desired_background is None and desired_inline and current_background)):
+            return 'both'
+        elif ((desired_background and desired_inline is False) or
+              (desired_background and desired_inline is None and not current_inline) or
+              (desired_background is None and desired_inline is False and current_background)):
+            return 'background'
+        elif ((desired_background is False and desired_inline) or
+              (desired_background is False and desired_inline is None and current_inline) or
+              (desired_background is None and desired_inline and not current_background)):
+            return 'inline'
+        elif ((desired_background is False and desired_inline is False) or
+              (desired_background is False and desired_inline is None and not current_inline) or
+              (desired_background is None and desired_inline is False and not current_background)):
+            return 'none'
+
+    def validate_efficiency_compression(self, modify, current):
+        """
+        validate:
+          - no efficiency keys are set when state is disabled.
+          - compression cannot be disabled when enable_inline_compression is already enabled or
+          - trying to enable inline compression and disable compression simultaneously.
+        """
+        if self.parameters['enabled'] == 'disabled':
+            # if any of the keys are set, efficiency gets enabled, error out if any of eff keys are set and state is absent.
+            unsupported_enable_eff_keys = [
+                'enable_compression', 'enable_inline_compression', 'enable_inline_dedupe',
+                'enable_cross_volume_inline_dedupe', 'enable_cross_volume_background_dedupe', 'enable_data_compaction'
+            ]
+            used_unsupported_enable_eff_keys = [key for key in unsupported_enable_eff_keys if self.parameters.get(key)]
+            if used_unsupported_enable_eff_keys:
+                disable_str = 'when volume efficiency already disabled, retry with state: present'
+                if modify.get('enabled') == 'disabled':
+                    disable_str = 'when trying to disable volume efficiency'
+                self.module.fail_json(msg="Error: cannot set compression keys: %s %s" % (used_unsupported_enable_eff_keys, disable_str))
+        compression = self.derive_efficiency_type(modify.get('enable_compression'), modify.get('enable_inline_compression'),
+                                                  current.get('enable_compression'), current.get('enable_inline_compression'))
+        if compression == 'inline':
+            error_msg = 'Inline compression cannot be enabled when compression is disabled. Enable compression and retry'
+            if modify.get('enable_compression') is False and modify.get('enable_inline_compression'):
+                error_msg = 'Disabling compression and enabling inline compression simultaneously cannot be done.'
+            elif modify.get('enable_compression') is False:
+                error_msg = 'Compression cannot be disabled when inline compression is enabled on the volume. Disable inline compression and retry'
+            self.module.fail_json(msg=error_msg)
 
     def apply(self):
         current = self.get_volume_efficiency()
@@ -606,35 +635,41 @@ class NetAppOntapVolumeEfficiency(object):
         # this is for ONTAP systems that do not enable efficiency by default.
         if current is None:
             current = {'enabled': 'disabled'}
-
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         to_modify = copy.deepcopy(modify)
-
+        if self.use_rest:
+            self.validate_efficiency_compression(modify, current)
         if self.na_helper.changed and not self.module.check_mode:
-            if 'enabled' in modify:
-                if modify['enabled'] == 'enabled':
-                    self.enable_volume_efficiency()
-                    # Checking to see if there are any additional parameters that need to be set after enabling volume efficiency required for Non-AFF systems
-                    current = self.get_volume_efficiency()
-                    modify = self.na_helper.get_modified_attributes(current, self.parameters)
-                    to_modify['modify_after_enable'] = copy.deepcopy(modify)
-                elif modify['enabled'] == 'disabled':
-                    self.disable_volume_efficiency()
-                # key may not exist anymore, if modify is refreshed at line 620
-                modify.pop('enabled', None)
+            # enable/disable, start/stop & modify vol efficiency handled in REST PATCH.
+            if self.use_rest:
+                self.modify_volume_efficiency(self.form_modify_body_rest(modify, current))
+            else:
+                if 'enabled' in modify:
+                    if modify['enabled'] == 'enabled':
+                        self.enable_volume_efficiency()
+                        # Checking to see if there are any additional parameters that need to be set after
+                        # enabling volume efficiency required for Non-AFF systems
+                        current = self.get_volume_efficiency()
+                        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+                        to_modify['modify_after_enable'] = copy.deepcopy(modify)
+                    elif modify['enabled'] == 'disabled':
+                        self.disable_volume_efficiency()
+                    # key may not exist anymore, if modify is refreshed at line 686
+                    modify.pop('enabled', None)
 
-            if 'status' in modify:
-                ve_status = modify['status']
-                del modify['status']
+                if 'status' in modify:
+                    ve_status = modify['status']
+                    del modify['status']
 
-            # Removed the enabled and volume efficiency status,
-            # if there is anything remaining in the modify dict we need to modify.
-            if modify:
-                self.modify_volume_efficiency()
-            if ve_status == 'running':
-                self.start_volume_efficiency()
-            elif ve_status == 'idle':
-                self.stop_volume_efficiency()
+                # Removed the enabled and volume efficiency status,
+                # if there is anything remaining in the modify dict we need to modify.
+                if modify:
+                    self.modify_volume_efficiency()
+
+                if ve_status == 'running':
+                    self.start_volume_efficiency()
+                elif ve_status == 'idle':
+                    self.stop_volume_efficiency()
 
         result = netapp_utils.generate_result(self.na_helper.changed, modify=to_modify)
         self.module.exit_json(**result)
