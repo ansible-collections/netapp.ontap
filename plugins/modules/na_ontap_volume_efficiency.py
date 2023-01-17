@@ -14,7 +14,8 @@ extends_documentation_fragment:
 version_added: '21.2.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Enable, modify or disable volume efficiency
+  - Enable, modify or disable volume efficiency.
+  - Either path or volume_name is required.
 options:
   state:
     description:
@@ -32,8 +33,14 @@ options:
   path:
     description:
       - Specifies the path for the volume.
+      - Either C(path) or C(volume_name) is required.
       - Requires ONTAP 9.9.1 or later with REST.
-    required: true
+    type: str
+
+  volume_name:
+    description:
+      - Specifies the volume name.
+    version_added: 22.3.0
     type: str
 
   schedule:
@@ -180,8 +187,8 @@ EXAMPLES = """
         vserver: "TESTSVM"
         path: "/vol/test_sis"
         schedule: "mon-sun@0,1,23"
-        enable_compression: "True"
-        enable_inline_compression: "True"
+        enable_compression: true
+        enable_inline_compression: true
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -192,6 +199,7 @@ EXAMPLES = """
       netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
+        path: "/vol/test_sis"
         volume_efficiency: "start"
         hostname: "{{ hostname }}"
         username: "{{ username }}"
@@ -203,7 +211,21 @@ EXAMPLES = """
       netapp.ontap.na_ontap_volume_efficiency:
         state: present
         vserver: "TESTSVM"
+        path: "/vol/test_sis"
         volume_efficiency: "stop"
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        https: true
+        validate_certs: false
+
+    - name: modify volume efficiency with volume name in REST.
+      netapp.ontap.na_ontap_volume_efficiency:
+        state: present
+        vserver: "TESTSVM"
+        volume_name: "test_sis"
+        volume_efficiency: "stop"
+        enable_compression: True
         hostname: "{{ hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -238,7 +260,8 @@ class NetAppOntapVolumeEfficiency(object):
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
-            path=dict(required=True, type='str'),
+            path=dict(required=False, type='str'),
+            volume_name=dict(required=False, type='str'),
             schedule=dict(required=False, type='str'),
             policy=dict(required=False, type='str'),
             enable_inline_compression=dict(required=False, type='bool'),
@@ -262,7 +285,8 @@ class NetAppOntapVolumeEfficiency(object):
             argument_spec=self.argument_spec,
             supports_check_mode=True,
             required_if=[('start_ve_scan_all', True, ['start_ve_scan_old_data'])],
-            mutually_exclusive=[('policy', 'schedule')]
+            required_one_of=[('path', 'volume_name')],
+            mutually_exclusive=[('policy', 'schedule'), ('path', 'volume_name')]
         )
 
         # set up variables
@@ -293,12 +317,18 @@ class NetAppOntapVolumeEfficiency(object):
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            if self.parameters.get('storage_efficiency_mode'):
-                self.module.fail_json(msg="Error: cannot set storage_efficiency_mode in ZAPI")
-            # set default value for ZAPI like before as REST currently not support this option.
-            if not self.parameters.get('start_ve_qos_policy'):
-                self.parameters['start_ve_qos_policy'] = 'best-effort'
+            self.validate_and_configure_zapi()
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+
+    def validate_and_configure_zapi(self):
+        if self.parameters.get('storage_efficiency_mode'):
+            self.module.fail_json(msg="Error: cannot set storage_efficiency_mode in ZAPI")
+        # set default value for ZAPI like before as REST currently not support this option.
+        if not self.parameters.get('start_ve_qos_policy'):
+            self.parameters['start_ve_qos_policy'] = 'best-effort'
+        if self.parameters.get('volume_name'):
+            self.parameters['path'] = '/vol/' + self.parameters['volume_name']
+            self.module.warn("ZAPI requires '/vol/' present in the volume path, updated path: %s" % self.parameters['path'])
 
     def get_volume_efficiency(self):
         """
@@ -310,15 +340,16 @@ class NetAppOntapVolumeEfficiency(object):
 
         if self.use_rest:
             api = 'storage/volumes'
-            query = {
-                'efficiency.volume_path': self.parameters['path'],
-                'svm.name': self.parameters['vserver'],
-                'fields': 'uuid,efficiency'
-            }
+            query = {'svm.name': self.parameters['vserver'], 'fields': 'uuid,efficiency'}
+            if self.parameters.get('path'):
+                query['efficiency.volume_path'] = self.parameters['path']
+            else:
+                query['name'] = self.parameters['volume_name']
             record, error = rest_generic.get_one_record(self.rest_api, api, query)
             if error:
+                path_or_volume = self.parameters.get('path') or self.parameters.get('volume_name')
                 self.module.fail_json(msg='Error getting volume efficiency for path %s on vserver %s: %s' % (
-                    self.parameters['path'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
+                    path_or_volume, self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
                 )
             if record:
                 return_value = self.format_rest_record(record)
@@ -366,7 +397,6 @@ class NetAppOntapVolumeEfficiency(object):
                 self.module.fail_json(msg='Error getting volume efficiency for path %s on vserver %s: %s' % (
                     self.parameters['path'], self.parameters['vserver'], to_native(error)), exception=traceback.format_exc()
                 )
-
             return return_value
 
     def enable_volume_efficiency(self):
@@ -513,6 +543,14 @@ class NetAppOntapVolumeEfficiency(object):
             'enable_data_compaction': self.na_helper.safe_get(record, ['efficiency', 'compaction']),
             'enable_cross_volume_inline_dedupe': self.na_helper.safe_get(record, ['efficiency', 'cross_volume_dedupe'])
         }
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
+            # efficiency is enabled if dedupe is either background or both.
+            # it's disabled if both dedupe and compression is none.
+            dedupe = self.na_helper.safe_get(record, ['efficiency', 'dedupe'])
+            if dedupe in ['background', 'both']:
+                return_value['enabled'] = 'enabled'
+            elif dedupe == 'none' and self.na_helper.safe_get(record, ['efficiency', 'compression']) == 'none':
+                return_value['enabled'] = 'disabled'
         if self.parameters.get('storage_efficiency_mode'):
             return_value['storage_efficiency_mode'] = self.na_helper.safe_get(record, ['efficiency', 'storage_efficiency_mode'])
         if self.parameters.get('policy'):

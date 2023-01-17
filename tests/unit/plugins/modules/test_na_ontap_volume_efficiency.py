@@ -117,10 +117,13 @@ SRR = rest_responses({
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     # with python 2.6, dictionaries are not ordered
-    fragments = ["missing required arguments:", "hostname", "path", "vserver"]
+    fragments = ["missing required arguments:", "hostname", "vserver"]
     error = create_module(volume_efficiency_module, {}, fail=True)['msg']
     for fragment in fragments:
         assert fragment in error
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
+    del DEFAULT_ARGS_COPY['path']
+    assert 'one of the following is required: path, volume_name' in create_module(volume_efficiency_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
 
 def test_ensure_get_called_existing():
@@ -142,7 +145,9 @@ def test_successful_enable():
         ('sis-get-iter', ZRR['vol_eff_info']),
 
     ])
-    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS)['changed']
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
+    del DEFAULT_ARGS_COPY['path']
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_COPY, {'volume_name': 'volTest'})['changed']
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS)['changed']
 
 
@@ -287,7 +292,9 @@ def test_successful_enable_vol_efficiency_rest():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
     ])
-    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST)['changed']
+    DEFAULT_ARGS_REST_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_REST_COPY['path']
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST_COPY, {'volume_name': 'vol1'})['changed']
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST)['changed']
 
 
