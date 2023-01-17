@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -560,12 +560,21 @@ class NetAppOntapAggregate:
             'aggr-offline', **{'aggregate': self.parameters['name'],
                                'force-offline': 'false',
                                'unmount-volumes': str(self.parameters.get('unmount_volumes', False))})
-        try:
-            self.server.invoke_successfully(offline_aggr, enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error changing the state of aggregate %s to %s: %s' %
-                                  (self.parameters['name'], self.parameters['service_state'], to_native(error)),
-                                  exception=traceback.format_exc())
+
+        # if disk add operation is in progress, cannot offline aggregate, retry few times.
+        retry = 10
+        while retry > 0:
+            try:
+                self.server.invoke_successfully(offline_aggr, enable_tunneling=True)
+                break
+            except netapp_utils.zapi.NaApiError as error:
+                if 'disk add operation is in progress' in to_native(error):
+                    retry -= 1
+                    if retry > 0:
+                        continue
+                self.module.fail_json(msg='Error changing the state of aggregate %s to %s: %s' %
+                                      (self.parameters['name'], self.parameters['service_state'], to_native(error)),
+                                      exception=traceback.format_exc())
 
     @staticmethod
     def get_disks_or_mirror_disks_object(name, disks):

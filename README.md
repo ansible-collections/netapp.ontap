@@ -77,6 +77,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume_efficiency - `schedule`, `start_ve_scan_all`, `start_ve_build_metadata`, `start_ve_delete_checkpoint`, `start_ve_queue_operation`, `start_ve_qos_policy` and `stop_ve_all_operations` options are not supported with REST.
 
 ### Bug Fixes
+  - na_ontap_aggregate - try to offline aggregate when disk add operation is in progress in ZAPI.
   - na_ontap_interface - fix idempotency issue when `home_port` not set in creating FC interface.
   - na_ontap_rest_info - fix field issue with private/cli and support/autosupport/check APIs.
   - na_ontap_snapshot - fix cannot modify `snapmirror_label`, `expiry_time` and `comment` if not configured in create.

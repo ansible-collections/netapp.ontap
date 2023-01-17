@@ -14,7 +14,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
-from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses, build_zapi_error
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_aggregate \
     import NetAppOntapAggregate as my_module  # module under test
@@ -75,6 +75,7 @@ ZRR = zapi_responses({
     'aggr_info': build_zapi_response(aggr_info),
     'object_store_info': build_zapi_response(object_store_info),
     'disk_info': build_zapi_response(disk_info),
+    'error_disk_add': build_zapi_error(13003, 'disk add operation is in progress'),
 })
 
 
@@ -449,6 +450,37 @@ def test_disks_add():
         'disks': ['1', '2', '5'],
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_disks_add_and_offline():
+    register_responses([
+        ('aggr-get-iter', ZRR['aggr_info']),
+        ('storage-disk-get-iter', ZRR['disk_info']),
+        ('aggr-add', ZRR['empty']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['success']),
+        # error if max tries attempted.
+        ('aggr-get-iter', ZRR['aggr_info']),
+        ('storage-disk-get-iter', ZRR['disk_info']),
+        ('aggr-add', ZRR['empty']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add']),
+        ('aggr-offline', ZRR['error_disk_add'])
+    ])
+    module_args = {
+        'disks': ['1', '2', '5'], 'service_state': 'offline'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert 'disk add operation is in progres' in create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_mirror_disks_add():
