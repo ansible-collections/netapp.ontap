@@ -7,7 +7,6 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
@@ -15,7 +14,7 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception,\
-    patch_ansible
+    patch_ansible, assert_warning_was_raised, print_warnings
 
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_dns import main as my_main, NetAppOntapDns as my_module      # module under test
@@ -250,6 +249,7 @@ def test_rest_successfully_create():
     module_args = {
         'use_rest': 'always',
         'vserver': 'svm_abc',
+        'skip_validation': True
     }
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
@@ -262,7 +262,7 @@ def test_rest_successfully_create():
 def test_rest_successfully_create_is_cluster_vserver():
     module_args = {
         'use_rest': 'always',
-        'vserver': 'cserver',
+        'vserver': 'cserver'
     }
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -318,7 +318,7 @@ def test_rest_successfully_modify():
         'domains': 'new_test.com',
         'state': 'present',
         'use_rest': 'always',
-        'vserver': 'svm_abc',
+        'vserver': 'svm_abc'
     }
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -333,7 +333,7 @@ def test_rest_successfully_modify_is_cluster_vserver():
         'domains': 'new_test.com',
         'state': 'present',
         'use_rest': 'always',
-        'vserver': 'cserver',
+        'vserver': 'cserver'
     }
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -355,6 +355,25 @@ def test_rest_idempotently_modify():
         ('GET', 'name-services/dns', SRR['dns_record']),
     ])
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_is_cluster_skip_validation():
+    module_args = {
+        'domains': 'new_test.com',
+        'state': 'present',
+        'use_rest': 'always',
+        'skip_validation': True
+    }
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'name-services/dns', SRR['zero_records']),
+        ('PATCH', 'cluster', SRR['empty_good']),
+        # error if used skip_validation on earlier versions.
+        ('GET', 'cluster', SRR['is_rest']),
+    ])
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert_warning_was_raised("skip_validation is ignored for cluster DNS operations in REST.")
+    assert 'Error: Minimum version of ONTAP for skip_validation is (9, 9, 1)' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')

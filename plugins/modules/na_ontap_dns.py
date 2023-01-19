@@ -53,7 +53,7 @@ options:
     - By default, all nameservers are checked to validate they are available to resolve.
     - If you DNS servers are not yet installed or momentarily not available, you can set this option to 'true'
     - to bypass the check for all servers specified in nameservers field.
-    - Not supported with REST.
+    - With REST, requires ONTAP 9.9.1 or later and ignored for cluster DNS operations.
     version_added: 2.8.0
 '''
 
@@ -119,9 +119,7 @@ class NetAppOntapDns:
 
         # REST API should be used for ONTAP 9.6 or higher, ZAPI for lower version
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        # some attributes are not supported in earlier REST implementation
-        unsupported_rest_properties = ['skip_validation']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, [['skip_validation', (9, 9, 1)]])
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
@@ -136,6 +134,8 @@ class NetAppOntapDns:
             'dns_domains': self.parameters['domains'],
             'name_servers': self.parameters['nameservers']
         }
+        if self.parameters.get('skip_validation'):
+            self.module.warn("skip_validation is ignored for cluster DNS operations in REST.")
         dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
         if error:
             self.module.fail_json(msg="Error updating cluster DNS options: %s" % error)
@@ -158,6 +158,8 @@ class NetAppOntapDns:
                 'name': self.parameters['vserver']
             }
         }
+        if 'skip_validation' in self.parameters:
+            body['skip_config_validation'] = self.parameters['skip_validation']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg="Error creating DNS service: %s" % error)
@@ -303,6 +305,8 @@ class NetAppOntapDns:
             body['servers'] = self.parameters['nameservers']
         if dns_attrs['domains'] != self.parameters['domains']:
             body['domains'] = self.parameters['domains']
+        if 'skip_validation' in self.parameters:
+            body['skip_config_validation'] = self.parameters['skip_validation']
         api = "name-services/dns"
         dummy, error = rest_generic.patch_async(self.rest_api, api, dns_attrs['uuid'], body)
         if error:
