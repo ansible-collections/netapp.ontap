@@ -142,6 +142,7 @@ action_groups:
     - na_ontap_vscan_scanner_pool
     - na_ontap_vserver_cifs_security
     - na_ontap_vserver_peer
+    - na_ontap_vserver_peer_permissions
     - na_ontap_wait_for_condition
     - na_ontap_wwpn_alias
     - na_ontap_zapit
