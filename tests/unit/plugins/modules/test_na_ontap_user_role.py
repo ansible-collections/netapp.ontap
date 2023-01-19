@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -7,12 +7,13 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible.module_utils import basic
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user_role \
     import NetAppOntapUserRole as role_module  # module under test
@@ -21,185 +22,119 @@ if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None, data=None):
-        ''' save arguments '''
-        self.kind = kind
-        self.params = data
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.kind == 'role':
-            xml = self.build_role_info(self.params)
-        if self.kind == 'error':
-            error = netapp_utils.zapi.NaApiError('test', 'error')
-            raise error
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_role_info(vol_details):
-        ''' build xml data for role-attributes '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        attributes = {
-            'num-records': 1,
-            'attributes-list': {
-                'security-login-role-info': {
-                    'access-level': 'all',
-                    'command-directory-name': 'volume',
-                    'role-name': 'testrole',
-                    'role-query': 'show',
-                    'vserver': 'ansible'
-                }
+def build_role_info(access_level='all'):
+    return {
+        'num-records': 1,
+        'attributes-list': {
+            'security-login-role-info': {
+                'access-level': access_level,
+                'command-directory-name': 'volume',
+                'role-name': 'testrole',
+                'role-query': 'show',
+                'vserver': 'ansible'
             }
         }
-        xml.translate_struct(attributes)
-        return xml
+    }
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+ZRR = zapi_responses({
+    'build_role_info': build_zapi_response(build_role_info()),
+    'build_role_modified': build_zapi_response(build_role_info('none'))
+})
 
-    def setUp(self):
-        self.mock_role = {
-            'name': 'testrole',
-            'access_level': 'all',
-            'command_directory_name': 'volume',
-            'vserver': 'ansible'
-        }
+DEFAULT_ARGS = {
+    'name': 'testrole',
+    'vserver': 'ansible',
+    'command_directory_name': 'volume',
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'https': 'False',
+    'use_rest': 'never'
+}
 
-    def mock_args(self):
-        return {
-            'name': self.mock_role['name'],
-            'vserver': self.mock_role['vserver'],
-            'command_directory_name': self.mock_role['command_directory_name'],
-            'hostname': 'test',
-            'username': 'test_user',
-            'password': 'test_pass!',
-            'https': 'False'
-        }
 
-    def get_role_mock_object(self, kind=None):
-        """
-        Helper method to return an na_ontap_user_role object
-        :param kind: passes this param to MockONTAPConnection()
-        :return: na_ontap_user_role object
-        """
-        role_obj = role_module()
-        role_obj.asup_log_for_cserver = Mock(return_value=None)
-        role_obj.cluster = Mock()
-        role_obj.cluster.invoke_successfully = Mock()
-        if kind is None:
-            role_obj.server = MockONTAPConnection()
-        else:
-            role_obj.server = MockONTAPConnection(kind=kind, data=self.mock_role)
-        return role_obj
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    # with python 2.6, dictionaries are not ordered
+    fragments = ["missing required arguments:", "hostname", "name"]
+    error = create_module(role_module, {}, fail=True)['msg']
+    for fragment in fragments:
+        assert fragment in error
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            role_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_get_nonexistent_policy(self):
-        ''' Test if get_role returns None for non-existent role '''
-        set_module_args(self.mock_args())
-        result = self.get_role_mock_object().get_role()
-        assert result is None
+def test_get_nonexistent_policy():
+    ''' Test if get_role returns None for non-existent role '''
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['empty']),
+    ])
+    my_obj = create_module(role_module, DEFAULT_ARGS)
+    assert my_obj.get_role() is None
 
-    def test_get_existing_role(self):
-        ''' Test if get_role returns details for existing role '''
-        set_module_args(self.mock_args())
-        result = self.get_role_mock_object('role').get_role()
-        assert result['name'] == self.mock_role['name']
 
-    def test_successful_create(self):
-        ''' Test successful create '''
-        data = self.mock_args()
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_role_mock_object().apply()
-        assert exc.value.args[0]['changed']
+def test_get_existing_role():
+    ''' Test if get_role returns details for existing role '''
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['build_role_info']),
+    ])
+    my_obj = create_module(role_module, DEFAULT_ARGS)
+    current = my_obj.get_role()
+    assert current['name'] == DEFAULT_ARGS['name']
 
-    def test_create_idempotency(self):
-        ''' Test create idempotency '''
-        data = self.mock_args()
-        data['query'] = 'show'
-        set_module_args(data)
-        obj = self.get_role_mock_object('role')
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert not exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_user_role.NetAppOntapUserRole.get_role')
-    def test_create_error(self, get_role):
-        ''' Test create error '''
-        set_module_args(self.mock_args())
-        get_role.side_effect = [
-            None
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_role_mock_object('error').apply()
-        assert exc.value.args[0]['msg'] == 'Error creating role testrole: NetApp API failed. Reason - test:error'
+def test_successful_create():
+    ''' Test successful create '''
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['empty']),
+        ('ZAPI', 'security-login-role-create', ZRR['success']),
+        # idempotency check
+        ('ZAPI', 'security-login-role-get-iter', ZRR['build_role_info']),
+    ])
+    assert create_and_apply(role_module, DEFAULT_ARGS)['changed']
+    assert not create_and_apply(role_module, DEFAULT_ARGS)['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_user_role.NetAppOntapUserRole.get_role')
-    def test_successful_modify(self, get_role):
-        ''' Test successful modify '''
-        data = self.mock_args()
-        data['query'] = 'show'
-        set_module_args(data)
-        current = self.mock_role
-        current['query'] = 'show-space'
-        get_role.side_effect = [
-            current
-        ]
-        obj = self.get_role_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_user_role.NetAppOntapUserRole.get_role')
-    def test_modify_idempotency(self, get_role):
-        ''' Test modify idempotency '''
-        data = self.mock_args()
-        data['query'] = 'show'
-        set_module_args(data)
-        current = self.mock_role
-        current['query'] = 'show'
-        get_role.side_effect = [
-            current
-        ]
-        obj = self.get_role_mock_object()
-        with pytest.raises(AnsibleExitJson) as exc:
-            obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_successful_modify():
+    ''' Test successful modify '''
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['build_role_info']),
+        ('ZAPI', 'security-login-role-modify', ZRR['success']),
+        # idempotency check
+        ('ZAPI', 'security-login-role-get-iter', ZRR['build_role_modified']),
+    ])
+    assert create_and_apply(role_module, DEFAULT_ARGS, {'access_level': 'none'})['changed']
+    assert not create_and_apply(role_module, DEFAULT_ARGS, {'access_level': 'none'})['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_user_role.NetAppOntapUserRole.get_role')
-    def test_modify_error(self, get_role):
-        ''' Test modify error '''
-        data = self.mock_args()
-        data['query'] = 'show'
-        set_module_args(data)
-        current = self.mock_role
-        current['query'] = 'show-space'
-        get_role.side_effect = [
-            current
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_role_mock_object('error').apply()
-        assert exc.value.args[0]['msg'] == 'Error modifying role testrole: NetApp API failed. Reason - test:error'
 
-    def test_successful_delete(self):
-        ''' Test delete existing role '''
-        data = self.mock_args()
-        data['state'] = 'absent'
-        set_module_args(data)
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_role_mock_object('role').apply()
-        assert exc.value.args[0]['changed']
+def test_successful_delete():
+    ''' Test delete existing role '''
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['build_role_info']),
+        ('ZAPI', 'security-login-role-delete', ZRR['success']),
+        # idempotency check
+        ('ZAPI', 'security-login-role-get-iter', ZRR['empty']),
+    ])
+    assert create_and_apply(role_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+    assert not create_and_apply(role_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+
+
+def test_if_all_methods_catch_exception():
+    register_responses([
+        ('ZAPI', 'security-login-role-get-iter', ZRR['error']),
+        ('ZAPI', 'security-login-role-create', ZRR['error']),
+        ('ZAPI', 'security-login-role-modify', ZRR['error']),
+        ('ZAPI', 'security-login-role-delete', ZRR['error'])
+    ])
+    my_obj = create_module(role_module, DEFAULT_ARGS)
+    assert 'Error getting role' in expect_and_capture_ansible_exception(my_obj.get_role, 'fail')['msg']
+    assert 'Error creating role' in expect_and_capture_ansible_exception(my_obj.create_role, 'fail')['msg']
+    assert 'Error modifying role' in expect_and_capture_ansible_exception(my_obj.modify_role, 'fail', {})['msg']
+    assert 'Error removing role' in expect_and_capture_ansible_exception(my_obj.delete_role, 'fail')['msg']
+
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
+    del DEFAULT_ARGS_COPY['command_directory_name']
+    assert 'Error: command_directory_name is required' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']
+
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
+    del DEFAULT_ARGS_COPY['vserver']
+    assert 'Error: vserver is required' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']

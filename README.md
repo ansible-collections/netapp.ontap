@@ -73,6 +73,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_dns - support cluster scope for modify and delete.
   - na_ontap_interface - do not attempt to migrate FC interface if desired `home_port`, `home_node` and `current_port`, `current_node` are same.
+  - na_ontap_user_role - `path` is required if `privileges` set in REST.
+  - na_ontap_user_role - `command_directory_name` is required if `privileges` not set in REST.
   - na_ontap_volume_efficiency - updated private cli with REST API.
   - na_ontap_volume_efficiency - REST support for `policy` requires 9.7 or later, `path` requires 9.9.1 or later and `volume_efficiency` and `start_ve_scan_old_data` requires 9.11.1 or later.
   - na_ontap_volume_efficiency - `schedule`, `start_ve_scan_all`, `start_ve_build_metadata`, `start_ve_delete_checkpoint`, `start_ve_queue_operation`, `start_ve_qos_policy` and `stop_ve_all_operations` options are not supported with REST.
@@ -82,6 +84,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_interface - fix idempotency issue when `home_port` not set in creating FC interface.
   - na_ontap_rest_info - fix field issue with private/cli and support/autosupport/check APIs.
   - na_ontap_snapshot - fix cannot modify `snapmirror_label`, `expiry_time` and `comment` if not configured in create.
+  - na_ontap_user_role - fix AttributeError 'NetAppOntapUserRole' object has no attribute 'name'.
+  - na_ontap_user_role - fix duplicate entry error in ZAPI.
+  - na_ontap_user_role - fix entry does not exist error when trying to delete privilege in REST.
+  - na_ontap_user_role - fix KeyError on `vserver`, `command_directory_name` in ZAPI and `path`, `query` in REST.
 
 ## 22.2.0
 

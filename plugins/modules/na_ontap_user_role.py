@@ -1,15 +1,10 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 
 DOCUMENTATION = '''
@@ -23,46 +18,47 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-- Create or destroy user roles
+  - Create or destroy user roles
 
 options:
 
   state:
     description:
-    - Whether the specified user should exist or not.
+      - Whether the specified user role should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
 
   name:
     description:
-    - The name of the role to manage.
+      - The name of the role to manage.
     required: true
     type: str
 
   command_directory_name:
     description:
-    - The command or command directory to which the role has an access.
+      - The command or command directory to which the role has an access.
+      - Required with ZAPI.
     type: str
 
   access_level:
     description:
-    - The access level of the role.
+      - The access level of the role.
     choices: ['none', 'readonly', 'all']
     type: str
     default: all
 
   query:
     description:
-    - A query for the role. The query must apply to the specified command or directory name.
-    - Use double quotes "" for modifying a existing query to none.
+      - A query for the role. The query must apply to the specified command or directory name.
+      - Use double quotes "" for modifying a existing query to none.
     type: str
     version_added: 2.8.0
 
   privileges:
     description:
-    - Privileges to give the user roles
-    - REST only
+      - Privileges to give the user roles
+      - REST only
     type: list
     elements: dict
     version_added: 21.23.0
@@ -82,18 +78,25 @@ options:
         description:
           - The api or command to which the role has an access.
         type: str
+        required: true
 
   vserver:
     description:
-    - The name of the vserver to use.
+      - The name of the vserver to use.
+      - Required with ZAPI.
     type: str
 
+notes:
+  - supports ZAPI and REST.  REST requires ONTAP 9.7 or later.
+  - supports check mode.
+  - when trying to add a command to a role, ONTAP will affect other related commands too.
+  - for example, 'volume modify' will affect 'volume create' and 'volume show', always provide all the related commands.
 '''
 
 EXAMPLES = """
 
     - name: Create User Role Zapi
-      na_ontap_user_role:
+      netapp.ontap.na_ontap_user_role:
         state: present
         name: ansibleRole
         command_directory_name: volume
@@ -105,7 +108,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Modify User Role Zapi
-      na_ontap_user_role:
+      netapp.ontap.na_ontap_user_role:
         state: present
         name: ansibleRole
         command_directory_name: volume
@@ -117,7 +120,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Create user role REST
-      na_ontap_user_role:
+      netapp.ontap.na_ontap_user_role:
         state: present
         privileges:
           - path: /api/cluster/jobs
@@ -128,7 +131,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Modify user role REST
-      na_ontap_user_role:
+      netapp.ontap.na_ontap_user_role:
         state: present
         privileges:
           - path: /api/cluster/jobs
@@ -155,10 +158,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
-
-class NetAppOntapUserRole(object):
+class NetAppOntapUserRole:
 
     def __init__(self):
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
@@ -174,7 +174,7 @@ class NetAppOntapUserRole(object):
                 query=dict(required=False, type='str'),
                 access=dict(required=False, type='str', default='all',
                             choices=['none', 'readonly', 'all']),
-                path=dict(required=False, type='str')
+                path=dict(required=True, type='str')
             ))
         ))
 
@@ -192,16 +192,17 @@ class NetAppOntapUserRole(object):
             self.parameters['privileges'] = self.na_helper.filter_out_none_entries(self.parameters['privileges'])
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         partially_supported_rest_properties = [['query', (9, 11, 1)], ['privileges.query', (9, 11, 1)]]
-        self.use_rest, error = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
-                                                     parameters=self.parameters)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for security/roles APIs.'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
-        if error:
-            self.module.fail_json(msg=error)
         if not self.use_rest:
             if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if not self.parameters.get('vserver'):
+                self.module.fail_json(msg="Error: vserver is required field with ZAPI.")
+            if not self.parameters.get('command_directory_name'):
+                self.module.fail_json(msg="Error: command_directory_name is required field with ZAPI")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_role(self):
@@ -218,7 +219,6 @@ class NetAppOntapUserRole(object):
         options = {'vserver': self.parameters['vserver'],
                    'role-name': self.parameters['name'],
                    'command-directory-name': self.parameters['command_directory_name']}
-
         security_login_role_get_iter = netapp_utils.zapi.NaElement(
             'security-login-role-get-iter')
         query_details = netapp_utils.zapi.NaElement.create_node_with_children(
@@ -238,7 +238,7 @@ class NetAppOntapUserRole(object):
             elif to_native(e.code) == "16039":
                 return None
             else:
-                self.module.fail_json(msg='Error getting role %s: %s' % (self.name, to_native(e)),
+                self.module.fail_json(msg='Error getting role %s: %s' % (self.parameters['name'], to_native(e)),
                                       exception=traceback.format_exc())
         if (result.get_child_by_name('num-records') and
                 int(result.get_child_content('num-records')) >= 1):
@@ -250,7 +250,6 @@ class NetAppOntapUserRole(object):
                 'query': role_info['role-query']
             }
             return result
-
         return None
 
     def create_role(self):
@@ -421,24 +420,44 @@ class NetAppOntapUserRole(object):
         api = 'security/roles/%s/%s/privileges' % (self.owner_uuid, self.parameters['name'])
         dummy, error = rest_generic.delete_async(self.rest_api, api, path, job_timeout=120)
         if error:
+            # removing one of relevant commands will also remove all other commands in group.
+            # skip if entry does not exist error occurs.
+            if "entry doesn't exist" in error and "'target': 'path'" in error:
+                return
             self.module.fail_json(msg='Error deleting role privileges %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
     def convert_parameters(self):
         if self.parameters.get('privileges') is not None:
             return
+        if not self.parameters.get('command_directory_name'):
+            self.module.fail_json(msg="Error: either path or command_directory_name is required in REST.")
         self.parameters['privileges'] = []
-        temp_dict = {}
-        if self.parameters.get('command_directory_name'):
-            temp_dict['path'] = self.parameters['command_directory_name']
-            self.parameters.pop('command_directory_name')
-        if self.parameters.get('access_level'):
-            temp_dict['access'] = self.parameters['access_level']
-            self.parameters.pop('access_level')
+        temp_dict = {
+            'path': self.parameters['command_directory_name'],
+            'access': self.parameters['access_level']
+        }
+        self.parameters.pop('command_directory_name')
+        self.parameters.pop('access_level')
         if self.parameters.get('query'):
             temp_dict['query'] = self.parameters['query']
             self.parameters.pop('query')
         self.parameters['privileges'] = [temp_dict]
+
+    def validate_create_modify_required(self, current, modify):
+        new_current = self.get_role()
+        new_cd_action = self.na_helper.get_cd_action(new_current, self.parameters)
+        new_modify = None if new_cd_action else self.na_helper.get_modified_attributes(new_current, self.parameters)
+        msg = ''
+        if current is None and new_modify:
+            msg = "Create operation also affected additional related commands: %s" % new_current['privileges']
+        elif modify and new_cd_action == 'create':
+            msg = """Create role is required, desired is: %s but it's a subset of relevant commands/command directory configured in current: %s,
+                     deleting one of the commands will remove all the commands in the relevant group""" % (self.parameters['privileges'], current['privileges'])
+        elif modify and new_modify:
+            msg = "modify is required, desired: %s and new current: %s" % (self.parameters['privileges'], new_current['privileges'])
+        if msg:
+            self.module.warn(msg)
 
     def apply(self):
         if self.use_rest:
@@ -446,10 +465,10 @@ class NetAppOntapUserRole(object):
             self.convert_parameters()
         current = self.get_role()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
         # if desired state specify empty quote query and current query is None, set desired query to None.
         # otherwise na_helper.get_modified_attributes will detect a change.
-        if self.parameters.get('query') == '' and current is not None and current['query'] is None:
+        # for REST, query is part of a tuple in privileges list.
+        if not self.use_rest and self.parameters.get('query') == '' and current is not None and current['query'] is None:
             self.parameters['query'] = None
 
         modify = None if cd_action else self.na_helper.get_modified_attributes(current, self.parameters)
@@ -460,6 +479,8 @@ class NetAppOntapUserRole(object):
                 self.delete_role()
             elif modify:
                 self.modify_role(modify)
+            if self.use_rest:
+                self.validate_create_modify_required(current, modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 

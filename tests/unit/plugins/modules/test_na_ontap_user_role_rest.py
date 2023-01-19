@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -11,7 +11,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -76,6 +76,18 @@ SRR = rest_responses({
         "name": "admin",
         "scope": "cluster"
     }, None),
+    'user_role_9_10_two_paths_modified': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [
+            {"access": "readonly", "path": "/api/storage/volumes"},
+            {"access": "readonly", "path": "/api/cluster/jobs"}
+        ],
+        "name": "admin",
+        "scope": "cluster"
+    }, None),
     'user_role_9_11': (200, {
         "owner": {
             "name": "svm1",
@@ -87,6 +99,15 @@ SRR = rest_responses({
                 "path": "/api/cluster/jobs",
             }
         ],
+        "name": "admin",
+        "scope": "cluster"
+    }, None),
+    'user_role_cluster_jobs_all': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [{"access": "all", "path": "/api/cluster/jobs"}],
         "name": "admin",
         "scope": "cluster"
     }, None),
@@ -137,7 +158,68 @@ SRR = rest_responses({
                 "path": "/api/storage/volumes",
             }
         ],
-    }, None)
+    }, None),
+    'user_role_volume': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [
+            {
+                "access": "readonly",
+                "path": "volume create"
+            },
+            {
+                "access": "readonly",
+                "path": "volume modify",
+            },
+            {
+                "access": "readonly",
+                "path": "volume show",
+            }
+        ],
+        "name": "admin",
+    }, None),
+    'user_role_vserver': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [{"access": "readonly", "path": "vserver show"}],
+        "name": "admin",
+    }, None),
+    'user_role_volume_privileges': (200, {
+        "records": [
+            {"access": "readonly", "path": "volume create"},
+            {"access": "readonly", "path": "volume modify"}
+        ],
+    }, None),
+    'user_role_privileges_schedule': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [{"access": "all", "path": "job schedule interval", "query": "-days <1 -hours >12"}],
+        "name": "admin",
+    }, None),
+    'user_role_privileges_schedule_modify': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [{"access": "all", "path": "job schedule interval", "query": "-days <1 -hours >8"}],
+        "name": "admin",
+    }, None),
+    'user_role_volume_with_query': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [{"access": "readonly", "path": "/api/storage/volumes", "query": "-vserver vs1|vs2|vs3 -destination-aggregate aggr1|aggr2"}],
+        "name": "admin",
+        "scope": "cluster"
+    }, None),
+    "error_4": (409, None, {'code': 4, 'message': "entry doesn't exist, 'target': 'path'"}),
 })
 
 PRIVILEGES_SINGLE_WITH_QUERY = [{
@@ -260,7 +342,8 @@ def test_create_user_role_9_10_new_format():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_9_10'])
     ])
     module_args = {'privileges': PRIVILEGES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -270,7 +353,8 @@ def test_create_user_role_9_11_new_format():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_9_10'])
     ])
     module_args = {'privileges': PRIVILEGES_911}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -280,7 +364,8 @@ def test_create_user_role_9_11_new_format_query():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_privileges_schedule'])
     ])
     module_args = {'privileges': PRIVILEGES_SINGLE_WITH_QUERY}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -290,7 +375,8 @@ def test_create_user_role_9_10_new_format_path_only():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_9_11'])
     ])
     module_args = {'privileges': PRIVILEGES_PATH_ONLY}
     print(module_args)
@@ -301,7 +387,8 @@ def test_create_user_role_9_10_new_format_2_path_only():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_9_10_two_paths'])
     ])
     module_args = {'privileges': PRIVILEGES_2_PATH_ONLY}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -311,7 +398,8 @@ def test_create_user_role_9_10_old_format():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_9_10'])
     ])
     module_args = {'command_directory_name': "/api/storage/volumes",
                    'access_level': 'readonly'}
@@ -322,7 +410,8 @@ def test_create_user_role_9_11_old_format_with_query():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good'])
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_volume_with_query'])
     ])
     module_args = {'command_directory_name': "/api/storage/volumes",
                    'access_level': 'readonly',
@@ -346,7 +435,8 @@ def test_delete_user_role():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['user_role_9_10']),
-        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin', SRR['empty_good'])
+        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['empty_records'])
     ])
     module_args = {'state': 'absent',
                    'command_directory_name': "/api/storage/volumes",
@@ -373,7 +463,8 @@ def test_modify_user_role_9_10():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'security/roles', SRR['user_role_9_10']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
-        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good'])
+        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_cluster_jobs_all'])
     ])
     module_args = {'privileges': PRIVILEGES_MODIFY}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -384,7 +475,8 @@ def test_modify_user_role_command_9_10():
         ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_11_command']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges_command']),
-        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/job schedule interval', SRR['empty_good'])
+        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/job schedule interval', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_privileges_schedule_modify'])
     ])
     module_args = {'privileges': PRIVILEGES_COMMAND_MODIFY}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -397,7 +489,8 @@ def test_modify_remove_user_role_9_10():
         ('GET', 'security/roles', SRR['user_role_9_10_two_paths']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges_two_paths']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),
-        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fstorage%2Fvolumes', SRR['empty_good'])
+        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fstorage%2Fvolumes', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_cluster_jobs_all'])
     ])
     module_args = {'privileges': PRIVILEGES_MODIFY}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -408,7 +501,8 @@ def test_modify_user_role_9_11():
         ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_11']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
-        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good'])
+        ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_cluster_jobs_all'])
     ])
     module_args = {'privileges': PRIVILEGES_MODIFY_911}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -420,7 +514,8 @@ def test_modify_user_role_create_new_privilege():
         ('GET', 'security/roles', SRR['user_role_9_10']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),  # First path
-        ('POST', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['empty_good'])  # Second path
+        ('POST', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['empty_good']),  # Second path
+        ('GET', 'security/roles', SRR['user_role_9_10_two_paths_modified'])
     ])
     module_args = {'privileges': PRIVILEGES_MODIFY_NEW_PATH}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -432,7 +527,8 @@ def test_modify_user_role_create_new_privilege_9_11():
         ('GET', 'security/roles', SRR['user_role_9_11']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),  # First path
-        ('POST', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['empty_good'])  # Second path
+        ('POST', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['empty_good']),  # Second path
+        ('GET', 'security/roles', SRR['empty_records'])
     ])
     module_args = {'privileges': PRIVILEGES_MODIFY_NEW_PATH_9_11}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -496,3 +592,48 @@ def test_modify_user_role_error():
     assert 'Error modifying privileges for path %2Fapi%2Fcluster%2Fjobs: calling: '\
            'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs: '\
            'got Expected error.' == error
+
+
+def test_command_directory_present_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
+    ])
+    assert 'Error: either path or command_directory_name is required' in create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
+
+
+def test_warnings_additional_commands_added_after_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/roles', SRR['empty_records']),
+        ('POST', 'security/roles', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['user_role_volume'])
+    ])
+    args = {'privileges': [{'path': 'volume create', 'access': 'all'}]}
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert_warning_was_raised("Create operation also affected additional related commands", partial_match=True)
+
+
+def test_warnings_create_required_after_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/roles', SRR['user_role_volume']),
+        ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_volume_privileges']),
+        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/volume modify', SRR['empty_good']),
+        ('GET', 'security/roles', SRR['empty_records']),
+    ])
+    args = {'privileges': [{'path': 'volume create', 'access': 'readonly'}]}
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert_warning_was_raised("Create role is required", partial_match=True)
+
+
+def test_warnings_modify_required_after_original_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'security/roles', SRR['user_role_volume']),
+        ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_volume_privileges']),
+        ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/volume modify', SRR['error_4']),
+        ('GET', 'security/roles', SRR['user_role_vserver']),
+    ])
+    args = {'privileges': [{'path': 'volume create', 'access': 'readonly'}]}
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert_warning_was_raised("modify is required, desired", partial_match=True)
