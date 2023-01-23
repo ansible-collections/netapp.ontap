@@ -66,6 +66,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.3.0
 
 ### New Options
+  - na_ontap_aggregate - new option `allow_flexgroups` added.
   - na_ontap_cifs - new options `access_based_enumeration`, `change_notify`, `encryption`,`home_directory`, `oplocks`, `show_snapshot`, `allow_unencrypted_access`, `namespace_caching` and `continuously_available` added in REST.
   - na_ontap_nfs - new options `root`, `windows` and `security` added in REST.
   - na_ontap_volume_efficiency - new option `volume_name` added.

@@ -203,7 +203,8 @@ def test_create_with_object_store():
         'disk_class': 'capacity',
         'disk_count': '2',
         'is_mirrored': 'true',
-        'object_store_name': 'abc'
+        'object_store_name': 'abc',
+        'allow_flexgroups': True
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -300,7 +301,8 @@ def test_rename_with_add_object_store():        # TODO:
     ])
     module_args = {
         'from_name': 'test_name2',
-        'object_store_name': 'abc'
+        'object_store_name': 'abc',
+        'allow_flexgroups': False
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -323,7 +325,8 @@ def test_object_store_create():
         ('aggr-object-store-attach', ZRR['empty']),
     ])
     module_args = {
-        'object_store_name': 'abc'
+        'object_store_name': 'abc',
+        'allow_flexgroups': True
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 

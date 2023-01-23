@@ -410,6 +410,7 @@ def test_attach_object_store_to_aggr():
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['object_store_name'] = 'os12'
+    my_obj.parameters['allow_flexgroups'] = True
     my_obj.uuid = 'aggr_uuid'
     assert my_obj.attach_object_store_to_aggr_rest() == {}
 

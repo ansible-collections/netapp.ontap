@@ -188,6 +188,14 @@ options:
     type: str
     version_added: 2.9.0
 
+  allow_flexgroups:
+    description:
+      - This optional parameter allows attaching object store to an aggregate containing FlexGroup constituents. The default value is false.
+      - Mixing FabricPools and non-FabricPools within a FlexGroup is not recommended.
+      - All aggregates hosting constituents of a FlexGroup should be attached to the object store.
+    type: bool
+    version_added: 22.3.0
+
   snaplock_type:
     description:
       - Type of snaplock for the aggregate being created.
@@ -343,6 +351,7 @@ class NetAppOntapAggregate:
             wait_for_online=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=100),
             object_store_name=dict(required=False, type='str'),
+            allow_flexgroups=dict(required=False, type='bool'),
             snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock']),
             ignore_pool_checks=dict(required=False, type='bool'),
             encryption=dict(required=False, type='bool')
@@ -716,9 +725,10 @@ class NetAppOntapAggregate:
         """
         if self.use_rest:
             return self.attach_object_store_to_aggr_rest()
-        attach_object_store = netapp_utils.zapi.NaElement.create_node_with_children(
-            'aggr-object-store-attach', **{'aggregate': self.parameters['name'],
-                                           'object-store-name': self.parameters['object_store_name']})
+        store_obj = {'aggregate': self.parameters['name'], 'object-store-name': self.parameters['object_store_name']}
+        if 'allow_flexgroups' in self.parameters:
+            store_obj['allow-flexgroup'] = self.na_helper.get_value_for_bool(False, self.parameters['allow_flexgroups'])
+        attach_object_store = netapp_utils.zapi.NaElement.create_node_with_children('aggr-object-store-attach', **store_obj)
 
         try:
             self.server.invoke_successfully(attach_object_store,
@@ -1030,7 +1040,10 @@ class NetAppOntapAggregate:
             self.module.fail_json(msg='Error: cannot attach cloud store with name %s: %s' % (self.parameters['object_store_name'], error))
         body = {'target': {'uuid': self.get_cloud_target_uuid_rest()}}
         api = 'storage/aggregates/%s/cloud-stores' % self.uuid
-        record, error = rest_generic.post_async(self.rest_api, api, body)
+        query = None
+        if 'allow_flexgroups' in self.parameters:
+            query = {'allow_flexgroups': 'true' if self.parameters['allow_flexgroups'] else 'false'}
+        record, error = rest_generic.post_async(self.rest_api, api, body, query)
         if error:
             self.module.fail_json(msg='Error: failed to attach cloud store with name %s: %s' % (self.parameters['object_store_name'], error))
         return record
