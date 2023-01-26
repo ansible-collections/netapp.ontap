@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_dns - `skip_validation` option requires 9.9.1 or later with REST and ignored for cluster DNS operations.
   - na_ontap_dns - support cluster scope for modify and delete.
   - na_ontap_interface - do not attempt to migrate FC interface if desired `home_port`, `home_node` and `current_port`, `current_node` are same.
+  - na_ontap_license - support for NLF v2 license files.
   - na_ontap_user_role - `path` is required if `privileges` set in REST.
   - na_ontap_user_role - `command_directory_name` is required if `privileges` not set in REST.
   - na_ontap_volume_efficiency - updated private cli with REST API.

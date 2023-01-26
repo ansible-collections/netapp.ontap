@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP license Ansible module '''
@@ -10,14 +10,14 @@ import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
-    assert_no_warnings, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
+    assert_no_warnings, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, build_zapi_error, zapi_responses
 
-from ansible_collections.netapp.ontap.plugins.modules.na_ontap_license import NetAppOntapLicense as my_module, main as my_main      # module under test
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_license import NetAppOntapLicense as my_module, main as my_main, HAS_DEEPDIFF
 
 
 if not netapp_utils.has_netapp_lib():
@@ -326,7 +326,8 @@ def test_module_add_license_rest():
         'use_rest': 'always'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
-    assert_no_warnings()
+    if HAS_DEEPDIFF:
+        assert_no_warnings()
 
 
 def test_module_error_add_license_rest():
@@ -358,6 +359,7 @@ def test_module_remove_license():
         'state': 'absent',
         'use_rest': 'always'
     }
+    print_warnings()
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is True
     assert_no_warnings()
 
@@ -366,16 +368,16 @@ def test_module_error_remove_license_rest():
     ''' test remove license error'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster/licensing/licenses', SRR['license_record']),                           # get license information
-        ('DELETE', 'cluster/licensing/licenses/non-existent-package', SRR['generic_error']),    # Error in removing license
+        ('GET', 'cluster/licensing/licenses', SRR['license_record_nfs']),               # get license information
+        ('DELETE', 'cluster/licensing/licenses/nfs', SRR['generic_error']),             # Error in removing license
     ])
     module_args = {
-        'license_names': 'non-existent-package',
+        'license_names': 'nfs',
         'serial_number': '1-23-45678',
         'state': 'absent',
         'use_rest': 'always'
     }
-    error = 'calling: cluster/licensing/licenses/non-existent-package: got Expected error.'
+    error = rest_error_message('Error removing license for serial number 1-23-45678 and nfs', 'cluster/licensing/licenses/nfs')
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
 
@@ -385,10 +387,11 @@ def test_module_try_to_remove_license_not_present_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster/licensing/licenses', SRR['license_record']),
-        ('DELETE', 'cluster/licensing/licenses/non-existent-package', SRR['error_entry_does_not_exist']),   # license not active.
+        ('DELETE', 'cluster/licensing/licenses/nfs', SRR['error_entry_does_not_exist']),   # license not active.
+
     ])
     module_args = {
-        'license_names': 'non-existent-package',
+        'license_names': 'nfs',
         'serial_number': '1-23-45678',
         'state': 'absent',
         'use_rest': 'always'

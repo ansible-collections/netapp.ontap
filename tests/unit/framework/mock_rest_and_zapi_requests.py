@@ -264,7 +264,9 @@ def _mock_netapp_invoke_elem(function_name, na_element, enable_tunneling=False):
 def _mock_time_sleep(function_name, duration):
     if DEBUG:
         print('Inside _mock_time_sleep for %s' % function_name)
-    raise KeyError("time.sleep(%s) was called - add: @patch('time.sleep')" % duration)
+    if duration > 0.1:
+        # the IDE or debug mode may add a small timer - only report for "large" value
+        raise KeyError("time.sleep(%s) was called - add: @patch('time.sleep')" % duration)
 
 
 def _patch_request_and_invoke_exit_checks(function_name):
