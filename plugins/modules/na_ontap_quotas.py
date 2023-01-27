@@ -789,6 +789,7 @@ class NetAppONTAPQuotas:
         start_msg = "Quota policy rule %s opertation succeeded. " % action
         end_msg = "reinitialize(disable and enable again) the quota for volume %s " \
                   "in SVM %s." % (self.parameters['volume'], self.parameters['vserver'])
+        msg = 'unexpected code: %s' % code
         if code == '5308572':
             msg = "However the rule is still being enforced. To stop enforcing, "
         if code in ['5308568', '5308569', '5308567']:

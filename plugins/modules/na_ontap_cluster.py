@@ -631,7 +631,6 @@ class NetAppONTAPCluster:
 
         if self.parameters['time_out'] == 0:
             is_complete = True
-            status = "success"
         if not is_complete and status != 'success':
             current_status_message = result.get_child_content('current-status-message')
             errors.append('Failed to confirm cluster creation %s: %s' % (self.parameters.get('cluster_name'), current_status_message))

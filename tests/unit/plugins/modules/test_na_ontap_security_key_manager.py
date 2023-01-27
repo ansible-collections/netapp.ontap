@@ -451,7 +451,6 @@ def test_successfully_change_passphrase_onboard_key_manager_rest():
         'use_rest': 'always'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
-    error = 'Error: neither from_passphrase nor passphrase match installed passphrase:'
     error = rest_error_message('Error: neither from_passphrase nor passphrase match installed passphrase',
                                'security/key-managers/a1b2c3',
                                got="got {'message': 'Cluster-wide passphrase is incorrect.'}.")

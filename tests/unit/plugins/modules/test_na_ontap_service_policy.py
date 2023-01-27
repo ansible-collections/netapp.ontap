@@ -391,7 +391,6 @@ def test_negative_unknown_services():
     error = 'Error: unknown service: data_nfs9.  New services may need to be added to "additional_services".'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert_no_warnings()
-    error = 'Error: unknown service: data_nfs9.  New services may need to be added to "additional_services".'
     module_args = {
         'services': ['data_nfs9', 'data_cifs', 'dummy'],
         'vserver': 'vserver',

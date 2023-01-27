@@ -342,19 +342,6 @@ def test_modify_cifs_share_path():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
-def test_modify_cifs_share_properties():
-    ''' test modify CIFS share properties '''
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
-        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
-    ])
-    module_args = {
-        'unix_symlink': "disable"
-    }
-    assert create_and_apply(my_module, ARGS_REST, module_args)
-
-
 def test_modify_cifs_share_comment():
     ''' test modify CIFS share comment '''
     register_responses([
@@ -369,6 +356,19 @@ def test_modify_cifs_share_comment():
 
 
 def test_modify_cifs_share_properties():
+    ''' test modify CIFS share properties '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        'unix_symlink': "disable"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_cifs_share_properties_2():
     ''' test modify CIFS share properties '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),

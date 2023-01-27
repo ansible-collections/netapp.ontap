@@ -44,9 +44,9 @@ from ansible.module_utils.basic import missing_required_lib
 from ansible.module_utils._text import to_native
 
 try:
-    from ansible.module_utils.ansible_release import __version__ as ansible_version
+    from ansible.module_utils.ansible_release import __version__ as ANSIBLE_VERSION
 except ImportError:
-    ansible_version = 'unknown'
+    ANSIBLE_VERSION = 'unknown'
 
 COLLECTION_VERSION = "22.3.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)

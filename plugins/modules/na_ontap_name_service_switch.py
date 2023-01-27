@@ -225,7 +225,6 @@ class NetAppONTAPNsswitch:
 
     def apply(self):
         current = self.get_name_service_switch()
-        cd_action, modify = None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'delete' and self.use_rest:
             self.module.fail_json(msg="Error: deleting name service switch not supported in REST.")

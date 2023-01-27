@@ -69,7 +69,7 @@ class NetAppONTAPDebug(object):
         self.server = None
 
     def list_versions(self):
-        self.log_list.append('Ansible version: %s' % netapp_utils.ansible_version)
+        self.log_list.append('Ansible version: %s' % netapp_utils.ANSIBLE_VERSION)
         self.log_list.append('ONTAP collection version: %s' % netapp_utils.COLLECTION_VERSION)
         self.log_list.append('Python version: %s' % sys.version[:3])
         self.log_list.append('Python executable path: %s' % sys.executable)
@@ -226,9 +226,7 @@ class NetAppONTAPDebug(object):
 
         # check zapi connection errors only if import successful
         if netapp_utils.has_netapp_lib():
-            has_zapi = self.check_connection("ZAPI")
-        else:
-            has_zapi = False
+            self.check_connection("ZAPI")
 
         # check rest connection errors
         has_rest = self.check_connection("REST")

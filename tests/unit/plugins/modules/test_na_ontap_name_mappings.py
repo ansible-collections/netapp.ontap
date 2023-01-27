@@ -145,7 +145,7 @@ def test_delete_name_mappings_rest():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_delete_name_mappings_rest():
+def test_delete_name_mappings_rest_error():
     ''' Test error delete name mapping record '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),

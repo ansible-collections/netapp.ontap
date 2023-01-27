@@ -206,7 +206,6 @@ class NetAppOntapFpolicyStatus(object):
 
         if self.use_rest:
             api = '/protocols/fpolicy/%s/policies/%s' % (self.svm_uuid, self.parameters['policy_name'])
-            body = dict()
             body = {
                 'enabled': self.parameters['status'],
                 'priority': self.parameters['sequence_number']
@@ -235,7 +234,6 @@ class NetAppOntapFpolicyStatus(object):
 
         if self.use_rest:
             api = '/protocols/fpolicy/%s/policies/%s' % (self.svm_uuid, self.parameters['policy_name'])
-            body = dict()
             body = {
                 'enabled': self.parameters['status']
             }

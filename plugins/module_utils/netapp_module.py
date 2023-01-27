@@ -606,7 +606,7 @@ class NetAppModule(object):
         else:
             self.ansible_module.fail_json(
                 msg='Internal error, error should be str or dict, found: %s, %s' % (type(error), error), exception=traceback.format_exc())
-        return 'SVM "%s" does not exist.' % self.parameters['vserver'] in error
+        return 'SVM "%s" does not exist.' % vserver_name in error
 
     def remove_hal_links(self, records):
         """ Remove all _links entries """

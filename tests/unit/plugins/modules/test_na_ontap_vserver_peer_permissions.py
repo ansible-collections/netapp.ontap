@@ -50,6 +50,7 @@ DEFAULT_ARGS = {
 
 def test_error_validate_vserver_name_rest():
     register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])
     ])
     module_args = {
         'vserver': '*',
@@ -61,7 +62,7 @@ def test_error_validate_vserver_name_rest():
     assert msg in error
 
 
-def test_error_validate_vserver_name_rest():
+def test_error_validate_vserver_apps_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96'])
     ])

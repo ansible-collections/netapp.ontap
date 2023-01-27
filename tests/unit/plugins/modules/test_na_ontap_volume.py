@@ -1671,16 +1671,6 @@ def test_wait_for_task_completion_no_records():
     assert my_obj.wait_for_task_completion(zapi_iter, lambda: True) is None
 
 
-def test_wait_for_task_completion_no_records():
-    register_responses([
-        ('ZAPI', 'results', ZRR['no_records']),
-    ])
-    # using response to build a request
-    zapi_iter, valid = build_zapi_response({'fake-iter': 'any'})
-    my_obj = create_module(vol_module, DEFAULT_ARGS)
-    assert my_obj.wait_for_task_completion(zapi_iter, lambda x: True) is None
-
-
 def test_wait_for_task_completion_one_response():
     register_responses([
         ('ZAPI', 'results', ZRR['one_record_no_data']),
@@ -2016,7 +2006,6 @@ def test_check_invoke_result():
     }
     # 3 - operation in progress - job reported success
     obj = create_module(vol_module, DEFAULT_ARGS, module_args)
-    error = 'Error when testing volume: failure'
     assert obj.check_invoke_result(ZRR['async_results'][0], 'testing') is None
     # 4 - operation in progress - job reported a failure
     obj = create_module(vol_module, DEFAULT_ARGS, module_args)

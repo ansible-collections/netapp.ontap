@@ -113,18 +113,17 @@ class TestMyModule(unittest.TestCase):
             'feature_flags': {'no_cserver_ems': True}
         })
 
-    def call_command(self, module_args, cx_type='zapi'):
+    def call_command(self, module_args):
         ''' utility function to call apply '''
         module_args.update(self.set_default_args())
         set_module_args(module_args)
         my_obj = my_module()
         my_obj.asup_log_for_cserver = Mock(return_value=None)
-        if cx_type == 'zapi':
-            if not self.onbox:
-                # mock the connection
-                my_obj.server = MockONTAPConnection('object_store')
-            with pytest.raises(AnsibleExitJson) as exc:
-                my_obj.apply()
+        if not self.onbox:
+            # mock the connection
+            my_obj.server = MockONTAPConnection('object_store')
+        with pytest.raises(AnsibleExitJson) as exc:
+            my_obj.apply()
         return exc.value.args[0]['changed']
 
     def test_module_fail_when_required_args_missing(self):

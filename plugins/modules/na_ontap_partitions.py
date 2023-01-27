@@ -318,8 +318,8 @@ class NetAppOntapPartitions():
                 required_partner_spare_partitions = required_unassigned_disks - len(unassigned_disks)
                 partner_node_name = self.get_partner_node_name()
                 if partner_node_name:
-                    partner_spare_partitions = self.get_partitions(conainer_type='spare', node=partner_node_name)
-                    partner_spare_disks = self.get_disks(container_tytpe='spare', node=partner_node_name)
+                    partner_spare_partitions = self.get_partitions(container_type='spare', node=partner_node_name)
+                    partner_spare_disks = self.get_disks(container_type='spare', node=partner_node_name)
                 else:
                     partner_spare_partitions = []
                     partner_spare_disks = []

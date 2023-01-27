@@ -299,11 +299,10 @@ def test_ontaprestapi_init():
 
 @patch('logging.basicConfig')
 def test_ontaprestapi_logging(mock_config):
-    module_args = {'http_port': 123}
-    rest_api = create_restapi_object(DEFAULT_ARGS)
+    create_restapi_object(DEFAULT_ARGS)
     assert not mock_config.mock_calls
     module_args = {'feature_flags': {'trace_apis': True}}
-    rest_api = create_restapi_object(DEFAULT_ARGS, module_args)
+    create_restapi_object(DEFAULT_ARGS, module_args)
     assert len(mock_config.mock_calls) == 1
 
 

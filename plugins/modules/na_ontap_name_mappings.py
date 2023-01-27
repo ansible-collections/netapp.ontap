@@ -244,7 +244,6 @@ class NetAppOntapNameMappings:
             self.module.fail_json(msg="Error on deleting name mappings rest: %s" % error)
 
     def apply(self):
-        cd_action, modify = None, None
         reindex = False
         current = self.get_name_mappings_rest()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

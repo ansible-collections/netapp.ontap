@@ -192,10 +192,9 @@ class NetAppONTAPCommand():
         '''Parse raw XML from system-cli and create an Ansible parseable dictonary'''
         xml_import_ok = True
         xml_parse_ok = True
-        importing = 'None'
+        importing = 'ast'
 
         try:
-            importing = 'ast'
             import ast
             importing = 'xml.parsers.expat'
             import xml.parsers.expat
