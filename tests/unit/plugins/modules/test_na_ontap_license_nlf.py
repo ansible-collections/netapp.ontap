@@ -397,7 +397,9 @@ def test_scan_license_codes_for_nlf():
         assert error in expect_and_capture_ansible_exception(my_obj.scan_license_codes_for_nlf, 'fail', nlf)['msg']
 
     nlf = "'statusResp':"
-    error = "Error: malformed input: 'statusResp':, exception: unexpected EOF while parsing"
+    # older versions of python report unexpected EOF while parsing
+    # but python 3.10.2 reports exception: invalid syntax (<unknown>, line 1)
+    error = "Error: malformed input: 'statusResp':, exception:"
     assert error in expect_and_capture_ansible_exception(my_obj.scan_license_codes_for_nlf, 'fail', nlf)['msg']
 
     nlf = '"statusResp":' * 2

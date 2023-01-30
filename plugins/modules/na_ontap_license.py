@@ -178,7 +178,8 @@ except ImportError as exc:
 
 try:
     from deepdiff import DeepDiff
-except ImportError as exc:
+except (ImportError, SyntaxError) as exc:
+    # With Ansible 2.9, python 2.6 reports a SyntaxError
     HAS_DEEPDIFF = False
     IMPORT_ERRORS.append(exc)
 
