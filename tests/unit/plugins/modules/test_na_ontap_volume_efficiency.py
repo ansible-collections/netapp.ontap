@@ -110,7 +110,9 @@ SRR = rest_responses({
     'volume_efficiency_info': (200, return_vol_info_rest(), None),
     'volume_efficiency_status_running': (200, return_vol_info_rest(status='active'), None),
     'volume_efficiency_disabled': (200, return_vol_info_rest(state='disabled'), None),
-    'volume_efficiency_modify': (200, return_vol_info_rest(compaction='none'), None)
+    'volume_efficiency_modify': (200, return_vol_info_rest(compaction='none'), None),
+    "unauthorized": (403, None, {'code': 6, 'message': 'Unexpected argument "storage_efficiency_mode".'}),
+    "unexpected_arg": (403, None, {'code': 6, 'message': "not authorized for that command"})
 })
 
 
@@ -160,8 +162,12 @@ def test_successful_disable():
         ('sis-get-iter', ZRR['vol_eff_info_disabled']),
 
     ])
-    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
-    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
+    args = {
+        'state': 'absent',
+        'use_rest': 'never'
+    }
+    assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
+    assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
 
 
 def test_successful_modify():
@@ -214,7 +220,8 @@ def test_if_all_methods_catch_exception():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/volumes', SRR['generic_error']),
         ('PATCH', 'storage/volumes', SRR['generic_error']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('PATCH', 'storage/volumes', SRR['unauthorized']),
+        ('PATCH', 'storage/volumes', SRR['unexpected_arg'])
     ])
     vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS)
     assert 'Error getting volume efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.get_volume_efficiency, 'fail')['msg']
@@ -229,19 +236,11 @@ def test_if_all_methods_catch_exception():
     vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS_REST, args)
     assert 'Error getting volume efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.get_volume_efficiency, 'fail')['msg']
     assert 'Error in volume/efficiency patch' in expect_and_capture_ansible_exception(vol_eff_obj.modify_volume_efficiency, 'fail', {'arg': 1})['msg']
+    assert 'cannot modify storage_efficiency' in expect_and_capture_ansible_exception(vol_eff_obj.modify_volume_efficiency, 'fail', {'arg': 1})['msg']
+    assert 'user is not authorized' in expect_and_capture_ansible_exception(vol_eff_obj.modify_volume_efficiency, 'fail', {'arg': 1})['msg']
     # Error: cannot set compression keys: ['enable_compression']
-    assert 'when volume efficiency already disabled' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', {}, {})['msg']
-    assert 'when trying to disable volume' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, {})['msg']
-    vol_eff_obj = create_module(volume_efficiency_module, DEFAULT_ARGS_REST)
-    modify = {'enable_compression': False, 'enable_inline_compression': True}
-    error = 'Disabling compression and enabling inline compression simultaneously cannot be done.'
-    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, {})['msg']
-    error = 'Compression cannot be disabled when inline compression is enabled on the volume.'
-    modify, current = {'enable_compression': False}, {'enable_inline_compression': True}
-    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, current)['msg']
-    error = 'Inline compression cannot be enabled when compression is disabled. Enable compression and retry'
-    modify, current = {'enable_inline_compression': True}, {'enable_compression': False}
-    assert error in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify, current)['msg']
+    assert 'when volume efficiency already disabled' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', {})['msg']
+    assert 'when trying to disable volume' in expect_and_capture_ansible_exception(vol_eff_obj.validate_efficiency_compression, 'fail', modify)['msg']
 
 
 def test_successful_enable_rest():

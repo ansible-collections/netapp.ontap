@@ -16,6 +16,7 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Enable, modify or disable volume efficiency.
   - Either path or volume_name is required.
+  - Only admin user can modify volume efficiency.
 options:
   state:
     description:
@@ -436,6 +437,8 @@ class NetAppOntapVolumeEfficiency(object):
             if error:
                 if 'Unexpected argument "storage_efficiency_mode".' in error:
                     error = "cannot modify storage_efficiency mode in non AFF platform."
+                if 'not authorized' in error:
+                    error = "%s user is not authorized to modify volume efficiency" % self.parameters.get('username')
                 self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
 
         else:
@@ -579,7 +582,7 @@ class NetAppOntapVolumeEfficiency(object):
     def form_modify_body_rest(self, modify, current):
         # disable volume efficiency requires dedupe and compression set to 'none'.
         if modify.get('enabled') == 'disabled':
-            return {'efficiency': {'dedupe': 'none', 'compression': 'none'}}
+            return {'efficiency': {'dedupe': 'none', 'compression': 'none', 'compaction': 'none', 'cross_volume_dedupe': 'none'}}
         body = {}
         if modify.get('enabled') == 'enabled':
             body['efficiency.dedupe'] = 'background'
@@ -605,7 +608,7 @@ class NetAppOntapVolumeEfficiency(object):
             body['efficiency.dedupe'] = 'background'
         # REST changes policy to default, so use policy in params.
         if self.parameters.get('policy'):
-            body['efficiency.policy'] = self.parameters['policy']
+            body['efficiency.policy.name'] = self.parameters['policy']
         if modify.get('storage_efficiency_mode'):
             body['storage_efficiency_mode'] = modify['storage_efficiency_mode']
 
@@ -635,12 +638,10 @@ class NetAppOntapVolumeEfficiency(object):
               (desired_background is None and desired_inline is False and not current_background)):
             return 'none'
 
-    def validate_efficiency_compression(self, modify, current):
+    def validate_efficiency_compression(self, modify):
         """
         validate:
           - no efficiency keys are set when state is disabled.
-          - compression cannot be disabled when enable_inline_compression is already enabled or
-          - trying to enable inline compression and disable compression simultaneously.
         """
         if self.parameters['enabled'] == 'disabled':
             # if any of the keys are set, efficiency gets enabled, error out if any of eff keys are set and state is absent.
@@ -654,15 +655,6 @@ class NetAppOntapVolumeEfficiency(object):
                 if modify.get('enabled') == 'disabled':
                     disable_str = 'when trying to disable volume efficiency'
                 self.module.fail_json(msg="Error: cannot set compression keys: %s %s" % (used_unsupported_enable_eff_keys, disable_str))
-        compression = self.derive_efficiency_type(modify.get('enable_compression'), modify.get('enable_inline_compression'),
-                                                  current.get('enable_compression'), current.get('enable_inline_compression'))
-        if compression == 'inline':
-            error_msg = 'Inline compression cannot be enabled when compression is disabled. Enable compression and retry'
-            if modify.get('enable_compression') is False and modify.get('enable_inline_compression'):
-                error_msg = 'Disabling compression and enabling inline compression simultaneously cannot be done.'
-            elif modify.get('enable_compression') is False:
-                error_msg = 'Compression cannot be disabled when inline compression is enabled on the volume. Disable inline compression and retry'
-            self.module.fail_json(msg=error_msg)
 
     def apply(self):
         current = self.get_volume_efficiency()
@@ -674,8 +666,7 @@ class NetAppOntapVolumeEfficiency(object):
             current = {'enabled': 'disabled'}
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         to_modify = copy.deepcopy(modify)
-        if self.use_rest:
-            self.validate_efficiency_compression(modify, current)
+        self.validate_efficiency_compression(modify)
         if self.na_helper.changed and not self.module.check_mode:
             # enable/disable, start/stop & modify vol efficiency handled in REST PATCH.
             if self.use_rest:

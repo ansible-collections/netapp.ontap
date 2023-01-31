@@ -1414,7 +1414,7 @@ class NetAppOntapInterface:
             desired_home_port = self.na_helper.safe_get(body, ['location', 'home_port'])
             desired_current_port = self.na_helper.safe_get(migrate_body, ['location', 'port'])
             # if try to modify both home_port and current_port in FC interface and if its equal, make migrate_body None
-            if self.parameters['interface_type'] == 'fc' and desired_home_port and desired_current_port and desired_home_port == desired_current_port:
+            if self.parameters.get('interface_type') == 'fc' and desired_home_port and desired_current_port and desired_home_port == desired_current_port:
                 migrate_body = None
         return uuid, body, migrate_body
 

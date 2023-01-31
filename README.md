@@ -91,8 +91,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_user_role - fix duplicate entry error in ZAPI.
   - na_ontap_user_role - fix entry does not exist error when trying to delete privilege in REST.
   - na_ontap_user_role - fix KeyError on `vserver`, `command_directory_name` in ZAPI and `path`, `query` in REST.
+  - na_ontap_volume_efficiency - fix idempotent issue when state is absent and efficiency options are set in ZAPI.
 
 ### New Modules
+  - na_ontap_vserver_audit - added REST only support for create, modify and delete vserver audit configuration.
   - na_ontap_vserver_peer_permissions - added REST only support for create, modify and delete vserver peer permissions for an SVM.
 
 ## 22.2.0

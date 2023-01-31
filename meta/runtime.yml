@@ -13,6 +13,7 @@ action_groups:
     - na_ontap_cifs_acl
     - na_ontap_cifs_local_group
     - na_ontap_cifs_local_group_member
+    - na_ontap_cifs_local_user
     - na_ontap_cifs_local_user_modify
     - na_ontap_cifs_local_user_set_password
     - na_ontap_cifs
@@ -140,6 +141,7 @@ action_groups:
     - na_ontap_vscan_on_demand_task
     - na_ontap_vscan
     - na_ontap_vscan_scanner_pool
+    - na_ontap_vserver_audit
     - na_ontap_vserver_cifs_security
     - na_ontap_vserver_peer
     - na_ontap_vserver_peer_permissions
