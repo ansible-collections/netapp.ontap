@@ -5,6 +5,45 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.3.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_aggregate - new option ``allow_flexgroups`` added.
+- na_ontap_cifs - new options ``access_based_enumeration``, ``change_notify``, ``encryption``, ``home_directory``, ``oplocks``, ``show_snapshot``, ``allow_unencrypted_access``, ``namespace_caching`` and ``continuously_available`` added in REST.
+- na_ontap_dns - ``skip_validation`` option requires 9.9.1 or later with REST and ignored for cluster DNS operations.
+- na_ontap_dns - support cluster scope for modify and delete.
+- na_ontap_interface - do not attempt to migrate FC interface if desired ``home_port``, ``home_node`` and ``current_port``, ``current_node`` are same.
+- na_ontap_license - support for NLF v2 license files.
+- na_ontap_nfs - new options ``root``, ``windows`` and ``security`` added in REST.
+- na_ontap_user_role - ``command_directory_name`` is required if ``privileges`` not set in REST.
+- na_ontap_user_role - ``path`` is required if ``privileges`` set in REST.
+- na_ontap_volume_efficiency - REST support for ``policy`` requires 9.7 or later, ``path`` requires 9.9.1 or later and ``volume_efficiency`` and ``start_ve_scan_old_data`` requires 9.11.1 or later.
+- na_ontap_volume_efficiency - ``schedule``, ``start_ve_scan_all``, ``start_ve_build_metadata``, ``start_ve_delete_checkpoint``, ``start_ve_queue_operation``, ``start_ve_qos_policy`` and ``stop_ve_all_operations`` options are not supported with REST.
+- na_ontap_volume_efficiency - new option ``volume_name`` added.
+- na_ontap_volume_efficiency - updated private cli with REST API.
+
+Bugfixes
+--------
+
+- na_ontap_aggregate - try to offline aggregate when disk add operation is in progress in ZAPI.
+- na_ontap_interface - fix idempotency issue when ``home_port`` not set in creating FC interface.
+- na_ontap_rest_info - fix field issue with private/cli and support/autosupport/check APIs.
+- na_ontap_snapshot - fix cannot modify ``snapmirror_label``, ``expiry_time`` and ``comment`` if not configured in create.
+- na_ontap_user_role - fix AttributeError 'NetAppOntapUserRole' object has no attribute 'name'.
+- na_ontap_user_role - fix KeyError on ``vserver``, ``command_directory_name`` in ZAPI and ``path``, ``query`` in REST.
+- na_ontap_user_role - fix duplicate entry error in ZAPI.
+- na_ontap_user_role - fix entry does not exist error when trying to delete privilege in REST.
+- na_ontap_volume_efficiency - fix idempotent issue when state is absent and efficiency options are set in ZAPI.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_vserver_audit - NetApp Ontap - create, delete or modify vserver audit configuration.
+- netapp.ontap.na_ontap_vserver_peer_permissions - NetApp Ontap - create, delete or modify vserver peer permission.
+
 v22.2.0
 =======
 
