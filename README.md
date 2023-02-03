@@ -63,6 +63,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.4.0
+
+## Bug Fixes
+  - na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
+  - na_ontap_ldap_client - fix KeyError on `name` in ZAPI.
+
 ## 22.3.0
 
 ### New Options

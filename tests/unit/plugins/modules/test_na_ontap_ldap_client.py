@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_ldap_client '''
@@ -47,6 +47,10 @@ SRR = rest_responses({
     "no_record": (
         200,
         {"num_records": 0},
+        None),
+    "svm": (
+        200,
+        {"records": [{"uuid": "671aa46e"}]},
         None)
 })
 
@@ -92,6 +96,12 @@ def test_get_nonexistent_client():
     ldap_obj = create_module(client_module, DEFAULT_ARGS)
     result = ldap_obj.get_ldap_client()
     assert result is None
+
+
+def test_error_name_required_zapi():
+    ''' name is required with ZAPI '''
+    error = 'Error: name is a required field with ZAPI.'
+    assert error in create_module(client_module, DEFAULT_ARGS, {'name': None}, fail=True)['msg']
 
 
 def test_get_existing_client():
@@ -310,6 +320,7 @@ def test_create_ldap_client_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['svm']),
         ('POST', 'name-services/ldap', SRR['empty_good']),
     ])
     module_args = {
@@ -323,6 +334,7 @@ def test_error_create_ldap_client_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'name-services/ldap', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['svm']),
         ('POST', 'name-services/ldap', SRR['generic_error']),
     ])
     module_args = {
@@ -375,6 +387,20 @@ def test_create_idempotent_rest():
         'schema': 'RFC-2307',
     }
     assert not call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_error_on_cluster_vserver():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'name-services/ldap', SRR['empty_records']),
+        ('GET', 'svm/svms', SRR['empty_records']),
+    ])
+    module_args = {
+        'state': 'present',
+        'servers': ['10.193.115.116'],
+        'schema': 'RFC-2307',
+    }
+    assert 'is not a data vserver.' in call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
 
 
 def test_delete_idempotent_rest():

@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2017, Sumit Kumar <sumit4@netapp.com>
 # Copyright (c) 2017, Michael Price <michael.price@netapp.com>
-# Copyright (c) 2017-2022, NetApp, Inc
+# Copyright (c) 2017-2023, NetApp, Inc
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
@@ -48,7 +48,7 @@ try:
 except ImportError:
     ANSIBLE_VERSION = 'unknown'
 
-COLLECTION_VERSION = "22.3.0"
+COLLECTION_VERSION = "22.4.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 

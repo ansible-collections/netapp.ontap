@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-(c) 2018-2022, NetApp, Inc
+(c) 2018-2023, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
@@ -41,6 +41,7 @@ options:
     description:
       - The name of LDAP client configuration.
       - Supported only in ZAPI.
+      - Required with ZAPI.
     type: str
 
   servers:
@@ -152,6 +153,7 @@ options:
 notes:
   - LDAP client created using ZAPI should be deleted using ZAPI.
   - LDAP client created using REST should be deleted using REST.
+  - REST only supports create, modify and delete data svm ldap client configuration.
 
 '''
 
@@ -190,7 +192,7 @@ from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_vserver
 
 
 class NetAppOntapLDAPClient:
@@ -247,6 +249,8 @@ class NetAppOntapLDAPClient:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+            if not self.parameters.get('name'):
+                self.module.fail_json(msg="Error: name is a required field with ZAPI.")
 
         self.simple_attributes = [
             'ad_domain',
@@ -483,8 +487,7 @@ class NetAppOntapLDAPClient:
         if not self.use_rest:
             return self.create_ldap_client()
         body = self.create_ldap_client_body_rest()
-        if 'vserver' in self.parameters:
-            body['svm.name'] = self.parameters.get('vserver')
+        body['svm.name'] = self.parameters['vserver']
         api = 'name-services/ldap'
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error is not None:
@@ -522,6 +525,9 @@ class NetAppOntapLDAPClient:
         if self.parameters['state'] == 'present' and not self.parameters.get('servers') \
                 and self.parameters.get('ad_domain') is None:
             self.module.fail_json(msg='Required one of servers or ad_domain')
+        # REST retrives only data svm ldap configuration, error if try to use non data svm.
+        if cd_action == "create" and self.use_rest:
+            rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['vserver'], self.module, True)
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
