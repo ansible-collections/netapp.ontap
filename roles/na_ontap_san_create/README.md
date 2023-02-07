@@ -1,4 +1,4 @@
-na_ontap_nas_create
+na_ontap_san_create
 =========
 
 Create one or more luns for iSCSI or FCP
