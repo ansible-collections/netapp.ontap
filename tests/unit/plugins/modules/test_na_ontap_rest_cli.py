@@ -1,4 +1,4 @@
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_rest_cli'''
@@ -52,7 +52,7 @@ def test_rest_cli():
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'private/cli/volume', SRR['empty_good']),
     ])
-    assert call_main(my_main, DEFAULT_ARGS)['changed']
+    assert call_main(my_main, DEFAULT_ARGS)['changed'] is False
 
 
 def test_rest_cli_options():
@@ -62,7 +62,7 @@ def test_rest_cli_options():
         ('OPTIONS', 'private/cli/volume', SRR['allow']),
     ])
     exit_json = call_main(my_main, DEFAULT_ARGS, module_args)
-    assert exit_json['changed']
+    assert not exit_json['changed']
     assert 'Allow' in exit_json['msg']
 
 
@@ -83,7 +83,7 @@ def check_verb(verb):
     ], "test_verbs")
 
     exit_json = call_main(my_main, DEFAULT_ARGS, module_args)
-    assert exit_json['changed']
+    assert not exit_json['changed'] if verb in ['GET', 'OPTIONS'] else exit_json['changed']
     assert 'Allow' in exit_json['msg']
     # assert mock_request.call_args[0][0] == verb
 
@@ -101,7 +101,7 @@ def test_check_mode():
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     my_obj.module.check_mode = True
     result = expect_and_capture_ansible_exception(my_obj.apply, 'exit')
-    assert result['changed']
+    assert result['changed'] is False
     msg = "Would run command: 'volume'"
     assert msg in result['msg']
 

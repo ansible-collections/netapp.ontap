@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -22,26 +22,26 @@ module: na_ontap_rest_cli
 short_description: NetApp ONTAP run any CLI command using REST api/private/cli/
 version_added: 2.9.0
 options:
-    command:
-        description:
-        - a string command.
-        required: true
-        type: str
-    verb:
-        description:
-        - a string indicating which api call to run
-        - OPTIONS is useful to know which verbs are supported by the REST API
-        choices: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
-        required: true
-        type: str
-    params:
-        description:
-        - a dictionary of parameters to pass into the api call
-        type: dict
-    body:
-        description:
-        - a dictionary for info specification
-        type: dict
+  command:
+    description:
+      - a string command.
+    required: true
+    type: str
+  verb:
+    description:
+      - a string indicating which api call to run
+      - OPTIONS is useful to know which verbs are supported by the REST API
+    choices: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
+    required: true
+    type: str
+  params:
+    description:
+      - a dictionary of parameters to pass into the api call
+    type: dict
+  body:
+    description:
+      - a dictionary for info specification
+    type: dict
 '''
 
 EXAMPLES = """
@@ -136,7 +136,7 @@ class NetAppONTAPCommandREST():
 
     def apply(self):
         ''' calls the command and returns raw output '''
-        changed = True
+        changed = False if self.verb in ['GET', 'OPTIONS'] else True
         if self.module.check_mode:
             output = "Would run command: '%s'" % str(self.command)
         else:
