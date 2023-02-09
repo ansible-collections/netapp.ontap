@@ -29,6 +29,7 @@ action_groups:
     - na_ontap_domain_tunnel
     - na_ontap_efficiency_policy
     - na_ontap_ems_destination
+    - na_ontap_ems_filter
     - na_ontap_export_policy
     - na_ontap_export_policy_rule
     - na_ontap_fcp

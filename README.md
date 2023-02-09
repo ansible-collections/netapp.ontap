@@ -71,7 +71,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## Bug Fixes
   - na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
   - na_ontap_ldap_client - fix KeyError on `name` in ZAPI.
-  - na_ontap_san_create - Role documentation correct to from nas to san
+  - na_ontap_san_create - Role documentation correct to from nas to san.
+
+### New Modules
+  - na_ontap_ems_filter - Create, delete, or modify EMS filters.
 
 ## 22.3.0
 
