@@ -1,4 +1,4 @@
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -103,6 +103,8 @@ volume_analytics_disabled = copy.deepcopy(volume_info)
 volume_analytics_disabled['analytics']['state'] = 'off'
 volume_analytics_initializing = copy.deepcopy(volume_info)
 volume_analytics_initializing['analytics']['state'] = 'initializing'
+volume_info_offline = copy.deepcopy(volume_info)
+volume_info_offline['state'] = 'offline'
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -147,6 +149,7 @@ SRR = rest_responses({
     'analytics_off': (200, {'records': [volume_analytics_disabled]}, None),
     'analytics_initializing': (200, {'records': [volume_analytics_initializing]}, None),
     'one_svm_record': (200, {'records': [{'uuid': 'svm_uuid'}]}, None),
+    'volume_info_offline': (200, {'records': [volume_info_offline]}, None)
 })
 
 DEFAULT_APP_ARGS = {
@@ -1261,9 +1264,9 @@ def test_create_flexgroup_volume_from_main():
         ('GET', 'svm/svms', SRR['one_svm_record']),
         ('POST', 'storage/volumes', SRR['no_record']),  # Create Volume
         ('GET', 'storage/volumes', SRR['get_volume']),
-        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # offline
-        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # modify
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # eff policy
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # modify
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # offline
     ])
     args = copy.deepcopy(DEFAULT_VOLUME_ARGS)
     del args['aggregate_name']
@@ -1275,7 +1278,7 @@ def test_create_flexgroup_volume_from_main():
         'efficiency_policy': 'effpol',
         'export_policy': 'exppol',
         'group_id': 1001,
-        'junction_path': '/vol/mnt',
+        'junction_path': '/this/path',
         'inline_compression': False,
         'is_online': False,
         'language': 'us',
@@ -1396,3 +1399,14 @@ def test_analytics_option():
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'off'})['changed']
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']
     assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, {'analytics': 'on'})['changed']
+
+
+def test_warn_rest_modify():
+    """ Test skip snapshot_restore and modify when volume is offline """
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/volumes', SRR['volume_info_offline'])
+    ])
+    args = {'is_online': False, 'junction_path': '/test', 'use_rest': 'always', 'snapshot_restore': 'restore1'}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args)['changed'] is False
+    assert_warning_was_raised("Cannot perform action(s): ['snapshot_restore'] and modify: ['junction_path']", partial_match=True)

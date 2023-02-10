@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -1909,16 +1909,9 @@ class NetAppOntapVolume:
             self.module.fail_json(msg='Error unmounting volume %s: %s'
                                   % (self.parameters['name'], to_native(error)), exception=traceback.format_exc())
 
-    def modify_volume(self, modify, is_online):
+    def modify_volume(self, modify):
         '''Modify volume action'''
         attributes = modify.keys()
-        # order matters here, if both is_online and mount in modify, must bring the volume online first.
-        if 'is_online' in attributes:
-            #  If is_online is false and junction_path is '' we need unmount first, and then bring volume offline
-            if 'junction_path' in attributes and modify.get('junction_path') == '' and not modify.get('is_online'):
-                self.volume_unmount()
-            state, dummy = self.change_volume_state()
-            is_online = state == 'online'
         for attribute in attributes:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
@@ -1932,7 +1925,7 @@ class NetAppOntapVolume:
             # disabled this in rest
             self.set_snapshot_auto_delete()
         # don't mount or unmount when offline
-        if 'junction_path' in attributes and is_online:
+        if 'junction_path' in attributes:
             if modify.get('junction_path') == '':
                 self.volume_unmount()
             else:
@@ -2236,9 +2229,7 @@ class NetAppOntapVolume:
     def set_modify_dict(self, current, after_create=False):
         '''Fill modify dict with changes'''
         octal_value = current.get('unix_permissions') if current else None
-        if self.parameters.get('unix_permissions') is not None and (
-            self.na_helper.compare_chmod_value(octal_value, self.parameters['unix_permissions']) or not self.parameters['is_online']
-        ):
+        if self.parameters.get('unix_permissions') is not None and self.na_helper.compare_chmod_value(octal_value, self.parameters['unix_permissions']):
             # don't change if the values are the same
             # can't change permissions if not online
             del self.parameters['unix_permissions']
@@ -2282,13 +2273,8 @@ class NetAppOntapVolume:
                 modify['snapshot_auto_delete'] = auto_delete_modify
         return modify
 
-    def take_modify_actions(self, modify, is_online):
-        if modify.get('is_online'):
-            # when moving to online, include parameters that get does not return when volume is offline
-            for field in ['volume_security_style', 'group_id', 'user_id', 'percent_snapshot_space']:
-                if self.parameters.get(field) is not None:
-                    modify[field] = self.parameters[field]
-        self.modify_volume(modify, is_online)
+    def take_modify_actions(self, modify):
+        self.modify_volume(modify)
 
         if any(modify.get(key) is not None for key in self.sis_keys2zapi_get):
             if self.parameters.get('is_infinite') or self.volume_style == 'flexgroup':
@@ -2296,6 +2282,10 @@ class NetAppOntapVolume:
             else:
                 efficiency_config_modify = 'sync'
             self.modify_volume_efficiency_config(efficiency_config_modify)
+
+        # offline volume last
+        if modify.get('is_online') is False:
+            self.change_volume_state()
 
     """ MAPPING OF VOLUME FIELDS FROM ZAPI TO REST
     ZAPI = REST
@@ -2801,8 +2791,37 @@ class NetAppOntapVolume:
     def apply(self):
         '''Call create/modify/delete operations'''
         actions, current, modify = self.set_actions()
+        is_online = current.get('is_online') if current else None
         response = None
+
+        # rehost, snapshot_restore and modify actions requires volume state to be online.
+        online_modify_options = [x for x in actions if x in ['rehost', 'snapshot_restore', 'modify']]
+        # ignore options that requires volume shoule be online.
+        if not modify.get('is_online') and is_online is False and online_modify_options:
+            modify_keys = []
+            if 'modify' in online_modify_options:
+                online_modify_options.remove('modify')
+                modify_keys = [key for key in modify if key != 'is_online']
+            action_msg = 'perform action(s): %s' % online_modify_options if online_modify_options else ''
+            modify_msg = ' and modify: %s' % modify_keys if action_msg else 'modify: %s' % modify_keys
+            self.module.warn("Cannot %s%s when volume is offline." % (action_msg, modify_msg))
+            modify, actions = {}, []
+            if 'rename' in actions:
+                # rename can be done if volume is offline.
+                actions = ['rename']
+            else:
+                self.na_helper.changed = False
+
         if self.na_helper.changed and not self.module.check_mode:
+            # always online volume first before other changes.
+            # rehost, snapshot_restore and modify requires volume in online state.
+            if modify.get('is_online'):
+                self.parameters['uuid'] = current['uuid']
+                # when moving to online, include parameters that get does not return when volume is offline
+                for field in ['volume_security_style', 'group_id', 'user_id', 'percent_snapshot_space']:
+                    if self.parameters.get(field) is not None:
+                        modify[field] = self.parameters[field]
+                self.change_volume_state()
             if 'rename' in actions:
                 self.rename_volume()
             if 'rehost' in actions:
@@ -2815,12 +2834,17 @@ class NetAppOntapVolume:
                 # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
                 # The modify also takes care of efficiency (sis) parameters and snapshot_auto_delete.
                 # If we create using REST application, some options are not available, we may need to run a modify.
+                # volume should be online for modify.
                 current = self.get_volume()
                 if current:
                     self.volume_created = True
                     modify = self.set_modify_dict(current, after_create=True)
+                    is_online = current.get('is_online')
                     if modify:
-                        actions.append('modify')
+                        if is_online:
+                            actions.append('modify')
+                        else:
+                            self.module.warn("Cannot perform actions: modify when volume is offline.")
                 # restore this, as set_modify_dict could set it to False
                 self.na_helper.changed = True
             if 'delete' in actions:
@@ -2828,7 +2852,7 @@ class NetAppOntapVolume:
                 self.delete_volume(current)
             if 'modify' in actions:
                 self.parameters['uuid'] = current['uuid']
-                self.take_modify_actions(modify, current.get('is_online'))
+                self.take_modify_actions(modify)
 
         result = netapp_utils.generate_result(self.na_helper.changed, actions, modify, response)
         self.module.exit_json(**result)

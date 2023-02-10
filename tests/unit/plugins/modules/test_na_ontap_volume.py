@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -933,11 +933,8 @@ def test_modify_helper():
         ('ZAPI', 'volume-offline', ZRR['success']),
     ])
     module_args = {'is_online': False}
-    modify = {
-        'is_online': False,
-        'junction_path': 'something'
-    }
-    assert create_module(vol_module, DEFAULT_ARGS, module_args).modify_volume(modify, True) is None
+    modify = {'is_online': False}
+    assert create_module(vol_module, DEFAULT_ARGS, module_args).take_modify_actions(modify) is None
 
 
 def test_compare_chmod_value_true_1():
@@ -1311,7 +1308,7 @@ def setup_offline_state():
         'vserver': MOCK_VOL['vserver'],
         'style_extended': 'flexgroup',
         'is_online': True,
-        'junction_path': 'anything',
+        'junction_path': '/test',
         'unix_permissions': '755',
         'uuid': '1234'
     }
@@ -1917,9 +1914,9 @@ def test_create_volume_from_main():
         ('ZAPI', 'volume-create', ZRR['success']),
         ('ZAPI', 'volume-get-iter', ZRR['get_flexvol']),
         ('ZAPI', 'sis-get-iter', ZRR['no_records']),
-        ('ZAPI', 'volume-unmount', ZRR['success']),
-        ('ZAPI', 'volume-offline', ZRR['success']),
         ('ZAPI', 'volume-modify-iter', ZRR['success']),
+        ('ZAPI', 'volume-unmount', ZRR['success']),
+        ('ZAPI', 'volume-offline', ZRR['success'])
     ])
     args = dict(DEFAULT_ARGS)
     del args['space_slo']
