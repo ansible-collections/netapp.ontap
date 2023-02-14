@@ -116,7 +116,7 @@ def test_create_s3_service_error():
     my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['enabled'] = True
     my_obj.parameters['comment'] = 'this is a s3 service'
-    my_obj.parameters['certificate_name'] = 'cert1',
+    my_obj.parameters['certificate_name'] = 'cert1'
     error = expect_and_capture_ansible_exception(my_obj.create_s3_service, 'fail')['msg']
     print('Info: %s' % error)
     assert 'Error creating S3 service service1: calling: protocols/s3/services: got Expected error.' == error

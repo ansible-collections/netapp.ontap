@@ -414,12 +414,12 @@ def test_error_rename_lun():
         ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
-    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1',
+    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1'
     my_obj.parameters['from_name'] = '/vol/volume1/qtree1/lun1'
     my_obj.uuid = '1cd8a442-86d1-11e0-ae1c-123478563412'
     error = expect_and_capture_ansible_exception(my_obj.rename_lun_rest, 'fail', '/vol/volume1/qtree12/lun1')['msg']
     print('Info: %s' % error)
-    assert "Error renaming LUN ('/vol/volume1/qtree12/lun1',): calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
+    assert "Error renaming LUN /vol/volume1/qtree12/lun1: calling: storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412: got Expected error." == error
 
 
 def test_error_rename_lun_missing_uuid():
@@ -427,7 +427,7 @@ def test_error_rename_lun_missing_uuid():
         ('GET', 'cluster', SRR['is_rest']),
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
-    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1',
+    my_obj.parameters['name'] = '/vol/volume1/qtree12/lun1'
     my_obj.parameters['from_name'] = '/vol/volume1/qtree1/lun1'
     error = expect_and_capture_ansible_exception(my_obj.rename_lun_rest, 'fail', '/vol/volume1/qtree12/lun1')['msg']
     print('Info: %s' % error)
