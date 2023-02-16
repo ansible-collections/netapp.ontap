@@ -186,9 +186,7 @@ RETURN = """
 """
 
 import time
-import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
@@ -236,7 +234,7 @@ class NetAppONTAPVserverAudit:
 
         # set up variables
         self.na_helper = NetAppModule()
-        self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.parameters = self.na_helper.filter_out_none_entries(self.na_helper.set_parameters(self.module.params))
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_vserver_audit', 9, 6)
@@ -245,7 +243,7 @@ class NetAppONTAPVserverAudit:
         self.svm_uuid = None
         if 'events' in self.parameters and self.parameters['state'] == 'present':
             if all(self.parameters['events'][value] is False for value in self.parameters['events']) is True:
-                self.module.fail_json(msg="At least one event should be enabled")
+                self.module.fail_json(msg="Error: At least one event should be enabled")
 
     def get_vserver_audit_configuration_rest(self):
         """
@@ -281,16 +279,16 @@ class NetAppONTAPVserverAudit:
             body['events'] = self.parameters['events']
         if 'guarantee' in self.parameters:
             body['guarantee'] = self.parameters['guarantee']
-        if 'log' in self.parameters:
-            if 'retention' in self.parameters['log']:
-                if 'count' in self.parameters['log']['retention']:
-                    body['log.retention.count'] = self.parameters['log']['retention']['count']
-                elif 'duration' in self.parameters['log']['retention']:
-                    body['log.retention.duration'] = self.parameters['log']['retention']['duration']
-            if 'rotation' in self.parameters['log']:
-                body['log.rotation.size'] = self.parameters['log']['rotation']['size']
-            if 'format' in self.parameters['log']:
-                body['log.format'] = self.parameters['log']['format']
+        if self.na_helper.safe_get(self.parameters, ['log', 'retention', 'count']):
+            body['log.retention.count'] = self.parameters['log']['retention']['count']
+        if self.na_helper.safe_get(self.parameters, ['log', 'retention', 'duration']):
+            body['log.retention.duration'] = self.parameters['log']['retention']['duration']
+        if self.na_helper.safe_get(self.parameters, ['log', 'rotation', 'size']):
+            body['log.rotation.size'] = self.parameters['log']['rotation']['size']
+        if self.na_helper.safe_get(self.parameters, ['log', 'format']):
+            body['log.format'] = self.parameters['log']['format']
+        if 'log_path' in self.parameters:
+            body['log_path'] = self.parameters['log_path']
         return body
 
     def create_vserver_audit_configuration_rest(self):
@@ -301,8 +299,6 @@ class NetAppONTAPVserverAudit:
         body = self.create_vserver_audit_config_body_rest()
         if 'vserver' in self.parameters:
             body['svm.name'] = self.parameters.get('vserver')
-        if 'vserver' in self.parameters:
-            body['log_path'] = self.parameters.get('log_path')
         if 'enabled' in self.parameters:
             body['enabled'] = self.parameters['enabled']
         record, error = rest_generic.post_async(self.rest_api, api, body)
@@ -358,7 +354,7 @@ class NetAppONTAPVserverAudit:
                 if 'enabled' in modify:
                     self.modify_vserver_audit_configuration_rest(modify)
                     modify.pop('enabled')
-                if len(modify) > 0:
+                if modify:
                     # This method will be called to modify fields other than enabled
                     self.modify_vserver_audit_configuration_rest(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
