@@ -217,6 +217,7 @@ options:
   space_guarantee:
     description:
       - Space guarantee style for the volume.
+      - The file setting is no longer supported.
     choices: ['none', 'file', 'volume']
     type: str
 
@@ -1911,6 +1912,9 @@ class NetAppOntapVolume:
 
     def modify_volume(self, modify):
         '''Modify volume action'''
+        # snaplock requires volume in unmount state.
+        if modify.get('junction_path') == '':
+            self.volume_unmount()
         attributes = modify.keys()
         for attribute in attributes:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
@@ -1925,11 +1929,8 @@ class NetAppOntapVolume:
             # disabled this in rest
             self.set_snapshot_auto_delete()
         # don't mount or unmount when offline
-        if 'junction_path' in attributes:
-            if modify.get('junction_path') == '':
-                self.volume_unmount()
-            else:
-                self.volume_mount()
+        if modify.get('junction_path'):
+            self.volume_mount()
         if 'size' in attributes:
             self.resize_volume()
         if 'aggregate_name' in attributes:

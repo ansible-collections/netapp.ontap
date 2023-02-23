@@ -4,7 +4,7 @@
 na_ontap_snapmirror
 '''
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -1452,7 +1452,7 @@ class NetAppONTAPSnapmirror(object):
         """
         body, initialized = self.get_create_body()
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=60)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=600)
         if error:
             self.module.fail_json(msg='Error creating SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
         if self.parameters['initialize']:

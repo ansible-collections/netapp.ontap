@@ -67,11 +67,13 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_rest_cli - returns changed only for verbs POST, PATCH and DELETE.
+  - na_ontap_snapmirror - wait 600 seconds for snapmirror creation to complete in REST.
 
 ## Bug Fixes
   - na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
   - na_ontap_ldap_client - fix KeyError on `name` in ZAPI.
   - na_ontap_san_create - Role documentation correct to from nas to san.
+  - na_ontap_volume - fix error when try to unmount volume and modify snaplock attribute.
   - na_ontap_volume - fix idempotent issue when try to offline and modify other volume options.
   - na_ontap_vserver_audit - fix invalid field value error of log retention count and duration.
   - na_ontap_vserver_audit - Added `log_path` option in modify.
