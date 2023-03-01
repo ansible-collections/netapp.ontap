@@ -396,7 +396,7 @@ def test_create_user_role_9_10_new_format_2_path_only():
 
 def test_create_user_role_9_10_old_format():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
         ('POST', 'security/roles', SRR['empty_good']),
         ('GET', 'security/roles', SRR['user_role_9_10'])
@@ -433,7 +433,7 @@ def test_create_user_role_error():
 
 def test_delete_user_role():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_10']),
         ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin', SRR['empty_good']),
         ('GET', 'security/roles', SRR['empty_records'])
@@ -603,7 +603,7 @@ def test_command_directory_present_rest():
 
 def test_warnings_additional_commands_added_after_create():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
         ('POST', 'security/roles', SRR['empty_good']),
         ('GET', 'security/roles', SRR['user_role_volume'])
@@ -615,7 +615,7 @@ def test_warnings_additional_commands_added_after_create():
 
 def test_warnings_create_required_after_modify():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_volume']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_volume_privileges']),
         ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/volume modify', SRR['empty_good']),
@@ -628,7 +628,7 @@ def test_warnings_create_required_after_modify():
 
 def test_warnings_modify_required_after_original_modify():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_volume']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_volume_privileges']),
         ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/volume modify', SRR['error_4']),
@@ -637,3 +637,11 @@ def test_warnings_modify_required_after_original_modify():
     args = {'privileges': [{'path': 'volume create', 'access': 'readonly'}]}
     assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
     assert_warning_was_raised("modify is required, desired", partial_match=True)
+
+
+def test_error_with_legacy_commands_9_10_1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
+    ])
+    args = {'privileges': [{'path': 'volume create', 'access': 'readonly'}]}
+    assert "Error: Invalid URI ['volume create']" in create_module(my_module, DEFAULT_ARGS, args, fail=True)['msg']

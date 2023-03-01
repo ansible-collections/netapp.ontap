@@ -66,10 +66,13 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.4.0
 
 ### Minor Changes
+  - na_ontap_user_role - add support for rest-role `privileges.access` choices `read_create`, `read_modify` and `read_create_modify`, supported only with REST and requires ONTAP 9.11.1 or later versions.
+  - na_ontap_user_role - `command_directory_name` requires 9.11.1 or later with REST.
   - na_ontap_rest_cli - returns changed only for verbs POST, PATCH and DELETE.
   - na_ontap_snapmirror - wait 600 seconds for snapmirror creation to complete in REST.
 
 ## Bug Fixes
+  - na_ontap_user_role - report error when command/command directory path set in REST for ONTAP earlier versions.
   - na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
   - na_ontap_ldap_client - fix KeyError on `name` in ZAPI.
   - na_ontap_san_create - Role documentation correct to from nas to san.
