@@ -65,6 +65,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.4.0
 
+### New Options
+  - na_ontap_snapmirror - new option `identity_preservation` added in REST.
+
 ### Minor Changes
   - na_ontap_user_role - add support for rest-role `privileges.access` choices `read_create`, `read_modify` and `read_create_modify`, supported only with REST and requires ONTAP 9.11.1 or later versions.
   - na_ontap_user_role - `command_directory_name` requires 9.11.1 or later with REST.

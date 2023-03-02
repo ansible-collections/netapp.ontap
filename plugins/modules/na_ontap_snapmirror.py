@@ -312,6 +312,14 @@ options:
     default: True
     type: bool
     version_added: 21.21.0
+  identity_preservation:
+    description:
+      - Specifies which configuration of the source SVM is replicated to the destination SVM.
+      - This property is applicable only for SVM data protection with "async" policy type.
+      - Only supported with REST and requires ONTAP 9.11.1 or later.
+    type: str
+    choices: ['full', 'exclude_network_config', 'exclude_network_and_protocol_config']
+    version_added: '22.4.0'
 
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
@@ -539,6 +547,7 @@ class NetAppONTAPSnapmirror(object):
             initialize=dict(required=False, type='bool', default=True),
             update=dict(required=False, type='bool', default=True),
             identity_preserve=dict(required=False, type='bool'),
+            identity_preservation=dict(required=False, type="str", choices=['full', 'exclude_network_config', 'exclude_network_and_protocol_config']),
             relationship_state=dict(required=False, type='str', choices=['active', 'broken'], default='active'),
             relationship_info_only=dict(required=False, type='bool', default=False),
             source_snapshot=dict(required=False, type='str'),
@@ -574,7 +583,8 @@ class NetAppONTAPSnapmirror(object):
                 ('destination_endpoint', 'destination_vserver'),
                 ('peer_options', 'source_hostname'),
                 ('peer_options', 'source_username'),
-                ('peer_options', 'source_password')
+                ('peer_options', 'source_password'),
+                ('identity_preserve', 'identity_preservation')
             ],
             required_together=(['source_volume', 'destination_volume'],
                                ['source_vserver', 'destination_vserver'],
@@ -821,6 +831,8 @@ class NetAppONTAPSnapmirror(object):
             body['policy'] = {'name': self.parameters['policy']}
         if self.na_helper.safe_get(self.parameters, ['schedule']) is not None:
             body['transfer_schedule'] = {'name': self.string_or_none(self.parameters['schedule'])}
+        if self.parameters.get('identity_preservation'):
+            body['identity_preservation'] = self.parameters['identity_preservation']
         return body, initialized
 
     def snapmirror_create(self):
