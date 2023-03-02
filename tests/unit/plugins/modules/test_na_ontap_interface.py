@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -12,7 +12,7 @@ import sys
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings,\
     assert_warning_was_raised, print_warnings, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
     patch_request_and_invoke, register_responses
@@ -1495,7 +1495,6 @@ def test_error_messages_rest_find_interface():
     record = my_obj.find_exact_match(records, 'name')
     assert record == {'name': 'node_name'}
     assert_warning_was_raised("Found both ['name', 'node_name'], selecting node_name")
-    assert_warning_was_raised("adjusting name from name to node_name")
     # fifth call (get nodes, cached)
     # multiple records with different home nodes
     del my_obj.parameters['home_node']
@@ -1746,3 +1745,34 @@ def test_set_options_rest():
     check_options(my_obj, {'home_node': 'node1', 'home_port': 'port1'}, {'location': {'home_port': {'name': 'port1', 'node': {'name': 'node1'}}}}, {}, {})
     my_obj.parameters['current_node'] = 'node1'
     check_options(my_obj, {'current_node': 'node1', 'current_port': 'port1'}, {}, {'location': {'port': {'name': 'port1', 'node': {'name': 'node1'}}}}, {})
+
+
+def test_not_throw_warnings_in_rename():
+    ''' assert no warnings raised during rename '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'network/ip/interfaces', SRR['zero_records']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_vserver']),
+        ('GET', 'cluster/nodes', SRR['nodes']),
+        ('PATCH', 'network/ip/interfaces/54321', SRR['success']),
+    ])
+    module_args = {
+        "from_name": "abc_if",
+        "interface_name": "abc_if_update",
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert_no_warnings()
+
+
+def test_throw_warnings_modify_rename():
+    ''' assert warnings raised when interface_name does not have node name in it. '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'network/ip/interfaces', SRR['one_record_home_node']),
+        ('GET', 'cluster/nodes', SRR['nodes'])
+    ])
+    assert not call_main(my_main, DEFAULT_ARGS)['changed']
+    print_warnings()
+    # current record name is 'node2_abc_if' and interface_name does not have node name in it.
+    # adjust to avoid rename attempt.
+    assert_warning_was_raised('adjusting name from abc_if to node2_abc_if')

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -653,7 +653,7 @@ class NetAppOntapInterface:
                                       % (name, [record['name'] for record in (record, home_record)]))
         if home_record:
             record = home_record
-        if record and self.parameters.get('interface_name') != record['name']:
+        if record and name == self.parameters['interface_name'] and name != record['name']:
             # fix name, otherwise we'll attempt a rename :(
             self.parameters['interface_name'] = record['name']
             self.module.warn('adjusting name from %s to %s' % (name, record['name']))
