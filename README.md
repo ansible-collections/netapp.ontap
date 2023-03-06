@@ -66,6 +66,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.4.0
 
 ### New Options
+  - na_ontap_security_config - new option `supported_cipher_suites` added in REST.
   - na_ontap_snapmirror - new option `identity_preservation` added in REST.
 
 ### Minor Changes
@@ -73,6 +74,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_user_role - `command_directory_name` requires 9.11.1 or later with REST.
   - na_ontap_rest_cli - returns changed only for verbs POST, PATCH and DELETE.
   - na_ontap_snapmirror - wait 600 seconds for snapmirror creation to complete in REST.
+  - na_ontap_security_config - Replaced private cli with REST API for GET and PATCH.
+  - na_ontap_security_config - Added support for protocol version `TLSV1.3`.
 
 ## Bug Fixes
   - na_ontap_interface - fix incorrect warning raised when try to rename interface.

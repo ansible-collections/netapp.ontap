@@ -1,227 +1,240 @@
+# (c) 2021-2023, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 ''' unit tests ONTAP Ansible module: na_ontap_security_config '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    call_main, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson, patch_ansible
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
+from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_config \
-    import NetAppOntapSecurityConfig as security_config_module  # module under test
+    import NetAppOntapSecurityConfig as security_config_module, main as my_main  # module under test
 
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, {}, None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'end_of_sequence': (500, None, "Ooops, the UT needs one more SRR response"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     # module specific responses
     'security_config_record': (200, {
         "records": [{
-            "interface": "ssl",
             "is_fips_enabled": False,
             "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
-            "supported_ciphers": 'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!DES:!RC4'
-        }]
-    }, None)
+            "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM_8'
+        }], "num_records": 1
+    }, None),
+    "no_record": (
+        200,
+        {"num_records": 0},
+        None)
+})
+
+
+security_config_info = {
+    'num-records': 1,
+    'attributes': {
+        'security-config-info': {
+            "interface": 'ssl',
+            "is-fips-enabled": False,
+            "supported-protocols": ['TLSv1.2', 'TLSv1.1'],
+            "supported-ciphers": 'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!DES:!RC4'
+        }
+    },
 }
 
 
-class MockONTAPConnection(object):
-    ''' mock server connection to ONTAP host '''
-
-    def __init__(self, kind=None):
-        ''' save arguments '''
-        self.type = kind
-        self.xml_in = None
-        self.xml_out = None
-
-    def invoke_successfully(self, xml, enable_tunneling):  # pylint: disable=unused-argument
-        ''' mock invoke_successfully returning xml data '''
-        self.xml_in = xml
-        if self.type == 'security_config':
-            xml = self.build_security_config_info()
-        elif self.type == 'security_config_fail':
-            raise netapp_utils.zapi.NaApiError(code='TEST', message="This exception is from the unit test")
-        self.xml_out = xml
-        return xml
-
-    @staticmethod
-    def build_security_config_info():
-        ''' build xml data for cluster-security-config-info '''
-        xml = netapp_utils.zapi.NaElement('xml')
-        data = {
-            'attributes': {
-                'security-config-info': {
-                    "interface": "ssl",
-                    "is-fips-enabled": "false",
-                    "supported-protocols": [
-                        {"string": 'TLSv1.2'},
-                        {"string": 'TLSv1.1'}
-                    ],
-                    "supported-ciphers": 'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!DES:!RC4'
-                }
-            }
-        }
-
-        xml.translate_struct(data)
-        return xml
+ZRR = zapi_responses({
+    'security_config_info': build_zapi_response(security_config_info)
+})
 
 
-class TestMyModule(unittest.TestCase):
-    ''' a group of related Unit Tests '''
+DEFAULT_ARGS = {
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'use_rest': 'never',
+}
 
-    def setUp(self):
-        self.server = MockONTAPConnection()
-        self.onbox = False
 
-    def set_default_args(self, use_rest=None):
-        if self.onbox:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            name = 'ssl'
-            is_fips_enabled = False
-            supported_protocols = ["TLSv1.2", "TLSv1.1"]
-        else:
-            hostname = '10.10.10.10'
-            username = 'username'
-            password = 'password'
-            name = 'ssl'
-            is_fips_enabled = False
-            supported_protocols = ["TLSv1.2", "TLSv1.1"]
+def test_module_fail_when_required_args_missing():
+    ''' required arguments are reported as errors '''
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args({})
+        security_config_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
 
-        args = dict({
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'name': name,
-            'is_fips_enabled': is_fips_enabled,
-            'supported_protocols': supported_protocols
-        })
 
-        if use_rest is not None:
-            args['use_rest'] = use_rest
+def test_error_get_security_config_info():
+    register_responses([
+        ('ZAPI', 'security-config-get', ZRR['error'])
+    ])
+    module_args = {
+        "name": 'ssl',
+        "is_fips_enabled": False,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1']
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error getting security config for interface"
+    assert msg in error
 
-        return args
 
-    @staticmethod
-    def get_security_config_mock_object(cx_type='zapi', kind=None):
-        security_config_obj = security_config_module()
-        if cx_type == 'zapi':
-            if kind is None:
-                security_config_obj.server = MockONTAPConnection()
-            else:
-                security_config_obj.server = MockONTAPConnection(kind=kind)
-        return security_config_obj
+def test_get_security_config_info():
+    register_responses([
+        ('security-config-get', ZRR['security_config_info'])
+    ])
+    security_obj = create_module(security_config_module, DEFAULT_ARGS)
+    result = security_obj.get_security_config()
+    assert result
 
-    def test_module_fail_when_required_args_missing(self):
-        ''' required arguments are reported as errors '''
-        with pytest.raises(AnsibleFailJson) as exc:
-            set_module_args({})
-            security_config_module()
-        print('Info: %s' % exc.value.args[0]['msg'])
 
-    def test_ensure_get_called(self):
-        ''' test get_security_config for non-existent config'''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = security_config_module()
-        my_obj.server = self.server
-        assert my_obj.get_security_config is not None
+def test_modify_security_config_fips():
+    register_responses([
+        ('ZAPI', 'security-config-get', ZRR['security_config_info']),
+        ('ZAPI', 'security-config-modify', ZRR['success'])
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
-    def test_ensure_get_called_existing(self):
-        ''' test get_security_config for existing config'''
-        set_module_args(self.set_default_args(use_rest='Never'))
-        my_obj = security_config_module()
-        my_obj.server = MockONTAPConnection(kind='security_config')
-        assert my_obj.get_security_config()
 
-    @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_config.NetAppOntapSecurityConfig.modify_security_config')
-    def test_successful_modify(self, modify_security_config):
-        ''' modifying security_config and testing idempotency '''
-        data = self.set_default_args(use_rest='Never')
-        data['is_fips_enabled'] = True  # Modify to True
-        set_module_args(data)
-        my_obj = security_config_module()
-        my_obj.ems_log_event = Mock(return_value=None)
+def test_error_modify_security_config_fips():
+    register_responses([
+        ('ZAPI', 'security-config-get', ZRR['security_config_info']),
+        ('ZAPI', 'security-config-modify', ZRR['error'])
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert "Error modifying security config for interface" in error
 
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('security_config')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert exc.value.args[0]['changed']
 
-        #  reset na_helper from remembering the previous 'changed' value
-        data['is_fips_enabled'] = False
-        set_module_args(data)
-        my_obj = security_config_module()
-        my_obj.ems_log_event = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('security_config')
-        with pytest.raises(AnsibleExitJson) as exc:
-            my_obj.apply()
-        assert not exc.value.args[0]['changed']
+def test_error_security_config():
+    register_responses([
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1', 'TLSv1'],
+    }
+    error = create_module(security_config_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'If fips is enabled then TLSv1 is not a supported protocol' in error
 
-    def test_if_all_methods_catch_exception(self):
-        data = self.set_default_args(use_rest='Never')
-        set_module_args(data)
-        my_obj = security_config_module()
-        my_obj.ems_log_event = Mock(return_value=None)
-        if not self.onbox:
-            my_obj.server = MockONTAPConnection('security_config_fail')
-        with pytest.raises(AnsibleFailJson) as exc:
-            my_obj.modify_security_config()
-        assert 'Error modifying security config ' in exc.value.args[0]['msg']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_rest_error(self, mock_request):
-        data = self.set_default_args()
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['generic_error'],
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleFailJson) as exc:
-            self.get_security_config_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['msg'] == SRR['generic_error'][2]
+def test_error_security_config_supported_ciphers():
+    register_responses([
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_ciphers": 'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!DES:!RC4',
+    }
+    error = create_module(security_config_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'If fips is enabled then supported ciphers should not be specified' in error
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_successful_modify_rest(self, mock_request):
-        data = self.set_default_args()
-        data['name'] = 'ssl'
-        data['is_fips_enabled'] = True
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['security_config_record'],  # get
-            SRR['empty_good'],  # delete
-            SRR['empty_good'],  # post
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_security_config_mock_object(cx_type='rest').apply()
-        assert exc.value.args[0]['changed']
 
-    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-    def test_idempotent_modify_rest(self, mock_request):
-        data = self.set_default_args()
-        data['name'] = 'ssl'
-        set_module_args(data)
-        mock_request.side_effect = [
-            SRR['is_rest'],
-            SRR['security_config_record'],  # get
-            SRR['end_of_sequence']
-        ]
-        with pytest.raises(AnsibleExitJson) as exc:
-            self.get_security_config_mock_object(cx_type='rest').apply()
-        assert not exc.value.args[0]['changed']
+ARGS_REST = {
+    'hostname': 'test',
+    'username': 'test_user',
+    'password': 'test_pass!',
+    'use_rest': 'always'
+}
+
+
+def test_rest_error_get():
+    '''Test error rest get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', '/security', SRR['generic_error']),
+    ])
+    module_args = {
+        "is_fips_enabled": False,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1']
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    assert "Error on getting security config: calling: /security: got Expected error." in error
+
+
+def test_rest_get_security_config():
+    '''Test error rest get'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', '/security', SRR['security_config_record']),
+    ])
+    module_args = {
+        "is_fips_enabled": False,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1']
+    }
+    security_obj = create_module(security_config_module, ARGS_REST, module_args)
+    result = security_obj.get_security_config_rest()
+    assert result
+
+
+def test_rest_modify_security_config():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', '/security', SRR['security_config_record']),
+        ('PATCH', '/security', SRR['success']),
+    ])
+    module_args = {
+        "is_fips_enabled": False,
+        "supported_protocols": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+    }
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_rest_error_security_config():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1', 'TLSv1'],
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+    }
+    error = create_module(security_config_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'If fips is enabled then TLSv1 is not a supported protocol' in error
+
+
+def test_rest_error_modify_security_config():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', '/security', SRR['security_config_record']),
+        ('PATCH', '/security', SRR['generic_error']),
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+    }
+    error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
+    assert "Error on modifying security config: calling: /security: got Expected error." in error
+
+
+def test_rest_modify_security_config_fips():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', '/security', SRR['security_config_record']),
+        ('PATCH', '/security', SRR['success']),
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+    }
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
