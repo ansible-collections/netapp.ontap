@@ -77,11 +77,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_config - Replaced private cli with REST API for GET and PATCH.
   - na_ontap_security_config - Added support for protocol version `TLSV1.3`.
 
-## Bug Fixes
+### Bug Fixes
   - na_ontap_interface - fix incorrect warning raised when try to rename interface.
   - na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
   - na_ontap_ldap_client - fix KeyError on `name` in ZAPI.
   - na_ontap_san_create - Role documentation correct to from nas to san.
+  - na_ontap_user - fix KeyError vserver in ZAPI.
   - na_ontap_user_role - report error when command/command directory path set in REST for ONTAP earlier versions.
   - na_ontap_volume - fix error when try to unmount volume and modify snaplock attribute.
   - na_ontap_volume - fix idempotent issue when try to offline and modify other volume options.

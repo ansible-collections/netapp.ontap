@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_user '''
@@ -353,6 +353,8 @@ def test_if_all_methods_catch_exception():
     assert zapi_error_message('Error removing user user_name') in expect_and_capture_ansible_exception(my_obj.delete_user, 'fail', app)['msg']
     assert zapi_error_message('Error setting password for user user_name') in expect_and_capture_ansible_exception(my_obj.change_password, 'fail')['msg']
     assert zapi_error_message('Error modifying user user_name') in expect_and_capture_ansible_exception(my_obj.modify_user, 'fail', app, ['password'])['msg']
+    err_msg = 'vserver is required with ZAPI'
+    assert err_msg in create_module(my_module, DEFAULT_ARGS, {'use_rest': 'never', 'svm': None}, fail=True)['msg']
 
 
 def test_create_user_with_usm_auth():
