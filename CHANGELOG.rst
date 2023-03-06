@@ -5,6 +5,40 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.4.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_rest_cli - returns changed only for verbs POST, PATCH and DELETE.
+- na_ontap_security_config - Added support for protocol version ``TLSV1.3``.
+- na_ontap_security_config - Replaced private cli with REST API for GET and PATCH.
+- na_ontap_security_config - new option ``supported_cipher_suites`` added in REST.
+- na_ontap_snapmirror - new option ``identity_preservation`` added in REST.
+- na_ontap_snapmirror - wait 600 seconds for snapmirror creation to complete in REST.
+- na_ontap_user_role - ``command_directory_name`` requires 9.11.1 or later with REST.
+- na_ontap_user_role - add support for rest-role ``privileges.access`` choices ``read_create``, ``read_modify`` and ``read_create_modify``, supported only with REST and requires ONTAP 9.11.1 or later versions.
+
+Bugfixes
+--------
+
+- na_ontap_interface - fix incorrect warning raised when try to rename interface.
+- na_ontap_ldap_client - fix KeyError on ``name`` in ZAPI.
+- na_ontap_ldap_client - fix duplicate entry error when used cluster vserver in REST.
+- na_ontap_san_create - Role documentation correct to from nas to san
+- na_ontap_user - fix KeyError vserver in ZAPI.
+- na_ontap_user_role - report error when command/command directory path set in REST for ONTAP earlier versions.
+- na_ontap_volume - fix error when try to unmount volume and modify snaplock attribute.
+- na_ontap_volume - fix idempotent issue when try to offline and modify other volume options.
+- na_ontap_vserver_audit - Added ``log_path`` option in modify.
+- na_ontap_vserver_audit - fix invalid field value error of log retention count and duration.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_ems_filter - NetApp ONTAP EMS Filter
+
 v22.3.0
 =======
 
