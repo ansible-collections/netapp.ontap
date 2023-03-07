@@ -2911,3 +2911,11 @@ releases:
       name: na_ontap_ems_filter
       namespace: ''
     release_date: '2023-03-06'
+  22.4.1:
+    changes:
+      bugfixes:
+      - na_ontap_snapmirror - fix invalid value error for return_timeout, modified
+        the value to 120 seconds.
+    fragments:
+    - DEVOPS-5952.yaml
+    release_date: '2023-03-07'
