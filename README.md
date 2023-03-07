@@ -63,6 +63,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.4.1
+
+### Bug Fixes
+  - na_ontap_snapmirror - fix invalid value error for return_timeout, modified the value to 120 seconds.
+
 ## 22.4.0
 
 ### New Options

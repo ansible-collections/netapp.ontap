@@ -1464,7 +1464,7 @@ class NetAppONTAPSnapmirror(object):
         """
         body, initialized = self.get_create_body()
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=600)
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=120)
         if error:
             self.module.fail_json(msg='Error creating SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
         if self.parameters['initialize']:
