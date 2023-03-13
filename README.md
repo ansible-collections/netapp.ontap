@@ -63,6 +63,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.5.0
+
+### New Options
+  - na_ontap_cifs - new options `browsable` and `show_previous_versions` added in REST.
+
 ## 22.4.1
 
 ### Bug Fixes

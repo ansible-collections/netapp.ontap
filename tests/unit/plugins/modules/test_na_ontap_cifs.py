@@ -48,7 +48,9 @@ SRR = rest_responses({
                     "continuously_available": True,
                     "show_snapshot": True,
                     "namespace_caching": True,
-                    "allow_unencrypted_access": True
+                    "allow_unencrypted_access": True,
+                    "browsable": True,
+                    "show_previous_versions": True
                 }
             ],
             "num_records": 1
@@ -376,14 +378,16 @@ def test_modify_cifs_share_properties_2():
         ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
     ])
     module_args = {
-        "access_based_enumeration": "False",
-        "change_notify": "False",
-        "encryption": "True",
-        "oplocks": "True",
-        "continuously_available": "False",
-        "show_snapshot": "False",
-        "namespace_caching": "False",
-        "allow_unencrypted_access": "False"
+        "access_based_enumeration": False,
+        "change_notify": False,
+        "encryption": True,
+        "oplocks": True,
+        "continuously_available": False,
+        "show_snapshot": False,
+        "namespace_caching": False,
+        "allow_unencrypted_access": False,
+        "browsable": False,
+        "show_previous_versions": False
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 

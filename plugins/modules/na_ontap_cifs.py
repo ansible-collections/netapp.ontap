@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # import untangle
 
@@ -156,6 +156,20 @@ options:
     type: bool
     version_added: 22.3.0
 
+  browsable:
+    description:
+      - Specifies whether or not the Windows clients can browse the share.
+      - This option requires REST and ONTAP 9.13.1 or later.
+    type: bool
+    version_added: 22.5.0
+
+  show_previous_versions:
+    description:
+      - Specifies that the previous version can be viewed and restored from the client.
+      - This option requires REST and ONTAP 9.13.1 or later.
+    type: bool
+    version_added: 22.5.0
+
 short_description: NetApp ONTAP Manage cifs-share
 version_added: 2.6.0
 
@@ -234,6 +248,8 @@ class NetAppONTAPCifsShare:
             allow_unencrypted_access=dict(required=False, type='bool'),
             namespace_caching=dict(required=False, type='bool'),
             continuously_available=dict(required=False, type='bool'),
+            browsable=dict(required=False, type='bool'),
+            show_previous_versions=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -249,7 +265,8 @@ class NetAppONTAPCifsShare:
         unsupported_rest_properties = ['share_properties', 'symlink_properties', 'vscan_fileop_profile']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         self.unsupported_zapi_properties = ['access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
-                                            'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access']
+                                            'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access',
+                                            'browsable', 'show_previous_versions']
         self.svm_uuid = None
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -394,6 +411,8 @@ class NetAppONTAPCifsShare:
             options['fields'] += 'show_snapshot,namespace_caching,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
             options['fields'] += 'allow_unencrypted_access,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
+            options['fields'] += 'browsable,show_previous_versions,'
         api = 'protocols/cifs/shares'
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
@@ -412,6 +431,8 @@ class NetAppONTAPCifsShare:
                 'show_snapshot': record.get('show_snapshot'),
                 'namespace_caching': record.get('namespace_caching'),
                 'allow_unencrypted_access': record.get('allow_unencrypted_access'),
+                'browsable': record.get('browsable'),
+                'show_previous_versions': record.get('show_previous_versions'),
             }
         return None
 
@@ -419,7 +440,7 @@ class NetAppONTAPCifsShare:
         body = {}
         options = ['path', 'comment', 'unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption',
                    'home_directory', 'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching',
-                   'allow_unencrypted_access']
+                   'allow_unencrypted_access', 'browsable', 'show_previous_versions']
         for key in options:
             if not modify and key in self.parameters:
                 body[key] = self.parameters[key]
