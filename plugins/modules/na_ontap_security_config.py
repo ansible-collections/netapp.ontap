@@ -49,6 +49,7 @@ options:
     description:
       - Names a cipher suite that the system can select during TLS handshakes.
       - A list of available options can be found on the Internet Assigned Number Authority (IANA) website.
+      - To achieve idempotency all similar cipher_suites must be set.
       - This option requires ontap version 9.10.1 or later.
     type: list
     elements: str
@@ -152,6 +153,11 @@ class NetAppOntapSecurityConfig:
                 self.module.fail_json(
                     msg='is_fips_enabled was specified as true and TLSv1 was specified as a supported protocol. \
                     If fips is enabled then TLSv1 is not a supported protocol')
+            #  if fips is enabled, TLSv1.1 is not a supported protocol.
+            if self.parameters['is_fips_enabled'] and 'TLSv1.1' in self.parameters['supported_protocols']:
+                self.module.fail_json(
+                    msg='is_fips_enabled was specified as true and TLSv1.1 was specified as a supported protocol. \
+                    If fips is enabled then TLSv1.1 is not a supported protocol')
 
     def get_security_config(self):
         """

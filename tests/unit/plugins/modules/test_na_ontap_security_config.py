@@ -26,7 +26,7 @@ SRR = rest_responses({
     'security_config_record': (200, {
         "records": [{
             "is_fips_enabled": False,
-            "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+            "supported_protocols": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
             "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM_8'
         }], "num_records": 1
     }, None),
@@ -101,7 +101,7 @@ def test_modify_security_config_fips():
     ])
     module_args = {
         "is_fips_enabled": True,
-        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
@@ -113,7 +113,7 @@ def test_error_modify_security_config_fips():
     ])
     module_args = {
         "is_fips_enabled": True,
-        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
     }
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert "Error modifying security config for interface" in error
@@ -209,6 +209,20 @@ def test_rest_error_security_config():
     assert 'If fips is enabled then TLSv1 is not a supported protocol' in error
 
 
+def test_rest_error_security_config_protocol():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    module_args = {
+        "is_fips_enabled": True,
+        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+    }
+    error = create_module(security_config_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'If fips is enabled then TLSv1.1 is not a supported protocol' in error
+
+
 def test_rest_error_modify_security_config():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -218,7 +232,7 @@ def test_rest_error_modify_security_config():
     ])
     module_args = {
         "is_fips_enabled": True,
-        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
         "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
     }
     error = call_main(my_main, ARGS_REST, module_args, fail=True)['msg']
@@ -234,7 +248,7 @@ def test_rest_modify_security_config_fips():
     ])
     module_args = {
         "is_fips_enabled": True,
-        "supported_protocols": ['TLSv1.2', 'TLSv1.1'],
+        "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
         "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
     }
     assert call_main(my_main, ARGS_REST, module_args)['changed']

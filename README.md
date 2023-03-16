@@ -68,6 +68,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Options
   - na_ontap_cifs - new options `browsable` and `show_previous_versions` added in REST.
 
+### Minor Changes
+  - na_ontap_security_config - updated documentation for `supported_cipher_suites`.
+
+### Bug Fixes
+  - na_ontap_security_config - fix error on specifying protocol version `TLSv1.1` when fips is enabled.
+
 ## 22.4.1
 
 ### Bug Fixes
