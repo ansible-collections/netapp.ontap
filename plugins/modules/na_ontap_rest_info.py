@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ NetApp ONTAP Info using REST APIs """
@@ -421,6 +421,33 @@ EXAMPLES = '''
       vserver: svm1
       path: /vol1/qtree1
     use_python_keys: true
+
+- name: get ip network interface info.
+  netapp.ontap.na_ontap_rest_info:
+    hostname: "1.2.3.4"
+    username: "testuser"
+    password: "test-password"
+    https: true
+    validate_certs: false
+    gather_subset:
+      - ip_interfaces_info
+    parameters:
+      location.failover: home_node_only
+      location.node.name: ontap_cluster
+      service_policy.name: default-data-files
+
+- name: get aggregate info
+  netapp.ontap.na_ontap_rest_info:
+    hostname: "1.2.3.4"
+    username: "testuser"
+    password: "test-password"
+    https: true
+    validate_certs: false
+    gather_subset:
+      - aggregate_info
+    parameters:
+      node.name: ontap_cluster
+      block_storage.primary.raid_type: raid_dp
 
 # assuming module_defaults is used to set hostname, username, ...
 - name: run demo subset using custom vsadmin role

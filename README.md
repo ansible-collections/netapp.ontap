@@ -69,6 +69,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs - new options `browsable` and `show_previous_versions` added in REST.
 
 ### Minor Changes
+  - na_ontap_rest_info - improved documentation for `parameters` option.
   - na_ontap_security_config - updated documentation for `supported_cipher_suites`.
 
 ### Bug Fixes
