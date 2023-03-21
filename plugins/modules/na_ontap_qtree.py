@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -310,6 +310,10 @@ class NetAppOntapQTree:
             query = dict(return_timeout=10)
             dummy, error = rest_generic.post_async(self.rest_api, api, body, query)
             if error:
+                if "job reported error:" in error and "entry doesn't exist" in error:
+                    # ignore RBAC issue with FSx - BURT1525998
+                    self.module.warn('Ignoring job status, assuming success.')
+                    return
                 self.module.fail_json(msg='Error creating qtree %s: %s' % (self.parameters['name'], error))
         else:
             self.create_or_modify_qtree_zapi('qtree-create', "Error creating qtree %s: %s")

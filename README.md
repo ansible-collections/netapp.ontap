@@ -73,6 +73,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_config - updated documentation for `supported_cipher_suites`.
 
 ### Bug Fixes
+  - na_ontap_qtree - ignore job entry doesn't exist error when creating qtree with REST to bypass ONTAP issue with FSx.
+  - na_ontap_quotas - ignore job entry doesn't exist error when creating quota with REST to bypass ONTAP issue with FSx.
   - na_ontap_security_config - fix error on specifying protocol version `TLSv1.1` when fips is enabled.
 
 ## 22.4.1

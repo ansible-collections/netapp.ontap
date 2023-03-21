@@ -1,3 +1,6 @@
+# (c) 2018-2023, NetApp, Inc
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
 from __future__ import (absolute_import, division, print_function)
 
@@ -7,7 +10,7 @@ import pytest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible,\
-    call_main, create_module, create_and_apply, expect_and_capture_ansible_exception
+    call_main, create_module, create_and_apply, expect_and_capture_ansible_exception, assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
     register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -66,7 +69,13 @@ SRR = rest_responses({
         "unix_permissions": 755,
         "export_policy": {"name": "ansible"},
         "volume": {"uuid": "uuid", "name": "volume1"}}
-    ]}, None)
+    ]}, None),
+    'job_info': (200, {
+        "job": {
+            "uuid": "d78811c1-aebc-11ec-b4de-005056b30cfa",
+            "_links": {"self": {"href": "/api/cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa"}}
+        }}, None),
+    'job_not_found': (404, "", {"message": "entry doesn't exist", "code": "4", "target": "uuid"})
 })
 
 
@@ -256,6 +265,23 @@ def test_idempotent_create_rest():
         ('GET', 'storage/qtrees', SRR['qtree_record'])
     ])
     assert create_and_apply(qtree_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed'] is False
+
+
+@patch('time.sleep')
+def test_successful_create_rest_job_error(sleep):
+    ''' test create qtree rest '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['empty_records']),
+        ('POST', 'storage/qtrees', SRR['job_info']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found'])
+    ])
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
+    print_warnings()
+    assert_warning_was_raised('Ignoring job status, assuming success.')
 
 
 def test_successful_delete_rest():

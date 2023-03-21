@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -685,7 +685,10 @@ class NetAppONTAPQuotas:
         api = 'storage/quota/rules'
         response, error = rest_generic.post_async(self.rest_api, api, body, query)
         if error:
-            if '5308568' in error:
+            if "job reported error:" in error and "entry doesn't exist" in error:
+                # ignore RBAC issue with FSx - BURT1525998
+                self.module.warn('Ignoring job status, assuming success.')
+            elif '5308568' in error:
                 # code: 5308568 requires quota to be disabled/enabled to take effect.
                 # code: 5308571 - rule created, but to make it active reinitialize quota.
                 # reinitialize will disable/enable quota.
@@ -696,7 +699,8 @@ class NetAppONTAPQuotas:
                 self.module.fail_json(msg="Error on creating quotas rule: %s" % error)
             # fetch volume uuid as response will be None if above code error occurs.
             self.volume_uuid = self.get_quota_status_or_volume_id_rest(get_volume=True)
-        if response:
+        # skip fetching volume uuid from response if volume_uuid already populated.
+        if not self.volume_uuid and response:
             record, error = rrh.check_for_0_or_1_records(api, response, error, query)
             if not error and record and not record['volume']['uuid']:
                 error = 'volume uuid key not present in %s:' % record

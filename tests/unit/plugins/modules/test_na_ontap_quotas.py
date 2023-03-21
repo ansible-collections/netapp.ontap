@@ -1,4 +1,4 @@
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
@@ -104,7 +104,13 @@ SRR = rest_responses({
     "error_5308567": (409, None, {'code': 5308567, 'message': 'Expected modify error'}),
     "volume_uuid": (200, {"records": [{
         'uuid': 'sdgthfd'
-    }], 'num_records': 1}, None)
+    }], 'num_records': 1}, None),
+    'job_info': (200, {
+        "job": {
+            "uuid": "d78811c1-aebc-11ec-b4de-005056b30cfa",
+            "_links": {"self": {"href": "/api/cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa"}}
+        }}, None),
+    'job_not_found': (404, "", {"message": "entry doesn't exist", "code": "4", "target": "uuid"})
 })
 
 
@@ -437,6 +443,28 @@ def test_rest_successful_create():
         "users": [{"name": "quota_user"}],
     }
     assert create_and_apply(my_module, ARGS_REST)
+
+
+@patch('time.sleep')
+def test_rest_successful_create_job_error(sleep):
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['job_info']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
+        ('GET', 'storage/volumes', SRR['volume_uuid'])
+    ])
+    module_args = {
+        "users": [{"name": "quota_user"}],
+    }
+    assert create_and_apply(my_module, ARGS_REST)
+    print_warnings()
+    assert_warning_was_raised('Ignoring job status, assuming success.')
 
 
 def test_rest_error_create():
