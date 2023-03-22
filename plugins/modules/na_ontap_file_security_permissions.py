@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+  (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -227,6 +227,7 @@ options:
         description:
           - Specifies how to propagate security settings to child subfolders and files.
           - Defaults to propagate.
+          - This option valid only in create ACL.
         choices: ['propagate', 'replace']
         type: str
 
@@ -257,13 +258,16 @@ EXAMPLES = """
       vserver: svm1
       access_control: file_directory
       path: /vol200/newfile.txt
+      owner: "{{ user }}"
       # Note, wihout quotes, use a single backslash in AD user names
       # with quotes, it needs to be escaped as a double backslash
       # user: "ANSIBLE_CIFS\\user1"
       # we can't show an example with a single backslash as this is a python file, but it works in YAML.
       acls:
         - access: access_deny
-          user: user1
+          user: "{{ user }}"
+          apply_to:
+            files: true
       hostname: "{{ hostname }}"
       username: "{{ username }}"
       password: "{{ password }}"
@@ -278,9 +282,13 @@ EXAMPLES = """
       path: /vol200/newfile.txt
       acls:
         - access: access_deny
-          user: user1
+          user: "{{ user }}"
+          apply_to:
+            files: true
         - access: access_allow
-          user: user1
+          user: "{{ user }}"
+          apply_to:
+            files: true
       hostname: "{{ hostname }}"
       username: "{{ username }}"
       password: "{{ password }}"
@@ -295,9 +303,13 @@ EXAMPLES = """
       path: /vol200/newfile.txt
       acls:
         - access: access_deny
-          user: user1
+          user: "{{ user }}"
+          apply_to:
+            files: true
         - access: access_allow
-          user: user1
+          user: "{{ user }}"
+          apply_to:
+            files: true
       hostname: "{{ hostname }}"
       username: "{{ username }}"
       password: "{{ password }}"
@@ -398,6 +410,8 @@ class NetAppOntapFileSecurityPermissions:
             # validate that at least one suboption is true
             if not any(self.na_helper.safe_get(acl, ['apply_to', key]) for key in self.apply_to_keys):
                 self.module.fail_json(msg="Error: at least one suboption must be true for apply_to.  Got: %s" % acl)
+            # error if identical acls are set.
+            self.match_acl_with_acls(acl, self.parameters['acls'])
         for option in ('access_control', 'ignore_paths', 'propagation_mode'):
             value = self.parameters.get(option)
             if value is not None:
@@ -465,7 +479,6 @@ class NetAppOntapFileSecurityPermissions:
                 'access': self.na_helper.safe_get(acl, ['access']),
                 'access_control': self.na_helper.safe_get(acl, ['access_control']),
                 'inherited': self.na_helper.safe_get(acl, ['inherited']),
-                'propagation_mode': self.na_helper.safe_get(acl, ['propagation_mode']),
                 'rights': self.na_helper.safe_get(acl, ['rights']),
                 'user': self.na_helper.safe_get(acl, ['user']),
             }
@@ -571,7 +584,7 @@ class NetAppOntapFileSecurityPermissions:
                     and not inherited):
                 matches.append(an_acl)
         if len(matches) > 1:
-            self.module.fail_json(msg='Error matching ACLs, found more than one match.  Found %s' % matches)
+            self.module.fail_json(msg='Error: found more than one desired ACLs with same user, access, access_control and apply_to  %s' % matches)
         return matches[0] if matches else None
 
     def get_acl_actions_on_modify(self, modify, current):
@@ -604,11 +617,12 @@ class NetAppOntapFileSecurityPermissions:
     def get_acl_actions_on_delete(self, current):
         acl_actions = {'patch-acls': [], 'post-acls': [], 'delete-acls': []}
         self.na_helper.changed = False
-        for acl in current['acls']:
-            # only delete ACLs that matches the desired access_control, or all ACLs if not set
-            if not acl.get('inherited') and self.parameters.get('access_control') in (None, acl.get('access_control')):
-                self.na_helper.changed = True
-                acl_actions['delete-acls'].append(acl)
+        if current.get('acls'):
+            for acl in current['acls']:
+                # only delete ACLs that matches the desired access_control, or all ACLs if not set
+                if not acl.get('inherited') and self.parameters.get('access_control') in (None, acl.get('access_control')):
+                    self.na_helper.changed = True
+                    acl_actions['delete-acls'].append(acl)
         return acl_actions
 
     def get_modify_actions(self, current):

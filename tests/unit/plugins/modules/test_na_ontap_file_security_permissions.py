@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -610,7 +610,7 @@ def test_match_acl_with_acls():
     my_obj = create_module(my_module, DEFAULT_ARGS)
     assert acl == my_obj.match_acl_with_acls(acl, fd_prop_acls)
     assert my_obj.match_acl_with_acls(acl, fd_replace_acls) is None
-    error = 'Error matching ACLs, found more than one match.  Found'
+    error = 'Error: found more than one desired ACLs with same user, access, access_control and apply_to'
     assert error in expect_and_capture_ansible_exception(my_obj.match_acl_with_acls, 'fail', acl, fd_prop_acls + fd_prop_acls)['msg']
 
 
