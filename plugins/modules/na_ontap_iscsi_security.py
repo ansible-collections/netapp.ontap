@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -117,11 +117,10 @@ RETURN = """
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
-class NetAppONTAPIscsiSecurity():
+class NetAppONTAPIscsiSecurity:
     """
     Class with iscsi security methods
     """
@@ -154,7 +153,8 @@ class NetAppONTAPIscsiSecurity():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_iscsi_security:', 9, 6)
         self.uuid = self.get_svm_uuid()
 
     def get_initiator(self):
@@ -163,7 +163,7 @@ class NetAppONTAPIscsiSecurity():
         :return: dict of current initiator details.
         """
         params = {'fields': '*', 'initiator': self.parameters['initiator']}
-        api = '/protocols/san/iscsi/credentials/'
+        api = 'protocols/san/iscsi/credentials'
         message, error = self.rest_api.get(api, params)
         if error is not None:
             self.module.fail_json(msg="Error on fetching initiator: %s" % error)
@@ -214,7 +214,7 @@ class NetAppONTAPIscsiSecurity():
         if address_info is not None:
             body['initiator_address'] = {'ranges': address_info}
         body['svm'] = {'uuid': self.uuid, 'name': self.parameters['vserver']}
-        api = '/protocols/san/iscsi/credentials'
+        api = 'protocols/san/iscsi/credentials'
         dummy, error = self.rest_api.post(api, body)
         if error is not None:
             self.module.fail_json(msg="Error on creating initiator: %s" % error)
@@ -224,7 +224,7 @@ class NetAppONTAPIscsiSecurity():
         Delete initiator.
         :return: None.
         """
-        api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
+        api = 'protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
         dummy, error = self.rest_api.delete(api)
         if error is not None:
             self.module.fail_json(msg="Error on deleting initiator: %s" % error)
@@ -261,11 +261,11 @@ class NetAppONTAPIscsiSecurity():
             chap_update = True
             chap_update_outbound = True
 
-        if chap_update and not chap_update_inbound and 'inbound_username' not in current and 'inbound_password' not in current:
+        if chap_update and not chap_update_inbound and 'inbound_username' in self.parameters:
             # use credentials from input
             chap_update_inbound = True
 
-        if chap_update and not chap_update_outbound and 'outbound_username' not in current and 'outbound_password' not in current:
+        if chap_update and not chap_update_outbound and 'outbound_username' in self.parameters:
             # use credentials from input
             chap_update_outbound = True
 
@@ -286,7 +286,7 @@ class NetAppONTAPIscsiSecurity():
         address_info = self.get_address_info(modify.get('address_ranges'))
         if address_info is not None:
             body['initiator_address'] = {'ranges': address_info}
-        api = '/protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
+        api = 'protocols/san/iscsi/credentials/{0}/{1}'.format(self.uuid, self.parameters['initiator'])
         dummy, error = self.rest_api.patch(api, body)
         if error is not None:
             self.module.fail_json(msg="Error on modifying initiator: %s - params: %s" % (error, body))

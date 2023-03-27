@@ -79,6 +79,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_file_security_permissions - fix idempotency issue on `acls.propagation_mode` option.
   - na_ontap_file_security_permissions - fix TypeError when current acls is None.
   - na_ontap_ipspace - fix cannot delete ipspace if `from_ipspace` is present.
+  - na_ontap_iscsi_security - error module if use_rest never is set.
+  - na_ontap_iscsi_security - fix KeyError on `outbound_username` option.
   - na_ontap_qtree - ignore job entry doesn't exist error when creating qtree with REST to bypass ONTAP issue with FSx.
   - na_ontap_quotas - ignore job entry doesn't exist error when creating quota with REST to bypass ONTAP issue with FSx.
   - na_ontap_security_config - fix error on specifying protocol version `TLSv1.1` when fips is enabled.
