@@ -69,12 +69,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs - new options `browsable` and `show_previous_versions` added in REST.
 
 ### Minor Changes
+  - na_ontap_cifs - removed default value for `unix_symlink` as its not supported with ZAPI.
+  - na_ontap_cifs - updated documentation and examples for REST.
   - na_ontap_file_security_permissions - updated module examples.
   - na_ontap_ipspace - improved module fail error message in REST.
   - na_ontap_rest_info - improved documentation for `parameters` option.
   - na_ontap_security_config - updated documentation for `supported_cipher_suites`.
 
 ### Bug Fixes
+  - na_ontap_cifs - throw error if set `unix_symlink` in ZAPI.
+  - na_ontap_cifs - throw error if used options that require recent ONTAP version.
   - na_ontap_file_security_permissions - error if more than one desired ACLs has same user, access, access_control and apply_to.
   - na_ontap_file_security_permissions - fix idempotency issue on `acls.propagation_mode` option.
   - na_ontap_file_security_permissions - fix TypeError when current acls is None.

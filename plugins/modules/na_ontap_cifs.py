@@ -52,6 +52,9 @@ options:
     description:
       - The list of properties for the CIFS share.
       - Not supported with REST.
+      - share-properties are separate fields in the REST API.
+      - You can achieve this functionality by setting C(access_based_enumeration), C(change_notify), C(encryption),
+        C(home_directory), C(oplocks), C(show_snapshot), C(continuously_available) and C(namespace_caching).
     type: list
     elements: str
     version_added: 2.8.0
@@ -59,6 +62,7 @@ options:
   symlink_properties:
     description:
       - The list of symlink properties for this CIFS share.
+      - Not supported with REST, this option is replaced with C(unix_symlink) in REST.
     type: list
     elements: str
     version_added: 2.8.0
@@ -82,28 +86,29 @@ options:
     choices: ['local', 'widelink', 'disable']
     description:
       - The list of unix_symlink properties for this CIFS share
-      - supported only in REST.
+      - This option only supported with REST.
     type: str
-    default: local
     version_added: 21.19.0
 
   access_based_enumeration:
     description:
       - If enabled, all folders inside this share are visible to a user based on that individual user access right;
         prevents the display of folders or other shared resources that the user does not have access to.
+      - This option only supported with REST.
     type: bool
     version_added: 22.3.0
 
   allow_unencrypted_access:
     description:
       - Specifies whether or not the SMB2 clients are allowed to access the encrypted share.
-      - This option requires ONTAP 9.11.0 or later.
+      - This option requires REST and ONTAP 9.11.0 or later.
     type: bool
     version_added: 22.3.0
 
   change_notify:
     description:
       - Specifies whether CIFS clients can request for change notifications for directories on this share.
+      - This option only supported with REST.
     type: bool
     version_added: 22.3.0
 
@@ -111,6 +116,7 @@ options:
     description:
       - Specifies that SMB encryption must be used when accessing this share. Clients that do not support encryption are not
         able to access this share.
+      - This option only supported with REST.
     type: bool
     version_added: 22.3.0
 
@@ -123,6 +129,7 @@ options:
       - Instead of creating a separate shares for each user, a single share with a home directory parameters can be created.
       - In a home directory share, ONTAP dynamically generates the share-name and share-path by substituting
         %w, %u, and %d variables with the corresponding Windows user name, UNIX user name, and domain name, respectively.
+      - This option only supported with REST and cannot modify.
     type: bool
     version_added: 22.3.0
 
@@ -130,7 +137,7 @@ options:
     description:
       - Specifies whether or not the SMB clients connecting to this share can cache the directory enumeration
         results returned by the CIFS servers.
-      - This option requires ONTAP 9.10.1 or later.
+      - This option requires REST and ONTAP 9.10.1 or later.
     type: bool
     version_added: 22.3.0
 
@@ -138,13 +145,14 @@ options:
     description:
       - Specify whether opportunistic locks are enabled on this share. "Oplocks" allow clients to lock files and cache content locally,
         which can increase performance for file operations.
+      - Only supported with REST.
     type: bool
     version_added: 22.3.0
 
   show_snapshot:
     description:
       - Specifies whether or not the Snapshot copies can be viewed and traversed by clients.
-      - This option requires ONTAP 9.10.1 or later.
+      - This option requires REST and ONTAP 9.10.1 or later.
     type: bool
     version_added: 22.3.0
 
@@ -152,7 +160,7 @@ options:
     description:
       - Specifies whether or not the clients connecting to this share can open files in a persistent manner.
       - Files opened in this way are protected from disruptive events, such as, failover and giveback.
-      - This option requires ONTAP 9.10.1 or later.
+      - This option requires REST and ONTAP 9.10.1 or later.
     type: bool
     version_added: 22.3.0
 
@@ -176,7 +184,7 @@ version_added: 2.6.0
 '''
 
 EXAMPLES = """
-    - name: Create CIFS share
+    - name: Create CIFS share - ZAPI
       netapp.ontap.na_ontap_cifs:
         state: present
         name: cifsShareName
@@ -188,7 +196,8 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: Delete CIFS share
+
+    - name: Delete CIFS share - ZAPI
       netapp.ontap.na_ontap_cifs:
         state: absent
         name: cifsShareName
@@ -196,7 +205,8 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: Modify path CIFS share
+
+    - name: Modify path CIFS share - ZAPI
       netapp.ontap.na_ontap_cifs:
         state: present
         name: pb_test
@@ -205,6 +215,34 @@ EXAMPLES = """
         share_properties: show_previous_versions
         symlink_properties: disable
         vscan_fileop_profile: no_scan
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Create CIFS share - REST
+      netapp.ontap.na_ontap_cifs:
+        state: present
+        name: cifsShareName
+        path: /
+        vserver: vserverName
+        oplocks: true
+        change_notify: true
+        unix_symlink: disable
+        comment: CIFS share description
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Modify CIFS share - REST
+      netapp.ontap.na_ontap_cifs:
+        state: present
+        name: cifsShareName
+        path: /
+        vserver: vserverName
+        oplocks: true
+        change_notify: true
+        unix_symlink: local
+        comment: CIFS share description
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -235,7 +273,7 @@ class NetAppONTAPCifsShare:
             path=dict(required=False, type='str'),
             comment=dict(required=False, type='str'),
             vserver=dict(required=True, type='str'),
-            unix_symlink=dict(required=False, type='str', choices=['local', 'widelink', 'disable'], default='local'),
+            unix_symlink=dict(required=False, type='str', choices=['local', 'widelink', 'disable']),
             share_properties=dict(required=False, type='list', elements='str'),
             symlink_properties=dict(required=False, type='list', elements='str'),
             vscan_fileop_profile=dict(required=False, type='str', choices=['no_scan', 'standard', 'strict', 'writes_only']),
@@ -262,9 +300,12 @@ class NetAppONTAPCifsShare:
 
         # Set up Rest API
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        partially_supported_rest_properties = [['continuously_available', (9, 10, 1)], ['namespace_caching', (9, 10, 1)],
+                                               ['show_snapshot', (9, 10, 1)], ['allow_unencrypted_access', (9, 11)],
+                                               ['browsable', (9, 13, 1)], ['show_previous_versions', (9, 13, 1)]]
         unsupported_rest_properties = ['share_properties', 'symlink_properties', 'vscan_fileop_profile']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
-        self.unsupported_zapi_properties = ['access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        self.unsupported_zapi_properties = ['unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
                                             'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access',
                                             'browsable', 'show_previous_versions']
         self.svm_uuid = None
@@ -404,11 +445,9 @@ class NetAppONTAPCifsShare:
                              'access_based_enumeration,'
                              'change_notify,'
                              'encryption,'
-                             'home_directory,'
-                             'oplocks,'
-                             'continuously_available,'}
+                             'oplocks,'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
-            options['fields'] += 'show_snapshot,namespace_caching,'
+            options['fields'] += 'show_snapshot,namespace_caching,continuously_available,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
             options['fields'] += 'allow_unencrypted_access,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
@@ -432,20 +471,21 @@ class NetAppONTAPCifsShare:
                 'namespace_caching': record.get('namespace_caching'),
                 'allow_unencrypted_access': record.get('allow_unencrypted_access'),
                 'browsable': record.get('browsable'),
-                'show_previous_versions': record.get('show_previous_versions'),
+                'show_previous_versions': record.get('show_previous_versions')
             }
         return None
 
-    def create_modify_body_rest(self, modify=None):
+    def create_modify_body_rest(self, params=None):
         body = {}
+        # modify is set in params, if not assign self.parameters for create.
+        if params is None:
+            params = self.parameters
         options = ['path', 'comment', 'unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption',
                    'home_directory', 'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching',
                    'allow_unencrypted_access', 'browsable', 'show_previous_versions']
         for key in options:
-            if not modify and key in self.parameters:
-                body[key] = self.parameters[key]
-            elif modify and key in modify:
-                body[key] = modify[key]
+            if key in params:
+                body[key] = params[key]
         return body
 
     def create_cifs_share_rest(self):

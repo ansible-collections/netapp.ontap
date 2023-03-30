@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs '''
@@ -269,6 +269,20 @@ ARGS_REST = {
 }
 
 
+def test_options_support():
+    ''' test option support '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {
+        'show_snapshot': True,
+        'allow_unencrypted_access': True,
+        'browsable': True
+    }
+    error = 'Error: Minimum version of ONTAP'
+    assert error in create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+
+
 def test_rest_successful_create():
     '''Test successful rest create'''
     register_responses([
@@ -373,7 +387,7 @@ def test_modify_cifs_share_properties():
 def test_modify_cifs_share_properties_2():
     ''' test modify CIFS share properties '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
         ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
     ])
