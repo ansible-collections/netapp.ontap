@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_ipspace - improved module fail error message in REST.
   - na_ontap_rest_info - improved documentation for `parameters` option.
   - na_ontap_security_config - updated documentation for `supported_cipher_suites`.
+  - na_ontap_user: option ``vserver`` is not required with REST, ignore this option to create cluster scoped user.
 
 ### Bug Fixes
   - na_ontap_cifs - throw error if set `unix_symlink` in ZAPI.

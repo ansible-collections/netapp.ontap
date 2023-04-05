@@ -27,26 +27,26 @@ description:
 options:
   state:
     description:
-    - Whether the specified user should exist or not.
+      - Whether the specified user should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
   name:
     description:
-    - The name of the user to manage.
+      - The name of the user to manage.
     required: true
     type: str
   application_strs:
     version_added: 21.6.0
     description:
-    - List of applications to grant access to.
-    - This option maintains backward compatibility with the existing C(applications) option, but is limited.
-    - It is recommended to use the new C(application_dicts) option which provides more flexibility.
-    - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
-    - Module supports both service-processor and service_processor choices.
-    - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
-    - snmp is not supported in REST.
-    - Either C(application_dicts) or C(application_strs) is required.
+      - List of applications to grant access to.
+      - This option maintains backward compatibility with the existing C(applications) option, but is limited.
+      - It is recommended to use the new C(application_dicts) option which provides more flexibility.
+      - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
+      - Module supports both service-processor and service_processor choices.
+      - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
+      - snmp is not supported in REST.
+      - Either C(application_dicts) or C(application_strs) is required.
     type: list
     elements: str
     choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
@@ -56,12 +56,12 @@ options:
   application_dicts:
     version_added: 21.6.0
     description:
-    - List of applications to grant access to.  Provides better control on applications and authentication methods.
-    - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
-    - Module supports both service-processor and service_processor choices.
-    - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
-    - snmp is not supported in REST.
-    - Either C(application_dicts) or C(application_strs) is required.
+      - List of applications to grant access to.  Provides better control on applications and authentication methods.
+      - Creating a login with application console, telnet, rsh, and service-processor for a data vserver is not supported.
+      - Module supports both service-processor and service_processor choices.
+      - ZAPI requires service-processor, while REST requires service_processor, except for an issue with ONTAP 9.6 and 9.7.
+      - snmp is not supported in REST.
+      - Either C(application_dicts) or C(application_strs) is required.
     type: list
     elements: dict
     suboptions:
@@ -82,106 +82,106 @@ options:
         choices: ['none', 'password', 'publickey', 'nsswitch']
   authentication_method:
     description:
-    - Authentication method for the application.  If you need more than one method, use C(application_dicts).
-    - Not all authentication methods are valid for an application.
-    - Valid authentication methods for each application are as denoted in I(authentication_choices_description).
-    - Password for console application
-    - Password, domain, nsswitch, cert, saml for http application.
-    - Password, domain, nsswitch, cert, saml for ontapi application.
-    - SAML is only supported with REST, but seems to work with ZAPI as well.
-    - Community for snmp application (when creating SNMPv1 and SNMPv2 users).
-    - The usm and community for snmp application (when creating SNMPv3 users).
-    - Password for sp application.
-    - Password for rsh application.
-    - Password for telnet application.
-    - Password, publickey, domain, nsswitch for ssh application.
-    - Required when C(application_strs) is present.
+      - Authentication method for the application.  If you need more than one method, use C(application_dicts).
+      - Not all authentication methods are valid for an application.
+      - Valid authentication methods for each application are as denoted in I(authentication_choices_description).
+      - Password for console application
+      - Password, domain, nsswitch, cert, saml for http application.
+      - Password, domain, nsswitch, cert, saml for ontapi application.
+      - SAML is only supported with REST, but seems to work with ZAPI as well.
+      - Community for snmp application (when creating SNMPv1 and SNMPv2 users).
+      - The usm and community for snmp application (when creating SNMPv3 users).
+      - Password for sp application.
+      - Password for rsh application.
+      - Password for telnet application.
+      - Password, publickey, domain, nsswitch for ssh application.
+      - Required when C(application_strs) is present.
     type: str
     choices: ['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']
   set_password:
     description:
-    - Password for the user account.
-    - It is ignored for creating snmp users, but is required for creating non-snmp users.
-    - For an existing user, this value will be used as the new password.
+      - Password for the user account.
+      - It is ignored for creating snmp users, but is required for creating non-snmp users.
+      - For an existing user, this value will be used as the new password.
     type: str
   role_name:
     description:
-    - The name of the role. Required when C(state=present)
+      - The name of the role. Required when C(state=present)
     type: str
   lock_user:
     description:
-    - Whether the specified user account is locked.
+      - Whether the specified user account is locked.
     type: bool
   vserver:
     description:
-    - The name of the vserver to use.
-    - With REST, for cluster scope, use a vserver entry with no value.
+      - The name of the vserver to use.
+      - Required with ZAPI.
+      - With REST, ignore this option for creating cluster scoped interface.
     aliases:
       - svm
-    required: true
     type: str
   authentication_protocol:
     description:
-    - Authentication protocol for the snmp user.
-    - When cluster FIPS mode is on, 'sha' and 'sha2-256' are the only possible and valid values.
-    - When cluster FIPS mode is off, the default value is 'none'.
-    - When cluster FIPS mode is on, the default value is 'sha'.
-    - Only available for 'usm' authentication method and non modifiable.
+      - Authentication protocol for the snmp user.
+      - When cluster FIPS mode is on, 'sha' and 'sha2-256' are the only possible and valid values.
+      - When cluster FIPS mode is off, the default value is 'none'.
+      - When cluster FIPS mode is on, the default value is 'sha'.
+      - Only available for 'usm' authentication method and non modifiable.
     choices: ['none', 'md5', 'sha', 'sha2-256']
     type: str
     version_added: '20.6.0'
   authentication_password:
     description:
-    - Password for the authentication protocol. This should be minimum 8 characters long.
-    - This is required for 'md5', 'sha' and 'sha2-256' authentication protocols and not required for 'none'.
-    - Only available for 'usm' authentication method and non modifiable.
+      - Password for the authentication protocol. This should be minimum 8 characters long.
+      - This is required for 'md5', 'sha' and 'sha2-256' authentication protocols and not required for 'none'.
+      - Only available for 'usm' authentication method and non modifiable.
     type: str
     version_added: '20.6.0'
   engine_id:
     description:
-    - Authoritative entity's EngineID for the SNMPv3 user.
-    - This should be specified as a hexadecimal string.
-    - Engine ID with first bit set to 1 in first octet should have a minimum of 5 or maximum of 32 octets.
-    - Engine Id with first bit set to 0 in the first octet should be 12 octets in length.
-    - Engine Id cannot have all zeros in its address.
-    - Only available for 'usm' authentication method and non modifiable.
+      - Authoritative entity's EngineID for the SNMPv3 user.
+      - This should be specified as a hexadecimal string.
+      - Engine ID with first bit set to 1 in first octet should have a minimum of 5 or maximum of 32 octets.
+      - Engine Id with first bit set to 0 in the first octet should be 12 octets in length.
+      - Engine Id cannot have all zeros in its address.
+      - Only available for 'usm' authentication method and non modifiable.
     type: str
     version_added: '20.6.0'
   privacy_protocol:
     description:
-    - Privacy protocol for the snmp user.
-    - When cluster FIPS mode is on, 'aes128' is the only possible and valid value.
-    - When cluster FIPS mode is off, the default value is 'none'. When cluster FIPS mode is on, the default value is 'aes128'.
-    - Only available for 'usm' authentication method and non modifiable.
+      - Privacy protocol for the snmp user.
+      - When cluster FIPS mode is on, 'aes128' is the only possible and valid value.
+      - When cluster FIPS mode is off, the default value is 'none'. When cluster FIPS mode is on, the default value is 'aes128'.
+      - Only available for 'usm' authentication method and non modifiable.
     choices: ['none', 'des', 'aes128']
     type: str
     version_added: '20.6.0'
   privacy_password:
     description:
-    - Password for the privacy protocol. This should be minimum 8 characters long.
-    - This is required for 'des' and 'aes128' privacy protocols and not required for 'none'.
-    - Only available for 'usm' authentication method and non modifiable.
+      - Password for the privacy protocol. This should be minimum 8 characters long.
+      - This is required for 'des' and 'aes128' privacy protocols and not required for 'none'.
+      - Only available for 'usm' authentication method and non modifiable.
     type: str
     version_added: '20.6.0'
   remote_switch_ipaddress:
     description:
-    - This optionally specifies the IP Address of the remote switch.
-    - The remote switch could be a cluster switch monitored by Cluster Switch Health Monitor (CSHM)
-      or a Fiber Channel (FC) switch monitored by Metro Cluster Health Monitor (MCC-HM).
-    - This is applicable only for a remote SNMPv3 user i.e. only if user is a remote (non-local) user,
-      application is snmp and authentication method is usm.
+      - This optionally specifies the IP Address of the remote switch.
+      - The remote switch could be a cluster switch monitored by Cluster Switch Health Monitor (CSHM)
+        or a Fiber Channel (FC) switch monitored by Metro Cluster Health Monitor (MCC-HM).
+      - This is applicable only for a remote SNMPv3 user i.e. only if user is a remote (non-local) user,
+        application is snmp and authentication method is usm.
     type: str
     version_added: '20.6.0'
   replace_existing_apps_and_methods:
     description:
-    - If the user already exists, the current applications and authentications methods are replaced when state=present.
-    - If the user already exists, the current applications and authentications methods are removed when state=absent.
-    - When using application_dicts or REST, this the only supported behavior.
-    - When using application_strs and ZAPI, this is the behavior when this option is set to always.
-    - When using application_strs and ZAPI, if the option is set to auto, applications that are not listed are not removed.
-    - When using application_strs and ZAPI, if the option is set to auto, authentication mehods that are not listed are not removed.
-    - C(auto) preserve the existing behavior for backward compatibility, but note that REST and ZAPI have inconsistent behavior.
-    - This is another reason to recommend to use C(application_dicts).
+      - If the user already exists, the current applications and authentications methods are replaced when state=present.
+      - If the user already exists, the current applications and authentications methods are removed when state=absent.
+      - When using application_dicts or REST, this the only supported behavior.
+      - When using application_strs and ZAPI, this is the behavior when this option is set to always.
+      - When using application_strs and ZAPI, if the option is set to auto, applications that are not listed are not removed.
+      - When using application_strs and ZAPI, if the option is set to auto, authentication mehods that are not listed are not removed.
+      - C(auto) preserve the existing behavior for backward compatibility, but note that REST and ZAPI have inconsistent behavior.
+      - This is another reason to recommend to use C(application_dicts).
     type: str
     choices: ['always', 'auto']
     default: 'auto'
@@ -200,6 +200,19 @@ EXAMPLES = """
         lock_user: True
         role_name: vsadmin
         vserver: ansibleVServer
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Create cluster scoped user in REST.
+      netapp.ontap.na_ontap_user:
+        state: present
+        name: SampleUser
+        applications: ssh,console
+        authentication_method: password
+        set_password: apn1242183u1298u41
+        lock_user: True
+        role_name: admin
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -259,9 +272,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
-
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapUser:
@@ -292,7 +302,7 @@ class NetAppOntapUser:
             set_password=dict(type='str', no_log=True),
             role_name=dict(type='str'),
             lock_user=dict(type='bool'),
-            vserver=dict(required=True, type='str', aliases=['svm']),
+            vserver=dict(type='str', aliases=['svm']),
             authentication_protocol=dict(type='str', choices=['none', 'md5', 'sha', 'sha2-256']),
             authentication_password=dict(type='str', no_log=True),
             engine_id=dict(type='str'),
@@ -318,7 +328,7 @@ class NetAppOntapUser:
         self.strs_to_dicts()
 
         # REST API should be used for ONTAP 9.6 or higher
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['authentication_password', 'authentication_protocol', 'engine_id',
                                        'privacy_password', 'privacy_protocol']

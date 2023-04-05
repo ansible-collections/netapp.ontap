@@ -101,6 +101,20 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % call_main(my_main, {}, module_args, fail=True)['msg'])
 
 
+def test_module_fail_when_vserver_missing():
+    ''' required arguments are reported as errors '''
+    register_responses([
+    ])
+    module_args = {
+        'use_rest': 'never',
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'name': 'user_name',
+    }
+    assert 'Error: vserver is required' in call_main(my_main, {}, module_args, fail=True)['msg']
+
+
 def test_ensure_user_get_called():
     ''' a more interesting test '''
     register_responses([
@@ -426,6 +440,27 @@ def test_ensure_create_user_rest_called():
         'lock_user': True
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_ensure_create_cluster_user_rest_called():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/accounts', SRR['zero_records']),
+        ('POST', 'security/accounts', SRR['empty_good']),
+    ])
+    module_args = {
+        "hostname": "hostname",
+        "username": "username",
+        "password": "password",
+        "name": "user_name",
+        "use_rest": "always",
+        'role_name': 'vsadmin',
+        'applications': ['http', 'ontapi'],
+        'authentication_method': 'password',
+        'set_password': 'xfjjttjwll`1',
+        'lock_user': True
+    }
+    assert call_main(my_main, module_args)['changed']
 
 
 def test_ensure_delete_user_rest_called():
