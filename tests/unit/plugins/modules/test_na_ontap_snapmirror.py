@@ -229,6 +229,18 @@ else:
     zapi_create_responses = []
 
 
+def test_negative_zapi_unsupported_options():
+    ''' ZAPI unsupported options '''
+    register_responses([
+    ])
+    module_args = {
+        "use_rest": "never",
+        "identity_preservation": "full"
+    }
+    msg = "Error: The option identity_preservation is supported only with REST."
+    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
 @patch('time.sleep')
 def test_successful_create_with_source(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
@@ -933,7 +945,8 @@ def test_successful_rest_create(dont_sleep):
     ])
     module_args = {
         "use_rest": "always",
-        "schedule": "abc"
+        "schedule": "abc",
+        "identity_preservation": "full"
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     module_args['update'] = False
@@ -964,6 +977,20 @@ def test_negative_rest_create_schedule_not_supported():
     msg = "Error: Minimum version of ONTAP for schedule is (9, 11, 1).  Current version: (9, 8, 0)."\
           " - With REST use the policy option to define a schedule."
     assert create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_negative_rest_create_identity_preservation_not_supported():
+    ''' creating snapmirror with unsupported REST options '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "identity_preservation": "full",
+    }
+    msg = "Error: Minimum version of ONTAP for identity_preservation is (9, 11, 1).  Current version: (9, 8, 0)."
+    error = create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert error == msg
 
 
 def test_negative_rest_get_error():

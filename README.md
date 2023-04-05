@@ -88,6 +88,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_qtree - ignore job entry doesn't exist error when creating qtree with REST to bypass ONTAP issue with FSx.
   - na_ontap_quotas - ignore job entry doesn't exist error when creating quota with REST to bypass ONTAP issue with FSx.
   - na_ontap_security_config - fix error on specifying protocol version `TLSv1.1` when fips is enabled.
+  - na_ontap_snapmirror - error if identity_preservation set in ZAPI.
+  - na_ontap_snapmirror - Added option `identity_preservation` support from ONTAP 9.11.1 in REST.
 
 ## 22.4.1
 

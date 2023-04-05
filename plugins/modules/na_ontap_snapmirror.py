@@ -641,7 +641,7 @@ class NetAppONTAPSnapmirror(object):
         used_unsupported_rest_properties = [x for x in unsupported_rest_properties if x in self.parameters]
         ontap_97_options = ['create_destination', 'source_cluster', 'destination_cluster']
         partially_supported_rest_properties = [(property, (9, 7)) for property in ontap_97_options]
-        partially_supported_rest_properties.append(('schedule', (9, 11, 1)))
+        partially_supported_rest_properties.extend([('schedule', (9, 11, 1)), ('identity_preservation', (9, 11, 1))])
         use_rest, error = rest_api.is_rest_supported_properties(
             self.parameters, used_unsupported_rest_properties, partially_supported_rest_properties, report_error=True)
         if error is not None:
@@ -656,6 +656,8 @@ class NetAppONTAPSnapmirror(object):
         return rest_api, use_rest
 
     def setup_zapi(self):
+        if self.parameters.get('identity_preservation'):
+            self.module.fail_json(msg="Error: The option identity_preservation is supported only with REST.")
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         host_options = self.parameters['peer_options'] if self.parameters.get('connection_type') == 'ontap_elementsw' else None
