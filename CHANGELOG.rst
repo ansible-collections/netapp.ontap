@@ -5,6 +5,38 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.5.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_cifs - new options ``browsable`` and ``show_previous_versions`` added in REST.
+- na_ontap_cifs - removed default value for ``unix_symlink`` as its not supported with ZAPI.
+- na_ontap_cifs - updated documentation and examples for REST.
+- na_ontap_file_security_permissions - updated module examples.
+- na_ontap_ipspace - improved module fail error message in REST.
+- na_ontap_rest_info - improved documentation for ``parameters`` option.
+- na_ontap_security_config - updated documentation for ``supported_cipher_suites``.
+- na_ontap_user - option ``vserver`` is not required with REST, ignore this option to create cluster scoped user.
+
+Bugfixes
+--------
+
+- na_ontap_cifs - throw error if set ``unix_symlink`` in ZAPI.
+- na_ontap_cifs - throw error if used options that require recent ONTAP version.
+- na_ontap_file_security_permissions - error if more than one desired ACLs has same user, access, access_control and apply_to.
+- na_ontap_file_security_permissions - fix TypeError when current acls is None.
+- na_ontap_file_security_permissions - fix idempotency issue on ``acls.propagation_mode`` option.
+- na_ontap_ipspace - fix cannot delete ipspace if ``from_ipspace`` is present.
+- na_ontap_iscsi_security - error module if use_rest never is set.
+- na_ontap_iscsi_security - fix KeyError on ``outbound_username`` option.
+- na_ontap_qtree - ignore job entry does not exist error when creating qtree with REST to bypass ONTAP issue with FSx.
+- na_ontap_quotas - ignore job entry does not exist error when creating quota with REST to bypass ONTAP issue with FSx.
+- na_ontap_security_config - fix error on specifying protocol version ``TLSv1.1`` when fips is enabled.
+- na_ontap_snapmirror - Added option ``identity_preservation`` support from ONTAP 9.11.1 in REST.
+- na_ontap_snapmirror - error if identity_preservation set in ZAPI.
+
 v22.4.1
 =======
 
