@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -103,7 +103,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_vserver
 
@@ -128,7 +127,7 @@ class NetAppOntapS3Groups:
         self.group_id = None
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_groups', 9, 8)
 
@@ -147,13 +146,24 @@ class NetAppOntapS3Groups:
                                   exception=traceback.format_exc())
         if record:
             self.group_id = record.get('id')
-            # even with the above, the APi Returning _link which is causing modify to get called
-            for each in self.na_helper.safe_get(record, ['users']):
-                each.pop('_links')
-            if self.na_helper.safe_get(record, ['policies']):
-                for each in self.na_helper.safe_get(record, ['policies']):
-                    each.pop('_links')
+            return self.form_current(record)
         return record
+
+    @staticmethod
+    def form_current(record):
+        current = {
+            'comment': record.get('comment'),
+            'users': [],
+            'policies': [],
+        }
+        # the APi Returning _link in each user and policy record which is causing modify to get called
+        if record.get('users'):
+            for user in record['users']:
+                current['users'].append({'name': user['name']})
+        if record.get('policies'):
+            for policy in record['policies']:
+                current['policies'].append({'name': policy['name']})
+        return current
 
     def create_s3_groups(self):
         api = 'protocols/s3/services/%s/groups' % self.svm_uuid

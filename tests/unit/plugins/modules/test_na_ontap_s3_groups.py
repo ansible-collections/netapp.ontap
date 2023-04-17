@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -23,6 +23,20 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 SRR = rest_responses({
+    's3_group_no_user_policy': (200, {
+        "records": [
+            {
+                "comment": "Admin group",
+                "name": "carchi8py_group",
+                "id": "5",
+                "svm": {
+                    "name": "svm1",
+                    "uuid": "e3cb5c7f-cd20"
+                }
+            }
+        ],
+        "num_records": 1
+    }, None),
     's3_group': (200, {
         "records": [
             {
@@ -268,6 +282,21 @@ def test_modify_s3_group():
     ])
     module_args = {
         'comment': 'this is a modify comment',
+        'users': [{'name': 'carchi8py'}, {'name': 'user2'}],
+        'policies': [{'name': 'policy1'}, {'name': 'policy2'}]
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_s3_group_no_current_user_policy():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/s3/services/e3cb5c7f-cd20/groups', SRR['s3_group_no_user_policy']),
+        ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/groups/5', SRR['empty_good'])
+    ])
+    module_args = {
         'users': [{'name': 'carchi8py'}, {'name': 'user2'}],
         'policies': [{'name': 'policy1'}, {'name': 'policy2'}]
     }
