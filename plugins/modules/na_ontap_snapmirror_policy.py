@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -10,10 +10,6 @@ na_ontap_snapmirror_policy
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
-
-ANSIBLE_METADATA = {'metadata_version': '1.1',
-                    'status': ['preview'],
-                    'supported_by': 'certified'}
 
 DOCUMENTATION = """
 module: na_ontap_snapmirror_policy
@@ -63,10 +59,12 @@ options:
   tries:
     description:
       - Specifies the number of tries.
+      - Not supported with REST.
     type: str
   transfer_priority:
     description:
       - Specifies the priority at which a SnapMirror transfer runs.
+      - Not supported with REST.
     choices: ['low', 'normal']
     type: str
   transfer_schedule:
@@ -78,10 +76,12 @@ options:
   common_snapshot_schedule:
     description:
       - Specifies the common Snapshot copy schedule associated with the policy, only required for strict_sync_mirror and sync_mirror.
+      - Not supported with REST.
     type: str
   owner:
     description:
       - Specifies the owner of the SnapMirror policy.
+      - Not supported with REST.
     choices: ['cluster_admin', 'vserver_admin']
     type: str
   is_network_compression_enabled:
@@ -91,10 +91,12 @@ options:
   ignore_atime:
     description:
       - Specifies whether incremental transfers will ignore files which have only their access time changed. Applies to SnapMirror vault relationships only.
+      - Not supported with REST.
     type: bool
   restart:
     description:
       - Defines the behavior of SnapMirror if an interrupted transfer exists, applies to data protection only.
+      - Not supported with REST.
     choices: ['always', 'never', 'default']
     type: str
   snapmirror_label:
@@ -491,8 +493,8 @@ class NetAppOntapSnapMirrorPolicy:
         }
         if 'type' in record:
             return_value['policy_type'] = record['type']
-        if 'is_network_compression_enabled' in record:
-            return_value['is_network_compression_enabled'] = record['is_network_compression_enabled']
+        if 'network_compression_enabled' in record:
+            return_value['is_network_compression_enabled'] = record['network_compression_enabled']
         if 'comment' in record:
             return_value['comment'] = record['comment']
         if 'retention' in record:
