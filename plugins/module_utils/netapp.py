@@ -108,7 +108,7 @@ ERROR_MSG = dict(
 
 LOG = logging.getLogger(__name__)
 LOG_FILE = '/tmp/ontap_apis.log'
-ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. The final ONTAP version to support ZAPI is ONTAP 9.12.1.  "\
+ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. The final ONTAP version to support ZAPI is ONTAP 9.13.1.  "\
                            "ZAPI calls in these modules will continue to work for ONTAP versions that supports ZAPI.  "\
                            "You can update your playbook to use REST by adding use_rest: always to your playbook.  "\
                            "More information can be found at: https://github.com/ansible-collections/netapp.ontap"
@@ -878,12 +878,26 @@ class OntapRestAPI(object):
 
     def post(self, api, body, params=None, headers=None, files=None):
         method = 'POST'
-        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
+        retry = 3
+        while retry > 0:
+            dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
+            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+                time.sleep(30)
+                retry = retry - 1
+                continue
+            break
         return message, error
 
     def patch(self, api, body, params=None, headers=None, files=None):
         method = 'PATCH'
-        dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
+        retry = 3
+        while retry > 0:
+            dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
+            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+                time.sleep(30)
+                retry = retry - 1
+                continue
+            break
         return message, error
 
     def delete(self, api, body=None, params=None, headers=None):

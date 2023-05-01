@@ -5,14 +5,14 @@
 
 - name: ask for confirmation before deleting volumes
   block:
-  - name: indicate if we are deleting clones
-    set_fact:
-      vol_types: "{{ 'volume clones' if is_flex else 'volumes' }}"
-    vars:
-      is_flex: "{{ is_flexclone | default(false) }}"
-  - name: ask for confirmation
-    pause:
-      prompt: "the following {{ vol_types }} will be deleted {{ volumes }}\nPress enter to continue, Ctrl+C to interrupt:"
+    - name: indicate if we are deleting clones
+      set_fact:
+        vol_types: "{{ 'volume clones' if is_flex else 'volumes' }}"
+      vars:
+        is_flex: "{{ is_flexclone | default(false) }}"
+    - name: ask for confirmation
+      pause:
+        prompt: "the following {{ vol_types }} will be deleted {{ volumes }}\nPress enter to continue, Ctrl+C to interrupt:"
   when:
     - volumes | length > 0
     - confirm_before_removing_volumes

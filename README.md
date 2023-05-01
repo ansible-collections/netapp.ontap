@@ -65,6 +65,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.6.0
 
+### Minor Changes
+  - retry create or modify when getting temporarily locked from changes error in REST.
+
 ### Bug Fixes
   - na_ontap_s3_groups - fix error when current s3 groups has no users configured.
   - na_ontap_s3_groups - fix cannot modify `policies` if not configured in create.

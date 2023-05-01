@@ -102,6 +102,7 @@ SRR = rest_responses({
     "error_5308568": (409, None, {'code': 5308568, 'message': 'Expected create error'}),
     "error_5308571": (409, None, {'code': 5308571, 'message': 'Expected create error'}),
     "error_5308567": (409, None, {'code': 5308567, 'message': 'Expected modify error'}),
+    'error_rest': (404, None, {"message": "temporarily locked from changes", "code": "4", "target": "uuid"}),
     "volume_uuid": (200, {"records": [{
         'uuid': 'sdgthfd'
     }], 'num_records': 1}, None),
@@ -549,6 +550,41 @@ def test_modify_rest_error():
     }
     error = create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
     assert 'Error on modifying quotas rule:' in error
+
+
+@patch('time.sleep')
+def test_modify_rest_temporary_locked_error(sleep):
+    ''' Test negative modify with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        # wait for 60s if we get temporary locl error.
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['error_rest']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['error_rest']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['success']),
+
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        # error persist even after 60s
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['error_rest']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['error_rest']),
+        ('PATCH', 'storage/quota/rules/264a9e0b-2e03-11e9-a610-005056a7b72d', SRR['error_rest']),
+
+        # wait 60s in create for temporary locked error.
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['error_rest']),
+        ('POST', 'storage/quota/rules', SRR['success']),
+    ])
+    module_args = {
+        'perform_user_mapping': True
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+    assert 'Error on modifying quotas rule:' in create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_rest_successful_create_idempotency():
