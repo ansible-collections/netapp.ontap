@@ -81,6 +81,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapmirror_policy - fix cannot disable `is_network_compression_enabled` in REST.
   - na_ontap_qos_adaptive_policy_group - rename group when from_name is present and state is present.
 
+### New Modules
+  - na_ontap_kerberos_interface - Enable or disable Kerberos interface config, requires ONTAP 9.7 or later version.
+
 ## 22.5.0
 
 ### New Options

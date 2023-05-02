@@ -56,6 +56,7 @@ action_groups:
     - na_ontap_iscsi
     - na_ontap_iscsi_security
     - na_ontap_job_schedule
+    - na_ontap_kerberos_interface
     - na_ontap_kerberos_realm
     - na_ontap_ldap_client
     - na_ontap_ldap
