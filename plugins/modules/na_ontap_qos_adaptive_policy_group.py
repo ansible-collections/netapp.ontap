@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -290,13 +290,16 @@ class NetAppOntapAdaptiveQosPolicyGroup:
         """
         Run module based on playbook
         """
-        current = self.get_policy_group()
-        rename, cd_action = None, None
-        if self.parameters.get('from_name'):
-            rename = self.na_helper.is_rename_action(self.get_policy_group(self.parameters['from_name']), current)
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        current, rename = self.get_policy_group(), None
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            # form current with from_name.
+            current = self.get_policy_group(self.parameters['from_name'])
+            if current is None:
+                self.module.fail_json(msg='Error: qos adaptive policy igroup with from_name=%s not found' % self.parameters.get('from_name'))
+            # allow for rename and check for modify with current from from_name.
+            rename, cd_action = True, None
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
         if self.na_helper.changed and not self.module.check_mode:
             if rename:
                 self.rename_policy_group()
