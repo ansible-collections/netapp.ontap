@@ -65,6 +65,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.6.0
 
+### New Options
+  - na_ontap_s3_buckets - new option `type` added, requires ONTAP 9.12.1 or later.
+
 ### Minor Changes
   - retry create or modify when getting temporarily locked from changes error in REST.
 

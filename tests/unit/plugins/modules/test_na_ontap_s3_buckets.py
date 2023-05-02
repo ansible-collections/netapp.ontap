@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -57,6 +57,7 @@ SRR = rest_responses({
         'size': 938860800,
         'svm': {'name': 'ansibleSVM', 'uuid': '969ansi97'},
         'uuid': '9bdefd59-2849-11ed-9696-005056b3b297',
+        'type': 's3',
         'volume': {'uuid': '1cd8a442-86d1-11e0-abcd-123478563412'}}], "num_records": 1}, None),
     's3_bucket_without_condition': (200, {"records": [{
         'comment': 'carchi8py was here again',
@@ -348,7 +349,6 @@ MODIFY_AUDIT_EVENT = {
 
 def test_low_version():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'cluster', SRR['is_rest_97'])
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
@@ -360,7 +360,6 @@ def test_low_version():
 def test_get_s3_bucket_none():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['empty_records'])
     ])
     set_module_args(DEFAULT_ARGS)
@@ -370,7 +369,6 @@ def test_get_s3_bucket_none():
 
 def test_get_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['generic_error'])
     ])
@@ -382,7 +380,6 @@ def test_get_s3_bucket_error():
 def test_get_s3_bucket_9_8():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8'])
     ])
     set_module_args(DEFAULT_ARGS)
@@ -392,7 +389,6 @@ def test_get_s3_bucket_9_8():
 
 def test_get_s3_bucket_9_10():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10'])
     ])
@@ -404,7 +400,6 @@ def test_get_s3_bucket_9_10():
 def test_create_s3_bucket_9_8():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['empty_records']),
         ('POST', 'protocols/s3/buckets', SRR['empty_good'])
     ])
@@ -417,10 +412,13 @@ def test_create_s3_bucket_9_8():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_create_s3_bucket_9_10():
+def test_create_s3_bucket_9_10_and_9_12():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/buckets', SRR['empty_records']),
+        ('POST', 'protocols/s3/buckets', SRR['empty_good']),
+        # create with type
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
         ('GET', 'protocols/s3/buckets', SRR['empty_records']),
         ('POST', 'protocols/s3/buckets', SRR['empty_good'])
     ])
@@ -432,11 +430,20 @@ def test_create_s3_bucket_9_10():
                    'qos_policy': QOS_ARGS,
                    'audit_event_selector': AUDIT_EVENT}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    module_args['type'] = 's3'
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_s3_bucket_type_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy'])
+    ])
+    assert 'Error: cannot modify bucket type.' in create_and_apply(my_module, DEFAULT_ARGS, {'type': 'nas'}, fail=True)['msg']
 
 
 def test_create_with_real_policy_s3_bucket_9_10():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['empty_records']),
         ('POST', 'protocols/s3/buckets', SRR['empty_good'])
@@ -454,7 +461,6 @@ def test_create_with_real_policy_s3_bucket_9_10():
 def test_create_with_real_policy_with_sid_as_number_s3_bucket_9_10():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['empty_records']),
         ('POST', 'protocols/s3/buckets', SRR['empty_good'])
     ])
@@ -471,7 +477,6 @@ def test_create_with_real_policy_with_sid_as_number_s3_bucket_9_10():
 def test_create_s3_bucket_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('POST', 'protocols/s3/buckets', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -487,7 +492,6 @@ def test_create_s3_bucket_error():
 def test_delete_s3_bucket():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
         ('DELETE', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['empty_good'])
@@ -498,7 +502,6 @@ def test_delete_s3_bucket():
 
 def test_delete_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('DELETE', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['generic_error'])
@@ -516,7 +519,6 @@ def test_delete_s3_bucket_error():
 def test_modify_s3_bucket_9_8():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
@@ -531,7 +533,6 @@ def test_modify_s3_bucket_9_8():
 
 def test_modify_s3_bucket_9_10():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
@@ -549,24 +550,20 @@ def test_modify_s3_bucket_9_10():
 def test_modify_s3_bucket_policy_statements():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['empty_good']),
         # add multiple statements.
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         # try to modify with identical statements.
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
         # empty policy statements.
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
@@ -585,18 +582,15 @@ def test_modify_s3_bucket_policy_statements_conditions():
     register_responses([
         # modify if desired statements has conditions and current statement conditions is None.
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_without_condition']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
         # empty policy statements conditions.
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
         ('PATCH', 'protocols/s3/buckets/969ansi97/9bdefd59-2849-11ed-9696-005056b3b297', SRR['empty_good']),
         # add multiple conditions.
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_more_policy']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
@@ -614,7 +608,6 @@ def test_modify_s3_bucket_policy_statements_conditions():
 
 def test_error_when_try_set_empty_dict_to_policy():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1'])
     ])
     module_args = {'policy': {'statements': [{}]}}
@@ -623,7 +616,6 @@ def test_error_when_try_set_empty_dict_to_policy():
 
 def test_modify_s3_bucket_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055',
          SRR['generic_error'])
@@ -643,18 +635,16 @@ def test_modify_s3_bucket_error():
 def test_new_aggr_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
     ])
     module_args = {'aggregates': ['aggr2']}
-    error = 'Aggregates can not be modified for S3 bucket bucket1'
+    error = 'Aggregates cannot be modified for S3 bucket bucket1'
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == error
 
 
 def test_volume_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_8']),
         ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['generic_error']),
