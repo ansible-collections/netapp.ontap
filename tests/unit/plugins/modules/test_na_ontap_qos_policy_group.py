@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -324,7 +324,7 @@ def test_successful_create_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['empty_records']),
-        ('POST', 'storage/qos/policies', SRR['success']),
+        ('POST', 'storage/qos/policies', SRR['success'])
     ])
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST)['changed']
 
@@ -344,6 +344,10 @@ def test_successful_create_adaptive_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'storage/qos/policies', SRR['empty_records']),
         ('POST', 'storage/qos/policies', SRR['success']),
+        # with block size
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/qos/policies', SRR['empty_records']),
+        ('POST', 'storage/qos/policies', SRR['success']),
     ])
     DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
     del DEFAULT_ARGS_COPY['fixed_qos_options']
@@ -353,6 +357,28 @@ def test_successful_create_adaptive_rest():
         "peak_iops": 500
     }
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
+    DEFAULT_ARGS_COPY['adaptive_qos_options']['block_size'] = '4k'
+    assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
+
+
+def test_partially_supported_option_rest():
+    ''' Test delete error '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'cluster', SRR['is_rest_9_9_0'])
+    ])
+    error = create_module(qos_policy_group_module, DEFAULT_ARGS_REST, fail=True)['msg']
+    assert "Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)" in error
+    DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
+    del DEFAULT_ARGS_COPY['fixed_qos_options']
+    DEFAULT_ARGS_COPY['adaptive_qos_options'] = {
+        "absolute_min_iops": 100,
+        "expected_iops": 200,
+        "peak_iops": 500,
+        "block_size": "4k"
+    }
+    error = create_module(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
+    assert "Minimum version of ONTAP for 'adaptive_qos_options.block_size' is (9, 10, 1)" in error
 
 
 def test_error_create_adaptive_rest():
@@ -448,7 +474,7 @@ def test_modify_max_throughput_idempotency_rest():
 def test_successful_modify_adaptive_qos_options_rest():
     ''' Test successful modify max throughput '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/qos/policies', SRR['adaptive_policy_info']),
         ('PATCH', 'storage/qos/policies/30d2fdd6-c45a-11ec-a164-005056b3bd39', SRR['success'])
     ])
@@ -458,7 +484,8 @@ def test_successful_modify_adaptive_qos_options_rest():
         'adaptive_qos_options': {
             'expected_iops': 300,
             'peak_iops': 600,
-            'absolute_min_iops': 200
+            'absolute_min_iops': 200,
+            'block_size': '4k'
         }
     }
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST_COPY, args)['changed']

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -22,6 +22,8 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
   - Create, destroy, modify, or rename QoS policy group on NetApp ONTAP.
+  - With ZAPI, only fixed QoS policy group is supported.
+  - With REST, both fixed and adaptive QoS policy group are supported.
 
 options:
   state:
@@ -135,7 +137,14 @@ options:
             the storage object used size.
         type: int
         required: true
-
+      block_size:
+        description:
+          - Specifies the block size.
+          - Requires ONTAP 9.10.1 or later.
+        type: str
+        required: false
+        choices: ['any', '4k', '8k', '16k', '32k', '64k', '128k']
+        version_added: 22.6.0
 '''
 
 EXAMPLES = """
@@ -258,7 +267,8 @@ class NetAppOntapQosPolicyGroup:
             adaptive_qos_options=dict(required=False, type='dict', options=dict(
                 absolute_min_iops=dict(required=True, type='int'),
                 expected_iops=dict(required=True, type='int'),
-                peak_iops=dict(required=True, type='int')
+                peak_iops=dict(required=True, type='int'),
+                block_size=dict(required=False, type='str', choices=['any', '4k', '8k', '16k', '32k', '64k', '128k'])
             ))
         ))
 
@@ -283,10 +293,13 @@ class NetAppOntapQosPolicyGroup:
         unsupported_rest_properties = ['is_shared', 'max_throughput', 'min_throughput', 'force']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
 
-        min_ontap_98 = self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8)
-        if self.use_rest and not min_ontap_98 and \
-                self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']) and self.parameters['state'] == 'present':
-            self.module.fail_json("Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)")
+        if self.use_rest and self.parameters['state'] == 'present':
+            if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8) and \
+                    self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']):
+                self.module.fail_json(msg="Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)")
+            if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1) and \
+                    self.na_helper.safe_get(self.parameters, ['adaptive_qos_options', 'block_size']):
+                self.module.fail_json(msg="Minimum version of ONTAP for 'adaptive_qos_options.block_size' is (9, 10, 1)")
         self.uuid = None
 
         if not self.use_rest:
@@ -370,7 +383,7 @@ class NetAppOntapQosPolicyGroup:
 
             if 'adaptive' in record:
                 current['adaptive_qos_options'] = {}
-                for adaptive_qos_option in ['absolute_min_iops', 'expected_iops', 'peak_iops']:
+                for adaptive_qos_option in ['absolute_min_iops', 'expected_iops', 'peak_iops', 'block_size']:
                     current['adaptive_qos_options'][adaptive_qos_option] = record['adaptive'].get(adaptive_qos_option)
         return current
 
@@ -536,7 +549,7 @@ class NetAppOntapQosPolicyGroup:
             if rename is None:
                 self.module.fail_json(msg='Error renaming qos policy group: cannot find %s' %
                                       self.parameters['from_name'])
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else {}
         if 'is_shared' in modify or self.na_helper.safe_get(modify, ['fixed_qos_options', 'capacity_shared']) is not None:
             self.module.fail_json(msg="Error cannot modify '%s' attribute." %
                                   ('is_shared' if 'is_shared' in modify else 'fixed_qos_options.capacity_shared'))
