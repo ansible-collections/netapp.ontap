@@ -69,6 +69,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - retry create or modify when getting temporarily locked from changes error in REST.
 
 ### Bug Fixes
+  - na_ontap_file_security_permissions_acl - fix idempotent issue on `propagation_mode` option.
   - na_ontap_s3_groups - fix error when current s3 groups has no users configured.
   - na_ontap_s3_groups - fix cannot modify `policies` if not configured in create.
   - na_ontap_snapmirror_policy - fix cannot disable `is_network_compression_enabled` in REST.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+  (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -179,6 +179,7 @@ options:
     description:
       - Specifies how to propagate security settings to child subfolders and files.
       - Defaults to propagate.
+      - This option is valid in create, but cannot modify.
     choices: ['propagate', 'replace']
     type: str
 
@@ -380,7 +381,6 @@ class NetAppOntapFileSecurityPermissionsACL:
                 'access': self.na_helper.safe_get(acl, ['access']),
                 'access_control': self.na_helper.safe_get(acl, ['access_control']),
                 'inherited': self.na_helper.safe_get(acl, ['inherited']),
-                'propagation_mode': self.na_helper.safe_get(acl, ['propagation_mode']),
                 'rights': self.na_helper.safe_get(acl, ['rights']),
                 'user': self.na_helper.safe_get(acl, ['user']),
             }
@@ -392,7 +392,7 @@ class NetAppOntapFileSecurityPermissionsACL:
     def build_body(self, action):
         keys = {
             'create': ['access', 'access_control', 'advanced_rights', 'apply_to', 'ignore_paths', 'propagation_mode', 'rights', 'user'],
-            'modify': ['access', 'access_control', 'advanced_rights', 'apply_to', 'ignore_paths', 'propagation_mode', 'rights'],
+            'modify': ['access', 'access_control', 'advanced_rights', 'apply_to', 'ignore_paths', 'rights'],
             'delete': ['access', 'access_control', 'apply_to', 'ignore_paths', 'propagation_mode'],
             # 'delete': ['access', 'access_control', 'ignore_paths', 'propagation_mode'],
         }
