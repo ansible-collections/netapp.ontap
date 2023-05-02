@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -131,6 +131,15 @@ EXAMPLES = """
     type: client_ca
     svm: "{{ vserver }}"
 
+# ignore svm option for cluster/admin vserver.
+- name: install certificate in cluster vserver.
+  netapp.ontap.na_ontap_security_certificates:
+    # <<: *cert_login
+    common_name: "{{ ontap_cert_common_name }}"
+    name: "{{ ontap_cert_name }}"
+    public_certificate: "{{ ssl_certificate }}"
+    type: client_ca
+
 - name: create certificate
   netapp.ontap.na_ontap_security_certificates:
     # <<: *cert_login
@@ -241,6 +250,7 @@ from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_vserver
 
 
 class NetAppOntapSecurityCertificates:
@@ -296,6 +306,11 @@ class NetAppOntapSecurityCertificates:
             Dictionary if certificate with same name is found
             None if not found
         """
+        # REST allows setting cluster/admin svm in create certificate, but no records returned in GET.
+        # error if data svm not found
+        if 'svm' in self.parameters:
+            rest_vserver.get_vserver_uuid(self.rest_api, self.parameters['svm'], self.module, True)
+
         error = "'name' or ('common_name', 'type') are required."
         for key in ('name', 'common_name'):
             if self.parameters.get(key) is None:

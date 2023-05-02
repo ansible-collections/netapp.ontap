@@ -65,8 +65,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.6.0
 
-### New Options
+### New Option
+  - na_ontap_aggregate - new REST only option `tags` added, requires ONTAP 9.13.1 or later version.
   - na_ontap_s3_buckets - new option `type` added, requires ONTAP 9.12.1 or later.
+  - na_ontap_volume - new REST only option `tags` added, requires ONTAP 9.13.1 or later version.
 
 ### Minor Changes
   - retry create or modify when getting temporarily locked from changes error in REST.
@@ -75,6 +77,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_file_security_permissions_acl - fix idempotent issue on `propagation_mode` option.
   - na_ontap_s3_groups - fix error when current s3 groups has no users configured.
   - na_ontap_s3_groups - fix cannot modify `policies` if not configured in create.
+  - na_ontap_security_certificates - fix duplicate entry error when `vserver` option is set with admin vserver.
   - na_ontap_snapmirror_policy - fix cannot disable `is_network_compression_enabled` in REST.
   - na_ontap_qos_adaptive_policy_group - rename group when from_name is present and state is present.
 

@@ -1,5 +1,5 @@
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_aggregate when using REST """
@@ -30,7 +30,7 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 SRR = rest_responses({
     # module specific responses
     'one_record': (200, {'records': [
-        {'uuid': 'ansible',
+        {'uuid': 'ansible', '_tags': ['resource:cloud', 'main:aggr'],
          'block_storage': {'primary': {'disk_count': 5}},
          'state': 'online', 'snaplock_type': 'snap'}
     ]}, None),
@@ -153,6 +153,25 @@ def test_create_aggr():
     ])
     assert create_module(my_module, DEFAULT_ARGS).create_aggr_rest() is None
     assert get_mock_record().is_record_in_json({'name': 'aggr_name'}, 'POST', 'storage/aggregates')
+
+
+def test_aggr_tags():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/aggregates', SRR['zero_records']),
+        ('POST', 'storage/aggregates', SRR['empty_good']),
+        # idempotent check
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/aggregates', SRR['one_record']),
+        # modify tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/aggregates', SRR['one_record']),
+        ('PATCH', 'storage/aggregates/ansible', SRR['success'])
+    ])
+    args = {'tags': ['resource:cloud', 'main:aggr']}
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, {'tags': ['main:aggr']})['changed']
 
 
 def test_create_aggr_all_options():

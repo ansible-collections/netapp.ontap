@@ -70,6 +70,14 @@ options:
       - Cannot be set when using the na_application_template option.
     type: str
 
+  tags:
+    description:
+      - Tags are an optional way to track the uses of a resource.
+      - Tag values must be formatted as key:value strings, example ["team:csi", "environment:test"]
+    type: list
+    elements: str
+    version_added: 22.6.0
+
   nas_application_template:
     description:
       - additional options when using the application/applications REST API to create a volume.
@@ -855,6 +863,23 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: true
         validate_certs: false
+
+    # requires Ontap collection version - 21.24.0 to use iso filter plugin.
+    - name: volume create with snaplock set.
+      netapp.ontap.na_ontap_volume:
+        state: present
+        name: "{{ snaplock_volume }}"
+        aggregate_name: "{{ aggregate }}"
+        size: 20
+        size_unit: mb
+        space_guarantee: none
+        policy: default
+        type: rw
+        snaplock:
+          type: enterprise
+          retention:
+            default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
+
 """
 
 RETURN = """
@@ -966,7 +991,8 @@ class NetAppOntapVolume:
                 type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock'])
             )),
             max_files=dict(required=False, type='int'),
-            analytics=dict(required=False, type='str', choices=['on', 'off'])
+            analytics=dict(required=False, type='str', choices=['on', 'off']),
+            tags=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(
@@ -1005,8 +1031,9 @@ class NetAppOntapVolume:
                                        'snapshot_auto_delete',
                                        'space_slo',
                                        'vserver_dr_protection']
-        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)], ['analytics', (9, 8)]]
-        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock', 'analytics']
+        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)], ['analytics', (9, 8)],
+                                               ['tags', (9, 13, 1)]]
+        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock', 'analytics', 'tags']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -1921,7 +1948,7 @@ class NetAppOntapVolume:
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
-                             'snaplock', 'max_files', 'analytics']:
+                             'snaplock', 'max_files', 'analytics', 'tags']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2364,6 +2391,8 @@ class NetAppOntapVolume:
             params['fields'] += 'tiering.min_cooling_days,'
         if self.parameters.get('analytics'):
             params['fields'] += 'analytics,'
+        if self.parameters.get('tags'):
+            params['fields'] += '_tags,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2414,6 +2443,8 @@ class NetAppOntapVolume:
             body['guarantee.type'] = self.parameters['space_guarantee']
         # TODO: Check to see if there a difference in rest between flexgroup or not. might need to throw error
         body = self.aggregates_rest(body)
+        if self.parameters.get('tags') is not None:
+            body['_tags'] = self.parameters['tags']
         if self.parameters.get('size') is not None:
             body['size'] = self.parameters['size']
         if self.parameters.get('snapshot_policy') is not None:
@@ -2502,6 +2533,7 @@ class NetAppOntapVolume:
             ('space.logical_space.reporting', 'logical_space_reporting', None),
             ('tiering.min_cooling_days', 'tiering_minimum_cooling_days', None),
             ('state', 'is_online', self.bool_to_online),
+            ('_tags', 'tags', None)
         ]:
             value = self.parameters.get(option)
             if value is not None and transform:
@@ -2665,6 +2697,7 @@ class NetAppOntapVolume:
         state = self.na_helper.safe_get(record, ['analytics', 'state'])
         analytics = 'on' if state == 'initializing' else state
         return {
+            'tags': record.get('_tags', []),
             'name': record.get('name', None),
             'analytics': analytics,
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),

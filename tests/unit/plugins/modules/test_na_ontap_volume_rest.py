@@ -105,6 +105,8 @@ volume_analytics_initializing = copy.deepcopy(volume_info)
 volume_analytics_initializing['analytics']['state'] = 'initializing'
 volume_info_offline = copy.deepcopy(volume_info)
 volume_info_offline['state'] = 'offline'
+volume_info_tags = copy.deepcopy(volume_info)
+volume_info_tags['_tags'] = ["team:csi", "environment:test"]
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -149,7 +151,8 @@ SRR = rest_responses({
     'analytics_off': (200, {'records': [volume_analytics_disabled]}, None),
     'analytics_initializing': (200, {'records': [volume_analytics_initializing]}, None),
     'one_svm_record': (200, {'records': [{'uuid': 'svm_uuid'}]}, None),
-    'volume_info_offline': (200, {'records': [volume_info_offline]}, None)
+    'volume_info_offline': (200, {'records': [volume_info_offline]}, None),
+    'volume_info_tags': (200, {'records': [volume_info_tags]}, None)
 })
 
 DEFAULT_APP_ARGS = {
@@ -288,6 +291,30 @@ def test_rest_successfully_resized():
         'size': 20737418240
     }
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
+def test_rest_volume_create_modify_tags():
+    ''' volume create, modify with tags
+    '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
+        ('POST', 'storage/volumes', SRR['success']),
+        ('GET', 'storage/volumes', SRR['volume_info_tags']),
+        # idempotent check
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_tags']),
+        # modify tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_tags']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+    ])
+    module_args = {'tags': ["team:csi", "environment:test"]}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    module_args = {'tags': ["team:csi"]}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
 def test_rest_successfully_deleted():

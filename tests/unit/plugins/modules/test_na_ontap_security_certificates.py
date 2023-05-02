@@ -1,4 +1,4 @@
-# (c) 2019, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_security_certificates """
@@ -90,6 +90,7 @@ def test_rest_error(mock_request):
 def test_rest_create_failed(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],        # validate data vserver exist.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -111,6 +112,7 @@ def test_rest_create_failed(mock_request):
 def test_rest_successful_create(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],        # validate data vserver exist.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -132,6 +134,7 @@ def test_rest_successful_create(mock_request):
 def test_rest_idempotent_create(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],    # validate data vserver exist.
         SRR['get_uuid'],    # get certificate -> found
         SRR['end_of_sequence']
     ]
@@ -255,6 +258,7 @@ def test_rest_negative_multiple_records(mock_request):
 def test_rest_successful_sign(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -276,6 +280,7 @@ def test_rest_successful_sign(mock_request):
 def test_rest_negative_sign(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['error_some_error'],
         SRR['end_of_sequence']
@@ -298,6 +303,7 @@ def test_rest_negative_sign(mock_request):
 def test_rest_failed_sign_missing_ca(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -319,6 +325,7 @@ def test_rest_failed_sign_missing_ca(mock_request):
 def test_rest_failed_sign_absent(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['end_of_sequence']
     ]
@@ -340,6 +347,7 @@ def test_rest_failed_sign_absent(mock_request):
 def test_rest_failed_on_name(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
     ]
@@ -363,6 +371,7 @@ def test_rest_failed_on_name(mock_request):
 def test_rest_cannot_ignore_name_error_no_common_name(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
     ]
@@ -383,6 +392,7 @@ def test_rest_cannot_ignore_name_error_no_common_name(mock_request):
 def test_rest_cannot_ignore_name_error_no_type(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
     ]
@@ -404,6 +414,7 @@ def test_rest_cannot_ignore_name_error_no_type(mock_request):
 def test_rest_ignore_name_error(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['get_uuid'],                # get certificate -> found
         SRR['end_of_sequence']
@@ -428,6 +439,7 @@ def test_rest_ignore_name_error(mock_request):
 def test_rest_successful_create_name_error(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
+        SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['empty_records'],           # get certificate -> not found
         SRR['empty_good'],
@@ -445,6 +457,26 @@ def test_rest_successful_create_name_error(mock_request):
         my_obj.apply()
     assert exc.value.args[0]['changed']
     print(mock_request.mock_calls)
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_data_vserver_not_exist(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['empty_records'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'common_name': 'cname',
+        'type': 'client_ca',
+        'vserver': 'abc',
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    assert 'Error vserver abc does not exist or is not a data vserver.' in exc.value.args[0]['msg']
 
 
 def test_rest_negative_no_name_and_type():

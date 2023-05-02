@@ -220,6 +220,14 @@ options:
     type: bool
     version_added: 21.14.0
 
+  tags:
+    description:
+      - Tags are an optional way to track the uses of a resource.
+      - Tag values must be formatted as key:value strings, example ["team:csi", "environment:test"]
+    type: list
+    elements: str
+    version_added: 22.6.0
+
 notes:
   - supports check_mode.
   - support ZAPI and REST.
@@ -354,7 +362,8 @@ class NetAppOntapAggregate:
             allow_flexgroups=dict(required=False, type='bool'),
             snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock']),
             ignore_pool_checks=dict(required=False, type='bool'),
-            encryption=dict(required=False, type='bool')
+            encryption=dict(required=False, type='bool'),
+            tags=dict(required=False, type='list', elements='str')
         ))
 
         self.module = AnsibleModule(
@@ -376,10 +385,13 @@ class NetAppOntapAggregate:
         self.uuid = None
         # some attributes are not supported in earlier REST implementation
         unsupported_rest_properties = ['disks', 'disk_type', 'mirror_disks', 'spare_pool', 'unmount_volumes']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, [['service_state', (9, 11, 1)]])
+        partially_supported_rest_properties = [['service_state', (9, 11, 1)], ['tags', (9, 13, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if 'tags' in self.parameters:
+                self.module.fail_json(msg="Error: tags only supported with REST.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
         if self.parameters['state'] == 'present':
@@ -707,6 +719,9 @@ class NetAppOntapAggregate:
         # online aggregate first, so disk can be added after online.
         if modify.get('service_state') == 'online':
             self.aggregate_online()
+        # modify tags
+        if modify.get('tags') is not None:
+            self.patch_aggr_rest('modify tags for', {'_tags': modify['tags']})
         # add disk before taking aggregate offline.
         disk_size = self.parameters.get('disk_size', 0)
         disk_size_with_unit = self.parameters.get('disk_size_with_unit')
@@ -902,11 +917,14 @@ class NetAppOntapAggregate:
         api = 'storage/aggregates'
         query = {'name': name}
         fields = 'uuid,state,block_storage.primary.disk_count,data_encryption,snaplock_type'
+        if 'tags' in self.parameters:
+            fields += ',_tags'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg='Error: failed to get aggregate %s: %s' % (name, error))
         if record:
             return {
+                'tags': record.get('_tags', []),
                 'disk_count': self.na_helper.safe_get(record, ['block_storage', 'primary', 'disk_count']),
                 'encryption': self.na_helper.safe_get(record, ['data_encryption', 'software_encryption_enabled']),
                 'service_state': record['state'],
@@ -972,6 +990,8 @@ class NetAppOntapAggregate:
             body['data_encryption'] = {'software_encryption_enabled': True}
         if self.parameters.get('snaplock_type'):
             body['snaplock_type'] = self.parameters['snaplock_type']
+        if self.parameters.get('tags') is not None:
+            body['_tags'] = self.parameters['tags']
         response, error = rest_generic.post_async(self.rest_api, api, body or None, query, job_timeout=self.parameters['time_out'])
         if error:
             self.module.fail_json(msg='Error: failed to create aggregate: %s' % error)
