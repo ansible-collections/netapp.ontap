@@ -5,6 +5,39 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.6.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_aggregate - new REST only option ``tags`` added, requires ONTAP 9.13.1 or later version.
+- na_ontap_broadcast_domain - skip checking modify when ``state`` is absent.
+- na_ontap_export_policy - added ``name`` to modify in module output if export policy is renamed.
+- na_ontap_qos_policy_group - new REST only option ``adaptive_qos_options.block_size`` added, requires ONTAP 9.10.1 or later version.
+- na_ontap_qos_policy_group - skip checking modify when ``state`` is absent.
+- na_ontap_s3_buckets - new option ``type`` added, requires ONTAP 9.12.1 or later.
+- na_ontap_volume - new REST only option ``tags`` added, requires ONTAP 9.13.1 or later version.
+- retry create or modify when getting temporarily locked from changes error in REST.
+
+Bugfixes
+--------
+
+- na_ontap_export_policy - fix cannot delete export policy if ``from_name`` option is set.
+- na_ontap_file_security_permissions_acl - fix idempotent issue on ``propagation_mode`` option.
+- na_ontap_qos_adaptive_policy_group - rename group when from_name is present and state is present.
+- na_ontap_qos_policy_group - one occurrence of msg missing in call to fail_json.
+- na_ontap_s3_groups - fix cannot modify ``policies`` if not configured in create.
+- na_ontap_s3_groups - fix error when current s3 groups has no users configured.
+- na_ontap_security_certificates - fix duplicate entry error when ``vserver`` option is set with admin vserver.
+- na_ontap_snapmirror_policy - fix cannot disable ``is_network_compression_enabled`` in REST.
+- na_ontap_svm - skip modify validation when trying to delete svm.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_kerberos_interface - NetApp ONTAP module to modify kerberos interface.
+
 v22.5.0
 =======
 
