@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -896,7 +896,7 @@ class NetAppOntapSVM():
             if rename:
                 current = old_svm
                 cd_action = None
-        modify = self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else {}
         if 'language' in modify:
             self.warn_when_possible_language_match(modify['language'], current['language'])
         fixed_attributes = ['root_volume', 'root_volume_aggregate', 'root_volume_security_style', 'subtype', 'ipspace']

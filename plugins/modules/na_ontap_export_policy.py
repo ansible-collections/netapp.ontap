@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -15,38 +15,38 @@ DOCUMENTATION = '''
 module: na_ontap_export_policy
 short_description: NetApp ONTAP manage export-policy
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-- Create or destroy or rename export-policies on ONTAP
+  - Create or destroy or rename export-policies on ONTAP
 options:
   state:
     description:
-    - Whether the specified export policy should exist or not.
+      - Whether the specified export policy should exist or not.
     choices: ['present', 'absent']
     type: str
     default: present
   name:
     description:
-    - The name of the export-policy to manage.
+      - The name of the export-policy to manage.
     type: str
     required: true
   from_name:
     description:
-    - The name of the export-policy to be renamed.
+      - The name of the export-policy to be renamed.
     type: str
     version_added: 2.7.0
   vserver:
     required: true
     type: str
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
 '''
 
 EXAMPLES = """
     - name: Create Export Policy
-      na_ontap_export_policy:
+      netapp.ontap.na_ontap_export_policy:
         state: present
         name: ansiblePolicyName
         vserver: vs_hack
@@ -54,8 +54,8 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Rename Export Policy
-      na_ontap_export_policy:
-        action: present
+      netapp.ontap.na_ontap_export_policy:
+        state: present
         from_name: ansiblePolicyName
         vserver: vs_hack
         name: newPolicyName
@@ -63,7 +63,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
     - name: Delete Export Policy
-      na_ontap_export_policy:
+      netapp.ontap.na_ontap_export_policy:
         state: absent
         name: ansiblePolicyName
         vserver: vs_hack
@@ -79,7 +79,6 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
@@ -108,7 +107,7 @@ class NetAppONTAPExportPolicy():
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
 
-        self.rest_api = OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
         if self.rest_api.is_rest():
             self.use_rest = True
         elif HAS_NETAPP_LIB is False:
@@ -238,28 +237,28 @@ class NetAppONTAPExportPolicy():
         """
         Apply action to export-policy
         """
-        cd_action, rename, from_current = None, None, None
+        modify, rename = None, None
         current = self.get_export_policy()
-        if self.parameters.get('from_name'):
-            from_current = self.get_export_policy(self.parameters['from_name'])
-            rename = self.na_helper.is_rename_action(from_current, current)
-            if rename is None:
+        cd_action = self.na_helper.get_cd_action(current, self.parameters)
+        if cd_action == 'create' and self.parameters.get('from_name'):
+            current = self.get_export_policy(self.parameters['from_name'])
+            if current is None:
                 self.module.fail_json(
                     msg="Error renaming: export policy %s does not exist" % self.parameters['from_name'])
-        else:
-            cd_action = self.na_helper.get_cd_action(current, self.parameters)
+            rename = True
 
         if self.na_helper.changed and not self.module.check_mode:
             if rename:
+                modify = {'name': self.parameters['name']}
                 if self.use_rest:
-                    self.rename_export_policy_rest(from_current)
+                    self.rename_export_policy_rest(current)
                 else:
                     self.rename_export_policy()
             elif cd_action == 'create':
                 self.create_export_policy()
             elif cd_action == 'delete':
                 self.delete_export_policy(current)
-        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 
 

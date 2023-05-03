@@ -664,7 +664,7 @@ class NetAppOntapBroadcastDomain(object):
                         # rename with no change in ports.
                         else:
                             self.parameters.pop('from_name')
-        modify = self.get_modify_attributes(current, split)
+        modify = self.get_modify_attributes(current, split) if cd_action is None else {}
         if self.na_helper.changed and not self.module.check_mode:
             if split:
                 self.split_broadcast_domain()

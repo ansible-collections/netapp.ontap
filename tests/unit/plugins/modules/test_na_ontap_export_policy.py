@@ -1,4 +1,4 @@
-# (c) 2019-2021, NetApp, Inc
+# (c) 2019-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_volume_export_policy '''
@@ -187,6 +187,23 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_export_policy_mock_object(cx_type='rest').apply()
         assert 'Error on fetching export policy: calling: protocols/nfs/export-policies/: got Expected error' in exc.value.args[0]['msg']
+
+    @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+    def test_ignore_from_name_when_state_absent(self, mock_request):
+        '''Test from_name is skipped for state absent'''
+        data = self.mock_args(rest=True)
+        data['from_name'] = 'ansible'
+        data['state'] = 'absent'
+        set_module_args(data)
+        mock_request.side_effect = [
+            SRR['is_rest'],
+            SRR['get_uuid_policy_id_export_policy'],      # this is record for name, from_name is skipped.
+            SRR['empty_good'],
+            SRR['end_of_sequence']
+        ]
+        with pytest.raises(AnsibleExitJson) as exc:
+            self.get_export_policy_mock_object(cx_type='rest').apply()
+        assert exc.value.args[0]['changed']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
     def test_rest_successful_rename(self, mock_request):
