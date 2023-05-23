@@ -13,6 +13,7 @@ import tempfile
 from ansible.module_utils import basic
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import call, patch
 
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     assert_no_warnings, assert_warning_was_raised, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses

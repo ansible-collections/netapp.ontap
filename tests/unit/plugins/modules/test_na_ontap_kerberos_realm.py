@@ -11,6 +11,7 @@ import pytest
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_kerberos_realm \
     import NetAppOntapKerberosRealm as my_module  # module under test
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible,\
     create_module, create_and_apply, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\

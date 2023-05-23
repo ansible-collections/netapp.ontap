@@ -26,6 +26,7 @@ __metaclass__ = type
 # One unittest needs to import builtins via __import__() so we need to have
 # the string that represents it
 try:
+    # pylint: disable=unused-import
     import __builtin__
 except ImportError:
     BUILTINS = 'builtins'

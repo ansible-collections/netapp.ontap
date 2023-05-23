@@ -6,6 +6,7 @@ __metaclass__ = type
 
 HAS_SF_SDK = False
 try:
+    # pylint: disable=unused-import
     import solidfire.common
 
     HAS_SF_SDK = True

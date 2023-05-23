@@ -10,6 +10,7 @@ import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat import unittest
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     assert_no_warnings, assert_no_warnings_except_zapi, assert_warning_was_raised, call_main, create_and_apply, print_warnings, set_module_args,\
     AnsibleExitJson, patch_ansible

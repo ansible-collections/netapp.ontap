@@ -7,7 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
 import sys
-from ansible_collections.netapp.ontap.tests.unit.compat import unittest
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import patch_ansible,\
     create_module, create_and_apply, expect_and_capture_ansible_exception
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils

@@ -10,6 +10,7 @@ import pytest
 import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     expect_and_capture_ansible_exception, call_main, create_module, create_and_apply, patch_ansible
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\

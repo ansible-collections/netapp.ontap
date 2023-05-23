@@ -12,8 +12,7 @@ __metaclass__ = type
 import pytest
 import sys
 
-from ansible.module_utils import basic
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     patch_ansible, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_raw_xml_response, zapi_responses

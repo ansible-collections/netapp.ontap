@@ -6,6 +6,7 @@ import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     assert_no_warnings, assert_warning_was_raised, expect_and_capture_ansible_exception, call_main, create_module, patch_ansible, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\

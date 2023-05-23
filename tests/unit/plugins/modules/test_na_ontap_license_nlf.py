@@ -9,6 +9,7 @@ import sys
 import pytest
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
+# pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
     assert_no_warnings, assert_warning_was_raised, call_main, create_module, expect_and_capture_ansible_exception, patch_ansible, print_warnings
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils

@@ -5,7 +5,6 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-import pytest
 
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_response_helpers
 
