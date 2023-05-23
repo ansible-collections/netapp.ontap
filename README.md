@@ -65,6 +65,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.7.0
 
+### Bug Fixes
+  - na_ontap_login_messages - fix `banner` and `motd_message` not idempotent when trailing '\n' is present.
+  - na_ontap_login_messages - fix idempotent issue on `show_cluster_motd` option when try to set banner or motd_message for the first time in REST.
+
 ### New Modules
   - na_ontap_active_directory_domain_controllers - Added REST support for ONTAP 9.12.0 or later and cli support for lower versions.
 

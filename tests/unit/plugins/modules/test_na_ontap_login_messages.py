@@ -33,6 +33,14 @@ SRR = rest_responses({
             "uuid": "uuid_uuid"
         }],
         "num_records": 1}, None),
+    'login_info_trailing_newline': (200, {
+        "records": [{
+            "banner": "banner\n",
+            "message": "message\n",
+            "show_cluster_message": True,
+            "uuid": "uuid_uuid"
+        }],
+        "num_records": 1}, None),
 })
 
 
@@ -242,6 +250,25 @@ def test_successfully_create_banner_rest():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
     module_args['vserver'] = 'vserver'
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_banner_rest():
+    register_responses([
+        # no vserver, cluster scope
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info']),
+        ('PATCH', 'security/login/messages/uuid_uuid', SRR['success']),
+        # idempotent check
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'security/login/messages', SRR['login_info_trailing_newline'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'banner': 'banner\n',
+        'message': 'message\n',
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed'] is False
 
 
 def test_successfully_create_motd_rest():

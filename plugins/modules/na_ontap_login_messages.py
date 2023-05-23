@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -89,8 +89,6 @@ from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRe
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_vserver
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
-
 
 class NetAppOntapLoginMessages:
     """
@@ -145,15 +143,7 @@ class NetAppOntapLoginMessages:
                 self.module.fail_json(msg='Error fetching login_banner info: %s' % error)
             if record is None and vserver is None:
                 self.module.fail_json(msg='Error fetching login_banner info for cluster - no data.')
-            return_result = {
-                'banner': record['banner'].rstrip() if record and record.get('banner') else '',
-                'motd_message': record['message'].rstrip() if record and record.get('message') else '',
-                # we need the SVM UUID to add banner or motd if they are not present
-                'uuid': record['uuid'] if record else self.get_svm_uuid(vserver),
-            }
-            if record and record.get('show_cluster_message') is not None:
-                return_result['show_cluster_motd'] = record['show_cluster_message']
-            return return_result
+            return self.form_current(record)
 
         # ZAPI
         motd, show_cluster_motd = self.get_motd_zapi()
@@ -162,6 +152,28 @@ class NetAppOntapLoginMessages:
             'motd_message': motd,
             'show_cluster_motd': show_cluster_motd
         }
+
+    def form_current(self, record):
+        return_result = {
+            'banner': '',
+            'motd_message': '',
+            # we need the SVM UUID to add banner or motd if they are not present
+            'uuid': record['uuid'] if record else self.get_svm_uuid(self.parameters.get('vserver')),
+            'show_cluster_motd': record.get('show_cluster_message') if record else None
+        }
+        # by default REST adds a trailing \n if no trailing \n set in desired message/banner.
+        # rstip \n only when desired message/banner does not have trailing \n to preserve idempotency.
+        if record and record.get('banner'):
+            if self.parameters.get('banner', '').endswith('\n'):
+                return_result['banner'] = record['banner']
+            else:
+                return_result['banner'] = record['banner'].rstrip('\n')
+        if record and record.get('message'):
+            if self.parameters.get('motd_message', '').endswith('\n'):
+                return_result['motd_message'] = record['message']
+            else:
+                return_result['motd_message'] = record['message'].rstrip('\n')
+        return return_result
 
     def get_login_banner_zapi(self):
         login_banner_get_iter = netapp_utils.zapi.NaElement('vserver-login-banner-get-iter')
