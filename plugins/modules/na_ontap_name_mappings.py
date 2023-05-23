@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -49,7 +49,10 @@ options:
           krb_unix - Kerberos principal name to UNIX user name
           win_unix - Windows user name to UNIX user name
           unix_win - UNIX user name to Windows user name mapping
-    choices: ['krb_unix', 'win_unix', 'unix_win']
+          s3_unix - S3 user name to UNIX user name mapping
+          s3_win - S3 user name to Windows user name mapping
+      - s3_unix and s3_win requires ONTAP 9.12.1 or later.
+    choices: ['krb_unix', 'win_unix', 'unix_win', 's3_unix', 's3_win']
     required: true
     type: str
   index:
@@ -148,7 +151,7 @@ class NetAppOntapNameMappings:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),
             client_match=dict(required=False, type='str'),
-            direction=dict(required=True, type='str', choices=['krb_unix', 'win_unix', 'unix_win']),
+            direction=dict(required=True, type='str', choices=['krb_unix', 'win_unix', 'unix_win', 's3_unix', 's3_win']),
             index=dict(required=True, type='int'),
             from_index=dict(required=False, type='int'),
             pattern=dict(required=False, type='str'),
@@ -165,6 +168,8 @@ class NetAppOntapNameMappings:
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_name_mappings', 9, 6)
         self.rest_api.is_rest_supported_properties(self.parameters, None, [['from_index', (9, 7)]])
+        if self.parameters['direction'] in ['s3_unix', 's3_win'] and not self.rest_api.meets_rest_minimum_version(True, 9, 12, 1):
+            self.module.fail_json(msg="Error: direction %s requires ONTAP 9.12.1 or later version." % self.parameters['direction'])
 
     def get_name_mappings_rest(self, index=None):
         '''

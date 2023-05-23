@@ -100,6 +100,16 @@ def test_error_get_name_mappings_rest():
     assert msg in error
 
 
+def test_error_direction_s3_choices():
+    ''' Test error when set s3 choices in older version '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])
+    ])
+    error = create_module(my_module, DEFAULT_ARGS, {'direction': 's3_unix'}, fail=True)['msg']
+    msg = "Error: direction s3_unix requires ONTAP 9.12.1 or later"
+    assert msg in error
+
+
 def test_create_name_mappings_rest():
     ''' Test create name mapping record '''
     register_responses([

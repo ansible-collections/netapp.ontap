@@ -8,12 +8,11 @@ __metaclass__ = type
 import pytest
 import sys
 
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
     patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
-    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, \
+    register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_s3_buckets \
@@ -23,6 +22,41 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 SRR = rest_responses({
+    'nas_s3_bucket': (200, {"records": [{
+        'comment': '',
+        'name': 'carchi-test-bucket1',
+        'nas_path': '/',
+        'policy': {
+            'statements': [
+                {
+                    'actions': ['GetObject', 'PutObject', 'DeleteObject', 'ListBucket'],
+                    'conditions': [
+                        {'operator': 'ip_address', 'source_ips': ['1.1.1.1/32', '1.2.2.0/24']},
+                    ],
+                    'effect': 'deny',
+                    'principals': [],
+                    'resources': ['carchi-test-bucket1', 'carchi-test-bucket1/*'],
+                    'sid': 1
+                }
+            ]
+        },
+        'svm': {
+            'name': 'ansibleSVM',
+            'uuid': '685bd228'
+        },
+        'type': 'nas',
+        'uuid': '3e5c4ac8'}], "num_records": 1}, None),
+    'nas_s3_bucket_modify': (200, {"records": [{
+        'comment': '',
+        'name': 'carchi-test-bucket1',
+        'nas_path': '/',
+        'policy': {'statements': []},
+        'svm': {
+            'name': 'ansibleSVM',
+            'uuid': '685bd228'
+        },
+        'type': 'nas',
+        'uuid': '3e5c4ac8'}], "num_records": 1}, None),
     's3_bucket_more_policy': (200, {"records": [{
         'comment': 'carchi8py was here again',
         'name': 'bucket1',
@@ -320,6 +354,27 @@ MULTIPLE_POLICY_CONDITIONS = {
 }
 
 
+NAS_S3_BUCKET = {
+    'comment': '',
+    'name': 'carchi-test-bucket1',
+    'nas_path': '/',
+    'policy': {
+        'statements': [
+            {
+                'actions': ['GetObject', 'PutObject', 'DeleteObject', 'ListBucket'],
+                'conditions': [{'operator': 'ip_address', 'source_ips': ['1.1.1.1/32', '1.2.2.0/24']}],
+                'effect': 'deny',
+                'principals': [],
+                'resources': ['carchi-test-bucket1', 'carchi-test-bucket1/*'],
+                'sid': 1
+            }
+        ]
+    },
+    'vserver': 'ansibleSVM',
+    'type': 'nas'
+}
+
+
 QOS_ARGS = {
     "max_throughput_iops": 10000,
     "max_throughput_mbps": 500,
@@ -432,6 +487,35 @@ def test_create_s3_bucket_9_10_and_9_12():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
     module_args['type'] = 's3'
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_s3_nas_bucket_create_modify_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['empty_records']),
+        ('POST', 'protocols/s3/buckets', SRR['success']),
+        # idemptent check
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['nas_s3_bucket']),
+        # modify empty policy
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['nas_s3_bucket']),
+        ('PATCH', 'protocols/s3/buckets/685bd228/3e5c4ac8', SRR['success']),
+        # idempotent check
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['nas_s3_bucket_modify']),
+        # delete nas bucket
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'protocols/s3/buckets', SRR['nas_s3_bucket_modify']),
+        ('DELETE', 'protocols/s3/buckets/685bd228/3e5c4ac8', SRR['success'])
+    ])
+    assert create_and_apply(my_module, DEFAULT_ARGS, NAS_S3_BUCKET)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, NAS_S3_BUCKET)['changed'] is False
+    NAS_S3_BUCKET['policy']['statements'] = []
+    assert create_and_apply(my_module, DEFAULT_ARGS, NAS_S3_BUCKET)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS, NAS_S3_BUCKET)['changed'] is False
+    NAS_S3_BUCKET['state'] = 'absent'
+    assert create_and_apply(my_module, DEFAULT_ARGS, NAS_S3_BUCKET)['changed']
 
 
 def test_modify_s3_bucket_type_error():

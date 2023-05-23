@@ -27,7 +27,7 @@ options:
 
   name:
     description:
-      - The name of the S3 bucket.
+      - The name of the S3 or NAS bucket.
     type: str
     required: true
 
@@ -40,17 +40,20 @@ options:
   aggregates:
     description:
       - List of aggregates names to use for the S3 bucket.
+      - This option is not supported when I(type=nas).
     type: list
     elements: str
 
   constituents_per_aggregate:
     description:
       - Number of constituents per aggregate.
+      - This option is not supported when I(type=nas).
     type: int
 
   size:
     description:
       - Size of the S3 bucket in bytes.
+      - This option is not supported when I(type=nas).
     type: int
 
   comment:
@@ -63,6 +66,13 @@ options:
       - Specifies the bucket type. Valid values are "s3"and "nas".
     type: str
     choices: ['s3', 'nas']
+    version_added: 22.6.0
+
+  nas_path:
+    description:
+      - Specifies the NAS path to which the nas bucket corresponds to.
+    type: str
+    version_added: 22.7.0
 
   policy:
     description:
@@ -162,6 +172,7 @@ options:
     description:
       - A policy group defines measurable service level objectives (SLOs) that apply to the storage objects with which the policy group is associated.
       - If you do not assign a policy group to a bucket, the system wil not monitor and control the traffic to it.
+      - This option is not supported when I(type=nas).
     type: dict
     suboptions:
       max_throughput_iops:
@@ -181,7 +192,9 @@ options:
         type: str
 
   audit_event_selector:
-    description: Audit event selector allows you to specify access and permission types to audit.
+    description:
+      - Audit event selector allows you to specify access and permission types to audit.
+      - This option is not supported when I(type=nas).
     type: dict
     suboptions:
       access:
@@ -298,6 +311,7 @@ class NetAppOntapS3Buckets:
             size=dict(required=False, type='int'),
             comment=dict(required=False, type='str'),
             type=dict(required=False, type='str', choices=['s3', 'nas']),
+            nas_path=dict(required=False, type='str'),
             policy=dict(type='dict', options=dict(
                 statements=dict(type='list', elements='dict', options=dict(
                     sid=dict(required=False, type='str'),
@@ -350,7 +364,7 @@ class NetAppOntapS3Buckets:
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_bucket', 9, 8)
-        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['type', (9, 12, 1)]]
+        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['type', (9, 12, 1)], ['nas_path', (9, 12, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         # few keys in policy.statements will be configured with default value if not set in create.
         # so removing None entries to avoid idempotent issue in next run.
@@ -381,10 +395,10 @@ class NetAppOntapS3Buckets:
     def get_s3_bucket(self):
         api = 'protocols/s3/buckets'
         fields = 'name,svm.name,size,comment,volume.uuid,policy,policy.statements,qos_policy'
-        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+            fields += ',audit_event_selector,type,nas_path'
+        elif self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             fields += ',audit_event_selector'
-        if self.parameters.get('type'):
-            fields += ',type'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
                   'fields': fields}
@@ -402,7 +416,8 @@ class NetAppOntapS3Buckets:
             'policy': self.na_helper.safe_get(record, ['policy']),
             'qos_policy': self.na_helper.safe_get(record, ['qos_policy']),
             'audit_event_selector': self.na_helper.safe_get(record, ['audit_event_selector']),
-            'type': self.na_helper.safe_get(record, ['type'])
+            'type': self.na_helper.safe_get(record, ['type']),
+            'nas_path': self.na_helper.safe_get(record, ['nas_path'])
         }
         if body['policy']:
             for policy_statement in body['policy'].get('statements', []):
@@ -430,27 +445,13 @@ class NetAppOntapS3Buckets:
     def set_uuid(self, record):
         self.uuid = record['uuid']
         self.svm_uuid = record['svm']['uuid']
-        self.volume_uuid = record['volume']['uuid']
+        # volume key is not returned for NAS buckets.
+        self.volume_uuid = self.na_helper.safe_get(record, ['volume', 'uuid'])
 
     def create_s3_bucket(self):
         api = 'protocols/s3/buckets'
         body = {'svm.name': self.parameters['vserver'], 'name': self.parameters['name']}
-        if self.parameters.get('aggregates'):
-            body['aggregates'] = self.parameters['aggregates']
-        if self.parameters.get('constituents_per_aggregate'):
-            body['constituents_per_aggregate'] = self.parameters['constituents_per_aggregate']
-        if self.parameters.get('size'):
-            body['size'] = self.parameters['size']
-        if self.parameters.get('comment'):
-            body['comment'] = self.parameters['comment']
-        if self.parameters.get('policy'):
-            body['policy'] = self.parameters['policy']
-        if self.parameters.get('qos_policy'):
-            body['qos_policy'] = self.na_helper.filter_out_none_entries(self.parameters['qos_policy'])
-        if self.parameters.get('audit_event_selector'):
-            body['audit_event_selector'] = self.na_helper.filter_out_none_entries(self.parameters['audit_event_selector'])
-        if self.parameters.get('type'):
-            body['type'] = self.parameters['type']
+        body.update(self.form_create_or_modify_body())
         dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error creating S3 bucket %s: %s' % (self.parameters['name'], to_native(error)),
@@ -467,25 +468,25 @@ class NetAppOntapS3Buckets:
     def modify_s3_bucket(self, modify):
         api = 'protocols/s3/buckets'
         uuids = '%s/%s' % (self.svm_uuid, self.uuid)
-        body = {}
-        if modify.get('size'):
-            body['size'] = modify['size']
-        if modify.get('comment'):
-            body['comment'] = modify['comment']
-        if modify.get('policy'):
-            # this will reset the policy statements to None.
-            if 'statements' in modify['policy'] and modify['policy']['statements'] == []:
-                body['policy'] = {'statements': []}
-            else:
-                body['policy'] = self.parameters['policy']
-        if modify.get('qos_policy'):
-            body['qos_policy'] = self.na_helper.filter_out_none_entries(self.parameters['qos_policy'])
-        if modify.get('audit_event_selector'):
-            body['audit_event_selector'] = self.na_helper.filter_out_none_entries(self.parameters['audit_event_selector'])
+        body = self.form_create_or_modify_body(modify)
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuids, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error modifying S3 bucket %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+
+    def form_create_or_modify_body(self, params=None):
+        if params is None:
+            params = self.parameters
+        body = {}
+        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy']
+        for option in options:
+            if option in params:
+                body[option] = params[option]
+        if 'qos_policy' in params:
+            body['qos_policy'] = self.na_helper.filter_out_none_entries(params['qos_policy'])
+        if 'audit_event_selector' in params:
+            body['audit_event_selector'] = self.na_helper.filter_out_none_entries(params['audit_event_selector'])
+        return body
 
     def check_volume_aggr(self):
         api = 'storage/volumes/%s' % self.volume_uuid
@@ -561,7 +562,8 @@ class NetAppOntapS3Buckets:
                     self.na_helper.changed = self.validate_modify_required(modify, current)
                     if not self.na_helper.changed:
                         modify = False
-            if current and self.check_volume_aggr():
+            # volume uuid returned only for s3 buckets.
+            if current and self.volume_uuid and self.check_volume_aggr():
                 self.module.fail_json(msg='Aggregates cannot be modified for S3 bucket %s' % self.parameters['name'])
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
