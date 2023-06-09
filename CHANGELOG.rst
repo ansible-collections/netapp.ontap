@@ -5,6 +5,26 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.7.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_name_mappings - added choices ``s3_win`` and ``s3_unix`` to ``direction``, requires ONTAP 9.12.1 or later.
+- na_ontap_s3_buckets - new option ``nas_path`` added, requires ONTAP 9.12.1 or later.
+
+Bugfixes
+--------
+
+- na_ontap_login_messages - fix ``banner`` and ``motd_message`` not idempotent when trailing '\n' is present.
+- na_ontap_login_messages - fix idempotent issue on ``show_cluster_motd`` option when try to set banner or motd_message for the first time in REST.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_active_directory_domain_controllers - NetApp ONTAP configure active directory preferred domain controllers
+
 v22.6.0
 =======
 
