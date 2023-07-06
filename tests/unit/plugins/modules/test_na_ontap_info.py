@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -20,6 +21,9 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info import conve
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if sys.version_info < (2, 8):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on python 2')
 
 
 DEFAULT_ARGS = {
