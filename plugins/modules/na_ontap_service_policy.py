@@ -64,13 +64,14 @@ options:
     choices: ['cluster', 'svm']
   known_services:
     description:
-      - List of known services in 9.11.1
+      - List of known services in 9.12.1
       - An error is raised if any service in C(services) is not in this list or C(new_services).
       - Modify this list to restrict the services you want to support if needed.
     default: [cluster_core, intercluster_core, management_core, management_autosupport, management_bgp, management_ems, management_https, management_http,
               management_ssh, management_portmap, data_core, data_nfs, data_cifs, data_flexcache, data_iscsi, data_s3_server, data_dns_server,
               data_fpolicy_client, management_ntp_client, management_dns_client, management_ad_client, management_ldap_client, management_nis_client,
-              management_snmp_server, management_rsh_server, management_telnet_server, management_ntp_server, data_nvme_tcp, backup_ndmp_control]
+              management_snmp_server, management_rsh_server, management_telnet_server, management_ntp_server, data_nvme_tcp, backup_ndmp_control,
+              management_log_forwarding]
     type: list
     elements: str
     version_added: 22.0.0
@@ -184,7 +185,7 @@ class NetAppOntapServicePolicy:
                                          'data_flexcache', 'data_iscsi', 'data_s3_server', 'data_dns_server', 'data_fpolicy_client', 'management_ntp_client',
                                          'management_dns_client', 'management_ad_client', 'management_ldap_client', 'management_nis_client',
                                          'management_snmp_server', 'management_rsh_server', 'management_telnet_server', 'management_ntp_server',
-                                         'data_nvme_tcp', 'backup_ndmp_control']),
+                                         'data_nvme_tcp', 'backup_ndmp_control', 'management_log_forwarding']),
             additional_services=dict(type='list', elements='str')
         ))
 
