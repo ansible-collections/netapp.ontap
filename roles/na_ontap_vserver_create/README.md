@@ -72,7 +72,7 @@ Example Playbook
       prompt: domain admin password (enter if skipped)
   vars_files:
     - globals.yml
-  roles
+  roles:
   - na_ontap_vserver_create
 ```
 I use a globals file to hold my variables.
