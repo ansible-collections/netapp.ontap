@@ -213,7 +213,7 @@ options:
         - missing_vserver_api_error - most likely the API is available at cluster level but not vserver level.
         - rpc_error - some queries are failing because the node cannot reach another node in the cluster.
         - key_error - a query is failing because the returned data does not contain an expected key.
-        - for key errors, make sure to report this in Slack.  It may be a change in a new ONTAP version.
+        - for key errors, make sure to report this in Discord.  It may be a change in a new ONTAP version.
         - other_error - anything not in the above list.
         - always will continue on any error, never will fail on any error, they cannot be used with any other keyword.
         type: list
