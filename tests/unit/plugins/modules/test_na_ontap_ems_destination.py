@@ -48,7 +48,29 @@ SRR = rest_responses({
                 "destination": "https://test.destination"
             }],
         "num_records": 1
-    }, None)
+    }, None),
+    'certificate_record_1': (200,
+                             {'records': [{"name": "cert_1",
+                                           "uuid": "cert_uuid_1",
+                                           "serial_number": "cert_serial"}]}, None),
+    'ems_destination_with_cert': (200, {
+        "records": [
+            {
+                "name": "test",
+                "type": "rest-api",
+                "destination": "https://test.destination",
+                "certificate": {
+                    "ca": "cert_ca",
+                    "name": "cert1"
+                },
+                "filters": [
+                    {
+                        "name": "test-filter"
+                    }
+                ]
+            }],
+        "num_records": 1
+    }, None),
 })
 
 DEFAULT_ARGS = {
@@ -88,6 +110,40 @@ def test_create_ems_destination():
     ])
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_ems_destination_with_cert():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'support/ems/destinations', SRR['empty_records']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('POST', 'support/ems/destinations', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'cert_ca',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_create_ems_destination_with_cert_unsupported_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'cert_ca',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'na_ontap_ems_destination is only supported with REST API' == error
 
 
 def test_create_ems_destination_error():
@@ -224,3 +280,69 @@ def test_empty_modify_skips_patch():
     module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     my_obj.modify_ems_destination('test', {})
+
+
+def test_module_error_missing_required_together_param():
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'parameters are required together: certificate, ca' == error
+
+
+def test_module_error_cert_not_found():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('GET', 'security/certificates', SRR['empty_records']),
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'my_cert_ca',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error certificate not found: cert1.' == error
+
+
+def test_module_error_rest_get_cert():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('GET', 'security/certificates', SRR['generic_error']),
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'my_cert_ca',
+    }
+    error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error retrieving certificates: calling: security/certificates: got Expected error.' == error
+
+
+def test_modify_ems_cert():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('PATCH', 'support/ems/destinations/test', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'rest_api',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'cert_ca',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
