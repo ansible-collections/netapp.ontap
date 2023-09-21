@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -35,6 +35,10 @@ SRR = rest_responses({
                     "volume": {
                         "name": "volume1",
                         "uuid": "028baa66-41bd-11e9-81d5-00a0986138f7"
+                    },
+                    "qtree": {
+                        "name": "qtree1",
+                        "id": 1,
                     },
                 },
                 "name": "/vol/volume1/qtree1/lun1",
@@ -77,6 +81,10 @@ SRR = rest_responses({
                         "name": "volume1",
                         "uuid": "028baa66-41bd-11e9-81d5-00a0986138f7"
                     },
+                    "qtree": {
+                        "name": "qtree1",
+                        "id": 1,
+                    },
                 },
                 "name": "/vol/volume1/qtree1/lun1",
                 "space": {
@@ -113,6 +121,10 @@ SRR = rest_responses({
                     "volume": {
                         "name": "volume2",
                         "uuid": "028baa66-41bd-11e9-81d5-00a0986138f3"
+                    },
+                    "qtree": {
+                        "name": "qtree1",
+                        "id": 1,
                     },
                 },
                 "name": "/vol/volume1/qtree1/lun2",

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -372,13 +372,15 @@ class NetAppONTAPRestAPI(object):
 
     def apply(self):
         ''' calls the api and returns json output '''
+        changed_status = False if self.method.upper() == 'GET' else True
+
         if self.module.check_mode:
             status_code, response = None, {'check_mode': 'would run %s %s' % (self.method, self.api)}
         elif self.wait_for_completion:
             status_code, response = self.run_api_async()
         else:
             status_code, response = self.run_api()
-        self.module.exit_json(changed=True, status_code=status_code, response=response)
+        self.module.exit_json(changed=changed_status, status_code=status_code, response=response)
 
 
 def main():

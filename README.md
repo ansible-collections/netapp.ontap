@@ -63,6 +63,21 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.8.0
+
+### New Options
+  - na_ontap_lun - new option `qtree_name` added in REST.
+  - na_ontap_rest_info - new option `hal_linking` added.
+  - na_ontap_cifs_server - new option `default_site` added in REST, requires ONTAP 9.13.1 or later.
+
+### Minor Changes
+  - na_ontap_user - Added warning message when password is not changed.
+  - na_ontap_restit - returns changed as False for GET method.
+
+### Bug Fixes
+  - na_ontap_nfs - fix `default_user` under `windows` not getting modified, if not set previously, in REST.
+  - na_ontap_dns - fix DNS not working with Cluster mode.
+
 ## 22.7.0
 
 ### New Options

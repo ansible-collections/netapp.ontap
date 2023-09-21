@@ -97,7 +97,7 @@ def test_rest_run_default_get(mock_request, patch_ansible):
     my_obj = my_module()
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
-    assert exc.value.args[0]['changed'] is True
+    assert exc.value.args[0]['changed'] is False
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 1
 

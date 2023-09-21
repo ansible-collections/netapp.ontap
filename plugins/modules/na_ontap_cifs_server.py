@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """ this is cifs_server module
 
- (c) 2018-2022, NetApp, Inc
+ (c) 2018-2023, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -68,6 +68,13 @@ options:
     description:
       - The Organizational Unit (OU) within the Windows Active Directory this CIFS server belongs to.
     version_added: 2.7.0
+    type: str
+
+  default_site:
+    description:
+      - Specifies the site within the Active Directory domain to associate with the CIFS server if Data ONTAP cannot determine an appropriate site.
+      - Only supported with REST and requires ontap version 9.13.1 or later.
+    version_added: 22.8.0
     type: str
 
   force:
@@ -239,16 +246,16 @@ EXAMPLES = '''
         name: data2
         vserver: svm1
         service_state: stopped
-        encrypt_dc_connection: True,
-        smb_encryption: True,
-        kdc_encryption: True,
-        smb_signing: True,
-        aes_netlogon_enabled: True,
-        ldap_referral_enabled: True,
-        session_security: seal,
-        try_ldap_channel_binding: False,
-        use_ldaps: True,
-        use_start_tls": True
+        encrypt_dc_connection: True
+        smb_encryption: True
+        kdc_encryption: True
+        smb_signing: True
+        aes_netlogon_enabled: True
+        ldap_referral_enabled: True
+        session_security: seal
+        try_ldap_channel_binding: False
+        use_ldaps: True
+        use_start_tls: True
         restrict_anonymous: no_access
         domain: "{{ id_domain }}"
         admin_user_name: "{{ domain_login }}"
@@ -289,6 +296,7 @@ class NetAppOntapcifsServer:
             admin_user_name=dict(required=False, type='str'),
             admin_password=dict(required=False, type='str', no_log=True),
             ou=dict(required=False, type='str'),
+            default_site=dict(required=False, type='str'),
             force=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
@@ -320,13 +328,13 @@ class NetAppOntapcifsServer:
         unsupported_rest_properties = ['workgroup']
         partially_supported_rest_properties = [['encrypt_dc_connection', (9, 8)], ['aes_netlogon_enabled', (9, 10, 1)], ['ldap_referral_enabled', (9, 10, 1)],
                                                ['session_security', (9, 10, 1)], ['try_ldap_channel_binding', (9, 10, 1)], ['use_ldaps', (9, 10, 1)],
-                                               ['use_start_tls', (9, 10, 1)], ['force', (9, 11)]]
+                                               ['use_start_tls', (9, 10, 1)], ['force', (9, 11)], ['default_site', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
             unsupported_zapi_properties = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
-                                           'use_ldaps', 'use_start_tls', 'from_name']
+                                           'use_ldaps', 'use_start_tls', 'from_name', 'default_site']
             used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
             if used_unsupported_zapi_properties:
                 self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
@@ -503,6 +511,8 @@ class NetAppOntapcifsServer:
             ad_domain['organizational_unit'] = self.parameters['ou']
         if 'domain' in self.parameters:
             ad_domain['fqdn'] = self.parameters['domain']
+        if 'default_site' in self.parameters:
+            ad_domain['default_site'] = self.parameters['default_site']
         return ad_domain
 
     def create_modify_body_rest(self, params=None):

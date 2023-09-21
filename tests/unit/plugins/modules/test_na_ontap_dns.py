@@ -33,6 +33,7 @@ SRR = rest_responses({
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
     'generic_error': (400, None, "Expected error"),
     'dns_record': (200, {"records": [{"domains": ['test.com'],
+                                      "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7",
                                       "servers": ['0.0.0.0'],
                                       "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"}}]}, None),
     'cluster_data': (200, {"dns_domains": ['test.com'],

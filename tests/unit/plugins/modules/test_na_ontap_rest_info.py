@@ -56,6 +56,12 @@ SRR = rest_responses({
                          'records': [{'name': 'dummy_vol1'},
                                      {'name': 'dummy_vol2'}],
                          'version': 'ontap_version'}, None),
+    'get_subset_info_without_hal_links': (200,
+                                          {'num_records': 3,
+                                           'records': [{'name': 'dummy_vol1'},
+                                                       {'name': 'dummy_vol2'},
+                                                       {'name': 'dummy_vol3'}],
+                                           'version': 'ontap_version'}, None),
     'metrocluster_post': (200,
                           {'job': {
                               'uuid': 'fde79888-692a-11ea-80c2-005056b39fe7',
@@ -617,6 +623,17 @@ def set_default_args():
     })
 
 
+def set_args_run_ontap_gather_facts_disable_hal_links():
+    return dict({
+        'hostname': 'hostname',
+        'username': 'username',
+        'password': 'password',
+        'https': True,
+        'validate_certs': False,
+        'hal_linking': False
+    })
+
+
 def set_args_run_ontap_version_check():
     return dict({
         'hostname': 'hostname',
@@ -979,6 +996,16 @@ def test_demo_subset():
         ('GET', 'cluster/nodes', SRR['get_subset_info']),
     ])
     assert 'cluster/nodes' in call_main(my_main, set_default_args(), {'gather_subset': 'demo'})['ontap_info']
+
+
+def test_demo_subset_without_hal_links():
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'cluster/software', SRR['get_subset_info_without_hal_links']),
+        ('GET', 'svm/svms', SRR['get_subset_info_without_hal_links']),
+        ('GET', 'cluster/nodes', SRR['get_subset_info_without_hal_links']),
+    ])
+    assert 'cluster/nodes' in call_main(my_main, set_args_run_ontap_gather_facts_disable_hal_links(), {'gather_subset': 'demo'})['ontap_info']
 
 
 def test_subset_with_default_fields():

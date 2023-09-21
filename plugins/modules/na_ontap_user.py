@@ -654,7 +654,8 @@ class NetAppOntapUser:
         error = self.patch_account(owner_uuid, username, body)
         if error:
             if 'message' in error and self.is_repeated_password(error['message']):
-                # if the password is reused, assume idempotency
+                # if the password is reused, assume idempotency but show a warning
+                self.module.warn('Password was not changed: %s' % error['message'])
                 return False
             self.module.fail_json(msg='Error while updating user password: %s' % error)
         return True

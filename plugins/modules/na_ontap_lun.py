@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2022, NetApp, Inc
+# (c) 2017-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -46,6 +46,14 @@ options:
       - The name of the FlexVol the LUN should exist on.
       - Required if san_application_template is not present.
       - Not allowed if san_application_template is present.
+    type: str
+
+  qtree_name:
+    description:
+      - Specifies the name of the Qtree that contains the new LUN.
+      - Not allowed if san_application_template is present.
+      - Only supported with REST.
+    version_added: 22.8.0
     type: str
 
   size:
@@ -336,6 +344,7 @@ class NetAppOntapLUN:
             force_remove=dict(required=False, type='bool', default=False),
             force_remove_fenced=dict(type='bool'),
             flexvol_name=dict(type='str'),
+            qtree_name=dict(type='str'),
             vserver=dict(required=True, type='str'),
             os_type=dict(required=False, type='str', aliases=['ostype']),
             qos_policy_group=dict(required=False, type='str'),
@@ -418,6 +427,8 @@ class NetAppOntapLUN:
             if use_application_template:
                 if self.parameters.get('flexvol_name') is not None:
                     self.module.fail_json(msg="'flexvol_name' option is not supported when san_application_template is present")
+                if self.parameters.get('qtree_name') is not None:
+                    self.module.fail_json(msg="'qtree_name' option is not supported when san_application_template is present")
                 name = self.na_helper.safe_get(self.parameters, ['san_application_template', 'name'], allow_sparse_dict=False)
                 rest_app = RestApplication(self.rest_api, self.parameters['vserver'], name)
             elif self.parameters.get('flexvol_name') is None:
@@ -914,6 +925,8 @@ class NetAppOntapLUN:
             query['name'] = lun_path
         else:
             query['location.volume.name'] = self.parameters['flexvol_name']
+            if self.parameters.get('qtree_name') is not None:
+                query['location.qtree.name'] = self.parameters['qtree_name']
         record, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
         if error:
             if lun_path is not None:
@@ -956,6 +969,8 @@ class NetAppOntapLUN:
         }
         if self.parameters.get('flexvol_name') is not None:
             body['location.volume.name'] = self.parameters['flexvol_name']
+        if self.parameters.get('qtree_name') is not None:
+            body['location.qtree.name'] = self.parameters['qtree_name']
         if self.parameters.get('os_type') is not None:
             body['os_type'] = self.parameters['os_type']
         if self.parameters.get('size') is not None:
@@ -978,7 +993,9 @@ class NetAppOntapLUN:
             If the name start with a slash we will assume it a path and use it as the name
         """
         if not self.parameters['name'].startswith('/') and self.parameters.get('flexvol_name') is not None:
-            # if it dosn't start with a slash and we have a flexvol name we will use it to build the path
+            # if it dosn't start with a slash we will use flexvol name and/or qtree name to build the path
+            if self.parameters.get('qtree_name') is not None:
+                return '/vol/%s/%s/%s' % (self.parameters['flexvol_name'], self.parameters['qtree_name'], self.parameters['name'])
             return '/vol/%s/%s' % (self.parameters['flexvol_name'], self.parameters['name'])
         return self.parameters['name']
 

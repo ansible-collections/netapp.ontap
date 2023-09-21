@@ -262,7 +262,7 @@ class NetAppOntapDns:
             return {
                 'domains': record['domains'],
                 'nameservers': record['servers'],
-                'uuid': record['svm']['uuid']
+                'uuid': record['uuid']
             }
         if self.parameters.get('vserver') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             # There is a chance we are working at the cluster level

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -555,6 +555,8 @@ class NetAppONTAPNFS:
         if error:
             self.module.fail_json(msg='Error getting nfs services for SVM %s: %s' % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
+        if record and 'default_user' not in record.get('windows'):
+            record['windows']['default_user'] = None
         return self.format_get_nfs_service_rest(record) if record else record
 
     def format_get_nfs_service_rest(self, record):

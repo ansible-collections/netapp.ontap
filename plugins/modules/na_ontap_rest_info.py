@@ -310,6 +310,11 @@ options:
     type: list
     elements: str
     version_added: '21.23.0'
+  hal_linking:
+    description:
+      - if false, HAL-encoded links are disabled in the REST calls.
+    default: true
+    type: bool
 '''
 
 EXAMPLES = '''
@@ -488,6 +493,7 @@ class NetAppONTAPGatherInfo(object):
             use_python_keys=dict(type='bool', default=False),
             owning_resource=dict(type='dict', required=False),
             ignore_api_errors=dict(type='list', elements='str', required=False),
+            hal_linking=dict(required=False, type='bool', default=True),
         ))
 
         self.module = AnsibleModule(
@@ -532,7 +538,9 @@ class NetAppONTAPGatherInfo(object):
             for each in self.parameters['parameters']:
                 data[each] = self.parameters['parameters'][each]
 
-        gathered_ontap_info, error = self.rest_api.get(api, data)
+        accept_header = 'application/hal+json' if self.parameters.get('hal_linking') else 'application/json'
+        headers = self.rest_api.build_headers(accept=accept_header)
+        gathered_ontap_info, error = self.rest_api.get(api, data, headers=headers)
 
         if not error:
             return gathered_ontap_info

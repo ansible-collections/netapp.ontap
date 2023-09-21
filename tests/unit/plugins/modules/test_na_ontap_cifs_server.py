@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs_server '''
@@ -457,6 +457,19 @@ def test_rest_successful_create_with_domain():
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
+def test_rest_successful_create_with_default_site():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'default_site': 'default_site'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
 def test_rest_successful_create_with_security():
     '''Test successful rest create'''
     register_responses([
@@ -472,6 +485,18 @@ def test_rest_successful_create_with_security():
         'restrict_anonymous': 'no_enumeration'
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_version_error_with_default_site():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'default_site': 'default_site',
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for default_site is (9, 13, 1)' in error
 
 
 def test_rest_version_error_with_security_encryption():
