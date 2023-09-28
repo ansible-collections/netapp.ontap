@@ -166,67 +166,88 @@ class NetAppOntapEMSFilters:
             self.module.fail_json(msg='Error deleting EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_ems_filter(self):
-        # only variable other than name is rules, so if we hit this we know rules has been changed
+    def modify_ems_filter(self, desired_rules):
+        post_api = 'support/ems/filters/%s/rules' % self.parameters['name']
         api = 'support/ems/filters'
-        body = {'rules': self.na_helper.filter_out_none_entries(self.parameters['rules'])}
-        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body)
-        if error:
-            self.module.fail_json(msg='Error modifying EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
-                                  exception=traceback.format_exc())
+        if desired_rules['patch_rules'] != []:
+            patch_body = {'rules': desired_rules['patch_rules']}
+            dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], patch_body)
+            if error:
+                self.module.fail_json(msg='Error modifying EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
+                                      exception=traceback.format_exc())
+        if desired_rules['post_rules'] != []:
+            for rule in desired_rules['post_rules']:
+                dummy, error = rest_generic.post_async(self.rest_api, post_api, rule)
+                if error:
+                    self.module.fail_json(msg='Error modifying EMS filter %s: %s' % (self.parameters['name'], to_native(error)),
+                                          exception=traceback.format_exc())
 
-    def find_modify(self, current):
-        # The normal modify will not work for 2 reasons
-        # First ems filter will add a new rule at the end that excludes everything that there isn't a rule for
-        # Second Options that are not given are returned as '*' in rest
+    def desired_ems_rules(self, current_rules):
+        # Modify current filter to remove auto added rule of type exclude, from testing it always appears to be the last element
+        current_rules['rules'] = current_rules['rules'][:-1]
+        if self.parameters.get('rules'):
+            input_rules = self.na_helper.filter_out_none_entries(self.parameters['rules'])
+            matched_idx = []
+            patch_rules = []
+            post_rules = []
+            for rule_dict in current_rules['rules']:
+                for i in range(len(input_rules)):
+                    if input_rules[i]['index'] == rule_dict['index']:
+                        matched_idx.append(int(input_rules[i]['index']))
+                        patch_rules.append(input_rules[i])
+                        break
+                else:
+                    rule = {'index': rule_dict['index']}
+                    rule['type'] = rule_dict.get('type')
+                    if 'message_criteria' in rule_dict:
+                        rule['message_criteria'] = {}
+                        rule['message_criteria']['severities'] = rule_dict.get('message_criteria').get('severities')
+                        rule['message_criteria']['name_pattern'] = rule_dict.get('message_criteria').get('name_pattern')
+                    patch_rules.append(rule)
+            for i in range(len(input_rules)):
+                if int(input_rules[i]['index']) not in matched_idx:
+                    post_rules.append(input_rules[i])
+            desired_rules = {'patch_rules': patch_rules, 'post_rules': post_rules}
+            return desired_rules
+        return None
+
+    def find_modify(self, current, desired_rules):
         if not current:
             return False
-        # Modify Current to remove auto added rule, from testing it always appears to be the last element
-        if current.get('rules'):
-            current['rules'].pop()
-        # Next check if both have no rules
-        if current.get('rules') is None and self.parameters.get('rules') is None:
+        # Next check if either one has no rules
+        if current.get('rules') is None or desired_rules is None:
             return False
-        # Next let check if rules is the same size if not we need to modify
-        if len(current.get('rules')) != len(self.parameters.get('rules')):
-            return True
-        # Next let put the current rules in a dictionary by rule number
-        current_rules = self.dic_of_rules(current)
-        # Now we need to compare each field to see if there is a match
         modify = False
-        for rule in self.parameters['rules']:
-            # allow modify if a desired rule index may not exist in current rules.
-            # when testing found only index 1, 2 are allowed, if try to set index other than this, let REST throw error.
-            if current_rules.get(rule['index']) is None:
-                modify = True
-                break
-            # Check if types are the same
-            if rule['type'].lower() != current_rules[rule['index']]['type'].lower():
-                modify = True
-                break
-            if rule.get('message_criteria'):
-                if rule['message_criteria'].get('severities') and rule['message_criteria']['severities'].lower() != \
-                        current_rules[rule['index']]['message_criteria']['severities'].lower():
-                    modify = True
-                    break
-                if rule['message_criteria'].get('name_pattern') and rule['message_criteria']['name_pattern'] != \
-                        current_rules[rule['index']]['message_criteria']['name_pattern']:
-                    modify = True
-                    break
-        return modify
+        merge_rules = desired_rules['patch_rules'] + desired_rules['post_rules']
+        # Next let check if rules is the same size if not we need to modify
+        if len(current.get('rules')) != len(merge_rules):
+            return True
+        for i in range(len(current['rules'])):
+            # compare each field to see if there is a mismatch
+            if current['rules'][i]['index'] != merge_rules[i]['index'] or current['rules'][i]['type'] != merge_rules[i]['type']:
+                return True
+            else:
+                # adding default values for fields under message_criteria
+                if merge_rules[i].get('message_criteria') is None:
+                    merge_rules[i]['message_criteria'] = {'severities': '*', 'name_pattern': '*'}
+                elif merge_rules[i]['message_criteria'].get('severities') is None:
+                    merge_rules[i]['message_criteria']['severities'] = '*'
+                elif merge_rules[i]['message_criteria'].get('name_pattern') is None:
+                    merge_rules[i]['message_criteria']['name_pattern'] = '*'
 
-    def dic_of_rules(self, current):
-        rules = {}
-        for rule in current['rules']:
-            rules[rule['index']] = rule
-        return rules
+                if current['rules'][i].get('message_criteria').get('name_pattern') != merge_rules[i].get('message_criteria').get('name_pattern'):
+                    return True
+                if current['rules'][i].get('message_criteria').get('severities') != merge_rules[i].get('message_criteria').get('severities'):
+                    return True
+        return modify
 
     def apply(self):
         current = self.get_ems_filter()
         cd_action, modify = None, False
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
-            modify = self.find_modify(current)
+            desired_rules = self.desired_ems_rules(current)
+            modify = self.find_modify(current, desired_rules)
             if modify:
                 self.na_helper.changed = True
         if self.na_helper.changed and not self.module.check_mode:
@@ -235,7 +256,7 @@ class NetAppOntapEMSFilters:
             if cd_action == 'delete':
                 self.delete_ems_filter()
             if modify:
-                self.modify_ems_filter()
+                self.modify_ems_filter(desired_rules)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
         self.module.exit_json(**result)
 

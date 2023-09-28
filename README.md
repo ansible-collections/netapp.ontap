@@ -77,7 +77,8 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug Fixes
   - na_ontap_nfs - fix `default_user` under `windows` not getting modified, if not set previously, in REST.
   - na_ontap_dns - fix DNS not working with Cluster mode.
-
+  - na_ontap_ems_filter - fix modify operation to add rule in existing filter.
+  
 ## 22.7.0
 
 ### New Options

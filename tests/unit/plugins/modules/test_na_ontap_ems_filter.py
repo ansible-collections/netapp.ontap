@@ -25,6 +25,18 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 SRR = rest_responses({
+    'default_ems_filter': (200, {
+        "name": "snmp-traphost",
+        "rules": [{
+            "index": "1",
+            "type": "exclude",
+            "message_criteria": {
+                "severities": "*",
+                "name_pattern": "*",
+                "snmp_trap_types": "*",
+            }
+        }]
+    }, None),
     'ems_filter': (200, {
         "name": "snmp-traphost",
         "rules": [{
@@ -44,7 +56,8 @@ SRR = rest_responses({
             }
         }]
     }, None),
-    'ems_filter_2_riles': (200, {
+    'post_empty_good': (201, {}, None),
+    'ems_filter_2_rules': (200, {
         "name": "snmp-traphost",
         "rules": [{
             "index": "1",
@@ -62,6 +75,39 @@ SRR = rest_responses({
             }
         }, {
             "index": "3",
+            "type": "exclude",
+            "message_criteria": {
+                "severities": "*",
+                "name_pattern": "*",
+                "snmp_trap_types": "*",
+            }
+        }]
+    }, None),
+    'ems_filter_3_rules': (200, {
+        "name": "snmp-traphost",
+        "rules": [{
+            "index": "1",
+            "type": "include",
+            "message_criteria": {
+                "severities": "error",
+                "name_pattern": "*",
+            }
+        }, {
+            "index": "2",
+            "type": "include",
+            "message_criteria": {
+                "severities": "alert",
+                "name_pattern": "callhome.*",
+            }
+        }, {
+            "index": "3",
+            "type": "include",
+            "message_criteria": {
+                "severities": "emergency",
+                "name_pattern": "callhome.*",
+            }
+        }, {
+            "index": "4",
             "type": "exclude",
             "message_criteria": {
                 "severities": "*",
@@ -94,17 +140,19 @@ DEFAULT_RULE = [{
 
 DEFAULT_RULE_2_RULES = [{
     "index": "1",
-    "type": "include",
+    "type": "exclude",
     "message_criteria": {
         "severities": "error,informational",
         "name_pattern": "callhome.*",
-    }}, {
+    }
+}, {
     "index": "2",
-    "type": "include",
+    "type": "exclude",
     "message_criteria": {
-        "severities": "alert",
-        "name_pattern": "callhome.*",
-    }}]
+        "severities": "*",
+        "name_pattern": "*",
+    }
+}]
 
 DEFAULT_RULE_MODIFY_TYPE_2_RULES = [{
     "index": "1",
@@ -126,7 +174,7 @@ DEFAULT_RULE_MODIFY_SEVERITIES_2_RULES = [{
     "index": "1",
     "type": "include",
     "message_criteria": {
-        "severities": "informational",
+        "severities": "notice",
         "name_pattern": "callhome.*",
     }
 }, {
@@ -150,6 +198,29 @@ DEFAULT_RULE_MODIFY_NAME_PATTERN_2_RULES = [{
     "type": "include",
     "message_criteria": {
         "severities": "alert",
+        "name_pattern": "*",
+    }
+}]
+
+DEFAULT_RULE_MODIFY_SEVERITIES_3_RULES = [{
+    "index": "1",
+    "type": "include",
+    "message_criteria": {
+        "severities": "error, informational",
+        "name_pattern": "*",
+    }
+}, {
+    "index": "2",
+    "type": "include",
+    "message_criteria": {
+        "severities": "alert",
+        "name_pattern": "callhome.*",
+    }
+}, {
+    "index": "3",
+    "type": "include",
+    "message_criteria": {
+        "severities": "emergency",
         "name_pattern": "callhome.*",
     }
 }]
@@ -241,28 +312,32 @@ def test_delete_ems_filter_error():
 def test_modify_ems_filter_add_rule():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/filters', SRR['ems_filter']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
+        ('GET', 'support/ems/filters', SRR['default_ems_filter']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
     ])
-    module_args = {'rules': DEFAULT_RULE_2_RULES}
+    module_args = {'rules': DEFAULT_RULE}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ems_filter_change_type():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/filters', SRR['ems_filter_2_riles']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
+        ('GET', 'support/ems/filters', SRR['ems_filter']),
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
-    module_args = {'rules': DEFAULT_RULE_MODIFY_TYPE_2_RULES}
+    module_args = {'rules': DEFAULT_RULE_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ems_filter_change_severities():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/filters', SRR['ems_filter_2_riles']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
+        ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_SEVERITIES_2_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
@@ -271,21 +346,38 @@ def test_modify_ems_filter_change_severities():
 def test_modify_ems_filter_change_name_pattern():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/filters', SRR['ems_filter_2_riles']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
+        ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_MODIFY_NAME_PATTERN_2_RULES}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ems_filter_add_rule_and_change_severities():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'support/ems/filters', SRR['ems_filter_2_rules']),
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
+    ])
+    module_args = {'rules': DEFAULT_RULE_MODIFY_SEVERITIES_3_RULES}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_modify_ems_filter_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['generic_error'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['generic_error']),
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
-    my_obj.parameters['rules'] = DEFAULT_RULE_2_RULES
-    error = expect_and_capture_ansible_exception(my_obj.modify_ems_filter, 'fail')['msg']
+    patch_rules = [{'index': 1, 'type': 'include', 'message_criteria': {'severities': 'error', 'name_pattern': '*'}}]
+    post_rules = [{'index': 2, 'type': 'include', 'message_criteria': {'severities': 'notice', 'name_pattern': '*'}}]
+    desired_rules = {'patch_rules': patch_rules, 'post_rules': post_rules}
+    error = expect_and_capture_ansible_exception(my_obj.modify_ems_filter, 'fail', desired_rules)['msg']
     print('Info: %s' % error)
     assert 'Error modifying EMS filter snmp-traphost: calling: support/ems/filters/snmp-traphost: got Expected error.' == error
 
@@ -293,7 +385,7 @@ def test_modify_ems_filter_error():
 def test_modify_ems_filter_no_rules():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'support/ems/filters', SRR['ems_filter_no_rules']),
+        ('GET', 'support/ems/filters', SRR['default_ems_filter']),
     ])
     assert not create_and_apply(my_module, DEFAULT_ARGS, {})['changed']
 
@@ -302,7 +394,8 @@ def test_modify_star_test():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'support/ems/filters', SRR['ems_filter']),
-        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good'])
+        ('PATCH', 'support/ems/filters/snmp-traphost', SRR['empty_good']),
+        ('POST', 'support/ems/filters/snmp-traphost/rules', SRR['post_empty_good'])
     ])
     module_args = {'rules': DEFAULT_RULE_STARS}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
