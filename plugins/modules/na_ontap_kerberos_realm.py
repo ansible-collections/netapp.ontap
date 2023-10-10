@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
 (c) 2019, Red Hat, Inc
-(c) 2019-2022, NetApp, Inc
+(c) 2019-2023, NetApp, Inc
 GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -65,7 +65,7 @@ options:
     description:
       - The clock skew in minutes is the tolerance for accepting tickets with time stamps that do not exactly match the host's system clock.
       - The default for this parameter is '5' minutes.
-      - This option is not supported with REST.
+      - Supported from ONTAP 9.13.1 in REST.
     type: str
 
   comment:
@@ -77,14 +77,14 @@ options:
     description:
       - IP address of the host where the Kerberos administration daemon is running. This is usually the master KDC.
       - If this parameter is omitted, the address specified in kdc_ip is used.
-      - This option is not supported with REST.
+      - Supported from ONTAP 9.13.1 in REST.
     type: str
 
   admin_server_port:
     description:
       - The TCP port on the Kerberos administration server where the Kerberos administration service is running.
       - The default for this parmater is '749'.
-      - This option is not supported with REST.
+      - Supported from ONTAP 9.13.1 in REST.
     type: str
 
   pw_server_ip:
@@ -92,14 +92,14 @@ options:
       - IP address of the host where the Kerberos password-changing server is running.
       - Typically, this is the same as the host indicated in the adminserver-ip.
       - If this parameter is omitted, the IP address in kdc-ip is used.
-      - This option is not supported with REST.
+      - Supported from ONTAP 9.13.1 in REST.
     type: str
 
   pw_server_port:
     description:
       - The TCP port on the Kerberos password-changing server where the Kerberos password-changing service is running.
       - The default for this parameter is '464'.
-      - This option is not supported with REST.
+      - Supported from ONTAP 9.13.1 in REST.
     type: str
 
   ad_server_ip:
@@ -141,6 +141,21 @@ EXAMPLES = '''
         kdc_vendor: 'microsoft'
         ad_server_ip: '0.0.0.0'
         ad_server_name: 'server'
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    - name: Create kerberos realm other kdc vendor - REST
+      netapp.ontap.na_ontap_kerberos_realm:
+        state: present
+        realm: 'EXAMPLE.COM'
+        vserver: 'vserver1'
+        kdc_ip: '1.2.3.4'
+        kdc_vendor: 'other'
+        pw_server_ip: '0.0.0.0'
+        pw_server_port: '5'
+        admin_server_ip: '1.2.3.4'
+        admin_server_port: '2'
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -195,8 +210,9 @@ class NetAppOntapKerberosRealm:
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # Set up Rest API
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        unsupported_rest_properties = ['admin_server_ip', 'admin_server_port', 'clock_skew', 'pw_server_ip', 'pw_server_port']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        partially_supported_rest_properties = [['admin_server_ip', (9, 13, 1)], ['admin_server_port', (9, 13, 1)], ['clock_skew', (9, 13, 1)],
+                                               ['pw_server_ip', (9, 13, 1)], ['pw_server_port', (9, 13, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         self.svm_uuid = None
 
         if not self.use_rest:
@@ -350,7 +366,7 @@ class NetAppOntapKerberosRealm:
         params = {
             'name': self.parameters['realm'],
             'svm.name': self.parameters['vserver'],
-            'fields': 'kdc,ad_server,svm,comment'
+            'fields': 'kdc,ad_server,svm,comment,password_server,admin_server,clock_skew'
         }
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -363,7 +379,12 @@ class NetAppOntapKerberosRealm:
                 'kdc_vendor': self.na_helper.safe_get(record, ['kdc', 'vendor']),
                 'ad_server_ip': self.na_helper.safe_get(record, ['ad_server', 'address']),
                 'ad_server_name': self.na_helper.safe_get(record, ['ad_server', 'name']),
-                'comment': self.na_helper.safe_get(record, ['comment'])
+                'comment': self.na_helper.safe_get(record, ['comment']),
+                'pw_server_ip': self.na_helper.safe_get(record, ['password_server', 'address']),
+                'pw_server_port': str(self.na_helper.safe_get(record, ['password_server', 'port'])),
+                'admin_server_ip': self.na_helper.safe_get(record, ['admin_server', 'address']),
+                'admin_server_port': str(self.na_helper.safe_get(record, ['admin_server', 'port'])),
+                'clock_skew': str(self.na_helper.safe_get(record, ['clock_skew']))
             }
         return None
 
@@ -379,9 +400,20 @@ class NetAppOntapKerberosRealm:
             body['kdc.port'] = self.parameters['kdc_port']
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']
-        if self.parameters['kdc_vendor'] == 'microsoft':
+        if self.parameters.get('ad_server_ip'):
             body['ad_server.address'] = self.parameters['ad_server_ip']
+        if self.parameters.get('ad_server_name'):
             body['ad_server.name'] = self.parameters['ad_server_name']
+        if self.parameters.get('admin_server_port'):
+            body['admin_server.port'] = self.parameters['admin_server_port']
+        if self.parameters.get('pw_server_port'):
+            body['password_server.port'] = self.parameters['pw_server_port']
+        if self.parameters.get('clock_skew'):
+            body['clock_skew'] = self.parameters['clock_skew']
+        if self.parameters.get('admin_server_ip'):
+            body['admin_server.address'] = self.parameters['admin_server_ip']
+        if self.parameters.get('pw_server_ip'):
+            body['password_server.address'] = self.parameters['pw_server_ip']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating Kerberos Realm configuration %s: %s' % (self.parameters['realm'], to_native(error)))
@@ -401,6 +433,16 @@ class NetAppOntapKerberosRealm:
             body['ad_server.address'] = modify['ad_server_ip']
         if modify.get('ad_server_name'):
             body['ad_server.name'] = modify['ad_server_name']
+        if modify.get('admin_server_ip'):
+            body['admin_server.address'] = modify['admin_server_ip']
+        if modify.get('admin_server_port'):
+            body['admin_server.port'] = modify['admin_server_port']
+        if modify.get('pw_server_ip'):
+            body['password_server.address'] = modify['pw_server_ip']
+        if modify.get('pw_server_port'):
+            body['password_server.port'] = modify['pw_server_port']
+        if modify.get('clock_skew'):
+            body['clock_skew'] = modify['clock_skew']
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['realm'], body)
         if error:
             self.module.fail_json(msg='Error modifying Kerberos Realm %s: %s' % (self.parameters['realm'], to_native(error)))
@@ -416,7 +458,6 @@ class NetAppOntapKerberosRealm:
         current = self.get_krbrealm()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
-
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_krbrealm()

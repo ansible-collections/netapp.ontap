@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP Kerberos Realm module '''
@@ -36,7 +36,8 @@ DEFAULT_ARGS = {
     'realm': 'NETAPP.COM',
     'vserver': 'vserver1',
     'kdc_ip': '192.168.0.1',
-    'kdc_vendor': 'other'
+    'kdc_vendor': 'other',
+
 }
 
 kerberos_info = {
@@ -78,6 +79,15 @@ SRR = rest_responses({
             "ip": "10.193.115.116",
             "port": 88
         },
+        "admin_server": {
+            "address": "10.193.115.116",
+            "port": 126
+        },
+        "password_server": {
+            "address": "1.2.3.4",
+            "port": 0
+        },
+        "clock_skew": 10,
         "comment": "mohan",
         "ad_server": {
             "name": "netapp",
@@ -157,7 +167,7 @@ def test_if_all_methods_catch_exception():
         ('kerberos-realm-create', ZRR['error']),
         ('kerberos-realm-modify', ZRR['error']),
         ('kerberos-realm-delete', ZRR['error']),
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
         ('POST', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
         ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['generic_error']),
@@ -180,7 +190,7 @@ def test_if_all_methods_catch_exception():
 def test_successfully_create_realm_rest():
     ''' Test successfully create realm '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['empty_records']),
         ('POST', 'protocols/nfs/kerberos/realms', SRR['success']),
     ])
@@ -191,11 +201,11 @@ def test_successfully_modify_realm_rest():
     ''' Test modify realm successful for modifying kdc_ip. '''
     register_responses([
         # modify ip.
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['kerberos_info']),
         ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['success']),
         # modify port.
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['kerberos_info']),
         ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['success']),
     ])
@@ -206,8 +216,20 @@ def test_successfully_modify_realm_rest():
 def test_successfully_delete_realm_rest():
     ''' Test successfully delete realm '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'protocols/nfs/kerberos/realms', SRR['kerberos_info']),
         ('DELETE', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['success'])
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS, {'use_rest': 'always', 'state': 'absent'})
+
+
+def test_error_with_params_supported_before_9_13_1_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+    ])
+    args = {'use_rest': 'always', 'admin_server_ip': '10.193.115.116', 'admin_server_port': 126, 'clock_skew': 10, 'pw_server_ip': '1.2.3.4',
+            'pw_server_port': 0}
+    error = create_module(my_module, DEFAULT_ARGS, args, fail=True)['msg']
+    unsupported_param_before_9_13_1 = ['admin_server_ip', 'admin_server_port', 'clock_skew', 'pw_server_ip', 'pw_server_port']
+    msg = 'Error: Minimum version of ONTAP for ' + ' is (9, 13, 1).\nMinimum version of ONTAP for '.join(unsupported_param_before_9_13_1) + ' is (9, 13, 1).'
+    assert msg in error
