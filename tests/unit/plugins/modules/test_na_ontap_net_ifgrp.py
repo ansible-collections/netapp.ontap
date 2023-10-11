@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -629,6 +629,7 @@ def test_create_ifgrp_port(mock_request, patch_ansible):
         SRR['is_rest_9_8'],                # get version
         SRR['ifgrp_record_create'],        # get
         SRR['empty_good'],                 # create
+        SRR['ifgrp_record_create'],        # get details of created lag
         SRR['end_of_sequence']
     ]
     my_obj = ifgrp_module()

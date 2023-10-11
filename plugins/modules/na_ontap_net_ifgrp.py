@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -295,7 +295,7 @@ class NetAppOntapIfGrp:
             }
         return return_value
 
-    def get_if_grp_rest(self, ports, allow_partial_match):
+    def get_if_grp_rest(self, ports, allow_partial_match, force=False):
         api = 'network/ethernet/ports'
         query = {
             'type': 'lag',
@@ -303,7 +303,7 @@ class NetAppOntapIfGrp:
         }
         fields = 'name,node,uuid,broadcast_domain,lag'
         error = None
-        if not self.current_records:
+        if not self.current_records or force:
             self.current_records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg=error)
@@ -342,6 +342,7 @@ class NetAppOntapIfGrp:
         current = {
             'node': record['node']['name'],
             'uuid': record['uuid'],
+            'name': record['name'],
             'ports': current_port_list
         }
         if record.get('broadcast_domain'):
@@ -496,6 +497,7 @@ class NetAppOntapIfGrp:
     def apply(self):
         # for a LAG, rename is equivalent to adding/removing ports from an existing LAG.
         current, exact_match, modify, rename = None, True, None, None
+        response = None
         if not self.use_rest:
             current = self.get_if_grp()
         elif self.use_rest:
@@ -523,6 +525,9 @@ class NetAppOntapIfGrp:
             uuid = current['uuid'] if current and self.use_rest else None
             if cd_action == 'create':
                 self.create_if_grp()
+                # While using REST, fetch the name of the created LAG and return as response in result
+                if self.use_rest:
+                    response, exact_match = self.get_if_grp_rest(self.parameters.get('ports'), allow_partial_match=True, force=True)
             elif cd_action == 'delete':
                 self.delete_if_grp(uuid)
             elif modify:
@@ -530,7 +535,7 @@ class NetAppOntapIfGrp:
                     self.modify_ports_rest(modify, uuid)
                 else:
                     self.modify_ports(current_ports['ports'])
-        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, response=response)
         self.module.exit_json(**result)
 
 
