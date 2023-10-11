@@ -78,7 +78,16 @@ volume_info = {
         },
         "size": 10737418240,
         "snapshot": {
-            "reserve_percent": 5
+            "reserve_percent": 5,
+            "autodelete": {
+                "enabled": False,
+                "trigger": "volume",
+                "delete_order": "oldest_first",
+                "defer_delete": "user_created",
+                "commitment": "try",
+                "target_free_space": 20,
+                "prefix": "(not specified)"
+            }
         }
     },
     "guarantee": {
@@ -89,7 +98,9 @@ volume_info = {
     },
     "analytics": {
         "state": "on"
-    }
+    },
+    "access_time_enabled": True,
+    "snapshot_directory_access_enabled": True
 }
 
 volume_info_mount = copy.deepcopy(volume_info)
@@ -114,6 +125,8 @@ SRR = rest_responses({
     # common responses
     'is_rest': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
+    'is_rest_9_8_0': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy_9_8_0')), None),
+    'is_rest_9_13_1': (200, dict(version=dict(generation=9, major=13, minor=1, full='dummy_9_13_1')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'no_record': (200, {'num_records': 0, 'records': []}, None),
@@ -505,6 +518,75 @@ def test_rest_error_modify_attributes():
     }
     msg = "Error modifying volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error."
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == msg
+
+
+def test_rest_version_error_with_atime_update():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96'])
+    ])
+    module_args = {
+        'atime_update': False
+    }
+    error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    print('error', error)
+    assert 'Minimum version of ONTAP for atime_update is (9, 8)' in error
+
+
+def test_rest_version_error_with_snapdir_access():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1'])
+    ])
+    module_args = {
+        'snapdir_access': False
+    }
+    error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    print('error', error)
+    assert 'Minimum version of ONTAP for snapdir_access is (9, 13, 1)' in error
+
+
+def test_rest_version_error_with_snapshot_auto_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1'])
+    ])
+    module_args = {
+        'snapshot_auto_delete': {'state': 'on'}
+    }
+    error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    print('error', error)
+    assert 'Minimum version of ONTAP for snapshot_auto_delete is (9, 13, 1)' in error
+
+
+def test_rest_successfully_modify_attributes_atime_update():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Modify
+    ])
+    module_args = {
+        'atime_update': False,
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_attributes_snapdir_access_and_snapshot_auto_delete():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Modify
+    ])
+    module_args = {
+        'snapdir_access': False,
+        'snapshot_auto_delete': {
+            'state': 'on',
+            'trigger': 'volume',
+            'delete_order': 'oldest_first',
+            'defer_delete': 'user_created',
+            'commitment': 'try',
+            'target_free_space': 25,
+            'prefix': 'prefix1'
+        }
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
 def test_rest_successfully_create_volume():

@@ -4,17 +4,11 @@
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-'''
-na_ontap_volume
-'''
-
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 DOCUMENTATION = '''
-
 module: na_ontap_volume
-
 short_description: NetApp ONTAP manage volumes.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
@@ -307,6 +301,7 @@ options:
       - This is an advanced option, the default is False.
       - Enable the visible '.snapshot' directory that is normally present at system internal mount points.
       - This value also turns on access to all other '.snapshot' directories in the volume.
+      - This option is supported in REST for ONTAP 9.13.1 or later with ONTAP collection version 22.8.0 or later.
     type: bool
     version_added: 2.8.0
 
@@ -318,6 +313,7 @@ options:
         since it prevents writes to the inode file for the volume from contending with reads from other files.
       - This field should be used carefully.
       - That is, use this field when you know in advance that the correct access time for inodes will not be needed for files on that volume.
+      - This option is supported in REST for ONTAP 9.8 or later with ONTAP collection version 22.8.0 or later.
     type: bool
     version_added: 2.8.0
 
@@ -346,7 +342,7 @@ options:
     description:
       - Volume move and encryption operations might take longer time to complete.
       - With C(wait_for_completion) set, module will wait for time set in this option for volume move and encryption to complete.
-      - If time exipres, module exit and the operation may still running.
+      - If time exipres, module exit and the operation may still be running.
       - Default is set to 10 minutes.
     default: 600
     type: int
@@ -459,6 +455,7 @@ options:
       - A dictionary for the auto delete options and values.
       - Supported options include 'state', 'commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
         'prefix', 'destroy_list'.
+      - All the above mentioned options except 'destroy_list' are supported in REST for ONTAP 9.13.1 or later with ONTAP collection version 22.8.0 or later.
       - Option 'state' determines if the snapshot autodelete is currently enabled for the volume. Possible values are 'on' and 'off'.
       - Option 'commitment' determines the snapshots which snapshot autodelete is allowed to delete to get back space.
         Possible values are 'try', 'disrupt' and 'destroy'.
@@ -880,6 +877,33 @@ EXAMPLES = """
           retention:
             default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
 
+    - name: Create volume with snapshot-auto-delete options - REST
+      netapp.ontap.na_ontap_volume:
+        state: present
+        name: test_vol
+        aggregate_name: "{{ aggr }}"
+        size: 20
+        size_unit: mb
+        snapshot_auto_delete:
+          state: 'on'
+          trigger: volume
+          delete_order: "oldest_first"
+          defer_delete: "user_created"
+          commitment: "try"
+          target_free_space: 30
+          prefix: "my_prefix"
+        wait_for_completion: true
+
+    - name: Modify volume - REST
+      netapp.ontap.na_ontap_volume:
+        state: present
+        name: test_vol
+        aggregate_name: "{{ aggr }}"
+        snapdir_access: false
+        snapshot_auto_delete:
+          state: 'on'
+          target_free_space: 25
+
 """
 
 RETURN = """
@@ -1021,18 +1045,17 @@ class NetAppOntapVolume:
                 netapp_utils.POW2_BYTE_MAP[self.parameters['size_unit']]
         self.validate_snapshot_auto_delete()
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        unsupported_rest_properties = ['atime_update',
-                                       'cutover_action',
+        unsupported_rest_properties = ['cutover_action',
                                        'encrypt-destination',
                                        'force_restore',
                                        'nvfail_enabled',
                                        'preserve_lun_ids',
-                                       'snapdir_access',
-                                       'snapshot_auto_delete',
+                                       'destroy_list',
                                        'space_slo',
                                        'vserver_dr_protection']
-        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)], ['analytics', (9, 8)],
-                                               ['tags', (9, 13, 1)]]
+        partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
+                                               ['analytics', (9, 8)], ['atime_update', (9, 8)], ['tags', (9, 13, 1)],
+                                               ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock', 'analytics', 'tags']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
@@ -1313,6 +1336,25 @@ class NetAppOntapVolume:
         self.na_helper.fail_on_error(error)
         return response
 
+    def wait_for_volume_online(self, sleep_time=10):
+        # round off time_out
+        retries = (self.parameters['time_out'] + 5) // 10
+        is_online = None
+        errors = []
+        while not is_online and retries > 0:
+            try:
+                current = self.get_volume()
+                is_online = None if current is None else current['is_online']
+            except KeyError as err:
+                # get_volume may receive incomplete data as the volume is being created
+                errors.append(repr(err))
+            if not is_online:
+                time.sleep(sleep_time)
+            retries -= 1
+        if not is_online:
+            errors.append("Timeout after %s seconds" % self.parameters['time_out'])
+            self.module.fail_json(msg='Error waiting for volume %s to come online: %s' % (self.parameters['name'], str(errors)))
+
     def create_volume(self):
         '''Create ONTAP volume'''
         if self.rest_app:
@@ -1333,24 +1375,7 @@ class NetAppOntapVolume:
                                   exception=traceback.format_exc())
 
         if self.parameters.get('wait_for_completion'):
-            # round off time_out
-            retries = (self.parameters['time_out'] + 5) // 10
-            is_online = None
-            errors = []
-            while not is_online and retries > 0:
-                try:
-                    current = self.get_volume()
-                    is_online = None if current is None else current['is_online']
-                except KeyError as err:
-                    # get_volume may receive incomplete data as the volume is being created
-                    errors.append(repr(err))
-                if not is_online:
-                    time.sleep(10)
-                retries -= 1
-            if not is_online:
-                errors.append("Timeout after %s seconds" % self.parameters['time_out'])
-                self.module.fail_json(msg='Error waiting for volume %s to come online: %s'
-                                      % (self.parameters['name'], str(errors)))
+            self.wait_for_volume_online()
         return None
 
     def create_volume_async(self):
@@ -1948,12 +1973,12 @@ class NetAppOntapVolume:
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
-                             'snaplock', 'max_files', 'analytics', 'tags']:
+                             'snaplock', 'max_files', 'analytics', 'tags', 'snapshot_auto_delete']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
-            # Rest doesn't support any snapshot_auto_delete option other than is_autodelete_enabled. For now i've completely
-            # disabled this in rest
+            # Rest didn't support snapshot_auto_delete prior to ONTAP 9.13.1; for supported ONTAP versions,
+            # modification for this parameter is handled by calling volume_modify_attributes function.
             self.set_snapshot_auto_delete()
         # don't mount or unmount when offline
         if modify.get('junction_path'):
@@ -2384,7 +2409,8 @@ class NetAppOntapVolume:
                             'snaplock,'
                             'files.maximum,'
                             'space.logical_space.enforcement,'
-                            'space.logical_space.reporting,'}
+                            'space.logical_space.reporting,'
+                            'space.snapshot.autodelete,'}
         if self.parameters.get('efficiency_policy'):
             params['fields'] += 'efficiency.policy.name,'
         if self.parameters.get('tiering_minimum_cooling_days'):
@@ -2393,6 +2419,10 @@ class NetAppOntapVolume:
             params['fields'] += 'analytics,'
         if self.parameters.get('tags'):
             params['fields'] += '_tags,'
+        if self.parameters.get('atime_update') is not None:
+            params['fields'] += 'access_time_enabled,'
+        if self.parameters.get('snapdir_access') is not None:
+            params['fields'] += 'snapshot_directory_access_enabled,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2432,6 +2462,8 @@ class NetAppOntapVolume:
         if error:
             self.module.fail_json(msg='Error creating volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        if self.parameters.get('wait_for_completion'):
+            self.wait_for_volume_online(sleep_time=5)
 
     def create_volume_body_rest(self):
         body = {
@@ -2514,6 +2546,13 @@ class NetAppOntapVolume:
     def bool_to_online(item):
         return 'online' if item else 'offline'
 
+    @staticmethod
+    def enabled_to_bool(item, reverse=False):
+        """ convertes on/off to true/false or vice versa """
+        if reverse:
+            return 'on' if item else 'off'
+        return True if item == 'on' else False
+
     def modify_volume_body_rest(self, params):
         body = {}
         for key, option, transform in [
@@ -2533,7 +2572,9 @@ class NetAppOntapVolume:
             ('space.logical_space.reporting', 'logical_space_reporting', None),
             ('tiering.min_cooling_days', 'tiering_minimum_cooling_days', None),
             ('state', 'is_online', self.bool_to_online),
-            ('_tags', 'tags', None)
+            ('_tags', 'tags', None),
+            ('snapshot_directory_access_enabled', 'snapdir_access', None),
+            ('access_time_enabled', 'atime_update', None),
         ]:
             value = self.parameters.get(option)
             if value is not None and transform:
@@ -2557,6 +2598,22 @@ class NetAppOntapVolume:
             sl_dict.pop('type', None)
             if sl_dict:
                 body['snaplock'] = sl_dict
+
+        if params and params.get('snapshot_auto_delete') is not None:
+            for key, option, transform in [
+                ('space.snapshot.autodelete.trigger', 'trigger', None),
+                ('space.snapshot.autodelete.target_free_space', 'target_free_space', None),
+                ('space.snapshot.autodelete.delete_order', 'delete_order', None),
+                ('space.snapshot.autodelete.commitment', 'commitment', None),
+                ('space.snapshot.autodelete.defer_delete', 'defer_delete', None),
+                ('space.snapshot.autodelete.prefix', 'prefix', None),
+                ('space.snapshot.autodelete.enabled', 'state', self.enabled_to_bool),
+            ]:
+                if params and params['snapshot_auto_delete'].get(option) is not None:
+                    if transform:
+                        body[key] = transform(self.parameters['snapshot_auto_delete'][option])
+                    else:
+                        body[key] = self.parameters['snapshot_auto_delete'][option]
         return body
 
     def change_volume_state_rest(self):
@@ -2683,6 +2740,10 @@ class NetAppOntapVolume:
            self.na_helper.safe_get(self.parameters, ['nas_application_template', 'flexcache', 'dr_cache']) is not None:
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('flexcache: dr_cache', version='9.9'))
 
+        if 'snapshot_auto_delete' in self.parameters:
+            if 'destroy_list' in self.parameters['snapshot_auto_delete']:
+                self.module.fail_json(msg="snapshot_auto_delete option 'destroy_list' is currently not supported with REST.")
+
     def format_get_volume_rest(self, record):
         is_online = record.get('state') == 'online'
         # TODO FIX THIS!!!! ZAPI would only return a single aggr, REST can return more than 1.
@@ -2696,6 +2757,10 @@ class NetAppOntapVolume:
         # if analytics.state is initializing it will be ON once completed.
         state = self.na_helper.safe_get(record, ['analytics', 'state'])
         analytics = 'on' if state == 'initializing' else state
+        auto_delete_info = self.na_helper.safe_get(record, ['space', 'snapshot', 'autodelete'])
+        if auto_delete_info is not None:
+            auto_delete_info['state'] = self.enabled_to_bool(self.na_helper.safe_get(record, ['space', 'snapshot', 'autodelete', 'enabled']), reverse=True)
+            del auto_delete_info['enabled']
         return {
             'tags': record.get('_tags', []),
             'name': record.get('name', None),
@@ -2732,6 +2797,10 @@ class NetAppOntapVolume:
             'tiering_minimum_cooling_days': self.na_helper.safe_get(record, ['tiering', 'min_cooling_days']),
             'snaplock': self.na_helper.safe_get(record, ['snaplock']),
             'max_files': self.na_helper.safe_get(record, ['files', 'maximum']),
+            # The default setting for access_time_enabled and snapshot_directory_access_enabled is true
+            'atime_update': record.get('access_time_enabled', True),
+            'snapdir_access': record.get('snapshot_directory_access_enabled', True),
+            'snapshot_auto_delete': auto_delete_info,
 
         }
 
@@ -2868,6 +2937,8 @@ class NetAppOntapVolume:
                 # if we create using ZAPI and modify only options are set (snapdir_access or atime_update), we need to run a modify.
                 # The modify also takes care of efficiency (sis) parameters and snapshot_auto_delete.
                 # If we create using REST application, some options are not available, we may need to run a modify.
+                # If we create using REST and modify only options are set (snapdir_access or atime_update or snapshot_auto_delete), we need to run a modify.
+                # For modify only options to be set after creation wait_for_completion needs to be set.
                 # volume should be online for modify.
                 current = self.get_volume()
                 if current:

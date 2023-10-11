@@ -1544,6 +1544,7 @@ def test_successful_modify_snapshot_auto_delete(get_volume):
     ''' Test successful modify unix permissions flexGroup '''
     register_responses([
         # One ZAPI call for each option!
+        ('ZAPI', 'volume-modify-iter', ZRR['success']),
         ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
         ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),
         ('ZAPI', 'snapshot-autodelete-set-option', ZRR['success']),

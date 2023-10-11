@@ -74,6 +74,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_user - Added warning message when password is not changed.
   - na_ontap_restit - returns changed as False for GET method.
   - na_ontap_kerberos_realm - add REST support for `admin_server_ip`, `admin_server_port`, `pw_server_ip`, `pw_server_port` and `clock_skew` from ONTAP 9.13.1 or later.
+  - na_ontap_volume - added REST support for `atime_update` requires ONTAP 9.8 or later, `snapdir_access` and `snapshot_auto_delete` requires ONTAP 9.13.1 or later.
 
 ### Bug Fixes
   - na_ontap_nfs - fix `default_user` under `windows` not getting modified, if not set previously, in REST.
