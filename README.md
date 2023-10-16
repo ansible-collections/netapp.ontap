@@ -56,7 +56,6 @@ return values differently than ZAPI you will need to update your playbooks to wo
 
 ### Deprecated Modules
 The following modules do not have REST equivalent APIs. They will stop working on any ONTAP release after CY22-Q4 release.
-  - na_ontap_cg_snapshot
   - na_ontap_file_directory_policy
   - na_ontap_svm_options
   - na_ontap_quota_policy
@@ -76,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_kerberos_realm - added REST support for `admin_server_ip`, `admin_server_port`, `pw_server_ip`, `pw_server_port` and `clock_skew`, requires ONTAP 9.13.1 or later.
   - na_ontap_volume - added REST support for `atime_update` requires ONTAP 9.8 or later, `snapdir_access` and `snapshot_auto_delete` requires ONTAP 9.13.1 or later.
   - na_ontap_net_ifgrp - return `name` and other details of a newly created interface group in module output in REST.
+  - na_ontap_cg_snapshot - added REST support to the cg snapshot module, requires ONTAP 9.10.1 or later.
 
 ### Bug Fixes
   - na_ontap_nfs - fix `default_user` under `windows` not getting modified, if not set previously, in REST.
