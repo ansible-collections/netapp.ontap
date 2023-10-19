@@ -47,6 +47,7 @@ options:
       - Specify the required ipspace for the broadcast domain.
       - With ZAPI, a domain ipspace cannot be modified after the domain has been created.
       - With REST, a domain ipspace can be modified.
+      - This option is required while using REST.
     type: str
   from_ipspace:
     description:
