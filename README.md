@@ -68,6 +68,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_lun - new option `qtree_name` added in REST.
   - na_ontap_rest_info - new option `hal_linking` added.
   - na_ontap_cifs_server - new option `default_site` added in REST, requires ONTAP 9.13.1 or later.
+  - na_ontap_ems_destination - new option `certificate`, `ca` added.
 
 ### Minor Changes
   - na_ontap_user - added warning message when password is not changed.
