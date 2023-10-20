@@ -170,7 +170,7 @@ options:
             description:
               - If this is set to true, an SVM administrator can manage the NDMP service
               - If it is false, only the cluster administrator can manage the service.
-              - Requires ONTAP 9.7 or later.
+              - Requires ONTAP 9.10.1 or later.
             type: bool
         version_added: 21.24.0
   aggr_list:
@@ -469,9 +469,9 @@ class NetAppOntapSVM():
             ]
             if errors:
                 self.module.fail_json(msg='Error - %s' % '  '.join(errors))
-        if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols') and self.parameters['services'].get('ndmp')\
-           and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 7):
-            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.7', use_rest=use_rest))
+        if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols'):
+            if self.parameters['services'].get('ndmp') and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 10, 1):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.10.1', use_rest=use_rest))
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
         if self.parameters.get('web'):

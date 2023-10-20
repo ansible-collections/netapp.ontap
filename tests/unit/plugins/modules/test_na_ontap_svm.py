@@ -282,7 +282,7 @@ def test_init_error():
         'services': {'ndmp': {'allowed': True}},
     }
     error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert error == 'using ndmp requires ONTAP 9.7 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
+    assert error == 'using ndmp requires ONTAP 9.10.1 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
 
 
 def test_successful_rename():
