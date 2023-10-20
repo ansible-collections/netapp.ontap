@@ -18,7 +18,7 @@ extends_documentation_fragment:
 version_added: 21.23.0
 author: Bartosz Bielawski (@bielawb) <bartek.bielawski@live.com>
 description:
-  - Configure EMS destination. Currently certificate authentication for REST is not supported.
+  - Configure EMS destination.
 options:
   state:
     description:
@@ -48,6 +48,22 @@ options:
     required: true
     type: list
     elements: str
+  certificate:
+    description:
+      - Name of the certificate
+    required: false
+    type: str
+    version_added: 22.8.0
+  ca:
+    description:
+      - Name of the CA certificate
+    required: false
+    type: str
+    version_added: 22.8.0
+
+notes:
+  - Supports check_mode.
+  - This module only supports REST.
 '''
 
 EXAMPLES = """
@@ -58,6 +74,19 @@ EXAMPLES = """
         type: rest_api
         filters: ['important_events']
         destination: http://my.rest.api/address
+        hostname: "{{hostname}}"
+        username: "{{username}}"
+        password: "{{password}}"
+
+    - name: Configure REST EMS destination with a certificate
+      netapp.ontap.na_ontap_ems_destination:
+        state: present
+        name: rest
+        type: rest_api
+        filters: ['important_events']
+        destination: http://my.rest.api/address
+        certificate: my_cert
+        ca: my_cert_ca
         hostname: "{{hostname}}"
         username: "{{username}}"
         password: "{{password}}"
@@ -92,16 +121,20 @@ class NetAppOntapEmsDestination:
             name=dict(required=True, type='str'),
             type=dict(required=True, type='str', choices=['email', 'syslog', 'rest_api']),
             destination=dict(required=True, type='str'),
-            filters=dict(required=True, type='list', elements='str')
+            filters=dict(required=True, type='list', elements='str'),
+            certificate=dict(required=False, type='str'),
+            ca=dict(required=False, type='str'),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_together=[('certificate', 'ca')],
             supports_check_mode=True
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
+        partially_supported_rest_properties = [['certificate', (9, 11, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, partially_supported_rest_properties=partially_supported_rest_properties)
 
         if not self.use_rest:
             self.module.fail_json(msg='na_ontap_ems_destination is only supported with REST API')
@@ -116,7 +149,9 @@ class NetAppOntapEmsDestination:
 
     def get_ems_destination(self, name):
         api = 'support/ems/destinations'
-        fields = 'name,type,destination,filters.name'
+        fields = 'name,type,destination,filters.name,certificate.ca'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            fields += 'certificate.name'
         query = dict(name=name, fields=fields)
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         self.fail_on_error(error, 'fetching EMS destination for %s' % name)
@@ -125,7 +160,9 @@ class NetAppOntapEmsDestination:
                 'name': self.na_helper.safe_get(record, ['name']),
                 'type': self.na_helper.safe_get(record, ['type']),
                 'destination': self.na_helper.safe_get(record, ['destination']),
-                'filters': None
+                'filters': None,
+                'certificate': self.na_helper.safe_get(record, ['certificate', 'name']),
+                'ca': self.na_helper.safe_get(record, ['certificate', 'ca']),
             }
             # 9.9.0 and earlier versions returns rest-api, convert it to rest_api.
             if current['type'] and '-' in current['type']:
@@ -134,6 +171,24 @@ class NetAppOntapEmsDestination:
                 current['filters'] = [filter['name'] for filter in record['filters']]
             return current
         return None
+
+    def get_certificate_serial(self, cert_name):
+        """Retrieve the serial of a certificate"""
+        api = 'security/certificates'
+        query = {
+            'scope': "cluster",
+            'type': "client",
+            'name': cert_name
+        }
+        fields = 'serial_number'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if error:
+            self.module.fail_json(msg='Error retrieving certificates: %s' % error)
+
+        if not record:
+            self.module.fail_json(msg='Error certificate not found: %s.'
+                                  % (self.parameters['certificate']))
+        return record['serial_number']
 
     def create_ems_destination(self):
         api = 'support/ems/destinations'
@@ -144,6 +199,14 @@ class NetAppOntapEmsDestination:
             'destination': self.parameters['destination'],
             'filters': self.generate_filters_list(self.parameters['filters'])
         }
+
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            if self.parameters.get('certificate') and self.parameters.get('ca') is not None:
+                body['certificate'] = {
+                    'serial_number': self.get_certificate_serial(self.parameters['certificate']),
+                    'ca': self.parameters['ca'],
+                }
+
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         self.fail_on_error(error, 'creating EMS destinations for %s' % name)
 
@@ -159,9 +222,15 @@ class NetAppOntapEmsDestination:
             self.create_ems_destination()
         else:
             body = {}
+            if any(item in modify for item in ['certificate', 'ca']):
+                body['certificate'] = {}
             for option in modify:
                 if option == 'filters':
                     body[option] = self.generate_filters_list(modify[option])
+                elif option == 'certificate':
+                    body[option]['serial_number'] = self.get_certificate_serial(modify[option])
+                elif option == 'ca':
+                    body['certificate']['ca'] = modify[option]
                 else:
                     body[option] = modify[option]
             if body:
@@ -170,10 +239,9 @@ class NetAppOntapEmsDestination:
                 self.fail_on_error(error, 'modifying EMS destination for %s' % name)
 
     def apply(self):
-        name = None
-        modify = None
-        current = self.get_ems_destination(self.parameters['name'])
         name = self.parameters['name']
+        modify = None
+        current = self.get_ems_destination(name)
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
