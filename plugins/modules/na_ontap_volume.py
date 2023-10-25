@@ -573,6 +573,13 @@ options:
     type: int
     version_added: '20.16.0'
 
+  large_size_enabled:
+    description:
+      - Setting the large_size_enabled option to create latge file (>16TB). 
+      - This option is only supported in REST 9.12.1P2 or later
+    type: bool
+    version_added: '22.8.0'
+    
   logical_space_enforcement:
     description:
       - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
@@ -1023,6 +1030,7 @@ class NetAppOntapVolume:
             tiering_minimum_cooling_days=dict(required=False, type='int'),
             logical_space_enforcement=dict(required=False, type='bool'),
             logical_space_reporting=dict(required=False, type='bool'),
+            large_size_enabled=dict(required=False, type='bool'),
             snaplock=dict(type='dict', options=dict(
                 append_mode_enabled=dict(required=False, type='bool'),
                 autocommit_period=dict(required=False, type='str'),
@@ -1078,7 +1086,7 @@ class NetAppOntapVolume:
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
                                                ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
-                                            'analytics', 'tags', 'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent']
+                                            'analytics', 'tags', 'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'large_size_enabled']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -1994,7 +2002,7 @@ class NetAppOntapVolume:
             if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
-                             'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
+                             'comment', 'large_size_enabled', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
                              'snaplock', 'max_files', 'analytics', 'tags', 'snapshot_auto_delete', 'vol_nearly_full_threshold_percent',
                              'vol_full_threshold_percent']:
                 self.volume_modify_attributes(modify)
@@ -2431,6 +2439,7 @@ class NetAppOntapVolume:
                             'efficiency.compression,'
                             'snaplock,'
                             'files.maximum,'
+                            'space.large_size_enabled,'
                             'space.logical_space.enforcement,'
                             'space.logical_space.reporting,'
                             'space.snapshot.autodelete,'}
@@ -2534,6 +2543,8 @@ class NetAppOntapVolume:
             body['tiering.policy'] = self.parameters['tiering_policy']
         if self.parameters.get('encrypt') is not None:
             body['encryption.enabled'] = self.parameters['encrypt']
+        if self.parameters.get('large_size_enabled') is not None:
+            body['space.large_size_enabled'] = self.parameters['large_size_enabled']
         if self.parameters.get('logical_space_enforcement') is not None:
             body['space.logical_space.enforcement'] = self.parameters['logical_space_enforcement']
         if self.parameters.get('logical_space_reporting') is not None:
@@ -2595,6 +2606,7 @@ class NetAppOntapVolume:
             ('qos.policy.name', 'qos_policy_group', None),
             ('qos.policy.name', 'qos_adaptive_policy_group', None),
             ('comment', 'comment', None),
+            ('space.large_size_enabled', 'large_size_enabled', None),
             ('space.logical_space.enforcement', 'logical_space_enforcement', None),
             ('space.logical_space.reporting', 'logical_space_reporting', None),
             ('tiering.min_cooling_days', 'tiering_minimum_cooling_days', None),
@@ -2821,6 +2833,7 @@ class NetAppOntapVolume:
             'efficiency_policy': self.na_helper.safe_get(record, ['efficiency', 'policy', 'name']),
             'compression': rest_compression in ('both', 'background'),
             'inline_compression': rest_compression in ('both', 'inline'),
+            'large_size_enabled': self.na_helper.safe_get(record, ['space', 'large_size_enabled']),
             'logical_space_enforcement': self.na_helper.safe_get(record, ['space', 'logical_space', 'enforcement']),
             'logical_space_reporting': self.na_helper.safe_get(record, ['space', 'logical_space', 'reporting']),
             'tiering_minimum_cooling_days': self.na_helper.safe_get(record, ['tiering', 'min_cooling_days']),
