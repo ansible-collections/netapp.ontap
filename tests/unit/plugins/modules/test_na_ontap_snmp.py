@@ -47,6 +47,7 @@ SRR = {
     'zero_record': (200, dict(records=[], num_records=0), None),
     'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
+    'server_error': (500, None, "Internal Server error"),
     'generic_error': (400, None, "Expected error"),
     'community_user_record': (200, {
         'records': [{
@@ -56,11 +57,17 @@ SRR = {
         }],
         'num_records': 1
     }, None),
-    'snmp_user_record': (200, {
+    'snmp_usm_user_record': (200, {
         'records': [{
             "name": "snmpv3user3",
             "authentication_method": "usm",
-            'engine_id': "80000315058e02057c0fb8e911bc9f005056bb942e"
+            'engine_id': "80000315058e02057c0fb8e911bc9f005056bb942e",
+            'snmpv3': {
+                'privacy_protocol': 'aes128',
+                'authentication_password': 'humTdumt*@t0nAwa11',
+                'authentication_protocol': 'sha',
+                'privacy_password': 'p@**GOandCLCt*200'
+            }
         }],
         'num_records': 1
     }, None),
@@ -73,15 +80,15 @@ def test_module_fail_when_required_args_missing(patch_ansible):
         set_module_args(dict(hostname=''))
         my_module()
     print('Info: %s' % exc.value.args[0]['msg'])
-    msg = 'missing required arguments: community_name'
+    msg = 'missing required arguments: snmp_username'
     assert msg == exc.value.args[0]['msg']
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_get_community_called(mock_request, patch_ansible):
+def test_ensure_get_snmp_community_called(mock_request, patch_ansible):
     ''' test get'''
     args = dict(default_args())
-    args['community_name'] = 'snmpv3user2'
+    args['snmp_username'] = 'snmpv3user2'
     set_module_args(args)
     mock_request.side_effect = [
         SRR['is_rest_9_8'],         # get version
@@ -97,10 +104,29 @@ def test_ensure_get_community_called(mock_request, patch_ansible):
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_create_community_called(mock_request, patch_ansible):
+def test_ensure_get_snmp_usm_called(mock_request, patch_ansible):
     ''' test get'''
     args = dict(default_args())
-    args['community_name'] = 'snmpv3user2'
+    args['snmp_username'] = 'snmpv3user3'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['snmp_usm_user_record'],       # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert_no_warnings()
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_create_snmp_community_called(mock_request, patch_ansible):
+    ''' test get'''
+    args = dict(default_args())
+    args['snmp_username'] = 'snmpv3user2'
     set_module_args(args)
     mock_request.side_effect = [
         SRR['is_rest_9_8'],         # get version
@@ -117,10 +143,48 @@ def test_ensure_create_community_called(mock_request, patch_ansible):
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_community_called(mock_request, patch_ansible):
+def test_ensure_create_snmp_usm_called(mock_request, patch_ansible):
     ''' test get'''
     args = dict(default_args())
-    args['community_name'] = 'snmpv3user2'
+    args['snmp_username'] = 'snmpv3user3'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['zero_record'],         # get
+        SRR['empty_good'],          # create
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert_no_warnings()
+
+
+def test_fail_to_create_snmp_usm_without_snmpv3_passwords(patch_ansible):
+    ''' required arguments are reported as errors '''
+    usm_record = {
+        'snmp_username': 'usm19',
+        'authentication_method': 'usm',
+        'snmpv3': {
+            'privacy_protocol': 'aes128',
+            'authentication_protocol': 'sha'
+        }
+    }
+    with pytest.raises(AnsibleFailJson) as exc:
+        set_module_args(usm_record)
+        my_module()
+    print('Info: %s' % exc.value.args[0]['msg'])
+    msg = 'missing required arguments:'
+    assert msg in exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_delete_snmp_community_called(mock_request, patch_ansible):
+    ''' test get'''
+    args = dict(default_args())
+    args['snmp_username'] = 'snmpv3user2'
     args['state'] = 'absent'
     set_module_args(args)
     mock_request.side_effect = [
@@ -139,10 +203,52 @@ def test_ensure_delete_community_called(mock_request, patch_ansible):
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_ensure_delete_community_idempotent(mock_request, patch_ansible):
+def test_ensure_delete_snmp_usm_called(mock_request, patch_ansible):
     ''' test get'''
     args = dict(default_args())
-    args['community_name'] = 'snmpv3user2'
+    args['snmp_username'] = 'snmpv3user3'
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['snmp_usm_user_record'],       # get
+        SRR['snmp_usm_user_record'],
+        SRR['empty_good'],          # delete
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is True
+    assert_no_warnings()
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_delete_snmp_community_idempotent(mock_request, patch_ansible):
+    ''' test get'''
+    args = dict(default_args())
+    args['snmp_username'] = 'snmpv3user2'
+    args['state'] = 'absent'
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_9_8'],         # get version
+        SRR['zero_record'],         # get
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print('Info: %s' % exc.value.args[0])
+    assert exc.value.args[0]['changed'] is False
+    assert_no_warnings()
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_ensure_delete_snmp_usm_idempotent(mock_request, patch_ansible):
+    ''' test get'''
+    args = dict(default_args())
+    args['snmp_username'] = 'snmpv3user3'
     args['state'] = 'absent'
     set_module_args(args)
     mock_request.side_effect = [
