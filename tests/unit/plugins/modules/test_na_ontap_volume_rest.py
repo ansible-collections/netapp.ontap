@@ -556,6 +556,18 @@ def test_rest_version_error_with_snapshot_auto_delete():
     assert 'Minimum version of ONTAP for snapshot_auto_delete is (9, 13, 1)' in error
 
 
+def test_rest_version_error_with_vol_nearly_full_threshold_percent():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0'])
+    ])
+    module_args = {
+        'vol_nearly_full_threshold_percent': 96
+    }
+    error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    print('error', error)
+    assert 'Minimum version of ONTAP for vol_nearly_full_threshold_percent is (9, 9)' in error
+
+
 def test_rest_successfully_modify_attributes_atime_update():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
@@ -585,6 +597,19 @@ def test_rest_successfully_modify_attributes_snapdir_access_and_snapshot_auto_de
             'target_free_space': 25,
             'prefix': 'prefix1'
         }
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_modify_vol_threshold_percent_params():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Modify
+    ])
+    module_args = {
+        'vol_nearly_full_threshold_percent': 98,
+        'vol_full_threshold_percent': 99
     }
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 

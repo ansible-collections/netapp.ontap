@@ -317,6 +317,24 @@ options:
     type: bool
     version_added: 2.8.0
 
+  vol_nearly_full_threshold_percent:
+    description:
+      - Specifies the percentage at which the volume is considered nearly full, and above which an EMS warning will be generated.
+      - The default value is 95%. The maximum value for this option is 99%.
+      - Setting this threshold to 0 disables the volume nearly full space alerts.
+      - Supported only with in REST for ONTAP 9.9 or later.
+    type: int
+    version_added: 22.8.0
+
+  vol_full_threshold_percent:
+    description:
+      - Specifies the percentage at which the volume is considered full, and above which a critical EMS error will be generated.
+      - The default value is 98%. The maximum value for this option is 100%.
+      - Setting this threshold to 0 disables the volume full space alerts.
+      - Supported only with in REST for ONTAP 9.9 or later.
+    type: int
+    version_added: 22.8.0
+
   wait_for_completion:
     description:
       - Set this parameter to 'true' for synchronous execution during create (wait until volume status is online)
@@ -953,6 +971,8 @@ class NetAppOntapVolume:
             aggr_list_multiplier=dict(required=False, type='int'),
             snapdir_access=dict(required=False, type='bool'),
             atime_update=dict(required=False, type='bool'),
+            vol_nearly_full_threshold_percent=dict(required=False, type='int'),
+            vol_full_threshold_percent=dict(required=False, type='int'),
             auto_provision_as=dict(choices=['flexgroup'], required=False, type='str'),
             wait_for_completion=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=180),
@@ -1054,9 +1074,11 @@ class NetAppOntapVolume:
                                        'space_slo',
                                        'vserver_dr_protection']
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
-                                               ['analytics', (9, 8)], ['atime_update', (9, 8)], ['tags', (9, 13, 1)],
-                                               ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
-        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock', 'analytics', 'tags']
+                                               ['analytics', (9, 8)], ['atime_update', (9, 8)],
+                                               ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
+                                               ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
+        self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
+                                            'analytics', 'tags', 'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -1973,7 +1995,8 @@ class NetAppOntapVolume:
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
-                             'snaplock', 'max_files', 'analytics', 'tags', 'snapshot_auto_delete']:
+                             'snaplock', 'max_files', 'analytics', 'tags', 'snapshot_auto_delete', 'vol_nearly_full_threshold_percent',
+                             'vol_full_threshold_percent']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2423,6 +2446,10 @@ class NetAppOntapVolume:
             params['fields'] += 'access_time_enabled,'
         if self.parameters.get('snapdir_access') is not None:
             params['fields'] += 'snapshot_directory_access_enabled,'
+        if self.parameters.get('vol_nearly_full_threshold_percent') is not None:
+            params['fields'] += 'space.nearly_full_threshold_percent,'
+        if self.parameters.get('vol_full_threshold_percent') is not None:
+            params['fields'] += 'space.full_threshold_percent,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2575,6 +2602,8 @@ class NetAppOntapVolume:
             ('_tags', 'tags', None),
             ('snapshot_directory_access_enabled', 'snapdir_access', None),
             ('access_time_enabled', 'atime_update', None),
+            ('space.nearly_full_threshold_percent', 'vol_nearly_full_threshold_percent', None),
+            ('space.full_threshold_percent', 'vol_full_threshold_percent', None),
         ]:
             value = self.parameters.get(option)
             if value is not None and transform:
@@ -2801,7 +2830,8 @@ class NetAppOntapVolume:
             'atime_update': record.get('access_time_enabled', True),
             'snapdir_access': record.get('snapshot_directory_access_enabled', True),
             'snapshot_auto_delete': auto_delete_info,
-
+            'vol_nearly_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'nearly_full_threshold_percent']),
+            'vol_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'full_threshold_percent']),
         }
 
     def is_fabricpool(self, name, aggregate_uuid):
