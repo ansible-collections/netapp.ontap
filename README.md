@@ -70,6 +70,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs_server - new option `default_site` added in REST, requires ONTAP 9.13.1 or later.
   - na_ontap_ems_destination - new option `certificate`, `ca` added.
   - na_ontap_volume - added new REST only options `vol_nearly_full_threshold_percent` and `vol_full_threshold_percent`, requires ONTAP 9.9 or later.
+  - na_ontap_qos_policy_group - added new REST only options `expected_iops_allocation` and `peak_iops_allocation`, requires ONTAP 9.10.1 or later.
 
 ### Minor Changes
   - na_ontap_user - added warning message when password is not changed.

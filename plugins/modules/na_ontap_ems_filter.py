@@ -187,6 +187,8 @@ class NetAppOntapEMSFilters:
         current_rules['rules'] = current_rules['rules'][:-1]
         if self.parameters.get('rules'):
             input_rules = self.na_helper.filter_out_none_entries(self.parameters['rules'])
+            for i in range(len(input_rules)):
+                input_rules[i]['message_criteria']['severities'] = input_rules[i]['message_criteria']['severities'].lower()
             matched_idx = []
             patch_rules = []
             post_rules = []
@@ -245,7 +247,7 @@ class NetAppOntapEMSFilters:
         current = self.get_ems_filter()
         cd_action, modify = None, False
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        if cd_action is None:
+        if cd_action is None and self.parameters['state'] == 'present':
             desired_rules = self.desired_ems_rules(current)
             modify = self.find_modify(current, desired_rules)
             if modify:

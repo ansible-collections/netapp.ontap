@@ -1,7 +1,7 @@
 # (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-''' unit test template for ONTAP Ansible module '''
+''' unit test cases for ONTAP Ansible module: na_ontap_qos_policy_group '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -349,6 +349,10 @@ def test_successful_create_adaptive_rest():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/qos/policies', SRR['empty_records']),
         ('POST', 'storage/qos/policies', SRR['success']),
+        # with expected and peak IOPS per TB
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/qos/policies', SRR['empty_records']),
+        ('POST', 'storage/qos/policies', SRR['success']),
     ])
     DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
     del DEFAULT_ARGS_COPY['fixed_qos_options']
@@ -358,7 +362,12 @@ def test_successful_create_adaptive_rest():
         "peak_iops": 500
     }
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
+
     DEFAULT_ARGS_COPY['adaptive_qos_options']['block_size'] = '4k'
+    assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
+
+    DEFAULT_ARGS_COPY['adaptive_qos_options']['expected_iops_allocation'] = 'used_space'
+    DEFAULT_ARGS_COPY['adaptive_qos_options']['peak_iops_allocation'] = 'allocated_space'
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_COPY)['changed']
 
 
@@ -370,16 +379,19 @@ def test_partially_supported_option_rest():
     ])
     error = create_module(qos_policy_group_module, DEFAULT_ARGS_REST, fail=True)['msg']
     assert "Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)" in error
+
     DEFAULT_ARGS_COPY = DEFAULT_ARGS_REST.copy()
     del DEFAULT_ARGS_COPY['fixed_qos_options']
     DEFAULT_ARGS_COPY['adaptive_qos_options'] = {
         "absolute_min_iops": 100,
         "expected_iops": 200,
         "peak_iops": 500,
-        "block_size": "4k"
+        "block_size": "4k",
+        "expected_iops_allocation": "used_space",
+        "peak_iops_allocation": "allocated_space"
     }
     error = create_module(qos_policy_group_module, DEFAULT_ARGS_COPY, fail=True)['msg']
-    assert "Minimum version of ONTAP for 'adaptive_qos_options.block_size' is (9, 10, 1)" in error
+    assert "using any of ['block_size', 'expected_iops_allocation', 'peak_iops_allocation'] requires ONTAP 9.10.1 or later and REST must be enabled" in error
 
 
 def test_error_create_adaptive_rest():
@@ -486,7 +498,9 @@ def test_successful_modify_adaptive_qos_options_rest():
             'expected_iops': 300,
             'peak_iops': 600,
             'absolute_min_iops': 200,
-            'block_size': '4k'
+            'block_size': '4k',
+            'expected_iops_allocation': 'used_space',
+            'peak_iops_allocation': 'allocated_space'
         }
     }
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST_COPY, args)['changed']

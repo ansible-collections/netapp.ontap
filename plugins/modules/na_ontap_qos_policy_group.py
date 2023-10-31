@@ -145,6 +145,22 @@ options:
         required: false
         choices: ['any', '4k', '8k', '16k', '32k', '64k', '128k']
         version_added: 22.6.0
+      expected_iops_allocation:
+        description:
+          - Specifies the size to be used to calculate expected IOPS per TB.
+          - Supported only with REST; requires ONTAP 9.10.1 or later.
+        type: str
+        required: false
+        choices: ['used_space', 'allocated_space']
+        version_added: 22.8.0
+      peak_iops_allocation:
+        description:
+          - Specifies the size to be used to calculate peak IOPS per TB.
+          - Supported only with REST; requires ONTAP 9.10.1 or later.
+        type: str
+        required: false
+        choices: ['used_space', 'allocated_space']
+        version_added: 22.8.0
 '''
 
 EXAMPLES = """
@@ -224,6 +240,18 @@ EXAMPLES = """
           expected_iops: 200
           peak_iops: 500
 
+    - name: modify adaptive qos policy group in REST.
+      netapp.ontap.na_ontap_qos_policy_group:
+        state: present
+        name: adaptive_policy
+        vserver: policy_vserver
+        hostname: 10.193.78.30
+        username: admin
+        password: netapp1!
+        use_rest: always
+        adaptive_qos_options:
+          expected_iops_allocation: used_space
+          peak_iops_allocation: allocated_space
 """
 
 RETURN = """
@@ -268,7 +296,9 @@ class NetAppOntapQosPolicyGroup:
                 absolute_min_iops=dict(required=True, type='int'),
                 expected_iops=dict(required=True, type='int'),
                 peak_iops=dict(required=True, type='int'),
-                block_size=dict(required=False, type='str', choices=['any', '4k', '8k', '16k', '32k', '64k', '128k'])
+                block_size=dict(required=False, type='str', choices=['any', '4k', '8k', '16k', '32k', '64k', '128k']),
+                expected_iops_allocation=dict(required=False, type='str', choices=['used_space', 'allocated_space']),
+                peak_iops_allocation=dict(required=False, type='str', choices=['used_space', 'allocated_space'])
             ))
         ))
 
@@ -297,9 +327,11 @@ class NetAppOntapQosPolicyGroup:
             if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8) and \
                     self.na_helper.safe_get(self.parameters, ['fixed_qos_options', 'min_throughput_mbps']):
                 self.module.fail_json(msg="Minimum version of ONTAP for 'fixed_qos_options.min_throughput_mbps' is (9, 8, 0)")
+
+            ontap_9_10_adaptive_options = ['block_size', 'expected_iops_allocation', 'peak_iops_allocation']
             if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1) and \
-                    self.na_helper.safe_get(self.parameters, ['adaptive_qos_options', 'block_size']):
-                self.module.fail_json(msg="Minimum version of ONTAP for 'adaptive_qos_options.block_size' is (9, 10, 1)")
+                    any(self.na_helper.safe_get(self.parameters, ['adaptive_qos_options', option]) for option in ontap_9_10_adaptive_options):
+                self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_9_10_adaptive_options, version='9.10.1'))
         self.uuid = None
 
         if not self.use_rest:
@@ -383,7 +415,8 @@ class NetAppOntapQosPolicyGroup:
 
             if 'adaptive' in record:
                 current['adaptive_qos_options'] = {}
-                for adaptive_qos_option in ['absolute_min_iops', 'expected_iops', 'peak_iops', 'block_size']:
+                for adaptive_qos_option in ['absolute_min_iops', 'expected_iops', 'peak_iops', 'block_size',
+                                            'expected_iops_allocation', 'peak_iops_allocation']:
                     current['adaptive_qos_options'][adaptive_qos_option] = record['adaptive'].get(adaptive_qos_option)
         return current
 
@@ -479,6 +512,11 @@ class NetAppOntapQosPolicyGroup:
         if 'fixed_qos_options' in modify:
             body['fixed'] = modify['fixed_qos_options']
         else:
+            if 'block_size' not in self.na_helper.safe_get(modify, ['adaptive_qos_options']) and \
+                    self.na_helper.safe_get(self.parameters, ['adaptive_qos_options', 'block_size']) is None:
+                # if block_size is not to be modified then remove it from the params
+                # to avoid error with block_size option during modification of other adaptive qos options
+                del self.parameters['adaptive_qos_options']['block_size']
             body['adaptive'] = self.parameters['adaptive_qos_options']
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
         if error:
