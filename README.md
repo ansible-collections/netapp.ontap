@@ -24,7 +24,7 @@ collections:
   - netapp.ontap
 ```
 # Requirements
-- ansible version >= 2.9
+- ansible version >= 7.0
 - requests >= 2.20
 - netapp-lib version >= 2018.11.13
 
