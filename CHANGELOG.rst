@@ -5,6 +5,42 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.8.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_broadcast_domain - changed documentation for ipspace as it is required while using REST.
+- na_ontap_cg_snapshot - added REST support to the cg snapshot module, requires ONTAP 9.10.1 or later.
+- na_ontap_cifs_server - new option `default_site` added in REST, requires ONTAP 9.13.1 or later.
+- na_ontap_ems_destination - new option ``certificate``, ``ca`` added.
+- na_ontap_kerberos_realm - add REST support for `admin_server_ip`, `admin_server_port`, `pw_server_ip`, `pw_server_port` and `clock_skew` from ONTAP 9.13.1 or later
+- na_ontap_lun - new option `qtree_name` added in REST.
+- na_ontap_net_ifgrp - return `name` and other details of a newly created interface group in module output in REST.
+- na_ontap_qos_policy_group - added new REST only options `expected_iops_allocation` and `peak_iops_allocation`, requires ONTAP 9.10.1 or later.
+- na_ontap_rest_info - new option `hal_linking` added to enable or disable HAL links.
+- na_ontap_restit - returns changed as False for GET method.
+- na_ontap_snmp - added REST support for snmpv3 user.
+- na_ontap_user - Added warning message when password is not changed.
+- na_ontap_volume - added REST support for `atime_update` requires ONTAP 9.8 or later, `snapdir_access` and `snapshot_auto_delete` requires ONTAP 9.13.1 or later.
+- na_ontap_volume - added new REST only options `vol_nearly_full_threshold_percent` and `vol_full_threshold_percent`, requires ONTAP 9.9 or later.
+
+Bugfixes
+--------
+
+- na_ontap_dns - fix DNS not working with Cluster mode.
+- na_ontap_ems_filter - fix delete operation not idempotent for filter.
+- na_ontap_ems_filter - fix modify operation to add rule in existing filter.
+- na_ontap_login_messages - fix idempotency issue in Cluster scope in REST.
+- na_ontap_nfs - fix `default_user` under `windows` not getting modified if not set previously in REST.
+- na_ontap_svm - fix REST version warning for `ndmp` under `services`.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_ems_config - NetApp ONTAP module to modify EMS configuration.
+
 v22.7.0
 =======
 
