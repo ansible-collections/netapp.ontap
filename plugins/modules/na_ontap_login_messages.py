@@ -154,12 +154,15 @@ class NetAppOntapLoginMessages:
         }
 
     def form_current(self, record):
+        show_cluster_motd = True
+        if record and record.get('show_cluster_message') is not None:
+            show_cluster_motd = record.get('show_cluster_message')
         return_result = {
             'banner': '',
             'motd_message': '',
             # we need the SVM UUID to add banner or motd if they are not present
             'uuid': record['uuid'] if record else self.get_svm_uuid(self.parameters.get('vserver')),
-            'show_cluster_motd': record.get('show_cluster_message') if record else None
+            'show_cluster_motd': show_cluster_motd
         }
         # by default REST adds a trailing \n if no trailing \n set in desired message/banner.
         # rstip \n only when desired message/banner does not have trailing \n to preserve idempotency.
