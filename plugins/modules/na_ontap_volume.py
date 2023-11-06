@@ -575,11 +575,11 @@ options:
 
   large_size_enabled:
     description:
-      - Setting the large_size_enabled option to create latge file (>16TB). 
+      - Setting the large_size_enabled option to create latge file (>16TB).
       - This option is only supported in REST 9.12.1P2 or later
     type: bool
     version_added: '22.8.0'
-    
+
   logical_space_enforcement:
     description:
       - This optionally specifies whether to perform logical space accounting on the volume. When space is enforced
