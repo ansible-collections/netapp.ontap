@@ -3094,3 +3094,13 @@ releases:
       name: na_ontap_ems_config
       namespace: ''
     release_date: '2023-11-01'
+  22.8.1:
+    changes:
+      bugfixes:
+      - na_ontap_dns - fix keyerror for uuid when DNS is set to vserver in REST.
+      - na_ontap_volume - fix invalid field error with 'space.snapshot.autodelete'
+        in REST.
+    fragments:
+    - DEVOPS-6519.yaml
+    - DEVOPS-6520.yaml
+    release_date: '2023-11-07'

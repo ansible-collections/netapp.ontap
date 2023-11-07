@@ -5,6 +5,15 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.8.1
+=======
+
+Bugfixes
+--------
+
+- na_ontap_dns - fix keyerror for uuid when DNS is set to vserver in REST.
+- na_ontap_volume - fix invalid field error with 'space.snapshot.autodelete' in REST.
+
 v22.8.0
 =======
 
