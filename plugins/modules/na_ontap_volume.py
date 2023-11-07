@@ -2432,8 +2432,7 @@ class NetAppOntapVolume:
                             'snaplock,'
                             'files.maximum,'
                             'space.logical_space.enforcement,'
-                            'space.logical_space.reporting,'
-                            'space.snapshot.autodelete,'}
+                            'space.logical_space.reporting,'}
         if self.parameters.get('efficiency_policy'):
             params['fields'] += 'efficiency.policy.name,'
         if self.parameters.get('tiering_minimum_cooling_days'):
@@ -2446,6 +2445,8 @@ class NetAppOntapVolume:
             params['fields'] += 'access_time_enabled,'
         if self.parameters.get('snapdir_access') is not None:
             params['fields'] += 'snapshot_directory_access_enabled,'
+        if self.parameters.get('snapshot_auto_delete') is not None:
+            params['fields'] += 'space.snapshot.autodelete,'
         if self.parameters.get('vol_nearly_full_threshold_percent') is not None:
             params['fields'] += 'space.nearly_full_threshold_percent,'
         if self.parameters.get('vol_full_threshold_percent') is not None:
