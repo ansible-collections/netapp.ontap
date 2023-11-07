@@ -259,10 +259,14 @@ class NetAppOntapDns:
         if error:
             self.module.fail_json(msg="Error getting DNS service: %s" % error)
         if record:
+            if params.get('scope') == 'cluster':
+                uuid = record.get('uuid')
+            else:
+                uuid = self.na_helper.safe_get(record, ['svm', 'uuid'])
             return {
-                'domains': record['domains'],
-                'nameservers': record['servers'],
-                'uuid': record['uuid']
+                'domains': record.get('domains'),
+                'nameservers': record.get('servers'),
+                'uuid': uuid
             }
         if self.parameters.get('vserver') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             # There is a chance we are working at the cluster level

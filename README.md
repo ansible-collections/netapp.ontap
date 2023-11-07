@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.8.1
+
+### Bug Fixes
+  - na_ontap_dns - fix keyerror for uuid when DNS is set to vserver in REST.
+
 ## 22.8.0
 
 ### New Options
