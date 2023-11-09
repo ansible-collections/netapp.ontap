@@ -62,6 +62,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.8.2
+  - na_ontap_s3_users - Removed Git from #!/usr/bin/python line.
+
 ## 22.8.1
 
 ### Bug Fixes
