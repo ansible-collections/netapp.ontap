@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -185,7 +185,9 @@ class NetAppONTAPVserverPeer:
         self.dst_rest_api = OntapRestAPI(self.module, host_options=self.parameters['peer_options'])
         self.dst_use_rest = self.dst_rest_api.is_rest()
         self.use_rest = bool(self.src_use_rest and self.dst_use_rest)
-        if not self.use_rest:
+        if self.use_rest:
+            self.peer_relation_uuid = None
+        else:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -365,6 +367,10 @@ class NetAppONTAPVserverPeer:
         vserver, remote_vserver = self.get_local_and_peer_vserver(target)
         restapi = self.rest_api if target == 'source' else self.dst_rest_api
         options = {'svm.name': vserver, 'peer.svm.name': remote_vserver, 'fields': 'name,svm.name,peer.svm.name,state,uuid'}
+        # peer cluster may have multiple peer relationships
+        # filter by the created relationship uuid
+        if target == 'peer' and self.peer_relation_uuid is not None:
+            options['uuid'] = self.peer_relation_uuid
         record, error = rest_generic.get_one_record(restapi, api, options)
         if error:
             self.module.fail_json(msg='Error fetching vserver peer %s: %s' % (self.parameters['vserver'], error))
@@ -407,16 +413,19 @@ class NetAppONTAPVserverPeer:
         Create a vserver peer using rest
         """
         api = 'svm/peers'
-        params = {
+        query = {'return_records': 'true'}
+        body = {
             'svm.name': self.parameters['vserver'],
             'peer.cluster.name': self.parameters['peer_cluster'],
             'peer.svm.name': self.parameters['peer_vserver'],
             'applications': self.parameters['applications']
         }
         if 'local_name_for_peer' in self.parameters:
-            params['name'] = self.parameters['local_name_for_peer']
-        dummy, error = rest_generic.post_async(self.rest_api, api, params)
+            body['name'] = self.parameters['local_name_for_peer']
+        record, error = rest_generic.post_async(self.rest_api, api, body, query)
         self.check_and_report_rest_error(error, 'creating', self.parameters['vserver'])
+        if record.get('records') is not None:
+            self.peer_relation_uuid = record['records'][0].get('uuid')
 
     def apply(self):
         """
