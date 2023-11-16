@@ -3104,3 +3104,14 @@ releases:
     - DEVOPS-6519.yaml
     - DEVOPS-6520.yaml
     release_date: '2023-11-07'
+  22.8.3:
+    changes:
+      bugfixes:
+      - na_ontap_ems_destination - fix field error with `certificate.name` for ONTAP
+        9.11.1 or later in REST.
+      - na_ontap_vserver_peer - fix issue with peering multiple clusters with same
+        vserver name in REST.
+    fragments:
+    - DEVOPS-6527.yaml
+    - DEVOPS-6528.yaml
+    release_date: '2023-11-16'

@@ -5,6 +5,15 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.8.3
+=======
+
+Bugfixes
+--------
+
+- na_ontap_ems_destination - fix field error with `certificate.name` for ONTAP 9.11.1 or later in REST.
+- na_ontap_vserver_peer - fix issue with peering multiple clusters with same vserver name in REST.
+
 v22.8.1
 =======
 
