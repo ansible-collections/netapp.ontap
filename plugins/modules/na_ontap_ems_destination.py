@@ -151,7 +151,7 @@ class NetAppOntapEmsDestination:
         api = 'support/ems/destinations'
         fields = 'name,type,destination,filters.name,certificate.ca'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
-            fields += 'certificate.name'
+            fields += ',certificate.name'
         query = dict(name=name, fields=fields)
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         self.fail_on_error(error, 'fetching EMS destination for %s' % name)
