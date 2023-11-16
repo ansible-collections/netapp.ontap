@@ -40,8 +40,7 @@ options:
     choices: ['community', 'usm', 'both']
     description:
       - Authentication method for SNMP user.
-      - Only supported with REST.
-    default: 'community'
+      - Only supported with REST. The default value is community.
     type: str
     version_added: 22.8.0
   snmpv3:
@@ -164,8 +163,7 @@ class NetAppONTAPSnmp(object):
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             snmp_username=dict(required=True, type='str'),
             access_control=dict(required=False, type='str', choices=['ro'], default='ro'),
-            authentication_method=dict(required=False, type='str',
-                                       choices=['community', 'usm', 'both'], default='community'),
+            authentication_method=dict(required=False, type='str', choices=['community', 'usm', 'both']),
             snmpv3=dict(required=False, type='dict',
                         options=dict(
                             authentication_password=dict(required=True, type='str', no_log=True),
@@ -203,7 +201,7 @@ class NetAppONTAPSnmp(object):
             for unsupported_zapi_property in self.unsupported_zapi_properties:
                 if self.parameters.get(unsupported_zapi_property) is not None:
                     msg = "Error: %s option is not supported with ZAPI. It can only be used with REST." % unsupported_zapi_property
-                self.module.fail_json(msg=msg)
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def invoke_snmp_community(self, zapi):
@@ -272,6 +270,7 @@ class NetAppONTAPSnmp(object):
 
     def add_snmp_rest(self):
         api = 'support/snmp/users'
+        self.parameters['authentication_method'] = self.parameters.get('authentication_method', 'community')
         body = {
             'name': self.parameters['snmp_username'],
             'authentication_method': self.parameters['authentication_method']

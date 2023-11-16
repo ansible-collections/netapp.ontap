@@ -67,6 +67,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Bug Fixes
   - na_ontap_vserver_peer - fix issue with peering multiple clusters with same vserver name in REST.
   - na_ontap_ems_destination - fix field error with `certificate.name` for ONTAP 9.11.1 or later in REST.
+  - na_ontap_snmp - fix for getting error when `authentication_method` set to default with ZAPI.
 
 ## 22.8.1
 
