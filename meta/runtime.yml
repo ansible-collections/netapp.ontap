@@ -124,6 +124,7 @@ action_groups:
     - na_ontap_snapshot_policy
     - na_ontap_snapshot
     - na_ontap_snmp
+    - na_ontap_snmp_config
     - na_ontap_snmp_traphosts
     - na_ontap_software_update
     - na_ontap_ssh_command
