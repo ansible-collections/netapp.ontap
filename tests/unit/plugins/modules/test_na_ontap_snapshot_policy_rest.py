@@ -156,7 +156,7 @@ def test_module_error_ontap_version():
     assert 'Error: REST requires ONTAP 9.8 or later for snapshot schedules.' == msg
 
 
-def test_create_snapshot_polciy_rest():
+def test_create_snapshot_policy_rest():
     ''' Test create with rest API'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -166,7 +166,7 @@ def test_create_snapshot_polciy_rest():
     assert create_and_apply(my_module, ARGS_REST)
 
 
-def test_create_snapshot_polciy_with_snapmirror_label_rest():
+def test_create_snapshot_policy_with_snapmirror_label_rest():
     ''' Test create with rest API'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -179,7 +179,7 @@ def test_create_snapshot_polciy_with_snapmirror_label_rest():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
-def test_create_snapshot_polciy_with_prefix_rest():
+def test_create_snapshot_policy_with_prefix_rest():
     ''' Test create with rest API'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -192,7 +192,7 @@ def test_create_snapshot_polciy_with_prefix_rest():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
-def test_error_create_snapshot_polciy_rest():
+def test_error_create_snapshot_policy_rest():
     ''' Test error create with rest API'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),

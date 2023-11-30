@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -611,6 +611,7 @@ class NetAppOntapSnapshotPolicy(object):
         api = 'storage/snapshot-policies/%s/schedules' % current['uuid']
         schedule_info = self.get_snapshot_schedule_rest(current)
         delete_schedules, modify_schedules, add_schedules = [], [], []
+        retain_schedules_count = 0
 
         if 'snapmirror_label' in self.parameters:
             snapmirror_labels = self.parameters['snapmirror_label']
@@ -629,6 +630,8 @@ class NetAppOntapSnapshotPolicy(object):
             schedule_name = self.safe_strip(schedule_name)
             if schedule_name not in [item.strip() for item in self.parameters['schedule']]:
                 delete_schedules.append(schedule_uuid)
+            else:
+                retain_schedules_count += 1
 
         # Identify schedules to be modified or added
         for schedule_name, count, snapmirror_label, prefix in zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, prefixes):
@@ -668,9 +671,11 @@ class NetAppOntapSnapshotPolicy(object):
                     body['prefix'] = prefix
                 add_schedules.append(body)
 
-        # Delete N-1 schedules no longer required. Must leave 1 schedule in policy
+        # Delete N schedules no longer required if there is at least 1 schedule is to be retained
+        # Otherwise, delete N-1 schedules no longer required as policy must have at least 1 schedule
         # at any one time. Delete last one afterwards.
-        while len(delete_schedules) > 1:
+        count = 0 if retain_schedules_count > 0 else 1
+        while len(delete_schedules) > count:
             schedule_uuid = delete_schedules.pop()
             record, error = rest_generic.delete_async(self.rest_api, api, schedule_uuid)
             if error is not None:

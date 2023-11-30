@@ -64,6 +64,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.9.0
 
+### Bug Fixes
+  - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
+
 ### New Modules
   - na_ontap_snmp_config - REST only support for modifying SNMP configuration, requires ONTAP 9.7 or later.
 
