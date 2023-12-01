@@ -36,6 +36,7 @@ SRR = rest_responses({
                     "enabled": True,
                     "security": {
                         "encrypt_dc_connection": False,
+                        "lm_compatibility_level": "lm_ntlm_ntlmv2_krb",
                         "smb_encryption": False,
                         "kdc_encryption": False,
                         "smb_signing": False,
@@ -68,6 +69,7 @@ SRR = rest_responses({
                     "enabled": False,
                     "security": {
                         "encrypt_dc_connection": False,
+                        "lm_compatibility_level": "lm_ntlm_ntlmv2_krb",
                         "smb_encryption": False,
                         "kdc_encryption": False,
                         "smb_signing": False,
@@ -100,6 +102,7 @@ SRR = rest_responses({
                     "enabled": True,
                     "security": {
                         "encrypt_dc_connection": False,
+                        "lm_compatibility_level": "lm_ntlm_ntlmv2_krb",
                         "smb_encryption": False,
                         "kdc_encryption": False,
                         "smb_signing": False,
@@ -482,9 +485,22 @@ def test_rest_successful_create_with_security():
         'smb_signing': True,
         'kdc_encryption': True,
         'encrypt_dc_connection': True,
-        'restrict_anonymous': 'no_enumeration'
+        'restrict_anonymous': 'no_enumeration',
+        'lm_compatibility_level': 'lm_ntlm_ntlmv2_krb'
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_version_error_with_security_options_9_8():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'lm_compatibility_level': 'ntlm_ntlmv2_krb',
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for lm_compatibility_level is (9, 8)' in error
 
 
 def test_rest_version_error_with_default_site():
@@ -660,6 +676,7 @@ def test_rest_successful_security_options_modify():
         "aes_netlogon_enabled": True,
         "ldap_referral_enabled": True,
         "session_security": "seal",
+        "lm_compatibility_level": "ntlm_ntlmv2_krb",
         "try_ldap_channel_binding": False,
         "use_ldaps": True
     }

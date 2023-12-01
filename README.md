@@ -64,6 +64,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.9.0
 
+### New Options
+  - na_ontap_cifs_server - new option `lm_compatibility_level` added in REST, requires ONTAP 9.8 or later.
+
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
 
