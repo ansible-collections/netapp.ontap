@@ -67,11 +67,16 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Options
   - na_ontap_cifs_server - new option `lm_compatibility_level` added in REST, requires ONTAP 9.8 or later.
 
+### Minor Changes
+  - na_ontap_s3_services - create, modify S3 service returns `s3_service_info` in module output.
+  - na_ontap_nfs - fix error with `windows` in REST for ONTAP 9.10 or earlier.
+
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
 
 ### New Modules
   - na_ontap_snmp_config - REST only support for modifying SNMP configuration, requires ONTAP 9.7 or later.
+  - na_ontap_cli_timeout - REST only support for setting CLI inactivity timeout value, requires ONTAP 9.6 or later.
 
 ## 22.8.3
 

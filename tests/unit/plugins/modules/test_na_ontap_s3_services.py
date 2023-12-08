@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -97,7 +97,8 @@ def test_create_s3_service():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['empty_records']),
-        ('POST', 'protocols/s3/services', SRR['empty_good'])
+        ('POST', 'protocols/s3/services', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
     ])
     module_args = {
         'enabled': True,
@@ -105,6 +106,22 @@ def test_create_s3_service():
         'certificate_name': 'cert1',
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_s3_service_response():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/services', SRR['empty_records']),
+        ('POST', 'protocols/s3/services', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
+    ])
+    module_args = {
+        'enabled': True,
+        'comment': 'this is a s3 service',
+        'certificate_name': 'cert1',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['s3_service_info'] is not None
 
 
 def test_create_s3_service_error():
@@ -152,13 +169,29 @@ def test_modify_s3_service():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/s3/services', SRR['s3_service']),
-        ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['empty_good'])
+        ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
     ])
     module_args = {'comment': 'this is a modified s3 service',
                    'enabled': False,
                    'certificate_name': 'cert2',
                    }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_s3_service_response():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
+        ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
+    ])
+    module_args = {'comment': 'this is a modified s3 service',
+                   'enabled': False,
+                   'certificate_name': 'cert2',
+                   }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['s3_service_info'] is not None
 
 
 def test_modify_s3_service_error():

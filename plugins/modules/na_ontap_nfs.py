@@ -555,8 +555,9 @@ class NetAppONTAPNFS:
         if error:
             self.module.fail_json(msg='Error getting nfs services for SVM %s: %s' % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
-        if record and 'default_user' not in record.get('windows'):
-            record['windows']['default_user'] = None
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
+            if record and 'default_user' not in record.get('windows'):
+                record['windows']['default_user'] = None
         return self.format_get_nfs_service_rest(record) if record else record
 
     def format_get_nfs_service_rest(self, record):

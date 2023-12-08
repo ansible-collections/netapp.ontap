@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -86,6 +86,19 @@ EXAMPLES = """
 
 
 RETURN = """
+s3_service_info:
+    description: Returns S3 service response.
+    returned: on creation or modification of S3 service
+    type: dict
+    sample: '{
+        "s3_service_info": {
+            "name": "Service1",
+            "enabled": false,
+            "certificate_name": "testSVM_177966509ABA4EC6",
+            "users": [{"name": "root"}, {"name": "user1", "access_key": "IWE711019OW02ZB3WH6Q"}],
+            "svm": {"name": "testSVM", "uuid": "39c2a5a0-35e2-11ee-b8da-005056b37403"}}
+            }
+        }'
 """
 
 import traceback
@@ -116,21 +129,19 @@ class NetAppOntapS3Services:
         self.svm_uuid = None
         self.na_helper = NetAppModule(self.module)
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
-
         self.rest_api = OntapRestAPI(self.module)
-        partially_supported_rest_properties = []  # TODO: Remove if there nothing here
-        self.use_rest = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
-                                              parameters=self.parameters)
-
+        self.use_rest = self.rest_api.is_rest()
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_services', 9, 8)
 
-    def get_s3_service(self):
+    def get_s3_service(self, extra_field=False):
         api = 'protocols/s3/services'
         fields = ','.join(('name',
                            'enabled',
                            'svm.uuid',
                            'comment',
                            'certificate.name'))
+        if extra_field:
+            fields += ',users'
 
         params = {
             'name': self.parameters['name'],
@@ -192,25 +203,48 @@ class NetAppOntapS3Services:
         self.svm_uuid = record['svm']['uuid']
         return record
 
+    def parse_response(self, response):
+        if response is not None:
+            users_info = []
+            options = ['name', 'access_key', 'secret_key']
+            for user_info in response.get('users'):
+                info = {}
+                for option in options:
+                    if user_info.get(option) is not None:
+                        info[option] = user_info.get(option)
+                users_info.append(info)
+            return {
+                'name': response.get('name'),
+                'enabled': response.get('enabled'),
+                'certificate_name': response.get('certificate_name'),
+                'users': users_info,
+                'svm': {'name': self.na_helper.safe_get(response, ['svm', 'name']),
+                        'uuid': self.na_helper.safe_get(response, ['svm', 'uuid'])}
+            }
+        return None
+
     def apply(self):
         current = self.get_s3_service()
-        cd_action, modify = None, None
+        cd_action, modify, response = None, None, None
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_s3_service()
+                response = self.get_s3_service(True)
             if cd_action == 'delete':
                 self.delete_s3_service()
             if modify:
                 self.modify_s3_service(modify)
-        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+                response = self.get_s3_service(True)
+        message = self.parse_response(response)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, extra_responses={'s3_service_info': message})
         self.module.exit_json(**result)
 
 
 def main():
-    '''Apply volume operations from playbook'''
+    '''Apply S3 service operations from playbook'''
     obj = NetAppOntapS3Services()
     obj.apply()
 
