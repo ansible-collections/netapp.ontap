@@ -113,7 +113,7 @@ def test_rest_create_failed(mock_request):
 def test_rest_successful_create(mock_request):
     mock_request.side_effect = [
         SRR['is_rest'],
-        SRR['get_uuid'],        # validate data vserver exist.
+        SRR['get_uuid'],        # validate data vserver exists.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -129,6 +129,28 @@ def test_rest_successful_create(mock_request):
     with pytest.raises(AnsibleExitJson) as exc:
         my_obj.apply()
     assert exc.value.args[0]['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_check_module_output(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest'],
+        SRR['get_uuid'],        # validate data vserver exists.
+        SRR['empty_records'],   # get certificate -> not found
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'type': 'server',
+        'vserver': 'abc',
+        'common_name': 'cname'
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['ontap_info'] is not None
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

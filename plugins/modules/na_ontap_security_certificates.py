@@ -378,8 +378,11 @@ class NetAppOntapSecurityCertificates:
         for key in required_keys + optional_keys:
             if self.parameters.get(key) is not None:
                 body[key] = self.parameters[key]
+        params = {
+            "return_records": "true"
+        }
         api = "security/certificates"
-        message, error = self.rest_api.post(api, body)
+        message, error = self.rest_api.post(api, body, params)
         if error:
             if self.parameters.get('svm') is None and error.get('target') == 'uuid':
                 error['target'] = 'cluster'
@@ -399,7 +402,10 @@ class NetAppOntapSecurityCertificates:
         for key in optional_keys:
             if self.parameters.get(key) is not None:
                 body[key] = self.parameters[key]
-        message, error = self.rest_api.post(api, body)
+        params = {
+            "return_records": "true"
+        }
+        message, error = self.rest_api.post(api, body, params)
         if error:
             self.module.fail_json(msg="Error signing certificate: %s" % error)
         return message

@@ -2313,6 +2313,8 @@ class NetAppOntapVolume:
         auto_delete_info = current.pop('snapshot_auto_delete', None)
         # ignore small changes in volume size or inode maximum by adjusting self.parameters['size'] or self.parameters['max_files']
         self.adjust_sizes(current, after_create)
+        if 'type' in self.parameters:
+            self.parameters['type'] = self.parameters['type'].lower()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if modify is not None and 'type' in modify:
             msg = "Error: volume type was not set properly at creation time." if after_create else \
@@ -2524,7 +2526,7 @@ class NetAppOntapVolume:
         if self.parameters.get('comment') is not None:
             body['comment'] = self.parameters['comment']
         if self.parameters.get('type') is not None:
-            body['type'] = self.parameters['type']
+            body['type'] = self.parameters['type'].lower()
         if self.parameters.get('percent_snapshot_space') is not None:
             body['space.snapshot.reserve_percent'] = self.parameters['percent_snapshot_space']
         if self.parameters.get('language') is not None:

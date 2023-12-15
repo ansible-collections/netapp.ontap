@@ -66,13 +66,17 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Options
   - na_ontap_cifs_server - new option `lm_compatibility_level` added in REST, requires ONTAP 9.8 or later.
+  - na_ontap_cluster - new option `certificate.uuid` added in REST, requires ONTAP 9.10 or later.
 
 ### Minor Changes
   - na_ontap_s3_services - create, modify S3 service returns `s3_service_info` in module output.
   - na_ontap_nfs - fix error with `windows` in REST for ONTAP 9.10 or earlier.
+  - na_ontap_cluster_peer - added REST only support for modifying remote intercluster addresses in cluster peer relation.
 
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
+  - na_ontap_volume - modified `type` to be case insensitive in REST.
+  - na_ontap_security_certificates - fix error with ontap_info returned in module output in REST.
 
 ### New Modules
   - na_ontap_snmp_config - REST only support for modifying SNMP configuration, requires ONTAP 9.7 or later.

@@ -404,11 +404,13 @@ SRR = {
     'is_rest_95': (200, dict(version=dict(generation=9, major=5, minor=0, full='dummy_9_5_0')), None),
     'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
     'is_rest_97': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy_9_7_0')), None),
+    'is_rest_910': (200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': ({}, None, None),
     'zero_record': (200, {'records': []}, None),
     'precluster': (500, None, {'message': 'are available in precluster.'}),
     'cluster_identity': (200, {'location': 'Oz', 'name': 'abc'}, None),
+    'cluster_web_service': (200, {'certificate': {'uuid': 'abcd12'}}, None),
     'nodes': (200, {'records': [
         {'name': 'node2', 'uuid': 'uuid2', 'cluster_interfaces': [{'ip': {'address': '10.10.10.2'}}]}
     ]}, None),
@@ -468,6 +470,28 @@ def test_rest_create_timezone(mock_request, patch_ansible):
     assert exc.value.args[0]['changed'] is True
     print(mock_request.mock_calls)
     assert len(mock_request.mock_calls) == 3
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_modify_certificate(mock_request, patch_ansible):
+    ''' modify cluster certificate '''
+    args = dict(set_default_args())
+    args['certificate'] = {'uuid': 'abcd123'}
+    set_module_args(args)
+    mock_request.side_effect = [
+        SRR['is_rest_910'],
+        SRR['cluster_identity'],        # get /cluster
+        SRR['cluster_web_service'],     # get /cluster/web
+        SRR['empty_good'],              # patch /cluster
+        SRR['empty_good'],              # patch /cluster/web
+        SRR['end_of_sequence']
+    ]
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    print(mock_request.mock_calls)
+    assert exc.value.args[0]['changed'] is True
+    assert len(mock_request.mock_calls) == 5
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

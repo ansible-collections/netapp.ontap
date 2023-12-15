@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -9,6 +9,7 @@ DOCUMENTATION = '''
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create/Delete cluster peer relations on ONTAP
+  - Modify remote intercluster addresses in cluster peer relation on ONTAP
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
   - netapp.ontap.netapp.na_ontap_peer
@@ -46,12 +47,13 @@ options:
     type: str
   source_cluster_name:
     description:
-      - The name of the source cluster name in the peer relation to be deleted.
+      - The name of the source cluster name in the peer relation to be modified or deleted.
+      - Required for deleting peer relation and for modifying source_intercluster_lifs.
     type: str
   dest_cluster_name:
     description:
-      - The name of the destination cluster name in the peer relation to be deleted.
-      - Required for delete
+      - The name of the destination cluster name in the peer relation to be modified or deleted.
+      - Required for deleting peer relation and for modifying dest_intercluster_lifs.
     type: str
   dest_hostname:
     description:
@@ -86,6 +88,9 @@ options:
     version_added: '20.5.0'
 short_description: NetApp ONTAP Manage Cluster peering
 version_added: 2.7.0
+
+notes:
+  - Modify remote intercluster addresses operation is supported only with REST.
 '''
 
 EXAMPLES = """
@@ -128,6 +133,18 @@ EXAMPLES = """
           cert_filepath: "{{ cert_filepath }}"
           key_filepath: "{{ key_filepath }}"
         encryption_protocol_proposed: tls_psk
+
+    - name: Modify cluster peer - destination intercluster addresses
+      netapp.ontap.na_ontap_cluster_peer:
+        state: present
+        source_intercluster_lifs: 1.2.3.4,1.2.3.5
+        dest_intercluster_lifs: 1.2.3.8
+        dest_cluster_name: test-dest-cluster
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        peer_options:
+          hostname: "{{ dest_netapp_hostname }}"
 
 """
 
@@ -279,7 +296,7 @@ class NetAppONTAPClusterPeer:
                     # if peer-lifs not present in parameters, use peer_cluster to filter desired cluster peer in current.
                     if self.parameters.get(peer_lifs) is not None:
                         peer_addresses_exist = set(self.parameters[peer_lifs]) == set(record['remote']['ip_addresses'])
-                    else:
+                    if self.parameters.get(peer_cluster) is not None:
                         peer_cluster_exist = self.parameters[peer_cluster] == record['remote']['name']
                     if peer_addresses_exist or peer_cluster_exist:
                         cluster_info['cluster_name'] = record['remote']['name']
@@ -379,23 +396,56 @@ class NetAppONTAPClusterPeer:
             for record in response['records']:
                 self.generated_passphrase = record['authentication']['passphrase']
 
+    def cluster_peer_modify_rest(self, cluster, uuid, modified_peer_addresses):
+        api = 'cluster/peers'
+        body = {'remote.ip_addresses': modified_peer_addresses}
+        server = self.rest_api if cluster == 'source' else self.dst_rest_api
+        dummy, error = rest_generic.patch_async(server, api, uuid, body)
+        if error:
+            self.module.fail_json(msg=error)
+
     def apply(self):
         """
         Apply action to cluster peer
         :return: None
         """
+        modify = {}
         source = self.cluster_peer_get('source')
         destination = self.cluster_peer_get('destination')
         source_action = self.na_helper.get_cd_action(source, self.parameters)
         destination_action = self.na_helper.get_cd_action(destination, self.parameters)
         self.na_helper.changed = False
+
         # create only if expected cluster peer relation is not present on both source and destination clusters
         # will error out with appropriate message if peer relationship already exists on either cluster
-        if source_action == 'create' or destination_action == 'create':
+        if source_action == 'create' and destination_action == 'create':
             if not self.module.check_mode:
                 self.cluster_peer_create('source')
                 self.cluster_peer_create('destination')
             self.na_helper.changed = True
+        # check and modify IP addresses of the logical interfaces used in peer relation
+        # on either source or destination cluster
+        elif self.use_rest and (source_action is None or destination_action is None):
+            source_changed, destination_changed = False, False
+            if source_action is None:
+                if destination_action == 'create' and self.parameters.get('source_cluster_name') is None:
+                    self.module.fail_json(msg='Following option is missing: source_cluster_name')
+                if not self.module.check_mode:
+                    if source and (source.get('peer-addresses') != self.parameters.get('dest_intercluster_lifs')):
+                        source_changed = True
+                        uuid = source['uuid']
+                        self.cluster_peer_modify_rest('source', uuid, self.parameters['dest_intercluster_lifs'])
+                        modify['dest_intercluster_lifs'] = self.parameters['dest_intercluster_lifs']
+            if destination_action is None:
+                if source_action == 'create' and self.parameters.get('dest_cluster_name') is None:
+                    self.module.fail_json(msg='Following option is missing: dest_cluster_name')
+                if not self.module.check_mode:
+                    if destination and (destination.get('peer-addresses') != self.parameters.get('source_intercluster_lifs')):
+                        destination_changed = True
+                        uuid = destination['uuid']
+                        self.cluster_peer_modify_rest('destination', uuid, self.parameters['source_intercluster_lifs'])
+                        modify['source_intercluster_lifs'] = self.parameters['source_intercluster_lifs']
+            self.na_helper.changed = source_changed | destination_changed
         # delete peer relation in cluster where relation is present
         else:
             if source_action == 'delete':
@@ -409,8 +459,8 @@ class NetAppONTAPClusterPeer:
                     self.cluster_peer_delete('destination', uuid)
                 self.na_helper.changed = True
 
-        result = netapp_utils.generate_result(self.na_helper.changed, extra_responses={'source_action': source_action,
-                                                                                       'destination_action': destination_action})
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify, extra_responses={'source_action': source_action,
+                                                                                                      'destination_action': destination_action})
         self.module.exit_json(**result)
 
 
@@ -419,8 +469,8 @@ def main():
     Execute action
     :return: None
     """
-    community_obj = NetAppONTAPClusterPeer()
-    community_obj.apply()
+    cluster_peer_obj = NetAppONTAPClusterPeer()
+    cluster_peer_obj.apply()
 
 
 if __name__ == '__main__':

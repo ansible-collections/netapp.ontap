@@ -267,6 +267,38 @@ def test_delete_idempotency_rest():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)
 
 
+def test_successful_modify_rest():
+    ''' Test successful modify '''
+    module_args = DEFAULT_ARGS
+    module_args['dest_intercluster_lifs'] = ['10.193.179.58']
+    module_args['source_intercluster_lifs'] = ['10.193.179.181']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_src']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_dst']),
+        ('PATCH', 'cluster/peers/1fg98aba-2aa6-11ec-b7be-005fgvb366e1', SRR['empty_good']),
+        ('PATCH', 'cluster/peers/1e698aba-2aa6-11ec-b7be-005056b366e1', SRR['empty_good'])
+    ])
+    assert create_and_apply(my_module, module_args)
+
+
+def test_modify_idempotency_rest():
+    ''' Test successful modify idempotency '''
+    module_args = DEFAULT_ARGS
+    module_args['dest_intercluster_lifs'] = ['10.193.179.58']
+    module_args['source_intercluster_lifs'] = ['10.193.179.181']
+    SRR['cluster_peer_src'][1]['records'][0]['remote']['ip_addresses'] = ['10.193.179.58']
+    SRR['cluster_peer_dst'][1]['records'][0]['remote']['ip_addresses'] = ['10.193.179.181']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_src']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_dst'])
+    ])
+    assert create_and_apply(my_module, module_args)
+
+
 def test_error_get_cluster_peer_rest():
     ''' Test get error '''
     register_responses([
@@ -303,3 +335,19 @@ def test_error_create_cluster_peer_rest():
     ])
     error = create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert 'calling: cluster/peers: got Expected error.' == error
+
+
+def test_error_modify_cluster_peer_rest():
+    ''' Test modify error '''
+    module_args = DEFAULT_ARGS
+    module_args['dest_intercluster_lifs'] = ['10.193.179.59']
+    module_args['source_intercluster_lifs'] = ['10.193.179.180']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_src']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_dst']),
+        ('PATCH', 'cluster/peers/1fg98aba-2aa6-11ec-b7be-005fgvb366e1', SRR['generic_error']),
+    ])
+    error = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'calling: cluster/peers/1fg98aba-2aa6-11ec-b7be-005fgvb366e1: got Expected error.' == error

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2022, NetApp, Inc
+# (c) 2017-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -94,7 +94,17 @@ options:
           - A system-specific or other term not associated with a geographic region or GMT
           - "full list of supported alias can be found here: https://library.netapp.com/ecmdocs/ECMP1155590/html/GUID-D3B8A525-67A2-4BEE-99DB-EF52D6744B5F.html"
           - Only supported by REST
-
+  certificate:
+    description:
+      - Certificate used by cluster and node management interfaces for TLS connection requests.
+      - Only supported with REST and requires ONTAP 9.10 or later.
+    type: dict
+    version_added: 22.9.0
+    suboptions:
+      uuid:
+        type: str
+        description:
+          - Certificate UUID.
 notes:
   - supports REST and ZAPI
 '''
@@ -108,6 +118,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Add node to cluster (Join cluster)
       netapp.ontap.na_ontap_cluster:
         state: present
@@ -115,6 +126,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Add node to cluster (Join cluster)
       netapp.ontap.na_ontap_cluster:
         state: present
@@ -123,6 +135,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Create a 2 node cluster in one call
       netapp.ontap.na_ontap_cluster:
         state: present
@@ -131,6 +144,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Remove node from cluster
       netapp.ontap.na_ontap_cluster:
         state: absent
@@ -138,6 +152,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Remove node from cluster
       netapp.ontap.na_ontap_cluster:
         state: absent
@@ -145,6 +160,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: modify cluster
       netapp.ontap.na_ontap_cluster:
         state: present
@@ -154,6 +170,19 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    - name: updating the cluster-wide web services configuration
+      netapp.ontap.na_ontap_cluster:
+        state: present
+        cluster_contact: testing
+        cluster_location: testing
+        certificate:
+          uuid: 7f2f332c-933e-11ee-ab1c-005056b397ff
+        cluster_name: "{{ netapp_cluster}}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
 """
 
 RETURN = """
@@ -182,6 +211,9 @@ class NetAppONTAPCluster:
             cluster_ip_address=dict(required=False, type='str'),
             cluster_location=dict(required=False, type='str'),
             cluster_contact=dict(required=False, type='str'),
+            certificate=dict(required=False, type='dict', options=dict(
+                uuid=dict(required=False, type='str')
+            )),
             force=dict(required=False, type='bool', default=False),
             single_node_cluster=dict(required=False, type='bool'),
             node_name=dict(required=False, type='str'),
@@ -202,6 +234,10 @@ class NetAppONTAPCluster:
         # cached, so that we don't call the REST API more than once
         self.node_records = None
 
+        self.rest_api = OntapRestAPI(self.module)
+        partially_supported_rest_properties = [['certificate', (9, 10, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
+
         if self.parameters['state'] == 'absent' and self.parameters.get('node_name') is not None and self.parameters.get('cluster_ip_address') is not None:
             msg = 'when state is "absent", parameters are mutually exclusive: cluster_ip_address|node_name'
             self.module.fail_json(msg=msg)
@@ -209,14 +245,14 @@ class NetAppONTAPCluster:
         if self.parameters.get('node_name') is not None and '-' in self.parameters.get('node_name'):
             self.warnings.append('ONTAP ZAPI converts "-" to "_", node_name: %s may be changed or not matched' % self.parameters.get('node_name'))
 
-        self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
         if self.use_rest and self.parameters['state'] == 'absent' and not self.rest_api.meets_rest_minimum_version(True, 9, 7, 0):
             self.module.warn('switching back to ZAPI as DELETE is not supported on 9.6')
             self.use_rest = False
         if not self.use_rest:
             if self.na_helper.safe_get(self.parameters, ['timezone', 'name']):
                 self.module.fail_json(msg='Timezone is only supported with REST')
+            if self.na_helper.safe_get(self.parameters, ['certificate', 'uuid']):
+                self.module.fail_json(msg='Certificate is only supported with REST')
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -235,12 +271,17 @@ class NetAppONTAPCluster:
             self.module.fail_json(msg='Error fetching cluster identity info: %s' % to_native(error),
                                   exception=traceback.format_exc())
         if record:
-            return {
+            cluster_info = {
                 'cluster_contact': record.get('contact'),
                 'cluster_location': record.get('location'),
                 'cluster_name': record.get('name'),
                 'timezone': self.na_helper.safe_get(record, ['timezone'])
             }
+        if self.parameters.get('certificate') is not None:
+            web_service_record = self.get_web_services()
+            cluster_info.update(web_service_record)
+        if cluster_info:
+            return cluster_info
         return None
 
     def get_cluster_identity(self, ignore_error=True):
@@ -526,6 +567,27 @@ class NetAppONTAPCluster:
                                   exception=traceback.format_exc())
         return uuid, from_node
 
+    def get_web_services(self):
+        record, error = rest_generic.get_one_record(self.rest_api, 'cluster/web', fields='certificate')
+        if error:
+            self.module.fail_json(msg='Error fetching cluster web service config: %s' % to_native(error),
+                                  exception=traceback.format_exc())
+        if record:
+            return record
+        return None
+
+    def modify_web_services(self):
+        body = {
+            'certificate': {
+                'uuid': self.parameters['certificate']['uuid']
+            }
+        }
+        dummy, error = rest_generic.patch_async(self.rest_api, 'cluster/web', None, body)
+        if error:
+            self.module.fail_json(msg='Error modifying cluster web service config for %s: %s'
+                                  % (self.parameters['cluster_name'], to_native(error)),
+                                  exception=traceback.format_exc())
+
     def remove_node_rest(self):
         """
         Remove a node from an existing cluster
@@ -570,10 +632,12 @@ class NetAppONTAPCluster:
         """
         Modifies the cluster identity
         """
+        if 'certificate' in modify:
+            self.modify_web_services()
         body = self.create_cluster_body(modify)
         dummy, error = rest_generic.patch_async(self.rest_api, 'cluster', None, body)
         if error:
-            self.module.fail_json(msg='Error modifying cluster idetity details %s: %s'
+            self.module.fail_json(msg='Error modifying cluster identity details %s: %s'
                                   % (self.parameters['cluster_name'], to_native(error)),
                                   exception=traceback.format_exc())
 
