@@ -81,6 +81,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### New Modules
   - na_ontap_snmp_config - REST only support for modifying SNMP configuration, requires ONTAP 9.7 or later.
   - na_ontap_cli_timeout - REST only support for setting CLI inactivity timeout value, requires ONTAP 9.6 or later.
+  - na_ontap_cifs_unix_symlink_mapping - REST only support for managing UNIX symbolic link mapping for CIFS clients, requires ONTAP 9.6 or later.
 
 ## 22.8.3
 
