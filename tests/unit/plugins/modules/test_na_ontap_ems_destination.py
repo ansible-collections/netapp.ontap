@@ -71,6 +71,27 @@ SRR = rest_responses({
             }],
         "num_records": 1
     }, None),
+    'ems_destination_type_syslog': (200, {
+        "records": [
+            {
+                "name": "test",
+                "type": "syslog",
+                "destination": "https://test.destination",
+                "filters": [
+                    {
+                        "name": "test-filter"
+                    }
+                ],
+                "syslog": {
+                    "port": 514,
+                    "transport": "udp_unencrypted",
+                    "message_format": "legacy_netapp",
+                    "timestamp_format_override": "no_override",
+                    "hostname_format_override": "no_override"
+                }
+            }],
+        "num_records": 1
+    }, None),
 })
 
 DEFAULT_ARGS = {
@@ -344,5 +365,97 @@ def test_modify_ems_cert():
         'filters': ['test-filter'],
         'certificate': 'cert1',
         'ca': 'cert_ca',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_ems_destination_with_type_syslog():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'support/ems/destinations', SRR['empty_records']),
+        ('POST', 'support/ems/destinations', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'syslog',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'syslog': {
+            'port': 514,
+            'transport': 'udp_unencrypted',
+            'message_format': 'legacy_netapp',
+            'timestamp_format_override': 'no_override',
+            'hostname_format_override': 'no_override'
+        }
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_error_ontap_9_12_1():
+    ''' syslog option supported from 9.12.1 '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'syslog',
+        'use_rest': 'always',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'syslog': {
+            'port': 514,
+            'transport': 'udp_unencrypted',
+            'message_format': 'legacy_netapp',
+            'timestamp_format_override': 'no_override',
+            'hostname_format_override': 'no_override'
+        }
+    }
+    assert 'Error: Minimum version of ONTAP for syslog is (9, 12, 1).  Current version: (9, 10, 1).' in call_main(my_main, DEFAULT_ARGS,
+                                                                                                                  module_args, fail=True)['msg']
+
+
+def test_create_ems_destination_with_type_syslog_and_add_certs():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'support/ems/destinations', SRR['empty_records']),
+        ('GET', 'security/certificates', SRR['certificate_record_1']),
+        ('POST', 'support/ems/destinations', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'syslog',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'certificate': 'cert1',
+        'ca': 'cert_ca',
+        'syslog': {
+            'port': 514,
+            'transport': 'udp_unencrypted',
+            'message_format': 'legacy_netapp',
+            'timestamp_format_override': 'no_override',
+            'hostname_format_override': 'no_override'
+        }
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_ems_destination_with_type_syslog():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'support/ems/destinations', SRR['ems_destination_type_syslog']),
+        ('PATCH', 'support/ems/destinations/test', SRR['empty_good'])
+    ])
+    module_args = {
+        'name': 'test',
+        'type': 'syslog',
+        'destination': 'https://test.destination',
+        'filters': ['test-filter'],
+        'syslog': {
+            'port': 614,
+            'transport': 'tcp_unencrypted',
+            'message_format': 'rfc_5424',
+            'timestamp_format_override': 'no_override',
+            'hostname_format_override': 'fqdn'
+        }
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']

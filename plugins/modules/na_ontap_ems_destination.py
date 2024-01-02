@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -60,7 +60,42 @@ options:
     required: false
     type: str
     version_added: 22.8.0
-
+  syslog:
+    description:
+      - The parameter is specified when the EMS destination type is C(syslog).
+    required: false
+    version_added: 22.9.0
+    type: dict
+    suboptions:
+      transport:
+        choices: [udp_unencrypted, tcp_unencrypted, tcp_encrypted]
+        description:
+          - Syslog Transport Protocol.
+        type: str
+        default: 'udp_unencrypted'
+      timestamp_format_override:
+        choices: [no_override, rfc_3164, iso_8601_local_time, iso_8601_utc]
+        description:
+          - Syslog Timestamp Format Override.
+        type: str
+        default: 'no_override'
+      hostname_format_override:
+        choices: [no_override, fqdn, hostname_only]
+        description:
+          - Syslog Hostname Format Override.
+        type: str
+        default: 'no_override'
+      message_format:
+        choices: [legacy_netapp, rfc_5424]
+        description:
+          - Syslog Message Format.
+        type: str
+        default: 'legacy_netapp'
+      port:
+        description:
+          - Syslog Port.
+        type: int
+        default: 514
 notes:
   - Supports check_mode.
   - This module only supports REST.
@@ -87,6 +122,25 @@ EXAMPLES = """
         destination: http://my.rest.api/address
         certificate: my_cert
         ca: my_cert_ca
+        hostname: "{{hostname}}"
+        username: "{{username}}"
+        password: "{{password}}"
+
+    - name: Configure REST EMS destination with type syslog
+      netapp.ontap.na_ontap_ems_destination:
+        state: present
+        name: syslog_destination
+        type: syslog
+        filters: ['important_events']
+        destination: http://my.rest.api/address
+        certificate: my_cert
+        ca: my_cert_ca
+        syslog:
+          transport: udp_unencrypted
+          port: 514
+          message_format: legacy_netapp
+          hostname_format_override: no_override
+          timestamp_format_override: no_override
         hostname: "{{hostname}}"
         username: "{{username}}"
         password: "{{password}}"
@@ -120,6 +174,16 @@ class NetAppOntapEmsDestination:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             type=dict(required=True, type='str', choices=['email', 'syslog', 'rest_api']),
+            syslog=dict(required=False, type='dict',
+                        options=dict(
+                            transport=dict(required=False, type='str', choices=['udp_unencrypted', 'tcp_unencrypted', 'tcp_encrypted'],
+                                           default='udp_unencrypted'),
+                            port=dict(required=False, type='int', default=514),
+                            message_format=dict(required=False, type='str', choices=['legacy_netapp', 'rfc_5424'], default='legacy_netapp'),
+                            timestamp_format_override=dict(required=False, type='str',
+                                                           choices=['no_override', 'rfc_3164', 'iso_8601_local_time', 'iso_8601_utc'], default='no_override'),
+                            hostname_format_override=dict(required=False, type='str', choices=['no_override', 'fqdn', 'hostname_only'], default='no_override')
+                        )),
             destination=dict(required=True, type='str'),
             filters=dict(required=True, type='list', elements='str'),
             certificate=dict(required=False, type='str'),
@@ -133,7 +197,7 @@ class NetAppOntapEmsDestination:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        partially_supported_rest_properties = [['certificate', (9, 11, 1)]]
+        partially_supported_rest_properties = [['certificate', (9, 11, 1)], ['syslog', (9, 12, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, partially_supported_rest_properties=partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -149,10 +213,20 @@ class NetAppOntapEmsDestination:
 
     def get_ems_destination(self, name):
         api = 'support/ems/destinations'
-        fields = 'name,type,destination,filters.name,certificate.ca'
+        query = {'name': name,
+                 'fields': 'type,'
+                           'destination,'
+                           'filters.name,'
+                           'certificate.ca,'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
-            fields += ',certificate.name'
-        query = dict(name=name, fields=fields)
+            query['fields'] += 'certificate.name,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+            syslog_option_9_12 = ('syslog.transport,'
+                                  'syslog.port,'
+                                  'syslog.format.message,'
+                                  'syslog.format.timestamp_override,'
+                                  'syslog.format.hostname_override,')
+            query['fields'] += syslog_option_9_12
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         self.fail_on_error(error, 'fetching EMS destination for %s' % name)
         if record:
@@ -164,6 +238,14 @@ class NetAppOntapEmsDestination:
                 'certificate': self.na_helper.safe_get(record, ['certificate', 'name']),
                 'ca': self.na_helper.safe_get(record, ['certificate', 'ca']),
             }
+            if record.get('syslog') is not None:
+                current['syslog'] = {
+                    'port': self.na_helper.safe_get(record, ['syslog', 'port']),
+                    'transport': self.na_helper.safe_get(record, ['syslog', 'transport']),
+                    'timestamp_format_override': self.na_helper.safe_get(record, ['syslog', 'format', 'timestamp_override']),
+                    'hostname_format_override': self.na_helper.safe_get(record, ['syslog', 'format', 'hostname_override']),
+                    'message_format': self.na_helper.safe_get(record, ['syslog', 'format', 'message']),
+                }
             # 9.9.0 and earlier versions returns rest-api, convert it to rest_api.
             if current['type'] and '-' in current['type']:
                 current['type'] = current['type'].replace('-', '_')
@@ -206,7 +288,18 @@ class NetAppOntapEmsDestination:
                     'serial_number': self.get_certificate_serial(self.parameters['certificate']),
                     'ca': self.parameters['ca'],
                 }
-
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+            if self.parameters.get('syslog') is not None:
+                body['syslog'] = {}
+                for key, option in [
+                    ('syslog.port', 'port'),
+                    ('syslog.transport', 'transport'),
+                    ('syslog.format.message', 'message_format'),
+                    ('syslog.format.timestamp_override', 'timestamp_format_override'),
+                    ('syslog.format.hostname_override', 'hostname_format_override')
+                ]:
+                    if self.parameters['syslog'].get(option) is not None:
+                        body[key] = self.parameters['syslog'][option]
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         self.fail_on_error(error, 'creating EMS destinations for %s' % name)
 
@@ -231,6 +324,16 @@ class NetAppOntapEmsDestination:
                     body[option]['serial_number'] = self.get_certificate_serial(modify[option])
                 elif option == 'ca':
                     body['certificate']['ca'] = modify[option]
+                elif option == 'syslog':
+                    for key, option in [
+                        ('syslog.port', 'port'),
+                        ('syslog.transport', 'transport'),
+                        ('syslog.format.message', 'message_format'),
+                        ('syslog.format.timestamp_override', 'timestamp_format_override'),
+                        ('syslog.format.hostname_override', 'hostname_format_override')
+                    ]:
+                        if option in modify['syslog']:
+                            body[key] = modify['syslog'][option]
                 else:
                     body[option] = modify[option]
             if body:
