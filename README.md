@@ -72,6 +72,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_s3_services - create, modify S3 service returns `s3_service_info` in module output.
   - na_ontap_nfs - fix error with `windows` in REST for ONTAP 9.10 or earlier.
   - na_ontap_cluster_peer - added REST only support for modifying remote intercluster addresses in cluster peer relation.
+  - na_ontap_snapmirror - updated resync and resume operation for synchronous snapmirror relationship in REST.
 
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.

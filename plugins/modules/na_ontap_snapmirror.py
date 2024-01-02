@@ -595,6 +595,7 @@ class NetAppONTAPSnapmirror(object):
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
+        self.policy_type = None
         self.new_style = False
         # when deleting, ignore previous errors, but report them if delete fails
         self.previous_errors = []
@@ -1051,7 +1052,8 @@ class NetAppONTAPSnapmirror(object):
         resync SnapMirror based on relationship state
         """
         if self.use_rest:
-            self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="snapmirrored")
+            state = 'in_sync' if self.policy_type == 'sync' else 'snapmirrored'
+            self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state=state)
         else:
             options = {'destination-location': self.parameters['destination_path']}
             snapmirror_resync = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resync', **options)
@@ -1067,7 +1069,8 @@ class NetAppONTAPSnapmirror(object):
         resume SnapMirror based on relationship state
         """
         if self.use_rest:
-            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state="snapmirrored")
+            state = 'in_sync' if self.policy_type == 'sync' else 'snapmirrored'
+            return self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state=state)
 
         options = {'destination-location': self.parameters['destination_path']}
         snapmirror_resume = netapp_utils.zapi.NaElement.create_node_with_children('snapmirror-resume', **options)
@@ -1482,7 +1485,7 @@ class NetAppONTAPSnapmirror(object):
             destination = self.parameters['destination_path']
 
         api = 'snapmirror/relationships'
-        fields = 'uuid,state,transfer.state,transfer.uuid,policy.name,unhealthy_reason.message,healthy,source'
+        fields = 'uuid,state,transfer.state,transfer.uuid,policy.name,policy.type,unhealthy_reason.message,healthy,source'
         if 'schedule' in self.parameters:
             fields += ',transfer_schedule'
         options = {'destination.path': destination, 'fields': fields}
@@ -1499,9 +1502,10 @@ class NetAppONTAPSnapmirror(object):
             snap_info['status'] = self.na_helper.safe_get(record, ['transfer', 'state'])
             self.parameters['current_transfer_status'] = self.na_helper.safe_get(record, ['transfer', 'state'])
             snap_info['policy'] = self.na_helper.safe_get(record, ['policy', 'name'])
+            self.policy_type = self.na_helper.safe_get(record, ['policy', 'type'])
             # REST API supports only Extended Data Protection (XDP) SnapMirror relationship
             snap_info['relationship_type'] = 'extended_data_protection'
-            # initilized to avoid name keyerror
+            # initialized to avoid name keyerror
             snap_info['current_transfer_type'] = ""
             snap_info['max_transfer_rate'] = ""
             if 'unhealthy_reason' in record:
@@ -1741,8 +1745,8 @@ class NetAppONTAPSnapmirror(object):
 
 def main():
     """Execute action"""
-    community_obj = NetAppONTAPSnapmirror()
-    community_obj.apply()
+    snapmirror_obj = NetAppONTAPSnapmirror()
+    snapmirror_obj.apply()
 
 
 if __name__ == '__main__':

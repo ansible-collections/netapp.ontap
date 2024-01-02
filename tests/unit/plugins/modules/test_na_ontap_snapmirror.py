@@ -45,7 +45,7 @@ DEFAULT_ARGS = {
 }
 
 
-def sm_rest_info(state, healthy, transfer_state=None, destination_path=DEFAULT_ARGS['destination_path']):
+def sm_rest_info(state, healthy, transfer_state=None, policy_type=None, destination_path=DEFAULT_ARGS['destination_path']):
     record = {
         'uuid': 'b5ee4571-5429-11ec-9779-005056b39a06',
         'destination': {
@@ -63,6 +63,8 @@ def sm_rest_info(state, healthy, transfer_state=None, destination_path=DEFAULT_A
             record['transfer']['uuid'] = 'xfer_uuid'
     if healthy is False:
         record['unhealthy_reason'] = 'this is why the relationship is not healthy.'
+    if policy_type:
+        record['policy']['type'] = policy_type
     record['transfer_schedule'] = {'name': 'abc'}
 
     return {
@@ -110,9 +112,12 @@ SRR = rest_responses({
     'sm_get_uninitialized': (200, sm_rest_info('uninitialized', True), None),
     'sm_get_uninitialized_xfering': (200, sm_rest_info('uninitialized', True, 'transferring'), None),
     'sm_get_mirrored': (200, sm_rest_info('snapmirrored', True, 'success'), None),
+    'sm_sync_get_mirrored': (200, sm_rest_info('in_sync', True, 'success', 'sync'), None),
     'sm_get_restore': (200, sm_rest_info('snapmirrored', True, 'success', destination_path=DEFAULT_ARGS['source_path']), None),
     'sm_get_paused': (200, sm_rest_info('paused', True, 'success'), None),
+    'sm_sync_get_paused': (200, sm_rest_info('paused', True, 'success', 'sync'), None),
     'sm_get_broken': (200, sm_rest_info('broken_off', True, 'success'), None),
+    'sm_sync_get_broken': (200, sm_rest_info('broken_off', True, 'success', 'sync'), None),
     'sm_get_data_transferring': (200, sm_rest_info('transferring', True, 'transferring'), None),
     'sm_get_abort': (200, sm_rest_info('sm_get_abort', False, 'failed'), None),
     'sm_get_resync': (200, {
@@ -1181,15 +1186,47 @@ def test_rest_resync_when_state_is_broken(dont_sleep):
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@patch('time.sleep')
+def test_rest_synchronous_sm_resync_when_state_is_broken(dont_sleep):
+    ''' resync when snapmirror state is broken and relationship_state active  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_broken']),  # apply first sm_get with state broken_off
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm resync response
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # check for idle
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_rest_resume_when_state_quiesced():
     ''' resync when snapmirror state is broken and relationship_state active  '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'snapmirror/relationships', SRR['sm_get_paused']),  # apply first sm_get with state quiesced
-        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm resync response
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm resume response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # sm update calls sm_get
         ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),   # sm update response
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_synchronous_sm_resume_when_state_quiesced():
+    ''' resync when snapmirror state is broken and relationship_state active  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_paused']),  # apply first sm_get with state quiesced
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),             # sm resume response
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # sm update calls sm_get
+        # ('POST', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06/transfers', SRR['success']),   # sm update response
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # check_health calls sm_get
     ])
     module_args = {
         "use_rest": "always",
