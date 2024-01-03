@@ -5,6 +5,34 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.9.0
+=======
+
+Minor Changes
+-------------
+
+- na_ontap_cifs_server - new option `lm_compatibility_level` added in REST, requires ONTAP 9.8 or later.
+- na_ontap_cluster - new option `certificate.uuid` added in REST, requires ONTAP 9.10 or later.
+- na_ontap_cluster_peer - added REST only support for modifying remote intercluster addresses in cluster peer relation.
+- na_ontap_ems_destination - new options `syslog`, `port`, `transport`, `message_format`, `timestamp_format_override` and `hostname_format_override` added in REST, requires ONTAP 9.12.1 or later.
+- na_ontap_s3_services - create, modify S3 service returns `s3_service_info` in module output.
+- na_ontap_snapmirror - updated resync and resume operation for synchronous snapmirror relationship in REST.
+
+Bugfixes
+--------
+
+- na_ontap_nfs - fix error with `windows` in REST for ONTAP 9.10 or earlier.
+- na_ontap_security_certificates - fix error with ontap_info returned in module output in REST.
+- na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
+- na_ontap_volume - modified `type` to be case insensitive in REST.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_cifs_unix_symlink_mapping - NetApp ONTAP module to manage UNIX symbolic link mapping for CIFS clients.
+- netapp.ontap.na_ontap_cli_timeout - NetApp ONTAP module to set the CLI inactivity timeout value.
+- netapp.ontap.na_ontap_snmp_config - NetApp ONTAP module to modify SNMP configuration.
+
 v22.8.3
 =======
 

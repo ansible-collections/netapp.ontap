@@ -3115,3 +3115,47 @@ releases:
     - DEVOPS-6527.yaml
     - DEVOPS-6528.yaml
     release_date: '2023-11-16'
+  22.9.0:
+    changes:
+      bugfixes:
+      - na_ontap_nfs - fix error with `windows` in REST for ONTAP 9.10 or earlier.
+      - na_ontap_security_certificates - fix error with ontap_info returned in module
+        output in REST.
+      - na_ontap_snapshot_policy - fix issue with modifying snapshot policy in REST.
+      - na_ontap_volume - modified `type` to be case insensitive in REST.
+      minor_changes:
+      - na_ontap_cifs_server - new option `lm_compatibility_level` added in REST,
+        requires ONTAP 9.8 or later.
+      - na_ontap_cluster - new option `certificate.uuid` added in REST, requires ONTAP
+        9.10 or later.
+      - na_ontap_cluster_peer - added REST only support for modifying remote intercluster
+        addresses in cluster peer relation.
+      - na_ontap_ems_destination - new options `syslog`, `port`, `transport`, `message_format`,
+        `timestamp_format_override` and `hostname_format_override` added in REST,
+        requires ONTAP 9.12.1 or later.
+      - na_ontap_s3_services - create, modify S3 service returns `s3_service_info`
+        in module output.
+      - na_ontap_snapmirror - updated resync and resume operation for synchronous
+        snapmirror relationship in REST.
+    fragments:
+    - DEVOPS-5920.yaml
+    - DEVOPS-6282.yaml
+    - DEVOPS-6389.yaml
+    - DEVOPS-6487.yaml
+    - DEVOPS-6524.yaml
+    - DEVOPS-6525.yaml
+    - DEVOPS-6529.yaml
+    - DEVOPS-6551.yaml
+    - DEVOPS-6556.yaml
+    modules:
+    - description: NetApp ONTAP module to manage UNIX symbolic link mapping for CIFS
+        clients.
+      name: na_ontap_cifs_unix_symlink_mapping
+      namespace: ''
+    - description: NetApp ONTAP module to set the CLI inactivity timeout value.
+      name: na_ontap_cli_timeout
+      namespace: ''
+    - description: NetApp ONTAP module to modify SNMP configuration.
+      name: na_ontap_snmp_config
+      namespace: ''
+    release_date: '2024-01-03'
