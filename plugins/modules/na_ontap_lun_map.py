@@ -2,7 +2,7 @@
 
 """ this is lun mapping module
 
- (c) 2018-2022, NetApp, Inc
+ (c) 2018-2023, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -146,9 +146,7 @@ class NetAppOntapLUNMap:
             ],
             supports_check_mode=True
         )
-        self.result = dict(
-            changed=False,
-        )
+        self.lun_info = dict()
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
@@ -337,19 +335,19 @@ class NetAppOntapLUNMap:
             if modify:
                 self.module.fail_json(msg="Modification of lun_map not allowed")
         if self.parameters['state'] == 'present' and lun_details:
-            self.result.update(lun_details)
-        self.result['changed'] = self.na_helper.changed
+            self.lun_info.update(lun_details)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_lun_map()
             if cd_action == 'delete':
                 self.delete_lun_map()
-        self.module.exit_json(**self.result)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, extra_responses=self.lun_info)
+        self.module.exit_json(**result)
 
 
 def main():
-    v = NetAppOntapLUNMap()
-    v.apply()
+    lun_mapping = NetAppOntapLUNMap()
+    lun_mapping.apply()
 
 
 if __name__ == '__main__':
