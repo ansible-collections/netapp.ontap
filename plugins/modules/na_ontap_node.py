@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2019, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -83,6 +83,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
+import copy
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -218,7 +219,7 @@ class NetAppOntapNode(object):
 
     def apply(self):
         from_exists = None
-        modify = None
+        modify, modify_dict = None, None
         uuid = None
         current = self.get_node(self.parameters['name'])
         if current is None and 'from_name' in self.parameters:
@@ -235,8 +236,10 @@ class NetAppOntapNode(object):
         allowed_options = ['name', 'location']
         if not self.use_rest:
             allowed_options.append('asset_tag')
-        if modify and any(x not in allowed_options for x in modify):
-            self.module.fail_json(msg='Too many modified attributes found: %s, allowed: %s' % (modify, allowed_options))
+        if modify:
+            if any(x not in allowed_options for x in modify):
+                self.module.fail_json(msg='Too many modified attributes found: %s, allowed: %s' % (modify, allowed_options))
+            modify_dict = copy.deepcopy(modify)
         if current is None and from_exists is None:
             msg = 'from_name: %s' % self.parameters.get('from_name') if 'from_name' in self.parameters \
                   else 'name: %s' % self.parameters['name']
@@ -249,8 +252,8 @@ class NetAppOntapNode(object):
                         modify.pop('name')
                 if modify:
                     self.modify_node(modify, uuid)
-
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify_dict)
+        self.module.exit_json(**result)
 
 
 def main():

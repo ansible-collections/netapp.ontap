@@ -62,6 +62,15 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.10.0
+
+### Minor Changes
+  - na_ontap_export_policy_rule - added `actions` and `modify` in module output.
+  - na_ontap_file_security_permissions_acl - added `actions` and `modify` in module output.
+  - na_ontap_igroup_initiator - added `actions` in module output.
+  - na_ontap_name_mappings - added `actions` and `modify` in module output.
+  - na_ontap_node - added `modify` in module output.
+
 ## 22.9.0
 
 ### New Options

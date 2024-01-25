@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -169,6 +169,7 @@ EXAMPLES = """
         state: present
         name: default123
         rule_index: 100
+        vserver: ci_dev
         client_match: 0.0.0.0/0
         anonymous_user_id: 65521
         ro_rule: ntlm
@@ -732,7 +733,8 @@ class NetAppontapExportRule:
             elif modify:
                 self.modify_export_policy_rule(modify, current['rule_index'])
 
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

@@ -273,7 +273,11 @@ class NetAppOntapNameMappings:
                 self.delete_name_mappings_rest()
             elif modify or reindex:
                 self.modify_name_mappings_rest(modify, reindex)
-        self.module.exit_json(changed=self.na_helper.changed)
+                if reindex:
+                    modify['new_index'] = self.parameters.get('index')
+                    modify['from_index'] = self.parameters['from_index']
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
 
 def main():

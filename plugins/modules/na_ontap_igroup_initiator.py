@@ -1,7 +1,7 @@
 #!/usr/bin/python
 ''' This is an Ansible module for ONTAP, to manage initiators in an Igroup
 
- (c) 2019-2022, NetApp, Inc
+ (c) 2019-2023, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -209,7 +209,8 @@ class NetAppOntapIgroupInitiator(object):
                     self.modify_initiator(initiator, 'igroup-add')
                 elif cd_action == 'delete':
                     self.modify_initiator(initiator, 'igroup-remove')
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action)
+        self.module.exit_json(**result)
 
 
 def main():

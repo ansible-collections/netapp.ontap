@@ -209,7 +209,7 @@ EXAMPLES = """
       path: "{{ file_mount_path }}"
       validate_changes: warn
       access: access_allow
-      # Note, wihout quotes, use a single backslash in AD user names
+      # Note, without quotes, use a single backslash in AD user names
       # with quotes, it needs to be escaped as a double backslash
       # user: "ANSIBLE_CIFS\\user1"
       # we can't show an example with a single backslash as this is a python file, but it works in YAML.
@@ -466,7 +466,8 @@ class NetAppOntapFileSecurityPermissionsACL:
             if modify:
                 self.modify_file_security_permissions_acl()
             self.validate_changes(cd_action, modify)
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
+        self.module.exit_json(**result)
 
     def validate_changes(self, cd_action, modify):
         if self.parameters['validate_changes'] == 'ignore':
