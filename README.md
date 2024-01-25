@@ -65,6 +65,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.10.0
 
 ### Minor Changes
+  - na_ontap_rest_info - added warning message if given subset doesn't support option `owning_resource`.
   - na_ontap_export_policy_rule - added `actions` and `modify` in module output.
   - na_ontap_file_security_permissions_acl - added `actions` and `modify` in module output.
   - na_ontap_igroup_initiator - added `actions` in module output.

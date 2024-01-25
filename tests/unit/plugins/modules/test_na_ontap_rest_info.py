@@ -1,4 +1,4 @@
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' Unit Tests NetApp ONTAP REST APIs Ansible module: na_ontap_rest_info '''
@@ -778,6 +778,19 @@ def test_version_warning_message():
     create_and_apply(ontap_rest_info_module, set_args_run_metrocluster_diag())
     assert_warning_was_raised('The following subset have been removed from your query as they are not supported on ' +
                               'your version of ONTAP cluster/metrocluster/diagnostics requires (9, 8), ')
+
+
+def test_owning_resource_warning_message():
+    gather_subset = ['cluster/nodes']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'storage/volumes', SRR['get_subset_info']),
+    ])
+    extra_args = {
+        'owning_resource': {'svm_name': 'testSVM'}
+    }
+    create_and_apply(ontap_rest_info_module, set_args_run_ontap_version_check(), extra_args)
+    assert_warning_was_raised("Kindly refer to Ansible documentation to check the subsets that support option 'owning_resource'.")
 
 
 # metrocluster/diagnostics doesn't call get_subset_info and has 3 api calls instead of 1

@@ -293,7 +293,7 @@ options:
     version_added: '21.9.0'
   owning_resource:
     description:
-      - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snaphot.
+      - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snapshot.
       - The following subsets require an owning resource, and the following suboptions when uuid is not present.
       - <storage/volumes/snapshots>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
       - <protocols/nfs/export-policies/rules> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy,
@@ -1099,6 +1099,8 @@ class NetAppONTAPGatherInfo(object):
 
     def add_uuid_subsets(self, get_ontap_subset_info):
         params = self.parameters.get('owning_resource')
+        owning_resource_supported_subsets = ['storage/volumes/snapshots', 'protocols/nfs/export-policies/rules',
+                                             'protocols/vscan/on-access-policies', 'protocols/vscan/on-demand-policies', 'protocols/vscan/scanner-pools']
         if 'gather_subset' in self.parameters:
             if 'storage/volumes/snapshots' in self.parameters['gather_subset']:
                 self.check_error_values('storage/volumes/snapshots', params, ['volume_name', 'svm_name'])
@@ -1120,6 +1122,9 @@ class NetAppONTAPGatherInfo(object):
                 self.add_vserver_owning_resource('protocols/vscan/on-demand-policies', params, 'protocols/vscan/%s/on-demand-policies', get_ontap_subset_info)
             if 'protocols/vscan/scanner-pools' in self.parameters['gather_subset']:
                 self.add_vserver_owning_resource('protocols/vscan/scanner-pools', params, 'protocols/vscan/%s/scanner-pools', get_ontap_subset_info)
+            owning_resource_warning = any(subset not in owning_resource_supported_subsets for subset in self.parameters['gather_subset'])
+            if owning_resource_warning and params is not None:
+                self.module.warn("Kindly refer to Ansible documentation to check the subsets that support option 'owning_resource'.")
         return get_ontap_subset_info
 
     def add_vserver_owning_resource(self, subset, params, api, get_ontap_subset_info):
