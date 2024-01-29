@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
- (c) 2018-2022, NetApp, Inc
+ (c) 2018-2023, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -62,9 +62,9 @@ notes:
 EXAMPLES = """
     - name: Create Lun Map reporting nodes
       netapp.ontap.na_ontap_lun_map_reporting_nodes:
-        hostname: 172.21.121.82
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         vserver: vs1
@@ -75,9 +75,9 @@ EXAMPLES = """
 
     - name: Delete Lun Map reporting nodes
       netapp.ontap.na_ontap_lun_map_reporting_nodes:
-        hostname: 172.21.121.82
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         vserver: vs1
@@ -248,21 +248,27 @@ class NetAppOntapLUNMapReportingNodes:
         else:
             nodes_to_add = list()
             nodes_to_delete = [node for node in self.parameters['nodes'] if node in reporting_nodes]
+        cd_action = None
         changed = len(nodes_to_add) > 0 or len(nodes_to_delete) > 0
         if changed and not self.module.check_mode:
             if nodes_to_add:
+                cd_action = 'add_node'
                 if self.use_rest:
                     for node in nodes_to_add:
                         self.add_lun_map_reporting_nodes_rest(node)
                 else:
                     self.add_lun_map_reporting_nodes(nodes_to_add)
             if nodes_to_delete:
+                cd_action = 'remove_node'
                 if self.use_rest:
                     for node in nodes_to_delete:
                         self.remove_lun_map_reporting_nodes_rest(node)
                 else:
                     self.remove_lun_map_reporting_nodes(nodes_to_delete)
-        self.module.exit_json(changed=changed, reporting_nodes=reporting_nodes, nodes_to_add=nodes_to_add, nodes_to_delete=nodes_to_delete)
+        result = netapp_utils.generate_result(changed, cd_action, extra_responses={'reporting_nodes': reporting_nodes,
+                                                                                   'nodes_to_add': nodes_to_add,
+                                                                                   'nodes_to_delete': nodes_to_delete})
+        self.module.exit_json(**result)
 
 
 def main():
