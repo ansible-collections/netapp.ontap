@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -128,8 +128,8 @@ class NetAppOntapStorageAutoGiveback(object):
             if error is None and records is not None:
                 return_value = {
                     'name': message['records'][0]['node'],
-                    'auto_giveback_enabled': message['records'][0]['auto_giveback'],
-                    'auto_giveback_after_panic_enabled': message['records'][0]['auto_giveback_after_panic']
+                    'auto_giveback_enabled': message['records'][0].get('auto_giveback'),
+                    'auto_giveback_after_panic_enabled': message['records'][0].get('auto_giveback_after_panic')
                 }
 
             if error:
@@ -228,12 +228,13 @@ class NetAppOntapStorageAutoGiveback(object):
 
     def apply(self):
         current = self.get_storage_auto_giveback()
-        self.na_helper.get_modified_attributes(current, self.parameters)
+        modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed:
             if not self.module.check_mode:
                 self.modify_storage_auto_giveback()
-        self.module.exit_json(changed=self.na_helper.changed)
+        result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
+        self.module.exit_json(**result)
 
 
 def main():
