@@ -192,7 +192,7 @@ class NetAppOntapIgroupInitiator(object):
             dummy, error = rest_generic.post_async(self.rest_api, api, body)
         else:
             query = {'allow_delete_while_mapped': self.parameters['force_remove']}
-            dummy, error = rest_generic.delete_async(self.rest_api, api, initiator_name, query)
+            dummy, error = rest_generic.delete_async(self.rest_api, api, initiator_name.lower(), query)
         if error:
             self.module.fail_json(msg="Error modifying igroup initiator %s: %s" % (initiator_name, error))
 
@@ -201,7 +201,7 @@ class NetAppOntapIgroupInitiator(object):
         for initiator in self.parameters['names']:
             present = None
             initiator = self.na_helper.sanitize_wwn(initiator)
-            if initiator in initiators:
+            if initiator.lower() in initiators:
                 present = True
             cd_action = self.na_helper.get_cd_action(present, self.parameters)
             if self.na_helper.changed and not self.module.check_mode:
