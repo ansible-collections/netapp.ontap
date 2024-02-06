@@ -74,6 +74,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_lun_map - added `actions` in module output.
   - na_ontap_lun_map_reporting_nodes - added `actions` in module output.
   - na_ontap_storage_auto_giveback - added information on modifed attributes in module output.
+  - na_ontap_cifs_server - new option `is_multichannel_enabled` added in REST, requires ONTAP 9.10 or later.
 
 ### Bug Fixes
   - na_ontap_igroup_initiator - fixed issue with idempotency.

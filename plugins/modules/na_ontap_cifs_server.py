@@ -190,6 +190,13 @@ options:
     type: str
     version_added: 22.9.0
 
+  is_multichannel_enabled:
+    description:
+      - Specifies whether the CIFS server supports Multichannel or not.
+      - Only supported with REST and requires ontap version 9.10 or later.
+    type: bool
+    version_added: 22.10.0
+
 '''
 
 EXAMPLES = '''
@@ -319,7 +326,8 @@ class NetAppOntapcifsServer:
             lm_compatibility_level=dict(required=False, type='str', choices=['lm_ntlm_ntlmv2_krb', 'ntlm_ntlmv2_krb', 'ntlmv2_krb', 'krb']),
             try_ldap_channel_binding=dict(required=False, type='bool'),
             use_ldaps=dict(required=False, type='bool'),
-            use_start_tls=dict(required=False, type='bool')
+            use_start_tls=dict(required=False, type='bool'),
+            is_multichannel_enabled=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -338,13 +346,13 @@ class NetAppOntapcifsServer:
         partially_supported_rest_properties = [['encrypt_dc_connection', (9, 8)], ['lm_compatibility_level', (9, 8)],
                                                ['aes_netlogon_enabled', (9, 10, 1)], ['ldap_referral_enabled', (9, 10, 1)], ['session_security', (9, 10, 1)],
                                                ['try_ldap_channel_binding', (9, 10, 1)], ['use_ldaps', (9, 10, 1)], ['use_start_tls', (9, 10, 1)],
-                                               ['force', (9, 11)], ['default_site', (9, 13, 1)]]
+                                               ['is_multichannel_enabled', (9, 10, 1)], ['force', (9, 11)], ['default_site', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
             unsupported_zapi_properties = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
-                                           'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site']
+                                           'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site', 'is_multichannel_enabled']
             used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
             if used_unsupported_zapi_properties:
                 self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
@@ -490,6 +498,10 @@ class NetAppOntapcifsServer:
                                     'security.ldap_referral_enabled,'
                                     'security.aes_netlogon_enabled,')
             query['fields'] += security_option_9_10
+
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            service_option_9_10 = ('options.multichannel,')
+            query['fields'] += service_option_9_10
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg="Error on fetching cifs: %s" % error)
@@ -510,7 +522,8 @@ class NetAppOntapcifsServer:
                 'try_ldap_channel_binding': self.na_helper.safe_get(record, ['security', 'try_ldap_channel_binding']),
                 'use_ldaps': self.na_helper.safe_get(record, ['security', 'use_ldaps']),
                 'use_start_tls': self.na_helper.safe_get(record, ['security', 'use_start_tls']),
-                'restrict_anonymous': self.na_helper.safe_get(record, ['security', 'restrict_anonymous'])
+                'restrict_anonymous': self.na_helper.safe_get(record, ['security', 'restrict_anonymous']),
+                'is_multichannel_enabled': self.na_helper.safe_get(record, ['options', 'multichannel']),
             }
         return record
 
@@ -532,7 +545,7 @@ class NetAppOntapcifsServer:
         """
         Function to define body for create and modify cifs server
         """
-        body, query, security = {}, {}, {}
+        body, query, security, service_options = {}, {}, {}, {}
         if params is None:
             params = self.parameters
         security_options = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
@@ -548,6 +561,14 @@ class NetAppOntapcifsServer:
                 security[key] = params[key]
         if security:
             body['security'] = security
+        # for parameters having different key names in REST API and module inputs
+        for key, option in [
+            ('multichannel', 'is_multichannel_enabled'),
+        ]:
+            if option in params:
+                service_options.update({key: params[option]})
+        if service_options:
+            body['options'] = service_options
         if 'vserver' in params:
             body['svm.name'] = params['vserver']
         if 'cifs_server_name' in params:

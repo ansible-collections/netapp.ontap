@@ -48,6 +48,9 @@ SRR = rest_responses({
                         "use_ldaps": False,
                         "use_start_tls": False
                     },
+                    "options": {
+                        "multichannel": True
+                    },
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
@@ -81,8 +84,11 @@ SRR = rest_responses({
                         "use_ldaps": False,
                         "use_start_tls": False
                     },
+                    "options": {
+                        "multichannel": True
+                    },
                     "target": {
-                        "nam,e": "20:05:00:50:56:b3:0c:fa"
+                        "name": "20:05:00:50:56:b3:0c:fa"
                     },
                     "name": "cifs_server_name"
                 }
@@ -503,6 +509,18 @@ def test_rest_version_error_with_security_options_9_8():
     assert 'Minimum version of ONTAP for lm_compatibility_level is (9, 8)' in error
 
 
+def test_rest_version_error_with_service_options_9_10():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'is_multichannel_enabled': False
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for is_multichannel_enabled is (9, 10, 1)' in error
+
+
 def test_rest_version_error_with_default_site():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_12_1'])
@@ -666,7 +684,7 @@ def test_rest_negative_security_options_modify():
 
 
 def test_rest_successful_security_options_modify():
-    '''Test successful rest enable'''
+    '''Test successful rest security options modify'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
@@ -679,6 +697,19 @@ def test_rest_successful_security_options_modify():
         "lm_compatibility_level": "ntlm_ntlmv2_krb",
         "try_ldap_channel_binding": False,
         "use_ldaps": True
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_service_options_modify():
+    '''Test successful rest service options modify'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        "is_multichannel_enabled": False
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
