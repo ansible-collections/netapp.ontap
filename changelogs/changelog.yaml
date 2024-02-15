@@ -2735,6 +2735,37 @@ releases:
       name: na_ontap_security_ipsec_policy
       namespace: ''
     release_date: '2022-12-07'
+  22.10.0:
+    changes:
+      bugfixes:
+      - na_ontap_igroup_initiator - fixed issue with idempotency.
+      minor_changes:
+      - na_ontap_cifs_server - new option `is_multichannel_enabled` added in REST,
+        requires ONTAP 9.10 or later.
+      - na_ontap_export_policy_rule - added `actions` and `modify` in module output.
+      - na_ontap_file_security_permissions_acl - added `actions` and `modify` in module
+        output.
+      - na_ontap_igroup_initiator - added `actions` in module output.
+      - na_ontap_lun_map - added `actions` in module output.
+      - na_ontap_lun_map_reporting_nodes - added `actions` in module output.
+      - na_ontap_name_mappings - added `actions` and `modify` in module output.
+      - na_ontap_node - added `modify` in module output.
+      - na_ontap_rest_info - added warning message if given subset doesn't support
+        option `owning_resource`.
+      - na_ontap_storage_auto_giveback - added information on modified attributes
+        in module output.
+      - na_ontap_vscan_scanner_pool - added REST support to Vscan Scanner Pools Configuration
+        module, requires ONTAP 9.6 or later.
+    fragments:
+    - DEVOPS-6584.yaml
+    - DEVOPS-6646.yaml
+    - DEVOPS-6658.yaml
+    - DEVOPS-6664.yaml
+    - DEVOPS-6667.yaml
+    - DEVOPS-6671.yaml
+    - DEVOPS-6680.yaml
+    - DEVOPS-6681.yaml
+    release_date: '2024-02-06'
   22.2.0:
     changes:
       bugfixes:

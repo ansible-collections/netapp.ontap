@@ -5,6 +5,29 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.10.0
+========
+
+Minor Changes
+-------------
+
+- na_ontap_cifs_server - new option `is_multichannel_enabled` added in REST, requires ONTAP 9.10 or later.
+- na_ontap_export_policy_rule - added `actions` and `modify` in module output.
+- na_ontap_file_security_permissions_acl - added `actions` and `modify` in module output.
+- na_ontap_igroup_initiator - added `actions` in module output.
+- na_ontap_lun_map - added `actions` in module output.
+- na_ontap_lun_map_reporting_nodes - added `actions` in module output.
+- na_ontap_name_mappings - added `actions` and `modify` in module output.
+- na_ontap_node - added `modify` in module output.
+- na_ontap_rest_info - added warning message if given subset doesn't support option `owning_resource`.
+- na_ontap_storage_auto_giveback - added information on modified attributes in module output.
+- na_ontap_vscan_scanner_pool - added REST support to Vscan Scanner Pools Configuration module, requires ONTAP 9.6 or later.
+
+Bugfixes
+--------
+
+- na_ontap_igroup_initiator - fixed issue with idempotency.
+
 v22.9.0
 =======
 
