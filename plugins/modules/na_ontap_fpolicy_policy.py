@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -181,11 +181,12 @@ class NetAppOntapFpolicyPolicy():
                 'vserver': message['records'][0]['vserver'],
                 'name': message['records'][0]['policy_name'],
                 'events': message['records'][0]['events'],
-                'allow_privileged_access': message['records'][0]['allow_privileged_access'],
                 'engine': message['records'][0]['engine'],
                 'is_mandatory': message['records'][0]['is_mandatory'],
                 'is_passthrough_read_enabled': message['records'][0]['is_passthrough_read_enabled']
             }
+            allow_privileged_access = True if message['records'][0]['allow_privileged_access'] == 'yes' else False
+            return_value['allow_privileged_access'] = allow_privileged_access
             if 'privileged_user_name' in message['records'][0]:
                 return_value['privileged_user_name'] = message['records'][0]['privileged_user_name']
 

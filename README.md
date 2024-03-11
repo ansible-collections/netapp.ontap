@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.11.0
+
+### Bug Fixes
+  - na_ontap_fpolicy_policy - fixed issue with idempotency in REST.
+
 ## 22.10.0
 
 ### Minor Changes
