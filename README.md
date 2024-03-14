@@ -70,6 +70,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_fpolicy_policy - fixed issue with idempotency in REST.
+  - na_ontap_dns - fix issue with modifying DNS servers in REST.
 
 ## 22.10.0
 

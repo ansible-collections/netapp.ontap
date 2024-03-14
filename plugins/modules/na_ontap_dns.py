@@ -259,10 +259,12 @@ class NetAppOntapDns:
         if error:
             self.module.fail_json(msg="Error getting DNS service: %s" % error)
         if record:
-            if params.get('scope') == 'cluster':
+            if params.get('scope') == 'cluster' or not self.na_helper.safe_get(record, ['svm', 'uuid']):
                 uuid = record.get('uuid')
             else:
                 uuid = self.na_helper.safe_get(record, ['svm', 'uuid'])
+            if uuid is None:
+                self.module.fail_json(msg="Error getting DNS service: could not retrieve UUID of the DNS object")
             return {
                 'domains': record.get('domains'),
                 'nameservers': record.get('servers'),
