@@ -66,6 +66,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_vserver_audit - new options `schedule.*` added under `log.rotation`, requires ONTAP 9.6 or later.
+  - na_ontap_cifs - new option `offline_files` added in REST, requires ONTAP 9.10 or later.
 
 ### Bug Fixes
   - na_ontap_fpolicy_policy - fixed issue with idempotency in REST.

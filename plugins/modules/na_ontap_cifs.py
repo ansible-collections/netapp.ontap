@@ -178,6 +178,14 @@ options:
     type: bool
     version_added: 22.5.0
 
+  offline_files:
+    choices: ['none', 'manual', 'documents', 'programs']
+    description:
+      - Allows Windows clients to cache data on this share.
+      - This option is only supported with REST and requires ONTAP 9.10 or later.
+    type: str
+    version_added: 22.11.0
+
 short_description: NetApp ONTAP Manage cifs-share
 version_added: 2.6.0
 
@@ -287,7 +295,8 @@ class NetAppONTAPCifsShare:
             namespace_caching=dict(required=False, type='bool'),
             continuously_available=dict(required=False, type='bool'),
             browsable=dict(required=False, type='bool'),
-            show_previous_versions=dict(required=False, type='bool')
+            show_previous_versions=dict(required=False, type='bool'),
+            offline_files=dict(required=False, type='str', choices=['none', 'manual', 'documents', 'programs']),
         ))
 
         self.module = AnsibleModule(
@@ -301,13 +310,13 @@ class NetAppONTAPCifsShare:
         # Set up Rest API
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         partially_supported_rest_properties = [['continuously_available', (9, 10, 1)], ['namespace_caching', (9, 10, 1)],
-                                               ['show_snapshot', (9, 10, 1)], ['allow_unencrypted_access', (9, 11)],
+                                               ['show_snapshot', (9, 10, 1)], ['offline_files', (9, 10, 1)], ['allow_unencrypted_access', (9, 11)],
                                                ['browsable', (9, 13, 1)], ['show_previous_versions', (9, 13, 1)]]
         unsupported_rest_properties = ['share_properties', 'symlink_properties', 'vscan_fileop_profile']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         self.unsupported_zapi_properties = ['unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
                                             'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access',
-                                            'browsable', 'show_previous_versions']
+                                            'browsable', 'show_previous_versions', 'offline_files']
         self.svm_uuid = None
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -447,7 +456,7 @@ class NetAppONTAPCifsShare:
                              'encryption,'
                              'oplocks,'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
-            options['fields'] += 'show_snapshot,namespace_caching,continuously_available,'
+            options['fields'] += 'show_snapshot,namespace_caching,continuously_available,offline_files,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
             options['fields'] += 'allow_unencrypted_access,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
@@ -467,6 +476,7 @@ class NetAppONTAPCifsShare:
                 'encryption': record.get('encryption'),
                 'oplocks': record.get('oplocks'),
                 'continuously_available': record.get('continuously_available'),
+                'offline_files': record.get('offline_files'),
                 'show_snapshot': record.get('show_snapshot'),
                 'namespace_caching': record.get('namespace_caching'),
                 'allow_unencrypted_access': record.get('allow_unencrypted_access'),
@@ -481,7 +491,7 @@ class NetAppONTAPCifsShare:
         if params is None:
             params = self.parameters
         options = ['path', 'comment', 'unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption',
-                   'home_directory', 'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching',
+                   'home_directory', 'oplocks', 'continuously_available', 'offline_files', 'show_snapshot', 'namespace_caching',
                    'allow_unencrypted_access', 'browsable', 'show_previous_versions']
         for key in options:
             if key in params:

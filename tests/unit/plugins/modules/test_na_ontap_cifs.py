@@ -47,6 +47,7 @@ SRR = rest_responses({
                     "home_directory": True,
                     "oplocks": False,
                     "continuously_available": True,
+                    "offline_files": "manual",
                     "show_snapshot": True,
                     "namespace_caching": True,
                     "allow_unencrypted_access": True,
@@ -405,6 +406,31 @@ def test_modify_cifs_share_properties_2():
         "show_previous_versions": False
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_cifs_offline_files():
+    ''' test modify CIFS offline_files '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        "offline_files": "none"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_version_error_offline_files():
+    ''' test version error for offline_files '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {
+        "offline_files": "none"
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for offline_files is (9, 10, 1)' in error
 
 
 def test_error_modify_cifs_share_path():
