@@ -90,7 +90,59 @@ SRR = rest_responses({
     "no_record": (
         200,
         {"num_records": 0},
-        None)
+        None),
+    'audit_record_time_based_rotation': (
+        200,
+        {
+            "records": [
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "vserver"
+                    },
+                    "enabled": True,
+                    "events": {
+                        "authorization_policy": True,
+                        "cap_staging": True,
+                        "cifs_logon_logoff": False,
+                        "file_operations": False,
+                        "file_share": True,
+                        "security_group": True,
+                        "user_account": True
+                    },
+                    "log_path": "/",
+                    "log": {
+                        "format": "xml",
+                        "rotation": {
+                            "schedule": {
+                                "hours": [
+                                    6,
+                                    12,
+                                    18
+                                ],
+                                "minutes": [
+                                    15,
+                                    30,
+                                    45
+                                ],
+                                "months": [
+                                    1,
+                                    3
+                                ],
+                                "weekdays": [
+                                    0,
+                                    2,
+                                    4
+                                ]
+                            }
+                        }
+                    },
+                    "guarantee": False
+                }
+            ],
+            "num_records": 1
+        }, None
+    ),
 })
 
 ARGS_REST = {
@@ -189,7 +241,8 @@ def test_create_audit_config_rest():
     assert msg in error
 
 
-def test_modify_audit_config_rest():
+def test_modify_audit_config_sizebased_rotation_rest():
+    ''' Rotates logs based on log size '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'protocols/audit', SRR['audit_record']),
@@ -213,6 +266,40 @@ def test_modify_audit_config_rest():
             "rotation": {"size": 10485760}
         }
 
+    }
+    assert call_main(my_main, ARGS_REST, module_args)['changed']
+
+
+def test_modify_audit_config_timebased_rotation_rest():
+    ''' Rotates the audit logs based on a schedule '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/audit', SRR['audit_record_time_based_rotation']),
+        ('PATCH', 'protocols/audit/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        "enabled": True,
+        "events": {
+            "authorization_policy": True,
+            "cap_staging": True,
+            "cifs_logon_logoff": False,
+            "file_operations": False,
+            "file_share": True,
+            "security_group": True,
+            "user_account": True
+        },
+        "log_path": "/tmp",
+        "log": {
+            "format": "xml",
+            "rotation": {
+                "schedule": {
+                    "hours": [12],
+                    "minutes": [30],
+                    "months": [-1],
+                    "weekdays": [-1]
+                }
+            }
+        },
     }
     assert call_main(my_main, ARGS_REST, module_args)['changed']
 

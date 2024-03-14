@@ -114,6 +114,38 @@ options:
               - Rotates logs based on log size in bytes.
               - Default value is 104857600.
             type: int
+          schedule:
+            description:
+              - Rotates the audit logs based on a schedule by using the time-based rotation parameters in any combination.
+              - The rotation schedule is calculated by using all the time-related values.
+            type: dict
+            version_added: '22.11.0'
+            suboptions:
+              days:
+                description:
+                  - Specifies the day of the month schedule to rotate audit log. Specify -1 to rotate the audit logs all days of a month.
+                type: list
+                elements: int
+              hours:
+                description:
+                  - Specifies the hourly schedule to rotate audit log. Specify -1 to rotate the audit logs every hour.
+                type: list
+                elements: int
+              minutes:
+                description:
+                  - Specifies the minutes schedule to rotate the audit log.
+                type: list
+                elements: int
+              months:
+                description:
+                  - Specifies the months schedule to rotate audit log. Specify -1 to rotate the audit logs every month.
+                type: list
+                elements: int
+              weekdays:
+                description:
+                  - Specifies the weekdays schedule to rotate audit log. Specify -1 to rotate the audit logs every day.
+                type: list
+                elements: int
 
 notes:
   - This module supports REST only.
@@ -180,6 +212,66 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
+    # The audit logs are rotated in January and March on Monday, Wednesday, and Friday,
+    # at 6:15, 6:30, 6:45, 12:15, 12:30, 12:45, 18:15, 18:30, and 18:45
+    # The last 6 audit logs are retained
+    - name: Create vserver audit configuration
+      netapp.ontap.na_ontap_vserver_audit:
+        state: present
+        vserver: ansible
+        enabled: True
+        events:
+          authorization_policy: False
+          cap_staging: False
+          cifs_logon_logoff: True
+          file_operations: True
+          file_share: False
+          security_group: False
+          user_account: False
+        log_path: "/"
+        log:
+          format: xml
+          retention:
+            count: 6
+          rotation:
+            schedule:
+              hours: [6,12,18]
+              minutes: [15,30,45]
+              months: [1,3]
+              weekdays: [1,3,5]
+        guarantee: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
+    # The audit logs are rotated monthly, all days of the week, at 12:30
+    - name: Modify vserver audit configuration
+      netapp.ontap.na_ontap_vserver_audit:
+        state: present
+        vserver: ansible
+        enabled: True
+        events:
+          authorization_policy: False
+          cap_staging: False
+          cifs_logon_logoff: True
+          file_operations: True
+          file_share: False
+          security_group: False
+          user_account: False
+        log_path: "/"
+        log:
+          format: xml
+          rotation:
+            schedule:
+              hours: [12]
+              minutes: [30]
+              months: [-1]
+              weekdays: [-1]
+        guarantee: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
@@ -214,6 +306,13 @@ class NetAppONTAPVserverAudit:
                 )),
                 rotation=dict(type='dict', options=dict(
                     size=dict(type='int'),
+                    schedule=dict(type='dict', options=dict(
+                        days=dict(type='list', elements='int'),
+                        hours=dict(type='list', elements='int'),
+                        minutes=dict(type='list', elements='int'),
+                        months=dict(type='list', elements='int'),
+                        weekdays=dict(type='list', elements='int'),
+                    )),
                 )),
             )),
             events=dict(type='dict', options=dict(
@@ -270,6 +369,10 @@ class NetAppONTAPVserverAudit:
             }
         return record
 
+    def schedule_rotation_key_value(self, key):
+        value = self.na_helper.safe_get(self.parameters, ['log', 'rotation', 'schedule', key])
+        return [] if -1 in value else value
+
     def create_vserver_audit_config_body_rest(self):
         """
         Vserver audit config body for create and modify with rest API.
@@ -283,8 +386,14 @@ class NetAppONTAPVserverAudit:
             body['log.retention.count'] = self.parameters['log']['retention']['count']
         if self.na_helper.safe_get(self.parameters, ['log', 'retention', 'duration']):
             body['log.retention.duration'] = self.parameters['log']['retention']['duration']
-        if self.na_helper.safe_get(self.parameters, ['log', 'rotation', 'size']):
-            body['log.rotation.size'] = self.parameters['log']['rotation']['size']
+        if self.na_helper.safe_get(self.parameters, ['log', 'rotation']):
+            if self.na_helper.safe_get(self.parameters, ['log', 'rotation', 'size']):
+                body['log.rotation.size'] = self.parameters['log']['rotation']['size']
+            else:
+                for schedule_rotation_key in ['days', 'hours', 'minutes', 'months', 'weekdays']:
+                    if self.na_helper.safe_get(self.parameters, ['log', 'rotation', 'schedule', schedule_rotation_key]) is not None:
+                        key = 'log.rotation.schedule.' + schedule_rotation_key
+                        body[key] = self.schedule_rotation_key_value(schedule_rotation_key)
         if self.na_helper.safe_get(self.parameters, ['log', 'format']):
             body['log.format'] = self.parameters['log']['format']
         if 'log_path' in self.parameters:
