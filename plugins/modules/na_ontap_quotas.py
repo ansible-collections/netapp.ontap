@@ -594,6 +594,7 @@ class NetAppONTAPQuotas:
                            'files.soft_limit,'
                            'volume.uuid,'
                            'users.name,'
+                           'users.id,'
                            'group.name,'}
 
         # set qtree name in query for type user and group if not ''.
@@ -601,8 +602,17 @@ class NetAppONTAPQuotas:
             query['qtree.name'] = self.parameters['qtree']
         if self.parameters.get('quota_target'):
             type = self.parameters['type']
-            field_name = 'users.name' if type == 'user' else 'group.name' if type == 'group' else 'qtree.name'
-            query[field_name] = self.parameters['quota_target']
+            if type == 'user':
+                users_names = [target for target in self.parameters['quota_target'].split(',') if not target.isdigit()]
+                users_ids = [target for target in self.parameters['quota_target'].split(',') if target.isdigit()]
+                if users_names:
+                    query['users.name'] = ",".join(users_names)
+                if users_ids:
+                    query['users.id'] = ",".join(users_ids)
+            else:
+                field_name = 'group.name' if type == 'group' else 'qtree.name'
+                query[field_name] = self.parameters['quota_target']
+
         api = 'storage/quota/rules'
         # If type: user, get quota rules api returns users which has name starts with input target user names.
         # Example of users list in a record:
@@ -622,9 +632,11 @@ class NetAppONTAPQuotas:
                     if desired_qtree != current_qtree:
                         continue
                     if type == 'user':
-                        desired_users = self.parameters['quota_target'].split(',')
-                        current_users = [user['name'] for user in item['users']]
-                        if set(current_users) == set(desired_users):
+                        current_users = {}
+                        current_users['names'] = [user['name'] for user in item['users'] if user.get('name')]
+                        current_users['ids'] = [user['id'] for user in item['users'] if user.get('id')]
+                        if set(current_users['names']) == set(users_names) and \
+                                set(current_users['ids']) == set(users_ids):
                             record = item
                             break
                     elif item['group']['name'] == self.parameters['quota_target']:

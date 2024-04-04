@@ -36,7 +36,7 @@ options:
   name:
     description:
       - Specifies the interface group name.
-      - Not supported with REST, use C(ports) or C(from_lag_ports).
+      - Not supported with REST, use C(ports) or C(from_lag_ports). LAG names are automatically created in REST and returned in module output.
       - Required with ZAPI.
     type: str
 

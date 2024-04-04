@@ -55,12 +55,38 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
+                },
+                {
+                    "svm": {
+                        "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                        "name": "ansible"
+                    },
+                    "files": {
+                        "hard_limit": "100",
+                        "soft_limit": "80"
+                    },
+                    "qtree": {
+                        "id": "1",
+                        "name": "qt1"
+                    },
+                    "space": {
+                        "hard_limit": "1222800",
+                        "soft_limit": "51200"
+                    },
+                    "type": "user",
+                    "user_mapping": False,
+                    "users": [{"id": "757"}],
+                    "uuid": "264a9e0b-2e03-11e9-a610-005056a7b72d",
+                    "volume": {"name": "fv", "uuid": "264a9e0b-2e03-11e9-a610-005056a7b72da"},
+                    "target": {
+                        "name": "20:05:00:50:56:b3:0c:fa"
+                    },
                 }
             ],
             "num_records": 1
         }, None
     ),
-    'quota_record_0_empty_limtis': (200, {"records": [{
+    'quota_record_0_empty_limits': (200, {"records": [{
         "svm": {"name": "ansible"},
         "files": {"hard_limit": 0},
         "qtree": {"id": "1", "name": "qt1"},
@@ -441,10 +467,26 @@ def test_rest_successful_create():
         ('GET', 'storage/volumes', SRR['quota_status']),
         ('POST', 'storage/quota/rules', SRR['empty_good']),
     ])
-    module_args = {
-        "users": [{"name": "quota_user"}],
-    }
     assert create_and_apply(my_module, ARGS_REST)
+
+
+def test_rest_successful_create_userid():
+    '''Test successful rest create with users.id with idempotency check'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['empty_good']),
+
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['quota_record']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+    ])
+    module_args = {
+        "quota_target": "757",
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed'] is False
 
 
 @patch('time.sleep')
@@ -461,9 +503,6 @@ def test_rest_successful_create_job_error(sleep):
         ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
         ('GET', 'storage/volumes', SRR['volume_uuid'])
     ])
-    module_args = {
-        "users": [{"name": "quota_user"}],
-    }
     assert create_and_apply(my_module, ARGS_REST)
     print_warnings()
     assert_warning_was_raised('Ignoring job status, assuming success.')
@@ -595,10 +634,10 @@ def test_rest_successful_create_idempotency():
         ('GET', 'storage/quota/rules', SRR['quota_record']),
         ('GET', 'storage/volumes', SRR['quota_status']),
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/quota/rules', SRR['quota_record_0_empty_limtis']),
+        ('GET', 'storage/quota/rules', SRR['quota_record_0_empty_limits']),
         ('GET', 'storage/volumes', SRR['quota_status']),
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/quota/rules', SRR['quota_record_0_empty_limtis']),
+        ('GET', 'storage/quota/rules', SRR['quota_record_0_empty_limits']),
         ('GET', 'storage/volumes', SRR['quota_status'])
     ])
     assert create_and_apply(my_module, ARGS_REST)['changed'] is False
