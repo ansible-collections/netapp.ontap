@@ -2766,6 +2766,29 @@ releases:
     - DEVOPS-6680.yaml
     - DEVOPS-6681.yaml
     release_date: '2024-02-06'
+  22.11.0:
+    changes:
+      bugfixes:
+      - na_ontap_dns - fix issue with modifying DNS servers in REST.
+      - na_ontap_fpolicy_policy - fixed issue with idempotency in REST.
+      - na_ontap_quotas - fixed issue with idempotency in REST.
+      - na_ontap_security_config - added warning for missing `supported_cipher_suites`
+        to maintain idempotency in REST.
+      minor_changes:
+      - na_ontap_cifs - new option `offline_files` added in REST, requires ONTAP 9.10
+        or later.
+      - na_ontap_net_ifgrp - updated documentation for parameter `name`.
+      - na_ontap_vserver_audit - new options `schedule.*` added under `log.rotation`,
+        requires ONTAP 9.6 or later.
+    fragments:
+    - DEVOPS-6356.yaml
+    - DEVOPS-6691.yaml
+    - DEVOPS-6715.yaml
+    - DEVOPS-6721.yaml
+    - DEVOPS-6747.yaml
+    - DEVOPS-6807.yaml
+    - DEVOPS-6825.yaml
+    release_date: '2024-04-08'
   22.2.0:
     changes:
       bugfixes:
