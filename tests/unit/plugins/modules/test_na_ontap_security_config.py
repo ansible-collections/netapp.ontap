@@ -25,9 +25,11 @@ SRR = rest_responses({
     # module specific responses
     'security_config_record': (200, {
         "records": [{
-            "is_fips_enabled": False,
-            "supported_protocols": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
-            "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM_8'
+            "fips": {"enabled": False},
+            "tls": {
+                "protocol_versions": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
+                "cipher_suites": ['TLS_RSA_WITH_AES_128_CCM_8']
+            }
         }], "num_records": 1
     }, None),
     "no_record": (
@@ -186,11 +188,12 @@ def test_rest_modify_security_config():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', '/security', SRR['security_config_record']),
         ('PATCH', '/security', SRR['success']),
+        ('GET', '/security', SRR['security_config_record']),
     ])
     module_args = {
         "is_fips_enabled": False,
         "supported_protocols": ['TLSv1.3', 'TLSv1.2', 'TLSv1.1'],
-        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+        "supported_cipher_suites": ['TLS_RSA_WITH_AES_128_CCM']
     }
     assert call_main(my_main, ARGS_REST, module_args)['changed']
 
@@ -245,10 +248,11 @@ def test_rest_modify_security_config_fips():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', '/security', SRR['security_config_record']),
         ('PATCH', '/security', SRR['success']),
+        ('GET', '/security', SRR['security_config_record']),
     ])
     module_args = {
         "is_fips_enabled": True,
         "supported_protocols": ['TLSv1.3', 'TLSv1.2'],
-        "supported_cipher_suites": 'TLS_RSA_WITH_AES_128_CCM'
+        "supported_cipher_suites": ['TLS_RSA_WITH_AES_128_CCM']
     }
     assert call_main(my_main, ARGS_REST, module_args)['changed']

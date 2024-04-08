@@ -264,11 +264,23 @@ class NetAppOntapSecurityConfig:
         if error:
             self.module.fail_json(msg="Error on modifying security config: %s" % error)
 
+    def cipher_suites_warning_rest(self, modify):
+        current = self.get_security_config()
+        suites_for_idempotency = []
+        for current_suite in list(current.get('supported_cipher_suites')):
+            if current_suite not in self.parameters.get('supported_cipher_suites'):
+                suites_for_idempotency.append(current_suite)
+        if len(suites_for_idempotency) > 0:
+            self.module.warn("To achieve idempotency the mentioned cipher_suites must be included.")
+            self.module.warn(", ".join(suites_for_idempotency))
+
     def apply(self):
         current = self.get_security_config()
         modify = self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             self.modify_security_config(modify)
+            if 'supported_cipher_suites' in modify:
+                self.cipher_suites_warning_rest(modify)
         result = netapp_utils.generate_result(self.na_helper.changed, modify=modify)
         self.module.exit_json(**result)
 
