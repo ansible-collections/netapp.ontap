@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -98,6 +98,12 @@ options:
           - Autonomous system number of peer.
           - Cannot be modified after creation.
         type: int
+  use_peer_as_next_hop:
+    description:
+      - Specifies whether the peer group uses the peer address as a next hop route.
+      - This field requires ONTAP version 9.9 or later.
+    type: bool
+    version_added: '22.12.0'
 """
 
 EXAMPLES = """
@@ -236,7 +242,8 @@ class NetAppOntapBgpPeerGroup:
             peer=dict(required=False, type='dict', options=dict(
                 address=dict(required=False, type='str'),
                 asn=dict(required=False, type='int')
-            ))
+            )),
+            use_peer_as_next_hop=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -250,6 +257,9 @@ class NetAppOntapBgpPeerGroup:
             self.parameters['peer']['address'] = netapp_ipaddress.validate_and_compress_ip_address(self.parameters['peer']['address'], self.module)
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_bgp_peer_group', 9, 7)
+        partially_supported_rest_properties = [[('use_peer_as_next_hop'), (9, 9, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(parameters=self.parameters,
+                                                                   partially_supported_rest_properties=partially_supported_rest_properties)
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
 
     def get_bgp_peer_group(self, name=None):
@@ -273,7 +283,11 @@ class NetAppOntapBgpPeerGroup:
             self.uuid = record['uuid']
             return {
                 'name': self.na_helper.safe_get(record, ['name']),
-                'peer': self.na_helper.safe_get(record, ['peer'])
+                'peer': {
+                    'address': self.na_helper.safe_get(record, ['peer', 'address']),
+                    'asn': self.na_helper.safe_get(record, ['peer', 'asn'])
+                },
+                'use_peer_as_next_hop': self.na_helper.safe_get(record, ['peer', 'is_next_hop'])
             }
         return None
 
@@ -289,6 +303,8 @@ class NetAppOntapBgpPeerGroup:
         }
         if 'ipspace' in self.parameters:
             body['ipspace.name'] = self.parameters['ipspace']
+        if 'use_peer_as_next_hop' in self.parameters:
+            body['peer.is_next_hop'] = self.parameters['use_peer_as_next_hop']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating BGP peer group %s: %s.' % (self.parameters['name'], to_native(error)),
@@ -304,6 +320,8 @@ class NetAppOntapBgpPeerGroup:
             body['name'] = modify['name']
         if 'peer' in modify:
             body['peer'] = modify['peer']
+        if 'use_peer_as_next_hop' in modify:
+            body['peer.is_next_hop'] = modify['use_peer_as_next_hop']
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body)
         if error:
             name = self.parameters['from_name'] if 'name' in modify else self.parameters['name']

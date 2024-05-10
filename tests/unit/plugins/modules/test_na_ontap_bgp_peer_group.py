@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -50,7 +50,7 @@ SRR = rest_responses({
                 "port": {"name": "e1b", "node": {"name": "node1"}}
             },
             "name": "bgpv4peer",
-            "peer": {"address": "10.10.10.7", "asn": 0},
+            "peer": {"address": "10.10.10.7", "asn": 0, "is_next_hop": False},
             "state": "up",
             "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
         }], "num_records": 1}, None),
@@ -204,8 +204,33 @@ def test_modify_rename_create_error():
     assert 'Error creating BGP peer group' in create_and_apply(my_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
 
+def test_successfully_modify_attributes_is_next_hop():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'network/ip/bgp/peer-groups', SRR['bgp_peer_info']),
+        ('PATCH', 'network/ip/bgp/peer-groups/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['success']),
+    ])
+    module_args = {
+        'use_peer_as_next_hop': True
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_error_ontap96():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96'])
     ])
     assert 'requires ONTAP 9.7.0 or later' in call_main(my_main, DEFAULT_ARGS, fail=True)['msg']
+
+
+def test_version_error_with_is_next_hop():
+    """ Test version error for 'use_peer_as_next_hop' """
+    import traceback
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97'])
+    ])
+    module_args = {
+        'use_peer_as_next_hop': True
+    }
+    error = create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for use_peer_as_next_hop is (9, 9, 1)' in error

@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.12.0
+
+### Minor Changes
+  - na_ontap_bgp_peer_group - added new option `use_peer_as_next_hop`, requires ONTAP 9.9 or later.
+
 ## 22.11.0
 
 ### Minor Changes
