@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -68,7 +68,7 @@ options:
   super_user_security:
     description:
       - List of Read Write access specifications for the rule
-    choices: ['any','none','never','krb5','krb5i','krb5p','ntlm','sys']
+    choices: ['any','none','krb5','krb5i','krb5p','ntlm','sys']
     type: list
     elements: str
 
@@ -244,7 +244,7 @@ class NetAppontapExportRule:
                          choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             super_user_security=dict(required=False,
                                      type='list', elements='str', default=None,
-                                     choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
+                                     choices=['any', 'none', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
             allow_suid=dict(required=False, type='bool'),
             from_rule_index=dict(required=False, type='int'),
             rule_index=dict(required=False, type='int'),

@@ -66,6 +66,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Minor Changes
   - na_ontap_bgp_peer_group - added new option `use_peer_as_next_hop`, requires ONTAP 9.9 or later.
+  - na_ontap_volume - new option `snapshot_locking` added in REST, requires ONTAP 9.12 or later.
+
+### Bug Fixes
+  - na_ontap_export_policy_rule - fix issue with idempotency in REST.
 
 ## 22.11.0
 
