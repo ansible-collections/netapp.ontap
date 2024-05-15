@@ -1,4 +1,4 @@
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -529,7 +529,6 @@ def test_rest_version_error_with_atime_update():
         'atime_update': False
     }
     error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
-    print('error', error)
     assert 'Minimum version of ONTAP for atime_update is (9, 8)' in error
 
 
@@ -541,7 +540,6 @@ def test_rest_version_error_with_snapdir_access():
         'snapdir_access': False
     }
     error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
-    print('error', error)
     assert 'Minimum version of ONTAP for snapdir_access is (9, 13, 1)' in error
 
 
@@ -553,7 +551,6 @@ def test_rest_version_error_with_snapshot_auto_delete():
         'snapshot_auto_delete': {'state': 'on'}
     }
     error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
-    print('error', error)
     assert 'Minimum version of ONTAP for snapshot_auto_delete is (9, 13, 1)' in error
 
 
@@ -565,7 +562,6 @@ def test_rest_version_error_with_vol_nearly_full_threshold_percent():
         'vol_nearly_full_threshold_percent': 96
     }
     error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
-    print('error', error)
     assert 'Minimum version of ONTAP for vol_nearly_full_threshold_percent is (9, 9)' in error
 
 
@@ -579,6 +575,17 @@ def test_rest_version_error_with_snapshot_locking():
     error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
     print('error', error)
     assert 'Minimum version of ONTAP for snapshot_locking is (9, 12, 1)' in error
+
+
+def test_rest_version_error_with_activity_tracking():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0'])
+    ])
+    module_args = {
+        'activity_tracking': 'on'
+    }
+    error = create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for activity_tracking is (9, 10, 1)' in error
 
 
 def test_rest_successfully_modify_attributes_atime_update():
@@ -623,18 +630,6 @@ def test_rest_successfully_modify_vol_threshold_percent_params():
     module_args = {
         'vol_nearly_full_threshold_percent': 98,
         'vol_full_threshold_percent': 99
-    }
-    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
-
-
-def test_rest_successfully_modify_snapshot_locking():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_12_1']),
-        ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume
-        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Modify
-    ])
-    module_args = {
-        'snapshot_locking': False
     }
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 

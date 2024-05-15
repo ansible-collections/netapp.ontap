@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -657,11 +657,19 @@ options:
 
   analytics:
     description:
-      - Set file system analytics state of the volume.
+      - Sets file system analytics state of the volume.
       - Only supported with REST and requires ONTAP 9.8 or later version.
       - Cannot enable analytics for volume that contains luns.
     type: str
     version_added: '22.0.0'
+    choices: ['on', 'off']
+
+  activity_tracking:
+    description:
+      - Sets activity tracking state of the volume.
+      - Only supported with REST and requires ONTAP 9.10 or later version.
+    type: str
+    version_added: '22.12.0'
     choices: ['on', 'off']
 
   snapshot_locking:
@@ -1043,6 +1051,7 @@ class NetAppOntapVolume:
             )),
             max_files=dict(required=False, type='int'),
             analytics=dict(required=False, type='str', choices=['on', 'off']),
+            activity_tracking=dict(required=False, type='str', choices=['on', 'off']),
             tags=dict(required=False, type='list', elements='str'),
             snapshot_locking=dict(required=False, type='bool'),
         ))
@@ -1084,11 +1093,11 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
                                                ['analytics', (9, 8)], ['atime_update', (9, 8)],
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
-                                               ['snapshot_locking', (9, 12, 1)], ['tags', (9, 13, 1)],
+                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)], ['tags', (9, 13, 1)],
                                                ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
-                                            'analytics', 'tags', 'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent',
-                                            'snapshot_locking']
+                                            'analytics', 'activity_tracking', 'tags', 'vol_nearly_full_threshold_percent',
+                                            'vol_full_threshold_percent', 'snapshot_locking']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -2005,8 +2014,8 @@ class NetAppOntapVolume:
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
-                             'snaplock', 'max_files', 'analytics', 'tags', 'snapshot_auto_delete', 'vol_nearly_full_threshold_percent',
-                             'vol_full_threshold_percent', 'snapshot_locking']:
+                             'snaplock', 'max_files', 'analytics', 'activity_tracking', 'tags', 'snapshot_auto_delete',
+                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'snapshot_locking']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2451,6 +2460,8 @@ class NetAppOntapVolume:
             params['fields'] += 'tiering.min_cooling_days,'
         if self.parameters.get('analytics'):
             params['fields'] += 'analytics,'
+        if self.parameters.get('activity_tracking'):
+            params['fields'] += 'activity_tracking,'
         if self.parameters.get('tags'):
             params['fields'] += '_tags,'
         if self.parameters.get('atime_update') is not None:
@@ -2565,6 +2576,8 @@ class NetAppOntapVolume:
             body['efficiency.compression'] = self.get_compression()
         if self.parameters.get('analytics'):
             body['analytics.state'] = self.parameters['analytics']
+        if self.parameters.get('activity_tracking'):
+            body['activity_tracking.state'] = self.parameters['activity_tracking']
         body['state'] = self.bool_to_online(self.parameters['is_online'])
         return body
 
@@ -2599,6 +2612,7 @@ class NetAppOntapVolume:
         body = {}
         for key, option, transform in [
             ('analytics.state', 'analytics', None),
+            ('activity_tracking.state', 'activity_tracking', None),
             ('guarantee.type', 'space_guarantee', None),
             ('space.snapshot.reserve_percent', 'percent_snapshot_space', None),
             ('snapshot_policy.name', 'snapshot_policy', None),
@@ -2810,6 +2824,7 @@ class NetAppOntapVolume:
             'tags': record.get('_tags', []),
             'name': record.get('name', None),
             'analytics': analytics,
+            'activity_tracking': self.na_helper.safe_get(record, ['activity_tracking', 'state']),
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
             'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
             'export_policy': self.na_helper.safe_get(record, ['nas', 'export_policy', 'name']),
