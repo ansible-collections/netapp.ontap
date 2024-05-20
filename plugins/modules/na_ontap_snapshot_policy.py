@@ -71,6 +71,18 @@ options:
     elements: str
     required: false
     version_added: 2.9.0
+  retention_period:
+    description:
+    - The retention period of Snapshot copies for the schedule.
+    - Valid values are "infinite" or the duration specified in ISO 8601 format.
+    - The value when specified in ISO 8061 format for retention period must be in
+      seconds (PT0S - PT65535S), minutes (PT0M - PT60M), hours (PT0H - PT24H),
+      days (P0D - P36500D), months (P0M - P1200M), years (P0Y - P100Y).
+    - Supported only with REST and requires ONTAP 9.12 or later.
+    type: list
+    elements: str
+    required: false
+    version_added: '22.12.0'
   vserver:
     description:
     - The name of the vserver to use. In a multi-tenanted environment, assigning a
@@ -173,6 +185,7 @@ class NetAppOntapSnapshotPolicy(object):
             schedule=dict(required=False, type="list", elements="str"),
             prefix=dict(required=False, type="list", elements="str"),
             snapmirror_label=dict(required=False, type="list", elements="str"),
+            retention_period=dict(required=False, type="list", elements="str"),
             vserver=dict(required=False, type="str")
         ))
         self.module = AnsibleModule(
@@ -187,13 +200,18 @@ class NetAppOntapSnapshotPolicy(object):
         self.parameters = self.na_helper.set_parameters(self.module.params)
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
+        partially_supported_rest_properties = [['retention_period', (9, 12, 1)]]
+        unsupported_zapi_properties = ['retention_period']
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, partially_supported_rest_properties=partially_supported_rest_properties)
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
             msg = 'REST requires ONTAP 9.8 or later for snapshot schedules.'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
-                self.module.fail_json(msg="the python NetApp-Lib module is required")
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
+            if used_unsupported_zapi_properties:
+                self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
             if 'vserver' in self.parameters:
                 self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
             else:
@@ -465,7 +483,7 @@ class NetAppOntapSnapshotPolicy(object):
         """
         query = {'snapshot_policy.name': current['name']}
         api = 'storage/snapshot-policies/%s/schedules' % current['uuid']
-        fields = 'schedule.name,schedule.uuid,snapmirror_label,count,prefix'
+        fields = 'schedule.name,schedule.uuid,snapmirror_label,count,prefix,retention_period'
         records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot schedule: %s" % error)
@@ -475,7 +493,8 @@ class NetAppOntapSnapshotPolicy(object):
                 'prefixes': [],
                 'schedule_names': [],
                 'schedule_uuids': [],
-                'snapmirror_labels': []
+                'snapmirror_labels': [],
+                'retention_periods': []
             }
             for item in records:
                 scheduleRecords['counts'].append(item['count'])
@@ -483,6 +502,7 @@ class NetAppOntapSnapshotPolicy(object):
                 scheduleRecords['schedule_names'].append(item['schedule']['name'])
                 scheduleRecords['schedule_uuids'].append(item['schedule']['uuid'])
                 scheduleRecords['snapmirror_labels'].append(item['snapmirror_label'])
+                scheduleRecords['retention_periods'].append(item['retention_period'])
             return scheduleRecords
         return None
 
@@ -499,7 +519,7 @@ class NetAppOntapSnapshotPolicy(object):
         else:
             query['scope'] = 'cluster'
         api = 'storage/snapshot-policies'
-        fields = 'enabled,svm.uuid,comment,copies.snapmirror_label,copies.count,copies.prefix,copies.schedule.name,scope'
+        fields = 'enabled,svm.uuid,comment,copies.snapmirror_label,copies.count,copies.prefix,copies.schedule.name,copies.retention_period,scope'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot policy: %s" % error)
@@ -512,7 +532,8 @@ class NetAppOntapSnapshotPolicy(object):
                 'count': [],
                 'prefix': [],
                 'schedule': [],
-                'snapmirror_label': []
+                'snapmirror_label': [],
+                'retention_period': []
             }
             if query['scope'] == 'svm':
                 current['svm_name'] = record['svm']['name']
@@ -523,6 +544,7 @@ class NetAppOntapSnapshotPolicy(object):
                     current['prefix'].append(item['prefix'])
                     current['schedule'].append(item['schedule']['name'])
                     current['snapmirror_label'].append(item['snapmirror_label'])
+                    current['retention_period'].append(item['retention_period'])
             return current
         return record
 
@@ -553,9 +575,14 @@ class NetAppOntapSnapshotPolicy(object):
         else:
             # User hasn't supplied any prefixes.
             prefixes = [None] * len(self.parameters['schedule'])
-        for schedule, prefix, count, snapmirror_label in \
+        if 'retention_period' in self.parameters:
+            retention_periods = self.parameters['retention_period']
+        else:
+            # User hasn't supplied any retention period values.
+            retention_periods = [None] * len(self.parameters['schedule'])
+        for schedule, prefix, count, snapmirror_label, retention_period in \
             zip(self.parameters['schedule'], prefixes,
-                self.parameters['count'], snapmirror_labels):
+                self.parameters['count'], snapmirror_labels, retention_periods):
             copy = {
                 'schedule': {'name': self.safe_strip(schedule)},
                 'count': count
@@ -566,6 +593,9 @@ class NetAppOntapSnapshotPolicy(object):
             prefix = self.safe_strip(prefix)
             if prefix:
                 copy['prefix'] = prefix
+            retention_period = self.safe_strip(retention_period)
+            if retention_period:
+                copy['retention_period'] = retention_period
             body['copies'].append(copy)
         api = 'storage/snapshot-policies'
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
@@ -625,6 +655,12 @@ class NetAppOntapSnapshotPolicy(object):
             # User hasn't supplied any prefix.
             prefixes = [None] * len(self.parameters['schedule'])
 
+        if 'retention_period' in self.parameters:
+            retention_periods = self.parameters['retention_period']
+        else:
+            # User hasn't supplied any retention period values.
+            retention_periods = [None] * len(self.parameters['schedule'])
+
         # Identify schedules to be deleted
         for schedule_name, schedule_uuid in zip(schedule_info['schedule_names'], schedule_info['schedule_uuids']):
             schedule_name = self.safe_strip(schedule_name)
@@ -634,12 +670,15 @@ class NetAppOntapSnapshotPolicy(object):
                 retain_schedules_count += 1
 
         # Identify schedules to be modified or added
-        for schedule_name, count, snapmirror_label, prefix in zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, prefixes):
+        for schedule_name, count, snapmirror_label, prefix, retention_period in \
+                zip(self.parameters['schedule'], self.parameters['count'], snapmirror_labels, prefixes, retention_periods):
             schedule_name = self.safe_strip(schedule_name)
             if snapmirror_label:
                 snapmirror_label = self.safe_strip(snapmirror_label)
             if prefix:
                 prefix = self.safe_strip(prefix)
+            if retention_period:
+                retention_period = self.safe_strip(retention_period)
             body = {}
             if schedule_name in schedule_info['schedule_names']:
                 # Schedule exists. Only modify if it has changed.
@@ -658,6 +697,10 @@ class NetAppOntapSnapshotPolicy(object):
                     body['prefix'] = prefix
                     modify = True
 
+                if retention_period is not None and retention_period != schedule_info['retention_periods'][schedule_index]:
+                    body['retention_period'] = retention_period
+                    modify = True
+
                 if modify:
                     body['schedule_uuid'] = schedule_uuid
                     modify_schedules.append(body)
@@ -669,6 +712,8 @@ class NetAppOntapSnapshotPolicy(object):
                     body['snapmirror_label'] = snapmirror_label
                 if prefix is not None and prefix != '':
                     body['prefix'] = prefix
+                if retention_period is not None and retention_period != '':
+                    body['retention_period'] = retention_period
                 add_schedules.append(body)
 
         # Delete N schedules no longer required if there is at least 1 schedule is to be retained
@@ -718,7 +763,7 @@ class NetAppOntapSnapshotPolicy(object):
         if self.parameters['state'] == 'present':
             self.validate_parameters()
         if cd_action is None and self.parameters['state'] == 'present':
-            # Don't sort schedule/prefix/count/snapmirror_label lists as it can
+            # Don't sort schedule/prefix/count/snapmirror_label/retention_period lists as it can
             # mess up the intended parameter order.
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2023, NetApp, Inc
+# (c) 2021-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -435,7 +435,8 @@ class NetAppOntapVolumeEfficiency(object):
                 return
             dummy, error = rest_generic.patch_async(self.rest_api, 'storage/volumes', self.volume_uuid, body)
             if error:
-                if 'Unexpected argument "storage_efficiency_mode".' in error:
+                if 'Unexpected argument "storage_efficiency_mode".' in error or \
+                        'The \"-storage-efficiency-mode\" parameter is only supported on AFF.' in error:
                     error = "cannot modify storage_efficiency mode in non AFF platform."
                 if 'not authorized' in error:
                     error = "%s user is not authorized to modify volume efficiency" % self.parameters.get('username')
@@ -610,7 +611,7 @@ class NetAppOntapVolumeEfficiency(object):
         if self.parameters.get('policy'):
             body['efficiency.policy.name'] = self.parameters['policy']
         if modify.get('storage_efficiency_mode'):
-            body['storage_efficiency_mode'] = modify['storage_efficiency_mode']
+            body['efficiency.storage_efficiency_mode'] = modify['storage_efficiency_mode']
 
         # start/stop vol efficiency
         if modify.get('status'):

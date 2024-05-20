@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2023, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_snapshot_policy """
@@ -38,16 +38,18 @@ SRR = rest_responses({
                     "schedule": {
                         "name": "hourly"
                     },
-                    "prefix": 'hourly',
-                    "snapmirror_label": ''
+                    "prefix": "hourly",
+                    "snapmirror_label": "",
+                    "retention_period": "PT5M"
                 },
                 {
                     "count": 30,
                     "schedule": {
                         "name": "weekly"
                     },
-                    "prefix": 'weekly',
-                    "snapmirror_label": ''
+                    "prefix": "weekly",
+                    "snapmirror_label": "",
+                    "retention_period": "PT5H"
                 }
             ],
             "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412"
@@ -62,11 +64,12 @@ SRR = rest_responses({
                 "name": "ansibleSVM"
             },
             "comment": "modified comment",
-            "enabled": 'true',
+            "enabled": "true",
             "name": "policy_name",
             "count": 10,
             "prefix": "hourly",
-            "snapmirror_label": '',
+            "snapmirror_label": "",
+            "retention_period": "PT5M",
             "schedule": {
                     "name": "hourly",
                     "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa"
@@ -79,11 +82,12 @@ SRR = rest_responses({
                 "name": "ansibleSVM"
             },
             "comment": "modified comment",
-            "enabled": 'true',
+            "enabled": "true",
             "name": "policy_name",
             "count": 30,
             "prefix": "weekly",
-            "snapmirror_label": '',
+            "snapmirror_label": "",
+            "retention_period": "PT5H",
             "schedule": {
                     "name": "weekly",
                     "uuid": "671aa46e-11ad-11ec-a267-005056b30dsa"
@@ -102,7 +106,7 @@ ARGS_REST = {
     'vserver': 'ansibleSVM',
     'enabled': True,
     'count': [10, 30],
-    'schedule': "hourly,weekly",
+    'schedule': 'hourly,weekly',
     'comment': 'modified comment',
     'use_rest': 'always'
 }
@@ -114,7 +118,7 @@ ARGS_REST_no_SVM = {
     'name': 'policy_name',
     'enabled': True,
     'count': [10, 30],
-    'schedule': "hourly,weekly",
+    'schedule': 'hourly,weekly',
     'comment': 'modified comment',
     'use_rest': 'always'
 }
@@ -156,6 +160,28 @@ def test_module_error_ontap_version():
     assert 'Error: REST requires ONTAP 9.8 or later for snapshot schedules.' == msg
 
 
+def test_module_error_with_retention_period_version():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0'])
+    ])
+    module_args = {
+        'retention_period': ['PT5M', 'PT5H']
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for retention_period is (9, 12, 1).  Current version: (9, 8, 0)' in error
+
+
+def test_module_error_rest_option_is_used():
+    ''' when use_rest: never and REST only options are used '''
+    register_responses([])
+    module_args = {
+        'use_rest': 'never',
+        'retention_period': ['PT5M', 'PT5H']
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert "Error: retention_period options supported only with REST." in error
+
+
 def test_create_snapshot_policy_rest():
     ''' Test create with rest API'''
     register_responses([
@@ -188,6 +214,19 @@ def test_create_snapshot_policy_with_prefix_rest():
     ])
     module_args = {
         "prefix": ['', '']
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_create_snapshot_policy_with_retention_period_rest():
+    ''' Test create with rest API'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'storage/snapshot-policies', SRR['empty_records']),
+        ('POST', 'storage/snapshot-policies', SRR['empty_good']),
+    ])
+    module_args = {
+        'retention_period': ['PT5M', 'PT5H']
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
@@ -322,6 +361,20 @@ def test_modify_snapshot_count_rest():
         "schedule": ['hourly', 'weekly'],
         "snapmirror_label": ['hourly', ''],
         "prefix": ['', 'weekly']
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_modify_snapshot_retention_period_rest():
+    ''' Test modify snapshot retention period with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'storage/snapshot-policies', SRR['snapshot_record']),
+        ('GET', 'storage/snapshot-policies/1cd8a442-86d1-11e0-ae1c-123478563412/schedules', SRR['schedule_record']),
+        ('PATCH', 'storage/snapshot-policies/1cd8a442-86d1-11e0-ae1c-123478563412/schedules/671aa46e-11ad-11ec-a267-005056b30dsa', SRR['empty_good'])
+    ])
+    module_args = {
+        'retention_period': ['PT5M', 'PT10H']
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
