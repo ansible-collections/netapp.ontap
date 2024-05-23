@@ -2719,6 +2719,10 @@ class NetAppOntapVolume:
             return
         dummy, error = self.volume_rest_patch(body)
         if error:
+            if "Failed to modify efficiency configuration for volume" in error and "Operation is not enabled" in error \
+                    and "'code': '6881332'" in error:
+                self.module.fail_json(msg=('You are trying to set the efficiency configuration for the volume, where efficiency is disabled. '
+                                           'Please refer to module na_ontap_volume_efficiency to enable efficiency on the volume first.'))
             self.module.fail_json(msg='Error setting efficiency for volume %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
