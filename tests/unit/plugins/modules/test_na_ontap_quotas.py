@@ -1,4 +1,4 @@
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
@@ -468,6 +468,21 @@ def test_rest_successful_create():
         ('POST', 'storage/quota/rules', SRR['empty_good']),
     ])
     assert create_and_apply(my_module, ARGS_REST)
+
+
+def test_rest_successful_create_default_user_quota_rule():
+    '''Test successful rest create default quota rule'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/quota/rules', SRR['empty_records']),
+        ('GET', 'storage/volumes', SRR['quota_status']),
+        ('POST', 'storage/quota/rules', SRR['empty_good']),
+    ])
+    module_args = {
+        "quota_target": "",
+        "type": "user"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
 def test_rest_successful_create_userid():

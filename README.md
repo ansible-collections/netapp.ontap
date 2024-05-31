@@ -74,6 +74,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_export_policy_rule - fix issue with idempotency in REST.
   - na_ontap_volume_efficiency - fix issue with modifying volume efficiency in REST.
   - na_ontap_volume - added error message while trying to modify efficiency configuration for a volume in REST, when efficiency is disabled.
+  - na_ontap_quotas - fix error with `quota_target` while trying to set default user quota rule in REST.
 
 ## 22.11.0
 

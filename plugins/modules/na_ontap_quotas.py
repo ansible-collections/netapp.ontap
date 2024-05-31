@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -600,6 +600,7 @@ class NetAppONTAPQuotas:
         # set qtree name in query for type user and group if not ''.
         if self.parameters['qtree']:
             query['qtree.name'] = self.parameters['qtree']
+        users_names, users_ids = [], []
         if self.parameters.get('quota_target'):
             type = self.parameters['type']
             if type == 'user':
