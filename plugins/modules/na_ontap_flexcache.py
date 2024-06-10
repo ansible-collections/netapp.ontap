@@ -20,6 +20,7 @@ description:
   - When using REST, the volume can be mounted or unmounted.  Set path to '' to unmount it.
   - It is required the volume is mounted to prepopulate it.
   - Some actions are also available through the na_ontap_volume.
+  - Cache volume can not be deleted in ZAPI.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_flexcache
@@ -588,6 +589,8 @@ class NetAppONTAPFlexCache:
         Delete FlexCache relationship at destination cluster
         Check job status
         """
+        self.module.warn('Cache volume can not be deleted in ZAPI. '
+                         'Flexcache relationship was ended.')
         if self.parameters['force_unmount']:
             self.volume_unmount(current)
         if self.parameters['force_offline']:
