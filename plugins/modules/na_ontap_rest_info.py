@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ NetApp ONTAP Info using REST APIs """
@@ -545,19 +545,20 @@ class NetAppONTAPGatherInfo(object):
         if not error:
             return gathered_ontap_info
 
-        # If the API doesn't exist (using an older system), we don't want to fail the task.
-        if int(error.get('code', 0)) == 3 or (
-           # if Aggr recommender can't make a recommendation, it will fail with the following error code, don't fail the task.
-           int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message')):
-            return error.get('message')
+        if isinstance(error, dict):
+            # If the API doesn't exist (using an older system), we don't want to fail the task.
+            if int(error.get('code', 0)) == 3 or (
+                    # if Aggr recommender can't make a recommendation, it will fail with the following error code, don't fail the task.
+                    int(error.get('code', 0)) == 19726344 and "No recommendation can be made for this cluster" in error.get('message')):
+                return error.get('message')
 
-        # Do not fail on error
-        for error_pattern in self.parameters.get('ignore_api_errors', []):
-            if error_pattern in error.get('message'):
-                return {'error': error}
-        # Fail the module if error occurs from REST APIs call
-        if int(error.get('code', 0)) == 6:
-            error = "Error: %s user is not authorized to make %s api call" % (self.parameters.get('username'), api)
+            # Do not fail on error
+            for error_pattern in self.parameters.get('ignore_api_errors', []):
+                if error_pattern in error.get('message'):
+                    return {'error': error}
+            # Fail the module if error occurs from REST APIs call
+            if int(error.get('code', 0)) == 6:
+                error = "Error: %s user is not authorized to make %s api call" % (self.parameters.get('username'), api)
         self.module.fail_json(msg=error)
 
     @staticmethod
