@@ -571,7 +571,7 @@ options:
         considered cold and eligible for tiering.
       - This option is only supported in REST 9.8 or later.
     type: int
-    version_added: '20.16.0'
+    version_added: '21.16.0'
 
   logical_space_enforcement:
     description:
@@ -580,7 +580,7 @@ options:
         features will be calculated as used.
       - This is only supported with REST.
     type: bool
-    version_added: '20.16.0'
+    version_added: '21.16.0'
 
   logical_space_reporting:
     description:
@@ -589,7 +589,7 @@ options:
         reported as used.
       - This is only supported with REST.
     type: bool
-    version_added: '20.16.0'
+    version_added: '21.16.0'
 
   snaplock:
     description:
@@ -653,7 +653,7 @@ options:
       - Note - ONTAP allocates a slightly different value, for instance 3990 when asking for 4000.
         Tp preserve idempotency, small variations in size are ignored.
     type: int
-    version_added: '20.18.0'
+    version_added: '21.18.0'
 
   analytics:
     description:
