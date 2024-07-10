@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -468,7 +468,8 @@ class NetAppOntapSecurityKeyManager:
             return 'unexpected_success in check_passphrase_rest', error
         if 'Cluster-wide passphrase is incorrect.' in error:
             return 'incorrect_passphrase', error
-        if 'New passphrase cannot be same as the old passphrase.' in error:
+        if 'New passphrase cannot be same as the old passphrase.' in error or \
+                'The new passphrase is same as old passphrase.' in error:
             return 'current_passphrase', error
         self.module.warn('Unexpected response in check_passphrase_rest: %s' % error)
         return 'unexpected_error in check_passphrase_rest', error
@@ -534,7 +535,11 @@ class NetAppOntapSecurityKeyManager:
         modify_passphrase = None
         from_passphrase = self.na_helper.safe_get(self.parameters, ['onboard', 'from_passphrase'])
         if passphrase and not from_passphrase:
-            self.module.warn('passphrase is ignored')
+            check_new, __ = self.check_passphrase_rest(passphrase)
+            if check_new == 'current_passphrase':
+                self.module.warn('Passphrase was not changed: The new passphrase is same as old passphrase.')
+            else:
+                self.module.warn('Passphrase was ignored as existing_passphrase was not given.')
         if not passphrase and from_passphrase and not modify_sync:
             self.module.warn('from_passphrase is ignored')
         if passphrase and from_passphrase and self.is_passphrase_update_required(passphrase, from_passphrase):

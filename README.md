@@ -69,6 +69,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - new option `snapshot_locking` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_volume - new option `activity_tracking` added in REST, requires ONTAP 9.10 or later.
   - na_ontap_snapshot_policy - new option `retention_period` added in REST, requires ONTAP 9.12 or later.
+  - na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - fix issue with idempotency in REST.
@@ -77,6 +78,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_quotas - fix error with `quota_target` while trying to set default user quota rule in REST.
   - na_ontap_rest_info - fixed issue with capturing error.
   - na_ontap_flexcache - add warning for flexcache relationship deletion in ZAPI.
+  - na_ontap_user_role - fix issue with setting multiple permissions with REST.
 
 ## 22.11.0
 

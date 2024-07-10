@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -132,8 +132,8 @@ def test_if_all_methods_catch_exception():
 
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
     del DEFAULT_ARGS_COPY['command_directory_name']
-    assert 'Error: command_directory_name is required' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']
+    assert 'Error: command_directory_name is a required field' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
     del DEFAULT_ARGS_COPY['vserver']
-    assert 'Error: vserver is required' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']
+    assert 'Error: vserver is a required field' in create_module(role_module, DEFAULT_ARGS_COPY, fail=True)['msg']

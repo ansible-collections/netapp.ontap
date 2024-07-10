@@ -1,4 +1,4 @@
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -394,31 +394,6 @@ def test_create_user_role_9_10_new_format_2_path_only():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_create_user_role_9_10_old_format():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_11_1']),
-        ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good']),
-        ('GET', 'security/roles', SRR['user_role_9_10'])
-    ])
-    module_args = {'command_directory_name': "/api/storage/volumes",
-                   'access_level': 'readonly'}
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
-
-
-def test_create_user_role_9_11_old_format_with_query():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_11_1']),
-        ('GET', 'security/roles', SRR['empty_records']),
-        ('POST', 'security/roles', SRR['empty_good']),
-        ('GET', 'security/roles', SRR['user_role_volume_with_query'])
-    ])
-    module_args = {'command_directory_name': "/api/storage/volumes",
-                   'access_level': 'readonly',
-                   'query': "-vserver vs1|vs2|vs3 -destination-aggregate aggr1|aggr2"}
-    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
-
-
 def test_create_user_role_error():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -439,8 +414,8 @@ def test_delete_user_role():
         ('GET', 'security/roles', SRR['empty_records'])
     ])
     module_args = {'state': 'absent',
-                   'command_directory_name': "/api/storage/volumes",
-                   'access_level': 'readonly'}
+                   'privileges': [{'path': "/api/storage/volumes",
+                                   'access': 'readonly'}]}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
@@ -592,13 +567,6 @@ def test_modify_user_role_error():
     assert 'Error modifying privileges for path %2Fapi%2Fcluster%2Fjobs: calling: '\
            'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs: '\
            'got Expected error.' == error
-
-
-def test_command_directory_present_rest():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1'])
-    ])
-    assert 'Error: either path or command_directory_name is required' in create_and_apply(my_module, DEFAULT_ARGS, fail=True)['msg']
 
 
 def test_warnings_additional_commands_added_after_create():

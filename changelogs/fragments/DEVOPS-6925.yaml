@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_user_role - fix issue with setting multiple permissions with REST.

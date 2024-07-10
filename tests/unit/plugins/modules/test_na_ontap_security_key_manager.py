@@ -1,4 +1,4 @@
-# (c) 2019, NetApp, Inc
+# (c) 2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -646,6 +646,7 @@ def test_warn_when_onboard_exists_and_only_one_passphrase_present():
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'security/key-managers', SRR['one_onboard_seckey_record']),
+        ('PATCH', 'security/key-managers/a1b2c3', SRR['error_duplicate']),
         # idempotency
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
         ('GET', 'cluster', SRR['is_rest_9_8_0']),
@@ -658,7 +659,7 @@ def test_warn_when_onboard_exists_and_only_one_passphrase_present():
         'use_rest': 'always'
     }
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
-    assert_warning_was_raised('passphrase is ignored')
+    assert_warning_was_raised('Passphrase was not changed: The new passphrase is same as old passphrase.')
     module_args = {
         'onboard': {
             'from_passphrase': 'passphrase_too_short',

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -18,7 +18,7 @@ version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
 description:
-  - Create or destroy user roles
+  - Create, modify, or destroy user roles.
 
 options:
 
@@ -39,22 +39,21 @@ options:
     description:
       - The command or command directory to which the role has an access.
       - Required with ZAPI.
-      - Supported with REST from ONTAP 9.11.1 or later.
+      - Use C(privileges) for rest-role path choices.
     type: str
 
   access_level:
     description:
-      - The access level of the role.
+      - The access level of the role. Defaults to 'all'.
       - Use C(privileges) for rest-role access choices.
     choices: ['none', 'readonly', 'all']
     type: str
-    default: all
 
   query:
     description:
       - A query for the role. The query must apply to the specified command or directory name.
       - Use double quotes "" for modifying a existing query to none.
-      - Supported with REST from ONTAP 9.11.1 or later.
+      - Use C(privileges) for rest-role query choices.
     type: str
     version_added: 2.8.0
 
@@ -94,7 +93,7 @@ options:
     type: str
 
 notes:
-  - supports ZAPI and REST.  REST requires ONTAP 9.7 or later.
+  - supports ZAPI and REST. REST requires ONTAP 9.7 or later.
   - supports check mode.
   - when trying to add a command to a role, ONTAP will affect other related commands too.
   - for example, 'volume modify' will affect 'volume create' and 'volume show', always provide all the related commands.
@@ -129,7 +128,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: Create user role REST in ONTAP 9.11.1.
+    - name: Create user role REST in ONTAP 9.11.1
       netapp.ontap.na_ontap_user_role:
         state: present
         privileges:
@@ -140,7 +139,7 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
 
-    - name: Modify user role REST in ONTAP 9.11.1.
+    - name: Modify user role REST in ONTAP 9.11.1
       netapp.ontap.na_ontap_user_role:
         state: present
         privileges:
@@ -176,7 +175,7 @@ class NetAppOntapUserRole:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             command_directory_name=dict(required=False, type='str'),
-            access_level=dict(required=False, type='str', default='all',
+            access_level=dict(required=False, type='str',
                               choices=['none', 'readonly', 'all']),
             vserver=dict(required=False, type='str'),
             query=dict(required=False, type='str'),
@@ -201,12 +200,10 @@ class NetAppOntapUserRole:
         if self.parameters.get('privileges') is not None:
             self.parameters['privileges'] = self.na_helper.filter_out_none_entries(self.parameters['privileges'])
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        partially_supported_rest_properties = [
-            ['query', (9, 11, 1)],
-            ['privileges.query', (9, 11, 1)],
-            ['command_directory_name', (9, 11, 1)]
-        ]
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
+        unsupported_rest_properties = ['command_directory_name', 'access_level', 'query']
+        partially_supported_rest_properties = [['privileges.query', (9, 11, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        unsupported_zapi_properties = ['privileges']
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             msg = 'REST requires ONTAP 9.7 or later for security/roles APIs.'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
@@ -214,9 +211,16 @@ class NetAppOntapUserRole:
             if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if not self.parameters.get('vserver'):
-                self.module.fail_json(msg="Error: vserver is required field with ZAPI.")
+                self.module.fail_json(msg="Error: vserver is a required field with ZAPI.")
             if not self.parameters.get('command_directory_name'):
-                self.module.fail_json(msg="Error: command_directory_name is required field with ZAPI")
+                self.module.fail_json(msg="Error: command_directory_name is a required field with ZAPI.")
+            if not self.parameters.get('access_level'):
+                self.parameters['access_level'] = 'all'
+            for unsupported_zapi_property in unsupported_zapi_properties:
+                if self.parameters.get(unsupported_zapi_property) is not None:
+                    msg = "Error: %s option is not supported with ZAPI. It can only be used with REST." % unsupported_zapi_property
+                    msg += '  use_rest: %s.' % self.parameters.get('use_rest')
+                    self.module.fail_json(msg=msg)
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1) and self.parameters['state'] == 'present':
             self.validate_rest_path()
@@ -455,23 +459,6 @@ class NetAppOntapUserRole:
             self.module.fail_json(msg='Error deleting role privileges %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
 
-    def convert_parameters(self):
-        if self.parameters.get('privileges') is not None:
-            return
-        if not self.parameters.get('command_directory_name'):
-            self.module.fail_json(msg="Error: either path or command_directory_name is required in REST.")
-        self.parameters['privileges'] = []
-        temp_dict = {
-            'path': self.parameters['command_directory_name'],
-            'access': self.parameters['access_level']
-        }
-        self.parameters.pop('command_directory_name')
-        self.parameters.pop('access_level')
-        if self.parameters.get('query'):
-            temp_dict['query'] = self.parameters['query']
-            self.parameters.pop('query')
-        self.parameters['privileges'] = [temp_dict]
-
     def validate_create_modify_required(self, current, modify):
         new_current = self.get_role()
         new_cd_action = self.na_helper.get_cd_action(new_current, self.parameters)
@@ -488,9 +475,6 @@ class NetAppOntapUserRole:
             self.module.warn(msg)
 
     def apply(self):
-        if self.use_rest:
-            # if rest convert parameters to rest format if zapi format is used
-            self.convert_parameters()
         current = self.get_role()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         # if desired state specify empty quote query and current query is None, set desired query to None.
