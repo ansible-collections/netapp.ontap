@@ -98,7 +98,7 @@ def test_check_mode():
     module_args = {'verb': 'GET'}
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'private/cli/volume', SRR['is_rest'])
+        ('GET', 'private/cli/volume', SRR['empty_good'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     my_obj.module.check_mode = True
