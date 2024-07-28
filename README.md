@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapshot_policy - new option `retention_period` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
   - na_ontap_rest_cli - return command output for GET and OPTIONS verbs during check mode.
+  - Requires Ansible 2.15 or higher.
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - fix issue with idempotency in REST.
