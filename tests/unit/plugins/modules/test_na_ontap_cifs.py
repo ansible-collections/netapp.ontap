@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs '''
@@ -52,7 +52,8 @@ SRR = rest_responses({
                     "namespace_caching": True,
                     "allow_unencrypted_access": True,
                     "browsable": True,
-                    "show_previous_versions": True
+                    "show_previous_versions": True,
+                    "vscan_profile": "no_scan"
                 }
             ],
             "num_records": 1
@@ -421,6 +422,19 @@ def test_modify_cifs_offline_files():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
+def test_modify_cifs_vscan_fileop_profile():
+    ''' test modify CIFS vscan_fileop_profile '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_15_1']),
+        ('GET', 'protocols/cifs/shares', SRR['cifs_record']),
+        ('PATCH', 'protocols/cifs/shares/671aa46e-11ad-11ec-a267-005056b30cfa/cifs_share_name', SRR['empty_good']),
+    ])
+    module_args = {
+        "vscan_fileop_profile": "standard"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
 def test_version_error_offline_files():
     ''' test version error for offline_files '''
     register_responses([
@@ -431,6 +445,18 @@ def test_version_error_offline_files():
     }
     error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
     assert 'Minimum version of ONTAP for offline_files is (9, 10, 1)' in error
+
+
+def test_version_error_vscan_fileop_profile():
+    ''' test version error for vscan_fileop_profile '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest'])
+    ])
+    module_args = {
+        "vscan_fileop_profile": "standard"
+    }
+    error = create_module(my_module, ARGS_REST, module_args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for vscan_fileop_profile is (9, 15, 1)' in error
 
 
 def test_error_modify_cifs_share_path():

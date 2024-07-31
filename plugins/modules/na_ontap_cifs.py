@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # import untangle
 
@@ -78,7 +78,7 @@ options:
     choices: ['no_scan', 'standard', 'strict', 'writes_only']
     description:
       - Profile_set of file_ops to which vscan on access scanning is applicable.
-      - Not supported with REST.
+      - REST support requires ONTAP 9.15.1 or later.
     type: str
     version_added: 2.9.0
 
@@ -311,8 +311,9 @@ class NetAppONTAPCifsShare:
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         partially_supported_rest_properties = [['continuously_available', (9, 10, 1)], ['namespace_caching', (9, 10, 1)],
                                                ['show_snapshot', (9, 10, 1)], ['offline_files', (9, 10, 1)], ['allow_unencrypted_access', (9, 11)],
-                                               ['browsable', (9, 13, 1)], ['show_previous_versions', (9, 13, 1)]]
-        unsupported_rest_properties = ['share_properties', 'symlink_properties', 'vscan_fileop_profile']
+                                               ['browsable', (9, 13, 1)], ['show_previous_versions', (9, 13, 1)],
+                                               ['vscan_fileop_profile', (9, 15, 1)]]
+        unsupported_rest_properties = ['share_properties', 'symlink_properties']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         self.unsupported_zapi_properties = ['unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption', 'home_directory',
                                             'oplocks', 'continuously_available', 'show_snapshot', 'namespace_caching', 'allow_unencrypted_access',
@@ -461,6 +462,8 @@ class NetAppONTAPCifsShare:
             options['fields'] += 'allow_unencrypted_access,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
             options['fields'] += 'browsable,show_previous_versions,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 15, 1):
+            options['fields'] += 'vscan_profile,'
         api = 'protocols/cifs/shares'
         record, error = rest_generic.get_one_record(self.rest_api, api, options)
         if error:
@@ -481,7 +484,8 @@ class NetAppONTAPCifsShare:
                 'namespace_caching': record.get('namespace_caching'),
                 'allow_unencrypted_access': record.get('allow_unencrypted_access'),
                 'browsable': record.get('browsable'),
-                'show_previous_versions': record.get('show_previous_versions')
+                'show_previous_versions': record.get('show_previous_versions'),
+                'vscan_fileop_profile': record.get('vscan_profile')
             }
         return None
 
@@ -492,10 +496,13 @@ class NetAppONTAPCifsShare:
             params = self.parameters
         options = ['path', 'comment', 'unix_symlink', 'access_based_enumeration', 'change_notify', 'encryption',
                    'home_directory', 'oplocks', 'continuously_available', 'offline_files', 'show_snapshot', 'namespace_caching',
-                   'allow_unencrypted_access', 'browsable', 'show_previous_versions']
+                   'allow_unencrypted_access', 'browsable', 'show_previous_versions', 'vscan_fileop_profile']
         for key in options:
             if key in params:
-                body[key] = params[key]
+                if key == 'vscan_fileop_profile':
+                    body['vscan_profile'] = params[key]
+                else:
+                    body[key] = params[key]
         return body
 
     def create_cifs_share_rest(self):

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -329,6 +329,10 @@ class NetAppOntapQTree:
             if self.parameters['wait_for_completion']:
                 dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)
             if error:
+                if not self.parameters['wait_for_completion'] and \
+                        'job reported error:' in error and 'Timeout error: Process still running' in error:
+                    self.module.warn("Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false.")
+                    return
                 self.module.fail_json(msg='Error deleting qtree %s: %s' % (self.parameters['name'], error))
 
         else:

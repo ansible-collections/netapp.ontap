@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
@@ -76,7 +76,10 @@ SRR = rest_responses({
             "uuid": "d78811c1-aebc-11ec-b4de-005056b30cfa",
             "_links": {"self": {"href": "/api/cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa"}}
         }}, None),
-    'job_not_found': (404, "", {"message": "entry doesn't exist", "code": "4", "target": "uuid"})
+    'job_not_found': (404, "", {"message": "entry doesn't exist", "code": "4", "target": "uuid"}),
+    'process_running_error': (400, None, "calling: storage/qtrees/1: got job reported error: Timeout error: Process still running, \
+                                          received {'job': {'uuid': 'd708b0a5-d197-11ee-9138-d039ea45654b', '_links': {'self': {'href': \
+                                          '/api/cluster/jobs/d708b0a5-d197-11ee-9138-d039ea45654b'}}}}.."),
 })
 
 
@@ -304,6 +307,19 @@ def test_idempotent_delete_rest():
     ])
     args = {'use_rest': 'always', 'state': 'absent'}
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed'] is False
+
+
+def test_successful_delete_rest_job_running_warning():
+    ''' test delete qtree warning in rest'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'storage/qtrees', SRR['qtree_record']),
+        ('DELETE', 'storage/qtrees/uuid/1', SRR['process_running_error'])
+    ])
+    args = {'use_rest': 'always', 'state': 'absent', 'wait_for_completion': False}
+    assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Process is still running in the background, exiting with no further waiting as 'wait_for_completion' is set to false.")
 
 
 def test_successful_modify_rest():

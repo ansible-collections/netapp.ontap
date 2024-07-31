@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapshot_policy - new option `retention_period` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
   - Requires Ansible 2.15 or higher.
+  - na_ontap_cifs - added REST support for option `vscan_fileop_profile`, requires ONTAP 9.15.1 or later.
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - fix issue with idempotency in REST.
@@ -80,6 +81,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_info - fixed issue with capturing error.
   - na_ontap_flexcache - add warning for flexcache relationship deletion in ZAPI.
   - na_ontap_user_role - fix issue with setting multiple permissions with REST.
+  - na_ontap_qtree - add warning for job still running for deletion operation in REST, when wait_for_completion is not set.
 
 ## 22.11.0
 
