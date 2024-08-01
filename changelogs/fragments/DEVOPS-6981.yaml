@@ -1,0 +1,2 @@
+minor_changes:
+  - all modules supporting ZAPI & REST - throw authentication error instead of falling back to ZAPI when username/password is incorrect.

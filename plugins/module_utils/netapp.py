@@ -986,6 +986,8 @@ class OntapRestAPI(object):
             if error and 'are available in precluster.' in error.get('message', ''):
                 # in precluster mode, version is not available :(
                 status_code, message, error = self.get_node_version_using_rest()
+            if error and 'User is not authorized.' in error.get('message', ''):
+                self.module.fail_json('User is not authorized.')
         except AttributeError:
             pass
         self.set_version(message)

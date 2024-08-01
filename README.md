@@ -72,6 +72,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
   - Requires Ansible 2.15 or higher.
   - na_ontap_cifs - added REST support for option `vscan_fileop_profile`, requires ONTAP 9.15.1 or later.
+  - all modules supporting ZAPI & REST - throw authentication error instead of falling back to ZAPI when username/password is incorrect.
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - fix issue with idempotency in REST.
