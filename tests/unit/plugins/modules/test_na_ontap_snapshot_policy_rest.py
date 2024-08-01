@@ -1,4 +1,4 @@
-# (c) 2023, NetApp, Inc
+# (c) 2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_snapshot_policy """
@@ -39,7 +39,7 @@ SRR = rest_responses({
                         "name": "hourly"
                     },
                     "prefix": "hourly",
-                    "snapmirror_label": "",
+                    "snapmirror_label": "-",
                     "retention_period": "PT5M"
                 },
                 {
@@ -48,7 +48,7 @@ SRR = rest_responses({
                         "name": "weekly"
                     },
                     "prefix": "weekly",
-                    "snapmirror_label": "",
+                    "snapmirror_label": "-",
                     "retention_period": "PT5H"
                 }
             ],
@@ -203,6 +203,18 @@ def test_create_snapshot_policy_with_snapmirror_label_rest():
         "snapmirror_label": ['hourly', 'weekly']
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
+
+
+def test_idempotency_snapshot_policy_with_snapmirror_label_rest():
+    ''' Test idempotency with rest API when snapmirror_label set to empty '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'storage/snapshot-policies', SRR['snapshot_record']),
+    ])
+    module_args = {
+        "snapmirror_label": ['', '']
+    }
+    assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
 
 def test_create_snapshot_policy_with_prefix_rest():

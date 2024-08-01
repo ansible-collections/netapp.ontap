@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -543,7 +543,8 @@ class NetAppOntapSnapshotPolicy(object):
                     current['count'].append(item['count'])
                     current['prefix'].append(item['prefix'])
                     current['schedule'].append(item['schedule']['name'])
-                    current['snapmirror_label'].append(item['snapmirror_label'])
+                    item_snapmirror_label = item['snapmirror_label'] if item['snapmirror_label'] != '-' else ''
+                    current['snapmirror_label'].append(item_snapmirror_label)
                     current['retention_period'].append(item['retention_period'])
             return current
         return record

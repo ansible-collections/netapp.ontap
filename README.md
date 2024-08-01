@@ -82,6 +82,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_flexcache - add warning for flexcache relationship deletion in ZAPI.
   - na_ontap_user_role - fix issue with setting multiple permissions with REST.
   - na_ontap_qtree - add warning for job still running for deletion operation in REST, when wait_for_completion is not set.
+  - na_ontap_snapshot_policy - fix issue with idempotency when `snapmirror_label` is set to empty in REST.
 
 ## 22.11.0
 
