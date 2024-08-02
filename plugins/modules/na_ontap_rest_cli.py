@@ -137,7 +137,7 @@ class NetAppONTAPCommandREST():
     def apply(self):
         ''' calls the command and returns raw output '''
         changed = False if self.verb in ['GET', 'OPTIONS'] else True
-        if self.module.check_mode:
+        if self.module.check_mode and self.verb in ['POST', 'PATCH', 'DELETE']:
             output = "Would run command: '%s'" % str(self.command)
         else:
             output = self.run_command()

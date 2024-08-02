@@ -98,13 +98,14 @@ def test_check_mode():
     module_args = {'verb': 'GET'}
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'private/cli/volume', SRR['empty_good'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
     my_obj.module.check_mode = True
     result = expect_and_capture_ansible_exception(my_obj.apply, 'exit')
     assert result['changed'] is False
     msg = "Would run command: 'volume'"
-    assert msg in result['msg']
+    assert msg not in result['msg']
 
 
 def test_negative_verb():

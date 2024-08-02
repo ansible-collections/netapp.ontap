@@ -70,6 +70,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_volume - new option `activity_tracking` added in REST, requires ONTAP 9.10 or later.
   - na_ontap_snapshot_policy - new option `retention_period` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
+  - na_ontap_rest_cli - return command output for GET and OPTIONS verbs during check mode.
   - Requires Ansible 2.15 or higher.
   - na_ontap_cifs - added REST support for option `vscan_fileop_profile`, requires ONTAP 9.15.1 or later.
   - all modules supporting ZAPI & REST - throw authentication error instead of falling back to ZAPI when username/password is incorrect.
