@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
