@@ -1,4 +1,4 @@
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -89,6 +89,16 @@ SRR = rest_responses({
     'fd_acl_single_user_deny': (200, {
         'acls': [
             build_acl('NETAPPAD\\mohan9', access='access_deny')
+        ],
+        'control_flags': '0x8014',
+        'group': 'BUILTIN\\Administrators',
+        'owner': 'BUILTIN\\Administrators',
+        'path': '/vol200/aNewFile.txt',
+        'svm': {'name': 'ansible_ipspace_datasvm', 'uuid': '55bcb009'}
+    }, None),
+    'fd_acl_single_user_acl': (200, {
+        'acls': [
+            build_acl('NETAPPAD\\mohan9', access='access_deny', apply_to={'files': True, 'this_folder': True, 'sub_folders': True})
         ],
         'control_flags': '0x8014',
         'group': 'BUILTIN\\Administrators',
@@ -233,6 +243,29 @@ def test_add_file_directory_acl():
             "user": "NETAPPAD\\mohan9",
             "advanced_rights": {"append_data": True},
             "apply_to": {"this_folder": True, "files": False, "sub_folders": False},
+        }]
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
+
+
+def test_add_file_directory_acl_without_apply_to():
+    ''' add file_directory acl without apply_to and idempotent '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_id']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['non_acl']),
+        ('POST', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt/acl', SRR['success']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_single_user_acl']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_id']),
+        ('GET', 'protocols/file-security/permissions/55bcb009/%2Fvol200%2FaNewFile.txt', SRR['fd_acl_single_user_acl'])
+    ])
+    args = {
+        'acls': [{
+            "access": "access_deny",
+            "user": "NETAPPAD\\mohan9",
+            "advanced_rights": {"append_data": True}
         }]
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, args)['changed']

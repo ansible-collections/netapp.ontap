@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+  (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -140,7 +140,7 @@ options:
             This module requires the 2 ACLs to be present to preserve idempotency.
             See also C(validate_changes).
         type: dict
-        required: true
+        required: false
         suboptions:
           files:
             description:
@@ -352,7 +352,7 @@ class NetAppOntapFileSecurityPermissions:
                 rights=dict(required=False,
                             choices=['no_access', 'full_control', 'modify', 'read_and_execute', 'read', 'write'],
                             type='str'),
-                apply_to=dict(required=True, type='dict', options=dict(
+                apply_to=dict(required=False, type='dict', options=dict(
                     files=dict(required=False, type='bool', default=False),
                     sub_folders=dict(required=False, type='bool', default=False),
                     this_folder=dict(required=False, type='bool', default=False),
@@ -408,8 +408,18 @@ class NetAppOntapFileSecurityPermissions:
                     self.module.fail_json(msg="Error: suboptions 'rights' and 'advanced_rights' are mutually exclusive.")
                 self.module.warn('This module is not idempotent when "rights" is used, make sure to use "advanced_rights".')
             # validate that at least one suboption is true
-            if not any(self.na_helper.safe_get(acl, ['apply_to', key]) for key in self.apply_to_keys):
+            if self.na_helper.safe_get(acl, ['apply_to']) is not None \
+                    and not any(self.na_helper.safe_get(acl, ['apply_to', key]) for key in self.apply_to_keys):
                 self.module.fail_json(msg="Error: at least one suboption must be true for apply_to.  Got: %s" % acl)
+            # add default suboptions values if apply_to is not given
+            if acl.get('apply_to') is None:
+                apply_to = {'apply_to': {
+                    'sub_folders': True,
+                    'this_folder': True,
+                    'files': True
+                }
+                }
+                acl.update(apply_to)
             # error if identical acls are set.
             self.match_acl_with_acls(acl, self.parameters['acls'])
         for option in ('access_control', 'ignore_paths', 'propagation_mode'):
@@ -580,7 +590,7 @@ class NetAppOntapFileSecurityPermissions:
             if (acl['user'] == an_acl['user']
                     and acl['access'] == an_acl['access']
                     and acl.get('access_control', 'file_directory') == an_acl.get('access_control', 'file_directory')
-                    and acl['apply_to'] == an_acl['apply_to']
+                    and acl.get('apply_to') == an_acl.get('apply_to')
                     and not inherited):
                 matches.append(an_acl)
         if len(matches) > 1:
