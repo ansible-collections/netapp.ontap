@@ -5,6 +5,35 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v22.12.0
+========
+
+Minor Changes
+-------------
+
+- all modules supporting ZAPI & REST - throw authentication error instead of falling back to ZAPI when username/password is incorrect.
+- na_ontap_bgp_peer_group - added new option `use_peer_as_next_hop`, requires ONTAP 9.9 or later.
+- na_ontap_cifs - added REST support for option `vscan_fileop_profile`, requires ONTAP 9.15.1 or later.
+- na_ontap_rest_cli - return command output for GET and OPTIONS verbs during check mode.
+- na_ontap_security_key_manager - added warning message in REST when passphrase is not changed.
+- na_ontap_snapshot_policy - new option `retention_period` added in REST, requires ONTAP 9.12 or later.
+- na_ontap_volume - new option `activity_tracking` added in REST, requires ONTAP 9.10 or later.
+- na_ontap_volume - new option `snapshot_locking` added in REST, requires ONTAP 9.12 or later.
+
+Bugfixes
+--------
+
+- na_ontap_export_policy_rule - fix issue with idempotency in REST.
+- na_ontap_file_security_permissions - set `apply_to` as optional and default value as true.
+- na_ontap_flexcache - add warning for flexcache relationship deletion in ZAPI.
+- na_ontap_qtree - add warning for job still running for deletion operation in REST, when wait_for_completion is not set.
+- na_ontap_quotas - fix error with `quota_target` while trying to set default user quota rule in REST.
+- na_ontap_rest_info - fixed issue with capturing error.
+- na_ontap_snapshot_policy - fix issue with idempotency when `snapmirror_label` is set to empty in REST.
+- na_ontap_user_role - fix issue with setting multiple permissions with REST.
+- na_ontap_volume - added error message while trying to modify efficiency configuration for a volume in REST, when efficiency is disabled.
+- na_ontap_volume_efficiency - fix issue with modifying volume efficiency in REST.
+
 v22.11.0
 ========
 
