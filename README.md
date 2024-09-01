@@ -72,6 +72,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.13.0
+
+### Bug Fixes
+  - na_ontap_active_directory - Return error message when attempting to modify `account_name` parameter.
+
 ## 22.12.0
 
 ### Minor Changes
