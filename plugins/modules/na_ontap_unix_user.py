@@ -75,7 +75,6 @@ options:
 '''
 
 EXAMPLES = """
-
     - name: Create UNIX User
       netapp.ontap.na_ontap_unix_user:
         state: present

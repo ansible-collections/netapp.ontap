@@ -39,14 +39,14 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create FCP
-      na_ontap_fcp:
+    - name: Create FCP
+      netapp.ontap.na_ontap_fcp:
         state: present
         status: down
-        hostname: "{{hostname}}"
-        username: "{{username}}"
-        password: "{{password}}"
-        vserver:  "{{vservername}}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        vserver:  "{{ vserver_name }}"
 """
 
 RETURN = """

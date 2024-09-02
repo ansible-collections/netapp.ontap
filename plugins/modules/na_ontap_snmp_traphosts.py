@@ -39,16 +39,17 @@ EXAMPLES = """
       netapp.ontap.na_ontap_snmp_traphosts:
         state: present
         host: example1.com
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+
     - name: Delete SNMP traphost
       netapp.ontap.na_ontap_snmp_traphosts:
         state: absent
         host: example1.com
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

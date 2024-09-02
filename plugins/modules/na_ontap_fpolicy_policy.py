@@ -77,36 +77,36 @@ options:
 
 EXAMPLES = """
 - name: Create FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: present
     vserver: svm1
     name: fpolicy_policy
     events: fcpolicy_event
     engine: fpolicy_ext_engine
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: present
     vserver: svm1
     name: fpolicy_policy
     events: fcpolicy_event
     is_mandatory: false
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: absent
     vserver: svm1
     name: fpolicy_policy
     events: fcpolicy_event
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 """
 

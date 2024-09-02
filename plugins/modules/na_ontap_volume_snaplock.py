@@ -102,7 +102,7 @@ notes:
 
 EXAMPLES = """
     - name: Set volume snaplock
-      na_ontap_volume_snaplock:
+      netapp.ontap.na_ontap_volume_snaplock:
         vserver: svm
         name: ansibleVolume
         default_retention_period: "5 days"

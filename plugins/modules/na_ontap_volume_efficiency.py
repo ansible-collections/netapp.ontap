@@ -165,9 +165,9 @@ EXAMPLES = """
         state: present
         vserver: "TESTSVM"
         path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
@@ -176,9 +176,9 @@ EXAMPLES = """
         state: absent
         vserver: "TESTSVM"
         path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
@@ -190,9 +190,9 @@ EXAMPLES = """
         schedule: "mon-sun@0,1,23"
         enable_compression: true
         enable_inline_compression: true
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
@@ -202,9 +202,9 @@ EXAMPLES = """
         vserver: "TESTSVM"
         path: "/vol/test_sis"
         volume_efficiency: "start"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
@@ -214,25 +214,24 @@ EXAMPLES = """
         vserver: "TESTSVM"
         path: "/vol/test_sis"
         volume_efficiency: "stop"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: modify volume efficiency with volume name in REST.
       netapp.ontap.na_ontap_volume_efficiency:
         state: present
-        vserver: "TESTSVM"
-        volume_name: "test_sis"
-        volume_efficiency: "stop"
-        enable_compression: True
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        vserver: TESTSVM
+        volume_name: test_sis
+        volume_efficiency: stop
+        enable_compression: true
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
-
 """
 
 RETURN = """

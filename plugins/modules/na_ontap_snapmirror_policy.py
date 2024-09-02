@@ -194,49 +194,49 @@ notes:
 
 EXAMPLES = """
     - name: Create SnapMirror policy
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
         policy_type: "mirror_vault"
         comment: "created by ansible"
         transfer_schedule: "daily"      # when using REST
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Modify SnapMirror policy
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
         policy_type: "async_mirror"
         transfer_priority: "low"
         transfer_schedule: "weekly"     # when using REST
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Create SnapMirror policy with basic rules
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
         policy_type: "async_mirror"
         snapmirror_label: ['daily', 'weekly', 'monthly']
         keep: [7, 5, 12]
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Create SnapMirror policy with rules and schedules (no schedule for daily rule)
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
@@ -245,14 +245,14 @@ EXAMPLES = """
         keep: [7, 5, 12]
         schedule: ['','weekly','monthly']
         prefix: ['','','monthly_mv']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Modify SnapMirror policy with rules, remove existing schedules and prefixes
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
@@ -261,34 +261,34 @@ EXAMPLES = """
         keep: [7, 5, 12]
         schedule: ['','','']
         prefix: ['','','']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Modify SnapMirror policy, delete all rules (excludes builtin rules)
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: present
         vserver: "SVM1"
         policy_name: "ansible_policy"
         policy_type: "mirror_vault"
         snapmirror_label: []
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 
     - name: Delete SnapMirror policy
-      na_ontap_snapmirror_policy:
+      netapp.ontap.na_ontap_snapmirror_policy:
         state: absent
         vserver: "SVM1"
         policy_type: "async_mirror"
         policy_name: "ansible_policy"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
 """

@@ -58,7 +58,7 @@ options:
 
 EXAMPLES = """
     - name: Add ONTAP MCCIP Mediator
-      na_ontap_mcc_mediator:
+      netapp.ontap.na_ontap_mcc_mediator:
         state: present
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -68,7 +68,7 @@ EXAMPLES = """
         mediator_password: netapp1!
 
     - name: Delete ONTAP MCCIP Mediator
-      na_ontap_mcc_mediator:
+      netapp.ontap.na_ontap_mcc_mediator:
         state: absent
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"

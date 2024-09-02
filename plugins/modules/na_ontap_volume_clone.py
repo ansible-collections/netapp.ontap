@@ -85,12 +85,12 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create volume clone
-      na_ontap_volume_clone:
+    - name: Create volume clone
+      netapp.ontap.na_ontap_volume_clone:
         state: present
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
         vserver: vs_hack
         parent_volume: normal_volume
         name: clone_volume_7

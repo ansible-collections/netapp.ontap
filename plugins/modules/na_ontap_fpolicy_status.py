@@ -46,25 +46,25 @@ notes:
 
 EXAMPLES = """
     - name: Enable fPolicy policy
-      na_ontap_fpolicy_status:
+      netapp.ontap.na_ontap_fpolicy_status:
         state: present
         vserver: svm1
         policy_name: fpolicy_policy
         sequence_number: 10
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
         https: true
         validate_certs: false
 
     - name: Disable fPolicy policy
-      na_ontap_fpolicy_status:
+      netapp.ontap.na_ontap_fpolicy_status:
         state: absent
         vserver: svm1
         policy_name: fpolicy_policy
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
         https: true
         validate_certs: false
 

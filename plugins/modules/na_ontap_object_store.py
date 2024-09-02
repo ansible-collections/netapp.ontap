@@ -103,7 +103,7 @@ options:
 '''
 
 EXAMPLES = """
-- name: object store Create
+- name: Object store Create
   netapp.ontap.na_ontap_object_store:
     state: present
     name: ansible
@@ -112,17 +112,17 @@ EXAMPLES = """
     container: abc
     access_key: s3.amazonaws.com
     secret_password: abc
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-- name: object store Create
+- name: Object store delete
   netapp.ontap.na_ontap_object_store:
     state: absent
     name: ansible
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

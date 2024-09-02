@@ -39,17 +39,14 @@ options:
 '''
 
 EXAMPLES = """
--
-  name: Ontap ZAPI
+- name: Ontap ZAPI
   hosts: localhost
-  gather_facts: False
-  collections:
-    - netapp.ontap
+  gather_facts: false
   vars:
     login: &login
-      hostname: "{{ admin_ip }}"
-      username: "{{ admin_username }}"
-      password: "{{ admin_password }}"
+      hostname: "{{ netapp_hostname }}"
+      username: "{{ netapp_username }}"
+      password: "{{ netapp_password }}"
       https: true
       validate_certs: false
     svm_login: &svm_login

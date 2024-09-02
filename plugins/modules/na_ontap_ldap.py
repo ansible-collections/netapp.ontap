@@ -50,15 +50,14 @@ options:
 '''
 
 EXAMPLES = '''
-
     - name: Enable LDAP on SVM
       netapp.ontap.na_ontap_ldap:
-        state:         present
-        name:          'example_ldap'
-        vserver:       'vserver1'
-        hostname:      "{{ netapp_hostname }}"
-        username:      "{{ netapp_username }}"
-        password:      "{{ netapp_password }}"
+        state: present
+        name: example_ldap
+        vserver: vserver1
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
 '''
 

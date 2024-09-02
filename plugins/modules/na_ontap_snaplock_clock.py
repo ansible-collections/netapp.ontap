@@ -32,10 +32,9 @@ EXAMPLES = """
     - name: Set node compliance clock
       netapp.ontap.na_ontap_snaplock_clock:
         node: cluster1-01
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -49,21 +49,20 @@ options:
 
 EXAMPLES = """
     - name: Enable Disk Auto Assign
-      na_ontap_disk_options:
+      netapp.ontap.na_ontap_disk_options:
         node: node1
         autoassign: true
-        username: '{{ username }}'
-        password: '{{ password }}'
-        hostname: '{{ hostname }}'
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
 
     - name: Disable Disk Auto Assign
-      na_ontap_disk_options:
+      netapp.ontap.na_ontap_disk_options:
         node: node1
         autoassign: false
-        username: '{{ username }}'
-        password: '{{ password }}'
-        hostname: '{{ hostname }}'
-
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

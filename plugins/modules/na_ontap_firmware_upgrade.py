@@ -162,15 +162,15 @@ version_added: 2.9.0
 '''
 
 EXAMPLES = """
-
-    - name: firmware upgrade
+    - name: Any firmware upgrade - REST
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         package_url: "{{ web_link }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: firmware upgrade, confirm successful download
+
+    - name: Firmware upgrade, confirm successful download
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         package_url: "{{ web_link }}"
@@ -178,23 +178,23 @@ EXAMPLES = """
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
         fail_on_502_error: true
+
     - name: SP firmware upgrade
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
         package: "{{ file name }}"
         package_url: "{{ web_link }}"
-        clear_logs: True
-        install_baseline_image: False
+        clear_logs: true
+        install_baseline_image: false
         update_type: serial_full
-        force_disruptive_update: False
+        force_disruptive_update: false
         firmware_type: service-processor
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: SP firmware download replace package
-      tags:
-      - sp_download
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
@@ -207,9 +207,8 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: true
         validate_certs: false
+
     - name: SP firmware download rename package
-      tags:
-      - sp_download
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         node: vsim1
@@ -221,6 +220,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
         https: true
         validate_certs: false
+
     - name: ACP firmware download and upgrade
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
@@ -230,7 +230,8 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: shelf firmware upgrade
+
+    - name: Shelf firmware upgrade
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         firmware_type: shelf
@@ -238,7 +239,8 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: disk firmware upgrade
+
+    - name: Disk firmware upgrade
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present
         firmware_type: disk
@@ -246,13 +248,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-    - name: any firmware upgrade (REST)
-      netapp.ontap.na_ontap_firmware_upgrade:
-        state: present
-        package_url: "{{ web_link }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+
     - name: SP firmware upgrade with reboots (REST)
       netapp.ontap.na_ontap_firmware_upgrade:
         state: present

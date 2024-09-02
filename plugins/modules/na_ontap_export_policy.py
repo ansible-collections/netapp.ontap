@@ -53,6 +53,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Rename Export Policy
       netapp.ontap.na_ontap_export_policy:
         state: present
@@ -62,6 +63,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Delete Export Policy
       netapp.ontap.na_ontap_export_policy:
         state: absent

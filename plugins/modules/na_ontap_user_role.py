@@ -101,7 +101,6 @@ notes:
 '''
 
 EXAMPLES = """
-
     - name: Create User Role Zapi
       netapp.ontap.na_ontap_user_role:
         state: present

@@ -43,7 +43,7 @@ options:
 
 EXAMPLES = """
     - name: Create NTP key
-      na_ontap_ntp_key:
+      netapp.ontap.na_ontap_ntp_key:
         state: present
         digest_type: sha1
         value: "{{ key_value }}"
@@ -51,8 +51,9 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Delete NTP key
-      na_ontap_ntp_key:
+      netapp.ontap.na_ontap_ntp_key:
         state: absent
         id: 1
         hostname: "{{ netapp_hostname }}"

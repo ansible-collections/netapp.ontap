@@ -45,8 +45,8 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create or modify s3 user
-      na_ontap_s3_users:
+    - name: Create or modify s3 user
+      netapp.ontap.na_ontap_s3_users:
         state: present
         name: carchi8py
         vserver: ansibleSVM
@@ -58,8 +58,8 @@ EXAMPLES = """
         validate_certs: false
         use_rest: always
 
-    - name: delete s3 user
-      na_ontap_s3_users:
+    - name: Delete s3 user
+      netapp.ontap.na_ontap_s3_users:
         state: absent
         name: carchi8py
         vserver: ansibleSVM

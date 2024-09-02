@@ -63,9 +63,9 @@ EXAMPLES = """
         is_fips_enabled: false
         supported_ciphers:  'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!RC4:!SHA1'
         supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
         https: true
         validate_certs: false
@@ -75,9 +75,9 @@ EXAMPLES = """
         is_fips_enabled: false
         supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
         supported_cipher_suites: ['TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
         https: true
         validate_certs: false

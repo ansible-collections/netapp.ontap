@@ -73,16 +73,14 @@ EXAMPLES = """
 -
   name: Ontap test
   hosts: localhost
-  collections:
-    - netapp.ontap
   tasks:
     - name: Create active directory account.
       netapp.ontap.na_ontap_active_directory:
-        hostname: 10.193.78.219
-        username: admin
-        password: netapp1!
-        https: True
-        validate_certs: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}
+        https: true
+        validate_certs: false
         vserver: laurentncluster-1
         state: present
         account_name: carchi
@@ -92,11 +90,11 @@ EXAMPLES = """
 
     - name: Modify domain name.
       netapp.ontap.na_ontap_active_directory:
-        hostname: 10.193.78.219
-        username: admin
-        password: netapp1!
-        https: True
-        validate_certs: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
+        validate_certs: false
         vserver: laurentncluster-1
         state: present
         account_name: carchi
@@ -107,11 +105,11 @@ EXAMPLES = """
 
     - name: Delete active directory account.
       netapp.ontap.na_ontap_active_directory:
-        hostname: 10.193.78.219
-        username: admin
-        password: netapp1!
-        https: True
-        validate_certs: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
+        validate_certs: false
         vserver: laurentncluster-1
         state: absent
         account_name: carchi

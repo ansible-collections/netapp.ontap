@@ -71,17 +71,17 @@ options:
 EXAMPLES = """
     - name: run ontap cli command
       netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: ['version']
 
     # Same as above, but returns parseable dictonary
     - name: run ontap cli command
       netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: ['node', 'show', '-fields', 'node,health,uptime,model']
         privilege: 'admin'
         return_dict: true
@@ -89,9 +89,9 @@ EXAMPLES = """
     # Same as above, but with lines filtering
     - name: run ontap cli command
       netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: ['node', 'show', '-fields', 'node,health,uptime,model']
         exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node ', or anything else containing 'ode '.
         privilege: 'admin'

@@ -74,7 +74,7 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create adaptive qos policy group
+    - name: Create adaptive qos policy group
       netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
@@ -83,11 +83,11 @@ EXAMPLES = """
         expected_iops: 100IOPS/TB
         peak_iops: 250IOPS/TB
         peak_iops_allocation: allocated_space
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-    - name: modify adaptive qos policy group expected iops
+    - name: Modify adaptive qos policy group expected iops
       netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
@@ -96,11 +96,11 @@ EXAMPLES = """
         expected_iops: 125IOPS/TB
         peak_iops: 250IOPS/TB
         peak_iops_allocation: allocated_space
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-    - name: modify adaptive qos policy group peak iops allocation
+    - name: Modify adaptive qos policy group peak iops allocation
       netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: present
         name: aq_policy_1
@@ -109,18 +109,18 @@ EXAMPLES = """
         expected_iops: 125IOPS/TB
         peak_iops: 250IOPS/TB
         peak_iops_allocation: used_space
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-    - name: delete qos policy group
+    - name: Delete qos policy group
       netapp.ontap.na_ontap_qos_adaptive_policy_group:
         state: absent
         name: aq_policy_1
         vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
 """
 

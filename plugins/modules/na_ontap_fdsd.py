@@ -43,18 +43,18 @@ EXAMPLES = """
         state: present
         name: "ansible_sdl"
         vserver: "svm1"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Delete File Directory Security Descriptor
       netapp.ontap.na_ontap_fdsd:
         state: absent
         vserver: "svm1"
         name: "ansible_sdl"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

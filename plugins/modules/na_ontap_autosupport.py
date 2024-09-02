@@ -137,39 +137,42 @@ options:
 EXAMPLES = """
     - name: Enable autosupport
       netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: present
         node_name: test
         transport: https
         noteto: abc@def.com,def@ghi.com
         mail_hosts: 1.2.3.4,5.6.7.8
-        support: False
+        support: false
         post_url: url/1.0/post
+
     - name: Modify autosupport proxy_url with password
       netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: present
         node_name: test
         transport: https
         proxy_url: username:password@host.com:8000
+
     - name: Modify autosupport proxy_url without password
       netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: present
         node_name: test
         transport: https
         proxy_url: username@host.com:8000
+
     - name: Disable autosupport
       netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: absent
         node_name: test
 """

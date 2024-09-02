@@ -56,7 +56,7 @@ options:
 
 EXAMPLES = """
 - name: Create LUN mapping
-  na_ontap_lun_map:
+  netapp.ontap.na_ontap_lun_map:
     state: present
     initiator_group_name: ansibleIgroup3234
     path: /vol/iscsi_path/iscsi_lun
@@ -66,7 +66,7 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Unmap LUN
-  na_ontap_lun_map:
+  netapp.ontap.na_ontap_lun_map:
     state: absent
     initiator_group_name: ansibleIgroup3234
     path: /vol/iscsi_path/iscsi_lun

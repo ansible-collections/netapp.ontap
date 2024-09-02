@@ -55,8 +55,8 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create or modify s3 service
-      na_ontap_s3_services:
+    - name: Create or modify s3 service
+      netapp.ontap.na_ontap_s3_services:
         state: present
         name: carchi-test
         vserver: ansibleSVM
@@ -70,8 +70,8 @@ EXAMPLES = """
         validate_certs: false
         use_rest: always
 
-    - name: delete s3 service
-      na_ontap_s3_services:
+    - name: Delete s3 service
+      netapp.ontap.na_ontap_s3_services:
         state: absent
         name: carchi-test
         vserver: ansibleSVM

@@ -61,14 +61,14 @@ options:
 
 EXAMPLES = '''
     - name: Send message
-      na_ontap_autosupport_invoke:
+      netapp.ontap.na_ontap_autosupport_invoke:
         name: node1
         autosupport_message: invoked test autosupport rest
         uri: http://1.2.3.4/delivery_uri
         type: test
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

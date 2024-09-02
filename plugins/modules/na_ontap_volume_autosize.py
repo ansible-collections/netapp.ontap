@@ -93,9 +93,9 @@ options:
 EXAMPLES = """
     - name: Modify volume autosize
       netapp.ontap.na_ontap_volume_autosize:
-        hostname: 10.193.79.189
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         volume: ansibleVolumesize12
         mode: grow
         grow_threshold_percent: 99
@@ -107,9 +107,9 @@ EXAMPLES = """
 
     - name: Reset volume autosize
       netapp.ontap.na_ontap_volume_autosize:
-        hostname: 10.193.79.189
-        username: admin
-        password: netapp1!
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         volume: ansibleVolumesize12
         reset: true
         vserver: ansible_vserver

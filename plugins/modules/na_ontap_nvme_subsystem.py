@@ -63,7 +63,6 @@ version_added: 2.8.0
 '''
 
 EXAMPLES = """
-
     - name: Create NVME Subsystem
       netapp.ontap.na_ontap_nvme_subsystem:
         state: present
@@ -93,9 +92,9 @@ EXAMPLES = """
         hosts: nqn.1992-08.com.netapp:sn.3017cfc1e2ba11e89c55005056b36338:subsystem.ansible
         paths: /vol/ansible/test,/vol/ansible/test1
         vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Modify NVME subsystem map
       netapp.ontap.na_ontap_nvme_subsystem:
@@ -108,7 +107,6 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
-
 """
 
 RETURN = """

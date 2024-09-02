@@ -43,7 +43,7 @@ options:
 
 EXAMPLES = """
     - name: Create NTP server
-      na_ontap_ntp:
+      netapp.ontap.na_ontap_ntp:
         state: present
         version: auto
         key_id: 1
@@ -51,8 +51,9 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Delete NTP server
-      na_ontap_ntp:
+      netapp.ontap.na_ontap_ntp:
         state: absent
         server_name: "{{ server_name }}"
         hostname: "{{ netapp_hostname }}"

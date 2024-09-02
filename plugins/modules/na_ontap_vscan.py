@@ -42,16 +42,16 @@ options:
 
 EXAMPLES = """
     - name: Enable Vscan
-      na_ontap_vscan:
-        enable: True
+      netapp.ontap.na_ontap_vscan:
+        enable: true
         username: '{{ netapp_username }}'
         password: '{{ netapp_password }}'
         hostname: '{{ netapp_hostname }}'
         vserver: trident_svm
 
     - name: Disable Vscan
-      na_ontap_vscan:
-        enable: False
+      netapp.ontap.na_ontap_vscan:
+        enable: false
         username: '{{ netapp_username }}'
         password: '{{ netapp_password }}'
         hostname: '{{ netapp_hostname }}'

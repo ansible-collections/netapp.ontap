@@ -73,51 +73,42 @@ options:
 '''
 
 EXAMPLES = '''
-
     - name: broadcast domain remove port
-      tags:
-      - remove
       netapp.ontap.na_ontap_ports:
         state: absent
         names: test-vsim1:e0d-1,test-vsim1:e0d-2
         resource_type: broadcast_domain
         resource_name: ansible_domain
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
 
     - name: broadcast domain add port
-      tags:
-      - add
       netapp.ontap.na_ontap_ports:
         state: present
         names: test-vsim1:e0d-1,test-vsim1:e0d-2
         resource_type: broadcast_domain
         resource_name: ansible_domain
         ipspace: Default
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
 
     - name: portset remove port
-      tags:
-      - remove
       netapp.ontap.na_ontap_ports:
         state: absent
         names: lif_2
         resource_type: portset
         resource_name: portset_1
         vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
 
     - name: portset add port
-      tags:
-      - add
       netapp.ontap.na_ontap_ports:
         state: present
         names: lif_2
@@ -125,11 +116,10 @@ EXAMPLES = '''
         resource_name: portset_1
         portset_type: iscsi
         vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
-
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
 '''
 
 RETURN = '''

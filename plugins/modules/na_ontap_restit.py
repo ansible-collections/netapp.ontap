@@ -89,8 +89,6 @@ EXAMPLES = """
   name: Ontap REST API
   hosts: localhost
   gather_facts: False
-  collections:
-    - netapp.ontap
   vars:
     login: &login
       hostname: "{{ admin_ip }}"
@@ -107,7 +105,7 @@ EXAMPLES = """
 
   tasks:
     - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: cluster/software
       register: result
@@ -115,7 +113,7 @@ EXAMPLES = """
     - assert: { that: result.status_code==200, quiet: True }
 
     - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: cluster/software
         query:
@@ -125,7 +123,7 @@ EXAMPLES = """
     - assert: { that: result.status_code==200, quiet: True }
 
     - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
       register: result
@@ -133,7 +131,7 @@ EXAMPLES = """
     - assert: { that: result.status_code==200, quiet: True }
 
     - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
         query:
@@ -145,7 +143,7 @@ EXAMPLES = """
     - debug: var=result
 
     - name: run ontap REST API command as vsadmin
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *svm_login
         api: svm/svms
       register: result
@@ -153,7 +151,7 @@ EXAMPLES = """
     - assert: { that: result.status_code==200, quiet: True }
 
     - name: run ontap REST API command as vserver tunneling
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         vserver_name: ansibleSVM
@@ -167,7 +165,7 @@ EXAMPLES = """
     - debug: var=uuid
 
     - name: run ontap REST API command as DELETE method with vserver tunneling
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: "storage/volumes/{{ uuid[0] }}"
         method: DELETE
@@ -180,7 +178,7 @@ EXAMPLES = """
     - assert: { that: result.skipped|default(false) or result.status_code|default(404) == 200, quiet: True }
 
     - name: run ontap REST API command as POST method with vserver tunneling
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         method: POST
@@ -198,7 +196,7 @@ EXAMPLES = """
 
     - name: run ontap REST API command as DELETE method with vserver tunneling
       # delete test volume if present
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: "storage/volumes/{{ result.response.records[0].uuid }}"
         method: DELETE
@@ -211,14 +209,14 @@ EXAMPLES = """
 
     - name: create a file
       # assuming credentials are set using module_defaults
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
         method: post
         files: {'data': 'some data'}
 
     - name: read a file
       # assuming credentials are set using module_defaults
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
         method: get
         accept_header: "multipart/form-data"
@@ -227,7 +225,7 @@ EXAMPLES = """
 
 # error cases
     - name: run ontap REST API command
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: unknown/endpoint
       register: result

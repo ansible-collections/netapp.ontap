@@ -63,6 +63,7 @@ EXAMPLES = """
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
+
     - name: Modify CIFS share acl permission
       netapp.ontap.na_ontap_cifs_acl:
         state: present
