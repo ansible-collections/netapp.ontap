@@ -63,32 +63,32 @@ options:
 
 EXAMPLES = """
     - name: Create quota policy
-      na_ontap_quota_policy:
+      netapp.ontap.na_ontap_quota_policy:
         state: present
         vserver: SVM1
         name: ansible_policy
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Rename quota policy
-      na_ontap_quota_policy:
+      netapp.ontap.na_ontap_quota_policy:
         state: present
         vserver: SVM1
         name: new_ansible
         from_name: ansible
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Delete quota policy
-      na_ontap_quota_policy:
+      netapp.ontap.na_ontap_quota_policy:
         state: absent
         vserver: SVM1
         name: ansible_policy
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

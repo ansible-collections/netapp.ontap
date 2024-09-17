@@ -68,7 +68,7 @@ version_added: 2.8.0
 
 EXAMPLES = """
     - name: Create UNIX group
-      na_ontap_unix_group:
+      netapp.ontap.na_ontap_unix_group:
         state: present
         name: SampleGroup
         vserver: ansibleVServer
@@ -79,7 +79,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete all users in UNIX group
-      na_ontap_unix_group:
+      netapp.ontap.na_ontap_unix_group:
         state: present
         name: SampleGroup
         vserver: ansibleVServer
@@ -89,7 +89,7 @@ EXAMPLES = """
         password: "{{ netapp_password }}"
 
     - name: Delete UNIX group
-      na_ontap_unix_group:
+      netapp.ontap.na_ontap_unix_group:
         state: absent
         name: SampleGroup
         vserver: ansibleVServer

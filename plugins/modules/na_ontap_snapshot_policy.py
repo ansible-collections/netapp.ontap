@@ -93,7 +93,7 @@ options:
 '''
 EXAMPLES = """
     - name: Create Snapshot policy
-      na_ontap_snapshot_policy:
+      netapp.ontap.na_ontap_snapshot_policy:
         state: present
         name: ansible2
         schedule: hourly
@@ -106,7 +106,7 @@ EXAMPLES = """
         https: False
 
     - name: Create Snapshot policy with multiple schedules
-      na_ontap_snapshot_policy:
+      netapp.ontap.na_ontap_snapshot_policy:
         state: present
         name: ansible2
         schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
@@ -119,7 +119,7 @@ EXAMPLES = """
         https: False
 
     - name: Create Snapshot policy owned by a vserver
-      na_ontap_snapshot_policy:
+      netapp.ontap.na_ontap_snapshot_policy:
         state: present
         name: ansible3
         vserver: ansible
@@ -134,7 +134,7 @@ EXAMPLES = """
         https: False
 
     - name: Modify Snapshot policy with multiple schedules
-      na_ontap_snapshot_policy:
+      netapp.ontap.na_ontap_snapshot_policy:
         state: present
         name: ansible2
         schedule: ['daily', 'weekly']
@@ -147,7 +147,7 @@ EXAMPLES = """
         https: False
 
     - name: Delete Snapshot policy
-      na_ontap_snapshot_policy:
+      netapp.ontap.na_ontap_snapshot_policy:
         state: absent
         name: ansible2
         username: "{{ netapp_username }}"

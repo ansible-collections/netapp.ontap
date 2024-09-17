@@ -139,12 +139,16 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: modify ndmp
-      na_ontap_ndmp:
+    - name: Modify ndmp
+      netapp.ontap.na_ontap_ndmp:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         vserver: ansible
-        hostname: "{{ hostname }}"
         abort_on_disk_error: true
-        authtype: plaintext,challenge
+        authtype:
+          - plaintext
+          - challenge
         backup_log_enable: true
         data_port_range: 8000-9000
         debug_enable: true
@@ -158,14 +162,14 @@ EXAMPLES = '''
         is_secure_control_connection_enabled: true
         offset_map_enable: true
         per_qtree_exclude_enable: true
-        preferred_interface_role: node_mgmt,intercluster
+        preferred_interface_role:
+          - node_mgmt
+          - intercluster
         restore_vm_cache_size: 1000
         secondary_debug_filter: filter
         tcpnodelay: true
         tcpwinsize: 10000
-        username: user
-        password: pass
-        https: False
+        https: true
 '''
 
 RETURN = '''

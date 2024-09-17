@@ -45,8 +45,8 @@ options:
 '''
 
 EXAMPLES = """
-- name: modify node
-  na_ontap_node:
+- name: Modify node
+  netapp.ontap.na_ontap_node:
     name: laurentncluster-2
     location: SF1
     asset_tag: mytag
@@ -54,16 +54,16 @@ EXAMPLES = """
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
-- name: rename node
-  na_ontap_node:
+- name: Rename node
+  netapp.ontap.na_ontap_node:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     from_name: laurentn-vsim1
     name: laurentncluster-2
 
-- name: modify and rename node
-  na_ontap_node:
+- name: Modify and rename node
+  netapp.ontap.na_ontap_node:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
