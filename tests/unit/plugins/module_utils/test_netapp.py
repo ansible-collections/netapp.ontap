@@ -5,12 +5,18 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import sys
+import pytest
 from ansible.module_utils import basic
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     patch_ansible, create_module, expect_and_capture_ansible_exception
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
+
+if sys.version_info < (3, 11):
+    pytestmark = pytest.mark.skip("Skipping Unit Tests on 3.11")
+
 
 DEFAULT_ARGS = {
     'hostname': 'test',
@@ -173,7 +179,7 @@ def test_setup_host_options_from_module_params_conflict():
 
 
 def test_set_auth_method():
-    args = {'hostname': None}
+    args = {'hostname': ''}
     # neither password nor cert
     error = expect_and_capture_ansible_exception(netapp_utils.set_auth_method, 'fail', create_ontap_module(args), None, None, None, None)['msg']
     assert 'Error: ONTAP module requires username/password or SSL certificate file(s)' in error

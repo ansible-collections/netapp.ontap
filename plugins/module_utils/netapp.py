@@ -248,6 +248,7 @@ def create_sf_connection(module, port=None, host_options=None):
 
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
     error = None
+    auth_method = None
     if password is None and username is None:
         if cert_filepath is None:
             error = ('Error: cannot have a key file without a cert file' if key_filepath is not None
@@ -881,7 +882,7 @@ class OntapRestAPI(object):
         retry = 3
         while retry > 0:
             dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
-            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+            if error and isinstance(error, dict) and 'temporarily locked' in error.get('message', ''):
                 time.sleep(30)
                 retry = retry - 1
                 continue
@@ -893,7 +894,7 @@ class OntapRestAPI(object):
         retry = 3
         while retry > 0:
             dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
-            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+            if error and isinstance(error, dict) and 'temporarily locked' in error.get('message', ''):
                 time.sleep(30)
                 retry = retry - 1
                 continue

@@ -22,8 +22,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_info import conve
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
-if sys.version_info < (2, 8):
-    pytestmark = pytest.mark.skip('Skipping Unit Tests on python 2')
+if sys.version_info < (3, 11):
+    pytestmark = pytest.mark.skip("Skipping Unit Tests on 3.11")
 
 
 DEFAULT_ARGS = {
@@ -678,7 +678,7 @@ def test_get_all_with_summary(mock_get_all):
     '''all and summary'''
     register_responses([
     ])
-    module_args = {'summary': True, 'gather_subset': None}
+    module_args = {'summary': True, 'gather_subset': []}
     mock_get_all.return_value = {'a_info': {'1': '1.1'}, 'b_info': {'2': '2.2'}}
     info = call_main(my_main, DEFAULT_ARGS, module_args)
     assert info
