@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.13.0
+
+### Bug Fixes
+  - na_ontap_snapshot_policy - fix issue with 'retention_period' in REST.
+
 ## 22.12.0
 
 ### Minor Changes
