@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -79,6 +79,7 @@ SRR = rest_responses({
                                     "iscsi": {"enabled": True, "allowed": True},
                                     "fcp": {"enabled": False},
                                     "nvme": {"enabled": False},
+                                    "s3": {"allowed": True, "enabled": False},
                                     "language": "de.utf_8",
                                     "uuid": "svm_uuid"
                                     }]}, None),
@@ -585,9 +586,11 @@ def test_rest_successful_get():
     assert not current['services']['cifs']['enabled']
     current = my_obj.get_vserver()
     print(current)
+    assert not current['services']['s3']['enabled']
     assert not current['services']['nfs']['enabled']
     assert current['services']['cifs']['allowed']
     assert current['services']['iscsi']['allowed']
+    assert current['services']['s3']['allowed']
 
 
 def test_rest_successfully_create_ignore_zapi_option():
@@ -611,7 +614,7 @@ def test_rest_successfully_create_with_service():
         ('POST', 'svm/svms', SRR['success']),
     ])
     module_args = {
-        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
+        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}, 's3': {'allowed': True}}
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -625,7 +628,7 @@ def test_rest_successfully_modify_with_service():
     ])
     module_args = {
         'admin_state': 'stopped',
-        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}}
+        'services': {'nfs': {'allowed': True, 'enabled': True}, 'fcp': {'allowed': True, 'enabled': True}, 's3': {'allowed': True}}
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -751,8 +754,8 @@ def test_rest_negative_modify_error_2():
         'services': {'nfs': {'allowed': True, 'enabled': True}}
     }
     my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
-    modify = {'enabled_protocols': ['nfs', 'fcp'], 'name': 'new_name', 'language': 'klingon'}
-    current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme'], 'uuid': 'uuid'}
+    modify = {'enabled_protocols': ['nfs', 'fcp', 's3'], 'name': 'new_name', 'language': 'klingon'}
+    current = {'enabled_protocols': ['nfs'], 'disabled_protocols': ['fcp', 'iscsi', 'nvme', 's3'], 'uuid': 'uuid'}
     error = expect_and_capture_ansible_exception(my_obj.modify_vserver, 'fail', modify, current)['msg']
     assert error == 'Error in modify: calling: svm/svms/uuid: got Expected error.'
 
@@ -780,6 +783,20 @@ def test_rest_successfully_add_protocols_on_create():
     module_args = {
         'admin_state': 'running',
         'services': {'nfs': {'allowed': True, 'enabled': True}}
+    }
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_successfully_add_s3_protocols_on_create():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'svm/svms', SRR['zero_records']),
+        ('POST', 'svm/svms', SRR['success']),
+        ('PATCH', 'private/cli/vserver/add-protocols', SRR['success']),
+    ])
+    module_args = {
+        'admin_state': 'running',
+        'services': {'s3': {'allowed': True}}
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -1169,7 +1186,7 @@ def test_rest_cli_add_remove_protocols_create():
         ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success']),
     ])
     module_args = {
-        'allowed_protocols': 'nfs,cifs',
+        'allowed_protocols': 'nfs,cifs,s3',
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -1182,7 +1199,7 @@ def test_error_rest_cli_add_protocols_create():
         ('PATCH', 'private/cli/vserver/add-protocols', SRR['generic_error']),
     ])
     module_args = {
-        'allowed_protocols': 'nfs,cifs',
+        'allowed_protocols': 'nfs,cifs,s3',
     }
     msg = 'Error adding protocols: calling: private/cli/vserver/add-protocols: got Expected error. - None'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
@@ -1196,7 +1213,7 @@ def test_rest_cli_remove_protocols_modify():
         ('PATCH', 'private/cli/vserver/remove-protocols', SRR['success']),
     ])
     module_args = {
-        'allowed_protocols': 'nfs,cifs',
+        'allowed_protocols': 'nfs,cifs,s3',
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -1209,7 +1226,7 @@ def test_error_rest_cli_remove_protocols_modify():
         ('PATCH', 'private/cli/vserver/remove-protocols', SRR['generic_error']),
     ])
     module_args = {
-        'allowed_protocols': 'nfs,cifs',
+        'allowed_protocols': 'nfs,cifs,s3',
     }
     msg = 'Error removing protocols: calling: private/cli/vserver/remove-protocols: got Expected error. - None'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg

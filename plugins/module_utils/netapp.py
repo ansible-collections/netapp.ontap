@@ -204,7 +204,7 @@ def get_feature(module, feature_name):
         always_wrap_zapi=True,                  # for better error reporting
         flexcache_delete_return_timeout=5,      # ONTAP bug if too big?
         # for SVM, whch protocols can be allowed
-        svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp'],
+        svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 's3'],
         svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
         max_files_change_threshold=1,           # percentage of increase/decrease required to trigger a modify action
         warn_or_fail_on_fabricpool_backend_change='fail',
