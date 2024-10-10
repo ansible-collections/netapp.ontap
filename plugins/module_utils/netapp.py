@@ -1035,8 +1035,11 @@ class OntapRestAPI(object):
         if self.use_rest == 'never':
             # force ZAPI if requested
             return False, None
-        # don't send a new request if we already know the version
-        status_code = self.get_ontap_version_using_rest() if self.get_ontap_version() == (-1, -1, -1) else 200
+        # Check if ONTAP version is already known
+        if self.ontap_version['valid']:
+            status_code = 200
+        else:
+            status_code = self.get_ontap_version_using_rest()
         if self.use_rest == "always" and partially_supported_rest_properties:
             # If a variable is on a list we need to move it to a dict for this check to work correctly.
             temp_parameters = parameters.copy()
