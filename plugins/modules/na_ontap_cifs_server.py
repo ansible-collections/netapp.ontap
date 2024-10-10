@@ -42,6 +42,14 @@ options:
     aliases: ['cifs_server_name']
     type: str
 
+  comment:
+    description:
+      - A descriptive text comment for the CIFS server.
+      - SMB clients can see the CIFS server comment when browsing servers on the network.
+      - Only supported with REST.
+    type: str
+    version_added: 22.13.0
+
   admin_user_name:
     description:
       - Specifies the cifs server admin username.
@@ -314,6 +322,7 @@ class NetAppOntapcifsServer:
             default_site=dict(required=False, type='str'),
             force=dict(required=False, type='bool'),
             vserver=dict(required=True, type='str'),
+            comment=dict(required=False, type='str'),
             from_name=dict(required=False, type='str'),
             smb_signing=dict(required=False, type='bool'),
             encrypt_dc_connection=dict(required=False, type='bool'),
@@ -350,7 +359,7 @@ class NetAppOntapcifsServer:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
-            unsupported_zapi_properties = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
+            unsupported_zapi_properties = ['comment', 'smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
                                            'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site', 'is_multichannel_enabled']
             used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
@@ -479,6 +488,7 @@ class NetAppOntapcifsServer:
         query = {'svm.name': self.parameters['vserver'],
                  'fields': 'svm.uuid,'
                            'enabled,'
+                           'comment,'
                            'security.smb_encryption,'
                            'security.kdc_encryption,'
                            'security.smb_signing,'
@@ -524,6 +534,7 @@ class NetAppOntapcifsServer:
                 'use_start_tls': self.na_helper.safe_get(record, ['security', 'use_start_tls']),
                 'restrict_anonymous': self.na_helper.safe_get(record, ['security', 'restrict_anonymous']),
                 'is_multichannel_enabled': self.na_helper.safe_get(record, ['options', 'multichannel']),
+                'comment': self.na_helper.safe_get(record, ['comment']),
             }
         return record
 
@@ -575,6 +586,8 @@ class NetAppOntapcifsServer:
             body['name'] = self.parameters['cifs_server_name']
         if 'service_state' in params:
             body['enabled'] = params['service_state'] == 'started'
+        if 'comment' in params:
+            body['comment'] = params['comment']
         return body, query
 
     def create_cifs_server_rest(self):

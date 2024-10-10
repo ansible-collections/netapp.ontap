@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Change
   - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
   - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
+  - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
 
 ## 22.12.0
 

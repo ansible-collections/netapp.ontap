@@ -54,7 +54,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs_server_name"
+                    "name": "cifs_server_name",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -90,7 +91,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs_server_name"
+                    "name": "cifs_server_name",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -123,7 +125,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs"
+                    "name": "cifs",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -357,7 +360,7 @@ ARGS_REST = {
     'password': 'test_pass!',
     'use_rest': 'always',
     'vserver': 'test_vserver',
-    'name': 'cifs_server_name',
+    'name': 'cifs_server_name'
 }
 
 
@@ -449,6 +452,19 @@ def test_rest_successful_create_with_ou():
     ])
     module_args = {
         'ou': 'ou'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_create_with_comment():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': 'This is my cifs server'
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
@@ -650,6 +666,19 @@ def test_rest_successful_security_modify():
         'smb_signing': True,
         'kdc_encryption': True,
         'restrict_anonymous': "no_enumeration"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_comment_modify():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': "This is my demo cifs server"
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
