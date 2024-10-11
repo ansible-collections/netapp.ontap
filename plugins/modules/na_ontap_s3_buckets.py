@@ -74,6 +74,15 @@ options:
     type: str
     version_added: 22.7.0
 
+  versioning_state:
+    description:
+      - Specifies the versioning state of the bucket. Valid values are "disabled", "enabled" or "suspended".
+      - The versioning state cannot be modified to 'disabled' from any other state.
+    type: str
+    choices: ['disabled', 'enabled', 'suspended']
+    default: 'disabled'
+    version_added: 22.13.0
+
   policy:
     description:
       - Access policy uses the Amazon Web Services (AWS) policy language syntax to allow S3 tenants to create access policies to their data
@@ -225,6 +234,7 @@ EXAMPLES = """
         name: carchi-test-bucket
         comment: carchi8py was here
         size: 838860800
+        versioning_state: enabled
         vserver: ansibleSVM
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -312,6 +322,7 @@ class NetAppOntapS3Buckets:
             comment=dict(required=False, type='str'),
             type=dict(required=False, type='str', choices=['s3', 'nas']),
             nas_path=dict(required=False, type='str'),
+            versioning_state=dict(required=False, type='str', choices=['disabled', 'enabled', 'suspended'], default='disabled'),
             policy=dict(type='dict', options=dict(
                 statements=dict(type='list', elements='dict', options=dict(
                     sid=dict(required=False, type='str'),
@@ -396,7 +407,9 @@ class NetAppOntapS3Buckets:
         api = 'protocols/s3/buckets'
         fields = 'name,svm.name,size,comment,volume.uuid,policy,policy.statements,qos_policy'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
-            fields += ',audit_event_selector,type,nas_path'
+            fields += ',audit_event_selector,type,nas_path,versioning_state'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            fields += ',audit_event_selector,versioning_state'
         elif self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             fields += ',audit_event_selector'
         params = {'name': self.parameters['name'],
@@ -417,7 +430,8 @@ class NetAppOntapS3Buckets:
             'qos_policy': self.na_helper.safe_get(record, ['qos_policy']),
             'audit_event_selector': self.na_helper.safe_get(record, ['audit_event_selector']),
             'type': self.na_helper.safe_get(record, ['type']),
-            'nas_path': self.na_helper.safe_get(record, ['nas_path'])
+            'nas_path': self.na_helper.safe_get(record, ['nas_path']),
+            'versioning_state': self.na_helper.safe_get(record, ['versioning_state'])
         }
         if body['policy']:
             for policy_statement in body['policy'].get('statements', []):
@@ -478,7 +492,7 @@ class NetAppOntapS3Buckets:
         if params is None:
             params = self.parameters
         body = {}
-        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy']
+        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy', 'versioning_state']
         for option in options:
             if option in params:
                 body[option] = params[option]
@@ -557,6 +571,9 @@ class NetAppOntapS3Buckets:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if modify.get('type'):
                 self.module.fail_json(msg='Error: cannot modify bucket type.')
+            if modify.get('versioning_state') == 'disabled':
+                if current.get('versioning_state') in ('enabled', 'suspended'):
+                    self.module.fail_json(msg='Error: cannot disable bucket versioning once it has been enabled')
             if len(modify) == 1 and 'policy' in modify and current.get('policy'):
                 if modify['policy'].get('statements'):
                     self.na_helper.changed = self.validate_modify_required(modify, current)
