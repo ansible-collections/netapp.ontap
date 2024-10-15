@@ -61,7 +61,7 @@ options:
   aggregate_name:
     description:
       - The name of the aggregate the flexvol should exist on.
-      - Cannot be set when using the na_application_template option.
+      - Cannot be set when using the nas_application_template option.
     type: str
 
   tags:
@@ -471,27 +471,40 @@ options:
   snapshot_auto_delete:
     description:
       - A dictionary for the auto delete options and values.
-      - Supported options include 'state', 'commitment', 'trigger', 'target_free_space', 'delete_order', 'defer_delete',
-        'prefix', 'destroy_list'.
       - All the above mentioned options except 'destroy_list' are supported in REST for ONTAP 9.13.1 or later with ONTAP collection version 22.8.0 or later.
-      - Option 'state' determines if the snapshot autodelete is currently enabled for the volume. Possible values are 'on' and 'off'.
-      - Option 'commitment' determines the snapshots which snapshot autodelete is allowed to delete to get back space.
-        Possible values are 'try', 'disrupt' and 'destroy'.
-      - Option 'trigger' determines the condition which starts the automatic deletion of snapshots.
-        Possible values are 'volume', 'snap_reserve' and DEPRECATED 'space_reserve'.
-      - Option 'target_free_space' determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger,
-        snapshots are deleted till we reach the target free space percentage. Accepts int type.
-      - Option 'delete_order' determines if the oldest or newest snapshot is deleted first. Possible values are 'newest_first' and 'oldest_first'.
-      - Option 'defer_delete' determines which kind of snapshots to delete in the end. Possible values are 'scheduled', 'user_created',
-        'prefix' and 'none'.
-      - Option 'prefix' can be set to provide the prefix string for the 'prefix' value of the 'defer_delete' option.
-        The prefix string length can be 15 char long.
-      - Option 'destroy_list' is a comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.
-        For 7-mode, the possible values for this option are a combination of 'lun_clone', 'vol_clone', 'cifs_share', 'file_clone' or 'none'.
-        For cluster-mode, the possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
-        'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
     type: dict
     version_added: '20.4.0'
+    suboptions:
+      state:
+        description: Determines if the snapshot autodelete is currently enabled for the volume.
+        type: str
+        choices: [on, off]
+      commitment:
+        description: Determines the snapshots which snapshot autodelete is allowed to delete to get back space.
+        type: str
+        choices: [try, disrupt, destroy]
+      trigger:
+        description: Determines the condition which starts the automatic deletion of snapshots. Note: space_reserve option is deprecated as may be removed in the future.
+        type: str
+        choices: [volume, snap_reserve, space_reserve]
+      target_free_space:
+        description: Determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger, snapshots are deleted until the target free space percentage is reached.
+        type: int
+      delete_order:
+        description: Determines if the oldest or newest snapshot is deleted first.
+        type str
+        choices: [newest_first, oldest_first]
+      defer_delete:
+        description: Determines what kind of snapshot to delete in the end.
+        type: str
+        choices: [scheduled, user_created, prefix, none]
+      prefix:
+        description: Can be set to provide the prefix string for the 'prefix' value of the defer_delete' option. The prefix string can be 15 characters long.
+        type: str
+      destroy_list:
+        description: A comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.  
+                     The possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
+                     'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
 
   cutover_action:
     description:
