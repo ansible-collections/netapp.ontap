@@ -70,10 +70,6 @@ notes:
   - supports ZAPI and REST. REST requires ONTAP 9.12.1 or later.
 '''
 EXAMPLES = """
--
-  name: Ontap test
-  hosts: localhost
-  tasks:
     - name: Create active directory account.
       netapp.ontap.na_ontap_active_directory:
         hostname: "{{ netapp_hostname }}"

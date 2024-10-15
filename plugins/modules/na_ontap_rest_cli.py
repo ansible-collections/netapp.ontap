@@ -16,7 +16,6 @@ description:
   - Run CLI commands on ONTAP through REST api/private/cli/.
   - This module can run as admin or vsdamin and requires HTTP application to be enabled.
   - Access permissions can be customized using ONTAP rest-role.
-  - For further information about the private CLI passthrough, see: https://docs.netapp.com/us-en/ontap-restapi/ontap/swagger-ui/index.html
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap
 module: na_ontap_rest_cli
