@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -95,6 +95,7 @@ options:
       - fcp   FCP protocol,
       - iscsi iSCSI protocol,
       - ndmp  NDMP protocol,
+      - s3  S3 protocol,
       - http  HTTP protocol - ZAPI only,
       - nvme  NVMe protocol
     type: list
@@ -105,6 +106,7 @@ options:
       - Enabled Protocols, only available with REST.
       - The service will be started if needed.  A valid license may be required.
       - C(enabled) is not supported for CIFS, to enable it use na_ontap_cifs_server.
+      - C(enabled) is not supported for s3, to enable it use na_ontap_s3_services.
       - If a service is not present, it is left unchanged.
     type: dict
     version_added: 21.10.0
@@ -173,6 +175,16 @@ options:
               - Requires ONTAP 9.10.1 or later.
             type: bool
         version_added: 21.24.0
+      s3:
+        description:
+          - s3 service
+        type: dict
+        suboptions:
+          allowed:
+            description:
+              - If true, an SVM administrator can manage the s3 service. If false, only the cluster administrator can manage the service.
+              - Requires ONTAP 9.7.0 or later.
+            type: bool
   aggr_list:
     description:
       - List of aggregates assigned for volume operations.
@@ -322,6 +334,8 @@ EXAMPLES = """
           nfs:
             allowed: true
             enabled: true
+          s3:
+            allowed: true
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -387,6 +401,7 @@ class NetAppOntapSVM():
                 nfs=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 nvme=dict(type='dict', options=dict(allowed=dict(type='bool'), enabled=dict(type='bool'))),
                 ndmp=dict(type='dict', options=dict(allowed=dict(type='bool'))),
+                s3=dict(type='dict', options=dict(allowed=dict(type='bool')))
             )),
             web=dict(type='dict', options=dict(
                 certificate=dict(type='str'),
@@ -472,6 +487,8 @@ class NetAppOntapSVM():
         if use_rest and self.parameters.get('services') and not self.parameters.get('allowed_protocols'):
             if self.parameters['services'].get('ndmp') and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 10, 1):
                 self.module.fail_json(msg=self.rest_api.options_require_ontap_version('ndmp', '9.10.1', use_rest=use_rest))
+            if self.parameters['services'].get('s3') and not self.rest_api.meets_rest_minimum_version(use_rest, 9, 7, 0):
+                self.module.fail_json(msg=self.rest_api.options_require_ontap_version('s3', '9.7.0', use_rest=use_rest))
         if self.parameters.get('services') and not use_rest:
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('services', use_rest=use_rest))
         if self.parameters.get('web'):
@@ -585,7 +602,7 @@ class NetAppOntapSVM():
             vserver_name = self.parameters['name']
 
         if self.use_rest:
-            fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme,state'
+            fields = 'subtype,aggregates,language,snapshot_policy,ipspace,comment,nfs,cifs,fcp,iscsi,nvme,state,s3'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
                 fields += ',max_volumes'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0) and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
@@ -594,6 +611,8 @@ class NetAppOntapSVM():
                 fields += ',certificate'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
                 fields += ',ndmp'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
+                fields += ',s3'
 
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:

@@ -34,16 +34,6 @@ https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 # Need help
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
-* Join the Ansible forum:
-  * [Get Help](https://forum.ansible.com/c/help/6): get help or help others.
-  * [Posts tagged with 'netapp'](https://forum.ansible.com/tag/netapp): subscribe to participate in collection-related conversations.
-  * [Social Spaces](https://forum.ansible.com/c/chat/4): gather and interact with fellow enthusiasts.
-  * [News & Announcements](https://forum.ansible.com/c/news/5): track project-wide announcements including social events.
-
-* The Ansible [Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn): used to announce releases and important changes.
-
-For more information about communication, see the [Ansible communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
-
 # Deprecation warning
 The ONTAP 9.12.1 release will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
 This change will effect the modules listed below.
@@ -75,7 +65,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ## 22.13.0
 
 ### Bug Fixes
+  - na_ontap_snapshot_policy - fix issue with 'retention_period' in REST.
+  - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
   - na_ontap_active_directory - Return error message when attempting to modify `account_name` parameter.
+
+### Minor Change
+  - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
+  - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
+  - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
 
 ## 22.12.0
 
