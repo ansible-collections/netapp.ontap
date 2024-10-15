@@ -66,7 +66,7 @@ SRR = rest_responses({
                 "permitted_encryption_types": ["des3"],
                 "rpcsec_context_idle": 5
             },
-            "windows":{
+            "windows": {
                 "v3_ms_dos_client_enabled": False,
                 "map_unknown_uid_to_default_user": True,
                 "default_user": "test_user"

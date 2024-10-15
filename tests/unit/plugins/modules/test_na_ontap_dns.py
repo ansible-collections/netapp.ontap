@@ -14,7 +14,7 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_error_message, rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_error, build_zapi_response, zapi_error_message, zapi_responses
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import call_main, create_module, expect_and_capture_ansible_exception, \
     patch_ansible, assert_warning_was_raised, print_warnings
 
 

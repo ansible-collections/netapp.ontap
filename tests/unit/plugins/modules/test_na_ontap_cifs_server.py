@@ -9,7 +9,7 @@ import pytest
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
     patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, AnsibleFailJson
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses, get_mock_record
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
@@ -54,7 +54,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs_server_name"
+                    "name": "cifs_server_name",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -90,7 +91,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs_server_name"
+                    "name": "cifs_server_name",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -123,7 +125,8 @@ SRR = rest_responses({
                     "target": {
                         "name": "20:05:00:50:56:b3:0c:fa"
                     },
-                    "name": "cifs"
+                    "name": "cifs",
+                    "comment": "This is my cifs server"
                 }
             ],
             "num_records": 1
@@ -357,7 +360,7 @@ ARGS_REST = {
     'password': 'test_pass!',
     'use_rest': 'always',
     'vserver': 'test_vserver',
-    'name': 'cifs_server_name',
+    'name': 'cifs_server_name'
 }
 
 
@@ -449,6 +452,19 @@ def test_rest_successful_create_with_ou():
     ])
     module_args = {
         'ou': 'ou'
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_create_with_comment():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['empty_records']),
+        ('POST', 'protocols/cifs/services', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': 'This is my cifs server'
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 
@@ -650,6 +666,19 @@ def test_rest_successful_security_modify():
         'smb_signing': True,
         'kdc_encryption': True,
         'restrict_anonymous': "no_enumeration"
+    }
+    assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_rest_successful_comment_modify():
+    '''Test successful rest enable'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'protocols/cifs/services', SRR['cifs_record_disabled']),
+        ('PATCH', 'protocols/cifs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['empty_good']),
+    ])
+    module_args = {
+        'comment': "This is my demo cifs server"
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)['changed']
 

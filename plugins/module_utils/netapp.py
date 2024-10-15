@@ -48,7 +48,7 @@ try:
 except ImportError:
     ANSIBLE_VERSION = 'unknown'
 
-COLLECTION_VERSION = "22.12.0"
+COLLECTION_VERSION = "22.13.0"
 CLIENT_APP_VERSION = "%s/%s" % ("%s", COLLECTION_VERSION)
 IMPORT_EXCEPTION = None
 
@@ -204,7 +204,7 @@ def get_feature(module, feature_name):
         always_wrap_zapi=True,                  # for better error reporting
         flexcache_delete_return_timeout=5,      # ONTAP bug if too big?
         # for SVM, whch protocols can be allowed
-        svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp'],
+        svm_allowable_protocols_rest=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 's3'],
         svm_allowable_protocols_zapi=['cifs', 'fcp', 'iscsi', 'nvme', 'nfs', 'ndmp', 'http'],
         max_files_change_threshold=1,           # percentage of increase/decrease required to trigger a modify action
         warn_or_fail_on_fabricpool_backend_change='fail',
@@ -248,6 +248,7 @@ def create_sf_connection(module, port=None, host_options=None):
 
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
     error = None
+    auth_method = None
     if password is None and username is None:
         if cert_filepath is None:
             error = ('Error: cannot have a key file without a cert file' if key_filepath is not None
@@ -881,7 +882,7 @@ class OntapRestAPI(object):
         retry = 3
         while retry > 0:
             dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
-            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+            if error and isinstance(error, dict) and 'temporarily locked' in error.get('message', ''):
                 time.sleep(30)
                 retry = retry - 1
                 continue
@@ -893,7 +894,7 @@ class OntapRestAPI(object):
         retry = 3
         while retry > 0:
             dummy, message, error = self.send_request(method, api, params, json=body, headers=headers, files=files)
-            if error and type(error) is dict and 'temporarily locked' in error.get('message', ''):
+            if error and isinstance(error, dict) and 'temporarily locked' in error.get('message', ''):
                 time.sleep(30)
                 retry = retry - 1
                 continue
@@ -1034,8 +1035,11 @@ class OntapRestAPI(object):
         if self.use_rest == 'never':
             # force ZAPI if requested
             return False, None
-        # don't send a new request if we already know the version
-        status_code = self.get_ontap_version_using_rest() if self.get_ontap_version() == (-1, -1, -1) else 200
+        # Check if ONTAP version is already known
+        if self.ontap_version['valid']:
+            status_code = 200
+        else:
+            status_code = self.get_ontap_version_using_rest()
         if self.use_rest == "always" and partially_supported_rest_properties:
             # If a variable is on a list we need to move it to a dict for this check to work correctly.
             temp_parameters = parameters.copy()

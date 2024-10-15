@@ -337,15 +337,6 @@ EXAMPLES = '''
       - storage/aggregates
       - storage/volumes
 
-- name: run ONTAP gather facts for all subsets
-  netapp.ontap.na_ontap_rest_info:
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
-    validate_certs: false
-    gather_subset:
-      - all
-
 - name: run ONTAP gather facts for aggregate info and volume info with fields section
   netapp.ontap.na_ontap_rest_info:
     hostname: "{{ netapp_hostname }}"

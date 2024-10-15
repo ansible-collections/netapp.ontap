@@ -1,0 +1,4 @@
+plugins/modules/na_ontap_autosupport_invoke.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_login_messages.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_motd.py validate-modules:invalid-argument-name
+plugins/modules/na_ontap_nfs.py validate-modules:parameter-invalid

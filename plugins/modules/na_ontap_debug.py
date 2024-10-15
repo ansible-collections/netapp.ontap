@@ -93,6 +93,7 @@ class NetAppONTAPDebug(object):
         check connection errors and diagnose
         """
         error_string = None
+        result = None
         if connection_type == "REST":
             api = 'cluster'
             message, error_string = self.rest_api.get(api)
