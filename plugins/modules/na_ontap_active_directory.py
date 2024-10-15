@@ -74,7 +74,7 @@ EXAMPLES = """
       netapp.ontap.na_ontap_active_directory:
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         vserver: laurentncluster-1
