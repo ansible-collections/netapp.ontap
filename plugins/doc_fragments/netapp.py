@@ -28,9 +28,9 @@ options:
   username:
       description:
         - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
-        - For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+        - For more information, please read the documentation U(https://docs.netapp.com/us-en/ontap/authentication/create-svm-user-accounts-task.html).
         - Two authentication methods are supported
-        - 1. basic authentication, using username and password,
+        - 1. Basic authentication, using username and password.
         - 2. SSL certificate authentication, using a ssl client cert file, and optionally a private key file.
         - To use a certificate, the certificate must have been installed in the ONTAP cluster, and cert authentication must have been enabled.
       type: str
@@ -125,9 +125,9 @@ options:
   username:
       description:
         - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
-        - For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+        - For more information, please read the documentation U(https://docs.netapp.com/us-en/ontap/authentication/create-svm-user-accounts-task.html).
         - Two authentication methods are supported
-        - 1. basic authentication, using username and password,
+        - 1. Basic authentication, using username and password.
         - 2. SSL certificate authentication, using a ssl client cert file, and optionally a private key file.
         - To use a certificate, the certificate must have been installed in the ONTAP cluster, and cert authentication must have been enabled.
       type: str

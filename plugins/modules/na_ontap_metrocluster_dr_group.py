@@ -61,25 +61,25 @@ EXAMPLES = '''
 -
   name: Manage MetroCluster DR group
   hosts: localhost
-  collections:
-    - netapp.ontap
   vars:
     login: &login
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: True
-      validate_certs: False
+      hostname: "{{ netapp_hostname }}"
+      username: "{{ netapp_username }}"
+      password: "{{ netapp_password }}"
+      https: true
+      validate_certs: false
+
   tasks:
     - name: Create MetroCluster DR group
-      na_ontap_metrocluster_dr_group:
+      netapp.ontap.na_ontap_metrocluster_dr_group:
         <<: *login
         dr_pairs:
           - partner_name: carchi_cluster3_01
             node_name: carchi_cluster1_01
         partner_cluster_name: carchi_cluster3
+
     - name: Delete MetroCluster DR group
-      na_ontap_metrocluster_dr_group:
+      netapp.ontap.na_ontap_metrocluster_dr_group:
         <<: *login
         dr_pairs:
           - partner_name: carchi_cluster3_01

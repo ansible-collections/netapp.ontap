@@ -76,18 +76,19 @@ notes:
 '''
 
 EXAMPLES = """
-    - name:
-      na_ontap_cg_snapshot:
+    - name: Create a CG snapshot
+      netapp.ontap.na_ontap_cg_snapshot:
         state: present
         vserver: vserver_name
-        snapshot: snapshot name
-        volumes: vol_name
+        snapshot: snapshot_name
+        volumes:
+          - vol_name
         username: "{{ netapp username }}"
         password: "{{ netapp password }}"
         hostname: "{{ netapp hostname }}"
 
     - name: Create CG snapshot using CG name - REST
-      na_ontap_cg_snapshot:
+      netapp.ontap.na_ontap_cg_snapshot:
         state: present
         vserver: vserver_name
         snapshot: snapshot_name
@@ -98,7 +99,7 @@ EXAMPLES = """
         hostname: "{{ netapp hostname }}"
 
     - name: Create CG snapshot using volumes - REST
-      na_ontap_cg_snapshot:
+      netapp.ontap.na_ontap_cg_snapshot:
         state: present
         vserver: vserver_name
         snapshot: snapshot_name
@@ -111,7 +112,7 @@ EXAMPLES = """
         hostname: "{{ netapp hostname }}"
 
     - name: Delete CG snapshot - REST
-      na_ontap_cg_snapshot:
+      netapp.ontap.na_ontap_cg_snapshot:
         state: absent
         vserver: vserver_name
         snapshot: snapshot_name

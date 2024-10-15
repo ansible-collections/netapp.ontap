@@ -65,33 +65,33 @@ options:
 
 EXAMPLES = """
 - name: Create log forward configuration
-  na_ontap_log_forward:
+  netapp.ontap.na_ontap_log_forward:
     state: present
     destination: 10.11.12.13
     port: 514
     protocol: udp_unencrypted
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify log forward configuration
-  na_ontap_log_forward:
+  netapp.ontap.na_ontap_log_forward:
     state: present
     destination: 10.11.12.13
     port: 514
     protocol: tcp_unencrypted
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete log forward configuration
-  na_ontap_log_forward:
+  netapp.ontap.na_ontap_log_forward:
     state: absent
     destination: 10.11.12.13
     port: 514
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

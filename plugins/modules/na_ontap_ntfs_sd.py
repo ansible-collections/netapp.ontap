@@ -88,37 +88,37 @@ options:
 
 EXAMPLES = """
     - name: Create NTFS Security Descriptor
-      na_ontap_ntfs_sd:
+      netapp.ontap.na_ontap_ntfs_sd:
         state: present
         vserver: SVM1
         name: ansible_sd
         owner: DOMAIN\\Account
         group: DOMAIN\\Group
         control_flags_raw: 0
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Modify NTFS Security Descriptor
-      na_ontap_ntfs_sd:
+      netapp.ontap.na_ontap_ntfs_sd:
         state: present
         vserver: SVM1
         name: ansible_sd
         owner: DOMAIN\\Account
         group: DOMAIN\\Group
         control_flags_raw: 0
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Delete NTFS Security Descriptor
-      na_ontap_ntfs_sd:
+      netapp.ontap.na_ontap_ntfs_sd:
         state: absent
         vserver: SVM1
         name: ansible_sd
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

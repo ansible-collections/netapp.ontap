@@ -56,21 +56,19 @@ options:
 '''
 
 EXAMPLES = '''
--
-  name: Manage MetroCluster
+- name: Manage MetroCluster
   hosts: localhost
-  collections:
-    - netapp.ontap
   vars:
     login: &login
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: True
-      validate_certs: False
+      hostname: "{{ netapp_hostname }}"
+      username: "{{ netapp_username }}"
+      password: "{{ netapp_password }}"
+      https: true
+      validate_certs: false
+
   tasks:
     - name: Create MetroCluster
-      na_ontap_metrocluster:
+      netapp.ontap.na_ontap_metrocluster:
         <<: *login
         dr_pairs:
           - partner_node_name: rha17-a2
