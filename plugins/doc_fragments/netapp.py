@@ -104,9 +104,9 @@ requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
   - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
-    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues
-  - a physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
-    REST support requires ONTAP 9.6 or later
+    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
+    REST support requires ONTAP 9.6 or later.
 
 notes:
   - The modules prefixed with na_ontap are built to support the ONTAP storage platform.
@@ -171,7 +171,7 @@ options:
       type: int
   use_rest:
       description:
-        - This module only support ZAPI and will can not be swtich to REST
+        - This module only supports ZAPI and can not be swtiched to REST.
         - never -- will always use ZAPI if the module supports ZAPI.  An error may be issued if a REST option is not supported in ZAPI.
         - auto -- will always use ZAPI.
       default: never
@@ -187,9 +187,88 @@ requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
   - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
-    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues
-  - a physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
-    REST support requires ONTAP 9.6 or later
+    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
+    REST support requires ONTAP 9.6 or later.
+
+notes:
+  - The modules prefixed with na_ontap are built to support the ONTAP storage platform.
+  - https is enabled by default and recommended.
+    To enable http on the cluster you must run the following commands 'set -privilege advanced;' 'system services web modify -http-enabled true;'
+    '''
+
+# Documentation fragment for ONTAP (na_ontap) that are REST ONLY
+    NA_ONTAP_REST = r'''
+options:
+  hostname:
+      description:
+        - The hostname or IP address of the ONTAP instance.
+      type: str
+      required: true
+  username:
+      description:
+        - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
+        - For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+        - Two authentication methods are supported
+        - 1. basic authentication, using username and password,
+        - 2. SSL certificate authentication, using a ssl client cert file, and optionally a private key file.
+        - To use a certificate, the certificate must have been installed in the ONTAP cluster, and cert authentication must have been enabled.
+      type: str
+      aliases: [ user ]
+  password:
+      description:
+        - Password for the specified user.
+      type: str
+      aliases: [ pass ]
+  cert_filepath:
+      description:
+        - path to SSL client cert file (.pem).
+        - not supported with python 2.6.
+      type: str
+      version_added: 20.6.0
+  key_filepath:
+      description:
+        - path to SSL client key file.
+      type: str
+      version_added: 20.6.0
+  https:
+      description:
+        - Enable and disable https.
+        - Ignored when using REST as only https is supported.
+        - Ignored when using SSL certificate authentication as it requires SSL.
+      type: bool
+      default: no
+  validate_certs:
+      description:
+        - If set to C(no), the SSL certificates will not be validated.
+        - This should only set to C(False) used on personally controlled sites using self-signed certificates.
+      type: bool
+      default: yes
+  http_port:
+      description:
+      - Override the default port (80 or 443) with this port
+      type: int
+  use_rest:
+      description:
+        - This module only supports REST.
+        - always -- will always use the REST API.
+          A warning is issued if the module does not support REST.
+      default: always
+      type: str
+  feature_flags:
+      description:
+        - Enable or disable a new feature.
+        - This can be used to enable an experimental feature or disable a new feature that breaks backward compatibility.
+        - Supported keys and values are subject to change without notice.  Unknown keys are ignored.
+      type: dict
+      version_added: "20.5.0"
+requirements:
+  - Ansible 2.9 or later - 2.12 or later is recommended.
+  - Python3 - 3.9 or later is recommended.
+  - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
+    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
+    REST support requires ONTAP 9.6 or later.
 
 notes:
   - The modules prefixed with na_ontap are built to support the ONTAP storage platform.
