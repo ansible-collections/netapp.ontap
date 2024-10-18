@@ -64,15 +64,21 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.13.0
 
-### Bug Fixes
-  - na_ontap_snapshot_policy - fix issue with 'retention_period' in REST.
-  - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
-
-### Minor Change
+### Minor Changes
+  - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
+  - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
+  - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
   - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
   - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
   - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
   - all modules supporting only REST - change in documentation for `use_rest`.
+
+### Bug Fixes
+  - na_ontap_snapshot_policy - fix issue with 'retention_period' in REST.
+  - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
+
+### New Modules
+  - na_ontap_bgp_config - REST only support for managing BGP configuration for a node, requires ONTAP 9.6 or later.
 
 ## 22.12.0
 

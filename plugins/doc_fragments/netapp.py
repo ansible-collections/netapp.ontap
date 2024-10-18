@@ -262,6 +262,15 @@ options:
         - Supported keys and values are subject to change without notice.  Unknown keys are ignored.
       type: dict
       version_added: "20.5.0"
+  force_ontap_version:
+      description:
+        - Override the cluster ONTAP version when using REST.
+        - The behavior is undefined if the version does not match the target cluster.
+        - This is provided as a work-around when the cluster version cannot be read because of permission issues.
+          See https://github.com/ansible-collections/netapp.ontap/wiki/Known-issues.
+        - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
+      type: str
+      version_added: "21.23.0"
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
