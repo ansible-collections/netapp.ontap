@@ -63,27 +63,27 @@ options:
 
 EXAMPLES = """
     - name: run ontap cli command using SSH
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
+      netapp.ontap.na_ontap_ssh_command:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: version
 
     # Same as above, with parameters
     - name: run ontap cli command
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
+      netapp.ontap.na_ontap_ssh_command:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: node show -fields node,health,uptime,model
         privilege: admin
 
     # Same as above, but with lines filtering
     - name: run ontap cli command
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
+      netapp.ontap.na_ontap_ssh_command:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         command: node show -fields node,health,uptime,model
         exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node'
         # use with caution!
@@ -91,7 +91,7 @@ EXAMPLES = """
         privilege: admin
 
     - name: run ontap SSH command on SP
-      na_ontap_ssh_command:
+      netapp.ontap.na_ontap_ssh_command:
         # <<: *sp_login
         command: sp switch-version
         privilege: diag

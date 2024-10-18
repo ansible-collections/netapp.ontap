@@ -58,23 +58,23 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create or modify DNS
+    - name: Create or modify DNS
       netapp.ontap.na_ontap_dns:
         state: present
-        hostname: "{{hostname}}"
-        username: "{{username}}"
-        password: "{{password}}"
-        vserver:  "{{vservername}}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        vserver:  "{{ vserver_name }}"
         domains: sales.bar.com
         nameservers: 10.193.0.250,10.192.0.250
         skip_validation: true
 
-    - name: create or modify cluster DNS with REST
+    - name: Create or modify cluster DNS with REST
       netapp.ontap.na_ontap_dns:
         state: present
-        hostname: "{{hostname}}"
-        username: "{{username}}"
-        password: "{{password}}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         domains: sales.bar.com
         nameservers: 10.193.0.250,10.192.0.250
 """

@@ -64,7 +64,7 @@ options:
 
 EXAMPLES = '''
     - name: Modify adapter
-      netapp.ontap.na_ontap_adapter:
+      netapp.ontap.na_ontap_ucadapter:
         state: present
         adapter_name: 0e
         pair_adapters: 0f

@@ -442,7 +442,6 @@ EXAMPLES = """
         source_password: "{{ netapp_password }}"
 
     - name: Create SnapMirror relationship (create destination volume)
-      tags: create
       netapp.ontap.na_ontap_snapmirror:
         state: present
         source_endpoint:
@@ -460,7 +459,6 @@ EXAMPLES = """
         validate_certs: false
 
     - name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
-      tags: create_svmdr
       netapp.ontap.na_ontap_snapmirror:
         state: present
         source_endpoint:
@@ -472,10 +470,8 @@ EXAMPLES = """
         create_destination:
           enabled: true
         hostname: "{{ destination_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
