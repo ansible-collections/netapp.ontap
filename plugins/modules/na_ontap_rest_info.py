@@ -13,7 +13,7 @@ DOCUMENTATION = '''
 module: na_ontap_rest_info
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 short_description: NetApp ONTAP information gatherer using REST APIs
 description:
     - This module allows you to gather various information about ONTAP configuration using REST APIs
@@ -55,7 +55,7 @@ options:
       - cluster
       - cluster/chassis or cluster_chassis_info
       - cluster/counter/tables
-      - cluster/fireware/history
+      - cluster/firmware/history
       - cluster/jobs or cluster_jobs_info
       - cluster/licensing/capacity-pools
       - cluster/licensing/license-managers
@@ -458,7 +458,7 @@ class NetAppONTAPGatherInfo(object):
         Parse arguments, setup state variables,
         check parameters and ensure request module is installed
         """
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(type='str', required=False),
             gather_subset=dict(default=['demo'], type='list', elements='str', required=False),
@@ -819,7 +819,7 @@ class NetAppONTAPGatherInfo(object):
             'cluster': {},
             'cluster/chassis': {},
             'cluster/counter/tables': {'version': (9, 11, 1)},
-            'cluster/fireware/history': {'version': (9, 8)},
+            'cluster/firmware/history': {'version': (9, 8)},
             'cluster/jobs': {},
             'cluster/licensing/capacity-pools': {'version': (9, 8)},
             'cluster/licensing/license-managers': {'version': (9, 8)},
