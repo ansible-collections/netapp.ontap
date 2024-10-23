@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -48,6 +48,34 @@ options:
     - comment about the service
     type: str
 
+  is_http_enabled:
+    description:
+    - Specifies whether HTTP is enabled on the S3 server being created or modified
+    type: bool
+    default: no
+    version_added: 22.13.0
+
+  is_https_enabled:
+    description:
+    - Specifies whether HTTPS is enabled on the S3 server being created or modified
+    type: bool
+    default: yes
+    version_added: 22.13.0
+
+  port:
+    description:
+    - Specifies the HTTP listener port for the S3 server
+    type: int
+    default: 80
+    version_added: 22.13.0
+
+  secure_port:
+    description:
+    - Specifies the HTTPS listener port for the S3 server
+    type: int
+    default: 443
+    version_added: 22.13.0
+
   certificate_name:
     description:
     - name of https certificate to use for the service
@@ -62,6 +90,23 @@ EXAMPLES = """
         vserver: ansibleSVM
         comment: not enabled
         enabled: False
+        certificate_name: ansibleSVM_16E1C1284D889609
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        https: true
+        validate_certs: false
+        use_rest: always
+
+    - name: create or modify s3 service with https
+      na_ontap_s3_services:
+        state: present
+        name: carchi-test
+        vserver: ansibleSVM
+        comment: not enabled
+        enabled: True
+        is_https_enabled: True
+        port: 80
         certificate_name: ansibleSVM_16E1C1284D889609
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
@@ -120,6 +165,10 @@ class NetAppOntapS3Services:
             vserver=dict(required=True, type='str'),
             comment=dict(required=False, type='str'),
             certificate_name=dict(required=False, type='str'),
+            is_http_enabled=dict(type='bool', default=False),
+            is_https_enabled=dict(type='bool', default=True),
+            port=dict(type='int', default=80),
+            secure_port=dict(type='int', default=443)
         ))
 
         self.module = AnsibleModule(
@@ -139,12 +188,15 @@ class NetAppOntapS3Services:
                            'enabled',
                            'svm.uuid',
                            'comment',
-                           'certificate.name'))
+                           'certificate.name',
+                           'is_http_enabled',
+                           'is_https_enabled',
+                           'port',
+                           'secure_port'))
         if extra_field:
             fields += ',users'
 
         params = {
-            'name': self.parameters['name'],
             'svm.name': self.parameters['vserver'],
             'fields': fields
         }
@@ -167,6 +219,14 @@ class NetAppOntapS3Services:
             body['comment'] = self.parameters['comment']
         if self.parameters.get('certificate_name'):
             body['certificate.name'] = self.parameters['certificate_name']
+        if self.parameters.get('is_http_enabled') is not None:
+            body['is_http_enabled'] = self.parameters['is_http_enabled']
+        if self.parameters.get('is_https_enabled') is not None:
+            body['is_https_enabled'] = self.parameters['is_https_enabled']
+        if self.parameters.get('port'):
+            body['port'] = self.parameters['port']
+        if self.parameters.get('secured_port'):
+            body['secured_port'] = self.parameters['secured_port']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating S3 service %s: %s' % (self.parameters['name'], to_native(error)),
@@ -194,6 +254,14 @@ class NetAppOntapS3Services:
             body['comment'] = self.parameters['comment']
         if modify.get('certificate_name'):
             body['certificate.name'] = self.parameters['certificate_name']
+        if modify.get('is_http_enabled') is not None:
+            body['is_http_enabled'] = self.parameters['is_http_enabled']
+        if modify.get('is_https_enabled') is not None:
+            body['is_https_enabled'] = self.parameters['is_https_enabled']
+        if modify.get('port'):
+            body['port'] = self.parameters['port']
+        if modify.get('secured_port'):
+            body['secured_port'] = self.parameters['secured_port']
         dummy, error = rest_generic.patch_async(self.rest_api, api, self.svm_uuid, body)
         if error:
             self.module.fail_json(msg='Error modifying S3 service %s: %s' % (self.parameters['name'], to_native(error)),
