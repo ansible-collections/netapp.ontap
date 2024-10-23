@@ -120,9 +120,9 @@ options:
 EXAMPLES = '''
     - name: modify cifs security
       netapp.ontap.na_ontap_vserver_cifs_security:
-        hostname: "{{ hostname }}"
-        username: username
-        password: password
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         vserver: ansible
         is_aes_encryption_enabled: false
         lm_compatibility_level: lm_ntlm_ntlmv2_krb
@@ -138,17 +138,17 @@ EXAMPLES = '''
 
     - name: modify cifs security is_smb_encryption_required
       netapp.ontap.na_ontap_vserver_cifs_security:
-        hostname: "{{ hostname }}"
-        username: username
-        password: password
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         vserver: ansible
         is_smb_encryption_required: false
 
     - name: modify cifs security int options
       netapp.ontap.na_ontap_vserver_cifs_security:
-        hostname: "{{ hostname }}"
-        username: username
-        password: password
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         vserver: ansible
         kerberos_clock_skew: 10
         kerberos_ticket_age: 10

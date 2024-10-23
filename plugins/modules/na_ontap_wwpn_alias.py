@@ -57,7 +57,7 @@ options:
 
 EXAMPLES = '''
     - name: Create FCP Alias
-      na_ontap_wwpn_alias:
+      netapp.ontap.na_ontap_wwpn_alias:
         state: present
         name: alias1
         wwpn: 01:02:03:04:0a:0b:0c:0d
@@ -67,7 +67,7 @@ EXAMPLES = '''
         password: "{{ netapp_password }}"
 
     - name: Delete FCP Alias
-      na_ontap_wwpn_alias:
+      netapp.ontap.na_ontap_wwpn_alias:
         state: absent
         name: alias1
         vserver: ansibleVServer

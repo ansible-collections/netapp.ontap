@@ -87,22 +87,21 @@ options:
 """
 
 EXAMPLES = """
-
-    - name: create policy
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+    - name: Create policy
+      netapp.ontap.na_ontap_file_directory_policy:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: present
         vserver: ansible
         policy_name: file_policy
         ignore_broken_symlinks: false
 
-    - name: add task to existing file_policy
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+    - name: Add task to existing file_policy
+      netapp.ontap.na_ontap_file_directory_policy:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: present
         vserver: ansible
         policy_name: file_policy
@@ -110,26 +109,24 @@ EXAMPLES = """
         ntfs_sd: ansible_sd
         ntfs_mode: propagate
 
-    - name: delete task from file_policy.
+    - name: Delete task from file_policy.
       na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: absent
         vserver: ansible
         policy_name: file_policy
         path: /vol
 
-    - name: delete file_policy along with the tasks.
+    - name: Delete file_policy along with the tasks.
       na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         state: absent
         vserver: ansible
         policy_name: file_policy
-
-
 """
 
 RETURN = """

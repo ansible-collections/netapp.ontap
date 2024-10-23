@@ -266,7 +266,6 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Create LUNs using SAN application
-  tags: create
   netapp.ontap.na_ontap_lun:
     state: present
     name: ansibleLUN
@@ -286,7 +285,6 @@ EXAMPLES = """
     password: "{{ netapp_password }}"
 
 - name: Convert existing volume to SAN application
-  tags: create
   netapp.ontap.na_ontap_lun:
     state: present
     name: someVolume

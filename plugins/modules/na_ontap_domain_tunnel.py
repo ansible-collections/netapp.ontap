@@ -37,12 +37,12 @@ options:
 
 EXAMPLES = """
     - name: Create Domain Tunnel
-      na_ontap_domain_tunnel:
+      netapp.ontap.na_ontap_domain_tunnel:
         state: present
         vserver: svm1
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
