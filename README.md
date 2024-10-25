@@ -75,6 +75,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapshot_policy - fix issue with `retention_period` in REST.
   - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
   - na_ontap_rest_info - rectified subset name to `cluster/firmware/history`.
+  - na_ontap_broadcast_domain - fix issue with port modification in REST.
 
 ### New Modules
   - na_ontap_bgp_config - REST only support for managing BGP configuration for a node, requires ONTAP 9.6 or later.
