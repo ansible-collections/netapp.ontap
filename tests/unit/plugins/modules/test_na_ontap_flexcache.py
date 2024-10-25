@@ -526,6 +526,7 @@ SRR = rest_responses({
     # common responses
     'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
     'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
+    'is_rest_9_12': (200, dict(version=dict(generation=9, major=12, minor=0, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'zero_record': (200, dict(records=[], num_records=0), None),
@@ -536,13 +537,15 @@ SRR = rest_responses({
         dict(uuid='a1b2c3',
              name='flexcache_volume',
              svm=dict(name='vserver'),
+             writeback=dict(enabled=True)
              )
     ], num_records=1), None),
     'one_flexcache_record_with_path': (200, dict(records=[
         dict(uuid='a1b2c3',
              name='flexcache_volume',
              svm=dict(name='vserver'),
-             path='path'
+             path='path',
+             writeback=dict(enabled=True)
              )
     ], num_records=1), None),
 })
@@ -590,10 +593,32 @@ def test_rest_create():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_rest_create_with_writeback():
+    ''' create flexcache '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['zero_record']),
+        ('POST', 'storage/flexcache/flexcaches', SRR['success']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'size': '50',       # 80MB minimum
+        'size_unit': 'mb',  # 80MB minimum
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'origin_cluster': 'ocluster',
+        'writeback': {
+            'enabled': True
+        }
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_rest_create_no_action():
     ''' create flexcache idempotent '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_12']),
         ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
     ])
     module_args = {
@@ -601,6 +626,9 @@ def test_rest_create_no_action():
         'aggr_list': 'aggr1',
         'origin_volume': 'fc_vol_origin',
         'origin_vserver': 'ansibleSVM',
+        'writeback': {
+            'enabled': True
+        }
     }
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
@@ -679,6 +707,24 @@ def test_rest_delete_with_force2_and_path():
         'state': 'absent'
     }
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_warn_delete_with_writeback_enabled():
+    ''' delete flexcache with writeback enabled '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('DELETE', 'storage/flexcache/flexcaches/a1b2c3', SRR['end_of_sequence']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'state': 'absent',
+        'writeback': {
+            'enabled': True
+        }
+    }
+    error = 'Error in flexcache_rest_delete: calling: storage/flexcache/flexcaches/a1b2c3'
+    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_modify_prepopulate_no_action():
