@@ -70,11 +70,13 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
   - all modules supporting only REST - change in documentation for `use_rest`.
   - na_ontap_s3_services - new option `is_http_enabled`, `is_https_enabled`, `port` and `secure_port` added in REST, requires ONTAP 9.8 or later.
+  - na_ontap_flexcache - new option to enable `writeback` added in REST, requires ONTAP 9.12 or later.
 
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with `retention_period` in REST.
   - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
   - na_ontap_rest_info - rectified subset name to `cluster/firmware/history`.
+  - na_ontap_broadcast_domain - fix issue with port modification in REST.
   - na_ontap_active_directory - Return error message when attempting to modify `account_name` parameter.
 
 ### New Modules
