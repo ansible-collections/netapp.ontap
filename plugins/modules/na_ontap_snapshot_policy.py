@@ -483,7 +483,9 @@ class NetAppOntapSnapshotPolicy(object):
         """
         query = {'snapshot_policy.name': current['name']}
         api = 'storage/snapshot-policies/%s/schedules' % current['uuid']
-        fields = 'schedule.name,schedule.uuid,snapmirror_label,count,prefix,retention_period'
+        fields = 'schedule.name,schedule.uuid,snapmirror_label,count,prefix,'
+        if self.parameters.get('retention_period') is not None:
+            fields += 'retention_period,'
         records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot schedule: %s" % error)
@@ -493,16 +495,18 @@ class NetAppOntapSnapshotPolicy(object):
                 'prefixes': [],
                 'schedule_names': [],
                 'schedule_uuids': [],
-                'snapmirror_labels': [],
-                'retention_periods': []
+                'snapmirror_labels': []
             }
+            if self.parameters.get('retention_period') is not None:
+                scheduleRecords.update({'retention_periods': []})
             for item in records:
                 scheduleRecords['counts'].append(item['count'])
                 scheduleRecords['prefixes'].append(item['prefix'])
                 scheduleRecords['schedule_names'].append(item['schedule']['name'])
                 scheduleRecords['schedule_uuids'].append(item['schedule']['uuid'])
                 scheduleRecords['snapmirror_labels'].append(item['snapmirror_label'])
-                scheduleRecords['retention_periods'].append(item['retention_period'])
+                if 'retention_periods' in scheduleRecords.keys():
+                    scheduleRecords['retention_periods'].append(item['retention_period'])
             return scheduleRecords
         return None
 
@@ -519,7 +523,9 @@ class NetAppOntapSnapshotPolicy(object):
         else:
             query['scope'] = 'cluster'
         api = 'storage/snapshot-policies'
-        fields = 'enabled,svm.uuid,comment,copies.snapmirror_label,copies.count,copies.prefix,copies.schedule.name,copies.retention_period,scope'
+        fields = 'enabled,svm.uuid,comment,copies.snapmirror_label,copies.count,copies.prefix,copies.schedule.name,scope,'
+        if self.parameters.get('retention_period') is not None:
+            fields += 'copies.retention_period,'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
         if error:
             self.module.fail_json(msg="Error on fetching snapshot policy: %s" % error)
@@ -532,9 +538,10 @@ class NetAppOntapSnapshotPolicy(object):
                 'count': [],
                 'prefix': [],
                 'schedule': [],
-                'snapmirror_label': [],
-                'retention_period': []
+                'snapmirror_label': []
             }
+            if self.parameters.get('retention_period') is not None:
+                current.update({'retention_period': []})
             if query['scope'] == 'svm':
                 current['svm_name'] = record['svm']['name']
                 current['svm_uuid'] = record['svm']['uuid']
@@ -545,7 +552,8 @@ class NetAppOntapSnapshotPolicy(object):
                     current['schedule'].append(item['schedule']['name'])
                     item_snapmirror_label = item['snapmirror_label'] if item['snapmirror_label'] != '-' else ''
                     current['snapmirror_label'].append(item_snapmirror_label)
-                    current['retention_period'].append(item['retention_period'])
+                    if 'retention_period' in current.keys():
+                        current['retention_period'].append(item['retention_period'])
             return current
         return record
 
@@ -766,6 +774,8 @@ class NetAppOntapSnapshotPolicy(object):
         if cd_action is None and self.parameters['state'] == 'present':
             # Don't sort schedule/prefix/count/snapmirror_label/retention_period lists as it can
             # mess up the intended parameter order.
+            if 'retention_period' in self.parameters:
+                self.parameters['retention_period'] = [item if item != '' else 'PT0S' for item in self.parameters['retention_period']]
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
 
         if self.na_helper.changed and not self.module.check_mode:

@@ -7,6 +7,7 @@ action_groups:
     - na_ontap_aggregate
     - na_ontap_autosupport_invoke
     - na_ontap_autosupport
+    - na_ontap_bgp_config
     - na_ontap_bgp_peer_group
     - na_ontap_broadcast_domain_ports
     - na_ontap_broadcast_domain
@@ -18,6 +19,7 @@ action_groups:
     - na_ontap_cifs_local_user_modify
     - na_ontap_cifs_local_user_set_password
     - na_ontap_cifs
+    - na_ontap_cifs_privileges
     - na_ontap_cifs_server
     - na_ontap_cifs_unix_symlink_mapping
     - na_ontap_cli_timeout

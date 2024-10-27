@@ -10,9 +10,9 @@ import sys
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
-from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args,\
+from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
     AnsibleFailJson, AnsibleExitJson, patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
-from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke,\
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, \
     register_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qos_policy_group \
     import NetAppOntapQosPolicyGroup as qos_policy_group_module  # module under test

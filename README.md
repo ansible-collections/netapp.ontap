@@ -34,16 +34,6 @@ https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 # Need help
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
-* Join the Ansible forum:
-  * [Get Help](https://forum.ansible.com/c/help/6): get help or help others.
-  * [Posts tagged with 'netapp'](https://forum.ansible.com/tag/netapp): subscribe to participate in collection-related conversations.
-  * [Social Spaces](https://forum.ansible.com/c/chat/4): gather and interact with fellow enthusiasts.
-  * [News & Announcements](https://forum.ansible.com/c/news/5): track project-wide announcements including social events.
-
-* The Ansible [Bullhorn newsletter](https://docs.ansible.com/ansible/devel/community/communication.html#the-bullhorn): used to announce releases and important changes.
-
-For more information about communication, see the [Ansible communication guide](https://docs.ansible.com/ansible/devel/community/communication.html).
-
 # Deprecation warning
 The ONTAP 9.12.1 release will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
 This change will effect the modules listed below.
@@ -71,6 +61,26 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_quota_policy
 
 # Release Notes
+
+## 22.13.0
+
+### Minor Changes
+  - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
+  - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
+  - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
+  - all modules supporting only REST - change in documentation for `use_rest`.
+  - na_ontap_s3_services - new option `is_http_enabled`, `is_https_enabled`, `port` and `secure_port` added in REST, requires ONTAP 9.8 or later.
+  - na_ontap_flexcache - new option to enable `writeback` added in REST, requires ONTAP 9.12 or later.
+
+### Bug Fixes
+  - na_ontap_snapshot_policy - fix issue with `retention_period` in REST.
+  - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
+  - na_ontap_rest_info - rectified subset name to `cluster/firmware/history`.
+  - na_ontap_broadcast_domain - fix issue with port modification in REST.
+
+### New Modules
+  - na_ontap_bgp_config - REST only support for managing BGP configuration for a node, requires ONTAP 9.6 or later.
+  - na_ontap_cifs_privileges - REST only support for managing privileges of the local or Active Directory user or group, requires ONTAP 9.10.1 or later.
 
 ## 22.12.0
 

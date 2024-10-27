@@ -1,4 +1,4 @@
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -44,6 +44,10 @@ SRR = rest_responses({
             }
         ],
         "comment": "this is a s3 service",
+        "is_http_enabled": True,
+        "is_https_enabled": False,
+        "port": 82,
+        "secure_port": 43,
         "certificate": {
             "name": "ansibleSVM_16E1C1284D889609",
         },
@@ -108,6 +112,45 @@ def test_create_s3_service():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_create_s3_service_with_http_enabled():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/services', SRR['empty_records']),
+        ('POST', 'protocols/s3/services', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
+    ])
+    module_args = {
+        'enabled': True,
+        'comment': 'this is a s3 service',
+        'is_http_enabled': 'true',
+        "is_https_enabled": 'false',
+        'port': 82,
+        'secure_port': 43
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_create_s3_service_with_https_enabled():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/s3/services', SRR['empty_records']),
+        ('POST', 'protocols/s3/services', SRR['empty_good']),
+        ('GET', 'protocols/s3/services', SRR['s3_service']),
+    ])
+    module_args = {
+        'enabled': True,
+        'comment': 'this is a s3 service',
+        "is_http_enabled": 'false',
+        'is_https_enabled': 'true',
+        'certificate_name': 'cert1',
+        'port': 82,
+        'secure_port': 43
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_create_s3_service_response():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -136,6 +179,20 @@ def test_create_s3_service_error():
     my_obj.parameters['certificate_name'] = 'cert1'
     error = expect_and_capture_ansible_exception(my_obj.create_s3_service, 'fail')['msg']
     print('Info: %s' % error)
+    assert 'Error creating S3 service service1: calling: protocols/s3/services: got Expected error.' == error
+
+
+def test_create_s3_service_https_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('POST', 'protocols/s3/services', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['enabled'] = True
+    my_obj.parameters['comment'] = 'this is a s3 service'
+    my_obj.parameters['is_https_enabled'] = True
+    error = expect_and_capture_ansible_exception(my_obj.create_s3_service, 'fail')['msg']
     assert 'Error creating S3 service service1: calling: protocols/s3/services: got Expected error.' == error
 
 
@@ -203,6 +260,23 @@ def test_modify_s3_service_error():
     my_obj = create_module(my_module, DEFAULT_ARGS)
     my_obj.parameters['comment'] = 'this is a modified s3 service'
     current = {'comment': 'this is a modified s3 service'}
+    my_obj.svm_uuid = '08c8a385-b1ac-11ec-bd2e-005056b3b297'
+    error = expect_and_capture_ansible_exception(my_obj.modify_s3_service, 'fail', current)['msg']
+    print('Info: %s' % error)
+    assert 'Error modifying S3 service service1: calling: protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297: got Expected error.' == error
+
+
+def test_modify_http_https_s3_service_error():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('PATCH', 'protocols/s3/services/08c8a385-b1ac-11ec-bd2e-005056b3b297', SRR['generic_error'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    my_obj.parameters['comment'] = 'this is a modified s3 service'
+    my_obj.parameters['is_http_enabled'] = True
+    my_obj.parameters['enabled'] = True
+    current = {'enabled': True, 'comment': 'this is a modified s3 service', 'is_http_enabled': False, 'is_https_enabled': False}
     my_obj.svm_uuid = '08c8a385-b1ac-11ec-bd2e-005056b3b297'
     error = expect_and_capture_ansible_exception(my_obj.modify_s3_service, 'fail', current)['msg']
     print('Info: %s' % error)
