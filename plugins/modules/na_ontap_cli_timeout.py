@@ -11,7 +11,7 @@ DOCUMENTATION = """
 module: na_ontap_cli_timeout
 short_description: NetApp ONTAP module to set the CLI inactivity timeout value.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: '22.9.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -69,7 +69,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 class NetAppOntapCliTimeout:
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
             timeout=dict(required=True, type='int')

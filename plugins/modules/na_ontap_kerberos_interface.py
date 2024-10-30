@@ -13,7 +13,7 @@ short_description: NetApp ONTAP module to modify kerberos interface.
 description:
   - Enable or disable kerberos interface.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_rest
 version_added: '22.6.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 options:
@@ -133,7 +133,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 class NetAppOntapKerberosInterface:
     """Modify Kerberos interface"""
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
             interface_name=dict(required=True, type='str'),

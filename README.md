@@ -68,7 +68,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_svm - added `allowed` option for `s3` service, requires ONTAP 9.7 or later.
   - na_ontap_rest_info - removed example which has option `gather_subset` set to `all` from documentation.
   - na_ontap_cifs_server - added new option `comment` for cifs server, requires ONTAP 9.6 or later.
-  - all modules supporting only REST - change in documentation for `use_rest`.
+  - all modules supporting only REST - change in documentation for `use_rest`, updated `extends_documentation_fragment`.
   - na_ontap_s3_services - new option `is_http_enabled`, `is_https_enabled`, `port` and `secure_port` added in REST, requires ONTAP 9.8 or later.
   - na_ontap_flexcache - new option to enable `writeback` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_s3_users - new option `regenerate_keys` and `delete_keys` added in REST, `delete_keys` requires ONTAP 9.14 or later.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -22,7 +22,7 @@ description:
   - and the call is reported as an error ('failed').
   - Other errors (eg connection issues) are reported as Ansible error.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_rest
 module: na_ontap_restit
 short_description: NetApp ONTAP Run any REST API on ONTAP
 version_added: "20.4.0"
@@ -275,7 +275,7 @@ class NetAppONTAPRestAPI(object):
     ''' calls a REST API command '''
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             api=dict(required=True, type='str'),
             method=dict(required=False, type='str', default='GET'),

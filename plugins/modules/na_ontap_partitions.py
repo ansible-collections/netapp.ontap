@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -12,7 +12,7 @@ module: na_ontap_partitions
 
 short_description: NetApp ONTAP Assign partitions and disks to nodes.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
@@ -100,7 +100,7 @@ class NetAppOntapPartitions():
     ''' object initialize and class methods '''
 
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             node=dict(required=True, type='str'),
             partition_count=dict(required=True, type='int'),

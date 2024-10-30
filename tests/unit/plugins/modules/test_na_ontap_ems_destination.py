@@ -152,9 +152,6 @@ def test_create_ems_destination_with_cert():
 
 
 def test_error_create_ems_destination_with_cert_unsupported_rest():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
-    ])
     module_args = {
         'name': 'test',
         'type': 'rest_api',
@@ -162,6 +159,7 @@ def test_error_create_ems_destination_with_cert_unsupported_rest():
         'filters': ['test-filter'],
         'certificate': 'cert1',
         'ca': 'cert_ca',
+        'use_rest': 'never'
     }
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert 'na_ontap_ems_destination is only supported with REST API' == error
@@ -256,10 +254,7 @@ def test_modify_ems_destination_error():
 
 
 def test_module_fail_without_rest():
-    register_responses([
-        ('GET', 'cluster', SRR['is_zapi'])
-    ])
-    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter']}
+    module_args = {'name': 'test', 'type': 'rest_api', 'destination': 'https://test.destination', 'filters': ['test-filter'], 'use_rest': 'never'}
     error = call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     print('Info: %s' % error)
     assert 'na_ontap_ems_destination is only supported with REST API' == error
