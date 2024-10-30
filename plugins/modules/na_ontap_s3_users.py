@@ -42,6 +42,22 @@ options:
     description:
     - comment about the user
     type: str
+
+  regenerate_keys:
+    description:
+    - Specifies whether or not to regenerate the user keys.
+    type: bool
+    version_added: 22.13.0
+
+  delete_keys:
+    description:
+    - Specifies whether or not to delete the user keys.
+    - Requires ONTAP 9.14 or later.
+    type: bool
+    version_added: 22.13.0
+
+notes:
+  - This module is not idempotent when using regenerate_keys.
 '''
 
 EXAMPLES = """
@@ -100,6 +116,8 @@ class NetAppOntapS3Users:
             vserver=dict(required=True, type='str'),
             name=dict(required=True, type='str'),
             comment=dict(required=False, type='str'),
+            regenerate_keys=dict(required=False, type='bool'),
+            delete_keys=dict(required=False, type='bool')
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -111,12 +129,17 @@ class NetAppOntapS3Users:
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_users', 9, 8)
+        dummy, error = self.rest_api.is_rest(partially_supported_rest_properties=[['delete_keys', (9, 14, 1)]],
+                                             parameters=self.parameters)
+        if error:
+            self.module.fail_json(msg=error)
 
     def get_s3_user(self):
         self.get_svm_uuid()
         api = 'protocols/s3/services/%s/users' % self.svm_uuid
         fields = ','.join(('name',
-                          'comment'))
+                           'comment',
+                           'access_key'))
         params = {'name': self.parameters['name'],
                   'fields': fields}
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
@@ -152,12 +175,20 @@ class NetAppOntapS3Users:
     def modify_s3_user(self, modify):
         api = 'protocols/s3/services/%s/users' % self.svm_uuid
         body = {}
-        if modify.get('comment'):
-            body['comment'] = self.parameters['comment']
-        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body)
+        query = {}
+        if modify is not None:
+            if modify.get('comment'):
+                body['comment'] = self.parameters['comment']
+        if self.parameters.get('regenerate_keys'):
+            query['regenerate_keys'] = self.parameters['regenerate_keys']
+        if self.parameters.get('delete_keys'):
+            query['delete_keys'] = self.parameters['delete_keys']
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.parameters['name'], body, query)
         if error:
             self.module.fail_json(msg='Error modifying S3 user %s: %s' % (self.parameters['name'], to_native(error)),
                                   exception=traceback.format_exc())
+        if dummy.get('num_records') == 1:
+            return dummy.get('records')[0]
 
     def parse_response(self, response):
         if response is not None:
@@ -170,6 +201,13 @@ class NetAppOntapS3Users:
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
+            if self.parameters.get('regenerate_keys') or self.parameters.get('delete_keys'):
+                response = self.modify_s3_user(modify)
+
+                if self.parameters.get('regenerate_keys'):
+                    self.na_helper.changed = True
+                elif self.parameters.get('delete_keys') and current.get('access_key') is not None:
+                    self.na_helper.changed = True
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 response = self.create_s3_user()

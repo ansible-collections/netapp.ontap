@@ -192,3 +192,27 @@ def test_modify_s3_user_error():
     error = expect_and_capture_ansible_exception(my_obj.modify_s3_user, 'fail', current)['msg']
     print('Info: %s' % error)
     assert 'Error modifying S3 user carchi8py: calling: protocols/s3/services/e3cb5c7f-cd20/users/carchi8py: got Expected error.' == error
+
+
+def test_regenerate_keys_s3_user():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user']),
+        ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['s3_user_created'])
+    ])
+    module_args = {'regenerate_keys': True}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_delete_keys_s3_user():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'svm/svms', SRR['svm_uuid']),
+        ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user_created']),
+        ('PATCH', 'protocols/s3/services/e3cb5c7f-cd20/users/carchi8py', SRR['empty_good'])
+    ])
+    module_args = {'delete_keys': True}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
