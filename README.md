@@ -73,6 +73,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_flexcache - new option to enable `writeback` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_s3_users - new option `regenerate_keys` and `delete_keys` added in REST, `delete_keys` requires ONTAP 9.14 or later.
   - na_ontap_active_directory - return error message when attempting to modify `account_name`.
+  - na_ontap_s3_buckets - new option `versioning_state` added, requires ONTAP 9.11.1 or later.
 
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with `retention_period` in REST.
