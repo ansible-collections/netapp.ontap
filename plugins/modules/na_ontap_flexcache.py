@@ -366,7 +366,7 @@ class NetAppONTAPFlexCache:
                 'svm.name': self.parameters['vserver']
             }
             if 'origin_cluster' in self.parameters:
-                query['origin.cluster.name'] = self.parameters['origin_cluster']
+                query['origins.cluster.name'] = self.parameters['origin_cluster']
             fields = 'svm,name,uuid,path,writeback' if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) else 'svm,name,uuid,path'
             flexcache, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
             self.na_helper.fail_on_error(error)

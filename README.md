@@ -74,12 +74,17 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_s3_users - new option `regenerate_keys` and `delete_keys` added in REST, `delete_keys` requires ONTAP 9.14 or later.
   - na_ontap_active_directory - return error message when attempting to modify `account_name`.
   - na_ontap_s3_buckets - new option `versioning_state` added, requires ONTAP 9.11.1 or later.
+  - na_ontap_volume - new option `granular_data` added in REST, requires ONTAP 9.12 or later.
+  - na_ontap_volume - new option `nas_application_template.cifs_share_name` added in REST, requires ONTAP 9.11 or later.
+  - na_ontap_volume - new option `nas_application_template.snaplock.*` added in REST, requires ONTAP 9.12 or later.
+  - na_ontap_volume - new option `nas_application_template.snapshot_locking_enabled` added in REST, requires ONTAP 9.13.1 or later.
 
 ### Bug Fixes
   - na_ontap_snapshot_policy - fix issue with `retention_period` in REST.
   - all modules supporting REST - avoid duplicate calls to api/cluster to get ONTAP version.
   - na_ontap_rest_info - rectified subset name to `cluster/firmware/history`.
   - na_ontap_broadcast_domain - fix issue with port modification in REST.
+  - na_ontap_flexcache - fix typo error in the query 'origins.cluster.name' in REST.
 
 ### New Modules
   - na_ontap_bgp_config - REST only support for managing BGP configuration for a node, requires ONTAP 9.6 or later.
