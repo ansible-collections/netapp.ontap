@@ -98,6 +98,7 @@ options:
       - s3  S3 protocol,
       - http  HTTP protocol - ZAPI only,
       - nvme  NVMe protocol
+      - Mutually exclusive with services
     type: list
     elements: str
 
@@ -108,6 +109,7 @@ options:
       - C(enabled) is not supported for CIFS, to enable it use na_ontap_cifs_server.
       - C(enabled) is not supported for s3, to enable it use na_ontap_s3_services.
       - If a service is not present, it is left unchanged.
+      - Mutually exclusive with allowed_protocols
     type: dict
     version_added: 21.10.0
     suboptions:
