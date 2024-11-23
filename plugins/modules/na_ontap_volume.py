@@ -523,13 +523,13 @@ options:
       state:
         description: Determines if the snapshot autodelete is currently enabled for the volume.
         type: str
-        choices: [on, off]
+        choices: ['on', 'off']
       commitment:
         description: Determines the snapshots which snapshot autodelete is allowed to delete to get back space.
         type: str
         choices: [try, disrupt, destroy]
       trigger:
-        description: Determines the condition which starts the automatic deletion of snapshots. Note: space_reserve option is deprecated as may be removed
+        description: Determines the condition which starts the automatic deletion of snapshots. Note - space_reserve option is deprecated as may be removed
                      in the future.
         type: str
         choices: [volume, snap_reserve, space_reserve]
@@ -539,7 +539,7 @@ options:
         type: int
       delete_order:
         description: Determines if the oldest or newest snapshot is deleted first.
-        type str
+        type: str
         choices: [newest_first, oldest_first]
       defer_delete:
         description: Determines what kind of snapshot to delete in the end.
