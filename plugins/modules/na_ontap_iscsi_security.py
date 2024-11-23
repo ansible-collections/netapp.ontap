@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -15,7 +15,7 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create/Delete/Modify iscsi security.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_rest
 module: na_ontap_iscsi_security
 options:
   state:
@@ -125,7 +125,7 @@ class NetAppONTAPIscsiSecurity:
     Class with iscsi security methods
     """
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

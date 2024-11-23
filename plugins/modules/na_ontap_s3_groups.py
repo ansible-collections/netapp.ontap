@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -12,7 +12,7 @@ DOCUMENTATION = '''
 module: na_ontap_s3_groups
 short_description: NetApp ONTAP S3 groups
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.21.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -109,7 +109,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_vserver
 
 class NetAppOntapS3Groups:
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

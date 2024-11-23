@@ -61,7 +61,7 @@ options:
   aggregate_name:
     description:
       - The name of the aggregate the flexvol should exist on.
-      - Cannot be set when using the nas_application_template option.
+      - Cannot be set when using the C(nas_application_template) option.
     type: str
 
   tags:
@@ -165,6 +165,51 @@ options:
           - This will default to true if any other suboption is present.
         type: bool
         default: true
+      cifs_share_name:
+        description:
+          - The name of the CIFS share.
+          - Requires ONTAP 9.11 or later.
+        type: str
+        version_added: 22.13.0
+      snapshot_locking_enabled:
+        description:
+          - Indicates whether Snapshot copy locking is enabled on the volume.
+          - Requires ONTAP 9.13.1 or later.
+        type: bool
+        version_added: 22.13.0
+      snaplock:
+        description: Requires ONTAP 9.12 or later.
+        type: dict
+        version_added: 22.13.0
+        suboptions:
+          snaplock_type:
+            description: The SnapLock type of the smart container.
+            choices: ['compliance', 'enterprise', 'non_snaplock']
+            type: str
+          autocommit_period:
+            description:
+              - Specifies the autocommit period for SnapLock volume.
+              - Duration is in the ISO-8601 duration format (eg PY, PM, PD, PTH, PTM).
+              - Examples are P30M, P10Y, PT1H, none. A duration that combines different periods is not supported.
+            type: str
+          append_mode_enabled:
+            description: Specifies if the volume append mode is enabled or disabled.
+            type: bool
+          retention:
+            description:
+              - Default, maximum, and minumum retention periods for files committed to the WORM state on the volume.
+              - Durations are in the ISO-8601 duration format, see autocommit_period.
+            type: dict
+            suboptions:
+              default:
+                description: Default retention period that is applied to files while committing them to the WORM state without an associated retention period.
+                type: str
+              maximum:
+                description: Maximum allowed retention period for files committed to the WORM state on the volume.
+                type: str
+              minimum:
+                description: Minimum allowed retention period for files committed to the WORM state on the volume.
+                type: str
 
   size:
     description:
@@ -471,7 +516,7 @@ options:
   snapshot_auto_delete:
     description:
       - A dictionary for the auto delete options and values.
-      - All the above mentioned options except 'destroy_list' are supported in REST for ONTAP 9.13.1 or later with ONTAP collection version 22.8.0 or later.
+      - All the below mentioned options except 'destroy_list' are supported in REST for ONTAP 9.13.1 or later with ONTAP collection version 22.8.0 or later.
     type: dict
     version_added: '20.4.0'
     suboptions:
@@ -505,6 +550,7 @@ options:
         description: A comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.  
                      The possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
                      'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
+        type: str
 
   cutover_action:
     description:
@@ -608,7 +654,7 @@ options:
     description:
       - Starting with ONTAP 9.10.1, snaplock.type is set at the volume level.
       - The other suboptions can be set or modified when using REST on earlier versions of ONTAP.
-      - This option and suboptions are only supported with REST.
+      - These option and suboptions are only supported with REST.
     type: dict
     version_added: 21.18.0
     suboptions:
@@ -691,6 +737,14 @@ options:
       - Only supported with REST and requires ONTAP 9.12 or later.
     type: bool
     version_added: '22.12.0'
+
+  granular_data:
+    description:
+      - State of granular data on the volume.
+      - Only FlexGroup volumes support this feature. Once enabled, this setting can only be disabled by restoring a Snapshot copy.
+      - Only supported with REST and requires ONTAP 9.12 or later.
+    type: bool
+    version_added: 22.13.0
 
 notes:
   - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
@@ -1045,7 +1099,19 @@ class NetAppOntapVolume:
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
                     policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
                     object_stores=dict(type='list', elements='str')     # create only
-                ))
+                )),
+                cifs_share_name=dict(required=False, type='str'),
+                snapshot_locking_enabled=dict(required=False, type='bool'),
+                snaplock=dict(type='dict', options=dict(
+                    append_mode_enabled=dict(required=False, type='bool'),
+                    autocommit_period=dict(required=False, type='str'),
+                    retention=dict(type='dict', options=dict(
+                        default=dict(required=False, type='str'),
+                        maximum=dict(required=False, type='str'),
+                        minimum=dict(required=False, type='str')
+                    )),
+                    snaplock_type=dict(required=False, type='str', choices=['compliance', 'enterprise', 'non_snaplock'])
+                )),
             )),
             size_change_threshold=dict(type='int', default=10),
             tiering_minimum_cooling_days=dict(required=False, type='int'),
@@ -1067,6 +1133,7 @@ class NetAppOntapVolume:
             activity_tracking=dict(required=False, type='str', choices=['on', 'off']),
             tags=dict(required=False, type='list', elements='str'),
             snapshot_locking=dict(required=False, type='bool'),
+            granular_data=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -1106,11 +1173,11 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
                                                ['analytics', (9, 8)], ['atime_update', (9, 8)],
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
-                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)], ['tags', (9, 13, 1)],
-                                               ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
+                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)], ['granular_data', (9, 12, 1)],
+                                               ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
                                             'analytics', 'activity_tracking', 'tags', 'vol_nearly_full_threshold_percent',
-                                            'vol_full_threshold_percent', 'snapshot_locking']
+                                            'vol_full_threshold_percent', 'snapshot_locking', 'granular_data']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -1195,17 +1262,17 @@ class NetAppOntapVolume:
                                   exception=traceback.format_exc())
         return result
 
-    def get_application(self):
+    def get_application(self, template):
         if self.rest_app:
-            app, error = self.rest_app.get_application_details('nas')
+            app, error = self.rest_app.get_application_details(template=template)
             self.na_helper.fail_on_error(error)
             # flatten component list
-            comps = self.na_helper.safe_get(app, ['nas', 'application_components'])
+            comps = self.na_helper.safe_get(app, [template, 'application_components'])
             if comps:
                 comp = comps[0]
-                app['nas'].pop('application_components')
-                app['nas'].update(comp)
-                return app['nas']
+                app[template].pop('application_components')
+                app[template].update(comp)
+                return app[template]
         return None
 
     def get_volume_attributes(self, volume_attributes, result):
@@ -1351,6 +1418,16 @@ class NetAppOntapVolume:
                 if value is not None:
                     application_component['tiering'][attr] = value
 
+        snapshot_locking_enabled = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'snapshot_locking_enabled'])
+        if snapshot_locking_enabled is not None:
+            application_component['snapshot_locking_enabled'] = snapshot_locking_enabled
+
+        snaplock = self.na_helper.safe_get(self.parameters, ['nas_application_template', 'snaplock'])
+        if snaplock is not None:
+            value = self.na_helper.filter_out_none_entries(snaplock)
+            if value:
+                application_component['snaplock'] = value
+
         if self.get_qos_policy_group() is not None:
             application_component['qos'] = {
                 "policy": {
@@ -1364,26 +1441,31 @@ class NetAppOntapVolume:
         return application_component
 
     def create_volume_body(self):
-        '''Create body for nas template'''
-        nas = dict(application_components=[self.create_nas_application_component()])
-        value = self.na_helper.safe_get(self.parameters, ['snapshot_policy'])
-        if value is not None:
-            nas['protection_type'] = {'local_policy': value}
-        for attr in ('nfs_access', 'cifs_access'):
-            value = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+        '''Create body for application template'''
+        if self.parameters.get('nas_application_template') is not None:
+            nas = dict(application_components=[self.create_nas_application_component()])
+            value = self.na_helper.safe_get(self.parameters, ['snapshot_policy'])
             if value is not None:
-                # we expect value to be a list of dicts, with maybe some empty entries
-                value = self.na_helper.filter_out_none_entries(value)
-                if value:
+                nas['protection_type'] = {'local_policy': value}
+            for attr in ('nfs_access', 'cifs_access'):
+                value = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+                if value is not None:
+                    # we expect value to be a list of dicts, with maybe some empty entries
+                    value = self.na_helper.filter_out_none_entries(value)
+                    if value:
+                        nas[attr] = value
+            for attr in ('exclude_aggregates',):
+                values = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+                if values:
+                    nas[attr] = [dict(name=name) for name in values]
+            for attr in ('cifs_share_name',):
+                value = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
+                if value is not None:
                     nas[attr] = value
-        for attr in ('exclude_aggregates',):
-            values = self.na_helper.safe_get(self.parameters, ['nas_application_template', attr])
-            if values:
-                nas[attr] = [dict(name=name) for name in values]
-        return self.rest_app.create_application_body("nas", nas, smart_container=True)
+            return self.rest_app.create_application_body("nas", nas, smart_container=True)
 
-    def create_nas_application(self):
-        '''Use REST application/applications nas template to create a volume'''
+    def create_application_template(self):
+        '''Use REST application/applications template to create a volume'''
         body, error = self.create_volume_body()
         self.na_helper.fail_on_error(error)
         response, error = self.rest_app.create_application(body)
@@ -1412,7 +1494,7 @@ class NetAppOntapVolume:
     def create_volume(self):
         '''Create ONTAP volume'''
         if self.rest_app:
-            return self.create_nas_application()
+            return self.create_application_template()
         if self.use_rest:
             return self.create_volume_rest()
         if self.volume_style == 'flexgroup':
@@ -2028,7 +2110,7 @@ class NetAppOntapVolume:
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
                              'snaplock', 'max_files', 'analytics', 'activity_tracking', 'tags', 'snapshot_auto_delete',
-                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'snapshot_locking']:
+                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'snapshot_locking', 'granular_data']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2489,6 +2571,8 @@ class NetAppOntapVolume:
             params['fields'] += 'space.full_threshold_percent,'
         if self.parameters.get('snapshot_locking') is not None:
             params['fields'] += 'snapshot_locking_enabled,'
+        if self.parameters.get('granular_data') is not None:
+            params['fields'] += 'granular_data,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2647,6 +2731,7 @@ class NetAppOntapVolume:
             ('space.nearly_full_threshold_percent', 'vol_nearly_full_threshold_percent', None),
             ('space.full_threshold_percent', 'vol_full_threshold_percent', None),
             ('snapshot_locking_enabled', 'snapshot_locking', None),
+            ('granular_data', 'granular_data', None),
         ]:
             value = self.parameters.get(option)
             if value is not None and transform:
@@ -2812,9 +2897,24 @@ class NetAppOntapVolume:
         ontap_97_options = ['nas_application_template']
         if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7) and any(x in self.parameters for x in ontap_97_options):
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_97_options, version='9.7'))
+
         if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and\
            self.na_helper.safe_get(self.parameters, ['nas_application_template', 'flexcache', 'dr_cache']) is not None:
             self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('flexcache: dr_cache', version='9.9'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11) and\
+           self.na_helper.safe_get(self.parameters, ['nas_application_template', 'cifs_share_name']) is not None:
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('nas_application_template: cifs_share_name', version='9.11'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) and\
+           self.na_helper.safe_get(self.parameters, ['nas_application_template', 'snaplock']) is not None:
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('nas_application_template: snaplock', version='9.12'))
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1) and\
+           self.na_helper.safe_get(self.parameters, ['nas_application_template', 'snapshot_locking_enabled']) is not None:
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version('nas_application_template: \
+                                                                                                 snapshot_locking_enabled', version='9.13.1'))
+
+        if self.na_helper.safe_get(self.parameters, ['nas_application_template', 'cifs_share_name']) is not None and\
+           self.na_helper.safe_get(self.parameters, ['nas_application_template', 'cifs_access']) is None:
+            self.module.fail_json(msg='Must provide CIFS access information when providing CIFS share name.')
 
         if 'snapshot_auto_delete' in self.parameters:
             if 'destroy_list' in self.parameters['snapshot_auto_delete']:
@@ -2881,6 +2981,7 @@ class NetAppOntapVolume:
             'vol_nearly_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'nearly_full_threshold_percent']),
             'vol_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'full_threshold_percent']),
             'snapshot_locking': self.na_helper.safe_get(record, ['snapshot_locking_enabled']),
+            'granular_data': self.na_helper.safe_get(record, ['granular_data']),
         }
 
     def is_fabricpool(self, name, aggregate_uuid):
@@ -2960,7 +3061,7 @@ class NetAppOntapVolume:
                     self.module.fail_json(msg="Error: unencrypting volume is only supported when moving the volume to another aggregate in REST.")
                 actions.append('modify')
         if self.parameters.get('nas_application_template') is not None:
-            application = self.get_application()
+            application = self.get_application('nas')
             changed = self.na_helper.changed
             app_component = self.create_nas_application_component() if self.parameters['state'] == 'present' else None
             modify_app = self.na_helper.get_modified_attributes(application, app_component)

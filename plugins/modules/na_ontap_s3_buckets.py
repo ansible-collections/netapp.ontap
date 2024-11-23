@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -11,7 +11,7 @@ DOCUMENTATION = '''
 module: na_ontap_s3_buckets
 short_description: NetApp ONTAP S3 Buckets
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.19.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -73,6 +73,15 @@ options:
       - Specifies the NAS path to which the nas bucket corresponds to.
     type: str
     version_added: 22.7.0
+
+  versioning_state:
+    description:
+      - Specifies the versioning state of the bucket.
+      - The versioning state cannot be modified to 'disabled' from any other state.
+      - Requires ONTAP 9.11.1 or later.
+    type: str
+    choices: ['disabled', 'enabled', 'suspended']
+    version_added: 22.13.0
 
   policy:
     description:
@@ -301,7 +310,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 class NetAppOntapS3Buckets:
     def __init__(self):
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
@@ -312,6 +321,7 @@ class NetAppOntapS3Buckets:
             comment=dict(required=False, type='str'),
             type=dict(required=False, type='str', choices=['s3', 'nas']),
             nas_path=dict(required=False, type='str'),
+            versioning_state=dict(required=False, type='str', choices=['disabled', 'enabled', 'suspended']),
             policy=dict(type='dict', options=dict(
                 statements=dict(type='list', elements='dict', options=dict(
                     sid=dict(required=False, type='str'),
@@ -363,8 +373,9 @@ class NetAppOntapS3Buckets:
         self.parameters = self.na_helper.check_and_set_parameters(self.module)
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_bucket', 9, 8)
-        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['type', (9, 12, 1)], ['nas_path', (9, 12, 1)]]
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_buckets', 9, 8)
+        partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['versioning_state', (9, 11, 1)],
+                                               ['type', (9, 12, 1)], ['nas_path', (9, 12, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         # few keys in policy.statements will be configured with default value if not set in create.
         # so removing None entries to avoid idempotent issue in next run.
@@ -395,10 +406,12 @@ class NetAppOntapS3Buckets:
     def get_s3_bucket(self):
         api = 'protocols/s3/buckets'
         fields = 'name,svm.name,size,comment,volume.uuid,policy,policy.statements,qos_policy'
-        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
-            fields += ',audit_event_selector,type,nas_path'
-        elif self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             fields += ',audit_event_selector'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1):
+            fields += ',versioning_state'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+            fields += ',type,nas_path'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
                   'fields': fields}
@@ -417,7 +430,8 @@ class NetAppOntapS3Buckets:
             'qos_policy': self.na_helper.safe_get(record, ['qos_policy']),
             'audit_event_selector': self.na_helper.safe_get(record, ['audit_event_selector']),
             'type': self.na_helper.safe_get(record, ['type']),
-            'nas_path': self.na_helper.safe_get(record, ['nas_path'])
+            'nas_path': self.na_helper.safe_get(record, ['nas_path']),
+            'versioning_state': self.na_helper.safe_get(record, ['versioning_state'])
         }
         if body['policy']:
             for policy_statement in body['policy'].get('statements', []):
@@ -478,7 +492,7 @@ class NetAppOntapS3Buckets:
         if params is None:
             params = self.parameters
         body = {}
-        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy']
+        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy', 'versioning_state']
         for option in options:
             if option in params:
                 body[option] = params[option]
@@ -557,6 +571,9 @@ class NetAppOntapS3Buckets:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if modify.get('type'):
                 self.module.fail_json(msg='Error: cannot modify bucket type.')
+            if modify.get('versioning_state') == 'disabled' and\
+                    current.get('versioning_state') in ('enabled', 'suspended'):
+                self.module.fail_json(msg='Error: cannot disable bucket versioning once it has been enabled.')
             if len(modify) == 1 and 'policy' in modify and current.get('policy'):
                 if modify['policy'].get('statements'):
                     self.na_helper.changed = self.validate_modify_required(modify, current)

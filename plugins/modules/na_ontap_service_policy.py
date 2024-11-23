@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2022, NetApp, Inc
+# (c) 2021-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -16,7 +16,7 @@ module: na_ontap_service_policy
 
 short_description: NetApp ONTAP service policy configuration
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.7.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
@@ -171,7 +171,7 @@ class NetAppOntapServicePolicy:
 
     def __init__(self):
         self.use_rest = False
-        argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        argument_spec = netapp_utils.na_ontap_rest_only_spec()
         argument_spec.update(dict(
             state=dict(type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),

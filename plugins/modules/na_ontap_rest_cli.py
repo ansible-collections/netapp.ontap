@@ -17,7 +17,7 @@ description:
   - This module can run as admin or vsdamin and requires HTTP application to be enabled.
   - Access permissions can be customized using ONTAP rest-role.
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_rest
 module: na_ontap_rest_cli
 short_description: NetApp ONTAP run any CLI command using REST api/private/cli/
 version_added: 2.9.0
@@ -87,7 +87,7 @@ class NetAppONTAPCommandREST():
 
     def __init__(self):
         self.use_rest = False
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             command=dict(required=True, type='str'),
             verb=dict(required=True, type='str', choices=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']),
