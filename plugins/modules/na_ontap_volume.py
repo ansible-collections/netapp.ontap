@@ -529,11 +529,13 @@ options:
         type: str
         choices: [try, disrupt, destroy]
       trigger:
-        description: Determines the condition which starts the automatic deletion of snapshots. Note: space_reserve option is deprecated as may be removed in the future.
+        description: Determines the condition which starts the automatic deletion of snapshots. Note: space_reserve option is deprecated as may be removed
+                     in the future.
         type: str
         choices: [volume, snap_reserve, space_reserve]
       target_free_space:
-        description: Determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger, snapshots are deleted until the target free space percentage is reached.
+        description: Determines when snapshot autodelete should stop deleting snapshots. Depending on the trigger, snapshots are deleted until the target
+                     free space percentage is reached.
         type: int
       delete_order:
         description: Determines if the oldest or newest snapshot is deleted first.
@@ -542,12 +544,12 @@ options:
       defer_delete:
         description: Determines what kind of snapshot to delete in the end.
         type: str
-        choices: [scheduled, user_created, prefix, none]
+        choices: [scheduled, user_created, prefix, 'none']
       prefix:
         description: Can be set to provide the prefix string for the 'prefix' value of the defer_delete' option. The prefix string can be 15 characters long.
         type: str
       destroy_list:
-        description: A comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.  
+        description: A comma seperated list of services which can be destroyed if the snapshot backing that service is deleted.
                      The possible values for this option are a combination of 'lun_clone,file_clone' (for LUN clone and/or file clone),
                      'lun_clone,sfsr' (for LUN clone and/or sfsr), 'vol_clone', 'cifs_share', or 'none'.
         type: str
