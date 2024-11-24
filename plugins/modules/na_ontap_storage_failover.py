@@ -39,18 +39,17 @@ EXAMPLES = """
   netapp.ontap.na_ontap_storage_failover:
     state: present
     node_name: node1
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Disable storage failover
   netapp.ontap.na_ontap_storage_failover:
     state: absent
     node_name: node1
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

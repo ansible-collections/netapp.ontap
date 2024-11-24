@@ -65,7 +65,7 @@ options:
 
 EXAMPLES = """
 - name: Create and enable Scanner pool
-  na_ontap_vscan_scanner_pool:
+  netapp.ontap.na_ontap_vscan_scanner_pool:
     state: present
     username: '{{ netapp_username }}'
     password: '{{ netapp_password }}'
@@ -77,7 +77,7 @@ EXAMPLES = """
     scanner_policy: primary
 
 - name: Modify scanner pool
-  na_ontap_vscan_scanner_pool:
+  netapp.ontap.na_ontap_vscan_scanner_pool:
     state: present
     username: '{{ netapp_username }}'
     password: '{{ netapp_password }}'
@@ -88,7 +88,7 @@ EXAMPLES = """
     scanner_pool: Scanner1
 
 - name: Delete a scanner pool
-  na_ontap_vscan_scanner_pool:
+  netapp.ontap.na_ontap_vscan_scanner_pool:
     state: absent
     username: '{{ netapp_username }}'
     password: '{{ netapp_password }}'
