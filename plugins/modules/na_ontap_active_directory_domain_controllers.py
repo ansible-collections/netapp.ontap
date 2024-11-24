@@ -13,7 +13,7 @@ module: na_ontap_active_directory_domain_controllers
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 short_description: NetApp ONTAP configure active directory preferred domain controllers
 extends_documentation_fragment:
-  - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap_rest
 version_added: 22.7.0
 description:
   - Configure Active Directory preferred Domain Controllers.
@@ -95,7 +95,7 @@ class NetAppOntapActiveDirectoryDC:
         """
             Initialize the Ontap ActiveDirectoryDC class
         """
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

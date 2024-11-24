@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -10,7 +10,7 @@ DOCUMENTATION = """
 module: na_ontap_fdsd
 short_description: NetApp ONTAP create or remove a File Directory security descriptor.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.8.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 
@@ -76,7 +76,7 @@ class NetAppOntapFDSD():
         """
             Initialize the ONTAP File Directory Security Descripter class
         """
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str'),

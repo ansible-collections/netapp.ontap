@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -23,7 +23,7 @@ module: na_ontap_wwpn_alias
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 short_description: NetApp ONTAP set FCP WWPN Alias
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: '20.4.0'
 description:
     - Create/Delete FCP WWPN Alias
@@ -90,7 +90,7 @@ class NetAppOntapWwpnAlias(object):
     ''' ONTAP WWPN alias operations '''
     def __init__(self):
 
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, choices=[
                 'present', 'absent'], default='present'),

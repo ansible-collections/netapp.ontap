@@ -627,16 +627,15 @@ class NetAppOntapBroadcastDomain(object):
         if error:
             self.module.fail_json(msg=error)
         if record:
-            current = {'uuid': record['uuid'], 'name': record['name']}
+            current = {'uuid': record['uuid'], 'name': record['name'], 'node': record['node']}
             return current
         return None
 
     def ports_to_add_move_from_desired(self, ports):
         ports_to_add_move = []
         for port in ports:
-            port_name = port.split(':')[1]
             for port_to_add_or_move in self.desired_ports:
-                if port_name == port_to_add_or_move['name']:
+                if port == port_to_add_or_move['node']['name'] + ':' + port_to_add_or_move['name']:
                     ports_to_add_move.append({'uuid': port_to_add_or_move['uuid']})
         return ports_to_add_move
 

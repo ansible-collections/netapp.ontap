@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp Inc.
+# (c) 2020-2024, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -34,6 +34,7 @@ options:
   account_name:
     description:
       - Active Directory account NetBIOS name.
+      - Modifying an existing account name is not supported. The account must be deleted and recreated.
     required: true
     type: str
 
@@ -63,6 +64,7 @@ options:
   organizational_unit:
     description:
       - Organizational unit under which the Active Directory account will be created.
+      - Modifying the organizational unit is not supported. The object must be deleted and recreated.
     type: str
 
 notes:
@@ -162,7 +164,6 @@ class NetAppOntapActiveDirectory:
             return self.get_active_directory_rest()
         active_directory_iter = netapp_utils.zapi.NaElement('active-directory-account-get-iter')
         active_directory_info = netapp_utils.zapi.NaElement('active-directory-account-config')
-        active_directory_info.add_new_child('account-name', self.parameters['account_name'])
         active_directory_info.add_new_child('vserver', self.parameters['vserver'])
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(active_directory_info)
@@ -236,7 +237,6 @@ class NetAppOntapActiveDirectory:
     def get_active_directory_rest(self):
         api = 'protocols/active-directory'
         query = {
-            'name': self.parameters['account_name'],
             'svm.name': self.parameters['vserver'],
             'fields': 'fqdn,name,organizational_unit'
         }
@@ -299,6 +299,8 @@ class NetAppOntapActiveDirectory:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
             if modify and 'organizational_unit' in modify:
                 self.module.fail_json(msg='Error: organizational_unit cannot be modified; found %s.' % modify)
+            if modify and 'account_name' in modify:
+                self.module.fail_json(msg='Error: account_name cannot be modified; found %s.' % modify)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_active_directory()

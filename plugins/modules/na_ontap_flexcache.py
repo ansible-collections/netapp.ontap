@@ -112,6 +112,19 @@ options:
       - default is set to 3 minutes
     type: int
     default: 180
+  writeback:
+    version_added: 22.13.0
+    description:
+      - FlexCache Writeback.
+      - Requires ONTAP 9.12 or later and only supported with REST.
+    type: dict
+    suboptions:
+      enabled:
+        description:
+          - Indicates whether or not writeback is enabled for the FlexCache volume.
+          - Writeback is a storage method where data is first written to the FlexCache volume and then written to the origin of a FlexCache volume.
+        type: bool
+        default: no
   prepopulate:
     version_added: 21.3.0
     description:
@@ -215,6 +228,9 @@ class NetAppONTAPFlexCache:
                 exclude_dir_paths=dict(required=False, type='list', elements='str'),
                 recurse=dict(required=False, type='bool'),
                 force_prepopulate_if_already_created=dict(required=False, type='bool', default=True),
+            )),
+            writeback=dict(required=False, type='dict', options=dict(
+                enabled=dict(required=False, type='bool', default=False)
             ))
         ))
 
@@ -247,6 +263,10 @@ class NetAppONTAPFlexCache:
             if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9) and any(x in self.parameters['prepopulate'] for x in ontap_99_options):
                 options = ['prepopulate: ' + x for x in ontap_99_options]
                 self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(options, version='9.9'))
+
+        ontap_912_options = ['writeback']
+        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) and any(x in self.parameters for x in ontap_912_options):
+            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_912_options, version='9.12'))
 
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -346,18 +366,21 @@ class NetAppONTAPFlexCache:
                 'svm.name': self.parameters['vserver']
             }
             if 'origin_cluster' in self.parameters:
-                query['origin.cluster.name'] = self.parameters['origin_cluster']
-            fields = 'svm,name,uuid,path'
+                query['origins.cluster.name'] = self.parameters['origin_cluster']
+            fields = 'svm,name,uuid,path,writeback' if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) else 'svm,name,uuid,path'
             flexcache, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
             self.na_helper.fail_on_error(error)
             if flexcache is None:
                 return None
-            return dict(
+            flexcache_info = dict(
                 vserver=flexcache['svm']['name'],
                 name=flexcache['name'],
                 uuid=flexcache['uuid'],
                 junction_path=flexcache.get('path')
             )
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12):
+                flexcache_info['writeback'] = flexcache.get('writeback')
+            return flexcache_info
 
         flexcache_get_iter = self.flexcache_get_iter()
         flex_info = {}
@@ -412,7 +435,8 @@ class NetAppONTAPFlexCache:
             aggr_list='aggregates',
             aggr_list_multiplier='constituents_per_aggregate',
             origins='origins',
-            prepopulate='prepopulate'
+            prepopulate='prepopulate',
+            writeback='writeback'
         )
         body = self.flexcache_rest_create_body(mappings)
         api = 'storage/flexcache/flexcaches'
@@ -422,7 +446,8 @@ class NetAppONTAPFlexCache:
 
     def flexcache_rest_modify(self, uuid):
         ''' use PATCH to start prepopulating a FlexCache '''
-        mappings = dict(                # name cannot be set, though swagger example shows it
+        mappings = dict(
+            writeback='writeback',               # name cannot be set, though swagger example shows it
             prepopulate='prepopulate'
         )
         body = self.flexcache_rest_create_body(mappings)
@@ -640,7 +665,10 @@ class NetAppONTAPFlexCache:
             if modify and self.use_rest:
                 mount_unmount = modify.pop('junction_path', None)
             if modify:
-                self.module.fail_json(msg='FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
+                if self.use_rest and 'writeback' in modify:
+                    self.flexcache_rest_modify(current['uuid'])
+                else:
+                    self.module.fail_json(msg='FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
             if current and prepopulate_if_already_created:
                 # force a prepopulate action
                 modify = dict(prepopulate=self.parameters['prepopulate'])

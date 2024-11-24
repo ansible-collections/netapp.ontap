@@ -3,7 +3,7 @@
 create SNMP module to add/delete/modify SNMP user
 """
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -13,7 +13,7 @@ DOCUMENTATION = '''
 module: na_ontap_snmp_traphosts
 short_description: NetApp ONTAP SNMP traphosts.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+    - netapp.ontap.netapp.na_ontap_rest
 version_added: '20.3.0'
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
@@ -65,7 +65,7 @@ class NetAppONTAPSnmpTraphosts:
 
     def __init__(self):
         self.use_rest = False
-        self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
+        self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             host=dict(required=True, type='str', aliases=['ip_address']),

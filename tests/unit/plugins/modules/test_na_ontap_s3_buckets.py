@@ -1,4 +1,4 @@
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -409,7 +409,7 @@ def test_low_version():
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     print('Info: %s' % error)
-    msg = 'Error: na_ontap_s3_bucket only supports REST, and requires ONTAP 9.8.0 or later.  Found: 9.7.0.'
+    msg = 'Error: na_ontap_s3_buckets only supports REST, and requires ONTAP 9.8.0 or later.  Found: 9.7.0.'
     assert msg in error
 
 
@@ -572,6 +572,16 @@ def test_create_s3_bucket_error():
     error = expect_and_capture_ansible_exception(my_obj.create_s3_bucket, 'fail')['msg']
     print('Info: %s' % error)
     assert 'Error creating S3 bucket bucket1: calling: protocols/s3/buckets: got Expected error.' == error
+
+
+def test_create_s3_bucket_with_versioning_state_9_11():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('GET', 'protocols/s3/buckets', SRR['empty_records']),
+        ('POST', 'protocols/s3/buckets', SRR['empty_good'])
+    ])
+    module_args = {'versioning_state': 'enabled'}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_delete_s3_bucket():

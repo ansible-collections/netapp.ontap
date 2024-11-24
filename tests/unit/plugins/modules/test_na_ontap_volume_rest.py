@@ -248,7 +248,7 @@ def test_rest_error():
         ('GET', 'application/applications', SRR['no_record']),          # GET application/applications
         ('POST', 'application/applications', SRR['generic_error']),     # POST application/applications
     ])
-    error = 'Error in create_nas_application: calling: application/applications: got %s.' % SRR['generic_error'][2]
+    error = 'Error in create_application_template: calling: application/applications: got %s.' % SRR['generic_error'][2]
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, fail=True)['msg'] == error
 
 
@@ -1323,6 +1323,29 @@ def test_create_nas_app_tiering_flexcache():
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
 
 
+def test_create_nas_app_cifs_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_12_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),               # Get Volume
+        ('GET', 'svm/svms', SRR['one_svm_record']),
+        ('GET', 'application/applications', SRR['no_record']),      # GET application/applications
+        ('POST', 'application/applications', SRR['empty_good']),    # POST application/applications
+        ('GET', 'storage/volumes', SRR['get_volume']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'cifs_access': [
+                {
+                    'access': 'read'
+                }
+            ],
+            'cifs_share_name': 'test_share',
+            'exclude_aggregates': ['aggr_ex'],
+        }
+    }
+    assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
+
+
 def test_version_error_nas_app():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),
@@ -1357,6 +1380,20 @@ def test_version_error_nas_app_dr_cache():
     assert create_module(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
 
 
+def test_version_error_nas_app_cifs_share_name():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+    ])
+    module_args = {
+        'nas_application_template': {
+            'cifs_share_name': 'test_share2',
+            'cifs_access': [{'access': 'read'}]
+        }
+    }
+    error = 'Error: using nas_application_template: cifs_share_name requires ONTAP 9.11 or later and REST must be enabled - ONTAP version: 9.7.0.'
+    assert create_module(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
+
+
 def test_error_volume_rest_patch():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -1387,8 +1424,8 @@ def test_error_modify_app_not_supported_no_volume_but_app():
     ])
     module_args = {}
     # TODO: we need to handle this error case with a better error mssage
-    error = \
-        'Error in create_nas_application: function create_application should not be called when application uuid is set: 09e9fd5e-8ebd-11e9-b162-005056b39fe7.'
+    error = 'Error in create_application_template: function create_application should not be called when application uuid is set: '
+    error += '09e9fd5e-8ebd-11e9-b162-005056b39fe7.'
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args, fail=True)['msg'] == error
 
 
