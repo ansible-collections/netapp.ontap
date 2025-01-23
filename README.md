@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.14.0
+
+### Minor Changes
+  - na_ontap_svm - updated documentation for `allowed_protocols` & `services`.
+
 ## 22.13.0
 
 ### Minor Changes

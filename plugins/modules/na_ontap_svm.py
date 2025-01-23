@@ -84,11 +84,11 @@ options:
 
   allowed_protocols:
     description:
-      - Allowed Protocols.
-      - This field represent the list of protocols allowed on the Vserver.
+      - This field represents the list of protocols allowed on the Vserver.
       - When part of modify,
         this field should include the existing list
         along with new protocol list to be added to prevent data disruptions.
+      - Mutually exclusive with C(services).
       - Possible values
       - nfs   NFS protocol,
       - cifs  CIFS protocol,
@@ -108,6 +108,7 @@ options:
       - C(enabled) is not supported for CIFS, to enable it use na_ontap_cifs_server.
       - C(enabled) is not supported for s3, to enable it use na_ontap_s3_services.
       - If a service is not present, it is left unchanged.
+      - Mutually exclusive with C(allowed_protocols).
     type: dict
     version_added: 21.10.0
     suboptions:
