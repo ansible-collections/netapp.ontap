@@ -64,9 +64,9 @@ options:
 EXAMPLES = """
     - name: wait for sp_upgrade in progress
       netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: no
         name: sp_upgrade
@@ -78,9 +78,9 @@ EXAMPLES = """
 
     - name: wait for sp_upgrade not in progress
       netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: no
         name: sp_upgrade
@@ -93,9 +93,9 @@ EXAMPLES = """
 
     - name: wait for sp_version to match 3.9
       netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: no
         name: sp_version

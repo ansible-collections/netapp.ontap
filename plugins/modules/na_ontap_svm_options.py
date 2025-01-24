@@ -41,7 +41,7 @@ options:
 
 EXAMPLES = """
     - name: Set SVM Options
-      na_ontap_svm_options:
+      netapp.ontap.na_ontap_svm_options:
         vserver: "{{ netapp_vserver_name }}"
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"

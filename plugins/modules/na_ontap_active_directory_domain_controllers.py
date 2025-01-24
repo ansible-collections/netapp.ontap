@@ -55,9 +55,9 @@ notes:
 EXAMPLES = """
     - name: Create active directory preferred domain controllers
       netapp.ontap.na_ontap_active_directory_domain_controllers:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         vserver: ansible
@@ -67,9 +67,9 @@ EXAMPLES = """
 
     - name: Delete active directory preferred domain controllers
       netapp.ontap.na_ontap_active_directory_domain_controllers:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
         https: true
         validate_certs: false
         vserver: ansible

@@ -42,22 +42,22 @@ options:
 
 EXAMPLES = """
     - name: Enable storage auto giveback
-      na_ontap_storage_auto_giveback:
+      netapp.ontap.na_ontap_storage_auto_giveback:
         name: node1
         auto_giveback_enabled: true
         auto_giveback_after_panic_enabled: true
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
     - name: Disable storage auto giveback
-      na_ontap_storage_auto_giveback:
+      netapp.ontap.na_ontap_storage_auto_giveback:
         name: node1
         auto_giveback_enabled: false
         auto_giveback_after_panic_enabled: false
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
 """
 
