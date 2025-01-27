@@ -51,9 +51,9 @@ EXAMPLES = '''
     user_name: Administrator
     user_password: Test123!
     vserver: ansible
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 '''
 
 RETURN = '''

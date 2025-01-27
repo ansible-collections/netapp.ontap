@@ -53,9 +53,9 @@ EXAMPLES = """
     state: present
     vserver: svm1
     name: BUILTIN\\administrators
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 
@@ -64,9 +64,9 @@ EXAMPLES = """
     state: absent
     vserver: svm1
     name: BUILTIN\\administrators
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 
@@ -76,9 +76,9 @@ EXAMPLES = """
     vserver: svm1
     name: BUILTIN\\administrators
     descrition: 'CIFS local group'
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 
@@ -88,9 +88,9 @@ EXAMPLES = """
     vserver: svm1
     name: ANSIBLE_CIFS\\test_users
     descrition: 'CIFS local group'
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 """

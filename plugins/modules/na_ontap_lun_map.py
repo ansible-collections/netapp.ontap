@@ -2,7 +2,7 @@
 
 """ this is lun mapping module
 
- (c) 2018-2023, NetApp, Inc
+ (c) 2018-2024, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -55,25 +55,25 @@ options:
 """
 
 EXAMPLES = """
-- name: Create LUN mapping
-  na_ontap_lun_map:
-    state: present
-    initiator_group_name: ansibleIgroup3234
-    path: /vol/iscsi_path/iscsi_lun
-    vserver: ci_dev
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Create LUN mapping
+      netapp.ontap.na_ontap_lun_map:
+        state: present
+        initiator_group_name: ansibleIgroup3234
+        path: /vol/iscsi_path/iscsi_lun
+        vserver: ci_dev
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: Unmap LUN
-  na_ontap_lun_map:
-    state: absent
-    initiator_group_name: ansibleIgroup3234
-    path: /vol/iscsi_path/iscsi_lun
-    vserver: ci_dev
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Unmap LUN
+      netapp.ontap.na_ontap_lun_map:
+        state: absent
+        initiator_group_name: ansibleIgroup3234
+        path: /vol/iscsi_path/iscsi_lun
+        vserver: ci_dev
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """

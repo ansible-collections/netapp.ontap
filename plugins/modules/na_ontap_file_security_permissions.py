@@ -268,11 +268,9 @@ EXAMPLES = """
         user: "{{ user }}"
         apply_to:
           files: true
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    https: "{{ https }}"
-    validate_certs: "{{ validate_certs }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Modify file directory security permissions.
   netapp.ontap.na_ontap_file_security_permissions:
@@ -289,11 +287,9 @@ EXAMPLES = """
         user: "{{ user }}"
         apply_to:
           files: true
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    https: "{{ https }}"
-    validate_certs: "{{ validate_certs }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Delete file directory security ACLs.
   netapp.ontap.na_ontap_file_security_permissions:
@@ -310,11 +306,9 @@ EXAMPLES = """
         user: "{{ user }}"
         apply_to:
           files: true
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    https: "{{ https }}"
-    validate_certs: "{{ validate_certs }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -62,6 +62,11 @@ EXAMPLES = '''
       - partner_node_name: rha17-a2
         node_name: rha17-b2
     partner_cluster_name: rha2-b2b1_siteB
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 '''
 
 RETURN = '''

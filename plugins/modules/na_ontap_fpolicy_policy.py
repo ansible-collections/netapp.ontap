@@ -83,9 +83,9 @@ EXAMPLES = """
     name: fpolicy_policy
     events: fcpolicy_event
     engine: fpolicy_ext_engine
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify FPolicy policy
   netapp.ontap.na_ontap_fpolicy_policy:
@@ -94,9 +94,9 @@ EXAMPLES = """
     name: fpolicy_policy
     events: fcpolicy_event
     is_mandatory: false
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete FPolicy policy
   netapp.ontap.na_ontap_fpolicy_policy:
@@ -104,13 +104,12 @@ EXAMPLES = """
     vserver: svm1
     name: fpolicy_policy
     events: fcpolicy_event
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

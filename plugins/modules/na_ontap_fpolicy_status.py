@@ -41,7 +41,7 @@ options:
     type: int
 
 notes:
-- Not support check_mode.
+- check_mode not supported.
 """
 
 EXAMPLES = """
@@ -51,9 +51,9 @@ EXAMPLES = """
     vserver: svm1
     policy_name: fpolicy_policy
     sequence_number: 10
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 
@@ -62,14 +62,15 @@ EXAMPLES = """
     state: absent
     vserver: svm1
     policy_name: fpolicy_policy
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     https: true
     validate_certs: false
 """
 
-RETURN = """ # """
+RETURN = """
+"""
 
 import traceback
 

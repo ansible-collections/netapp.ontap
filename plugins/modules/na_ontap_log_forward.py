@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -64,38 +64,37 @@ options:
 '''
 
 EXAMPLES = """
-- name: Create log forward configuration
-  na_ontap_log_forward:
-    state: present
-    destination: 10.11.12.13
-    port: 514
-    protocol: udp_unencrypted
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    - name: Create log forward configuration
+      netapp.ontap.na_ontap_log_forward:
+        state: present
+        destination: 10.11.12.13
+        port: 514
+        protocol: udp_unencrypted
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
 
-- name: Modify log forward configuration
-  na_ontap_log_forward:
-    state: present
-    destination: 10.11.12.13
-    port: 514
-    protocol: tcp_unencrypted
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    - name: Modify log forward configuration
+      netapp.ontap.na_ontap_log_forward:
+        state: present
+        destination: 10.11.12.13
+        port: 514
+        protocol: tcp_unencrypted
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
 
-- name: Delete log forward configuration
-  na_ontap_log_forward:
-    state: absent
-    destination: 10.11.12.13
-    port: 514
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    - name: Delete log forward configuration
+      netapp.ontap.na_ontap_log_forward:
+        state: absent
+        destination: 10.11.12.13
+        port: 514
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

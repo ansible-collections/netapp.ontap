@@ -43,18 +43,18 @@ EXAMPLES = """
     state: present
     name: "ansible_security_policyl"
     vserver: "svm1"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete File Directory Security Policy
   netapp.ontap.na_ontap_fdsp:
     state: absent
     vserver: "svm1"
     name: "ansible_security_policyl"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

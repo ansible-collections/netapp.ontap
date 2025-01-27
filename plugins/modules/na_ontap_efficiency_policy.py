@@ -91,9 +91,9 @@ options:
 EXAMPLES = """
 - name: Create threshold efficiency policy
   netapp.ontap.na_ontap_efficiency_policy:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     vserver: ansible
     state: present
     policy_name: test
@@ -105,9 +105,9 @@ EXAMPLES = """
 
 - name: Create Scheduled efficiency Policy
   netapp.ontap.na_ontap_efficiency_policy:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     vserver: ansible
     state: present
     policy_name: test2

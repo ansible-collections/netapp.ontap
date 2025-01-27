@@ -165,6 +165,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+    https: true
 '''
 
 RETURN = '''

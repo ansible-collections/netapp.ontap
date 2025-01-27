@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2021, NetApp, Inc
+# (c) 2019-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -103,30 +103,29 @@ options:
 '''
 
 EXAMPLES = """
-- name: object store Create
-  netapp.ontap.na_ontap_object_store:
-    state: present
-    name: ansible
-    provider_type: SGWS
-    server: abc
-    container: abc
-    access_key: s3.amazonaws.com
-    secret_password: abc
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    - name: Object store Create
+      netapp.ontap.na_ontap_object_store:
+        state: present
+        name: ansible
+        provider_type: SGWS
+        server: abc
+        container: abc
+        access_key: s3.amazonaws.com
+        secret_password: abc
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: object store Create
-  netapp.ontap.na_ontap_object_store:
-    state: absent
-    name: ansible
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    - name: Object store delete
+      netapp.ontap.na_ontap_object_store:
+        state: absent
+        name: ansible
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
-
 """
 import traceback
 

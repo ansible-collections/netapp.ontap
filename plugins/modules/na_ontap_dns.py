@@ -62,10 +62,10 @@ EXAMPLES = """
 - name: Create or modify DNS
   netapp.ontap.na_ontap_dns:
     state: present
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
-    vserver: "{{vservername}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    vserver: "{{ vservername }}"
     domains: sales.bar.com
     nameservers: 10.193.0.250,10.192.0.250
     skip_validation: true
@@ -73,9 +73,9 @@ EXAMPLES = """
 - name: Create or modify cluster DNS with REST
   netapp.ontap.na_ontap_dns:
     state: present
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     domains: sales.bar.com
     nameservers: 10.193.0.250,10.192.0.250
 """

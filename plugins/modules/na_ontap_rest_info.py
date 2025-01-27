@@ -323,9 +323,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
-    use_rest: always
     gather_subset:
       - svm/svms
 
@@ -334,9 +332,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
-    use_rest: always
     gather_subset:
       - storage/aggregates
       - storage/volumes
@@ -346,11 +342,9 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     fields:
       - '*'
     validate_certs: false
-    use_rest: always
     gather_subset:
       - storage/aggregates
       - storage/volumes
@@ -360,13 +354,11 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     fields:
       - 'uuid'
       - 'name'
       - 'node'
     validate_certs: false
-    use_rest: always
     gather_subset:
       - storage/aggregates
     parameters:
@@ -378,11 +370,9 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     fields:
       - '*'
     validate_certs: false
-    use_rest: always
     gather_subset:
       - storage/volumes/snapshots
     owning_resource:
@@ -394,7 +384,6 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
     gather_subset:
       - storage/volumes
@@ -407,7 +396,6 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
     gather_subset:
       - file_directory_security
@@ -416,12 +404,11 @@ EXAMPLES = '''
       path: /vol1/qtree1
     use_python_keys: true
 
-- name: Get ip network interface info.
+- name: Get ip network interface info
   netapp.ontap.na_ontap_rest_info:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
     gather_subset:
       - ip_interfaces_info
@@ -435,7 +422,6 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: true
     validate_certs: false
     gather_subset:
       - aggregate_info

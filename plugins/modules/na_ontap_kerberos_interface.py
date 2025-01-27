@@ -94,11 +94,9 @@ EXAMPLES = '''
     service_principal_name: nfs/lif_svm1_284@RELAM2
     admin_username: "{{ admin_user }}"
     admin_password: "{{ admin_pass }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    https: "{{ https }}"
-    validate_certs: "{{ certs }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 
 - name: Disable kerberos interface.
@@ -108,11 +106,9 @@ EXAMPLES = '''
     enabled: false
     admin_username: "{{ admin_user }}"
     admin_password: "{{ admin_pass }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-    https: "{{ https }}"
-    validate_certs: "{{ certs }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

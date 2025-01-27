@@ -62,7 +62,7 @@ options:
 '''
 
 EXAMPLES = """
-- name: wait for sp_upgrade in progress
+- name: Wait for sp_upgrade in progress
   netapp.ontap.na_ontap_wait_for_condition:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -76,7 +76,7 @@ EXAMPLES = """
     polling_interval: 30
     timeout: 1800
 
-- name: wait for sp_upgrade not in progress
+- name: Wait for sp_upgrade not in progress
   netapp.ontap.na_ontap_wait_for_condition:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -91,7 +91,7 @@ EXAMPLES = """
     polling_interval: 30
     timeout: 1800
 
-- name: wait for sp_version to match 3.9
+- name: Wait for sp_version to match 3.9
   netapp.ontap.na_ontap_wait_for_condition:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"

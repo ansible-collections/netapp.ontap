@@ -126,9 +126,9 @@ EXAMPLES = """
     extern_engine_type: asynchronous
     primary_servers: ['10.11.12.13', '10.11.12.14']
     ssl_option: no_auth
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify fPolicy external engine
   netapp.ontap.na_ontap_fpolicy_ext_engine:
@@ -139,22 +139,21 @@ EXAMPLES = """
     extern_engine_type: synchronous
     primary_servers: ['10.11.12.15', '10.11.12.16']
     ssl_option: server_auth
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete fPolicy external engine
   netapp.ontap.na_ontap_fpolicy_ext_engine:
     state: absent
     vserver: svm1
     name: fpolicy_engine
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

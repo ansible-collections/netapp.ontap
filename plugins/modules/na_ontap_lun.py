@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2023, NetApp, Inc
+# (c) 2017-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -238,76 +238,73 @@ options:
 '''
 
 EXAMPLES = """
-- name: Create LUN
-  netapp.ontap.na_ontap_lun:
-    state: present
-    name: ansibleLUN
-    flexvol_name: ansibleVolume
-    vserver: ansibleVServer
-    size: 5
-    size_unit: mb
-    os_type: linux
-    space_reserve: true
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Create LUN
+      netapp.ontap.na_ontap_lun:
+        state: present
+        name: ansibleLUN
+        flexvol_name: ansibleVolume
+        vserver: ansibleVServer
+        size: 5
+        size_unit: mb
+        os_type: linux
+        space_reserve: true
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: Resize LUN
-  netapp.ontap.na_ontap_lun:
-    state: present
-    name: ansibleLUN
-    force_resize: true
-    flexvol_name: ansibleVolume
-    vserver: ansibleVServer
-    size: 5
-    size_unit: gb
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Resize LUN
+      netapp.ontap.na_ontap_lun:
+        state: present
+        name: ansibleLUN
+        force_resize: true
+        flexvol_name: ansibleVolume
+        vserver: ansibleVServer
+        size: 5
+        size_unit: gb
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: Create LUNs using SAN application
-  tags: create
-  netapp.ontap.na_ontap_lun:
-    state: present
-    name: ansibleLUN
-    size: 15
-    size_unit: mb
-    os_type: linux
-    space_reserve: false
-    san_application_template:
-      name: san-ansibleLUN
-      igroup_name: testme_igroup
-      lun_count: 3
-      protection_type:
-      local_policy: default
-      exclude_aggregates: aggr0
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Create LUNs using SAN application
+      netapp.ontap.na_ontap_lun:
+        state: present
+        name: ansibleLUN
+        size: 15
+        size_unit: mb
+        os_type: linux
+        space_reserve: false
+        san_application_template:
+            name: san-ansibleLUN
+            igroup_name: testme_igroup
+            lun_count: 3
+            protection_type:
+            local_policy: default
+            exclude_aggregates: aggr0
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: Convert existing volume to SAN application
-  tags: create
-  netapp.ontap.na_ontap_lun:
-    state: present
-    name: someVolume
-    size: 22
-    size_unit: mb
-    os_type: linux
-    space_reserve: false
-    san_application_template:
-      name: san-ansibleLUN
-      igroup_name: testme_igroup
-      lun_count: 3
-      protection_type:
-      local_policy: default
-      scope: application
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Convert existing volume to SAN application
+      netapp.ontap.na_ontap_lun:
+        state: present
+        name: someVolume
+        size: 22
+        size_unit: mb
+        os_type: linux
+        space_reserve: false
+        san_application_template:
+            name: san-ansibleLUN
+            igroup_name: testme_igroup
+            lun_count: 3
+            protection_type:
+            local_policy: default
+            scope: application
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
-
 """
 
 import copy

@@ -88,10 +88,9 @@ EXAMPLES = """
     access_type: allow
     account: DOMAIN\\Account
     rights: modify
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Modify NTFS DACL
   netapp.ontap.na_ontap_ntfs_dacl:
@@ -101,9 +100,9 @@ EXAMPLES = """
     access_type: full_control
     account: DOMAIN\\Account
     rights: modify
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Remove NTFS DACL
   netapp.ontap.na_ontap_ntfs_dacl:
@@ -111,13 +110,12 @@ EXAMPLES = """
     vserver: SVM1
     security_descriptor: ansible_sd
     account: DOMAIN\\Account
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

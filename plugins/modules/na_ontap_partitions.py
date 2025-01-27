@@ -74,19 +74,19 @@ options:
 '''
 
 EXAMPLES = """
-- name: Assign specified total partitions to node cluster-01
-  na_ontap_disk_partitions_custom:
-    node: cluster-01
-    partition_count: 56
-    disk_type: FSAS
-    partition_type: data
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
+    - name: Assign specified total partitions to node cluster-01
+      netapp.ontap.na_ontap_partitions:
+        node: cluster-01
+        partition_count: 56
+        disk_type: SSD
+        partition_type: data1
+        partition_method: root_data1_data2
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 """
 
 RETURN = """
-
 """
 
 from ansible.module_utils.basic import AnsibleModule

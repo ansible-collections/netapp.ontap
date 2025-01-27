@@ -43,10 +43,10 @@ EXAMPLES = """
   netapp.ontap.na_ontap_fcp:
     state: present
     status: down
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
-    vserver: "{{vservername}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    vserver: "{{ vserver_name }}"
 """
 
 RETURN = """

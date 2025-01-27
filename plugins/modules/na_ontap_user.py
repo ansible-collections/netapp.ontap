@@ -241,9 +241,9 @@ EXAMPLES = """
     engine_id: '7063514941000000000000'
     remote_switch_ipaddress: 10.0.0.0
     vserver: "{{ vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Create user
   netapp.ontap.na_ontap_user:
@@ -257,9 +257,9 @@ EXAMPLES = """
     role_name: vsadmin
     set_password: bobdole1234566
     vserver: "{{ vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

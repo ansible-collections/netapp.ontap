@@ -294,7 +294,6 @@ EXAMPLES = """
 """
 
 RETURN = """
-
 """
 
 import traceback

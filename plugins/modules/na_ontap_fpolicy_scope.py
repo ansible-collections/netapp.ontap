@@ -107,10 +107,9 @@ EXAMPLES = """
     name: policy1
     export_policies_to_include: export1
     shares_to_include: share1
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    use_rest: "{{ use_rest }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify FPolicy scope
   netapp.ontap.na_ontap_fpolicy_scope:
@@ -119,24 +118,21 @@ EXAMPLES = """
     name: policy1
     export_policies_to_include: export1,export2
     shares_to_include: share1,share2
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    use_rest: "{{ use_rest }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete FPolicy scope
   netapp.ontap.na_ontap_fpolicy_scope:
     state: absent
     vserver: GBSMNAS80LD
     name: policy1
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
-    use_rest: "{{ use_rest }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

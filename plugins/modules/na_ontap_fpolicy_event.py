@@ -78,9 +78,9 @@ EXAMPLES = """
     filters: ['first_read', 'close_with_modification']
     protocol: cifs
     volume_monitoring: false
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify FPolicy Event
   netapp.ontap.na_ontap_fpolicy_event:
@@ -88,21 +88,22 @@ EXAMPLES = """
     vserver: svm1
     name: fpolicy_event
     volume_monitoring: true
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete FPolicy Event
   netapp.ontap.na_ontap_fpolicy_event:
     state: absent
     vserver: svm1
     name: fpolicy_event
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
-RETURN = """ # """
+RETURN = """
+"""
 
 import traceback
 

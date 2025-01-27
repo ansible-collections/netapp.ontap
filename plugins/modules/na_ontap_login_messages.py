@@ -48,34 +48,33 @@ options:
 '''
 
 EXAMPLES = """
-- name: Modify banner vserver
+- name: Modify vserver banner
   netapp.ontap.na_ontap_login_messages:
     vserver: trident_svm
     banner: this is trident vserver
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-- name: Modify motd vserver
+- name: Modify vserver motd
   netapp.ontap.na_ontap_login_messages:
     vserver: trident_svm
     motd_message: this is trident vserver
     show_cluster_motd: true
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
 - name: Modify motd cluster - REST
   netapp.ontap.na_ontap_login_messages:
     motd_message: this is a cluster motd with REST
     show_cluster_motd: true
-    username: "{{ username }}"
-    password: "{{ password }}"
-    hostname: "{{ hostname }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """
-
 """
 
 import traceback

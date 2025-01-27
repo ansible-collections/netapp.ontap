@@ -55,9 +55,9 @@ EXAMPLES = """
     vserver: svm1
     group: BUILTIN\\administrators
     member: DOMAIN\\Domain Admins
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     ontapi: "{{ ontap_facts.ontap_version }}"
     https: true
     validate_certs: false
@@ -68,9 +68,9 @@ EXAMPLES = """
     vserver: svm1
     group: BUILTIN\\administrators
     member: DOMAIN\\Domain Admins
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
     ontapi: "{{ ontap_facts.ontap_version }}"
     https: true
     validate_certs: false

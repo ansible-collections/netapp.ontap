@@ -109,9 +109,9 @@ EXAMPLES = """
     type: rest_api
     filters: ['important_events']
     destination: http://my.rest.api/address
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Configure REST EMS destination with a certificate
   netapp.ontap.na_ontap_ems_destination:
@@ -122,9 +122,9 @@ EXAMPLES = """
     destination: http://my.rest.api/address
     certificate: my_cert
     ca: my_cert_ca
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Configure REST EMS destination with type syslog
   netapp.ontap.na_ontap_ems_destination:
@@ -141,9 +141,9 @@ EXAMPLES = """
       message_format: legacy_netapp
       hostname_format_override: no_override
       timestamp_format_override: no_override
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Remove email EMS destination
   netapp.ontap.na_ontap_ems_destination:
@@ -152,9 +152,9 @@ EXAMPLES = """
     type: email
     filters: ['important_events']
     destination: netapp@company.com
-    hostname: "{{hostname}}"
-    username: "{{username}}"
-    password: "{{password}}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

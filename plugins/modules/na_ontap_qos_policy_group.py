@@ -211,7 +211,7 @@ EXAMPLES = """
       max_throughput_mbps: 200
       min_throughput_iops: 500
       min_throughput_mbps: 100
-      capacity_shared: True
+      capacity_shared: true
 
 - name: Modify qos policy max_throughput in REST.
   netapp.ontap.na_ontap_qos_policy_group:

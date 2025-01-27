@@ -53,7 +53,6 @@ EXAMPLES = """
 """
 
 RETURN = """
-
 """
 
 import traceback

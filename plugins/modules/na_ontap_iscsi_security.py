@@ -70,11 +70,11 @@ version_added: "19.11.0"
 '''
 
 EXAMPLES = """
-- name: Create
+- name: Create iscsi security
   netapp.ontap.na_ontap_iscsi_security:
-    hostname: 0.0.0.0
-    username: user
-    password: pass
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     vserver: test_svm
     state: present
     initiator: eui.9999956789abcdef
@@ -87,9 +87,9 @@ EXAMPLES = """
 
 - name: Modify outbound username
   netapp.ontap.na_ontap_iscsi_security:
-    hostname: 0.0.0.0
-    username: user
-    password: pass
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     vserver: test_svm
     state: present
     initiator: eui.9999956789abcdef
@@ -102,9 +102,9 @@ EXAMPLES = """
 
 - name: Modify address
   netapp.ontap.na_ontap_iscsi_security:
-    hostname: 0.0.0.0
-    username: user
-    password: pass
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     vserver: test_svm
     state: present
     initiator: eui.9999956789abcdef

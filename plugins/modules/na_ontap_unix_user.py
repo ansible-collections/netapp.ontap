@@ -98,7 +98,6 @@ EXAMPLES = """
 """
 
 RETURN = """
-
 """
 import traceback
 

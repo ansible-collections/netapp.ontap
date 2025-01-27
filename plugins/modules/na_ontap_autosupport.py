@@ -137,9 +137,9 @@ options:
 EXAMPLES = """
 - name: Enable autosupport
   netapp.ontap.na_ontap_autosupport:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: present
     node_name: test
     transport: https
@@ -150,9 +150,9 @@ EXAMPLES = """
 
 - name: Modify autosupport proxy_url with password
   netapp.ontap.na_ontap_autosupport:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: present
     node_name: test
     transport: https
@@ -160,9 +160,9 @@ EXAMPLES = """
 
 - name: Modify autosupport proxy_url without password
   netapp.ontap.na_ontap_autosupport:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: present
     node_name: test
     transport: https
@@ -170,9 +170,9 @@ EXAMPLES = """
 
 - name: Disable autosupport
   netapp.ontap.na_ontap_autosupport:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: absent
     node_name: test
 """

@@ -68,6 +68,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_svm - updated documentation for `allowed_protocols` & `services`.
   - na_ontap_volume - new option `large_size_enabled` added in REST, requires ONTAP 9.12 or later.
   - na_ontap_dns - updated documentation for `vserver`.
+  - multiple modules - standardized hostname, username, and password parameters to use `netapp_hostname`, `netapp_username`, and `netapp_password` as values.
+  - multiple modules - updated examples to use Fully Qualified Collection Name.
+  - na_ontap_rest_cli - added POST and DELETE examples.
+  - updated dead link in doc_fragments.
 
 ### Bug Fixes
   - Resolved Ansible lint issues.

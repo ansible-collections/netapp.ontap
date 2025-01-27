@@ -24,12 +24,13 @@ version_added: 2.9.0
 options:
   command:
     description:
-      - a string command.
+      - A CLI command.
     required: true
     type: str
   verb:
     description:
-      - a string indicating which api call to run
+      - Define which action to perform with the provided command.
+      - Values are mapped to show, create, modify, delete.
       - OPTIONS is useful to know which verbs are supported by the REST API
     choices: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
     required: true
@@ -45,32 +46,80 @@ options:
 '''
 
 EXAMPLES = """
-- name: Run ontap rest cli command
+- name: Run ONTAP REST CLI command
   netapp.ontap.na_ontap_rest_cli:
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
-    command: 'version'
-    verb: 'GET'
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: version
+    verb: GET
 
-- name: Run ontap rest cli command
+# The fields key allows returning a subset of parameters for a given object
+- name: Run volume show command with a filter to only return volumes matching the provided vserver and policy values.
   netapp.ontap.na_ontap_rest_cli:
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
-    command: 'security/login/motd'
-    verb: 'PATCH'
-    params: {'vserver': 'ansibleSVM'}
-    body: {'message': 'test'}
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: volume
+    verb: GET
+    params:
+      vserver: vs0
+      policy: default
+      fields: vserver,volume,policy
+  register: vs0_volumes
+
+- name: Run security login motd modify command
+  netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: security/login/motd
+    verb: PATCH
+    params:
+      vserver: ansibleSVM
+    body:
+      message: test
 
 - name: Set option
   netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     command: options
     verb: PATCH
     params:
       option_name: lldp.enable
     body:
       option_value: "on"
+
+- name: Run security certificate delete command
+  netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: security/certificate
+    verb: DELETE
+    body:
+      vserver: vs1
+      common-name: cluster01
+      ca: cluster01
+      type: server
+      serial: 17EBE9D26GGE91B9
+
+- name: Run volume create command
+  netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: volume
+    verb: POST
+    body:
+      vserver: vs1
+      volume: my_test_volume
+      size: 10g
+      aggregate: aggr1_node1
+      policy: default
+      type: RW
 """
 
 RETURN = """

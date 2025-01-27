@@ -87,9 +87,9 @@ EXAMPLES = """
     ntfs_mode: "replace"
     security_type: "ntfs"
     path: "/volume1"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Modify File Directory Security Policy Task
   netapp.ontap.na_ontap_na_ontap_fdspt:
@@ -100,9 +100,9 @@ EXAMPLES = """
     ntfs_sd: "ansible1_sd"
     ntfs_mode: "replace"
     security_type: "ntfs"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Remove File Directory Security Policy Task
   netapp.ontap.na_ontap_na_ontap_fdspt:
@@ -111,9 +111,9 @@ EXAMPLES = """
     name: "ansible_pl"
     access_control: "file_directory"
     path: "/volume1"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

@@ -64,21 +64,9 @@ EXAMPLES = """
     size: 20
     size_unit: mb
     vserver: "{{ vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
-
-- name: Create NVME Namespace (Idempotency)
-  netapp.ontap.na_ontap_nvme_namespace:
-    state: present
-    ostype: linux
-    path: /vol/ansible/test
-    size: 20
-    size_unit: mb
-    vserver: "{{ vserver }}"
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

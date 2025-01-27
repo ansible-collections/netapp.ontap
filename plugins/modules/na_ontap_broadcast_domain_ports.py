@@ -45,23 +45,23 @@ options:
 '''
 
 EXAMPLES = """
-- name: Create broadcast domain ports
-  na_ontap_broadcast_domain_ports:
-    state=present
-    username={{ netapp_username }}
-    password={{ netapp_password }}
-    hostname={{ netapp_hostname }}
-    broadcast_domain=123kevin
-    ports=khutton-vsim1:e0d-13
+- name: Create broadcast-domain ports
+  netapp.ontap.na_ontap_broadcast_domain_ports:
+    state: present
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    broadcast_domain: 123kevin
+    ports: khutton-vsim1:e0d-13
 
-- name: Delete broadcast domain ports
-  na_ontap_broadcast_domain_ports:
-    state=absent
-    username={{ netapp_username }}
-    password={{ netapp_password }}
-    hostname={{ netapp_hostname }}
-    broadcast_domain=123kevin
-    ports=khutton-vsim1:e0d-13
+- name: Delete broadcast-domain ports
+  netapp.ontap.na_ontap_broadcast_domain_ports:
+    state: absent
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    broadcast_domain: 123kevin
+    ports: khutton-vsim1:e0d-13
 """
 
 RETURN = """

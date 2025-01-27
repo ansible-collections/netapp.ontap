@@ -82,7 +82,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: false
+    https: true
 
 - name: Broadcast domain add port
   netapp.ontap.na_ontap_ports:
@@ -94,7 +94,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: false
+    https: true
 
 - name: Portset remove port
   netapp.ontap.na_ontap_ports:
@@ -106,7 +106,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: false
+    https: true
 
 - name: Portset add port
   netapp.ontap.na_ontap_ports:
@@ -119,7 +119,7 @@ EXAMPLES = '''
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
-    https: false
+    https: true
 '''
 
 RETURN = '''

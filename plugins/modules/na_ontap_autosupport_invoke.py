@@ -66,9 +66,9 @@ EXAMPLES = '''
     autosupport_message: invoked test autosupport rest
     uri: http://1.2.3.4/delivery_uri
     type: test
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

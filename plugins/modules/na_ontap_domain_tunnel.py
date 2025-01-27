@@ -40,9 +40,9 @@ EXAMPLES = """
   netapp.ontap.na_ontap_domain_tunnel:
     state: present
     vserver: svm1
-    hostname: "{{ hostname }}"
-    username: "{{ admin username }}"
-    password: "{{ admin password }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

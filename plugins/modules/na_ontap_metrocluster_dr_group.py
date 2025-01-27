@@ -64,6 +64,11 @@ EXAMPLES = '''
       - partner_name: carchi_cluster3_01
         node_name: carchi_cluster1_01
     partner_cluster_name: carchi_cluster3
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
 - name: Delete MetroCluster DR group
   netapp.ontap.na_ontap_metrocluster_dr_group:
@@ -72,6 +77,11 @@ EXAMPLES = '''
         node_name: carchi_cluster1_01
     state: absent
     partner_cluster_name: carchi_cluster3
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 '''
 
 RETURN = '''

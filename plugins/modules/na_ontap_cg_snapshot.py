@@ -82,9 +82,9 @@ EXAMPLES = """
     vserver: vserver_name
     snapshot: snapshot name
     volumes: vol_name
-    username: "{{ netapp username }}"
-    password: "{{ netapp password }}"
-    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Create CG snapshot using CG name - REST
   na_ontap_cg_snapshot:
@@ -93,9 +93,9 @@ EXAMPLES = """
     snapshot: snapshot_name
     consistency_group: cg_name
     snapmirror_label: sm_label
-    username: "{{ netapp username }}"
-    password: "{{ netapp password }}"
-    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Create CG snapshot using volumes - REST
   na_ontap_cg_snapshot:
@@ -103,12 +103,12 @@ EXAMPLES = """
     vserver: vserver_name
     snapshot: snapshot_name
     volumes:
-        - vol1
-        - vol2
+      - vol1
+      - vol2
     snapmirror_label: sm_label
-    username: "{{ netapp username }}"
-    password: "{{ netapp password }}"
-    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Delete CG snapshot - REST
   na_ontap_cg_snapshot:
@@ -116,9 +116,9 @@ EXAMPLES = """
     vserver: vserver_name
     snapshot: snapshot_name
     consistency_group: cg_name
-    username: "{{ netapp username }}"
-    password: "{{ netapp password }}"
-    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

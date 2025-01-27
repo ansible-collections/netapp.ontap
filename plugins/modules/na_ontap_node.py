@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -45,35 +45,34 @@ options:
 '''
 
 EXAMPLES = """
-- name: modify node
-  na_ontap_node:
-    name: laurentncluster-2
-    location: SF1
-    asset_tag: mytag
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
+    - name: Modify node
+      netapp.ontap.na_ontap_node:
+        name: laurentncluster-2
+        location: SF1
+        asset_tag: mytag
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
 
-- name: rename node
-  na_ontap_node:
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
-    from_name: laurentn-vsim1
-    name: laurentncluster-2
+    - name: Rename node
+      netapp.ontap.na_ontap_node:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        from_name: laurentn-vsim1
+        name: laurentncluster-2
 
-- name: modify and rename node
-  na_ontap_node:
-    hostname: "{{ netapp_hostname }}"
-    username: "{{ netapp_username }}"
-    password: "{{ netapp_password }}"
-    location: SF2
-    from_name: laurentn-vsim1
-    name: laurentncluster-2
+    - name: Modify and rename node
+      netapp.ontap.na_ontap_node:
+        hostname: "{{ netapp_hostname }}"
+        username: "{{ netapp_username }}"
+        password: "{{ netapp_password }}"
+        location: SF2
+        from_name: laurentn-vsim1
+        name: laurentncluster-2
 """
 
 RETURN = """
-
 """
 import traceback
 

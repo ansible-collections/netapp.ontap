@@ -89,9 +89,9 @@ options:
 EXAMPLES = """
 - name: Create policy
   netapp.ontap.na_ontap_file_directory_policy:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: present
     vserver: ansible
     policy_name: file_policy
@@ -99,9 +99,9 @@ EXAMPLES = """
 
 - name: Add task to existing file_policy
   netapp.ontap.na_ontap_file_directory_policy:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: present
     vserver: ansible
     policy_name: file_policy
@@ -111,9 +111,9 @@ EXAMPLES = """
 
 - name: Delete task from file_policy.
   netapp.ontap.na_ontap_file_directory_policy:
-    hostname: "{{ hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     state: absent
     vserver: ansible
     policy_name: file_policy
@@ -130,7 +130,6 @@ EXAMPLES = """
 """
 
 RETURN = """
-
 """
 
 import traceback

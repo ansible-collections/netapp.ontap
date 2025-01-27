@@ -56,18 +56,18 @@ EXAMPLES = """
     name: BUILTIN\\administrators
     vserver: ansible
     is_account_disabled: false
-    username: '{{ username }}'
-    password: '{{ password }}'
-    hostname: '{{ hostname }}'
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
 - name: Disable local CIFS Administrator account
   na_ontap_cifs_local_user_modify:
     name: BUILTIN\\administrators
     vserver: ansible
     is_account_disabled: true
-    username: '{{ username }}'
-    password: '{{ password }}'
-    hostname: '{{ hostname }}'
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """
