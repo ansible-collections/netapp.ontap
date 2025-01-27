@@ -333,6 +333,22 @@ def test_add_disks_error_remote():
     assert 'Error: failed to increase disk count for aggregate: calling: storage/aggregates/aggr_uuid: got Expected error.' == error
 
 
+def test_change_raid_type():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/aggregates', SRR['one_record']),               # get
+        ('PATCH', 'storage/aggregates/ansible', SRR['empty_good']),
+        ('PATCH', 'storage/aggregates/ansible', SRR['empty_good']),     # patch (change raid type)
+    ])
+    module_args = {
+        'disk_count': 12,
+        'nodes': 'node1',
+        'raid_type': 'raid_dp'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    assert get_mock_record().is_record_in_json({'block_storage': {'primary': {'raid_type': 'raid_dp'}}}, 'PATCH', 'storage/aggregates/ansible')
+
+
 def test_rename_aggr():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),

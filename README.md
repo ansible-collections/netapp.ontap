@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - Resolved Ansible lint issues.
+  - na_ontap_aggregate - fix issue with modifying `raid_type` in REST.
 
 ## 22.13.0
 

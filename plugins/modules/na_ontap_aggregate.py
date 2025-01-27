@@ -732,6 +732,8 @@ class NetAppOntapAggregate:
         # offline aggregate after adding additional disks.
         if modify.get('service_state') == 'offline':
             self.aggregate_offline()
+        if modify.get('raid_type'):
+            self.patch_aggr_rest('modify', {'block_storage': {'primary': {'raid_type': modify['raid_type']}}})
 
     def attach_object_store_to_aggr(self):
         """
@@ -916,7 +918,7 @@ class NetAppOntapAggregate:
             return None
         api = 'storage/aggregates'
         query = {'name': name}
-        fields = 'uuid,state,block_storage.primary.disk_count,data_encryption,snaplock_type'
+        fields = 'uuid,state,block_storage.primary.disk_count,data_encryption,snaplock_type,block_storage.primary.raid_type'
         if 'tags' in self.parameters:
             fields += ',_tags'
         record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
@@ -926,6 +928,7 @@ class NetAppOntapAggregate:
             return {
                 'tags': record.get('_tags', []),
                 'disk_count': self.na_helper.safe_get(record, ['block_storage', 'primary', 'disk_count']),
+                'raid_type': self.na_helper.safe_get(record, ['block_storage', 'primary', 'raid_type']),
                 'encryption': self.na_helper.safe_get(record, ['data_encryption', 'software_encryption_enabled']),
                 'service_state': record['state'],
                 'snaplock_type': record['snaplock_type'],
