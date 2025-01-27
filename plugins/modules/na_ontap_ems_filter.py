@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2023-2024, NetApp, Inc
+# (c) 2023-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -60,44 +60,44 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create EMS filter
-      netapp.ontap.na_ontap_ems_filter:
-        state: present
-        name: carchi_ems
-        rules:
-          - index: 1
-            type: include
-            message_criteria:
-              severities: "error"
-              name_pattern: "callhome.*"
-          - index: 2
-            type: include
-            message_criteria:
-              severities: "EMERGENCY"
+- name: Create EMS filter
+  netapp.ontap.na_ontap_ems_filter:
+    state: present
+    name: carchi_ems
+    rules:
+      - index: 1
+        type: include
+        message_criteria:
+          severities: "error"
+          name_pattern: "callhome.*"
+      - index: 2
+        type: include
+        message_criteria:
+          severities: "EMERGENCY"
 
-    - name: Modify EMS filter add rule
-      netapp.ontap.na_ontap_ems_filter:
-        state: present
-        name: carchi_ems
-        rules:
-          - index: 1
-            type: include
-            message_criteria:
-              severities: "error"
-              name_pattern: "callhome.*"
-          - index: 2
-            type: include
-            message_criteria:
-              severities: "EMERGENCY"
-          - index: 3
-            type: include
-            message_criteria:
-              severities: "ALERT"
+- name: Modify EMS filter add rule
+  netapp.ontap.na_ontap_ems_filter:
+    state: present
+    name: carchi_ems
+    rules:
+      - index: 1
+        type: include
+        message_criteria:
+          severities: "error"
+          name_pattern: "callhome.*"
+      - index: 2
+        type: include
+        message_criteria:
+          severities: "EMERGENCY"
+      - index: 3
+        type: include
+        message_criteria:
+          severities: "ALERT"
 
-    - name: Delete EMS Filter
-      netapp.ontap.na_ontap_ems_filter:
-        state: absent
-        name: carchi_ems
+- name: Delete EMS Filter
+  netapp.ontap.na_ontap_ems_filter:
+    state: absent
+    name: carchi_ems
 """
 
 RETURN = """

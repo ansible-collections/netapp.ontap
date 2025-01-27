@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -62,33 +62,33 @@ options:
 """
 
 EXAMPLES = """
-    - name: Create quota policy
-      na_ontap_quota_policy:
-        state: present
-        vserver: SVM1
-        name: ansible_policy
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Create quota policy
+  netapp.ontap.na_ontap_quota_policy:
+    state: present
+    vserver: SVM1
+    name: ansible_policy
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Rename quota policy
-      na_ontap_quota_policy:
-        state: present
-        vserver: SVM1
-        name: new_ansible
-        from_name: ansible
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Rename quota policy
+  netapp.ontap.na_ontap_quota_policy:
+    state: present
+    vserver: SVM1
+    name: new_ansible
+    from_name: ansible
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete quota policy
-      na_ontap_quota_policy:
-        state: absent
-        vserver: SVM1
-        name: ansible_policy
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Delete quota policy
+  netapp.ontap.na_ontap_quota_policy:
+    state: absent
+    vserver: SVM1
+    name: ansible_policy
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

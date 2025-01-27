@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Test playbook
+  hosts: localhost
   remote_user: root
   roles:
-    - na_ontap_snapmirror_create
+    - netapp.ontap.na_ontap_snapmirror_create

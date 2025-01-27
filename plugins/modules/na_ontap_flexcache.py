@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """
@@ -161,27 +161,25 @@ options:
 '''
 
 EXAMPLES = """
+- name: Create FlexCache
+  netapp.ontap.na_ontap_flexcache:
+    state: present
+    origin_volume: test_src
+    name: test_dest
+    origin_vserver: ansible_src
+    vserver: ansible_dest
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create FlexCache
-      netapp.ontap.na_ontap_flexcache:
-        state: present
-        origin_volume: test_src
-        name: test_dest
-        origin_vserver: ansible_src
-        vserver: ansible_dest
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    - name: Delete FlexCache
-      netapp.ontap.na_ontap_flexcache:
-        state: absent
-        name: test_dest
-        vserver: ansible_dest
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Delete FlexCache
+  netapp.ontap.na_ontap_flexcache:
+    state: absent
+    name: test_dest
+    vserver: ansible_dest
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

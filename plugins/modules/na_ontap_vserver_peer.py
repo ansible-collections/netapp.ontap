@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -75,47 +75,46 @@ version_added: 2.7.0
 '''
 
 EXAMPLES = """
+- name: Source vserver peer create
+  netapp.ontap.na_ontap_vserver_peer:
+    state: present
+    peer_vserver: ansible2
+    peer_cluster: ansibleCluster
+    local_name_for_peer: peername
+    local_name_for_source: sourcename
+    vserver: ansible
+    applications: ['snapmirror']
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+        hostname: "{{ netapp_dest_hostname }}"
 
-    - name: Source vserver peer create
-      netapp.ontap.na_ontap_vserver_peer:
-        state: present
-        peer_vserver: ansible2
-        peer_cluster: ansibleCluster
-        local_name_for_peer: peername
-        local_name_for_source: sourcename
-        vserver: ansible
-        applications: ['snapmirror']
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ netapp_dest_hostname }}"
+- name: vserver peer delete
+  netapp.ontap.na_ontap_vserver_peer:
+    state: absent
+    peer_vserver: ansible2
+    vserver: ansible
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: vserver peer delete
-      netapp.ontap.na_ontap_vserver_peer:
-        state: absent
-        peer_vserver: ansible2
-        vserver: ansible
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    - name: Source vserver peer create - different credentials
-      netapp.ontap.na_ontap_vserver_peer:
-        state: present
-        peer_vserver: ansible2
-        peer_cluster: ansibleCluster
-        local_name_for_peer: peername
-        local_name_for_source: sourcename
-        vserver: ansible
-        applications: ['snapmirror']
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ netapp_dest_hostname }}"
-          cert_filepath: "{{ cert_filepath }}"
-          key_filepath: "{{ key_filepath }}"
+- name: Source vserver peer create - different credentials
+  netapp.ontap.na_ontap_vserver_peer:
+    state: present
+    peer_vserver: ansible2
+    peer_cluster: ansibleCluster
+    local_name_for_peer: peername
+    local_name_for_source: sourcename
+    vserver: ansible
+    applications: ['snapmirror']
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+        hostname: "{{ netapp_dest_hostname }}"
+        cert_filepath: "{{ cert_filepath }}"
+        key_filepath: "{{ key_filepath }}"
 """
 
 RETURN = """

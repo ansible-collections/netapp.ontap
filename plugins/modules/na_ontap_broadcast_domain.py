@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -74,110 +74,110 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create broadcast domain
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: ansible_domain
-        mtu: 1000
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13"]
-    - name: modify broadcast domain
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: ansible_domain
-        mtu: 1100
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13"]
-    - name: split broadcast domain
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_name: ansible_domain
-        name: new_ansible_domain
-        mtu: 1200
-        ipspace: Default
-        ports: khutton-vsim1:e0d-12
-    - name: delete broadcast domain
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: absent
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: ansible_domain
-        ipspace: Default
-    - name: create broadcast domain REST
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: ansible_domain
-        mtu: 1200
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-12","khutton-vsim1:e0d-13","khutton-vsim1:e0d-14"]
-    - name: rename broadcast domain if exact match of ports REST
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_name: ansible_domain
-        name: new_ansible_domain
-        mtu: 1200
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-12","khutton-vsim1:e0d-13","khutton-vsim1:e0d-14"]
-    - name: if partial match, remove e0d-12 from new_ansible_domain & create new domain ansible_domain with port e0d-12 REST
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_name: new_ansible_domain
-        name: ansible_domain
-        mtu: 1200
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-12"]
-    - name: Modify both broadcast domain and ipspace REST.
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_name: ansible_domain
-        from_ipspace: Default
-        name: ansible_domain_ip1
-        ipspace: ipspace_1
-        mtu: 1200
-        ports: ["khutton-vsim1:e0d-12"]
-    - name: Modify ipspace only REST.
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_ipspace: ipspace_1
-        name: ansible_domain_ip1
-        ipspace: Default
-        mtu: 1200
-        ports: ["khutton-vsim1:e0d-12"]
-    - name: delete broadcast domain new_ansible_domain.
-      netapp.ontap.na_ontap_broadcast_domain:
-        state: absent
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: new_ansible_domain
-        mtu: 1200
-        ipspace: Default
-        ports: ["khutton-vsim1:e0d-13","khutton-vsim1:e0d-14"]
+- name: Create broadcast domain
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: ansible_domain
+    mtu: 1000
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13"]
+- name: Modify broadcast domain
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: ansible_domain
+    mtu: 1100
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13"]
+- name: Split broadcast domain
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_name: ansible_domain
+    name: new_ansible_domain
+    mtu: 1200
+    ipspace: Default
+    ports: khutton-vsim1:e0d-12
+- name: Delete broadcast domain
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: absent
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: ansible_domain
+    ipspace: Default
+- name: Create broadcast domain REST
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: ansible_domain
+    mtu: 1200
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13", "khutton-vsim1:e0d-14"]
+- name: Rename broadcast domain if exact match of ports REST
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_name: ansible_domain
+    name: new_ansible_domain
+    mtu: 1200
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-12", "khutton-vsim1:e0d-13", "khutton-vsim1:e0d-14"]
+- name: If partial match, remove e0d-12 from new_ansible_domain & create new domain ansible_domain with port e0d-12 REST
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_name: new_ansible_domain
+    name: ansible_domain
+    mtu: 1200
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-12"]
+- name: Modify both broadcast domain and ipspace REST.
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_name: ansible_domain
+    from_ipspace: Default
+    name: ansible_domain_ip1
+    ipspace: ipspace_1
+    mtu: 1200
+    ports: ["khutton-vsim1:e0d-12"]
+- name: Modify ipspace only REST.
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_ipspace: ipspace_1
+    name: ansible_domain_ip1
+    ipspace: Default
+    mtu: 1200
+    ports: ["khutton-vsim1:e0d-12"]
+- name: Delete broadcast domain new_ansible_domain.
+  netapp.ontap.na_ontap_broadcast_domain:
+    state: absent
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: new_ansible_domain
+    mtu: 1200
+    ipspace: Default
+    ports: ["khutton-vsim1:e0d-13", "khutton-vsim1:e0d-14"]
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -743,253 +743,251 @@ notes:
 '''
 
 EXAMPLES = """
+- name: Create FlexVol
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume12
+    is_infinite: false
+    aggregate_name: ansible_aggr
+    size: 100
+    size_unit: mb
+    user_id: 1001
+    group_id: 2002
+    space_guarantee: none
+    tiering_policy: auto
+    export_policy: default
+    percent_snapshot_space: 60
+    qos_policy_group: max_performance_gold
+    vserver: ansibleVServer
+    wait_for_completion: true
+    space_slo: none
+    nvfail_enabled: false
+    comment: ansible created volume
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create FlexVol
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume12
-        is_infinite: False
-        aggregate_name: ansible_aggr
-        size: 100
-        size_unit: mb
-        user_id: 1001
-        group_id: 2002
-        space_guarantee: none
-        tiering_policy: auto
-        export_policy: default
-        percent_snapshot_space: 60
-        qos_policy_group: max_performance_gold
-        vserver: ansibleVServer
-        wait_for_completion: True
-        space_slo: none
-        nvfail_enabled: False
-        comment: ansible created volume
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Volume Delete
+  netapp.ontap.na_ontap_volume:
+    state: absent
+    name: ansibleVolume12
+    aggregate_name: ansible_aggr
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Volume Delete
-      netapp.ontap.na_ontap_volume:
-        state: absent
-        name: ansibleVolume12
-        aggregate_name: ansible_aggr
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Make FlexVol offline
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume
+    is_infinite: false
+    is_online: false
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Make FlexVol offline
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume
-        is_infinite: False
-        is_online: False
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create Flexgroup volume manually
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume
+    is_infinite: false
+    aggr_list: "{{ aggr_list }}"
+    aggr_list_multiplier: 2
+    size: 200
+    size_unit: mb
+    space_guarantee: none
+    export_policy: default
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
+    unix_permissions: 777
+    snapshot_policy: default
+    time_out: 0
 
-    - name: Create Flexgroup volume manually
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume
-        is_infinite: False
-        aggr_list: "{{ aggr_list }}"
-        aggr_list_multiplier: 2
-        size: 200
-        size_unit: mb
-        space_guarantee: none
-        export_policy: default
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: False
-        unix_permissions: 777
-        snapshot_policy: default
-        time_out: 0
+- name: Create Flexgroup volume auto provsion as flex group
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume
+    is_infinite: false
+    auto_provision_as: flexgroup
+    size: 200
+    size_unit: mb
+    space_guarantee: none
+    export_policy: default
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
+    unix_permissions: 777
+    snapshot_policy: default
+    time_out: 0
 
-    - name: Create Flexgroup volume auto provsion as flex group
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume
-        is_infinite: False
-        auto_provision_as: flexgroup
-        size: 200
-        size_unit: mb
-        space_guarantee: none
-        export_policy: default
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: False
-        unix_permissions: 777
-        snapshot_policy: default
-        time_out: 0
+- name: Create FlexVol with QoS adaptive
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume15
+    is_infinite: false
+    aggregate_name: ansible_aggr
+    size: 100
+    size_unit: gb
+    space_guarantee: none
+    export_policy: default
+    percent_snapshot_space: 10
+    qos_adaptive_policy_group: extreme
+    vserver: ansibleVServer
+    wait_for_completion: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create FlexVol with QoS adaptive
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume15
-        is_infinite: False
-        aggregate_name: ansible_aggr
-        size: 100
-        size_unit: gb
-        space_guarantee: none
-        export_policy: default
-        percent_snapshot_space: 10
-        qos_adaptive_policy_group: extreme
-        vserver: ansibleVServer
-        wait_for_completion: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify volume dr protection (vserver of the volume must be in a snapmirror relationship)
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume
+    vserver_dr_protection: protected
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: Modify volume dr protection (vserver of the volume must be in a snapmirror relationship)
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume
-        vserver_dr_protection: protected
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: False
+- name: Modify volume with snapshot auto delete options
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: vol_auto_delete
+    snapshot_auto_delete:
+        state: "on"
+        commitment: try
+        defer_delete: scheduled
+        target_free_space: 30
+        destroy_list: lun_clone,vol_clone
+        delete_order: newest_first
+    aggregate_name: "{{ aggr }}"
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: Modify volume with snapshot auto delete options
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: vol_auto_delete
-        snapshot_auto_delete:
-          state: "on"
-          commitment: try
-          defer_delete: scheduled
-          target_free_space: 30
-          destroy_list: lun_clone,vol_clone
-          delete_order: newest_first
-        aggregate_name: "{{ aggr }}"
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: False
+- name: Move volume with force cutover action
+  netapp.ontap.na_ontap_volume:
+    name: ansible_vol
+    aggregate_name: aggr_ansible
+    cutover_action: force
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: Move volume with force cutover action
-      netapp.ontap.na_ontap_volume:
-        name: ansible_vol
-        aggregate_name: aggr_ansible
-        cutover_action: force
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: false
+- name: Rehost volume to another vserver auto remap luns
+  netapp.ontap.na_ontap_volume:
+    name: ansible_vol
+    from_vserver: ansible
+    auto_remap_luns: true
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: Rehost volume to another vserver auto remap luns
-      netapp.ontap.na_ontap_volume:
-        name: ansible_vol
-        from_vserver: ansible
-        auto_remap_luns: true
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: false
+- name: Rehost volume to another vserver force unmap luns
+  netapp.ontap.na_ontap_volume:
+    name: ansible_vol
+    from_vserver: ansible
+    force_unmap_luns: true
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: Rehost volume to another vserver force unmap luns
-      netapp.ontap.na_ontap_volume:
-        name: ansible_vol
-        from_vserver: ansible
-        force_unmap_luns: true
-        vserver: "{{ vserver }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: false
+- name: Snapshot restore volume
+  netapp.ontap.na_ontap_volume:
+    name: ansible_vol
+    vserver: ansible
+    snapshot_restore: 2020-05-24-weekly
+    force_restore: true
+    preserve_lun_ids: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Snapshot restore volume
-      netapp.ontap.na_ontap_volume:
-        name: ansible_vol
-        vserver: ansible
-        snapshot_restore: 2020-05-24-weekly
-        force_restore: true
-        preserve_lun_ids: true
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
+- name: Volume create using application/applications nas template
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: ansibleVolume12
+    vserver: ansibleSVM
+    size: 100000000
+    size_unit: b
+    space_guarantee: none
+    language: es
+    percent_snapshot_space: 60
+    unix_permissions: ---rwxrwxrwx
+    snapshot_policy: default
+    efficiency_policy: default
+    comment: testing
+    nas_application_template:
+        nfs_access:   # the mere presence of a suboption is enough to enable this new feature
+          - access: ro
+          - access: rw
+            host: 10.0.0.0/8
+        exclude_aggregates: aggr0
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Volume create using application/applications nas template
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: ansibleVolume12
-        vserver: ansibleSVM
-        size: 100000000
-        size_unit: b
-        space_guarantee: none
-        language: es
-        percent_snapshot_space: 60
-        unix_permissions: ---rwxrwxrwx
-        snapshot_policy: default
-        efficiency_policy: default
-        comment: testing
-        nas_application_template:
-          nfs_access:   # the mere presence of a suboption is enough to enable this new feature
-            - access: ro
-            - access: rw
-              host: 10.0.0.0/8
-          exclude_aggregates: aggr0
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
+# requires Ontap collection version - 21.24.0 to use iso filter plugin.
+- name: volume create with snaplock set.
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: "{{ snaplock_volume }}"
+    aggregate_name: "{{ aggregate }}"
+    size: 20
+    size_unit: mb
+    space_guarantee: none
+    policy: default
+    type: rw
+    snaplock:
+        type: enterprise
+        retention:
+        default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
 
-    # requires Ontap collection version - 21.24.0 to use iso filter plugin.
-    - name: volume create with snaplock set.
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: "{{ snaplock_volume }}"
-        aggregate_name: "{{ aggregate }}"
-        size: 20
-        size_unit: mb
-        space_guarantee: none
-        policy: default
-        type: rw
-        snaplock:
-          type: enterprise
-          retention:
-            default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
+- name: Create volume with snapshot-auto-delete options - REST
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: test_vol
+    aggregate_name: "{{ aggr }}"
+    size: 20
+    size_unit: mb
+    snapshot_auto_delete:
+        state: 'on'
+        trigger: volume
+        delete_order: "oldest_first"
+        defer_delete: "user_created"
+        commitment: "try"
+        target_free_space: 30
+        prefix: "my_prefix"
+    wait_for_completion: true
 
-    - name: Create volume with snapshot-auto-delete options - REST
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: test_vol
-        aggregate_name: "{{ aggr }}"
-        size: 20
-        size_unit: mb
-        snapshot_auto_delete:
-          state: 'on'
-          trigger: volume
-          delete_order: "oldest_first"
-          defer_delete: "user_created"
-          commitment: "try"
-          target_free_space: 30
-          prefix: "my_prefix"
-        wait_for_completion: true
-
-    - name: Modify volume - REST
-      netapp.ontap.na_ontap_volume:
-        state: present
-        name: test_vol
-        aggregate_name: "{{ aggr }}"
-        snapdir_access: false
-        snapshot_auto_delete:
-          state: 'on'
-          target_free_space: 25
-
+- name: Modify volume - REST
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: test_vol
+    aggregate_name: "{{ aggr }}"
+    snapdir_access: false
+    snapshot_auto_delete:
+        state: 'on'
+        target_free_space: 25
 """
 
 RETURN = """

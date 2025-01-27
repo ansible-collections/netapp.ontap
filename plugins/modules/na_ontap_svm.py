@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -312,46 +312,45 @@ options:
 '''
 
 EXAMPLES = """
+- name: Create SVM
+  netapp.ontap.na_ontap_svm:
+    state: present
+    name: ansibleVServer
+    root_volume: vol1
+    root_volume_aggregate: aggr1
+    root_volume_security_style: mixed
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create SVM
-      netapp.ontap.na_ontap_svm:
-        state: present
-        name: ansibleVServer
-        root_volume: vol1
-        root_volume_aggregate: aggr1
-        root_volume_security_style: mixed
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create SVM
+  netapp.ontap.na_ontap_svm:
+    state: present
+    services:
+      cifs:
+        allowed: true
+      fcp:
+        allowed: true
+      nfs:
+        allowed: true
+        enabled: true
+      s3:
+        allowed: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Create SVM
-      netapp.ontap.na_ontap_svm:
-        state: present
-        services:
-          cifs:
-            allowed: true
-          fcp:
-            allowed: true
-          nfs:
-            allowed: true
-            enabled: true
-          s3:
-            allowed: true
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-
-    - name: Stop SVM REST
-      netapp.ontap.na_ontap_svm:
-        state: present
-        name: ansibleVServer
-        admin_state: stopped
-        use_rest: always
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Stop SVM REST
+  netapp.ontap.na_ontap_svm:
+    state: present
+    name: ansibleVServer
+    admin_state: stopped
+    use_rest: always
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

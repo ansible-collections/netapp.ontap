@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-(c) 2020-2024, NetApp, Inc
+(c) 2020-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -58,34 +58,20 @@ options:
 '''
 
 EXAMPLES = '''
--
-  name: Manage MetroCluster DR group
-  hosts: localhost
-  collections:
-    - netapp.ontap
-  vars:
-    login: &login
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: True
-      validate_certs: False
-  tasks:
-    - name: Create MetroCluster DR group
-      na_ontap_metrocluster_dr_group:
-        <<: *login
-        dr_pairs:
-          - partner_name: carchi_cluster3_01
-            node_name: carchi_cluster1_01
-        partner_cluster_name: carchi_cluster3
-    - name: Delete MetroCluster DR group
-      na_ontap_metrocluster_dr_group:
-        <<: *login
-        dr_pairs:
-          - partner_name: carchi_cluster3_01
-            node_name: carchi_cluster1_01
-        state: absent
-        partner_cluster_name: carchi_cluster3
+- name: Create MetroCluster DR group
+  netapp.ontap.na_ontap_metrocluster_dr_group:
+    dr_pairs:
+      - partner_name: carchi_cluster3_01
+        node_name: carchi_cluster1_01
+    partner_cluster_name: carchi_cluster3
+
+- name: Delete MetroCluster DR group
+  netapp.ontap.na_ontap_metrocluster_dr_group:
+    dr_pairs:
+      - partner_name: carchi_cluster3_01
+        node_name: carchi_cluster1_01
+    state: absent
+    partner_cluster_name: carchi_cluster3
 '''
 
 RETURN = '''

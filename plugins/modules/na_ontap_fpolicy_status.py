@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -45,29 +45,28 @@ notes:
 """
 
 EXAMPLES = """
-    - name: Enable fPolicy policy
-      na_ontap_fpolicy_status:
-        state: present
-        vserver: svm1
-        policy_name: fpolicy_policy
-        sequence_number: 10
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
-        https: true
-        validate_certs: false
+- name: Enable fPolicy policy
+  netapp.ontap.na_ontap_fpolicy_status:
+    state: present
+    vserver: svm1
+    policy_name: fpolicy_policy
+    sequence_number: 10
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    https: true
+    validate_certs: false
 
-    - name: Disable fPolicy policy
-      na_ontap_fpolicy_status:
-        state: absent
-        vserver: svm1
-        policy_name: fpolicy_policy
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
-        https: true
-        validate_certs: false
-
+- name: Disable fPolicy policy
+  netapp.ontap.na_ontap_fpolicy_status:
+    state: absent
+    vserver: svm1
+    policy_name: fpolicy_policy
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    https: true
+    validate_certs: false
 """
 
 RETURN = """ # """

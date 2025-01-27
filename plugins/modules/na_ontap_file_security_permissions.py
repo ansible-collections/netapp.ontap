@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+  (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -252,69 +252,69 @@ notes:
 '''
 
 EXAMPLES = """
-  - name: Create file directory security permissions.
-    netapp.ontap.na_ontap_file_security_permissions:
-      state: present
-      vserver: svm1
-      access_control: file_directory
-      path: /vol200/newfile.txt
-      owner: "{{ user }}"
-      # Note, wihout quotes, use a single backslash in AD user names
-      # with quotes, it needs to be escaped as a double backslash
-      # user: "ANSIBLE_CIFS\\user1"
-      # we can't show an example with a single backslash as this is a python file, but it works in YAML.
-      acls:
-        - access: access_deny
-          user: "{{ user }}"
-          apply_to:
-            files: true
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: "{{ https }}"
-      validate_certs: "{{ validate_certs }}"
+- name: Create file directory security permissions.
+  netapp.ontap.na_ontap_file_security_permissions:
+    state: present
+    vserver: svm1
+    access_control: file_directory
+    path: /vol200/newfile.txt
+    owner: "{{ user }}"
+    # Note, wihout quotes, use a single backslash in AD user names
+    # with quotes, it needs to be escaped as a double backslash
+    # user: "ANSIBLE_CIFS\\user1"
+    # we can't show an example with a single backslash as this is a python file, but it works in YAML.
+    acls:
+      - access: access_deny
+        user: "{{ user }}"
+        apply_to:
+          files: true
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify file directory security permissions.
-    netapp.ontap.na_ontap_file_security_permissions:
-      state: present
-      vserver: svm1
-      access_control: file_directory
-      path: /vol200/newfile.txt
-      acls:
-        - access: access_deny
-          user: "{{ user }}"
-          apply_to:
-            files: true
-        - access: access_allow
-          user: "{{ user }}"
-          apply_to:
-            files: true
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: "{{ https }}"
-      validate_certs: "{{ validate_certs }}"
+- name: Modify file directory security permissions.
+  netapp.ontap.na_ontap_file_security_permissions:
+    state: present
+    vserver: svm1
+    access_control: file_directory
+    path: /vol200/newfile.txt
+    acls:
+      - access: access_deny
+        user: "{{ user }}"
+        apply_to:
+          files: true
+      - access: access_allow
+        user: "{{ user }}"
+        apply_to:
+          files: true
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Delete file directory security ACLs.
-    netapp.ontap.na_ontap_file_security_permissions:
-      state: absent
-      vserver: svm1
-      access_control: file_directory
-      path: /vol200/newfile.txt
-      acls:
-        - access: access_deny
-          user: "{{ user }}"
-          apply_to:
-            files: true
-        - access: access_allow
-          user: "{{ user }}"
-          apply_to:
-            files: true
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: "{{ https }}"
-      validate_certs: "{{ validate_certs }}"
+- name: Delete file directory security ACLs.
+  netapp.ontap.na_ontap_file_security_permissions:
+    state: absent
+    vserver: svm1
+    access_control: file_directory
+    path: /vol200/newfile.txt
+    acls:
+      - access: access_deny
+        user: "{{ user }}"
+        apply_to:
+          files: true
+      - access: access_allow
+        user: "{{ user }}"
+        apply_to:
+          files: true
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

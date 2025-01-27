@@ -86,36 +86,34 @@ notes:
 '''
 
 EXAMPLES = '''
+- name: Enable kerberos interface.
+  netapp.ontap.na_ontap_kerberos_interface:
+    interface_name: lif_svm1_284
+    vserver: ansibleSVM
+    enabled: true
+    service_principal_name: nfs/lif_svm1_284@RELAM2
+    admin_username: "{{ admin_user }}"
+    admin_password: "{{ admin_pass }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ certs }}"
 
-    - name: Enable kerberos interface.
-      netapp.ontap.na_ontap_kerberos_interface:
-        interface_name: lif_svm1_284
-        vserver: ansibleSVM
-        enabled: true
-        service_principal_name: nfs/lif_svm1_284@RELAM2
-        admin_username: "{{ admin_user }}"
-        admin_password: "{{ admin_pass }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: "{{ https }}"
-        validate_certs: "{{ certs }}"
 
-
-    - name: Disable kerberos interface.
-      netapp.ontap.na_ontap_kerberos_interface:
-        interface_name: lif_svm1_284
-        vserver: ansibleSVM
-        enabled: false
-        service_principal_name: nfs/lif_svm1_284@RELAM2
-        admin_username: "{{ admin_user }}"
-        admin_password: "{{ admin_pass }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: "{{ https }}"
-        validate_certs: "{{ certs }}"
-
+- name: Disable kerberos interface.
+  netapp.ontap.na_ontap_kerberos_interface:
+    interface_name: lif_svm1_284
+    vserver: ansibleSVM
+    enabled: false
+    service_principal_name: nfs/lif_svm1_284@RELAM2
+    admin_username: "{{ admin_user }}"
+    admin_password: "{{ admin_pass }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ certs }}"
 '''
 
 RETURN = '''

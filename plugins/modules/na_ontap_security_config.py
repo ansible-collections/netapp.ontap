@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2023, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -57,30 +57,30 @@ options:
 """
 
 EXAMPLES = """
-    - name: Modify SSL Security Config - ZAPI
-      netapp.ontap.na_ontap_security_config:
-        name: ssl
-        is_fips_enabled: false
-        supported_ciphers:  'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!RC4:!SHA1'
-        supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
-        https: true
-        validate_certs: false
+- name: Modify SSL Security Config - ZAPI
+  netapp.ontap.na_ontap_security_config:
+    name: ssl
+    is_fips_enabled: false
+    supported_ciphers: 'ALL:!LOW:!aNULL:!EXP:!eNULL:!3DES:!RC4:!SHA1'
+    supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
 
-    - name: Modify SSL Security Config - REST
-      netapp.ontap.na_ontap_security_config:
-        is_fips_enabled: false
-        supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
-        supported_cipher_suites: ['TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384']
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
-        https: true
-        validate_certs: false
+- name: Modify SSL Security Config - REST
+  netapp.ontap.na_ontap_security_config:
+    is_fips_enabled: false
+    supported_protocols: ['TLSv1.2', 'TLSv1.1', 'TLSv1']
+    supported_cipher_suites: ['TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384']
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    ontapi: "{{ ontap_info.ontap_info.ontap_version }}"
+    https: true
+    validate_certs: false
 """
 
 RETURN = """

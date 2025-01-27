@@ -4,7 +4,7 @@
 na_ontap_snapmirror
 '''
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -333,149 +333,146 @@ notes:
 '''
 
 EXAMPLES = """
+# creates and initializes the snapmirror
+- name: Create ONTAP/ONTAP SnapMirror
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_volume: test_src
+    destination_volume: test_dest
+    source_vserver: ansible_src
+    destination_vserver: ansible_dest
+    schedule: hourly
+    policy: MirrorAllSnapshots
+    max_transfer_rate: 1000
+    initialize: false
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    # creates and initializes the snapmirror
-    - name: Create ONTAP/ONTAP SnapMirror
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_volume: test_src
-        destination_volume: test_dest
-        source_vserver: ansible_src
-        destination_vserver: ansible_dest
-        schedule: hourly
-        policy: MirrorAllSnapshots
-        max_transfer_rate: 1000
-        initialize: False
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+# creates and initializes the snapmirror between vservers
+- name: Create ONTAP/ONTAP vserver SnapMirror
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_vserver: ansible_src
+    destination_vserver: ansible_dest
+    identity_preserve: true
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    # creates and initializes the snapmirror between vservers
-    - name: Create ONTAP/ONTAP vserver SnapMirror
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_vserver: ansible_src
-        destination_vserver: ansible_dest
-        identity_preserve: true
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+# existing snapmirror relation with status 'snapmirrored' will be initialized
+- name: Inititalize ONTAP/ONTAP SnapMirror
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_path: 'ansible:test'
+    destination_path: 'ansible:dest'
+    relationship_state: active
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    # existing snapmirror relation with status 'snapmirrored' will be initialized
-    - name: Inititalize ONTAP/ONTAP SnapMirror
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_path: 'ansible:test'
-        destination_path: 'ansible:dest'
-        relationship_state: active
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+- name: Delete SnapMirror
+  netapp.ontap.na_ontap_snapmirror:
+    state: absent
+    destination_path: <path>
+    relationship_info_only: true
+    source_hostname: "{{ source_hostname }}"
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    - name: Delete SnapMirror
-      netapp.ontap.na_ontap_snapmirror:
-        state: absent
-        destination_path: <path>
-        relationship_info_only: True
-        source_hostname: "{{ source_hostname }}"
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+- name: Break SnapMirror
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    relationship_state: broken
+    destination_path: <path>
+    source_hostname: "{{ source_hostname }}"
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    - name: Break SnapMirror
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        relationship_state: broken
-        destination_path: <path>
-        source_hostname: "{{ source_hostname }}"
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+- name: Restore SnapMirror volume using location (Idempotency)
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_path: <path>
+    destination_path: <path>
+    relationship_type: restore
+    source_snapshot: "{{ snapshot }}"
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    - name: Restore SnapMirror volume using location (Idempotency)
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_path: <path>
-        destination_path: <path>
-        relationship_type: restore
-        source_snapshot: "{{ snapshot }}"
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+- name: Set schedule to NULL
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    destination_path: <path>
+    schedule: ""
+    hostname: "{{ destination_cluster_hostname }}"
+    username: "{{ destination_cluster_username }}"
+    password: "{{ destination_cluster_password }}"
 
-    - name: Set schedule to NULL
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        destination_path: <path>
-        schedule: ""
-        hostname: "{{ destination_cluster_hostname }}"
-        username: "{{ destination_cluster_username }}"
-        password: "{{ destination_cluster_password }}"
+- name: Create SnapMirror from ElementSW to ONTAP
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    connection_type: elementsw_ontap
+    source_path: '10.10.10.10:/lun/300'
+    destination_path: 'ansible_test:ansible_dest_vol'
+    schedule: hourly
+    policy: MirrorLatest
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    source_hostname: " {{ Element_cluster_mvip }}"
+    source_username: "{{ Element_cluster_username }}"
+    source_password: "{{ Element_cluster_password }}"
 
-    - name: Create SnapMirror from ElementSW to ONTAP
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        connection_type: elementsw_ontap
-        source_path: '10.10.10.10:/lun/300'
-        destination_path: 'ansible_test:ansible_dest_vol'
-        schedule: hourly
-        policy: MirrorLatest
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        source_hostname: " {{ Element_cluster_mvip }}"
-        source_username: "{{ Element_cluster_username }}"
-        source_password: "{{ Element_cluster_password }}"
+- name: Create SnapMirror from ONTAP to ElementSW
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    connection_type: ontap_elementsw
+    destination_path: '10.10.10.10:/lun/300'
+    source_path: 'ansible_test:ansible_dest_vol'
+    policy: MirrorLatest
+    hostname: "{{ Element_cluster_mvip }}"
+    username: "{{ Element_cluster_username }}"
+    password: "{{ Element_cluster_password }}"
+    source_hostname: " {{ netapp_hostname }}"
+    source_username: "{{ netapp_username }}"
+    source_password: "{{ netapp_password }}"
 
-    - name: Create SnapMirror from ONTAP to ElementSW
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        connection_type: ontap_elementsw
-        destination_path: '10.10.10.10:/lun/300'
-        source_path: 'ansible_test:ansible_dest_vol'
-        policy: MirrorLatest
-        hostname: "{{ Element_cluster_mvip }}"
-        username: "{{ Element_cluster_username }}"
-        password: "{{ Element_cluster_password }}"
-        source_hostname: " {{ netapp_hostname }}"
-        source_username: "{{ netapp_username }}"
-        source_password: "{{ netapp_password }}"
+- name: Create SnapMirror relationship (create destination volume)
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_endpoint:
+      cluster: "{{ _source_cluster }}"
+      path: "{{ source_vserver + ':' + source_volume }}"
+    destination_endpoint:
+      cluster: "{{ _destination_cluster }}"
+      path: "{{ destination_vserver_VOLDP + ':' + destination_volume }}"
+    create_destination:
+      enabled: true
+    hostname: "{{ destination_hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: true
+    validate_certs: false
 
-    - name: Create SnapMirror relationship (create destination volume)
-      tags: create
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_endpoint:
-          cluster: "{{ _source_cluster }}"
-          path: "{{ source_vserver + ':' + source_volume }}"
-        destination_endpoint:
-          cluster: "{{ _destination_cluster }}"
-          path: "{{ destination_vserver_VOLDP + ':' + destination_volume }}"
-        create_destination:
-          enabled: true
-        hostname: "{{ destination_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
-
-    - name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
-      tags: create_svmdr
-      netapp.ontap.na_ontap_snapmirror:
-        state: present
-        source_endpoint:
-          cluster: "{{ _source_cluster }}"
-          path: "{{ source_vserver + ':' }}"
-        destination_endpoint:
-          cluster: "{{ _destination_cluster }}"
-          path: "{{ destination_vserver_SVMDR + ':' }}"
-        create_destination:
-          enabled: true
-        hostname: "{{ destination_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
+  netapp.ontap.na_ontap_snapmirror:
+    state: present
+    source_endpoint:
+      cluster: "{{ _source_cluster }}"
+      path: "{{ source_vserver + ':' }}"
+    destination_endpoint:
+      cluster: "{{ _destination_cluster }}"
+      path: "{{ destination_vserver_SVMDR + ':' }}"
+    create_destination:
+      enabled: true
+    hostname: "{{ destination_hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    https: true
+    validate_certs: false
 """
 
 RETURN = """

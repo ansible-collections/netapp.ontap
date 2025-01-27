@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020-2024, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -88,9 +88,7 @@ EXAMPLES = """
 -
   name: Ontap REST API
   hosts: localhost
-  gather_facts: False
-  collections:
-    - netapp.ontap
+  gather_facts: false
   vars:
     login: &login
       hostname: "{{ admin_ip }}"
@@ -106,34 +104,40 @@ EXAMPLES = """
       validate_certs: false
 
   tasks:
-    - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: cluster/software
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: cluster/software
         query:
           fields: version
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
         query:
@@ -142,32 +146,35 @@ EXAMPLES = """
           query: trident_svm
         hal_linking: true
       register: result
-    - debug: var=result
 
-    - name: run ontap REST API command as vsadmin
-      na_ontap_restit:
+    - name: Run ontap REST API command as vsadmin
+      netapp.ontap.na_ontap_restit:
         <<: *svm_login
         api: svm/svms
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as vserver tunneling
-      na_ontap_restit:
+    - name: Run ontap REST API command as vserver tunneling
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         vserver_name: ansibleSVM
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
-    - set_fact:
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
+    - name: Store UUID
+      ansible.builtin.set_fact:
         uuid: "{{ result.response.records | json_query(get_uuid) }}"
       vars:
         get_uuid: "[? name=='deleteme_ln1'].uuid"
-    - debug: var=uuid
 
-    - name: run ontap REST API command as DELETE method with vserver tunneling
-      na_ontap_restit:
+    - name: Run ontap REST API command as DELETE method with vserver tunneling
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: "storage/volumes/{{ uuid[0] }}"
         method: DELETE
@@ -175,12 +182,14 @@ EXAMPLES = """
         query:
           return_timeout: 60
       register: result
-      when: uuid|length == 1
-    - debug: var=result
-    - assert: { that: result.skipped|default(false) or result.status_code|default(404) == 200, quiet: True }
+      when: uuid | length == 1
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.skipped | default(false) or result.status_code | default(404) == 200
+        quiet: true
 
-    - name: run ontap REST API command as POST method with vserver tunneling
-      na_ontap_restit:
+    - name: Run ontap REST API command as POST method with vserver tunneling
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         method: POST
@@ -193,12 +202,14 @@ EXAMPLES = """
           aggregates:
             - name: aggr1
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==201, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==201
+        quiet: true
 
-    - name: run ontap REST API command as DELETE method with vserver tunneling
+    - name: Run ontap REST API command as DELETE method with vserver tunneling
       # delete test volume if present
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: "storage/volumes/{{ result.response.records[0].uuid }}"
         method: DELETE
@@ -206,35 +217,39 @@ EXAMPLES = """
         query:
           return_timeout: 60
       register: result
-    - debug: var=result
-    - assert: { that: result.status_code==200, quiet: True }
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: create a file
+    - name: Create a file
       # assuming credentials are set using module_defaults
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
         method: post
-        files: {'data': 'some data'}
+        files:
+          data: 'some data'
 
-    - name: read a file
+    - name: Read a file
       # assuming credentials are set using module_defaults
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         api: storage/volumes/f3c003cb-2974-11ed-b2f8-005056b38dae/files/laurent123.txt
         method: get
         accept_header: "multipart/form-data"
         query:
           length: 100
 
-# error cases
-    - name: run ontap REST API command
-      na_ontap_restit:
+    # error cases
+    - name: Run ontap REST API command
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: unknown/endpoint
       register: result
       ignore_errors: True
-    - debug: var=result
-    - assert: { that: result.status_code==404, quiet: True }
-
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==404
+        quiet: true
 """
 
 RETURN = """

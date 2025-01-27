@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -189,78 +189,77 @@ options:
 '''
 
 EXAMPLES = """
+- name: Create User
+  netapp.ontap.na_ontap_user:
+    state: present
+    name: SampleUser
+    applications: ssh,console
+    authentication_method: password
+    set_password: apn1242183u1298u41
+    lock_user: true
+    role_name: vsadmin
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create User
-      netapp.ontap.na_ontap_user:
-        state: present
-        name: SampleUser
-        applications: ssh,console
-        authentication_method: password
-        set_password: apn1242183u1298u41
-        lock_user: True
-        role_name: vsadmin
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create cluster scoped user in REST.
+  netapp.ontap.na_ontap_user:
+    state: present
+    name: SampleUser
+    applications: ssh,console
+    authentication_method: password
+    set_password: apn1242183u1298u41
+    lock_user: true
+    role_name: admin
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create cluster scoped user in REST.
-      netapp.ontap.na_ontap_user:
-        state: present
-        name: SampleUser
-        applications: ssh,console
-        authentication_method: password
-        set_password: apn1242183u1298u41
-        lock_user: True
-        role_name: admin
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete User
+  netapp.ontap.na_ontap_user:
+    state: absent
+    name: SampleUser
+    applications: ssh
+    authentication_method: password
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete User
-      netapp.ontap.na_ontap_user:
-        state: absent
-        name: SampleUser
-        applications: ssh
-        authentication_method: password
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create user with snmp application (ZAPI)
+  netapp.ontap.na_ontap_user:
+    state: present
+    name: test_cert_snmp
+    applications: snmp
+    authentication_method: usm
+    role_name: admin
+    authentication_protocol: md5
+    authentication_password: '12345678'
+    privacy_protocol: 'aes128'
+    privacy_password: '12345678'
+    engine_id: '7063514941000000000000'
+    remote_switch_ipaddress: 10.0.0.0
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Create user with snmp application (ZAPI)
-      netapp.ontap.na_ontap_user:
-        state: present
-        name: test_cert_snmp
-        applications: snmp
-        authentication_method: usm
-        role_name: admin
-        authentication_protocol: md5
-        authentication_password: '12345678'
-        privacy_protocol: 'aes128'
-        privacy_password: '12345678'
-        engine_id: '7063514941000000000000'
-        remote_switch_ipaddress: 10.0.0.0
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-
-    - name: Create user
-      netapp.ontap.na_ontap_user:
-        state: present
-        name: test123
-        application_dicts:
-          - application: http
-            authentication_methods: password
-          - application: ssh
-            authentication_methods: password,publickey
-        role_name: vsadmin
-        set_password: bobdole1234566
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Create user
+  netapp.ontap.na_ontap_user:
+    state: present
+    name: test123
+    application_dicts:
+      - application: http
+        authentication_methods: password
+      - application: ssh
+        authentication_methods: password,publickey
+    role_name: vsadmin
+    set_password: bobdole1234566
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 """
 
 RETURN = """

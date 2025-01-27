@@ -1,9 +1,9 @@
 ---
 # tasks file for ansible_collections/netapp/ontap/roles/na_ontap_vserver_delete
 
-- name: collect igroups for vserver
+- name: Collect igroups for vserver
   tags: gather
-  na_ontap_rest_info:
+  netapp.ontap.na_ontap_rest_info:
     gather_subset:
       - protocols/san/igroups
     parameters:
@@ -15,17 +15,17 @@
     https: "{{ https }}"
     validate_certs: "{{ validate_certs }}"
   register: ontap
-- name: debug
-  debug:
+- name: Debug
+  ansible.builtin.debug:
     var: ontap
   when: debug_level > 1
-- name: extract igroups
-  set_fact:
+- name: Extract igroups
+  ansible.builtin.set_fact:
     igroups: "{{ ontap.ontap_info | json_query(get_attrs) }}"
   vars:
     # double quotes around storage/volumes to escape the /
     get_attrs: '"protocols/san/igroups".records[].name'
-- name: debug
-  debug:
+- name: Debug
+  ansible.builtin.debug:
     var: protocols/san/igroups
   when: debug_level > 0

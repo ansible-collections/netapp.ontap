@@ -1,7 +1,7 @@
 ---
-# tasks file for na-ontap-cluster-config
+# tasks file for na_ontap_cluster_config
 - name: Setup licenses
-  na_ontap_license:
+  netapp.ontap.na_ontap_license:
     state: present
     license_codes: "{{ license_codes }}"
     hostname: "{{ netapp_hostname }}"
@@ -11,7 +11,7 @@
     validate_certs: "{{ validate_certs }}"
   when: license_codes != None
 - name: Assign Disks
-  na_ontap_disks:
+  netapp.ontap.na_ontap_disks:
     node: "{{ item }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -22,7 +22,7 @@
     "{{ disks }}"
   when: disks != None
 - name: Set Login Message
-  na_ontap_login_messages:
+  netapp.ontap.na_ontap_login_messages:
     vserver: "{{ cluster }}"
     motd_message: "{{ motd }}"
     hostname: "{{ netapp_hostname }}"
@@ -34,7 +34,7 @@
     use_rest: never
   when: motd != None
 - name: Setup DNS
-  na_ontap_dns:
+  netapp.ontap.na_ontap_dns:
     state: present
     vserver: "{{ cluster }}"
     domains: "{{ item.dns_domains }}"
@@ -48,7 +48,7 @@
     "{{ dns }}"
   when: dns != None
 - name: Set NTP Server
-  na_ontap_ntp:
+  netapp.ontap.na_ontap_ntp:
     state: present
     server_name: "{{ item.server_name }}"
     version: "{{ item.version }}"
@@ -61,7 +61,7 @@
     "{{ ntp }}"
   when: ntp != None
 - name: Create SNMP community
-  na_ontap_snmp:
+  netapp.ontap.na_ontap_snmp:
     community_name: "{{ item.community_name }}"
     access_control: "{{ item.access_control }}"
     hostname: "{{ netapp_hostname }}"
@@ -73,7 +73,7 @@
     "{{ snmp }}"
   when: snmp != None
 - name: Create Aggregates
-  na_ontap_aggregate:
+  netapp.ontap.na_ontap_aggregate:
     state: present
     service_state: online
     name: "{{ item.name }}"
@@ -89,7 +89,7 @@
     "{{ aggrs }}"
   when: aggrs != None
 - name: Remove ports from Default broadcast domain
-  na_ontap_broadcast_domain_ports:
+  netapp.ontap.na_ontap_broadcast_domain_ports:
     state: absent
     broadcast_domain: Default
     ports: "{{ item.node }}:{{ item.port }}"
@@ -105,7 +105,7 @@
 # Configure flowcontrol and autonegotiate.
 # Skip MTU for now b/c we have to configure IFGroup first.
 - name: Modify Net Port
-  na_ontap_net_port:
+  netapp.ontap.na_ontap_net_port:
     state: present
     node: "{{ item.node }}"
     port: "{{ item.port }}"
@@ -121,7 +121,7 @@
     "{{ ports }}"
   when: ports != None
 - name: Create Interface Group
-  na_ontap_net_ifgrp:
+  netapp.ontap.na_ontap_net_ifgrp:
     state: present
     distribution_function: "{{ distribution_function }}"
     name: "{{ item.name }}"
@@ -134,12 +134,12 @@
     https: true
     validate_certs: "{{ validate_certs }}"
   with_items:
-    "{{ ifgrps  }}"
+    "{{ ifgrps }}"
   when: ifgrps != None
 
 # Set MTU - Interface group must be configured first.
 - name: Modify Net Port
-  na_ontap_net_port:
+  netapp.ontap.na_ontap_net_port:
     state: present
     node: "{{ item.node }}"
     port: "{{ item.name }}"
@@ -154,7 +154,7 @@
   when: ifgrps != None
 
 - name: Create VLAN
-  na_ontap_net_vlan:
+  netapp.ontap.na_ontap_net_vlan:
     state: present
     vlanid: "{{ item.id }}"
     node: "{{ item.node }}"
@@ -168,8 +168,8 @@
     "{{ vlans }}"
   when: vlans != None
 
-- name: create broadcast domain
-  na_ontap_broadcast_domain:
+- name: Create broadcast domain
+  netapp.ontap.na_ontap_broadcast_domain:
     state: present
     broadcast_domain: "{{ item.name }}"
     mtu: "{{ item.mtu }}"
@@ -185,7 +185,7 @@
   when: bcasts != None
 
 - name: Create Intercluster Lif
-  na_ontap_interface:
+  netapp.ontap.na_ontap_interface:
     state: present
     interface_name: "{{ item.name }}"
     home_port: "{{ item.port }}"

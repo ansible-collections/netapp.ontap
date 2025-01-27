@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -63,37 +63,37 @@ notes:
 '''
 
 EXAMPLES = """
-    - name: Modify SSH algorithms
-      netapp.ontap.na_ontap_security_ssh:
-        vserver: vserverName
-        ciphers: ["aes256_ctr", "aes192_ctr"]
-        key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
-        mac_algorithms: ["hmac_sha1"]
-        max_authentication_retry_count: 6
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify SSH algorithms
+  netapp.ontap.na_ontap_security_ssh:
+    vserver: vserverName
+    ciphers: ["aes256_ctr", "aes192_ctr"]
+    key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
+    mac_algorithms: ["hmac_sha1"]
+    max_authentication_retry_count: 6
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify SSH algorithms at cluster level
-      netapp.ontap.na_ontap_security_ssh:
-        vserver:
-        ciphers: ["aes256_ctr", "aes192_ctr"]
-        key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
-        mac_algorithms: ["hmac_sha1"]
-        max_authentication_retry_count: 6
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify SSH algorithms at cluster level
+  netapp.ontap.na_ontap_security_ssh:
+    vserver:
+    ciphers: ["aes256_ctr", "aes192_ctr"]
+    key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
+    mac_algorithms: ["hmac_sha1"]
+    max_authentication_retry_count: 6
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify SSH algorithms at cluster level
-      netapp.ontap.na_ontap_security_ssh:
-        ciphers: ["aes256_ctr", "aes192_ctr"]
-        key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
-        mac_algorithms: ["hmac_sha1"]
-        max_authentication_retry_count: 6
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify SSH algorithms at cluster level
+  netapp.ontap.na_ontap_security_ssh:
+    ciphers: ["aes256_ctr", "aes192_ctr"]
+    key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
+    mac_algorithms: ["hmac_sha1"]
+    max_authentication_retry_count: 6
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2024, NetApp, Inc
+# (c) 2024-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -107,102 +107,102 @@ options:
 """
 
 EXAMPLES = """
-  - name: Create BGP peer group with existing bgp interface bgp_lif.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      name: peer_group
-      ipspace: Default
-      local:
-        interface:
-          name: bgp_lif
-      peer:
-        address: 10.10.10.19
-        asn: 65501
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Create BGP peer group with existing bgp interface bgp_lif.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    name: peer_group
+    ipspace: Default
+    local:
+      interface:
+        name: bgp_lif
+    peer:
+      address: 10.10.10.19
+      asn: 65501
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Create new BGP interface new_bgp_lif and BGP peer group peer_group_1.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      name: peer_group_1
-      ipspace: Default
-      local:
-        interface:
-          name: new_bgp_lif
-        ip:
-          address: 10.10.10.20
-          netmask: 24
-        port:
-          name: e0a
-          node:
-            name: ontap98-01
-      peer:
+- name: Create new BGP interface new_bgp_lif and BGP peer group peer_group_1.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    name: peer_group_1
+    ipspace: Default
+    local:
+      interface:
+        name: new_bgp_lif
+      ip:
         address: 10.10.10.20
-        asn: 65500
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+        netmask: 24
+      port:
+        name: e0a
+        node:
+          name: ontap98-01
+    peer:
+      address: 10.10.10.20
+      asn: 65500
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-    # this will create bgp interface with random name.
-  - name: Create BGP interface without interface name and BGP peer group peer_group_2.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      name: peer_group_2
-      ipspace: Default
-      local:
-        ip:
-          address: 10.10.10.22
-          netmask: 24
-        port:
-          name: e0a
-          node:
-            name: ontap98-01
-      peer:
+# this will create bgp interface with random name.
+- name: Create BGP interface without interface name and BGP peer group peer_group_2.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    name: peer_group_2
+    ipspace: Default
+    local:
+      ip:
         address: 10.10.10.22
-        asn: 65512
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+        netmask: 24
+      port:
+        name: e0a
+        node:
+          name: ontap98-01
+    peer:
+      address: 10.10.10.22
+      asn: 65512
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify peer address.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      name: peer_group_2
-      ipspace: Default
-      peer:
-        address: 10.10.55.22
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify peer address.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    name: peer_group_2
+    ipspace: Default
+    peer:
+      address: 10.10.55.22
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Rename BGP peer group name and modify peer address.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      from_name: peer_group_2
-      name: new_peer_group
-      ipspace: Default
-      peer:
-        address: 10.10.55.40
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Rename BGP peer group name and modify peer address.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    from_name: peer_group_2
+    name: new_peer_group
+    ipspace: Default
+    peer:
+      address: 10.10.55.40
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Delete BGP peer group.
-    netapp.ontap.na_ontap_bgp_peer_group:
-      name: new_peer_group
-      ipspace: Default
-      state: absent
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Delete BGP peer group.
+  netapp.ontap.na_ontap_bgp_peer_group:
+    name: new_peer_group
+    ipspace: Default
+    state: absent
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

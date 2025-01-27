@@ -3,7 +3,7 @@
 create SNMP module to add/delete/modify SNMP user
 """
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -78,67 +78,67 @@ version_added: 2.6.0
 '''
 
 EXAMPLES = """
-    - name: Create SNMP community (ZAPI only)
-      netapp.ontap.na_ontap_snmp:
-        state: present
-        snmp_username: communityName
-        access_control: 'ro'
-        use_rest: never
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create SNMP community (ZAPI only)
+  netapp.ontap.na_ontap_snmp:
+    state: present
+    snmp_username: communityName
+    access_control: 'ro'
+    use_rest: never
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create SNMP community (snmpv1 or snmpv2) (REST only)
-      netapp.ontap.na_ontap_snmp:
-        state: present
-        snmp_username: communityName
-        use_rest: always
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create SNMP community (snmpv1 or snmpv2) (REST only)
+  netapp.ontap.na_ontap_snmp:
+    state: present
+    snmp_username: communityName
+    use_rest: always
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create SNMP user (snmpv3) (REST only)
-      netapp.ontap.na_ontap_snmp:
-        state: present
-        snmp_username: username
-        use_rest: always
-        authentication_method: usm
-        snmpv3:
-          authentication_protocol: sha
-          authentication_password: humTdumt*@t0nAwa21
-          privacy_protocol: aes128
-          privacy_password: p@**GOandCLCt*300
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create SNMP user (snmpv3) (REST only)
+  netapp.ontap.na_ontap_snmp:
+    state: present
+    snmp_username: username
+    use_rest: always
+    authentication_method: usm
+    snmpv3:
+      authentication_protocol: sha
+      authentication_password: humTdumt*@t0nAwa21
+      privacy_protocol: aes128
+      privacy_password: p@**GOandCLCt*300
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete SNMP community (ZAPI only)
-      netapp.ontap.na_ontap_snmp:
-        state: absent
-        snmp_username: communityName
-        access_control: 'ro'
-        use_rest: never
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete SNMP community (ZAPI only)
+  netapp.ontap.na_ontap_snmp:
+    state: absent
+    snmp_username: communityName
+    access_control: 'ro'
+    use_rest: never
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete SNMP community (snmpv1 or snmpv2) (REST only)
-      netapp.ontap.na_ontap_snmp:
-        state: absent
-        snmp_username: communityName
-        use_rest: always
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete SNMP community (snmpv1 or snmpv2) (REST only)
+  netapp.ontap.na_ontap_snmp:
+    state: absent
+    snmp_username: communityName
+    use_rest: always
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete SNMP user (snmpv3) (REST only)
-      netapp.ontap.na_ontap_snmp:
-        state: absent
-        snmp_username: username
-        use_rest: always
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete SNMP user (snmpv3) (REST only)
+  netapp.ontap.na_ontap_snmp:
+    state: absent
+    snmp_username: username
+    use_rest: always
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -80,42 +80,38 @@ options:
     version_added: 21.8.0
 '''
 EXAMPLES = """
-    - name: create SnapShot
-      tags:
-        - create
-      netapp.ontap.na_ontap_snapshot:
-        state: present
-        snapshot: "{{ snapshot name }}"
-        volume: "{{ vol name }}"
-        comment: "i am a comment"
-        expiry_time: "2022-02-04T14:00:00-05:00"
-        vserver: "{{ vserver name }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
-    - name: delete SnapShot
-      tags:
-        - delete
-      netapp.ontap.na_ontap_snapshot:
-        state: absent
-        snapshot: "{{ snapshot name }}"
-        volume: "{{ vol name }}"
-        vserver: "{{ vserver name }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
-    - name: modify SnapShot
-      tags:
-        - modify
-      netapp.ontap.na_ontap_snapshot:
-        state: present
-        snapshot: "{{ snapshot name }}"
-        comment: "New comments are great"
-        volume: "{{ vol name }}"
-        vserver: "{{ vserver name }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Create SnapShot
+  netapp.ontap.na_ontap_snapshot:
+    state: present
+    snapshot: "{{ snapshot_name }}"
+    volume: "{{ vol_name }}"
+    comment: "sample comment"
+    expiry_time: "2022-02-04T14:00:00-05:00"
+    vserver: "{{ vserver name }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Delete SnapShot
+  netapp.ontap.na_ontap_snapshot:
+    state: absent
+    snapshot: "{{ snapshot_name }}"
+    volume: "{{ vol_name }}"
+    vserver: "{{ vserver_name }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Modify SnapShot
+  netapp.ontap.na_ontap_snapshot:
+    state: present
+    snapshot: "{{ snapshot_name }}"
+    comment: "New comments are great"
+    volume: "{{ vol_name }}"
+    vserver: "{{ vserver_name }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

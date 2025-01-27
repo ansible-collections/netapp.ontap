@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2023-2024, NetApp, Inc
+# (c) 2023-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -154,124 +154,123 @@ notes:
 """
 
 EXAMPLES = """
+- name: Create vserver audit configuration
+  netapp.ontap.na_ontap_vserver_audit:
+    state: present
+    vserver: ansible
+    enabled: true
+    events:
+      authorization_policy: false
+      cap_staging: false
+      cifs_logon_logoff: true
+      file_operations: true
+      file_share: false
+      security_group: false
+      user_account: false
+    log_path: "/"
+    log:
+      format: xml
+      retention:
+        count: 4
+      rotation:
+        size: "1048576"
+    guarantee: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create vserver audit configuration
-      netapp.ontap.na_ontap_vserver_audit:
-        state: present
-        vserver: ansible
-        enabled: True
-        events:
-          authorization_policy: False
-          cap_staging: False
-          cifs_logon_logoff: True
-          file_operations: True
-          file_share: False
-          security_group: False
-          user_account: False
-        log_path: "/"
-        log:
-          format: xml
-          retention:
-            count: 4
-          rotation:
-            size: "1048576"
-        guarantee: False
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify vserver audit configuration
+  netapp.ontap.na_ontap_vserver_audit:
+    state: present
+    vserver: ansible
+    enabled: true
+    events:
+      authorization_policy: true
+      cap_staging: true
+      cifs_logon_logoff: true
+      file_operations: true
+      file_share: true
+      security_group: true
+      user_account: true
+    log_path: "/tmp"
+    log:
+      format: evtx
+      retention:
+        count: 5
+      rotation:
+        size: "104857600"
+    guarantee: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify vserver audit configuration
-      netapp.ontap.na_ontap_vserver_audit:
-        state: present
-        vserver: ansible
-        enabled: True
-        events:
-          authorization_policy: True
-          cap_staging: True
-          cifs_logon_logoff: True
-          file_operations: True
-          file_share: True
-          security_group: True
-          user_account: True
-        log_path: "/tmp"
-        log:
-          format: evtx
-          retention:
-            count: 5
-          rotation:
-            size: "104857600"
-        guarantee: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete vserver audit configuration
+  netapp.ontap.na_ontap_vserver_audit:
+    state: absent
+    vserver: ansible
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete vserver audit configuration
-      netapp.ontap.na_ontap_vserver_audit:
-        state: absent
-        vserver: ansible
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+# The audit logs are rotated in January and March on Monday, Wednesday, and Friday,
+# at 6:15, 6:30, 6:45, 12:15, 12:30, 12:45, 18:15, 18:30, and 18:45
+# The last 6 audit logs are retained
+- name: Create vserver audit configuration
+  netapp.ontap.na_ontap_vserver_audit:
+    state: present
+    vserver: ansible
+    enabled: true
+    events:
+      authorization_policy: false
+      cap_staging: false
+      cifs_logon_logoff: true
+      file_operations: true
+      file_share: false
+      security_group: false
+      user_account: false
+    log_path: "/"
+    log:
+      format: xml
+      retention:
+        count: 6
+      rotation:
+        schedule:
+          hours: [6, 12, 18]
+          minutes: [15, 30, 45]
+          months: [1, 3]
+          weekdays: [1, 3, 5]
+    guarantee: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    # The audit logs are rotated in January and March on Monday, Wednesday, and Friday,
-    # at 6:15, 6:30, 6:45, 12:15, 12:30, 12:45, 18:15, 18:30, and 18:45
-    # The last 6 audit logs are retained
-    - name: Create vserver audit configuration
-      netapp.ontap.na_ontap_vserver_audit:
-        state: present
-        vserver: ansible
-        enabled: True
-        events:
-          authorization_policy: False
-          cap_staging: False
-          cifs_logon_logoff: True
-          file_operations: True
-          file_share: False
-          security_group: False
-          user_account: False
-        log_path: "/"
-        log:
-          format: xml
-          retention:
-            count: 6
-          rotation:
-            schedule:
-              hours: [6,12,18]
-              minutes: [15,30,45]
-              months: [1,3]
-              weekdays: [1,3,5]
-        guarantee: False
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    # The audit logs are rotated monthly, all days of the week, at 12:30
-    - name: Modify vserver audit configuration
-      netapp.ontap.na_ontap_vserver_audit:
-        state: present
-        vserver: ansible
-        enabled: True
-        events:
-          authorization_policy: False
-          cap_staging: False
-          cifs_logon_logoff: True
-          file_operations: True
-          file_share: False
-          security_group: False
-          user_account: False
-        log_path: "/"
-        log:
-          format: xml
-          rotation:
-            schedule:
-              hours: [12]
-              minutes: [30]
-              months: [-1]
-              weekdays: [-1]
-        guarantee: False
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+# The audit logs are rotated monthly, all days of the week, at 12:30
+- name: Modify vserver audit configuration
+  netapp.ontap.na_ontap_vserver_audit:
+    state: present
+    vserver: ansible
+    enabled: true
+    events:
+      authorization_policy: false
+      cap_staging: false
+      cifs_logon_logoff: true
+      file_operations: true
+      file_share: false
+      security_group: false
+      user_account: false
+    log_path: "/"
+    log:
+      format: xml
+      rotation:
+        schedule:
+          hours: [12]
+          minutes: [30]
+          months: [-1]
+          weekdays: [-1]
+    guarantee: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2024, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -120,51 +120,46 @@ notes:
 """
 
 EXAMPLES = """
-    # Assuming module_defaults are used to set up hostname, username, password, https, validate_certs
+# Assuming module_defaults are used to set up hostname, username, password, https, validate_certs
+- name: Delete Key Manager
+  netapp.ontap.na_ontap_security_key_manager:
+    state: absent
 
-    - name: Delete Key Manager
-      tags:
-      - delete
-      netapp.ontap.na_ontap_security_key_manager:
-        state: absent
+- name: Add Key Manager - ZAPI
+  netapp.ontap.na_ontap_security_key_manager:
+    ip_address: 0.0.0.0
 
-    - name: Add Key Manager - ZAPI
-      tags:
-      - add
-      netapp.ontap.na_ontap_security_key_manager:
-        ip_address: 0.0.0.0
+- name: Add/Modify external Key Manager - REST
+  netapp.ontap.na_ontap_security_key_manager:
+    state: present
+    external:
+      servers: 10.10.10.10:5696
+      client_certificate: kmip_client
+      server_ca_certificates: kmip_ca
+    vserver: "{{ vserver | default(omit) }}"
 
-    - name: Add/Modify external Key Manager - REST
-      netapp.ontap.na_ontap_security_key_manager:
-        state: present
-        external:
-          servers: 10.10.10.10:5696
-          client_certificate: kmip_client
-          server_ca_certificates: kmip_ca
-        vserver: "{{ vserver | default(omit) }}"
+- name: Add/Modify external Key Manager - REST
+  netapp.ontap.na_ontap_security_key_manager:
+    state: present
+    external:
+      servers: 10.10.10.10:5696,10.10.10.10:5697,10.10.10.11:5696
+      client_certificate: kmip_client
+      server_ca_certificates: kmip_ca
+    vserver: "{{ vserver | default(omit) }}"
 
-    - name: Add/Modify external Key Manager - REST
-      netapp.ontap.na_ontap_security_key_manager:
-        state: present
-        external:
-          servers: 10.10.10.10:5696,10.10.10.10:5697,10.10.10.11:5696
-          client_certificate: kmip_client
-          server_ca_certificates: kmip_ca
-        vserver: "{{ vserver | default(omit) }}"
+- name: Add onboard Key Manager
+  netapp.ontap.na_ontap_security_key_manager:
+    state: present
+    onboard:
+      passphrase: "hello, le soleil brille, brille, brille!"
 
-    - name: Add onboard Key Manager
-      netapp.ontap.na_ontap_security_key_manager:
-        state: present
-        onboard:
-          passphrase: "hello, le soleil brille, brille, brille!"
-
-    - name: Change passphrase for onboard Key Manager
-      netapp.ontap.na_ontap_security_key_manager:
-        state: present
-        onboard:
-          from_passphrase: "hello, le soleil brille, brille, brille!"
-          passphrase: "hello, le soleil brille, brille, brille! - 2"
-          synchronize: true
+- name: Change passphrase for onboard Key Manager
+  netapp.ontap.na_ontap_security_key_manager:
+    state: present
+    onboard:
+      from_passphrase: "hello, le soleil brille, brille, brille!"
+      passphrase: "hello, le soleil brille, brille, brille! - 2"
+      synchronize: true
 """
 
 RETURN = """

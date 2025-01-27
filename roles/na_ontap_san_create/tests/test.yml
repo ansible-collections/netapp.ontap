@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Test playbook
+  hosts: localhost
   remote_user: root
   roles:
-    - na-ontap-san-create
+    - netapp.ontap.na_ontap_san_create

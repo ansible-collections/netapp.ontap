@@ -54,43 +54,43 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Add privileges to the specified local user
-    netapp.ontap.na_ontap_cifs_privileges:
-      state: present
-      vserver: ansibleSVM
-      name: CIFS\\local_user1
-      privileges: ["SeTcbPrivilege"]
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Add privileges to the specified local user
+  netapp.ontap.na_ontap_cifs_privileges:
+    state: present
+    vserver: ansibleSVM
+    name: CIFS\\local_user1
+    privileges: ["SeTcbPrivilege"]
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 
-  - name: Update privileges of the specified local user
-    netapp.ontap.na_ontap_cifs_privileges:
-      state: present
-      vserver: ansibleSVM
-      name: CIFS\\local_user1
-      privileges: ["SeTcbPrivilege", "SeBackupPrivilege"]
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Update privileges of the specified local user
+  netapp.ontap.na_ontap_cifs_privileges:
+    state: present
+    vserver: ansibleSVM
+    name: CIFS\\local_user1
+    privileges: ["SeTcbPrivilege", "SeBackupPrivilege"]
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 
-  - name: Reset privileges of the specified local user
-    netapp.ontap.na_ontap_cifs_privileges:
-      state: absent
-      vserver: ansibleSVM
-      name: CIFS\\local_user1
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Reset privileges of the specified local user
+  netapp.ontap.na_ontap_cifs_privileges:
+    state: absent
+    vserver: ansibleSVM
+    name: CIFS\\local_user1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 """
 
 RETURN = """

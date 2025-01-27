@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -51,24 +51,23 @@ options:
     '''
 
 EXAMPLES = """
-    - name: Enable local CIFS Administrator account
-      na_ontap_cifs_local_user_modify:
-        name: BUILTIN\\administrators
-        vserver: ansible
-        is_account_disabled: false
-        username: '{{ username }}'
-        password: '{{ password }}'
-        hostname: '{{ hostname }}'
+- name: Enable local CIFS Administrator account
+  na_ontap_cifs_local_user_modify:
+    name: BUILTIN\\administrators
+    vserver: ansible
+    is_account_disabled: false
+    username: '{{ username }}'
+    password: '{{ password }}'
+    hostname: '{{ hostname }}'
 
-    - name: Disable local CIFS Administrator account
-      na_ontap_cifs_local_user_modify:
-        name: BUILTIN\\administrators
-        vserver: ansible
-        is_account_disabled: true
-        username: '{{ username }}'
-        password: '{{ password }}'
-        hostname: '{{ hostname }}'
-
+- name: Disable local CIFS Administrator account
+  na_ontap_cifs_local_user_modify:
+    name: BUILTIN\\administrators
+    vserver: ansible
+    is_account_disabled: true
+    username: '{{ username }}'
+    password: '{{ password }}'
+    hostname: '{{ hostname }}'
 """
 
 RETURN = """

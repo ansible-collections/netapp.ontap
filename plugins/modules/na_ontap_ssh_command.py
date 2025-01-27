@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -62,42 +62,41 @@ options:
 '''
 
 EXAMPLES = """
-    - name: run ontap cli command using SSH
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
-        command: version
+- name: run ontap cli command using SSH
+  netapp.ontap.na_ontap_ssh_command:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: version
 
-    # Same as above, with parameters
-    - name: run ontap cli command
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
-        command: node show -fields node,health,uptime,model
-        privilege: admin
+# Same as above, with parameters
+- name: run ontap cli command
+  netapp.ontap.na_ontap_ssh_command:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: node show -fields node,health,uptime,model
+    privilege: admin
 
-    # Same as above, but with lines filtering
-    - name: run ontap cli command
-      na_ontap_ssh_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin_username }}"
-        password: "{{ admin_password }}"
-        command: node show -fields node,health,uptime,model
-        exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node'
-        # use with caution!
-        accept_unknown_host_keys: true
-        privilege: admin
+# Same as above, but with lines filtering
+- name: run ontap cli command
+  netapp.ontap.na_ontap_ssh_command:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    command: node show -fields node,health,uptime,model
+    exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node'
+    # use with caution!
+    accept_unknown_host_keys: true
+    privilege: admin
 
-    - name: run ontap SSH command on SP
-      na_ontap_ssh_command:
-        # <<: *sp_login
-        command: sp switch-version
-        privilege: diag
-        sp: true
-      register: result
-    - debug: var=result
+- name: run ontap SSH command on SP
+  netapp.ontap.na_ontap_ssh_command:
+    # <<: *sp_login
+    command: sp switch-version
+    privilege: diag
+    sp: true
+    register: result
 """
 
 RETURN = """

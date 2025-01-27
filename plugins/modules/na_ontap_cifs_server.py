@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """ this is cifs_server module
 
- (c) 2018-2023, NetApp, Inc
+ (c) 2018-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -208,85 +208,84 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: Create cifs_server
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        name: data2
-        vserver: svm1
-        service_state: stopped
-        domain: "{{ id_domain }}"
-        admin_user_name: "{{ domain_login }}"
-        admin_password: "{{ domain_pwd }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create cifs_server
+  netapp.ontap.na_ontap_cifs_server:
+    state: present
+    name: data2
+    vserver: svm1
+    service_state: stopped
+    domain: "{{ id_domain }}"
+    admin_user_name: "{{ domain_login }}"
+    admin_password: "{{ domain_pwd }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete cifs_server
-      netapp.ontap.na_ontap_cifs_server:
-        state: absent
-        name: data2
-        vserver: svm1
-        admin_user_name: "{{ domain_login }}"
-        admin_password: "{{ domain_pwd }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete cifs_server
+  netapp.ontap.na_ontap_cifs_server:
+    state: absent
+    name: data2
+    vserver: svm1
+    admin_user_name: "{{ domain_login }}"
+    admin_password: "{{ domain_pwd }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Start cifs_server
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        name: data2
-        vserver: svm1
-        service_state: started
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Start cifs_server
+  netapp.ontap.na_ontap_cifs_server:
+    state: present
+    name: data2
+    vserver: svm1
+    service_state: started
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Stop cifs_server
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        name: data2
-        vserver: svm1
-        service_state: stopped
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Stop cifs_server
+  netapp.ontap.na_ontap_cifs_server:
+    state: present
+    name: data2
+    vserver: svm1
+    service_state: stopped
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Rename cifs_server - REST
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        from_name: data2
-        name: cifs
-        vserver: svm1
-        force: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Rename cifs_server - REST
+  netapp.ontap.na_ontap_cifs_server:
+    state: present
+    from_name: data2
+    name: cifs
+    vserver: svm1
+    force: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify cifs_server security - REST
-      netapp.ontap.na_ontap_cifs_server:
-        state: present
-        name: data2
-        vserver: svm1
-        service_state: stopped
-        encrypt_dc_connection: True
-        smb_encryption: True
-        kdc_encryption: True
-        smb_signing: True
-        aes_netlogon_enabled: True
-        ldap_referral_enabled: True
-        session_security: seal
-        try_ldap_channel_binding: False
-        use_ldaps: True
-        use_start_tls: True
-        restrict_anonymous: no_access
-        domain: "{{ id_domain }}"
-        admin_user_name: "{{ domain_login }}"
-        admin_password: "{{ domain_pwd }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Modify cifs_server security - REST
+  netapp.ontap.na_ontap_cifs_server:
+    state: present
+    name: data2
+    vserver: svm1
+    service_state: stopped
+    encrypt_dc_connection: true
+    smb_encryption: true
+    kdc_encryption: true
+    smb_signing: true
+    aes_netlogon_enabled: true
+    ldap_referral_enabled: true
+    session_security: seal
+    try_ldap_channel_binding: false
+    use_ldaps: true
+    use_start_tls: true
+    restrict_anonymous: no_access
+    domain: "{{ id_domain }}"
+    admin_user_name: "{{ domain_login }}"
+    admin_password: "{{ domain_pwd }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

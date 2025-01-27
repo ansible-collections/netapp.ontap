@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -284,119 +284,118 @@ notes:
 '''
 
 EXAMPLES = '''
-    - name: Create interface - ZAPI
-      netapp.ontap.na_ontap_interface:
-        state: present
-        interface_name: data2
-        home_port: e0d
-        home_node: laurentn-vsim1
-        role: data
-        protocols:
-          - nfs
-          - cifs
-        admin_status: up
-        failover_policy: local-only
-        firewall_policy: mgmt
-        is_auto_revert: true
-        address: 10.10.10.10
-        netmask: 255.255.255.0
-        force_subnet_association: false
-        dns_domain_name: test.com
-        listen_for_dns_query: true
-        is_dns_update_enabled: true
-        vserver: svm1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create interface - ZAPI
+  netapp.ontap.na_ontap_interface:
+    state: present
+    interface_name: data2
+    home_port: e0d
+    home_node: laurentn-vsim1
+    role: data
+    protocols:
+      - nfs
+      - cifs
+    admin_status: up
+    failover_policy: local-only
+    firewall_policy: mgmt
+    is_auto_revert: true
+    address: 10.10.10.10
+    netmask: 255.255.255.0
+    force_subnet_association: false
+    dns_domain_name: test.com
+    listen_for_dns_query: true
+    is_dns_update_enabled: true
+    vserver: svm1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create data interface - REST - NAS
-      netapp.ontap.na_ontap_interface:
-        state: present
-        interface_name: data2
-        home_port: e0d
-        home_node: laurentn-vsim1
-        admin_status: up
-        failover_scope: home_node_only
-        service_policy: default-data-files
-        is_auto_revert: true
-        interface_type: ip
-        address: 10.10.10.10
-        netmask: 255.255.255.0
-        vserver: svm1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create data interface - REST - NAS
+  netapp.ontap.na_ontap_interface:
+    state: present
+    interface_name: data2
+    home_port: e0d
+    home_node: laurentn-vsim1
+    admin_status: up
+    failover_scope: home_node_only
+    service_policy: default-data-files
+    is_auto_revert: true
+    interface_type: ip
+    address: 10.10.10.10
+    netmask: 255.255.255.0
+    vserver: svm1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create cluster interface - ZAPI
-      netapp.ontap.na_ontap_interface:
-        state: present
-        interface_name: cluster_lif
-        home_port: e0a
-        home_node: cluster1-01
-        role: cluster
-        admin_status: up
-        is_auto_revert: true
-        is_ipv4_link_local: true
-        vserver: Cluster
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create cluster interface - ZAPI
+  netapp.ontap.na_ontap_interface:
+    state: present
+    interface_name: cluster_lif
+    home_port: e0a
+    home_node: cluster1-01
+    role: cluster
+    admin_status: up
+    is_auto_revert: true
+    is_ipv4_link_local: true
+    vserver: Cluster
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create cluster interface - REST
-      netapp.ontap.na_ontap_interface:
-        state: present
-        interface_name: cluster_lif
-        home_port: e0a
-        home_node: cluster1-01
-        service_policy: default-cluster
-        admin_status: up
-        is_auto_revert: true
-        vserver: Cluster
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create cluster interface - REST
+  netapp.ontap.na_ontap_interface:
+    state: present
+    interface_name: cluster_lif
+    home_port: e0a
+    home_node: cluster1-01
+    service_policy: default-cluster
+    admin_status: up
+    is_auto_revert: true
+    vserver: Cluster
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Rename interface
-      netapp.ontap.na_ontap_interface:
-        state: present
-        from_name: ansibleSVM_lif
-        interface_name: ansibleSVM_lif01
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Rename interface
+  netapp.ontap.na_ontap_interface:
+    state: present
+    from_name: ansibleSVM_lif
+    interface_name: ansibleSVM_lif01
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Migrate an interface
-      netapp.ontap.na_ontap_interface:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        vserver: ansible
-        https: true
-        validate_certs: false
-        state: present
-        interface_name: carchi_interface3
-        home_port: e0d
-        home_node: ansdev-stor-1
-        current_node: ansdev-stor-2
-        role: data
-        failover_policy: local-only
-        firewall_policy: mgmt
-        is_auto_revert: true
-        address: 10.10.10.12
-        netmask: 255.255.255.0
-        force_subnet_association: false
-        admin_status: up
+- name: Migrate an interface
+  netapp.ontap.na_ontap_interface:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    vserver: ansible
+    https: true
+    validate_certs: false
+    state: present
+    interface_name: carchi_interface3
+    home_port: e0d
+    home_node: ansdev-stor-1
+    current_node: ansdev-stor-2
+    role: data
+    failover_policy: local-only
+    firewall_policy: mgmt
+    is_auto_revert: true
+    address: 10.10.10.12
+    netmask: 255.255.255.0
+    force_subnet_association: false
+    admin_status: up
 
-    - name: Delete interface
-      netapp.ontap.na_ontap_interface:
-        state: absent
-        interface_name: data2
-        vserver: svm1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Delete interface
+  netapp.ontap.na_ontap_interface:
+    state: absent
+    interface_name: data2
+    vserver: svm1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = """

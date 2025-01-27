@@ -3,7 +3,7 @@
 create Debug module to diagnose netapp-lib import and connection
 """
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -31,11 +31,11 @@ options:
     type: str
 '''
 EXAMPLES = """
-    - name: Check import netapp-lib
-      na_ontap_debug:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Check import netapp-lib
+  netapp.ontap.na_ontap_debug:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

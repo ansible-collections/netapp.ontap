@@ -46,26 +46,26 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Disable SNMP on cluster
-    netapp.ontap.na_ontap_snmp_config:
-      state: present
-      enabled: false
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Disable SNMP on cluster
+  netapp.ontap.na_ontap_snmp_config:
+    state: present
+    enabled: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify SNMP configuration
-    netapp.ontap.na_ontap_snmp_config:
-      state: present
-      auth_traps_enabled: true
-      traps_enabled: true
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify SNMP configuration
+  netapp.ontap.na_ontap_snmp_config:
+    state: present
+    auth_traps_enabled: true
+    traps_enabled: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

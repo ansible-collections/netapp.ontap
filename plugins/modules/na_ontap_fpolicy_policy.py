@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2023, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -77,7 +77,7 @@ options:
 
 EXAMPLES = """
 - name: Create FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: present
     vserver: svm1
     name: fpolicy_policy
@@ -88,7 +88,7 @@ EXAMPLES = """
     hostname: "{{ hostname }}"
 
 - name: Modify FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: present
     vserver: svm1
     name: fpolicy_policy
@@ -99,7 +99,7 @@ EXAMPLES = """
     hostname: "{{ hostname }}"
 
 - name: Delete FPolicy policy
-  na_ontap_fpolicy_policy:
+  netapp.ontap.na_ontap_fpolicy_policy:
     state: absent
     vserver: svm1
     name: fpolicy_policy
@@ -107,7 +107,6 @@ EXAMPLES = """
     username: "{{ username }}"
     password: "{{ password }}"
     hostname: "{{ hostname }}"
-
 """
 
 RETURN = """

@@ -3,7 +3,7 @@
 this is ipspace module
 
 # (c) 2018, NTT Europe Ltd.
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -47,30 +47,30 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create ipspace
-      netapp.ontap.na_ontap_ipspace:
-        state: present
-        name: ansibleIpspace
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create ipspace
+  netapp.ontap.na_ontap_ipspace:
+    state: present
+    name: ansibleIpspace
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete ipspace
-      netapp.ontap.na_ontap_ipspace:
-        state: absent
-        name: ansibleIpspace
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete ipspace
+  netapp.ontap.na_ontap_ipspace:
+    state: absent
+    name: ansibleIpspace
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Rename ipspace
-      netapp.ontap.na_ontap_ipspace:
-        state: present
-        name: ansibleIpspace_newname
-        from_name: ansibleIpspace
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Rename ipspace
+  netapp.ontap.na_ontap_ipspace:
+    state: present
+    name: ansibleIpspace_newname
+    from_name: ansibleIpspace
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

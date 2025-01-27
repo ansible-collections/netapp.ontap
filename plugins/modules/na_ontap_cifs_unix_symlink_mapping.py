@@ -76,46 +76,45 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Create a UNIX symlink mapping for CIFS share
-    netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
-      state: present
-      vserver: "{{ svm }}"
-      unix_path: "/example1/"
-      share_name: "share1"
-      cifs_path: "/path1/test_dir/"
-      cifs_server: "CIFS"
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Create a UNIX symlink mapping for CIFS share
+  netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
+    state: present
+    vserver: "{{ svm }}"
+    unix_path: "/example1/"
+    share_name: "share1"
+    cifs_path: "/path1/test_dir/"
+    cifs_server: "CIFS"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Update a specific UNIX symlink mapping for a SVM
-    netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
-      state: present
-      vserver: "{{ svm }}"
-      unix_path: "/example1/"
-      share_name: "share2"
-      cifs_path: "/path2/test_dir/"
-      cifs_server: "CIFS"
-      locality: "widelink"
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Update a specific UNIX symlink mapping for a SVM
+  netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
+    state: present
+    vserver: "{{ svm }}"
+    unix_path: "/example1/"
+    share_name: "share2"
+    cifs_path: "/path2/test_dir/"
+    cifs_server: "CIFS"
+    locality: "widelink"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Remove a specific UNIX symlink mapping for a SVM
-    netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
-      state: absent
-      vserver: "{{ svm }}"
-      unix_path: "/example1/"
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-
+- name: Remove a specific UNIX symlink mapping for a SVM
+  netapp.ontap.na_ontap_cifs_unix_symlink_mapping:
+    state: absent
+    vserver: "{{ svm }}"
+    unix_path: "/example1/"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

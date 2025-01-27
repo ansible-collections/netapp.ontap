@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -164,94 +164,94 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create qos policy group in ZAPI.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: policy_1
-        vserver: policy_vserver
-        max_throughput: 800KB/s,800iops
-        min_throughput: 100iops
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: never
+- name: Create qos policy group in ZAPI.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: policy_1
+    vserver: policy_vserver
+    max_throughput: 800KB/s,800iops
+    min_throughput: 100iops
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: never
 
-    - name: modify qos policy group max throughput in ZAPI.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: policy_1
-        vserver: policy_vserver
-        max_throughput: 900KB/s,800iops
-        min_throughput: 100iops
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: never
+- name: Modify qos policy group max throughput in ZAPI.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: policy_1
+    vserver: policy_vserver
+    max_throughput: 900KB/s,800iops
+    min_throughput: 100iops
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: never
 
-    - name: delete qos policy group
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: absent
-        name: policy_1
-        vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
+- name: Delete qos policy group
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: absent
+    name: policy_1
+    vserver: policy_vserver
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: create qos policy group in REST.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: policy_1
-        vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: always
-        fixed_qos_options:
-          max_throughput_iops: 800
-          max_throughput_mbps: 200
-          min_throughput_iops: 500
-          min_throughput_mbps: 100
-          capacity_shared: True
+- name: Create qos policy group in REST.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: policy_1
+    vserver: policy_vserver
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: always
+    fixed_qos_options:
+      max_throughput_iops: 800
+      max_throughput_mbps: 200
+      min_throughput_iops: 500
+      min_throughput_mbps: 100
+      capacity_shared: True
 
-    - name: modify qos policy max_throughput in REST.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: policy_1
-        vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: always
-        fixed_qos_options:
-          max_throughput_iops: 1000
-          max_throughput_mbps: 300
+- name: Modify qos policy max_throughput in REST.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: policy_1
+    vserver: policy_vserver
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: always
+    fixed_qos_options:
+      max_throughput_iops: 1000
+      max_throughput_mbps: 300
 
-    - name: create adaptive qos policy group in REST.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: adaptive_policy
-        vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: always
-        adaptive_qos_options:
-          absolute_min_iops: 100
-          expected_iops: 200
-          peak_iops: 500
+- name: Create adaptive qos policy group in REST.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: adaptive_policy
+    vserver: policy_vserver
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: always
+    adaptive_qos_options:
+      absolute_min_iops: 100
+      expected_iops: 200
+      peak_iops: 500
 
-    - name: modify adaptive qos policy group in REST.
-      netapp.ontap.na_ontap_qos_policy_group:
-        state: present
-        name: adaptive_policy
-        vserver: policy_vserver
-        hostname: 10.193.78.30
-        username: admin
-        password: netapp1!
-        use_rest: always
-        adaptive_qos_options:
-          expected_iops_allocation: used_space
-          peak_iops_allocation: allocated_space
+- name: Modify adaptive qos policy group in REST.
+  netapp.ontap.na_ontap_qos_policy_group:
+    state: present
+    name: adaptive_policy
+    vserver: policy_vserver
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    use_rest: always
+    adaptive_qos_options:
+      expected_iops_allocation: used_space
+      peak_iops_allocation: allocated_space
 """
 
 RETURN = """

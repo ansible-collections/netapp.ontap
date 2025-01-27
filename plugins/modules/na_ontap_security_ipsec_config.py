@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2022-2025, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -40,25 +40,25 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Enable IPsec config and set replay_window.
-    netapp.ontap.na_ontap_security_ipsec_config:
-      enabled: True
-      replay_window: 64
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Enable IPsec config and set replay_window.
+  netapp.ontap.na_ontap_security_ipsec_config:
+    enabled: true
+    replay_window: 64
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Disable IPsec config.
-    netapp.ontap.na_ontap_security_ipsec_config:
-      enabled: False
-      replay_window: 64
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Disable IPsec config.
+  netapp.ontap.na_ontap_security_ipsec_config:
+    enabled: false
+    replay_window: 64
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

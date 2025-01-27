@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -140,7 +140,7 @@ EXAMPLES = """
     export_policy: policyName
     security_style: mixed
     oplocks: disabled
-    unix_permissions: 0777
+    unix_permissions: 777
     vserver: ansibleVServer
     unix_user: user1
     unix_group: group1

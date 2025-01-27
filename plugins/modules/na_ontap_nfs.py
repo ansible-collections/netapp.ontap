@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -234,66 +234,66 @@ options:
 """
 
 EXAMPLES = """
-    - name: change nfs status
-      netapp.ontap.na_ontap_nfs:
-        state: present
-        service_state: stopped
-        vserver: vs_hack
-        nfsv3: disabled
-        nfsv4: disabled
-        nfsv41: enabled
-        tcp: disabled
-        udp: disabled
-        vstorage_state: disabled
-        nfsv4_id_domain: example.com
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Change nfs status
+  netapp.ontap.na_ontap_nfs:
+    state: present
+    service_state: stopped
+    vserver: vs_hack
+    nfsv3: disabled
+    nfsv4: disabled
+    nfsv41: enabled
+    tcp: disabled
+    udp: disabled
+    vstorage_state: disabled
+    nfsv4_id_domain: example.com
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: create nfs configuration - REST
-      netapp.ontap.na_ontap_nfs:
-        state: present
-        service_state: stopped
-        vserver: vs_hack
-        nfsv3: disabled
-        nfsv4: disabled
-        nfsv41: enabled
-        tcp: disabled
-        udp: disabled
-        vstorage_state: disabled
-        nfsv4_id_domain: example.com
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create nfs configuration - REST
+  netapp.ontap.na_ontap_nfs:
+    state: present
+    service_state: stopped
+    vserver: vs_hack
+    nfsv3: disabled
+    nfsv4: disabled
+    nfsv41: enabled
+    tcp: disabled
+    udp: disabled
+    vstorage_state: disabled
+    nfsv4_id_domain: example.com
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify nfs configuration - REST
-      netapp.ontap.na_ontap_nfs:
-        state: present
-        vserver: vs_hack
-        root:
-          ignore_nt_acl: true
-          skip_write_permission_check: true
-        security:
-          chown_mode: restricted
-          nt_acl_display_permission: true
-          ntfs_unix_security: fail
-          rpcsec_context_idle: 5
-        windows:
-          v3_ms_dos_client_enabled: true
-          map_unknown_uid_to_default_user: false
-          default_user: test_user
-        tcp_max_xfer_size: 16384
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify nfs configuration - REST
+  netapp.ontap.na_ontap_nfs:
+    state: present
+    vserver: vs_hack
+    root:
+      ignore_nt_acl: true
+      skip_write_permission_check: true
+    security:
+      chown_mode: restricted
+      nt_acl_display_permission: true
+      ntfs_unix_security: fail
+      rpcsec_context_idle: 5
+    windows:
+      v3_ms_dos_client_enabled: true
+      map_unknown_uid_to_default_user: false
+      default_user: test_user
+    tcp_max_xfer_size: 16384
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete nfs configuration
-      netapp.ontap.na_ontap_nfs:
-        state: absent
-        vserver: vs_hack
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete nfs configuration
+  netapp.ontap.na_ontap_nfs:
+    state: absent
+    vserver: vs_hack
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

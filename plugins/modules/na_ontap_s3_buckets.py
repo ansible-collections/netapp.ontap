@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -228,73 +228,73 @@ notes:
 '''
 
 EXAMPLES = """
-    - name: Create S3 bucket
-      netapp.ontap.na_ontap_s3_buckets:
-        state: present
-        name: carchi-test-bucket
-        comment: carchi8py was here
-        size: 838860800
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Create S3 bucket
+  netapp.ontap.na_ontap_s3_buckets:
+    state: present
+    name: carchi-test-bucket
+    comment: carchi8py was here
+    size: 838860800
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 
-    - name: Create S3 bucket with a policy
-      netapp.ontap.na_ontap_s3_buckets:
-        state: present
-        name: carchi-test-bucket
-        comment: carchi8py was here
-        size: 838860800
-        policy:
-          statements:
-            - sid: FullAccessToUser1
-              resources:
-                - bucket1
-                - bucket1/*
-              actions:
-                - GetObject
-                - PutObject
-                - DeleteObject
-                - ListBucket
-              effect: allow
-              conditions:
-                - operator: ip_address
-                  max_keys:
-                    - 1000
-                  delimiters:
-                    - "/"
-                  source_ips:
-                    - 1.1.1.1
-                    - 1.2.2.0/24
-                  prefixes:
-                    - prex
-                  usernames:
-                    - user1
-              principals:
+- name: Create S3 bucket with a policy
+  netapp.ontap.na_ontap_s3_buckets:
+    state: present
+    name: carchi-test-bucket
+    comment: carchi8py was here
+    size: 838860800
+    policy:
+      statements:
+        - sid: FullAccessToUser1
+          resources:
+            - bucket1
+            - bucket1/*
+          actions:
+            - GetObject
+            - PutObject
+            - DeleteObject
+            - ListBucket
+          effect: allow
+          conditions:
+            - operator: ip_address
+              max_keys:
+                - 1000
+              delimiters:
+                - "/"
+              source_ips:
+                - 1.1.1.1
+                - 1.2.2.0/24
+              prefixes:
+                - prex
+              usernames:
                 - user1
-                - group/grp1
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+          principals:
+            - user1
+            - group/grp1
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 
-    - name: Delete S3 bucket
-      netapp.ontap.na_ontap_s3_buckets:
-        state: absent
-        name: carchi-test-bucket
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Delete S3 bucket
+  netapp.ontap.na_ontap_s3_buckets:
+    state: absent
+    name: carchi-test-bucket
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 """
 
 RETURN = """

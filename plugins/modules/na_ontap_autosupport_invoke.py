@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -60,15 +60,15 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: Send message
-      na_ontap_autosupport_invoke:
-        name: node1
-        autosupport_message: invoked test autosupport rest
-        uri: http://1.2.3.4/delivery_uri
-        type: test
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Send message
+  netapp.ontap.na_ontap_autosupport_invoke:
+    name: node1
+    autosupport_message: invoked test autosupport rest
+    uri: http://1.2.3.4/delivery_uri
+    type: test
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 '''
 
 RETURN = '''

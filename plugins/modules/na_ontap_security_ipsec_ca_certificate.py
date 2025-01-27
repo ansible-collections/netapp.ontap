@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2022-2025, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -41,45 +41,45 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Add IPsec CA certificate to svm.
-    netapp.ontap.na_ontap_security_ipsec_ca_certificate:
-      name: cert1
-      svm: ansibleSVM
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Add IPsec CA certificate to svm.
+  netapp.ontap.na_ontap_security_ipsec_ca_certificate:
+    name: cert1
+    svm: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Delete IPsec CA certificate in svm.
-    netapp.ontap.na_ontap_security_ipsec_ca_certificate:
-      name: cert1
-      svm: ansibleSVM
-      state: absent
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Delete IPsec CA certificate in svm.
+  netapp.ontap.na_ontap_security_ipsec_ca_certificate:
+    name: cert1
+    svm: ansibleSVM
+    state: absent
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Add IPsec CA certificate to cluster.
-    netapp.ontap.na_ontap_security_ipsec_ca_certificate:
-      name: cert2
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Add IPsec CA certificate to cluster.
+  netapp.ontap.na_ontap_security_ipsec_ca_certificate:
+    name: cert2
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Delete IPsec CA certificate from cluster.
-    netapp.ontap.na_ontap_security_ipsec_ca_certificate:
-      name: cert2
-      state: absent
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Delete IPsec CA certificate from cluster.
+  netapp.ontap.na_ontap_security_ipsec_ca_certificate:
+    name: cert2
+    state: absent
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

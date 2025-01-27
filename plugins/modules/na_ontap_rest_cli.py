@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2024, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -45,32 +45,32 @@ options:
 '''
 
 EXAMPLES = """
-    - name: run ontap rest cli command
-      netapp.ontap.na_ontap_rest_cli:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
-        command: 'version'
-        verb: 'GET'
+- name: Run ontap rest cli command
+  netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
+    command: 'version'
+    verb: 'GET'
 
-    - name: run ontap rest cli command
-      netapp.ontap.na_ontap_rest_cli:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
-        command: 'security/login/motd'
-        verb: 'PATCH'
-        params: {'vserver': 'ansibleSVM'}
-        body: {'message': 'test'}
+- name: Run ontap rest cli command
+  netapp.ontap.na_ontap_rest_cli:
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
+    command: 'security/login/motd'
+    verb: 'PATCH'
+    params: {'vserver': 'ansibleSVM'}
+    body: {'message': 'test'}
 
-    - name: set option
-      netapp.ontap.na_ontap_rest_cli:
-        command: options
-        verb: PATCH
-        params:
-          option_name: lldp.enable
-        body:
-          option_value: "on"
+- name: Set option
+  netapp.ontap.na_ontap_rest_cli:
+    command: options
+    verb: PATCH
+    params:
+      option_name: lldp.enable
+    body:
+      option_value: "on"
 """
 
 RETURN = """

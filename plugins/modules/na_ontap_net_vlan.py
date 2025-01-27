@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -69,49 +69,49 @@ notes:
 '''
 
 EXAMPLES = """
-    - name: create VLAN
-      netapp.ontap.na_ontap_net_vlan:
-        state: present
-        vlanid: 13
-        node: "{{ vlan_node }}"
-        ipspace: "{{ ipspace_name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Create VLAN
+  netapp.ontap.na_ontap_net_vlan:
+    state: present
+    vlanid: 13
+    node: "{{ vlan_node }}"
+    ipspace: "{{ ipspace_name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
-    - name: Create and add vlan to broadcast domain - REST
-      netapp.ontap.na_ontap_net_vlan:
-        state: present
-        vlanid: 14
-        node: "{{ vlan_node }}"
-        parent_interface: "{{ vlan_parent_interface_name }}"
-        broadcast_domain: "{{ broadcast_domain_name }}"
-        ipspace: "{{ ipspace_name }}"
-        enabled: true
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Create and add vlan to broadcast domain - REST
+  netapp.ontap.na_ontap_net_vlan:
+    state: present
+    vlanid: 14
+    node: "{{ vlan_node }}"
+    parent_interface: "{{ vlan_parent_interface_name }}"
+    broadcast_domain: "{{ broadcast_domain_name }}"
+    ipspace: "{{ ipspace_name }}"
+    enabled: true
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
-    - name: Disable VLAN - REST
-      netapp.ontap.na_ontap_net_vlan:
-        state: present
-        vlanid: 14
-        node: "{{ vlan_node }}"
-        parent_interface: "{{ vlan_parent_interface_name }}"
-        enabled: false
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Disable VLAN - REST
+  netapp.ontap.na_ontap_net_vlan:
+    state: present
+    vlanid: 14
+    node: "{{ vlan_node }}"
+    parent_interface: "{{ vlan_parent_interface_name }}"
+    enabled: false
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
-    - name: Delete VLAN
-      netapp.ontap.na_ontap_net_vlan:
-        state: absent
-        vlanid: 14
-        node: "{{ vlan_node }}"
-        parent_interface: "{{ vlan_parent_interface_name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Delete VLAN
+  netapp.ontap.na_ontap_net_vlan:
+    state: absent
+    vlanid: 14
+    node: "{{ vlan_node }}"
+    parent_interface: "{{ vlan_parent_interface_name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

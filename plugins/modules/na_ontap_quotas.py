@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -120,131 +120,131 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create quota rule in ZAPI.
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: user1
-        type: user
-        policy: ansible
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Resize quota
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: user1
-        type: user
-        policy: ansible
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        activate_quota_on_change: resize
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Reinitialize quota
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: user1
-        type: user
-        policy: ansible
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        activate_quota_on_change: reinitialize
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: modify quota
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: user1
-        type: user
-        policy: ansible
-        file_limit: 2
-        disk_limit: 3
-        threshold: 3
-        set_quota_status: False
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Delete quota
-      netapp.ontap.na_ontap_quotas:
-        state: absent
-        vserver: ansible
-        volume: ansible
-        quota_target: /vol/ansible
-        type: user
-        policy: ansible
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Add/Set quota rule for type user in REST.
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: "user1,user2"
-        qtree: qtree
-        type: user
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Modify quota reset file limit and modify disk limit.
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: "user1,user2"
-        qtree: qtree
-        type: user
-        file_limit: "-"
-        disk_limit: 100
-        set_quota_status: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Add/Set quota rule for type group in REST.
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: group1
-        qtree: qtree
-        type: group
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Add/Set quota rule for type qtree in REST.
-      netapp.ontap.na_ontap_quotas:
-        state: present
-        vserver: ansible
-        volume: ansible
-        quota_target: qtree1
-        type: qtree
-        file_limit: 2
-        disk_limit: 3
-        set_quota_status: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create quota rule in ZAPI.
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: user1
+    type: user
+    policy: ansible
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Resize quota
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: user1
+    type: user
+    policy: ansible
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    activate_quota_on_change: resize
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Reinitialize quota
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: user1
+    type: user
+    policy: ansible
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    activate_quota_on_change: reinitialize
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Modify quota
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: user1
+    type: user
+    policy: ansible
+    file_limit: 2
+    disk_limit: 3
+    threshold: 3
+    set_quota_status: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Delete quota
+  netapp.ontap.na_ontap_quotas:
+    state: absent
+    vserver: ansible
+    volume: ansible
+    quota_target: /vol/ansible
+    type: user
+    policy: ansible
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Add/Set quota rule for type user in REST.
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: "user1,user2"
+    qtree: qtree
+    type: user
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Modify quota reset file limit and modify disk limit.
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: "user1,user2"
+    qtree: qtree
+    type: user
+    file_limit: "-"
+    disk_limit: 100
+    set_quota_status: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Add/Set quota rule for type group in REST.
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: group1
+    qtree: qtree
+    type: group
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Add/Set quota rule for type qtree in REST.
+  netapp.ontap.na_ontap_quotas:
+    state: present
+    vserver: ansible
+    volume: ansible
+    quota_target: qtree1
+    type: qtree
+    file_limit: 2
+    disk_limit: 3
+    set_quota_status: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

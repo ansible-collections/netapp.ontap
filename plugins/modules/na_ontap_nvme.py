@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -33,32 +33,31 @@ version_added: 2.8.0
 '''
 
 EXAMPLES = """
+- name: Create NVMe
+  netapp.ontap.na_ontap_nvme:
+    state: present
+    status_admin: false
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Create NVMe
-      netapp.ontap.na_ontap_nvme:
-        state: present
-        status_admin: False
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Modify NVMe
+  netapp.ontap.na_ontap_nvme:
+    state: present
+    status_admin: true
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Modify NVMe
-      netapp.ontap.na_ontap_nvme:
-        state: present
-        status_admin: True
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-
-    - name: Delete NVMe
-      netapp.ontap.na_ontap_nvme:
-        state: absent
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Delete NVMe
+  netapp.ontap.na_ontap_nvme:
+    state: absent
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 """
 
 RETURN = """

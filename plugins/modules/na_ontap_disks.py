@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -52,22 +52,22 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Assign specified total disks to node
-      netapp.ontap.na_ontap_disks:
-        node: node1
-        disk_count: 56
-        disk_type: VMDISK
-        min_spares: 2
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+- name: Assign specified total disks to node
+  netapp.ontap.na_ontap_disks:
+    node: node1
+    disk_count: 56
+    disk_type: VMDISK
+    min_spares: 2
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
 
-    - name: Assign all unassigned disks to node1
-      netapp.ontap.na_ontap_disks:
-        node: node1
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
+- name: Assign all unassigned disks to node1
+  netapp.ontap.na_ontap_disks:
+    node: node1
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
 """
 
 RETURN = """

@@ -3,7 +3,7 @@
 create Autosupport module to enable, disable or modify
 """
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -135,43 +135,46 @@ options:
     """
 
 EXAMPLES = """
-    - name: Enable autosupport
-      netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: present
-        node_name: test
-        transport: https
-        noteto: abc@def.com,def@ghi.com
-        mail_hosts: 1.2.3.4,5.6.7.8
-        support: False
-        post_url: url/1.0/post
-    - name: Modify autosupport proxy_url with password
-      netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: present
-        node_name: test
-        transport: https
-        proxy_url: username:password@host.com:8000
-    - name: Modify autosupport proxy_url without password
-      netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: present
-        node_name: test
-        transport: https
-        proxy_url: username@host.com:8000
-    - name: Disable autosupport
-      netapp.ontap.na_ontap_autosupport:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: absent
-        node_name: test
+- name: Enable autosupport
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: present
+    node_name: test
+    transport: https
+    noteto: abc@def.com,def@ghi.com
+    mail_hosts: 1.2.3.4,5.6.7.8
+    support: false
+    post_url: url/1.0/post
+
+- name: Modify autosupport proxy_url with password
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: present
+    node_name: test
+    transport: https
+    proxy_url: username:password@host.com:8000
+
+- name: Modify autosupport proxy_url without password
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: present
+    node_name: test
+    transport: https
+    proxy_url: username@host.com:8000
+
+- name: Disable autosupport
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: absent
+    node_name: test
 """
 
 RETURN = """

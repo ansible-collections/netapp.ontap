@@ -1,7 +1,7 @@
 #!/usr/bin/python
 ''' This is an Ansible module for ONTAP, to manage initiators in an Igroup
 
- (c) 2019-2023, NetApp, Inc
+ (c) 2019-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -60,25 +60,24 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: Add initiators to an igroup
-      netapp.ontap.na_ontap_igroup_initiator:
-        names: abc.test:def.com,def.test:efg.com
-        initiator_group: test_group
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Add initiators to an igroup
+  netapp.ontap.na_ontap_igroup_initiator:
+    names: abc.test:def.com,def.test:efg.com
+    initiator_group: test_group
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Remove an initiator from an igroup
-      netapp.ontap.na_ontap_igroup_initiator:
-        state: absent
-        names: abc.test:def.com
-        initiator_group: test_group
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Remove an initiator from an igroup
+  netapp.ontap.na_ontap_igroup_initiator:
+    state: absent
+    names: abc.test:def.com
+    initiator_group: test_group
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

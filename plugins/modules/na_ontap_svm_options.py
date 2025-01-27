@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -40,14 +40,14 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Set SVM Options
-      na_ontap_svm_options:
-        vserver: "{{ netapp_vserver_name }}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        name: snmp.enable
-        value: 'on'
+- name: Set SVM Options
+  netapp.ontap.na_ontap_svm_options:
+    vserver: "{{ netapp_vserver_name }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    name: snmp.enable
+    value: 'on'
 """
 
 RETURN = """

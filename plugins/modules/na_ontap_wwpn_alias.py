@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2024, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -56,24 +56,24 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: Create FCP Alias
-      na_ontap_wwpn_alias:
-        state: present
-        name: alias1
-        wwpn: 01:02:03:04:0a:0b:0c:0d
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create FCP Alias
+  netapp.ontap.na_ontap_wwpn_alias:
+    state: present
+    name: alias1
+    wwpn: 01:02:03:04:0a:0b:0c:0d
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete FCP Alias
-      na_ontap_wwpn_alias:
-        state: absent
-        name: alias1
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete FCP Alias
+  netapp.ontap.na_ontap_wwpn_alias:
+    state: absent
+    name: alias1
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

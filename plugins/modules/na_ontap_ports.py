@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -73,63 +73,53 @@ options:
 '''
 
 EXAMPLES = '''
+- name: Broadcast domain remove port
+  netapp.ontap.na_ontap_ports:
+    state: absent
+    names: test-vsim1:e0d-1,test-vsim1:e0d-2
+    resource_type: broadcast_domain
+    resource_name: ansible_domain
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: broadcast domain remove port
-      tags:
-      - remove
-      netapp.ontap.na_ontap_ports:
-        state: absent
-        names: test-vsim1:e0d-1,test-vsim1:e0d-2
-        resource_type: broadcast_domain
-        resource_name: ansible_domain
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
+- name: Broadcast domain add port
+  netapp.ontap.na_ontap_ports:
+    state: present
+    names: test-vsim1:e0d-1,test-vsim1:e0d-2
+    resource_type: broadcast_domain
+    resource_name: ansible_domain
+    ipspace: Default
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: broadcast domain add port
-      tags:
-      - add
-      netapp.ontap.na_ontap_ports:
-        state: present
-        names: test-vsim1:e0d-1,test-vsim1:e0d-2
-        resource_type: broadcast_domain
-        resource_name: ansible_domain
-        ipspace: Default
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
+- name: Portset remove port
+  netapp.ontap.na_ontap_ports:
+    state: absent
+    names: lif_2
+    resource_type: portset
+    resource_name: portset_1
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 
-    - name: portset remove port
-      tags:
-      - remove
-      netapp.ontap.na_ontap_ports:
-        state: absent
-        names: lif_2
-        resource_type: portset
-        resource_name: portset_1
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
-
-    - name: portset add port
-      tags:
-      - add
-      netapp.ontap.na_ontap_ports:
-        state: present
-        names: lif_2
-        resource_type: portset
-        resource_name: portset_1
-        portset_type: iscsi
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: user
-        password: password
-        https: False
-
+- name: Portset add port
+  netapp.ontap.na_ontap_ports:
+    state: present
+    names: lif_2
+    resource_type: portset
+    resource_name: portset_1
+    portset_type: iscsi
+    vserver: "{{ vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: false
 '''
 
 RETURN = '''

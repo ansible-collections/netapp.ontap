@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2024, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -70,45 +70,45 @@ version_added: "19.11.0"
 '''
 
 EXAMPLES = """
-    - name: create
-      netapp.ontap.na_ontap_iscsi_security:
-        hostname: 0.0.0.0
-        username: user
-        password: pass
-        vserver: test_svm
-        state: present
-        initiator: eui.9999956789abcdef
-        inbound_username: user_1
-        inbound_password: password_1
-        outbound_username: user_2
-        outbound_password: password_2
-        auth_type: chap
-        address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
+- name: Create
+  netapp.ontap.na_ontap_iscsi_security:
+    hostname: 0.0.0.0
+    username: user
+    password: pass
+    vserver: test_svm
+    state: present
+    initiator: eui.9999956789abcdef
+    inbound_username: user_1
+    inbound_password: password_1
+    outbound_username: user_2
+    outbound_password: password_2
+    auth_type: chap
+    address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
 
-    - name: modify outbound username
-      netapp.ontap.na_ontap_iscsi_security:
-        hostname: 0.0.0.0
-        username: user
-        password: pass
-        vserver: test_svm
-        state: present
-        initiator: eui.9999956789abcdef
-        inbound_username: user_1
-        inbound_password: password_1
-        outbound_username: user_out_3
-        outbound_password: password_3
-        auth_type: chap
-        address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
+- name: Modify outbound username
+  netapp.ontap.na_ontap_iscsi_security:
+    hostname: 0.0.0.0
+    username: user
+    password: pass
+    vserver: test_svm
+    state: present
+    initiator: eui.9999956789abcdef
+    inbound_username: user_1
+    inbound_password: password_1
+    outbound_username: user_out_3
+    outbound_password: password_3
+    auth_type: chap
+    address_ranges: 10.125.10.0-10.125.10.10,10.125.193.78
 
-    - name: modify address
-      netapp.ontap.na_ontap_iscsi_security:
-        hostname: 0.0.0.0
-        username: user
-        password: pass
-        vserver: test_svm
-        state: present
-        initiator: eui.9999956789abcdef
-        address_ranges: 10.125.193.90,10.125.10.20-10.125.10.30
+- name: Modify address
+  netapp.ontap.na_ontap_iscsi_security:
+    hostname: 0.0.0.0
+    username: user
+    password: pass
+    vserver: test_svm
+    state: present
+    initiator: eui.9999956789abcdef
+    address_ranges: 10.125.193.90,10.125.10.20-10.125.10.30
 """
 
 RETURN = """

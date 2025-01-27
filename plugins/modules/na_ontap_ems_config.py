@@ -61,30 +61,30 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Modify EMS mail config
-    netapp.ontap.na_ontap_ems_config:
-      state: present
-      mail_from: administrator@mycompany.com
-      mail_server: mail.mycompany.com
-      pubsub_enabled: true
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify EMS mail config
+  netapp.ontap.na_ontap_ems_config:
+    state: present
+    mail_from: administrator@mycompany.com
+    mail_server: mail.mycompany.com
+    pubsub_enabled: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify EMS proxy config
-    netapp.ontap.na_ontap_ems_config:
-      state: present
-      proxy_url: http://proxy.example.com:8080
-      pubsub_enabled: true
-      proxy_user: admin
-      proxy_password: password
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify EMS proxy config
+  netapp.ontap.na_ontap_ems_config:
+    state: present
+    proxy_url: http://proxy.example.com:8080
+    pubsub_enabled: true
+    proxy_user: admin
+    proxy_password: password
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

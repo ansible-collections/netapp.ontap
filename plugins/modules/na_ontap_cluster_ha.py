@@ -26,12 +26,12 @@ version_added: 2.6.0
 '''
 
 EXAMPLES = """
-    - name: "Enable HA status for cluster"
-      netapp.ontap.na_ontap_cluster_ha:
-        state: present
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Enable HA status for cluster
+  netapp.ontap.na_ontap_cluster_ha:
+    state: present
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

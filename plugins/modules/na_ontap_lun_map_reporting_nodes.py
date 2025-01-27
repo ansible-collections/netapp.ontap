@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
- (c) 2018-2023, NetApp, Inc
+ (c) 2018-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -60,32 +60,31 @@ notes:
 """
 
 EXAMPLES = """
-    - name: Create Lun Map reporting nodes
-      netapp.ontap.na_ontap_lun_map_reporting_nodes:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        vserver: vs1
-        state: present
-        initiator_group_name: carchigroup
-        path: /vol/carchiVolTest/carchiLunTest
-        nodes: [node2]
+- name: Create Lun Map reporting nodes
+  netapp.ontap.na_ontap_lun_map_reporting_nodes:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    vserver: vs1
+    state: present
+    initiator_group_name: carchigroup
+    path: /vol/carchiVolTest/carchiLunTest
+    nodes: [node2]
 
-    - name: Delete Lun Map reporting nodes
-      netapp.ontap.na_ontap_lun_map_reporting_nodes:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        vserver: vs1
-        state: absent
-        initiator_group_name: carchigroup
-        path: /vol/carchiVolTest/carchiLunTest
-        nodes: [node2]
-
+- name: Delete Lun Map reporting nodes
+  netapp.ontap.na_ontap_lun_map_reporting_nodes:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    vserver: vs1
+    state: absent
+    initiator_group_name: carchigroup
+    path: /vol/carchiVolTest/carchiLunTest
+    nodes: [node2]
 """
 
 RETURN = """

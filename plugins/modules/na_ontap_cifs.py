@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # import untangle
 
@@ -192,68 +192,68 @@ version_added: 2.6.0
 '''
 
 EXAMPLES = """
-    - name: Create CIFS share - ZAPI
-      netapp.ontap.na_ontap_cifs:
-        state: present
-        name: cifsShareName
-        path: /
-        vserver: vserverName
-        share_properties: browsable,oplocks
-        symlink_properties: read_only,enable
-        comment: CIFS share description
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create CIFS share - ZAPI
+  netapp.ontap.na_ontap_cifs:
+    state: present
+    name: cifsShareName
+    path: /
+    vserver: vserverName
+    share_properties: browsable,oplocks
+    symlink_properties: read_only,enable
+    comment: CIFS share description
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete CIFS share - ZAPI
-      netapp.ontap.na_ontap_cifs:
-        state: absent
-        name: cifsShareName
-        vserver: vserverName
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete CIFS share - ZAPI
+  netapp.ontap.na_ontap_cifs:
+    state: absent
+    name: cifsShareName
+    vserver: vserverName
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify path CIFS share - ZAPI
-      netapp.ontap.na_ontap_cifs:
-        state: present
-        name: pb_test
-        vserver: vserverName
-        path: /
-        share_properties: show_previous_versions
-        symlink_properties: disable
-        vscan_fileop_profile: no_scan
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify path CIFS share - ZAPI
+  netapp.ontap.na_ontap_cifs:
+    state: present
+    name: pb_test
+    vserver: vserverName
+    path: /
+    share_properties: show_previous_versions
+    symlink_properties: disable
+    vscan_fileop_profile: no_scan
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create CIFS share - REST
-      netapp.ontap.na_ontap_cifs:
-        state: present
-        name: cifsShareName
-        path: /
-        vserver: vserverName
-        oplocks: true
-        change_notify: true
-        unix_symlink: disable
-        comment: CIFS share description
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create CIFS share - REST
+  netapp.ontap.na_ontap_cifs:
+    state: present
+    name: cifsShareName
+    path: /
+    vserver: vserverName
+    oplocks: true
+    change_notify: true
+    unix_symlink: disable
+    comment: CIFS share description
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify CIFS share - REST
-      netapp.ontap.na_ontap_cifs:
-        state: present
-        name: cifsShareName
-        path: /
-        vserver: vserverName
-        oplocks: true
-        change_notify: true
-        unix_symlink: local
-        comment: CIFS share description
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify CIFS share - REST
+  netapp.ontap.na_ontap_cifs:
+    state: present
+    name: cifsShareName
+    path: /
+    vserver: vserverName
+    oplocks: true
+    change_notify: true
+    unix_symlink: local
+    comment: CIFS share description
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

@@ -1,7 +1,7 @@
 ---
 # tasks file for na_ontap_snapmirror_create
 - name: Create cluster peer
-  na_ontap_cluster_peer:
+  netapp.ontap.na_ontap_cluster_peer:
     state: present
     source_intercluster_lifs: "{{ src_lif }}"
     dest_intercluster_lifs: "{{ dst_lif }}"
@@ -13,7 +13,7 @@
     https: true
     validate_certs: false
 - name: Source vserver peer create
-  na_ontap_vserver_peer:
+  netapp.ontap.na_ontap_vserver_peer:
     state: present
     peer_vserver: "{{ dst_vserver }}"
     peer_cluster: "{{ dst_name }}"
@@ -26,7 +26,7 @@
     https: true
     validate_certs: false
 - name: Validate destination FlexVol
-  na_ontap_volume:
+  netapp.ontap.na_ontap_volume:
     state: present
     name: "{{ dst_volume }}"
     is_infinite: false
@@ -42,7 +42,7 @@
     https: true
     validate_certs: false
 - name: Create SnapMirror
-  na_ontap_snapmirror:
+  netapp.ontap.na_ontap_snapmirror:
     state: present
     source_volume: "{{ src_volume }}"
     destination_volume: "{{ dst_volume }}"

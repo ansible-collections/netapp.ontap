@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -91,28 +91,28 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Modify volume autosize
-      netapp.ontap.na_ontap_volume_autosize:
-        hostname: 10.193.79.189
-        username: admin
-        password: netapp1!
-        volume: ansibleVolumesize12
-        mode: grow
-        grow_threshold_percent: 99
-        increment_size: 50m
-        maximum_size: 10g
-        minimum_size: 21m
-        shrink_threshold_percent: 40
-        vserver: ansible_vserver
+- name: Modify volume autosize
+  netapp.ontap.na_ontap_volume_autosize:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    volume: ansibleVolumesize12
+    mode: grow
+    grow_threshold_percent: 99
+    increment_size: 50m
+    maximum_size: 10g
+    minimum_size: 21m
+    shrink_threshold_percent: 40
+    vserver: ansible_vserver
 
-    - name: Reset volume autosize
-      netapp.ontap.na_ontap_volume_autosize:
-        hostname: 10.193.79.189
-        username: admin
-        password: netapp1!
-        volume: ansibleVolumesize12
-        reset: true
-        vserver: ansible_vserver
+- name: Reset volume autosize
+  netapp.ontap.na_ontap_volume_autosize:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    volume: ansibleVolumesize12
+    reset: true
+    vserver: ansible_vserver
 """
 
 RETURN = """

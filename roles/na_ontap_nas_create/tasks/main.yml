@@ -1,6 +1,6 @@
 ---
 - name: Create Policy
-  na_ontap_export_policy:
+  netapp.ontap.na_ontap_export_policy:
     state: present
     name: "{{ item.name }}"
     vserver: "{{ item.vserver }}"
@@ -13,7 +13,7 @@
     "{{ nas }}"
   when: item.protocol == "nfs"
 - name: Setup rules
-  na_ontap_export_policy_rule:
+  netapp.ontap.na_ontap_export_policy_rule:
     state: present
     policy_name: "{{ item.name }}"
     vserver: "{{ item.vserver }}"
@@ -30,7 +30,7 @@
     "{{ nas }}"
   when: item.protocol == "nfs"
 - name: Create volume
-  na_ontap_volume:
+  netapp.ontap.na_ontap_volume:
     state: present
     name: "{{ item.name }}"
     aggregate_name: "{{ item.aggr }}"
@@ -48,7 +48,7 @@
   with_items:
     "{{ nas }}"
 - name: Create Share
-  na_ontap_cifs:
+  netapp.ontap.na_ontap_cifs:
     state: present
     share_name: "{{ item.share }}"
     path: "/{{ item.name }}"

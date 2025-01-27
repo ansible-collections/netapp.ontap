@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -46,34 +46,36 @@ options:
 """
 
 EXAMPLES = """
-    - name: Create IP to host mapping
-      netapp.ontap.na_ontap_local_hosts:
-        state: present
-        address: 10.10.10.10
-        host: example.com
-        aliases: ['ex1.com', 'ex2.com']
-        owner: svm1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Modify IP to host mapping
-      netapp.ontap.na_ontap_local_hosts:
-        state: present
-        address: 10.10.10.10
-        owner: svm1
-        host: example1.com
-        aliases: ['ex1.com', 'ex2.com', 'ex3.com']
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Delete host object
-      netapp.ontap.na_ontap_local_hosts:
-        state: absent
-        address: 10.10.10.10
-        owner: svm1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create IP to host mapping
+  netapp.ontap.na_ontap_local_hosts:
+    state: present
+    address: 10.10.10.10
+    host: example.com
+    aliases: ['ex1.com', 'ex2.com']
+    owner: svm1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Modify IP to host mapping
+  netapp.ontap.na_ontap_local_hosts:
+    state: present
+    address: 10.10.10.10
+    owner: svm1
+    host: example1.com
+    aliases: ['ex1.com', 'ex2.com', 'ex3.com']
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Delete host object
+  netapp.ontap.na_ontap_local_hosts:
+    state: absent
+    address: 10.10.10.10
+    owner: svm1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

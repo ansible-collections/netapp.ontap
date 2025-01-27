@@ -1,7 +1,7 @@
 #!/usr/bin/python
 '''
 (c) 2019, Red Hat, Inc
-(c) 2019-2023, NetApp, Inc
+(c) 2019-2025, NetApp, Inc
 GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -120,46 +120,44 @@ notes:
 '''
 
 EXAMPLES = '''
+- name: Create kerberos realm other kdc vendor
+  netapp.ontap.na_ontap_kerberos_realm:
+    state: present
+    realm: 'EXAMPLE.COM'
+    vserver: 'vserver1'
+    kdc_ip: '1.2.3.4'
+    kdc_vendor: 'other'
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create kerberos realm other kdc vendor
-      netapp.ontap.na_ontap_kerberos_realm:
-        state: present
-        realm: 'EXAMPLE.COM'
-        vserver: 'vserver1'
-        kdc_ip: '1.2.3.4'
-        kdc_vendor: 'other'
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create kerberos realm Microsoft kdc vendor
+  netapp.ontap.na_ontap_kerberos_realm:
+    state: present
+    realm: 'EXAMPLE.COM'
+    vserver: 'vserver1'
+    kdc_ip: '1.2.3.4'
+    kdc_vendor: 'microsoft'
+    ad_server_ip: '0.0.0.0'
+    ad_server_name: 'server'
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create kerberos realm Microsoft kdc vendor
-      netapp.ontap.na_ontap_kerberos_realm:
-        state: present
-        realm: 'EXAMPLE.COM'
-        vserver: 'vserver1'
-        kdc_ip: '1.2.3.4'
-        kdc_vendor: 'microsoft'
-        ad_server_ip: '0.0.0.0'
-        ad_server_name: 'server'
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    - name: Create kerberos realm other kdc vendor - REST
-      netapp.ontap.na_ontap_kerberos_realm:
-        state: present
-        realm: 'EXAMPLE.COM'
-        vserver: 'vserver1'
-        kdc_ip: '1.2.3.4'
-        kdc_vendor: 'other'
-        pw_server_ip: '0.0.0.0'
-        pw_server_port: '5'
-        admin_server_ip: '1.2.3.4'
-        admin_server_port: '2'
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Create kerberos realm other kdc vendor - REST
+  netapp.ontap.na_ontap_kerberos_realm:
+    state: present
+    realm: 'EXAMPLE.COM'
+    vserver: 'vserver1'
+    kdc_ip: '1.2.3.4'
+    kdc_vendor: 'other'
+    pw_server_ip: '0.0.0.0'
+    pw_server_port: '5'
+    admin_server_ip: '1.2.3.4'
+    admin_server_port: '2'
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

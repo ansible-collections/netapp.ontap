@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -125,30 +125,30 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create Vscan On Demand Task
-      netapp.ontap.na_ontap_vscan_on_demand_task:
-        state: present
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        task_name: carchiOnDemand
-        scan_paths: /
-        report_directory: /
-        file_ext_to_exclude: ['py', 'yml']
-        max_file_size: 10737418241
-        paths_to_exclude: ['/tmp', '/var']
-        report_log_level: info
-        request_timeout: 60
+- name: Create Vscan On Demand Task
+  netapp.ontap.na_ontap_vscan_on_demand_task:
+    state: present
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    task_name: carchiOnDemand
+    scan_paths: /
+    report_directory: /
+    file_ext_to_exclude: ['py', 'yml']
+    max_file_size: 10737418241
+    paths_to_exclude: ['/tmp', '/var']
+    report_log_level: info
+    request_timeout: 60
 
-    - name: Delete Vscan On Demand Task
-      netapp.ontap.na_ontap_vscan_on_demand_task:
-        state: absent
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        task_name: carchiOnDemand
+- name: Delete Vscan On Demand Task
+  netapp.ontap.na_ontap_vscan_on_demand_task:
+    state: absent
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    task_name: carchiOnDemand
 """
 
 RETURN = """

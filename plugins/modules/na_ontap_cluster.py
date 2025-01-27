@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2023, NetApp, Inc
+# (c) 2017-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -110,79 +110,78 @@ notes:
 '''
 
 EXAMPLES = """
-    - name: Create cluster
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_name: new_cluster
-        time_out: 0
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create cluster
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_name: new_cluster
+    time_out: 0
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Add node to cluster (Join cluster)
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_ip_address: 10.10.10.10
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Add node to cluster (Join cluster)
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_ip_address: 10.10.10.10
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Add node to cluster (Join cluster)
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_ip_address: 10.10.10.10
-        node_name: my_preferred_node_name
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Add node to cluster (Join cluster)
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_ip_address: 10.10.10.10
+    node_name: my_preferred_node_name
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create a 2 node cluster in one call
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_name: new_cluster
-        cluster_ip_address: 10.10.10.10
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create a 2 node cluster in one call
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_name: new_cluster
+    cluster_ip_address: 10.10.10.10
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Remove node from cluster
-      netapp.ontap.na_ontap_cluster:
-        state: absent
-        cluster_ip_address: 10.10.10.10
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Remove node from cluster
+  netapp.ontap.na_ontap_cluster:
+    state: absent
+    cluster_ip_address: 10.10.10.10
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Remove node from cluster
-      netapp.ontap.na_ontap_cluster:
-        state: absent
-        node_name: node002
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Remove node from cluster
+  netapp.ontap.na_ontap_cluster:
+    state: absent
+    node_name: node002
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: modify cluster
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_contact: testing
-        cluster_location: testing
-        cluster_name: "{{ netapp_cluster}}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify cluster
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_contact: testing
+    cluster_location: testing
+    cluster_name: "{{ netapp_cluster}}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: updating the cluster-wide web services configuration
-      netapp.ontap.na_ontap_cluster:
-        state: present
-        cluster_contact: testing
-        cluster_location: testing
-        certificate:
-          uuid: 7f2f332c-933e-11ee-ab1c-005056b397ff
-        cluster_name: "{{ netapp_cluster}}"
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Updating the cluster-wide web services configuration
+  netapp.ontap.na_ontap_cluster:
+    state: present
+    cluster_contact: testing
+    cluster_location: testing
+    certificate:
+        uuid: 7f2f332c-933e-11ee-ab1c-005056b397ff
+    cluster_name: "{{ netapp_cluster}}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

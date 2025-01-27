@@ -54,42 +54,42 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Create BGP configuration for a node
-    netapp.ontap.na_ontap_bgp_config:
-      state: present
-      node: "csahu-node1"
-      asn: 10
-      hold_time: 180
-      router_id: "10.0.1.112"
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Create BGP configuration for a node
+  netapp.ontap.na_ontap_bgp_config:
+    state: present
+    node: "csahu-node1"
+    asn: 10
+    hold_time: 180
+    router_id: "10.0.1.112"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 
-  - name: Modify BGP configuration for a node
-    netapp.ontap.na_ontap_bgp_config:
-      state: present
-      node: "csahu-node1"
-      hold_time: 360
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Modify BGP configuration for a node
+  netapp.ontap.na_ontap_bgp_config:
+    state: present
+    node: "csahu-node1"
+    hold_time: 360
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 
-  - name: Delete BGP configuration for a node
-    netapp.ontap.na_ontap_bgp_config:
-      state: absent
-      node: "csahu-node1"
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
-      use_rest: always
+- name: Delete BGP configuration for a node
+  netapp.ontap.na_ontap_bgp_config:
+    state: absent
+    node: "csahu-node1"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 """
 
 RETURN = """

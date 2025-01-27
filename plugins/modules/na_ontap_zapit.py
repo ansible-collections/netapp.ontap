@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -42,9 +42,7 @@ EXAMPLES = """
 -
   name: Ontap ZAPI
   hosts: localhost
-  gather_facts: False
-  collections:
-    - netapp.ontap
+  gather_facts: false
   vars:
     login: &login
       hostname: "{{ admin_ip }}"
@@ -60,23 +58,24 @@ EXAMPLES = """
       validate_certs: false
 
   tasks:
-    - name: run ontap ZAPI command as cluster admin
+    - name: Run ontap ZAPI command as cluster admin
       netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           system-get-version:
       register: output
-    - debug: var=output
+    - name: Print info
+      ansible.builtin.debug:
+        var: output
 
-    - name: run ontap ZAPI command as cluster admin
+    - name: Run ontap ZAPI command as cluster admin
       netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           vserver-get-iter:
       register: output
-    - debug: var=output
 
-    - name: run ontap ZAPI command as cluster admin
+    - name: Run ontap ZAPI command as cluster admin
       netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
@@ -94,9 +93,8 @@ EXAMPLES = """
               vserver-info:
                 vserver-name: trident_svm
       register: output
-    - debug: var=output
 
-    - name: run ontap ZAPI command as vsadmin
+    - name: Run ontap ZAPI command as vsadmin
       netapp.ontap.na_ontap_zapit:
         <<: *svm_login
         zapi:
@@ -105,24 +103,22 @@ EXAMPLES = """
               vserver-info:
                 - uuid
       register: output
-    - debug: var=output
 
-    - name: run ontap ZAPI command as vserver tunneling
+    - name: Run ontap ZAPI command as vserver tunneling
       netapp.ontap.na_ontap_zapit:
         <<: *login
-        vserver: trident_svm
+        vserver: ansibleSVM
         zapi:
           vserver-get-iter:
             desired-attributes:
               vserver-info:
                 - uuid
       register: output
-    - debug: var=output
 
-    - name: run ontap active-directory ZAPI command
+    - name: Run ontap active-directory ZAPI command
       netapp.ontap.na_ontap_zapit:
         <<: *login
-        vserver: trident_svm
+        vserver: ansibleSVM
         zapi:
           active-directory-account-create:
             account-name: testaccount
@@ -131,9 +127,7 @@ EXAMPLES = """
             domain: testdomain
             organizational-unit: testou
       register: output
-      ignore_errors: True
-    - debug: var=output
-
+      ignore_errors: true
 """
 
 RETURN = """

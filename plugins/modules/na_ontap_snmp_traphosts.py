@@ -3,7 +3,7 @@
 create SNMP module to add/delete/modify SNMP user
 """
 
-# (c) 2020-2024, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -35,20 +35,20 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create SNMP traphost
-      netapp.ontap.na_ontap_snmp_traphosts:
-        state: present
-        host: example1.com
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-    - name: Delete SNMP traphost
-      netapp.ontap.na_ontap_snmp_traphosts:
-        state: absent
-        host: example1.com
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Create SNMP traphost
+  netapp.ontap.na_ontap_snmp_traphosts:
+    state: present
+    host: example1.com
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+- name: Delete SNMP traphost
+  netapp.ontap.na_ontap_snmp_traphosts:
+    state: absent
+    host: example1.com
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

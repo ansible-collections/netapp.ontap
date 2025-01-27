@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -146,68 +146,67 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create ExportPolicyRule
-      netapp.ontap.na_ontap_export_policy_rule:
-        state: present
-        name: default123
-        rule_index: 100
-        vserver: ci_dev
-        client_match: 0.0.0.0/0,1.1.1.0/24
-        ro_rule: krb5,krb5i
-        rw_rule: any
-        protocol: nfs,nfs3
-        super_user_security: any
-        anonymous_user_id: 65534
-        allow_suid: true
-        ntfs_unix_security: ignore
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create ExportPolicyRule
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: present
+    name: default123
+    rule_index: 100
+    vserver: ci_dev
+    client_match: 0.0.0.0/0,1.1.1.0/24
+    ro_rule: krb5,krb5i
+    rw_rule: any
+    protocol: nfs,nfs3
+    super_user_security: any
+    anonymous_user_id: 65534
+    allow_suid: true
+    ntfs_unix_security: ignore
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify ExportPolicyRule
-      netapp.ontap.na_ontap_export_policy_rule:
-        state: present
-        name: default123
-        rule_index: 100
-        vserver: ci_dev
-        client_match: 0.0.0.0/0
-        anonymous_user_id: 65521
-        ro_rule: ntlm
-        rw_rule: any
-        protocol: any
-        allow_suid: false
-        ntfs_unix_security: fail
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify ExportPolicyRule
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: present
+    name: default123
+    rule_index: 100
+    vserver: ci_dev
+    client_match: 0.0.0.0/0
+    anonymous_user_id: 65521
+    ro_rule: ntlm
+    rw_rule: any
+    protocol: any
+    allow_suid: false
+    ntfs_unix_security: fail
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: rename ExportPolicyRule index
-      netapp.ontap.na_ontap_export_policy_rule:
-        state: present
-        name: default123
-        from_rule_index: 100
-        rule_index: 99
-        client_match: 0.0.0.0/0
-        anonymous_user_id: 65521
-        ro_rule: ntlm
-        rw_rule: any
-        protocol: any
-        allow_suid: false
-        ntfs_unix_security: fail
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Rename ExportPolicyRule index
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: present
+    name: default123
+    from_rule_index: 100
+    rule_index: 99
+    client_match: 0.0.0.0/0
+    anonymous_user_id: 65521
+    ro_rule: ntlm
+    rw_rule: any
+    protocol: any
+    allow_suid: false
+    ntfs_unix_security: fail
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete ExportPolicyRule
-      netapp.ontap.na_ontap_export_policy_rule:
-        state: absent
-        name: default123
-        rule_index: 99
-        vserver: ci_dev
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Delete ExportPolicyRule
+  netapp.ontap.na_ontap_export_policy_rule:
+    state: absent
+    name: default123
+    rule_index: 99
+    vserver: ci_dev
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

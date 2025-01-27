@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -101,58 +101,56 @@ notes:
 '''
 
 EXAMPLES = """
+- name: Create User Role Zapi
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    name: ansibleRole
+    command_directory_name: volume
+    access_level: none
+    query: show
+    vserver: ansibleVServer
+    use_rest: never
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create User Role Zapi
-      netapp.ontap.na_ontap_user_role:
-        state: present
-        name: ansibleRole
-        command_directory_name: volume
-        access_level: none
-        query: show
-        vserver: ansibleVServer
-        use_rest: never
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify User Role Zapi
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    name: ansibleRole
+    command_directory_name: volume
+    access_level: none
+    query: ""
+    vserver: ansibleVServer
+    use_rest: never
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify User Role Zapi
-      netapp.ontap.na_ontap_user_role:
-        state: present
-        name: ansibleRole
-        command_directory_name: volume
-        access_level: none
-        query: ""
-        vserver: ansibleVServer
-        use_rest: never
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create user role REST in ONTAP 9.11.1
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    privileges:
+      - path: /api/cluster/jobs
+    vserver: ansibleSVM
+    name: carchi-test-role
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create user role REST in ONTAP 9.11.1
-      netapp.ontap.na_ontap_user_role:
-        state: present
-        privileges:
-          - path: /api/cluster/jobs
-        vserver: ansibleSVM
-        name: carchi-test-role
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    - name: Modify user role REST in ONTAP 9.11.1
-      netapp.ontap.na_ontap_user_role:
-        state: present
-        privileges:
-          - path: /api/cluster/jobs
-            access: readonly
-          - path: /api/storage/volumes
-            access: readonly
-        vserver: ansibleSVM
-        name: carchi-test-role
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Modify user role REST in ONTAP 9.11.1
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    privileges:
+      - path: /api/cluster/jobs
+        access: readonly
+      - path: /api/storage/volumes
+        access: readonly
+    vserver: ansibleSVM
+    name: carchi-test-role
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

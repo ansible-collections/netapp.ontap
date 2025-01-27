@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -59,37 +59,37 @@ version_added: 2.8.0
 '''
 
 EXAMPLES = """
-    - name: Create Portset
-      netapp.ontap.na_ontap_portset:
-        state: present
-        vserver: vserver_name
-        name: portset_name
-        ports: a1
-        type: "{{ protocol type }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Create Portset
+  netapp.ontap.na_ontap_portset:
+    state: present
+    vserver: vserver_name
+    name: portset_name
+    ports: a1
+    type: "{{ protocol type }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify ports in portset
-      netapp.ontap.na_ontap_portset:
-        state: present
-        vserver: vserver_name
-        name: portset_name
-        ports: a1,a2
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Modify ports in portset
+  netapp.ontap.na_ontap_portset:
+    state: present
+    vserver: vserver_name
+    name: portset_name
+    ports: a1,a2
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete Portset
-      netapp.ontap.na_ontap_portset:
-        state: absent
-        vserver: vserver_name
-        name: portset_name
-        force: True
-        type: "{{ protocol type }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Delete Portset
+  netapp.ontap.na_ontap_portset:
+    state: absent
+    vserver: vserver_name
+    name: portset_name
+    force: True
+    type: "{{ protocol type }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

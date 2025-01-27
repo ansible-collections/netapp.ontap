@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -45,22 +45,23 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create broadcast domain ports
-      na_ontap_broadcast_domain_ports:
-        state=present
-        username={{ netapp_username }}
-        password={{ netapp_password }}
-        hostname={{ netapp_hostname }}
-        broadcast_domain=123kevin
-        ports=khutton-vsim1:e0d-13
-    - name: delete broadcast domain ports
-      na_ontap_broadcast_domain_ports:
-        state=absent
-        username={{ netapp_username }}
-        password={{ netapp_password }}
-        hostname={{ netapp_hostname }}
-        broadcast_domain=123kevin
-        ports=khutton-vsim1:e0d-13
+- name: Create broadcast domain ports
+  na_ontap_broadcast_domain_ports:
+    state=present
+    username={{ netapp_username }}
+    password={{ netapp_password }}
+    hostname={{ netapp_hostname }}
+    broadcast_domain=123kevin
+    ports=khutton-vsim1:e0d-13
+
+- name: Delete broadcast domain ports
+  na_ontap_broadcast_domain_ports:
+    state=absent
+    username={{ netapp_username }}
+    password={{ netapp_password }}
+    hostname={{ netapp_hostname }}
+    broadcast_domain=123kevin
+    ports=khutton-vsim1:e0d-13
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -44,25 +44,25 @@ short_description: "NetApp ONTAP Manage name service switch"
 '''
 
 EXAMPLES = """
-    - name: create name service database
-      netapp.ontap.na_ontap_name_service_switch:
-        state: present
-        database_type: namemap
-        sources: files,ldap
-        vserver: "{{ Vserver name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Create name service database
+  netapp.ontap.na_ontap_name_service_switch:
+    state: present
+    database_type: namemap
+    sources: files,ldap
+    vserver: "{{ Vserver name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 
-    - name: modify name service database sources
-      netapp.ontap.na_ontap_name_service_switch:
-        state: present
-        database_type: namemap
-        sources: files
-        vserver: "{{ Vserver name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Modify name service database sources
+  netapp.ontap.na_ontap_name_service_switch:
+    state: present
+    database_type: namemap
+    sources: files
+    vserver: "{{ Vserver name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

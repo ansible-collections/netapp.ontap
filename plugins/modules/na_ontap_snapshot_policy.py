@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -92,68 +92,68 @@ options:
     version_added: 2.9.0
 '''
 EXAMPLES = """
-    - name: Create Snapshot policy
-      na_ontap_snapshot_policy:
-        state: present
-        name: ansible2
-        schedule: hourly
-        prefix: hourly
-        count: 150
-        enabled: True
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        https: False
+- name: Create Snapshot policy
+  netapp.ontap.na_ontap_snapshot_policy:
+    state: present
+    name: ansible2
+    schedule: hourly
+    prefix: hourly
+    count: 150
+    enabled: true
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    https: false
 
-    - name: Create Snapshot policy with multiple schedules
-      na_ontap_snapshot_policy:
-        state: present
-        name: ansible2
-        schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
-        prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
-        count: [1, 2, 3, 4, 5]
-        enabled: True
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        https: False
+- name: Create Snapshot policy with multiple schedules
+  netapp.ontap.na_ontap_snapshot_policy:
+    state: present
+    name: ansible2
+    schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+    prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+    count: [1, 2, 3, 4, 5]
+    enabled: true
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    https: false
 
-    - name: Create Snapshot policy owned by a vserver
-      na_ontap_snapshot_policy:
-        state: present
-        name: ansible3
-        vserver: ansible
-        schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
-        prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
-        count: [1, 2, 3, 4, 5]
-        snapmirror_label: ['hourly', 'daily', 'weekly', 'monthly', '']
-        enabled: True
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        https: False
+- name: Create Snapshot policy owned by a vserver
+  netapp.ontap.na_ontap_snapshot_policy:
+    state: present
+    name: ansible3
+    vserver: ansible
+    schedule: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+    prefix: ['hourly', 'daily', 'weekly', 'monthly', '5min']
+    count: [1, 2, 3, 4, 5]
+    snapmirror_label: ['hourly', 'daily', 'weekly', 'monthly', '']
+    enabled: true
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    https: false
 
-    - name: Modify Snapshot policy with multiple schedules
-      na_ontap_snapshot_policy:
-        state: present
-        name: ansible2
-        schedule: ['daily', 'weekly']
-        count: [20, 30]
-        snapmirror_label: ['daily', 'weekly']
-        enabled: True
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        https: False
+- name: Modify Snapshot policy with multiple schedules
+  netapp.ontap.na_ontap_snapshot_policy:
+    state: present
+    name: ansible2
+    schedule: ['daily', 'weekly']
+    count: [20, 30]
+    snapmirror_label: ['daily', 'weekly']
+    enabled: true
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    https: false
 
-    - name: Delete Snapshot policy
-      na_ontap_snapshot_policy:
-        state: absent
-        name: ansible2
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        https: False
+- name: Delete Snapshot policy
+  netapp.ontap.na_ontap_snapshot_policy:
+    state: absent
+    name: ansible2
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    https: false
 """
 
 RETURN = """

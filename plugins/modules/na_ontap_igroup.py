@@ -1,7 +1,7 @@
 #!/usr/bin/python
 ''' na_ontap_igroup
 
- (c) 2018-2022, NetApp, Inc
+ (c) 2018-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -126,78 +126,78 @@ notes:
 '''
 
 EXAMPLES = '''
-    - name: Create iSCSI Igroup
-      netapp.ontap.na_ontap_igroup:
-        state: present
-        name: ansibleIgroup3
-        initiator_group_type: iscsi
-        os_type: linux
-        initiator_names: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com,abc.com:redhat.com
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create iSCSI Igroup
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    name: ansibleIgroup3
+    initiator_group_type: iscsi
+    os_type: linux
+    initiator_names: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com,abc.com:redhat.com
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create iSCSI Igroup - ONTAP 9.9
-      netapp.ontap.na_ontap_igroup:
-        state: present
-        name: ansibleIgroup3
-        initiator_group_type: iscsi
-        os_type: linux
-        initiator_objects:
-          - name: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
-            comment: for test only
-          - name: abc.com:redhat.com
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create iSCSI Igroup - ONTAP 9.9
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    name: ansibleIgroup3
+    initiator_group_type: iscsi
+    os_type: linux
+    initiator_objects:
+        - name: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
+          comment: for test only
+        - name: abc.com:redhat.com
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create FC Igroup
-      netapp.ontap.na_ontap_igroup:
-        state: present
-        name: ansibleIgroup4
-        initiator_group_type: fcp
-        os_type: linux
-        initiator_names: 20:00:00:50:56:9f:19:82
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create FC Igroup
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    name: ansibleIgroup4
+    initiator_group_type: fcp
+    os_type: linux
+    initiator_names: 20:00:00:50:56:9f:19:82
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: rename Igroup
-      netapp.ontap.na_ontap_igroup:
-        state: present
-        from_name: ansibleIgroup3
-        name: testexamplenewname
-        initiator_group_type: iscsi
-        os_type: linux
-        initiator_names: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Rename Igroup
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    from_name: ansibleIgroup3
+    name: testexamplenewname
+    initiator_group_type: iscsi
+    os_type: linux
+    initiator_names: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify Igroup Initiators (replaces exisiting initiator_names)
-      netapp.ontap.na_ontap_igroup:
-        state: present
-        name: ansibleIgroup3
-        initiator_group_type: iscsi
-        os_type: linux
-        initiator: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify Igroup Initiators (replaces exisiting initiator_names)
+  netapp.ontap.na_ontap_igroup:
+    state: present
+    name: ansibleIgroup3
+    initiator_group_type: iscsi
+    os_type: linux
+    initiator: iqn.1994-05.com.redhat:scspa0395855001.rtp.openenglab.netapp.com
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete Igroup
-      netapp.ontap.na_ontap_igroup:
-        state: absent
-        name: ansibleIgroup3
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete Igroup
+  netapp.ontap.na_ontap_igroup:
+    state: absent
+    name: ansibleIgroup3
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

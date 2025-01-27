@@ -3,7 +3,7 @@
 na_ontap_unix_group
 """
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -67,36 +67,35 @@ version_added: 2.8.0
 """
 
 EXAMPLES = """
-    - name: Create UNIX group
-      na_ontap_unix_group:
-        state: present
-        name: SampleGroup
-        vserver: ansibleVServer
-        id: 2
-        users: user1,user2
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create UNIX group
+  netapp.ontap.na_ontap_unix_group:
+    state: present
+    name: SampleGroup
+    vserver: ansibleVServer
+    id: 2
+    users: user1,user2
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete all users in UNIX group
-      na_ontap_unix_group:
-        state: present
-        name: SampleGroup
-        vserver: ansibleVServer
-        users: ''
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete all users in UNIX group
+  netapp.ontap.na_ontap_unix_group:
+    state: present
+    name: SampleGroup
+    vserver: ansibleVServer
+    users: ''
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete UNIX group
-      na_ontap_unix_group:
-        state: absent
-        name: SampleGroup
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Delete UNIX group
+  netapp.ontap.na_ontap_unix_group:
+    state: absent
+    name: SampleGroup
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

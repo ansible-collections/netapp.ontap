@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -241,7 +241,7 @@ EXAMPLES = """
     service_state: online
     name: ansibleAggr
     disk_count: 10
-    wait_for_online: True
+    wait_for_online: true
     time_out: 300
     snaplock_type: non_snaplock
     use_rest: never

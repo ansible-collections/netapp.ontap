@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -69,33 +69,33 @@ options:
 '''
 
 EXAMPLES = """
-    - name: run ontap cli command
-      netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
-        command: ['version']
+- name: Run ONTAP CLI command
+  netapp.ontap.na_ontap_command:
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
+    command: ['version']
 
-    # Same as above, but returns parseable dictonary
-    - name: run ontap cli command
-      netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
-        command: ['node', 'show', '-fields', 'node,health,uptime,model']
-        privilege: 'admin'
-        return_dict: true
+# Same as above, but returns parseable dictonary
+- name: Run ONTAP CLI command
+  netapp.ontap.na_ontap_command:
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
+    command: ['node', 'show', '-fields', 'node,health,uptime,model']
+    privilege: 'admin'
+    return_dict: true
 
-    # Same as above, but with lines filtering
-    - name: run ontap cli command
-      netapp.ontap.na_ontap_command:
-        hostname: "{{ hostname }}"
-        username: "{{ admin username }}"
-        password: "{{ admin password }}"
-        command: ['node', 'show', '-fields', 'node,health,uptime,model']
-        exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node ', or anything else containing 'ode '.
-        privilege: 'admin'
-        return_dict: true
+# Same as above, but with lines filtering
+- name: Run ONTAP CLI command
+  netapp.ontap.na_ontap_command:
+    hostname: "{{ hostname }}"
+    username: "{{ admin username }}"
+    password: "{{ admin password }}"
+    command: ['node', 'show', '-fields', 'node,health,uptime,model']
+    exclude_lines: 'ode ' # Exclude lines with 'Node ' or 'node ', or anything else containing 'ode '.
+    privilege: 'admin'
+    return_dict: true
 """
 
 RETURN = """

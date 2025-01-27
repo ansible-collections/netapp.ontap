@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -63,52 +63,50 @@ version_added: 2.8.0
 '''
 
 EXAMPLES = """
+- name: Create NVME Subsystem
+  netapp.ontap.na_ontap_nvme_subsystem:
+    state: present
+    subsystem: test_sub
+    vserver: test_dest
+    ostype: linux
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create NVME Subsystem
-      netapp.ontap.na_ontap_nvme_subsystem:
-        state: present
-        subsystem: test_sub
-        vserver: test_dest
-        ostype: linux
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete NVME Subsystem
+  netapp.ontap.na_ontap_nvme_subsystem:
+    state: absent
+    subsystem: test_sub
+    vserver: test_dest
+    skip_host_check: true
+    skip_mapped_check: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete NVME Subsystem
-      netapp.ontap.na_ontap_nvme_subsystem:
-        state: absent
-        subsystem: test_sub
-        vserver: test_dest
-        skip_host_check: True
-        skip_mapped_check: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Associate NVME Subsystem host/map
+  netapp.ontap.na_ontap_nvme_subsystem:
+    state: present
+    subsystem: "{{ subsystem }}"
+    ostype: linux
+    hosts: nqn.1992-08.com.netapp:sn.3017cfc1e2ba11e89c55005056b36338:subsystem.ansible
+    paths: /vol/ansible/test,/vol/ansible/test1
+    vserver: "{{ vserver }}"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Associate NVME Subsystem host/map
-      netapp.ontap.na_ontap_nvme_subsystem:
-        state: present
-        subsystem: "{{ subsystem }}"
-        ostype: linux
-        hosts: nqn.1992-08.com.netapp:sn.3017cfc1e2ba11e89c55005056b36338:subsystem.ansible
-        paths: /vol/ansible/test,/vol/ansible/test1
-        vserver: "{{ vserver }}"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-
-    - name: Modify NVME subsystem map
-      netapp.ontap.na_ontap_nvme_subsystem:
-        state: present
-        subsystem: test_sub
-        vserver: test_dest
-        skip_host_check: True
-        skip_mapped_check: True
-        paths: /vol/ansible/test
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
+- name: Modify NVME subsystem map
+  netapp.ontap.na_ontap_nvme_subsystem:
+    state: present
+    subsystem: test_sub
+    vserver: test_dest
+    skip_host_check: true
+    skip_mapped_check: true
+    paths: /vol/ansible/test
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

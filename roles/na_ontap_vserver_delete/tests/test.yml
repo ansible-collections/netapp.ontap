@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Test playbook for na_ontap_vserver_delete
+  hosts: localhost
   gather_facts: false
   vars:
     login: &login

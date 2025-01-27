@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-(c) 2020-2024, NetApp, Inc
+(c) 2020-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -56,26 +56,12 @@ options:
 '''
 
 EXAMPLES = '''
--
-  name: Manage MetroCluster
-  hosts: localhost
-  collections:
-    - netapp.ontap
-  vars:
-    login: &login
-      hostname: "{{ hostname }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      https: True
-      validate_certs: False
-  tasks:
-    - name: Create MetroCluster
-      na_ontap_metrocluster:
-        <<: *login
-        dr_pairs:
-          - partner_node_name: rha17-a2
-            node_name: rha17-b2
-        partner_cluster_name: rha2-b2b1_siteB
+- name: Create MetroCluster
+  netapp.ontap.na_ontap_metrocluster:
+    dr_pairs:
+      - partner_node_name: rha17-a2
+        node_name: rha17-b2
+    partner_cluster_name: rha2-b2b1_siteB
 '''
 
 RETURN = '''

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -87,49 +87,46 @@ options:
 """
 
 EXAMPLES = """
+- name: Create policy
+  netapp.ontap.na_ontap_file_directory_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: present
+    vserver: ansible
+    policy_name: file_policy
+    ignore_broken_symlinks: false
 
-    - name: create policy
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: present
-        vserver: ansible
-        policy_name: file_policy
-        ignore_broken_symlinks: false
+- name: Add task to existing file_policy
+  netapp.ontap.na_ontap_file_directory_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: present
+    vserver: ansible
+    policy_name: file_policy
+    path: /vol
+    ntfs_sd: ansible_sd
+    ntfs_mode: propagate
 
-    - name: add task to existing file_policy
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: present
-        vserver: ansible
-        policy_name: file_policy
-        path: /vol
-        ntfs_sd: ansible_sd
-        ntfs_mode: propagate
+- name: Delete task from file_policy.
+  netapp.ontap.na_ontap_file_directory_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: absent
+    vserver: ansible
+    policy_name: file_policy
+    path: /vol
 
-    - name: delete task from file_policy.
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: absent
-        vserver: ansible
-        policy_name: file_policy
-        path: /vol
-
-    - name: delete file_policy along with the tasks.
-      na_ontap_file_directory_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        state: absent
-        vserver: ansible
-        policy_name: file_policy
-
-
+- name: Delete file_policy along with the tasks.
+  netapp.ontap.na_ontap_file_directory_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    state: absent
+    vserver: ansible
+    policy_name: file_policy
 """
 
 RETURN = """

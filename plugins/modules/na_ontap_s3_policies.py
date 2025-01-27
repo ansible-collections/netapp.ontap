@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -84,47 +84,47 @@ options:
         required: true
 '''
 EXAMPLES = """
-    - name: Create and modify a S3 policy
-      netapp.ontap.na_ontap_s3_policies:
-        state: present
-        name: carchi-s3-policy
-        comment: carchi8py was here
-        vserver: ansibleSVM
-        statements:
-          - sid: 1
-            resources:
-            - "bucket1"
-            - "bucket1/*"
-            actions:
-              - "*"
-            effect:
-              allow
-          - sid: 2
-            resources:
-            - "bucket2"
-            - "bucket2/*"
-            actions:
-              - "*"
-            effect:
-              allow
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Create and modify a S3 policy
+  netapp.ontap.na_ontap_s3_policies:
+    state: present
+    name: carchi-s3-policy
+    comment: carchi8py was here
+    vserver: ansibleSVM
+    statements:
+      - sid: 1
+        resources:
+          - "bucket1"
+          - "bucket1/*"
+        actions:
+          - "*"
+        effect:
+          allow
+      - sid: 2
+        resources:
+          - "bucket2"
+          - "bucket2/*"
+        actions:
+          - "*"
+        effect:
+          allow
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 
-    - name: delete S3 policy
-      netapp.ontap.na_ontap_s3_policies:
-        state: absent
-        name: carchi-s3-policy
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Delete S3 policy
+  netapp.ontap.na_ontap_s3_policies:
+    state: absent
+    name: carchi-s3-policy
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 """
 RETURN = """
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -63,36 +63,36 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create and modify a S3 Group
-      netapp.ontap.na_ontap_s3_groups:
-        state: present
-        name: dev-group
-        comment: group for devs
-        vserver: ansibleSVM
-        users:
-          - name: carchi8py
-          - name: carchi8py2
-        policies:
-          - name: allow_policy
-          - name: deny_policy
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Create and modify a S3 Group
+  netapp.ontap.na_ontap_s3_groups:
+    state: present
+    name: dev-group
+    comment: group for devs
+    vserver: ansibleSVM
+    users:
+      - name: carchi8py
+      - name: carchi8py2
+    policies:
+      - name: allow_policy
+      - name: deny_policy
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 
-    - name: Delete a S3 Group
-      netapp.ontap.na_ontap_s3_groups:
-        state: absent
-        name: dev-group
-        vserver: ansibleSVM
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        use_rest: always
+- name: Delete a S3 Group
+  netapp.ontap.na_ontap_s3_groups:
+    state: absent
+    name: dev-group
+    vserver: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
 """
 
 RETURN = """

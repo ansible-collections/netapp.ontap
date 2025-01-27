@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -39,14 +39,14 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create FCP
-      na_ontap_fcp:
-        state: present
-        status: down
-        hostname: "{{hostname}}"
-        username: "{{username}}"
-        password: "{{password}}"
-        vserver:  "{{vservername}}"
+- name: Create FCP
+  netapp.ontap.na_ontap_fcp:
+    state: present
+    status: down
+    hostname: "{{hostname}}"
+    username: "{{username}}"
+    password: "{{password}}"
+    vserver: "{{vservername}}"
 """
 
 RETURN = """

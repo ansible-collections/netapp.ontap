@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -95,18 +95,17 @@ notes:
 '''
 
 EXAMPLES = """
-
-    - name: ONTAP software update
-      netapp.ontap.na_ontap_software_update:
-        state: present
-        nodes: vsim1
-        package_url: "{{ url }}"
-        package_version: "{{ version_name }}"
-        ignore_validation_warning: True
-        download_only: True
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: ONTAP software update
+  netapp.ontap.na_ontap_software_update:
+    state: present
+    nodes: vsim1
+    package_url: "{{ url }}"
+    package_version: "{{ version_name }}"
+    ignore_validation_warning: true
+    download_only: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

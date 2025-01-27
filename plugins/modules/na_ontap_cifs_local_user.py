@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -66,41 +66,41 @@ options:
     '''
 
 EXAMPLES = """
-  - name: create local cifs user
-    netapp.ontap.na_ontap_cifs_local_user:
-      state: present
-      vserver: ansibleSVM_cifs
-      name: carchi-cifs2
-      user_password: mypassword
-      account_disabled: False
-      full_name: Chris Archibald
-      description: A user account for Chris
+- name: Create local cifs user
+  netapp.ontap.na_ontap_cifs_local_user:
+    state: present
+    vserver: ansibleSVM_cifs
+    name: carchi-cifs2
+    user_password: mypassword
+    account_disabled: false
+    full_name: Chris Archibald
+    description: A user account for Chris
 
-  - name: modify local cifs user
-    netapp.ontap.na_ontap_cifs_local_user:
-      state: present
-      vserver: ansibleSVM_cifs
-      name: carchi-cifs2
-      account_disabled: False
-      full_name: Christopher Archibald
-      description: A user account for Chris Archibald
+- name: Modify local cifs user
+  netapp.ontap.na_ontap_cifs_local_user:
+    state: present
+    vserver: ansibleSVM_cifs
+    name: carchi-cifs2
+    account_disabled: false
+    full_name: Christopher Archibald
+    description: A user account for Chris Archibald
 
-  - name: Change local cifs user password
-    netapp.ontap.na_ontap_cifs_local_user:
-      state: present
-      vserver: ansibleSVM_cifs
-      name: carchi-cifs2
-      user_password: mypassword2
-      set_password: True
-      account_disabled: False
-      full_name: Christopher Archibald
-      description: A user account for Chris Archibald
+- name: Change local cifs user password
+  netapp.ontap.na_ontap_cifs_local_user:
+    state: present
+    vserver: ansibleSVM_cifs
+    name: carchi-cifs2
+    user_password: mypassword2
+    set_password: true
+    account_disabled: false
+    full_name: Christopher Archibald
+    description: A user account for Chris Archibald
 
-  - name: delete local cifs user
-    netapp.ontap.na_ontap_cifs_local_user:
-      state: absent
-      vserver: ansibleSVM_cifs
-      name: carchi-cifs2
+- name: Delete local cifs user
+  netapp.ontap.na_ontap_cifs_local_user:
+    state: absent
+    vserver: ansibleSVM_cifs
+    name: carchi-cifs2
 """
 
 RETURN = """

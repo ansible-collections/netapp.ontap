@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -100,40 +100,39 @@ options:
 '''
 
 EXAMPLES = """
-  - name: Create FPolicy scope
-    na_ontap_fpolicy_scope:
-      state: present
-      vserver: GBSMNAS80LD
-      name: policy1
-      export_policies_to_include: export1
-      shares_to_include: share1
-      username: "{{ username }}"
-      password: "{{ password }}"
-      hostname: "{{ hostname }}"
-      use_rest: "{{ use_rest }}"
+- name: Create FPolicy scope
+  netapp.ontap.na_ontap_fpolicy_scope:
+    state: present
+    vserver: GBSMNAS80LD
+    name: policy1
+    export_policies_to_include: export1
+    shares_to_include: share1
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    use_rest: "{{ use_rest }}"
 
-  - name: Modify FPolicy scope
-    na_ontap_fpolicy_scope:
-      state: present
-      vserver: GBSMNAS80LD
-      name: policy1
-      export_policies_to_include: export1,export2
-      shares_to_include: share1,share2
-      username: "{{ username }}"
-      password: "{{ password }}"
-      hostname: "{{ hostname }}"
-      use_rest: "{{ use_rest }}"
+- name: Modify FPolicy scope
+  netapp.ontap.na_ontap_fpolicy_scope:
+    state: present
+    vserver: GBSMNAS80LD
+    name: policy1
+    export_policies_to_include: export1,export2
+    shares_to_include: share1,share2
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    use_rest: "{{ use_rest }}"
 
-  - name: Delete FPolicy scope
-    na_ontap_fpolicy_scope:
-      state: absent
-      vserver: GBSMNAS80LD
-      name: policy1
-      username: "{{ username }}"
-      password: "{{ password }}"
-      hostname: "{{ hostname }}"
-      use_rest: "{{ use_rest }}"
-
+- name: Delete FPolicy scope
+  netapp.ontap.na_ontap_fpolicy_scope:
+    state: absent
+    vserver: GBSMNAS80LD
+    name: policy1
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
+    use_rest: "{{ use_rest }}"
 """
 
 RETURN = """

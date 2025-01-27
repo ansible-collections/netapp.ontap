@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2022-2025, NetApp, Inc. GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -124,132 +124,132 @@ notes:
 """
 
 EXAMPLES = """
-  - name: Create security IPsec policy with pre-shared Keys.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_psk
-      ipspace: Default
-      svm: ansibleSVM
-      authentication_method: psk
-      secret_key: "{{ secret_key }}"
-      action: esp_transport
-      local_endpoint:
-        address: 10.23.43.23
-        netmask: 24
-        port: 201
-      remote_endpoint:
-        address: 10.23.43.30
-        netmask: 24
-        port: 205
-      protocol: tcp
-      enabled: true
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Create security IPsec policy with pre-shared Keys.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_psk
+    ipspace: Default
+    svm: ansibleSVM
+    authentication_method: psk
+    secret_key: "{{ secret_key }}"
+    action: esp_transport
+    local_endpoint:
+      address: 10.23.43.23
+      netmask: 24
+      port: 201
+    remote_endpoint:
+      address: 10.23.43.30
+      netmask: 24
+      port: 205
+    protocol: tcp
+    enabled: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Create security IPsec policy with certificates.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_pki
-      ipspace: Default
-      svm: ansibleSVM
-      authentication_method: pki
-      certificate: "{{ cert_name }}"
-      action: esp_transport
-      local_endpoint:
-        address: 10.23.43.23
-        netmask: 24
-        port: 201
-      remote_endpoint:
-        address: 10.23.43.30
-        netmask: 24
-        port: 205
-      protocol: tcp
-      enabled: true
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Create security IPsec policy with certificates.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_pki
+    ipspace: Default
+    svm: ansibleSVM
+    authentication_method: pki
+    certificate: "{{ cert_name }}"
+    action: esp_transport
+    local_endpoint:
+      address: 10.23.43.23
+      netmask: 24
+      port: 201
+    remote_endpoint:
+      address: 10.23.43.30
+      netmask: 24
+      port: 205
+    protocol: tcp
+    enabled: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Create security IPsec policy without psk or certificates.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_none
-      ipspace: Default
-      svm: ansibleSVM
-      action: bypass
-      local_endpoint:
-        address: 10.23.43.23
-        netmask: 24
-        port: 201
-      remote_endpoint:
-        address: 10.23.43.30
-        netmask: 24
-        port: 205
-      protocol: tcp
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Create security IPsec policy without psk or certificates.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_none
+    ipspace: Default
+    svm: ansibleSVM
+    action: bypass
+    local_endpoint:
+      address: 10.23.43.23
+      netmask: 24
+      port: 201
+    remote_endpoint:
+      address: 10.23.43.30
+      netmask: 24
+      port: 205
+    protocol: tcp
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify security IPsec policy local, remote end_point.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_pki
-      ipspace: Default
-      svm: ansibleSVM
-      authentication_method: pki
-      certificate: "{{ cert_name }}"
-      action: esp_transport
-      local_endpoint:
-        address: 10.23.43.50
-        netmask: 24
-        port: 201
-      remote_endpoint:
-        address: 10.23.43.60
-        netmask: 24
-        port: 205
-      protocol: tcp
-      enabled: true
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify security IPsec policy local, remote end_point.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_pki
+    ipspace: Default
+    svm: ansibleSVM
+    authentication_method: pki
+    certificate: "{{ cert_name }}"
+    action: esp_transport
+    local_endpoint:
+      address: 10.23.43.50
+      netmask: 24
+      port: 201
+    remote_endpoint:
+      address: 10.23.43.60
+      netmask: 24
+      port: 205
+    protocol: tcp
+    enabled: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Modify security IPsec protocol, enable options.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_pki
-      ipspace: Default
-      svm: ansibleSVM
-      authentication_method: pki
-      certificate: "{{ cert_name }}"
-      action: esp_transport
-      local_endpoint:
-        address: 10.23.43.50
-        netmask: 24
-        port: 201
-      remote_endpoint:
-        address: 10.23.43.60
-        netmask: 24
-        port: 205
-      protocol: udp
-      enabled: false
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Modify security IPsec protocol, enable options.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_pki
+    ipspace: Default
+    svm: ansibleSVM
+    authentication_method: pki
+    certificate: "{{ cert_name }}"
+    action: esp_transport
+    local_endpoint:
+      address: 10.23.43.50
+      netmask: 24
+      port: 201
+    remote_endpoint:
+      address: 10.23.43.60
+      netmask: 24
+      port: 205
+    protocol: udp
+    enabled: false
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 
-  - name: Delete security IPsec policy.
-    netapp.ontap.na_ontap_security_ipsec_policy:
-      name: ipsec_policy_pki
-      svm: ansibleSVM
-      hostname: "{{ netapp_hostname }}"
-      username: "{{ netapp_username }}"
-      password: "{{ netapp_password }}"
-      https: true
-      validate_certs: "{{ validate_certs }}"
+- name: Delete security IPsec policy.
+  netapp.ontap.na_ontap_security_ipsec_policy:
+    name: ipsec_policy_pki
+    svm: ansibleSVM
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
 """
 
 RETURN = """

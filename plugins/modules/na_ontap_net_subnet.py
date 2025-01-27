@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -67,35 +67,37 @@ notes:
 """
 
 EXAMPLES = """
-    - name: create subnet
-      netapp.ontap.na_ontap_net_subnet:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        subnet: 10.10.10.0/24
-        name: subnet-adm
-        ip_ranges: [ '10.10.10.30-10.10.10.40', '10.10.10.51' ]
-        gateway: 10.10.10.254
-        ipspace: Default
-        broadcast_domain: Default
-    - name: delete subnet
-      netapp.ontap.na_ontap_net_subnet:
-        state: absent
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: subnet-adm
-        ipspace: Default
-    - name: rename subnet
-      netapp.ontap.na_ontap_net_subnet:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: subnet-adm-new
-        from_name: subnet-adm
-        ipspace: Default
+- name: Create subnet
+  netapp.ontap.na_ontap_net_subnet:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    subnet: 10.10.10.0/24
+    name: subnet-adm
+    ip_ranges: ['10.10.10.30-10.10.10.40', '10.10.10.51']
+    gateway: 10.10.10.254
+    ipspace: Default
+    broadcast_domain: Default
+
+- name: Delete subnet
+  netapp.ontap.na_ontap_net_subnet:
+    state: absent
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: subnet-adm
+    ipspace: Default
+
+- name: Rename subnet
+  netapp.ontap.na_ontap_net_subnet:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: subnet-adm-new
+    from_name: subnet-adm
+    ipspace: Default
 """
 
 RETURN = """

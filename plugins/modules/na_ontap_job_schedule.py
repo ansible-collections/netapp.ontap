@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -99,59 +99,63 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create Job for 11.30PM at 10th of every month
-      netapp.ontap.na_ontap_job_schedule:
-        state: present
-        name: jobName
-        job_minutes: 30
-        job_hours: 23
-        job_days_of_month: 10
-        job_months: -1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
-      netapp.ontap.na_ontap_job_schedule:
-        state: present
-        name: jobName
-        job_minutes: 30
-        job_hours: 23
-        job_days_of_month: 10
-        job_months: 1,4,7,10
-        month_offset: 1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
-      netapp.ontap.na_ontap_job_schedule:
-        state: present
-        name: jobName
-        job_minutes: 30
-        job_hours: 23
-        job_days_of_month: 10
-        job_months: 0,3,6,9
-        month_offset: 0
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Create Job for 11.30PM at 10th of January when using REST and February when using ZAPI !!!
-      netapp.ontap.na_ontap_job_schedule:
-        state: present
-        name: jobName
-        job_minutes: 30
-        job_hours: 23
-        job_days_of_month: 10
-        job_months: 1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-    - name: Delete Job
-      netapp.ontap.na_ontap_job_schedule:
-        state: absent
-        name: jobName
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create Job for 11.30PM at 10th of every month
+  netapp.ontap.na_ontap_job_schedule:
+    state: present
+    name: jobName
+    job_minutes: 30
+    job_hours: 23
+    job_days_of_month: 10
+    job_months: -1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
+  netapp.ontap.na_ontap_job_schedule:
+    state: present
+    name: jobName
+    job_minutes: 30
+    job_hours: 23
+    job_days_of_month: 10
+    job_months: 1,4,7,10
+    month_offset: 1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Create Job for 11.30PM at 10th of January, April, July, October for ZAPI and REST
+  netapp.ontap.na_ontap_job_schedule:
+    state: present
+    name: jobName
+    job_minutes: 30
+    job_hours: 23
+    job_days_of_month: 10
+    job_months: 0,3,6,9
+    month_offset: 0
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Create Job for 11.30PM at 10th of January when using REST and February when using ZAPI !!!
+  netapp.ontap.na_ontap_job_schedule:
+    state: present
+    name: jobName
+    job_minutes: 30
+    job_hours: 23
+    job_days_of_month: 10
+    job_months: 1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Delete Job
+  netapp.ontap.na_ontap_job_schedule:
+    state: absent
+    name: jobName
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

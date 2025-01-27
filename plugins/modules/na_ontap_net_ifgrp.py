@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -98,85 +98,85 @@ options:
 """
 
 EXAMPLES = """
-    - name: create ifgrp
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        distribution_function: ip
-        name: a0c
-        ports: [e0a]
-        mode: multimode
-        node: "{{ Vsim node name }}"
-    - name: modify ports in an ifgrp
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        distribution_function: ip
-        name: a0c
-        port: [e0a, e0c]
-        mode: multimode
-        node: "{{ Vsim node name }}"
-    - name: delete ifgrp
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: absent
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        name: a0c
-        node: "{{ Vsim node name }}"
-    - name: create ifgrp - REST
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        distribution_function: ip
-        ports: [e0a,e0b]
-        mode: multimode
-        node: "{{ Vsim node name }}"
-        broadcast_domain: Default
-        ipspace: Default
-    - name: Remove e0a and add port e0d to above created lag REST
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        from_lag_ports: [a0a,e0b]
-        ports: [e0b,e0d]
-        node: "{{ Vsim node name }}"
-    - name: Add e0a to lag that has port e0b e0d REST
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        distribution_function: ip
-        ports: [e0b,e0d,e0a]
-        mode: multimode
-        node: "{{ Vsim node name }}"
-    - name: Modify broadcast_domain and ipspace REST
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        broadcast_domain: test
-        ipspace: test
-        ports: [e0b,e0d,e0a]
-        node: "{{ Vsim node name }}"
-    - name: Delete LAG with exact match of ports
-      netapp.ontap.na_ontap_net_ifgrp:
-        state: absent
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        ports: [e0b,e0d,e0a]
-        node: "{{ Vsim node name }}"
+- name: Create ifgrp
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    distribution_function: ip
+    name: a0c
+    ports: [e0a]
+    mode: multimode
+    node: "{{ vsim_node_name }}"
+- name: Modify ports in an ifgrp
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    distribution_function: ip
+    name: a0c
+    port: [e0a, e0c]
+    mode: multimode
+    node: "{{ vsim_node_name }}"
+- name: Delete ifgrp
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: absent
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    name: a0c
+    node: "{{ vsim_node_name }}"
+- name: Create ifgrp - REST
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    distribution_function: ip
+    ports: [e0a, e0b]
+    mode: multimode
+    node: "{{ vsim_node_name }}"
+    broadcast_domain: Default
+    ipspace: Default
+- name: Remove e0a and add port e0d to above created lag REST
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    from_lag_ports: [a0a, e0b]
+    ports: [e0b, e0d]
+    node: "{{ vsim_node_name }}"
+- name: Add e0a to lag that has port e0b e0d REST
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    distribution_function: ip
+    ports: [e0b, e0d, e0a]
+    mode: multimode
+    node: "{{ vsim_node_name }}"
+- name: Modify broadcast_domain and ipspace REST
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    broadcast_domain: test
+    ipspace: test
+    ports: [e0b, e0d, e0a]
+    node: "{{ vsim_node_name }}"
+- name: Delete LAG with exact match of ports
+  netapp.ontap.na_ontap_net_ifgrp:
+    state: absent
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    ports: [e0b, e0d, e0a]
+    node: "{{ vsim_node_name }}"
 """
 
 RETURN = """

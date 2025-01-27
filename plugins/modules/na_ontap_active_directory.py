@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2024, NetApp Inc.
+# (c) 2020-2025, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -72,54 +72,48 @@ notes:
   - supports ZAPI and REST. REST requires ONTAP 9.12.1 or later.
 '''
 EXAMPLES = """
--
-  name: Ontap test
-  hosts: localhost
-  collections:
-    - netapp.ontap
-  tasks:
-    - name: Create active directory account.
-      netapp.ontap.na_ontap_active_directory:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        vserver: laurentncluster-1
-        state: present
-        account_name: carchi
-        admin_password: password
-        admin_username: carchi
-        domain: addomain.com
+- name: Create active directory account.
+  netapp.ontap.na_ontap_active_directory:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    vserver: laurentncluster-1
+    state: present
+    account_name: carchi
+    admin_password: password
+    admin_username: carchi
+    domain: addomain.com
 
-    - name: Modify domain name.
-      netapp.ontap.na_ontap_active_directory:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        vserver: laurentncluster-1
-        state: present
-        account_name: carchi
-        admin_password: password
-        admin_username: carchi
-        domain: addomain_new.com
-        force_account_overwrite: True
+- name: Modify domain name.
+  netapp.ontap.na_ontap_active_directory:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    vserver: laurentncluster-1
+    state: present
+    account_name: carchi
+    admin_password: password
+    admin_username: carchi
+    domain: addomain_new.com
+    force_account_overwrite: true
 
-    - name: Delete active directory account.
-      netapp.ontap.na_ontap_active_directory:
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        https: true
-        validate_certs: false
-        vserver: laurentncluster-1
-        state: absent
-        account_name: carchi
-        admin_password: password
-        admin_username: carchi
-        domain: addomain.com
+- name: Delete active directory account.
+  netapp.ontap.na_ontap_active_directory:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    vserver: laurentncluster-1
+    state: absent
+    account_name: carchi
+    admin_password: password
+    admin_username: carchi
+    domain: addomain.com
 """
 RETURN = """
 

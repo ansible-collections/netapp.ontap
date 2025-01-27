@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -63,47 +63,46 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create firewall Policy
-      netapp.ontap.na_ontap_firewall_policy:
-        state: present
-        allow_list: [1.2.3.0/24,1.3.0.0/16]
-        policy: pizza
-        service: http
-        vserver: ci_dev
-        hostname: "{{ netapp hostname }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
+- name: Create firewall Policy
+  netapp.ontap.na_ontap_firewall_policy:
+    state: present
+    allow_list: [1.2.3.0/24, 1.3.0.0/16]
+    policy: pizza
+    service: http
+    vserver: ci_dev
+    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
 
-    - name: Modify firewall Policy
-      netapp.ontap.na_ontap_firewall_policy:
-        state: present
-        allow_list: [1.5.3.0/24]
-        policy: pizza
-        service: http
-        vserver: ci_dev
-        hostname: "{{ netapp hostname }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
+- name: Modify firewall Policy
+  netapp.ontap.na_ontap_firewall_policy:
+    state: present
+    allow_list: [1.5.3.0/24]
+    policy: pizza
+    service: http
+    vserver: ci_dev
+    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
 
-    - name: Destory firewall Policy
-      netapp.ontap.na_ontap_firewall_policy:
-        state: absent
-        policy: pizza
-        service: http
-        vserver: ci_dev
-        hostname: "{{ netapp hostname }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
+- name: Destory firewall Policy
+  netapp.ontap.na_ontap_firewall_policy:
+    state: absent
+    policy: pizza
+    service: http
+    vserver: ci_dev
+    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
 
-    - name: Enable firewall and logging on a node
-      netapp.ontap.na_ontap_firewall_policy:
-        node: test-vsim1
-        enable: enable
-        logging: enable
-        hostname: "{{ netapp hostname }}"
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-
+- name: Enable firewall and logging on a node
+  netapp.ontap.na_ontap_firewall_policy:
+    node: test-vsim1
+    enable: enable
+    logging: enable
+    hostname: "{{ netapp hostname }}"
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -76,49 +76,49 @@ notes:
 '''
 
 EXAMPLES = """
-    - name:
-      na_ontap_cg_snapshot:
-        state: present
-        vserver: vserver_name
-        snapshot: snapshot name
-        volumes: vol_name
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Create CG snapshot
+  na_ontap_cg_snapshot:
+    state: present
+    vserver: vserver_name
+    snapshot: snapshot name
+    volumes: vol_name
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
+    hostname: "{{ netapp hostname }}"
 
-    - name: Create CG snapshot using CG name - REST
-      na_ontap_cg_snapshot:
-        state: present
-        vserver: vserver_name
-        snapshot: snapshot_name
-        consistency_group: cg_name
-        snapmirror_label: sm_label
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Create CG snapshot using CG name - REST
+  na_ontap_cg_snapshot:
+    state: present
+    vserver: vserver_name
+    snapshot: snapshot_name
+    consistency_group: cg_name
+    snapmirror_label: sm_label
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
+    hostname: "{{ netapp hostname }}"
 
-    - name: Create CG snapshot using volumes - REST
-      na_ontap_cg_snapshot:
-        state: present
-        vserver: vserver_name
-        snapshot: snapshot_name
-        volumes:
-          - vol1
-          - vol2
-        snapmirror_label: sm_label
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Create CG snapshot using volumes - REST
+  na_ontap_cg_snapshot:
+    state: present
+    vserver: vserver_name
+    snapshot: snapshot_name
+    volumes:
+        - vol1
+        - vol2
+    snapmirror_label: sm_label
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
+    hostname: "{{ netapp hostname }}"
 
-    - name: Delete CG snapshot - REST
-      na_ontap_cg_snapshot:
-        state: absent
-        vserver: vserver_name
-        snapshot: snapshot_name
-        consistency_group: cg_name
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
+- name: Delete CG snapshot - REST
+  na_ontap_cg_snapshot:
+    state: absent
+    vserver: vserver_name
+    snapshot: snapshot_name
+    consistency_group: cg_name
+    username: "{{ netapp username }}"
+    password: "{{ netapp password }}"
+    hostname: "{{ netapp hostname }}"
 """
 
 RETURN = """

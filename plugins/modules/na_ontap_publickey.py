@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2024, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -69,37 +69,36 @@ notes:
 '''
 
 EXAMPLES = """
+- name: Create publickey
+  netapp.ontap.na_ontap_publickey:
+    state: present
+    account: SampleUser
+    index: 0
+    public_key: "{{ netapp_publickey }}"
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create publickey
-      netapp.ontap.na_ontap_publickey:
-        state: present
-        account: SampleUser
-        index: 0
-        public_key: "{{ netapp_publickey }}"
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete single publickey
+  netapp.ontap.na_ontap_publickey:
+    state: absent
+    account: SampleUser
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete single publickey
-      netapp.ontap.na_ontap_publickey:
-        state: absent
-        account: SampleUser
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-
-    - name: Modify single publickey
-      netapp.ontap.na_ontap_publickey:
-        state: present
-        account: SampleUser
-        comment: ssh key for XXXX
-        index: 0
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify single publickey
+  netapp.ontap.na_ontap_publickey:
+    state: present
+    account: SampleUser
+    comment: ssh key for XXXX
+    index: 0
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """

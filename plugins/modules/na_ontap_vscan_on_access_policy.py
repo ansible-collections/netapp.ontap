@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp Inc.
+# (c) 2018-2025, NetApp Inc.
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -104,42 +104,42 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create Vscan On Access Policy
-      netapp.ontap.na_ontap_vscan_on_access_policy:
-        state: present
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        policy_name: carchi_policy
-        file_ext_to_exclude: ['exe', 'yml']
-    - name: Create Vscan On Access Policy with Policy Status enabled
-      netapp.ontap.na_ontap_vscan_on_access_policy:
-        state: present
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        policy_name: carchi_policy
-        file_ext_to_exclude: ['exe', 'yml']
-        policy_status: True
-    - name: modify Vscan on Access Policy
-      netapp.ontap.na_ontap_vscan_on_access_policy:
-        state: present
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        policy_name: carchi_policy
-        file_ext_to_exclude: ['exe', 'yml', 'py']
-    - name: Delete On Access Policy
-      netapp.ontap.na_ontap_vscan_on_access_policy:
-        state: absent
-        username: '{{ netapp_username }}'
-        password: '{{ netapp_password }}'
-        hostname: '{{ netapp_hostname }}'
-        vserver: carchi-vsim2
-        policy_name: carchi_policy
+- name: Create Vscan On Access Policy
+  netapp.ontap.na_ontap_vscan_on_access_policy:
+    state: present
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    policy_name: carchi_policy
+    file_ext_to_exclude: ['exe', 'yml']
+- name: Create Vscan On Access Policy with Policy Status enabled
+  netapp.ontap.na_ontap_vscan_on_access_policy:
+    state: present
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    policy_name: carchi_policy
+    file_ext_to_exclude: ['exe', 'yml']
+    policy_status: true
+- name: Modify Vscan on Access Policy
+  netapp.ontap.na_ontap_vscan_on_access_policy:
+    state: present
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    policy_name: carchi_policy
+    file_ext_to_exclude: ['exe', 'yml', 'py']
+- name: Delete On Access Policy
+  netapp.ontap.na_ontap_vscan_on_access_policy:
+    state: absent
+    username: '{{ netapp_username }}'
+    password: '{{ netapp_password }}'
+    hostname: '{{ netapp_hostname }}'
+    vserver: carchi-vsim2
+    policy_name: carchi_policy
 """
 
 RETURN = """

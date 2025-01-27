@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -48,32 +48,30 @@ options:
 '''
 
 EXAMPLES = """
+- name: Modify banner vserver
+  netapp.ontap.na_ontap_login_messages:
+    vserver: trident_svm
+    banner: this is trident vserver
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
 
-    - name: modify banner vserver
-      netapp.ontap.na_ontap_login_messages:
-        vserver: trident_svm
-        banner: this is trident vserver
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
+- name: Modify motd vserver
+  netapp.ontap.na_ontap_login_messages:
+    vserver: trident_svm
+    motd_message: this is trident vserver
+    show_cluster_motd: true
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
 
-    - name: modify motd vserver
-      netapp.ontap.na_ontap_login_messages:
-        vserver: trident_svm
-        motd_message: this is trident vserver
-        show_cluster_motd: True
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
-
-    - name: modify motd cluster - REST
-      netapp.ontap.na_ontap_login_messages:
-        motd_message: this is a cluster motd with REST
-        show_cluster_motd: True
-        username: "{{ username }}"
-        password: "{{ password }}"
-        hostname: "{{ hostname }}"
-
+- name: Modify motd cluster - REST
+  netapp.ontap.na_ontap_login_messages:
+    motd_message: this is a cluster motd with REST
+    show_cluster_motd: true
+    username: "{{ username }}"
+    password: "{{ password }}"
+    hostname: "{{ hostname }}"
 """
 
 RETURN = """

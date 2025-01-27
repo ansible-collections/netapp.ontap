@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """ this is ndmp module
 
- (c) 2019, NetApp, Inc
+ (c) 2019-2025, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -139,33 +139,32 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: modify ndmp
-      na_ontap_ndmp:
-        vserver: ansible
-        hostname: "{{ hostname }}"
-        abort_on_disk_error: true
-        authtype: plaintext,challenge
-        backup_log_enable: true
-        data_port_range: 8000-9000
-        debug_enable: true
-        debug_filter: filter
-        dump_detailed_stats: true
-        dump_logical_find: default
-        enable: true
-        fh_dir_retry_interval: 100
-        fh_node_retry_interval: 100
-        ignore_ctime_enabled: true
-        is_secure_control_connection_enabled: true
-        offset_map_enable: true
-        per_qtree_exclude_enable: true
-        preferred_interface_role: node_mgmt,intercluster
-        restore_vm_cache_size: 1000
-        secondary_debug_filter: filter
-        tcpnodelay: true
-        tcpwinsize: 10000
-        username: user
-        password: pass
-        https: False
+- name: Modify ndmp
+  netapp.ontap.na_ontap_ndmp:
+    vserver: ansible
+    abort_on_disk_error: true
+    authtype: plaintext,challenge
+    backup_log_enable: true
+    data_port_range: 8000-9000
+    debug_enable: true
+    debug_filter: filter
+    dump_detailed_stats: true
+    dump_logical_find: default
+    enable: true
+    fh_dir_retry_interval: 100
+    fh_node_retry_interval: 100
+    ignore_ctime_enabled: true
+    is_secure_control_connection_enabled: true
+    offset_map_enable: true
+    per_qtree_exclude_enable: true
+    preferred_interface_role: node_mgmt,intercluster
+    restore_vm_cache_size: 1000
+    secondary_debug_filter: filter
+    tcpnodelay: true
+    tcpwinsize: 10000
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = '''

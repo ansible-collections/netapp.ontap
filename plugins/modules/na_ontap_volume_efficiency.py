@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2024, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -160,79 +160,78 @@ notes:
 """
 
 EXAMPLES = """
-    - name: Enable Volume efficiency
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Enable Volume efficiency
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: present
+    vserver: "TESTSVM"
+    path: "/vol/test_sis"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Disable Volume efficiency test
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: absent
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Disable Volume efficiency test
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: absent
+    vserver: "TESTSVM"
+    path: "/vol/test_sis"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Modify storage efficiency schedule with ZAPI.
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        schedule: "mon-sun@0,1,23"
-        enable_compression: true
-        enable_inline_compression: true
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Modify storage efficiency schedule with ZAPI.
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: present
+    vserver: "TESTSVM"
+    path: "/vol/test_sis"
+    schedule: "mon-sun@0,1,23"
+    enable_compression: true
+    enable_inline_compression: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Start volume efficiency
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        volume_efficiency: "start"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Start volume efficiency
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: present
+    vserver: "TESTSVM"
+    path: "/vol/test_sis"
+    volume_efficiency: "start"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: Stop volume efficiency
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        path: "/vol/test_sis"
-        volume_efficiency: "stop"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
+- name: Stop volume efficiency
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: present
+    vserver: "TESTSVM"
+    path: "/vol/test_sis"
+    volume_efficiency: "stop"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 
-    - name: modify volume efficiency with volume name in REST.
-      netapp.ontap.na_ontap_volume_efficiency:
-        state: present
-        vserver: "TESTSVM"
-        volume_name: "test_sis"
-        volume_efficiency: "stop"
-        enable_compression: True
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        https: true
-        validate_certs: false
-
+- name: Modify volume efficiency with volume name in REST.
+  netapp.ontap.na_ontap_volume_efficiency:
+    state: present
+    vserver: "TESTSVM"
+    volume_name: "test_sis"
+    volume_efficiency: "stop"
+    enable_compression: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
 """
 
 RETURN = """

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -94,58 +94,56 @@ notes:
 '''
 
 EXAMPLES = """
+- name: Create cluster peer
+  netapp.ontap.na_ontap_cluster_peer:
+    state: present
+    source_intercluster_lifs: 1.2.3.4,1.2.3.5
+    dest_intercluster_lifs: 1.2.3.6,1.2.3.7
+    passphrase: XXXX
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+      hostname: "{{ dest_netapp_hostname }}"
+    encryption_protocol_proposed: tls_psk
 
-    - name: Create cluster peer
-      netapp.ontap.na_ontap_cluster_peer:
-        state: present
-        source_intercluster_lifs: 1.2.3.4,1.2.3.5
-        dest_intercluster_lifs: 1.2.3.6,1.2.3.7
-        passphrase: XXXX
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ dest_netapp_hostname }}"
-        encryption_protocol_proposed: tls_psk
+- name: Delete cluster peer
+  netapp.ontap.na_ontap_cluster_peer:
+    state: absent
+    source_cluster_name: test-source-cluster
+    dest_cluster_name: test-dest-cluster
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+      hostname: "{{ dest_netapp_hostname }}"
 
-    - name: Delete cluster peer
-      netapp.ontap.na_ontap_cluster_peer:
-        state: absent
-        source_cluster_name: test-source-cluster
-        dest_cluster_name: test-dest-cluster
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ dest_netapp_hostname }}"
+- name: Create cluster peer - different credentials
+  netapp.ontap.na_ontap_cluster_peer:
+    state: present
+    source_intercluster_lifs: 1.2.3.4,1.2.3.5
+    dest_intercluster_lifs: 1.2.3.6,1.2.3.7
+    passphrase: XXXX
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+      hostname: "{{ dest_netapp_hostname }}"
+      cert_filepath: "{{ cert_filepath }}"
+      key_filepath: "{{ key_filepath }}"
+    encryption_protocol_proposed: tls_psk
 
-    - name: Create cluster peer - different credentials
-      netapp.ontap.na_ontap_cluster_peer:
-        state: present
-        source_intercluster_lifs: 1.2.3.4,1.2.3.5
-        dest_intercluster_lifs: 1.2.3.6,1.2.3.7
-        passphrase: XXXX
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ dest_netapp_hostname }}"
-          cert_filepath: "{{ cert_filepath }}"
-          key_filepath: "{{ key_filepath }}"
-        encryption_protocol_proposed: tls_psk
-
-    - name: Modify cluster peer - destination intercluster addresses
-      netapp.ontap.na_ontap_cluster_peer:
-        state: present
-        source_intercluster_lifs: 1.2.3.4,1.2.3.5
-        dest_intercluster_lifs: 1.2.3.8
-        dest_cluster_name: test-dest-cluster
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        peer_options:
-          hostname: "{{ dest_netapp_hostname }}"
-
+- name: Modify cluster peer - destination intercluster addresses
+  netapp.ontap.na_ontap_cluster_peer:
+    state: present
+    source_intercluster_lifs: 1.2.3.4,1.2.3.5
+    dest_intercluster_lifs: 1.2.3.8
+    dest_cluster_name: test-dest-cluster
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    peer_options:
+      hostname: "{{ dest_netapp_hostname }}"
 """
 
 RETURN = """

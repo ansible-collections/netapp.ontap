@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2024, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -78,42 +78,42 @@ notes:
 """
 
 EXAMPLES = """
-    - name: Create File Directory Security Policy Task
-      netapp.ontap.na_ontap_na_ontap_fdspt:
-        state: present
-        name: "ansible_pl"
-        access_control: "file_directory"
-        ntfs_sd: "ansible1_sd"
-        ntfs_mode: "replace"
-        security_type: "ntfs"
-        path: "/volume1"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Create File Directory Security Policy Task
+  netapp.ontap.na_ontap_na_ontap_fdspt:
+    state: present
+    name: "ansible_pl"
+    access_control: "file_directory"
+    ntfs_sd: "ansible1_sd"
+    ntfs_mode: "replace"
+    security_type: "ntfs"
+    path: "/volume1"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Modify File Directory Security Policy Task
-      netapp.ontap.na_ontap_na_ontap_fdspt:
-        state: present
-        name: "ansible_pl"
-        access_control: "file_directory"
-        path: "/volume1"
-        ntfs_sd: "ansible1_sd"
-        ntfs_mode: "replace"
-        security_type: "ntfs"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Modify File Directory Security Policy Task
+  netapp.ontap.na_ontap_na_ontap_fdspt:
+    state: present
+    name: "ansible_pl"
+    access_control: "file_directory"
+    path: "/volume1"
+    ntfs_sd: "ansible1_sd"
+    ntfs_mode: "replace"
+    security_type: "ntfs"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Remove File Directory Security Policy Task
-      netapp.ontap.na_ontap_na_ontap_fdspt:
-        state: absent
-        vserver: "SVM1"
-        name: "ansible_pl"
-        access_control: "file_directory"
-        path: "/volume1"
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Remove File Directory Security Policy Task
+  netapp.ontap.na_ontap_na_ontap_fdspt:
+    state: absent
+    vserver: "SVM1"
+    name: "ansible_pl"
+    access_control: "file_directory"
+    path: "/volume1"
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 """
 
 RETURN = """

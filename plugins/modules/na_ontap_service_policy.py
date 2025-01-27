@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2024, NetApp, Inc
+# (c) 2021-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -88,59 +88,58 @@ notes:
 '''
 
 EXAMPLES = """
+- name: Create service policy
+  netapp.ontap.na_ontap_service_policy:
+    state: present
+    name: "{{ service_policy_name }}"
+    services:
+      - data_core
+      - data_nfs
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Create service policy
-      netapp.ontap.na_ontap_service_policy:
-        state: present
-        name: "{{ service_policy_name }}"
-        services:
-          - data_core
-          - data_nfs
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete single service policy
+  netapp.ontap.na_ontap_service_policy:
+    state: absent
+    name: "{{ service_policy_name }}"
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete single service policy
-      netapp.ontap.na_ontap_service_policy:
-        state: absent
-        name: "{{ service_policy_name }}"
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify single service policy
+  netapp.ontap.na_ontap_service_policy:
+    state: present
+    name: "{{ service_policy_name }}"
+    services:
+      - data_core
+      - data_nfs
+      - data_cifs
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Modify single service policy
-      netapp.ontap.na_ontap_service_policy:
-        state: present
-        name: "{{ service_policy_name }}"
-        services:
-          - data_core
-          - data_nfs
-          - data_cifs
-        vserver: ansibleVServer
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify service policy, remove services
+  netapp.ontap.na_ontap_service_policy:
+    state: present
+    name: "{{ service_policy_name }}"
+    services:
+      - no_service
+    vserver: "{{ vserver }}"
 
-    - name: Modify service policy, remove services
-      netapp.ontap.na_ontap_service_policy:
-        state: present
-        name: "{{ service_policy_name }}"
-        services:
-          - no_service
-        vserver: "{{ vserver }}"
-
-    - name: Modify service policy at cluster level
-      netapp.ontap.na_ontap_service_policy:
-        state: present
-        name: "{{ service_policy_name }}"
-        ipspace: ansibleIpspace
-        scope: cluster
-        services:
-          - management_core
-          - management_autosupport
-          - management_ems
+- name: Modify service policy at cluster level
+  netapp.ontap.na_ontap_service_policy:
+    state: present
+    name: "{{ service_policy_name }}"
+    ipspace: ansibleIpspace
+    scope: cluster
+    services:
+      - management_core
+      - management_autosupport
+      - management_ems
 """
 
 RETURN = """

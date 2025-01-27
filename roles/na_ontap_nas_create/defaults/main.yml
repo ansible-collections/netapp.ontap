@@ -1,5 +1,5 @@
 ---
-# defaults file for na-ontap-nas-create
+# defaults file for na_ontap_nas_create
 netapp_hostname:
 netapp_password:
 netapp_username:

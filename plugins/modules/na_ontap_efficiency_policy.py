@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -89,34 +89,34 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Create threshold efficiency policy
-      netapp.ontap.na_ontap_efficiency_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        vserver: ansible
-        state: present
-        policy_name: test
-        comment: This policy is for x and y
-        enabled: true
-        policy_type: threshold
-        qos_policy: background
-        changelog_threshold_percent: 20
+- name: Create threshold efficiency policy
+  netapp.ontap.na_ontap_efficiency_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    vserver: ansible
+    state: present
+    policy_name: test
+    comment: This policy is for x and y
+    enabled: true
+    policy_type: threshold
+    qos_policy: background
+    changelog_threshold_percent: 20
 
-    - name: Create Scheduled efficiency Policy
-      netapp.ontap.na_ontap_efficiency_policy:
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
-        vserver: ansible
-        state: present
-        policy_name: test2
-        comment: This policy is for x and y
-        enabled: true
-        schedule: new_job_schedule
-        duration: 1
-        policy_type: scheduled
-        qos_policy: background
+- name: Create Scheduled efficiency Policy
+  netapp.ontap.na_ontap_efficiency_policy:
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    vserver: ansible
+    state: present
+    policy_name: test2
+    comment: This policy is for x and y
+    enabled: true
+    schedule: new_job_schedule
+    duration: 1
+    policy_type: scheduled
+    qos_policy: background
 """
 
 RETURN = """

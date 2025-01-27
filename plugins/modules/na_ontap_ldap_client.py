@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-(c) 2018-2023, NetApp, Inc
+(c) 2018-2025, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
@@ -158,29 +158,28 @@ notes:
 '''
 
 EXAMPLES = '''
+- name: Create LDAP client
+  # assuming credentials are set using module_defaults
+  netapp.ontap.na_ontap_ldap_client:
+    state: present
+    vserver: 'vserver1'
+    servers: 'ldap1.example.company.com,ldap2.example.company.com'
+    base_dn: 'dc=example,dc=company,dc=com'
 
-    - name: Create LDAP client
-      # assuming credentials are set using module_defaults
-      netapp.ontap.na_ontap_ldap_client:
-        state: present
-        vserver: 'vserver1'
-        servers: 'ldap1.example.company.com,ldap2.example.company.com'
-        base_dn: 'dc=example,dc=company,dc=com'
+- name: Modify LDAP client
+  # assuming credentials are set using module_defaults
+  netapp.ontap.na_ontap_ldap_client:
+    state: present
+    vserver: 'vserver1'
+    servers: 'ldap1.example.company.com'
+    base_dn: 'dc=example,dc=company,dc=com'
+    skip_config_validation: true
 
-    - name: modify LDAP client
-      # assuming credentials are set using module_defaults
-      netapp.ontap.na_ontap_ldap_client:
-        state: present
-        vserver: 'vserver1'
-        servers: 'ldap1.example.company.com'
-        base_dn: 'dc=example,dc=company,dc=com'
-        skip_config_validation: true
-
-    - name: Delete LDAP client
-      # assuming credentials are set using module_defaults
-      netapp.ontap.na_ontap_ldap_client:
-        state: absent
-        vserver: 'vserver1'
+- name: Delete LDAP client
+  # assuming credentials are set using module_defaults
+  netapp.ontap.na_ontap_ldap_client:
+    state: absent
+    vserver: 'vserver1'
 '''
 
 RETURN = '''

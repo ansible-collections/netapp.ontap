@@ -21,8 +21,8 @@
 # confirm_before_removing_igroups: true
 # confirm_before_removing_cifs_server: true
 #
-- name: set-facts netapp_hostname, netapp_username & netapp_password
-  set_fact:
+- name: Set-facts netapp_hostname, netapp_username & netapp_password
+  ansible.builtin.set_fact:
     netapp_hostname: "{{ hostname }}"
     netapp_username: "{{ username }}"
     netapp_password: "{{ password }}"
@@ -35,44 +35,44 @@
     - netapp_password is not defined
   no_log: true
 
-- name: check REST is enabled and SVM exists
-  import_tasks: assert_prereqs_and_vserver_exists.yml
+- name: Check REST is enabled and SVM exists
+  ansible.builtin.import_tasks: assert_prereqs_and_vserver_exists.yml
 
-- name: collect and delete volume clones for vserver
-  import_tasks: find_and_delete_volumes.yml
+- name: Collect and delete volume clones for vserver
+  ansible.builtin.import_tasks: find_and_delete_volumes.yml
   vars:
     ignore_errors: true     # delete may fail if a clone is attached to a clone
     is_flexclone: true
     retry_count: 3          # 3 levels of clones, looks like a lot
   when: svm_exists
 
-- name: collect and delete all volumes for vserver
-  import_tasks: find_and_delete_volumes.yml
+- name: Collect and delete all volumes for vserver
+  ansible.builtin.import_tasks: find_and_delete_volumes.yml
   vars:
     ignore_errors: true     # so we can delete as many as possible
     retry_count: 2          # retry any error
   when: svm_exists
 
-- name: pause and check if any volume was not deleted
-  pause:
+- name: Pause and check if any volume was not deleted
+  ansible.builtin.pause:
     seconds: 30
     prompt: waiting for 30 seconds as volumes are deleted
   when:
     - svm_exists
     - volumes | length > 0
 
-- name: collect and delete all volumes for vserver
-  include_tasks: find_and_delete_volumes.yml
+- name: Collect and delete all volumes for vserver
+  ansible.builtin.include_tasks: find_and_delete_volumes.yml
   vars:
     ignore_errors: false     # so we can report errors
   when: svm_exists
 
-- name: collect CIFS server
-  include_tasks: get_cifs_server.yml
+- name: Collect CIFS server
+  ansible.builtin.include_tasks: get_cifs_server.yml
   when: svm_exists
 
-- name: ask for confirmations
-  pause:
+- name: Ask for confirmations
+  ansible.builtin.pause:
     prompt: "the following CIFS server will be deleted {{ cifs_server }}\nPress enter to continue, Ctrl+C to interrupt:"
   when:
     - svm_exists
@@ -80,7 +80,7 @@
     - confirm_before_removing_cifs_server
 
 - name: Delete CIFS server
-  na_ontap_cifs_server:
+  netapp.ontap.na_ontap_cifs_server:
     state: absent
     cifs_server_name: "{{ item }}"
     vserver: "{{ vserver_name }}"
@@ -98,12 +98,12 @@
   loop: "{{ cifs_server }}"
   when: svm_exists
 
-- name: collect igroups
-  include_tasks: get_igroups.yml
+- name: Collect igroups
+  ansible.builtin.include_tasks: get_igroups.yml
   when: svm_exists
 
-- name: ask for confirmations
-  pause:
+- name: Ask for confirmations
+  ansible.builtin.pause:
     prompt: "the following igroups will be deleted {{ igroups }}\nPress enter to continue, Ctrl+C to interrupt:"
   when:
     - svm_exists
@@ -111,7 +111,7 @@
     - confirm_before_removing_igroups
 
 - name: Delete igroups
-  na_ontap_igroup:
+  netapp.ontap.na_ontap_igroup:
     state: absent
     name: "{{ item }}"
     vserver: "{{ vserver_name }}"
@@ -126,12 +126,12 @@
   loop: "{{ igroups }}"
   when: svm_exists
 
-- name: collect interfaces for vserver
-  include_tasks: get_interfaces.yml
+- name: Collect interfaces for vserver
+  ansible.builtin.include_tasks: get_interfaces.yml
   when: svm_exists
 
-- name: ask for confirmations
-  pause:
+- name: Ask for confirmations
+  ansible.builtin.pause:
     prompt: "the following interfaces will be deleted {{ interfaces }}\nPress enter to continue, Ctrl+C to interrupt:"
   when:
     - svm_exists
@@ -139,7 +139,7 @@
     - confirm_before_removing_interfaces
 
 - name: Delete Interfaces
-  na_ontap_interface:
+  netapp.ontap.na_ontap_interface:
     state: absent
     interface_name: "{{ item }}"
     vserver: "{{ vserver_name }}"
@@ -156,7 +156,7 @@
   # also deletes any export policy and rules, NFS, CIFS, and iSCSI servers
   # as well as DNS, routes
   # let's do it, even if the vserver was not found to confirm idempotency
-  na_ontap_svm:
+  netapp.ontap.na_ontap_svm:
     state: absent
     name: "{{ vserver_name }}"
     hostname: "{{ netapp_hostname }}"

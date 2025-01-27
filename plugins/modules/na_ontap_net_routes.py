@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -71,35 +71,35 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create route
-      netapp.ontap.na_ontap_net_routes:
-        state: present
-        vserver: "{{ Vserver name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        destination: 10.7.125.5/20
-        gateway: 10.7.125.1
-        metric: 30
+- name: Create route
+  netapp.ontap.na_ontap_net_routes:
+    state: present
+    vserver: "{{ vserver_name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    destination: 10.7.125.5/20
+    gateway: 10.7.125.1
+    metric: 30
 
-    - name: create route - cluster scope, using REST
-      netapp.ontap.na_ontap_net_routes:
-        state: present
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        destination: 10.7.125.5/20
-        gateway: 10.7.125.1
+- name: Create route - cluster scope, using REST
+  netapp.ontap.na_ontap_net_routes:
+    state: present
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    destination: 10.7.125.5/20
+    gateway: 10.7.125.1
 
-    - name: create route - vserver scope, using REST
-      netapp.ontap.na_ontap_net_routes:
-        state: present
-        vserver: "{{ Vserver name }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
-        destination: 10.7.125.5/20
-        gateway: 10.7.125.1
+- name: Create route - vserver scope, using REST
+  netapp.ontap.na_ontap_net_routes:
+    state: present
+    vserver: "{{ vserver_name }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
+    destination: 10.7.125.5/20
+    gateway: 10.7.125.1
 """
 
 RETURN = """

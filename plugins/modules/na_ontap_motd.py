@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # (c) 2018 Piotr Olczak <piotr.olczak@redhat.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -53,7 +53,6 @@ notes:
 '''
 
 EXAMPLES = '''
-
 - name: Set Cluster-Level MOTD
   netapp.ontap.na_ontap_motd:
     vserver: my_ontap_cluster
@@ -72,7 +71,7 @@ EXAMPLES = '''
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     state: present
-    show_cluster_motd: False
+    show_cluster_motd: false
     https: true
 
 - name: Remove Cluster-Level MOTD

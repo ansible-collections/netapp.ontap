@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2024, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ NetApp ONTAP Info using REST APIs """
@@ -318,95 +318,95 @@ options:
 '''
 
 EXAMPLES = '''
-- name: run ONTAP gather facts for vserver info
+- name: Run ONTAP gather facts for vserver info
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      validate_certs: false
-      use_rest: Always
-      gather_subset:
-        - svm/svms
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
+    gather_subset:
+      - svm/svms
 
-- name: run ONTAP gather facts for aggregate info and volume info
+- name: Run ONTAP gather facts for aggregate info and volume info
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      validate_certs: false
-      use_rest: Always
-      gather_subset:
-        - storage/aggregates
-        - storage/volumes
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    use_rest: always
+    gather_subset:
+      - storage/aggregates
+      - storage/volumes
 
-- name: run ONTAP gather facts for aggregate info and volume info with fields section
+- name: Run ONTAP gather facts for aggregate info and volume info with fields section
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      fields:
-        - '*'
-      validate_certs: false
-      use_rest: Always
-      gather_subset:
-        - storage/aggregates
-        - storage/volumes
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    fields:
+      - '*'
+    validate_certs: false
+    use_rest: always
+    gather_subset:
+      - storage/aggregates
+      - storage/volumes
 
-- name: run ONTAP gather facts for aggregate info with specified fields
+- name: Run ONTAP gather facts for aggregate info with specified fields
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      fields:
-        - 'uuid'
-        - 'name'
-        - 'node'
-      validate_certs: false
-      use_rest: Always
-      gather_subset:
-        - storage/aggregates
-      parameters:
-        recommend:
-          true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    fields:
+      - 'uuid'
+      - 'name'
+      - 'node'
+    validate_certs: false
+    use_rest: always
+    gather_subset:
+      - storage/aggregates
+    parameters:
+      recommend:
+        true
 
 - name: Get Snapshot info (owning_resource example)
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      fields:
-        - '*'
-      validate_certs: false
-      use_rest: Always
-      gather_subset:
-        - storage/volumes/snapshots
-      owning_resource:
-        volume_name: volume_name
-        svm_name: svm_name
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    fields:
+      - '*'
+    validate_certs: false
+    use_rest: always
+    gather_subset:
+      - storage/volumes/snapshots
+    owning_resource:
+      volume_name: volume_name
+      svm_name: svm_name
 
-- name: run ONTAP gather facts for volume info with query on name and state
+- name: Run ONTAP gather facts for volume info with query on name and state
   netapp.ontap.na_ontap_rest_info:
-      hostname: "1.2.3.4"
-      username: "testuser"
-      password: "test-password"
-      https: true
-      validate_certs: false
-      gather_subset:
-        - storage/volumes
-      parameters:
-        name: ansible*
-        state: online
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    gather_subset:
+      - storage/volumes
+    parameters:
+      name: ansible*
+      state: online
 
-- name: run ONTAP gather fact to get DACLs
+- name: Run ONTAP gather fact to get DACLs
   netapp.ontap.na_ontap_rest_info:
-    hostname: "1.2.3.4"
-    username: "testuser"
-    password: "test-password"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
     validate_certs: false
     gather_subset:
@@ -416,11 +416,11 @@ EXAMPLES = '''
       path: /vol1/qtree1
     use_python_keys: true
 
-- name: get ip network interface info.
+- name: Get ip network interface info.
   netapp.ontap.na_ontap_rest_info:
-    hostname: "1.2.3.4"
-    username: "testuser"
-    password: "test-password"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
     validate_certs: false
     gather_subset:
@@ -430,11 +430,11 @@ EXAMPLES = '''
       location.node.name: ontap_cluster
       service_policy.name: default-data-files
 
-- name: get aggregate info
+- name: Get aggregate info
   netapp.ontap.na_ontap_rest_info:
-    hostname: "1.2.3.4"
-    username: "testuser"
-    password: "test-password"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
     https: true
     validate_certs: false
     gather_subset:
@@ -444,7 +444,7 @@ EXAMPLES = '''
       block_storage.primary.raid_type: raid_dp
 
 # assuming module_defaults is used to set hostname, username, ...
-- name: run demo subset using custom vsadmin role
+- name: Run demo subset using custom vsadmin role
   netapp.ontap.na_ontap_rest_info:
     gather_subset:
       - demo

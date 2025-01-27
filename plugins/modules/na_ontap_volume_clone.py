@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -85,20 +85,20 @@ options:
 '''
 
 EXAMPLES = """
-    - name: create volume clone
-      na_ontap_volume_clone:
-        state: present
-        username: "{{ netapp username }}"
-        password: "{{ netapp password }}"
-        hostname: "{{ netapp hostname }}"
-        vserver: vs_hack
-        parent_volume: normal_volume
-        name: clone_volume_7
-        space_reserve: none
-        parent_snapshot: backup1
-        junction_path: /clone_volume_7
-        uid: 1
-        gid: 1
+- name: create volume clone
+  netapp.ontap.na_ontap_volume_clone:
+    state: present
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    vserver: ansibleSVM
+    parent_volume: normal_volume
+    name: clone_volume_7
+    space_reserve: none
+    parent_snapshot: backup1
+    junction_path: /clone_volume_7
+    uid: 1
+    gid: 1
 """
 
 RETURN = """

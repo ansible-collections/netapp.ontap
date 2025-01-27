@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -75,16 +75,16 @@ options:
 '''
 
 EXAMPLES = """
-    - name: Modify Service Processor Network, enable dhcp.
-      netapp.ontap.na_ontap_service_processor_network:
-        state: present
-        address_type: ipv4
-        is_enabled: true
-        dhcp: v4
-        node: "{{ netapp_node }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
-        hostname: "{{ netapp_hostname }}"
+- name: Modify Service Processor Network, enable dhcp.
+  netapp.ontap.na_ontap_service_processor_network:
+    state: present
+    address_type: ipv4
+    is_enabled: true
+    dhcp: v4
+    node: "{{ netapp_node }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    hostname: "{{ netapp_hostname }}"
 """
 
 RETURN = """

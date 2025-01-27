@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -62,50 +62,50 @@ options:
 '''
 
 EXAMPLES = """
-    - name: wait for sp_upgrade in progress
-      netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
-        https: true
-        validate_certs: no
-        name: sp_upgrade
-        conditions: is_in_progress
-        attributes:
-          node: "{{ node }}"
-        polling_interval: 30
-        timeout: 1800
+- name: wait for sp_upgrade in progress
+  netapp.ontap.na_ontap_wait_for_condition:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    name: sp_upgrade
+    conditions: is_in_progress
+    attributes:
+      node: "{{ node }}"
+    polling_interval: 30
+    timeout: 1800
 
-    - name: wait for sp_upgrade not in progress
-      netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
-        https: true
-        validate_certs: no
-        name: sp_upgrade
-        conditions: is_in_progress
-        state: absent
-        attributes:
-          node: "{{ ontap_admin_ip }}"
-        polling_interval: 30
-        timeout: 1800
+- name: wait for sp_upgrade not in progress
+  netapp.ontap.na_ontap_wait_for_condition:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    name: sp_upgrade
+    conditions: is_in_progress
+    state: absent
+    attributes:
+      node: "{{ ontap_admin_ip }}"
+    polling_interval: 30
+    timeout: 1800
 
-    - name: wait for sp_version to match 3.9
-      netapp.ontap.na_ontap_wait_for_condition:
-        hostname: "{{ ontap_admin_ip }}"
-        username: "{{ ontap_admin_username }}"
-        password: "{{ ontap_admin_password }}"
-        https: true
-        validate_certs: no
-        name: sp_version
-        conditions: firmware_version
-        state: present
-        attributes:
-          node: "{{ ontap_admin_ip }}"
-          expected_version: 3.9
-        polling_interval: 30
-        timeout: 1800
+- name: wait for sp_version to match 3.9
+  netapp.ontap.na_ontap_wait_for_condition:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: false
+    name: sp_version
+    conditions: firmware_version
+    state: present
+    attributes:
+      node: "{{ ontap_admin_ip }}"
+      expected_version: 3.9
+    polling_interval: 30
+    timeout: 1800
 """
 
 RETURN = """

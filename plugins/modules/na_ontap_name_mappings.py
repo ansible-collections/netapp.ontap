@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -88,50 +88,50 @@ options:
 '''
 
 EXAMPLES = '''
-    - name: create name mappings configuration
-      netapp.ontap.na_ontap_name_mappings:
-        vserver: vserverName
-        direction: win_unix
-        index: 1
-        pattern: ENGCIFS_AD_USER
-        replacement: unix_user
-        client_match: 10.254.101.111/28
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Create name mappings configuration
+  netapp.ontap.na_ontap_name_mappings:
+    vserver: vserverName
+    direction: win_unix
+    index: 1
+    pattern: ENGCIFS_AD_USER
+    replacement: unix_user
+    client_match: 10.254.101.111/28
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: modify name mappings configuration
-      netapp.ontap.na_ontap_name_mappings:
-        vserver: vserverName
-        direction: win_unix
-        index: 1
-        pattern: ENGCIFS_AD_USERS
-        replacement: unix_user1
-        client_match: 10.254.101.112/28
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Modify name mappings configuration
+  netapp.ontap.na_ontap_name_mappings:
+    vserver: vserverName
+    direction: win_unix
+    index: 1
+    pattern: ENGCIFS_AD_USERS
+    replacement: unix_user1
+    client_match: 10.254.101.112/28
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Swap name mappings position
-      netapp.ontap.na_ontap_name_mappings:
-        vserver: vserverName
-        direction: win_unix
-        index: 1
-        pattern: ENGCIFS_AD_USERS
-        replacement: unix_user1
-        from_index: 2
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Swap name mappings position
+  netapp.ontap.na_ontap_name_mappings:
+    vserver: vserverName
+    direction: win_unix
+    index: 1
+    pattern: ENGCIFS_AD_USERS
+    replacement: unix_user1
+    from_index: 2
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 
-    - name: Delete name mappings configuration
-      netapp.ontap.na_ontap_name_mappings:
-        vserver: vserverName
-        direction: win_unix
-        index: 1
-        hostname: "{{ netapp_hostname }}"
-        username: "{{ netapp_username }}"
-        password: "{{ netapp_password }}"
+- name: Delete name mappings configuration
+  netapp.ontap.na_ontap_name_mappings:
+    vserver: vserverName
+    direction: win_unix
+    index: 1
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 '''
 
 RETURN = """

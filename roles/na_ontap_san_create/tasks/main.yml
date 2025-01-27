@@ -1,6 +1,6 @@
 ---
 - name: Create iGroup
-  na_ontap_igroup:
+  netapp.ontap.na_ontap_igroup:
     state: present
     name: "{{ item.name }}"
     vserver: "{{ item.vserver }}"
@@ -16,7 +16,7 @@
     "{{ igroups }}"
   when: igroups != None
 - name: Create volume
-  na_ontap_volume:
+  netapp.ontap.na_ontap_volume:
     state: present
     name: "{{ item.vol_name }}"
     aggregate_name: "{{ item.aggr }}"
@@ -32,7 +32,7 @@
   with_items:
     "{{ luns }}"
 - name: Lun Create
-  na_ontap_lun:
+  netapp.ontap.na_ontap_lun:
     state: present
     name: "{{ item.name }}"
     flexvol_name: "{{ item.vol_name }}"
@@ -50,7 +50,7 @@
     "{{ luns }}"
   when: luns != None
 - name: Create LUN mapping
-  na_ontap_lun_map:
+  netapp.ontap.na_ontap_lun_map:
     state: present
     initiator_group_name: "{{ item.igroup }}"
     path: "/vol/{{ item.vol_name }}/{{ item.name }}"

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2022, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -87,38 +87,38 @@ options:
 """
 
 EXAMPLES = """
-    - name: Create NTFS Security Descriptor
-      na_ontap_ntfs_sd:
-        state: present
-        vserver: SVM1
-        name: ansible_sd
-        owner: DOMAIN\\Account
-        group: DOMAIN\\Group
-        control_flags_raw: 0
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Create NTFS Security Descriptor
+  netapp.ontap.na_ontap_ntfs_sd:
+    state: present
+    vserver: SVM1
+    name: ansible_sd
+    owner: DOMAIN\\Account
+    group: DOMAIN\\Group
+    control_flags_raw: 0
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Modify NTFS Security Descriptor
-      na_ontap_ntfs_sd:
-        state: present
-        vserver: SVM1
-        name: ansible_sd
-        owner: DOMAIN\\Account
-        group: DOMAIN\\Group
-        control_flags_raw: 0
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Modify NTFS Security Descriptor
+  netapp.ontap.na_ontap_ntfs_sd:
+    state: present
+    vserver: SVM1
+    name: ansible_sd
+    owner: DOMAIN\\Account
+    group: DOMAIN\\Group
+    control_flags_raw: 0
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 
-    - name: Delete NTFS Security Descriptor
-      na_ontap_ntfs_sd:
-        state: absent
-        vserver: SVM1
-        name: ansible_sd
-        hostname: "{{ hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+- name: Delete NTFS Security Descriptor
+  netapp.ontap.na_ontap_ntfs_sd:
+    state: absent
+    vserver: SVM1
+    name: ansible_sd
+    hostname: "{{ hostname }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
 """
 
 RETURN = """
