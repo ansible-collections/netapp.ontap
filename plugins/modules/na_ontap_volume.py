@@ -380,6 +380,12 @@ options:
     type: int
     version_added: 22.8.0
 
+  large_size_enabled:
+    description:
+      - Indicates if the support for large FlexVol volumes and large files is enabled on this volume.
+    type: bool
+    version_added: 22.14.0
+
   wait_for_completion:
     description:
       - Set this parameter to 'true' for synchronous execution during create (wait until volume status is online)
@@ -1039,6 +1045,7 @@ class NetAppOntapVolume:
             atime_update=dict(required=False, type='bool'),
             vol_nearly_full_threshold_percent=dict(required=False, type='int'),
             vol_full_threshold_percent=dict(required=False, type='int'),
+            large_size_enabled=dict(required=False, type='bool'),
             auto_provision_as=dict(choices=['flexgroup'], required=False, type='str'),
             wait_for_completion=dict(required=False, type='bool', default=False),
             time_out=dict(required=False, type='int', default=180),
@@ -1157,11 +1164,12 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
                                                ['analytics', (9, 8)], ['atime_update', (9, 8)],
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
-                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)], ['granular_data', (9, 12, 1)],
+                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)],
+                                               ['granular_data', (9, 12, 1)], ['large_size_enabled', (9, 12, 1)],
                                                ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
                                             'analytics', 'activity_tracking', 'tags', 'vol_nearly_full_threshold_percent',
-                                            'vol_full_threshold_percent', 'snapshot_locking', 'granular_data']
+                                            'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -2094,7 +2102,7 @@ class NetAppOntapVolume:
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
                              'snaplock', 'max_files', 'analytics', 'activity_tracking', 'tags', 'snapshot_auto_delete',
-                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'snapshot_locking', 'granular_data']:
+                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2553,6 +2561,8 @@ class NetAppOntapVolume:
             params['fields'] += 'space.nearly_full_threshold_percent,'
         if self.parameters.get('vol_full_threshold_percent') is not None:
             params['fields'] += 'space.full_threshold_percent,'
+        if self.parameters.get('large_size_enabled') is not None:
+            params['fields'] += 'space.large_size_enabled,'
         if self.parameters.get('snapshot_locking') is not None:
             params['fields'] += 'snapshot_locking_enabled,'
         if self.parameters.get('granular_data') is not None:
@@ -2714,6 +2724,7 @@ class NetAppOntapVolume:
             ('access_time_enabled', 'atime_update', None),
             ('space.nearly_full_threshold_percent', 'vol_nearly_full_threshold_percent', None),
             ('space.full_threshold_percent', 'vol_full_threshold_percent', None),
+            ('space.large_size_enabled', 'large_size_enabled', None),
             ('snapshot_locking_enabled', 'snapshot_locking', None),
             ('granular_data', 'granular_data', None),
         ]:
@@ -2964,6 +2975,7 @@ class NetAppOntapVolume:
             'snapshot_auto_delete': auto_delete_info,
             'vol_nearly_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'nearly_full_threshold_percent']),
             'vol_full_threshold_percent': self.na_helper.safe_get(record, ['space', 'full_threshold_percent']),
+            'large_size_enabled': self.na_helper.safe_get(record, ['space', 'large_size_enabled']),
             'snapshot_locking': self.na_helper.safe_get(record, ['snapshot_locking_enabled']),
             'granular_data': self.na_helper.safe_get(record, ['granular_data']),
         }
