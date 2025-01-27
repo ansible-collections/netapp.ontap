@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_software_update - deleting a software package is now supported with ZAPI and REST.
 bugfixes:

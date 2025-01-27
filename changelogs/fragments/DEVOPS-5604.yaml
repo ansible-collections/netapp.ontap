@@ -1,3 +1,4 @@
+---
 bugfixes:
   - na_ontap_interface - fix cannot set ``location.node.name`` and ``location.home_node.name`` error when creating or modifying fc interface.
   - na_ontap_interface - fix unexpected argument error with ``ipspace`` when trying to get fc interface.

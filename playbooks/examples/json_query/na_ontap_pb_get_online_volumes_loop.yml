@@ -1,9 +1,7 @@
--
-  name: Get list of online ONTAP volumes
+---
+- name: Get list of online ONTAP volumes
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
   vars_files:
     # This will fail silently if the vars_file is not found.  Remove '/dev/null' to force an error
     # if --extra_vars is used to provide values for these variables, the values from vars_file are ignored
@@ -46,12 +44,16 @@
       https: "{{ ontap_use_https }}"
       validate_certs: "{{ ontap_validate_certs }}"
   tasks:
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
       tags: never
-    - debug: var=ontap.results
-      tags: xnever
-    - name: collect list of volumes, and state information
-      na_ontap_info:
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap.results
+      tags: never
+    - name: Collect list of volumes, and state information
+      netapp.ontap.na_ontap_info:
         hostname: "{{ item }}"
         <<: *login
         gather_subset: volume_info
@@ -64,22 +66,32 @@
       loop: "{{ ontap_admin_ips }}"
       loop_control:
         label: "{{ item }}"
-    - set_fact:
-        volumes: "{{ volumes|default({}) | combine( {item.item: item.ontap_info | json_query(get_attrs)} ) }}"
+    - name: Retrieve attributes
+      ansible.builtin.set_fact:
+        volumes: "{{ volumes | default({}) | combine({item.item: item.ontap_info | json_query(get_attrs)}) }}"
       vars:
         get_attrs: "volume_info.*.{id: volume_id_attributes.name, svm: volume_id_attributes.owning_vserver_name, state: volume_state_attributes.state}"
       loop: "{{ ontap.results }}"
-    - debug: var=volumes
-    - pause:
-    - set_fact:
-        online_volumes: "{{ online_volumes|default({}) | combine( {item.key: item.value | json_query(get_online)} ) }}"
+    - name: Print info
+      ansible.builtin.debug:
+        var: volumes
+    - name: Pause
+      ansible.builtin.pause:
+    - name: Retrieve online volumes
+      ansible.builtin.set_fact:
+        online_volumes: "{{ online_volumes | default({}) | combine({item.key: item.value | json_query(get_online)}) }}"
       vars:
         get_online: "[? state=='online']"
       loop: "{{ volumes | dict2items }}"
-    - debug: var=online_volumes
-    - set_fact:
-        offline_volumes: "{{ offline_volumes|default({}) | combine( {item.key: item.value | json_query(get_offline)} ) }}"
+    - name: Print info
+      ansible.builtin.debug:
+        var: online_volumes
+    - name: Retrieve offline volumes
+      ansible.builtin.set_fact:
+        offline_volumes: "{{ offline_volumes | default({}) | combine({item.key: item.value | json_query(get_offline)}) }}"
       vars:
         get_offline: "[? state=='offline']"
       loop: "{{ volumes | dict2items }}"
-    - debug: var=offline_volumes
+    - name: Print info
+      ansible.builtin.debug:
+        var: offline_volumes

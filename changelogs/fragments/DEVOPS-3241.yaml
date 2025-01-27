@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_users - new option ``application_dicts`` to associate multiple authentication methods to an application.
   - na_ontap_users - new option ``application_strs`` to disambiguate ``applications``.

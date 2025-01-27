@@ -1,3 +1,4 @@
+---
 bugfixes:
   - na_ontap_interface - enforce requirement for address/netmask for interfaces other than FC.
   - na_ontap_interface - fix idempotency issue for cluster scoped interfaces when using REST.

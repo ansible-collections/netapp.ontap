@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_volume_efficiency - new option to allow volume efficiency to be started and stopped 'volume_efficiency'.
   - na_ontap_volume_efficiency - new option 'start_ve_scan_all' scan the entire volume without applying share block optimization.

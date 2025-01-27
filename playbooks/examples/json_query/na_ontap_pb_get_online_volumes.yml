@@ -1,9 +1,7 @@
--
-  name: Get list of online ONTAP volumes
+---
+- name: Get list of online ONTAP volumes
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
   vars_files:
     # This will fail silently if the vars_file is not found.  Remove '/dev/null' to force an error
     # if --extra_vars is used to provide values for these variables, the values from vars_file are ignored
@@ -47,8 +45,8 @@
       https: "{{ ontap_use_https }}"
       validate_certs: "{{ ontap_validate_certs }}"
   tasks:
-    - name: collect list of volumes, and state information
-      na_ontap_info:
+    - name: Collect list of volumes, and state information
+      netapp.ontap.na_ontap_info:
         <<: *cert_login
         gather_subset: volume_info
         desired_attributes:
@@ -57,20 +55,31 @@
               state:
         use_native_zapi_tags: false
       register: ontap
-    - debug: var=ontap
+    - name: Print result
+      ansible.builtin.debug:
+        var: ontap
       tags: never
-    - set_fact:
+    - name: Retrieve attributes
+      ansible.builtin.set_fact:
         volumes: "{{ ontap.ontap_info | json_query(get_attrs) }}"
       vars:
         get_attrs: "volume_info.*.{id: volume_id_attributes.name, svm: volume_id_attributes.owning_vserver_name, state: volume_state_attributes.state}"
-    - debug: var=volumes
-    - set_fact:
+    - name: Print result
+      ansible.builtin.debug:
+        var: volumes
+    - name: Retrieve volume info
+      ansible.builtin.set_fact:
         online_volumes: "{{ volumes | json_query(get_online) }}"
       vars:
         get_online: "[? state=='online']"
-    - debug: var=online_volumes
-    - set_fact:
+    - name: Print result
+      ansible.builtin.debug:
+        var: online_volumes
+    - name: Retrieve volume info
+      ansible.builtin.set_fact:
         offline_volumes: "{{ volumes | json_query(get_offline) }}"
       vars:
         get_offline: "[? state=='offline']"
-    - debug: var=offline_volumes
+    - name: Print result
+      ansible.builtin.debug:
+        var: offline_volumes

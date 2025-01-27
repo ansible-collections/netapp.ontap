@@ -1,3 +1,4 @@
+---
 bugfixes:
   - na_ontap_interface - FC interfaces - scope is not supported.
   - na_ontap_interface - FC interfaces - home_port is not supported for ONTAP 9.7 or earlier.

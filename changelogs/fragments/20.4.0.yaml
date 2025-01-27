@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_aggregate - ``disk_count`` option allows adding additional disk to aggregate.
   - na_ontap_info - ``max_records`` option specifies maximum number of records returned in a single ZAPI call.

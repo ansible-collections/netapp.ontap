@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_snapmirror_policy - new option ``transfer_schedule`` for async policy types.
   - na_ontap_snapmirror_policy - add support for cluster scoped policy with REST.

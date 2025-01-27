@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_cifs - updated documentation and examples for REST.
   - na_ontap_cifs - removed default value for ``unix_symlink`` as its not supported with ZAPI.

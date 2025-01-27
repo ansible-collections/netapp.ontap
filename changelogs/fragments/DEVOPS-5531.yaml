@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_autosupport_invoke - warn when ``message`` alias is used as it will be removed - it conflicts with Ansible internal variable.
   - na_ontap_login_message - warn when ``message`` alias is used as it will be removed - it conflicts with Ansible internal variable.

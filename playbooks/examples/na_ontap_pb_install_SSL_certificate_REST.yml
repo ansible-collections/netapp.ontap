@@ -1,3 +1,4 @@
+---
 # Example of installing a SSL certificate in ONTAP for authentication
 # This playbook:
 # 1. installs the certificate, or proceeds if the certificate is already installed,
@@ -16,14 +17,11 @@
 # you must have generated a certificate and have the certificate file (.pem) and the private key file available.
 # This was tested using a self signed certificate:
 # https://netapp.io/2016/11/08/certificate-based-authentication-netapp-manageability-sdk-ontap/
--
-  name: Ontap Install SSL certificate and enable SSL certificate authentication
+- name: Ontap Install SSL certificate and enable SSL certificate authentication
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
   vars:
-  # TODO: change these variable values from HERE to DONE:
+    # TODO: change these variable values from HERE to DONE:
     ontap_admin_ip: 10.xxx.xxx.x19
     ontap_admin_username: admin
     ontap_admin_password: xxxxxxxxx
@@ -43,8 +41,8 @@
     # admin or SVM IP address (for admin, would the same as ontap_admin_ip)
     ontap_svm_ip: 10.XXX.XXX.X21
     # certificate and private key files
-    cert_filepath: "/home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.pem"
-    key_filepath: "/home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.key"
+    cert_filepath: /home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.pem
+    key_filepath: /home/laurentn/atelier/wsl/ansible/ansible_collections/ansible_collection_ontap/test.key
     # set this to false if the certificate is self-signed
     validate_certs_for_ssl_auth: false
 
@@ -79,7 +77,7 @@
     # ssl_certificate: "{{ ssl_certificate_inline }}"
     ssl_certificate: "{{ ssl_certificate_from_file }}"
 
-  # DONE - do not change anything else (unless you really want to)
+    # DONE - do not change anything else (unless you really want to)
 
     # this will be used to authenticate using SSL certificate
     cert_login: &cert_login
@@ -97,15 +95,16 @@
       validate_certs: "{{ ontap_validate_certs }}"
 
   tasks:
-    - name: run ontap info module to check connectivity
-      na_ontap_info:
+    - name: Run ontap info module to check connectivity
+      netapp.ontap.na_ontap_info:
         <<: *login
         gather_subset: ontap_system_version
       register: ontap
-    - debug: var=ontap.ontap_info.ontap_version
-
-    - name: install certificate
-      na_ontap_security_certificates:
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap.ontap_info.ontap_version
+    - name: Install certificate
+      netapp.ontap.na_ontap_security_certificates:
         <<: *login
         common_name: "{{ ontap_cert_user }}"
         name: "{{ ontap_cert_name }}"
@@ -113,13 +112,18 @@
         type: client_ca
         svm: "{{ svm }}"
       register: result
-    - debug: var=result
-    - assert: {that: result.changed, quiet: true}
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.changed
+        quiet: true
 
-    - name: install certificate (idempotency test)
+    - name: Install certificate (idempotency test)
       # use -t all,testpb when testing the playbook
       tags: never,testpb
-      na_ontap_security_certificates:
+      netapp.ontap.na_ontap_security_certificates:
         <<: *login
         common_name: "{{ ontap_cert_user }}"
         name: "{{ ontap_cert_name }}"
@@ -127,13 +131,18 @@
         type: client_ca
         svm: "{{ svm }}"
       register: result
-    - debug: var=result
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
       tags: never,testpb
-    - assert: {that: not result.changed, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: not result.changed
+        quiet: true
       tags: never,testpb
 
-    - name: set up cert authentication for ontapi (ZAPI) and http (REST)
-      na_ontap_user:
+    - name: Set up cert authentication for ontapi (ZAPI) and http (REST)
+      netapp.ontap.na_ontap_user:
         <<: *login
         applications: ontapi,http
         authentication_method: cert
@@ -142,21 +151,27 @@
         svm: "{{ svm }}"
         use_rest: Always
       register: result
-    - debug: var=result
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
       tags: never,testpb
-    - assert: {that: result.changed, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.changed
+        quiet: true
       tags: never,testpb
 
-    - name: validate cert authentication is working for REST
-      na_ontap_rest_info:
+    - name: Validate cert authentication is working for REST
+      netapp.ontap.na_ontap_rest_info:
         <<: *cert_login
         gather_subset: vserver_info
       register: result
-    - debug: var=result
-
-    - name: remove cert authentication for ontapi (ZAPI) and http (REST) when testing
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
+    - name: Remove cert authentication for ontapi (ZAPI) and http (REST) when testing
       tags: never,testpb
-      na_ontap_user:
+      netapp.ontap.na_ontap_user:
         <<: *login
         state: absent
         applications: ontapi,http
@@ -166,37 +181,52 @@
         svm: "{{ svm }}"
         use_rest: Always
       register: result
-    - debug: var=result
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
       tags: never,testpb
-    - assert: {that: result.changed, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.changed
+        quiet: true
       tags: never,testpb
 
-    - name: delete certificate when testing
+    - name: Delete certificate when testing
       # use -t all,never when testing the playbook
       tags: never,testpb,delete
-      na_ontap_security_certificates:
+      netapp.ontap.na_ontap_security_certificates:
         <<: *login
         common_name: "{{ ontap_cert_user }}"
         name: "{{ ontap_cert_name }}"
         svm: "{{ svm }}"
         state: absent
       register: result
-    - debug: var=result
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
       tags: never,testpb,delete
-    - assert: {that: result.changed, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.changed
+        quiet: true
       tags: never,testpb,delete
 
-    - name: delete certificate when testing (idempotemcy)
+    - name: Delete certificate when testing (idempotemcy)
       # use -t all,never when testing the playbook
       tags: never,testpb,delete
-      na_ontap_security_certificates:
+      netapp.ontap.na_ontap_security_certificates:
         <<: *login
         common_name: "{{ ontap_cert_user }}"
         name: "{{ ontap_cert_name }}"
         svm: "{{ svm }}"
         state: absent
       register: result
-    - debug: var=result
+    - name: Print info
+      ansible.builtin.debug:
+        var: result
       tags: never,testpb,delete
-    - assert: {that: not result.changed, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: not result.changed
+        quiet: true
       tags: never,testpb,delete

@@ -1,2 +1,3 @@
+---
 bugfixes:
-    - na_ontap_autosupport - KeyError - No element by given name validate-digital-certificate.
+  - na_ontap_autosupport - KeyError - No element by given name validate-digital-certificate.

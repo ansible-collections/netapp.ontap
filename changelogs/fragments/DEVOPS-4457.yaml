@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_vserver_delete role - do not report an error if the vserver does not exist.
 bugfixes:

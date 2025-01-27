@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_vscan_on_access_policy - Added REST support.
   - na_ontap_vscan_on_access_policy - new REST options ``scan_readonly_volumes`` and ``only_execute_access`` added.

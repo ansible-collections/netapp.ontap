@@ -1,9 +1,7 @@
--
-  name: ONTAP list aggregates
+---
+- name: ONTAP list aggregates
   gather_facts: false
   hosts: localhost
-  collections:
-    - netapp.ontap
 
   module_defaults:
     group/netapp.ontap.netapp_ontap:
@@ -14,7 +12,7 @@
       validate_certs: false
 
   tasks:
-    - name: list aggregates
+    - name: List aggregates
       netapp.ontap.na_ontap_rest_info:
         gather_subset:
           - storage/aggregates

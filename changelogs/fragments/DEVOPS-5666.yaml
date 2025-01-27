@@ -1,3 +1,4 @@
+---
 bugfixes:
   - na_ontap_aggregate - allow adding disks before trying to offline aggregate.
   - na_ontap_aggregate - fix ``service_state`` option skipped if its set to offline in create.

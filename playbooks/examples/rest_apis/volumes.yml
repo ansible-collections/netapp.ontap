@@ -1,9 +1,7 @@
--
-  name: Ontap REST API
+---
+- name: Ontap REST API
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
   vars:
     admin_ip: XXX.XXX.XXX.XXX
     admin_username: XXXXXXXX
@@ -19,24 +17,30 @@
       feature_flags:
         trace_apis: true
   tasks:
-    - name: run ontap REST API command as cluster admin - get version
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin - get version
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: cluster/software
         query:
           fields: version
       register: result
-    - assert: {that: result.status_code==200, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin - get list of SVMs
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin - get list of SVMs
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
       register: result
-    - assert: {that: result.status_code==200, quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.status_code==200
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin - get list of aggregates for this SVM
-      na_ontap_restit:
+    - name: Run ontap REST API command as cluster admin - get list of aggregates for this SVM
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: svm/svms
         query:
@@ -46,9 +50,9 @@
         hal_linking: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - delete volume
+    - name: Run ontap REST API command as cluster admin - delete volume
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         query:  # query based DELETE does not require a UUID
@@ -58,9 +62,9 @@
         wait_for_completion: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - create volume
+    - name: Run ontap REST API command as cluster admin - create volume
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         body:
@@ -71,11 +75,14 @@
         method: POST
         wait_for_completion: true
       register: result
-    - assert: {that: result.response.job_response=='success', quiet: true}
+    - name: Assertions
+      ansible.builtin.assert:
+        that: result.response.job_response=='success'
+        quiet: true
 
-    - name: run ontap REST API command as cluster admin - create volume - already exists!
+    - name: Run ontap REST API command as cluster admin - create volume - already exists!
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         body:
@@ -87,15 +94,16 @@
         wait_for_completion: true
       ignore_errors: true
       register: result
-    - assert:
+    - name: Assertions
+      ansible.builtin.assert:
         that: msg in result.error_message
         quiet: true
       vars:
         msg: 'Duplicate volume name'
 
-    - name: run ontap REST API command as cluster admin - patch volume (rename)
+    - name: Run ontap REST API command as cluster admin - patch volume (rename)
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         query:  # query based DELETE does not require a UUID
@@ -107,9 +115,9 @@
         wait_for_completion: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - delete volume
+    - name: Run ontap REST API command as cluster admin - delete volume
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         query:  # query based DELETE does not require a UUID
@@ -119,9 +127,9 @@
         wait_for_completion: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - create volume (vserver tunneling)
+    - name: Run ontap REST API command as cluster admin - create volume (vserver tunneling)
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         body:
@@ -133,9 +141,9 @@
         wait_for_completion: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - patch volume (rename) (vserver tunneling)
+    - name: Run ontap REST API command as cluster admin - patch volume (rename) (vserver tunneling)
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         query:  # query based DELETE does not require a UUID
@@ -147,9 +155,9 @@
         wait_for_completion: true
       register: result
 
-    - name: run ontap REST API command as cluster admin - delete volume (vserver tunneling)
+    - name: Run ontap REST API command as cluster admin - delete volume (vserver tunneling)
       tags: create
-      na_ontap_restit:
+      netapp.ontap.na_ontap_restit:
         <<: *login
         api: storage/volumes
         query:  # query based DELETE does not require a UUID

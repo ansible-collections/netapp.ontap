@@ -1,3 +1,4 @@
+---
 # Example of installing a SSL certificate in ONTAP for authentication
 # This playbook:
 # 1. installs the certificate, or proceeds if the certificate is already installed,
@@ -16,12 +17,9 @@
 # you must have generated a certificate and have the certificate file (.pem) and the private key file available.
 # This was tested using a self signed certificate:
 # https://netapp.io/2016/11/08/certificate-based-authentication-netapp-manageability-sdk-ontap/
--
-  name: Ontap Install SSL certificate and enable SSL certificate authentication
+- name: Ontap Install SSL certificate and enable SSL certificate authentication
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
   vars:
   # TODO: change these variable values from HERE to DONE:
     ontap_admin_ip: 10.XXX.XXX.X19
@@ -41,8 +39,8 @@
     # admin or SVM IP address (for admin, would the same as ontap_admin_ip)
     ontap_svm_ip: 10.XXX.XXX.X21
     # certificate and private key files
-    cert_filepath: "/home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.pem"
-    key_filepath: "/home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.key"
+    cert_filepath: /home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.pem
+    key_filepath: /home/laurentn/atelier/ansible_wsl/ansible-playbooks/test.key
     # set this to false if the certificate is self-signed
     validate_certs_for_ssl_auth: false
 
@@ -77,7 +75,7 @@
     # ssl_certificate: "{{ ssl_certificate_inline }}"
     ssl_certificate: "{{ ssl_certificate_from_file }}"
 
-  # DONE - do not change anything else (unless you really want to)
+    # DONE - do not change anything else (unless you really want to)
 
     # this will be used to authenticate using SSL certificate
     cert_login: &cert_login
@@ -95,15 +93,17 @@
       validate_certs: "{{ ontap_validate_certs }}"
 
   tasks:
-    - name: run ontap info module to check connectivity
-      na_ontap_info:
+    - name: Run ontap info module to check connectivity
+      netapp.ontap.na_ontap_info:
         <<: *login
         gather_subset: ontap_system_version
       register: ontap
-    - debug: var=ontap.ontap_info.ontap_version
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap.ontap_info.ontap_version
 
-    - name: use ZAPIT to install certificate
-      na_ontap_zapit:
+    - name: Use ZAPIT to install certificate
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           security-certificate-install:
@@ -113,27 +113,36 @@
             vserver: "{{ vserver }}"
       ignore_errors: true
       register: ontap
-    - debug: var=ontap
-    - fail:
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
+    - name: Fail module
+      ansible.builtin.fail:
         msg: "Failed to install certificate: {{ ontap }}"
       when: ontap.failed and ontap.reason != "duplicate entry"
-    - name: collect certificate data to be able to delete it later when testing
+    - name: Collect certificate data to be able to delete it later when testing
       tags: never,testpb
-      set_fact:
+      ansible.builtin.set_fact:
         certificate_authority: "{{ ontap.response.ca | default('unknown') }}"
         serial_number: "{{ ontap.response.serial | default(0) }}"
         certificate_installed: "{{ not ontap.failed }}"
-    - debug: var=certificate_authority
+    - name: Print info
+      ansible.builtin.debug:
+        var: certificate_authority
       tags: never,testpb
-    - debug: var=serial_number
+    - name: Print info
+      ansible.builtin.debug:
+        var: serial_number
       tags: never,testpb
-    - debug: var=certificate_installed
+    - name: Print info
+      ansible.builtin.debug:
+        var: certificate_installed
       tags: never,testpb
 
-    - name: use ZAPIT to install certificate (idempotency)
+    - name: Use ZAPIT to install certificate (idempotency)
       # use -t all,testpb when testing the playbook
       tags: never,testpb
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           security-certificate-install:
@@ -143,26 +152,31 @@
             vserver: "{{ vserver }}"
       ignore_errors: true
       register: ontap
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
       tags: never,testpb
-    - fail:
+    - name: Fail module
+      ansible.builtin.fail:
         msg: "Failed to install certificate: {{ ontap }}"
       tags: never,testpb
       when: ontap.failed and ontap.reason != "duplicate entry"
 
-    - name: use ZAPIT to enable certificate authentication
-      na_ontap_zapit:
+    - name: Use ZAPIT to enable certificate authentication
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           security-ssl-modify:
             client-authentication-enabled: true
             vserver: "{{ vserver }}"
       register: ontap
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
       tags: never,testpb
 
-    - name: set up cert authentication for ontapi (ZAPI) and http (REST)
-      na_ontap_user:
+    - name: Set up cert authentication for ontapi (ZAPI) and http (REST)
+      netapp.ontap.na_ontap_user:
         <<: *login
         applications: ontapi,http
         authentication_method: cert
@@ -170,19 +184,23 @@
         role_name: "{{ ontap_cert_role }}"
         vserver: "{{ vserver }}"
       register: ontap
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
       tags: never,testpb
 
-    - name: validate cert authentication is working for ZAPI
-      na_ontap_info:
+    - name: Validate cert authentication is working for ZAPI
+      netapp.ontap.na_ontap_info:
         <<: *cert_login
         gather_subset: ontap_version
       register: ontap
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
 
-    - name: remove cert authentication for ontapi (ZAPI) and http (REST) when testing
+    - name: Remove cert authentication for ontapi (ZAPI) and http (REST) when testing
       tags: never,testpb
-      na_ontap_user:
+      netapp.ontap.na_ontap_user:
         <<: *login
         state: absent
         applications: ontapi,http
@@ -191,13 +209,15 @@
         role_name: "{{ ontap_cert_role }}"
         vserver: "{{ vserver }}"
       register: ontap
-    - debug: var=ontap
+    - name: Print info
+      ansible.builtin.debug:
+        var: ontap
       tags: never,testpb
 
-    - name: use ZAPIT to delete certificate when testing
+    - name: Use ZAPIT to delete certificate when testing
       # use -t all,never when testing the playbook
       tags: never,testpb,delete
-      na_ontap_zapit:
+      netapp.ontap.na_ontap_zapit:
         <<: *login
         zapi:
           security-certificate-delete:

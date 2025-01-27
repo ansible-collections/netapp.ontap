@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_mcc_mediator - improve error reporting when REST is not available.
   - na_ontap_metrocluster - improve error reporting when REST is not available.

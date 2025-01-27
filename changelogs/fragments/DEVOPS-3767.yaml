@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_lun - ignore small increase (lower than provisioned) and small decrease (< 10%) in ``total_size``.
 bugfixes:

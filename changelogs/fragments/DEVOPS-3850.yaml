@@ -1,5 +1,6 @@
+---
 major_changes:
-    - na_ontap_autosupport - Added REST support to the module.
+  - na_ontap_autosupport - Added REST support to the module.
 minor_changes:
   - na_ontap_autosupport - new option ``nht_data_enabled`` to specify whether the disk health data is collected as part of the AutoSupport data.
   - na_ontap_autosupport - new option ``perf_data_enabled`` to specify whether the performance data is collected as part of the AutoSupport data.

@@ -1,12 +1,10 @@
--
-  name: ONTAP connect
+---
+- name: ONTAP connect
   hosts: localhost
   gather_facts: false
-  collections:
-    - netapp.ontap
 
   tasks:
-    - name: debug connectivity using admin management interface or vsadmin interface
+    - name: Debug connectivity using admin management interface or vsadmin interface
       # use this to validate ZAPI and REST connectivity
       #   - with admin management interface, use admin or a user with admin privileges
       #   - with vsadmin management interface, use vsadmin or a user with vsadmin privileges
@@ -18,14 +16,14 @@
       tags:
         - admin
         - vsadmin
-      na_ontap_debug:
+      netapp.ontap.na_ontap_debug:
         hostname: "ip address of management interface, or of vserver interface"
         username: "xxxx"
         password: "yyyy"
         https: true
         validate_certs: false
 
-    - name: debug connectivity using admin interface, validate vserver configuration
+    - name: Debug connectivity using admin interface, validate vserver configuration
       # use this to validate ZAPI and REST connectivity, and check vserver is reachable
       # with admin management interface, use admin or a user with admin privileges
       # run this as
@@ -33,7 +31,7 @@
       tags:
         - never
         - admin_and_vserver
-      na_ontap_debug:
+      netapp.ontap.na_ontap_debug:
         hostname: "ip_address_of_management_interface"
         username: "xxxx"
         password: "yyyy"

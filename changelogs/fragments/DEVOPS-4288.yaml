@@ -1,3 +1,4 @@
+---
 bugfixes:
   - na_ontap_job_schedule - fix idempotency issue with ZAPI when job_minutes is set to -1.
   - na_ontap_job_schedule - cannot modify options not present in create when using REST.

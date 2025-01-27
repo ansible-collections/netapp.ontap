@@ -1,3 +1,4 @@
+---
 minor_changes:
   - na_ontap_volume - new option ``max_files`` to increase the inode count value.
   - na_ontap_volume - allow to modify volume after rename.

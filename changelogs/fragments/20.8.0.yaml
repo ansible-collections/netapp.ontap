@@ -1,10 +1,16 @@
+---
 minor_changes:
   - na_ontap_aggregate - support ``disk_size_with_unit`` option.
   - na_ontap_ldap_client - support ``ad_domain`` and ``preferred_ad_server`` options.
-  - na_ontap_rest_info - Support for gather subsets - ``cloud_targets_info, cluster_chassis_info, cluster_jobs_info, cluster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages, network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info, san_fc_logins_info, san_fc_wppn-aliases, svm_dns_config_info, svm_ldap_config_info, svm_name_mapping_config_info, svm_nis_config_info, svm_peers_info, svm_peer-permissions_info``.
+  - na_ontap_rest_info - Support for gather subsets - ``cloud_targets_info, cluster_chassis_info, cluster_jobs_info,
+    luster_metrics_info, cluster_schedules, broadcast_domains_info, cluster_software_history, cluster_software_packages,
+    network_ports_info, ip_interfaces_info, ip_routes_info, ip_service_policies, network_ipspaces_info, san_fc_logins_info,
+    san_fc_wppn-aliases, svm_dns_config_info, svm_ldap_config_info, svm_name_mapping_config_info, svm_nis_config_info,
+    svm_peers_info, svm_peer-permissions_info``.
   - na_ontap_rest_info - Support for gather subsets for 9.8+ - ``cluster_metrocluster_diagnostics``.
   - na_ontap_qtree - ``force_delete`` option with a DEFAULT of ``true`` so that ZAPI behavior is aligned with REST.
-  - na_ontap_security_certificates - ``ignore_name_if_not_supported`` option to not fail if ``name`` is present since ``name`` is not supported in ONTAP 9.6 and 9.7.
+  - na_ontap_security_certificates - ``ignore_name_if_not_supported`` option to not fail if ``name`` is present
+    since ``name`` is not supported in ONTAP 9.6 and 9.7.
   - na_ontap_software_update - added ``timeout`` option to give enough time for the update to complete.
   - use a three group format for ``version_added``.  So 2.7 becomes 2.7.0.  Same thing for 2.8 and 2.9.
   - add ``type:`` and ``elements:`` information where missing.
@@ -12,7 +18,8 @@ minor_changes:
 
 bugfixes:
   - na_ontap_aggregate - ``disk-info`` error when using ``disks`` option.
-  - na_ontap_autosupport_invoke - ``message`` has changed to ``autosupport_message`` as Redhat has reserved this word. ``message`` has been alias'd to ``autosupport_message``.
+  - na_ontap_autosupport_invoke - ``message`` has changed to ``autosupport_message`` as Redhat has reserved this word.
+    ``message`` has been alias'd to ``autosupport_message``.
   - na_ontap_cifs_vserver - fix documentation and add more examples.
   - na_ontap_cluster - module was not idempotent when changing location or contact information.
   - na_ontap_igroup - idempotency issue when using uppercase hex digits (A, B, C, D, E, F) in WWN (ONTAP uses lowercase).

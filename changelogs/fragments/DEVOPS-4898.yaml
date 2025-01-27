@@ -1,5 +1,7 @@
+---
 minor_changes:
-  - na_ontap_rest_info REST API's with hyphens in the name will now be converted to underscores when ``use_python_keys`` is set to ``True`` so that YAML parsing works correctly.
+  - na_ontap_rest_info REST API's with hyphens in the name will now be converted to underscores when ``use_python_keys`` is set to ``True``
+    so that YAML parsing works correctly.
   - na_ontap_rest_info support added for application/consistency-groups
   - na_ontap_rest_info support added for cluster/fireware/history
   - na_ontap_rest_info support added for cluster/mediators
