@@ -106,7 +106,6 @@ EXAMPLES = '''
     interface_name: lif_svm1_284
     vserver: ansibleSVM
     enabled: false
-    service_principal_name: nfs/lif_svm1_284@RELAM2
     admin_username: "{{ admin_user }}"
     admin_password: "{{ admin_pass }}"
     hostname: "{{ hostname }}"
