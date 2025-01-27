@@ -31,7 +31,8 @@ options:
   vserver:
     description:
       - The name of the vserver to use.
-      - With REST, for cluster scoped DNS, omit this option or set it to NULL.
+      - With REST, for cluster scoped DNS, omit this option or set it to NULL for ONTAP 9.13.1 or later and
+        provide cluster vserver as its value for ONTAP 9.12.1 or earlier.
       - With ZAPI or REST, for cluster scoped DNS, this can also be set to the cluster vserver name.
     type: str
 

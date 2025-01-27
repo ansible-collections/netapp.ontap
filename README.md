@@ -67,6 +67,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_svm - updated documentation for `allowed_protocols` & `services`.
   - na_ontap_volume - new option `large_size_enabled` added in REST, requires ONTAP 9.12 or later.
+  - na_ontap_dns - updated documentation for `vserver`.
 
 ### Bug Fixes
   - Resolved Ansible lint issues.
