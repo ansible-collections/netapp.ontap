@@ -67,6 +67,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_svm - updated documentation for `allowed_protocols` & `services`.
 
+### Bug Fixes
+  - Resolved Ansible lint issues.
+
 ## 22.13.0
 
 ### Minor Changes
