@@ -324,7 +324,7 @@ class NetAppOntapQTree:
         """
         if self.use_rest:
             api = "storage/qtrees/%s" % self.volume_uuid
-            query = {'return_timeout': 3}
+            query = {'return_timeout': 120}
             response, error = rest_generic.delete_async(self.rest_api, api, self.qid, query)
             if self.parameters['wait_for_completion']:
                 dummy, error = rrh.check_for_error_and_job_results(api, response, error, self.rest_api)

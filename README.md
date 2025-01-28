@@ -77,6 +77,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - Resolved Ansible lint issues.
   - na_ontap_aggregate - fix issue with modifying `raid_type` in REST.
   - na_ontap_kerberos_interface - updated example in module documentation.
+  - na_ontap_qtree - fix timeout issue with qtree delete in REST.
 
 ## 22.13.0
 
