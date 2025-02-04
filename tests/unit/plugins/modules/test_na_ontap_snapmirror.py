@@ -293,7 +293,8 @@ def test_negative_break(dont_sleep):
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'vserver-peer-get-iter', ZRR['vserver_peer_info']),    # validate source svm
         ('ZAPI', 'snapmirror-quiesce', ZRR['success']),
-        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # 5 retries
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),                # 6 retries
+        ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info']),
@@ -303,9 +304,10 @@ def test_negative_break(dont_sleep):
         "use_rest": "never",
         "source_hostname": "10.10.10.10",
         "relationship_state": "broken",
+        "quiesced_time_out": 60,
         "relationship_type": "data_protection",
     }
-    msg = "Taking a long time to quiesce SnapMirror relationship, try again later"
+    msg = "Taking a long time to quiesce SnapMirror relationship after 60 seconds, try again later"
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -1145,13 +1147,15 @@ def test_rest_snapmirror_quiesce_fail_when_state_not_paused(dont_sleep):
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # second fail
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # third fail
         ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # fourth fail
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),   # fifth fail
     ])
     module_args = {
         "use_rest": "always",
         "relationship_state": "broken",
+        "quiesced_time_out": 60,
         "validate_source_path": False
     }
-    msg = "Taking a long time to quiesce SnapMirror relationship, try again later"
+    msg = "Taking a long time to quiesce SnapMirror relationship after 60 seconds, try again later"
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
@@ -1807,6 +1811,27 @@ def test_wait_for_idle_status(dont_sleep):
     assert my_obj.wait_for_idle_status() is not None
     assert my_obj.wait_for_idle_status() is None
     assert_warning_was_raised('SnapMirror relationship is still transferring after 60 seconds.')
+
+
+@patch('time.sleep')
+def test_wait_for_quiesced_status(dont_sleep):
+    # validate wait time and time-out
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_96']),
+        ('GET', 'snapmirror/relationships', SRR['zero_records']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+        ('GET', 'snapmirror/relationships', SRR['sm_get_mirrored']),
+    ])
+    module_args = {
+        "use_rest": "always",
+        "quiesced_time_out": 60,
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    error = expect_and_capture_ansible_exception(my_obj.wait_for_quiesced_status, 'fail')
+    assert 'Taking a long time to quiesce SnapMirror relationship after 60 seconds, try again later' in error['msg']
 
 
 def test_dp_to_xdp():

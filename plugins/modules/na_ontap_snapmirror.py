@@ -294,6 +294,12 @@ options:
     default: 300
     type: int
     version_added: 21.20.0
+  quiesced_time_out:
+    description:
+        - How long to wait for a relationship to quiesce. Unit is seconds.
+    default: 300
+    type: int
+    version_added: 22.14.0
   clean_up_failure:
     description:
       - An optional parameter to recover from an aborted or failed restore operation.
@@ -563,6 +569,7 @@ class NetAppONTAPSnapmirror(object):
             source_cluster=dict(required=False, type='str'),
             destination_cluster=dict(required=False, type='str'),
             transferring_time_out=dict(required=False, type='int', default=300),
+            quiesced_time_out=dict(required=False, type='int', default=300),
             clean_up_failure=dict(required=False, type='bool', default=False),
             validate_source_path=dict(required=False, type='bool', default=True)
         ))
@@ -739,13 +746,15 @@ class NetAppONTAPSnapmirror(object):
         return current
 
     def wait_for_quiesced_status(self):
-        # sleep for a maximum of 25 seconds, in 5 seconds increments
-        for __ in range(5):
-            time.sleep(5)
+        # sleep for a maximum of X seconds (with a default of 5 minutes), in 10 seconds increments
+        quiesced_time_out = self.parameters['quiesced_time_out']
+        increment = 10
+        for __ in range(0, quiesced_time_out, increment):
+            time.sleep(increment)
             sm_info = self.snapmirror_get()
-            if sm_info['status'] == 'quiesced' or sm_info['mirror_state'] == 'paused':
+            if sm_info and (sm_info['status'] == 'quiesced' or sm_info['mirror_state'] == 'paused'):
                 return
-        self.module.fail_json(msg='Taking a long time to quiesce SnapMirror relationship, try again later')
+        self.module.fail_json(msg='Taking a long time to quiesce SnapMirror relationship after %d seconds, try again later' % quiesced_time_out)
 
     def check_if_remote_volume_exists(self):
         """

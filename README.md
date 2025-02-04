@@ -73,6 +73,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_rest_cli - added POST and DELETE examples.
   - updated dead link in doc_fragments.
   - na_ontap_flexcache - new options `relative_size`, `override_encryption`, `atime_scrub`, `cifs_change_notify_enabled`, `global_file_locking_enabled`, `guarantee_type`, `dr_cache` added in REST.
+  - na_ontap_snapmirror - new option `quiesced_time_out` added to wait for quiesce job to complete.
 
 ### Bug Fixes
   - Resolved Ansible lint issues.
