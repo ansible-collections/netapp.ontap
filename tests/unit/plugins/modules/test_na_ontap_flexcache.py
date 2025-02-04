@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2024, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP FlexCache Ansible module '''
@@ -527,6 +527,7 @@ SRR = rest_responses({
     'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
     'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
     'is_rest_9_12': (200, dict(version=dict(generation=9, major=12, minor=0, full='dummy')), None),
+    'is_rest_9_15_1': (200, dict(version=dict(generation=9, major=15, minor=1, full='dummy')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'zero_record': (200, dict(records=[], num_records=0), None),
@@ -537,7 +538,8 @@ SRR = rest_responses({
         dict(uuid='a1b2c3',
              name='flexcache_volume',
              svm=dict(name='vserver'),
-             writeback=dict(enabled=True)
+             writeback=dict(enabled=True),
+             cifs_change_notify_enabled=False
              )
     ], num_records=1), None),
     'one_flexcache_record_with_path': (200, dict(records=[
@@ -806,8 +808,25 @@ def test_rest_modify_prepopulate_and_mount():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
-def test_rest_error_modify():
-    ''' create flexcache idempotent '''
+def test_rest_modify_cifs_change_notify_enabled():
+    ''' modify flexcache '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_15_1']),
+        ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
+        ('PATCH', 'storage/flexcache/flexcaches/a1b2c3', SRR['empty_good']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'aggr_list': 'aggr1',
+        'origin_volume': 'fc_vol_origin',
+        'origin_vserver': 'ansibleSVM',
+        'cifs_change_notify_enabled': True
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_modify_no_action():
+    ''' modify name of the flexcache skipped '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/flexcache/flexcaches', SRR['one_flexcache_record']),
@@ -819,8 +838,7 @@ def test_rest_error_modify():
         'origin_volume': 'fc_vol_origin',
         'origin_vserver': 'ansibleSVM',
     }
-    error = 'FlexCache properties cannot be modified by this module.  modify:'
-    assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_warn_prepopulate():
@@ -849,21 +867,6 @@ def test_rest_warn_prepopulate():
     assert_warning_was_raised('prepopulate requires the FlexCache volume to be mounted')
 
 
-def test_error_missing_uuid():
-    module_args = {
-        'use_rest': 'akway',
-    }
-    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
-    current = {}
-    error_template = 'Error in %s: Error, no uuid in current: {}'
-    error = error_template % 'rest_offline_volume'
-    assert error in expect_and_capture_ansible_exception(my_obj.rest_offline_volume, 'fail', current)['msg']
-    error = error_template % 'rest_mount_volume'
-    assert error in expect_and_capture_ansible_exception(my_obj.rest_mount_volume, 'fail', current, 'path')['msg']
-    error = error_template % 'flexcache_rest_delete'
-    assert error in expect_and_capture_ansible_exception(my_obj.flexcache_rest_delete, 'fail', current)['msg']
-
-
 def test_prepopulate_option_checks():
     ''' create flexcache idempotent '''
     register_responses([
@@ -878,7 +881,7 @@ def test_prepopulate_option_checks():
             'exclude_dir_paths': ['/']
         },
     }
-    error = 'Error: using prepopulate requires ONTAP 9.8 or later and REST must be enabled - ONTAP version: 9.7.0.'
+    error = 'Minimum version of ONTAP for prepopulate is (9, 8).  Current version: (9, 7, 0).'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     error = 'Error: using prepopulate: exclude_dir_paths requires ONTAP 9.9 or later and REST must be enabled - ONTAP version: 9.8.0.'
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

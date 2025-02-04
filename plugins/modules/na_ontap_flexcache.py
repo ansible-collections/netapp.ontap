@@ -14,8 +14,8 @@ DOCUMENTATION = '''
 short_description: NetApp ONTAP FlexCache - create/delete relationship
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
-  - Create/Delete FlexCache volume relationships.
-  - This module does not modify an existing FlexCache volume with two exceptions.
+  - Create/Modify/Delete FlexCache volume relationships.
+  - This module does not modify an existing FlexCache volume when using ZAPI.
   - When using REST, a prepopulate can be started on an exising FlexCache volume.
   - When using REST, the volume can be mounted or unmounted.  Set path to '' to unmount it.
   - It is required the volume is mounted to prepopulate it.
@@ -158,6 +158,68 @@ options:
           - if set to false, the prepopulate task is not started if the FlexCache already exists.
         type: bool
         default: true
+  relative_size:
+    version_added: 22.14.0
+    description:
+      - Only supported with REST and requires ONTAP 9.13.1 or later.
+    type: dict
+    suboptions:
+      enabled:
+        description:
+          - Specifies whether the relative sizing is enabled for the FlexCache volume.
+        type: bool
+      percentage:
+        description:
+          - Specifies the percent size the FlexCache volume should have relative to the total size of the origin volume.
+        type: int
+  override_encryption:
+    version_added: 22.14.0
+    description:
+      - If set to true, a plaintext FlexCache volume for an encrypted origin volume is created.
+      - Only supported with REST and requires ONTAP 9.14.1 or later.
+    type: bool
+  atime_scrub:
+    version_added: 22.14.0
+    description:
+      - Only supported with REST and requires ONTAP 9.14.1 or later.
+    type: dict
+    suboptions:
+      enabled:
+        description:
+          - Specifies whether scrubbing of inactive files based on atime is enabled for the FlexCache volume.
+        type: bool
+      period:
+        description:
+          - Specifies the atime duration in days after which a cached file is considered inactive.
+        type: int
+  cifs_change_notify_enabled:
+    version_added: 22.14.0
+    description:
+      - Specifies whether a CIFS change notification is enabled for the FlexCache volume.
+      - Only supported with REST and requires ONTAP 9.15.1 or later.
+    type: bool
+  global_file_locking_enabled:
+    version_added: 22.14.0
+    description:
+      - Specifies whether or not a FlexCache volume has global file locking mode enabled.
+      - When global file locking mode is enabled, the 'is_disconnected_mode_off_for_locks' flag is always set to 'true'.
+      - Only supported with REST and requires ONTAP 9.9 or later.
+    type: bool
+  guarantee_type:
+    version_added: 22.14.0
+    description:
+      - Specifies The type of space guarantee of this volume in the aggregate.
+      - A value of 'volume' reserves space on the aggregates for the entire volume.
+      - A value of 'none' reserves no space on the aggregates, meaning that writes can fail if an aggregate runs out of space.
+      - Only supported with REST and requires ONTAP 9.7 or later.
+    choices: ['volume', 'none']
+    type: str
+  dr_cache:
+    version_added: 22.14.0
+    description:
+      - If set to true, a DR cache is created.
+      - Only supported with REST and requires ONTAP 9.9 or later.
+    type: bool
 '''
 
 EXAMPLES = """
@@ -183,6 +245,7 @@ EXAMPLES = """
 """
 
 RETURN = """
+
 """
 
 import time
@@ -229,7 +292,20 @@ class NetAppONTAPFlexCache:
             )),
             writeback=dict(required=False, type='dict', options=dict(
                 enabled=dict(required=False, type='bool', default=False)
-            ))
+            )),
+            relative_size=dict(required=False, type='dict', options=dict(
+                enabled=dict(required=False, type='bool'),
+                percentage=dict(required=False, type='int'),
+            )),
+            override_encryption=dict(required=False, type='bool'),
+            atime_scrub=dict(required=False, type='dict', options=dict(
+                enabled=dict(required=False, type='bool'),
+                period=dict(required=False, type='int'),
+            )),
+            cifs_change_notify_enabled=dict(required=False, type='bool'),
+            global_file_locking_enabled=dict(required=False, type='bool'),
+            guarantee_type=dict(required=False, type='str', choices=['volume', 'none']),
+            dr_cache=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -248,12 +324,20 @@ class NetAppONTAPFlexCache:
         self.origin_server = None
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
+        partially_supported_rest_properties = [['guarantee_type', (9, 7)], ['prepopulate', (9, 8)],
+                                               ['global_file_locking_enabled', (9, 9)], ['dr_cache', (9, 9)],
+                                               ['writeback', (9, 12)], ['relative_size', (9, 13, 1)],
+                                               ['override_encryption', (9, 14, 1)], ['atime_scrub', (9, 14, 1)],
+                                               ['cifs_change_notify_enabled', (9, 15, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
+        if not self.use_rest:
+            if not netapp_utils.has_netapp_lib():
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
+        else:
+            self.rest_errors()
 
-        ontap_98_options = ['prepopulate']
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8) and any(x in self.parameters for x in ontap_98_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_98_options, version='9.8'))
-
+    def rest_errors(self):
         if 'prepopulate' in self.parameters:
             # sanitize the dictionary, as Ansible fills everything with None values
             self.parameters['prepopulate'] = self.na_helper.filter_out_none_entries(self.parameters['prepopulate'])
@@ -262,17 +346,10 @@ class NetAppONTAPFlexCache:
                 options = ['prepopulate: ' + x for x in ontap_99_options]
                 self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(options, version='9.9'))
 
-        ontap_912_options = ['writeback']
-        if not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) and any(x in self.parameters for x in ontap_912_options):
-            self.module.fail_json(msg='Error: %s' % self.rest_api.options_require_ontap_version(ontap_912_options, version='9.12'))
-
-        if not self.use_rest:
-            if not netapp_utils.has_netapp_lib():
-                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
-
     def add_parameter_to_dict(self, adict, name, key, tostr=False):
-        ''' add defined parameter (not None) to adict using key '''
+        """
+        add defined parameter (not None) to a dict using key
+        """
         value = self.parameters.get(name)
         if value is not None:
             adict[key] = str(value) if tostr else value
@@ -365,7 +442,24 @@ class NetAppONTAPFlexCache:
             }
             if 'origin_cluster' in self.parameters:
                 query['origins.cluster.name'] = self.parameters['origin_cluster']
-            fields = 'svm,name,uuid,path,writeback' if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12) else 'svm,name,uuid,path'
+            fields = 'svm,name,uuid,path,'
+            if 'guarantee_type' in self.parameters:
+                fields += 'guarantee.type,'
+            if 'global_file_locking_enabled' in self.parameters:
+                fields += 'global_file_locking_enabled,'
+            if 'dr_cache' in self.parameters:
+                fields += 'dr_cache,'
+            if 'writeback' in self.parameters:
+                fields += 'writeback,'
+            if 'relative_size' in self.parameters:
+                fields += 'relative_size,'
+            if 'override_encryption' in self.parameters:
+                fields += 'override_encryption,'
+            if 'atime_scrub' in self.parameters:
+                fields += 'atime_scrub,'
+            if 'cifs_change_notify_enabled' in self.parameters:
+                fields += 'cifs_change_notify.enabled,'
+
             flexcache, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
             self.na_helper.fail_on_error(error)
             if flexcache is None:
@@ -374,10 +468,12 @@ class NetAppONTAPFlexCache:
                 vserver=flexcache['svm']['name'],
                 name=flexcache['name'],
                 uuid=flexcache['uuid'],
-                junction_path=flexcache.get('path')
+                junction_path=flexcache.get('path'),
+                writeback=flexcache.get('writeback'),
+                relative_size=flexcache.get('relative_size'),
+                atime_scrub=flexcache.get('atime_scrub'),
+                cifs_change_notify_enabled=self.na_helper.safe_get(flexcache, ['cifs_change_notify', 'enabled'])
             )
-            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12):
-                flexcache_info['writeback'] = flexcache.get('writeback')
             return flexcache_info
 
         flexcache_get_iter = self.flexcache_get_iter()
@@ -405,20 +501,23 @@ class NetAppONTAPFlexCache:
             self.module.fail_json(msg='Error fetching FlexCache info: %s' % msg)
         return None
 
-    def flexcache_rest_create_body(self, mappings):
-        ''' maps self.parameters to REST API body attributes, using mappings to identify fields to add '''
+    def flexcache_rest_create_body(self, mappings, params=None):
+        """
+        maps self.parameters to REST API body attributes, using mappings to identify fields to add
+        """
         body = {}
+        params = self.parameters if params is None else params
         for key, value in mappings.items():
-            if key in self.parameters:
+            if key in params:
                 if key == 'aggr_list':
-                    body[value] = [dict(name=aggr) for aggr in self.parameters[key]]
+                    body[value] = [dict(name=aggr) for aggr in params[key]]
                 else:
-                    body[value] = self.parameters[key]
+                    body[value] = params[key]
             elif key == 'origins':
                 # this is an artificial key, to match the REST list of dict structure
                 origin = dict(
-                    volume=dict(name=self.parameters['origin_volume']),
-                    svm=dict(name=self.parameters['origin_vserver'])
+                    volume=dict(name=params['origin_volume']),
+                    svm=dict(name=params['origin_vserver'])
                 )
                 body[value] = [origin]
         return body
@@ -434,7 +533,14 @@ class NetAppONTAPFlexCache:
             aggr_list_multiplier='constituents_per_aggregate',
             origins='origins',
             prepopulate='prepopulate',
-            writeback='writeback'
+            writeback='writeback',
+            guarantee_type='guarantee.type',
+            global_file_locking_enabled='global_file_locking_enabled',
+            dr_cache='dr_cache',
+            relative_size='relative_size',
+            override_encryption='override_encryption',
+            atime_scrub='atime_scrub',
+            cifs_change_notify_enabled='cifs_change_notify.enabled'
         )
         body = self.flexcache_rest_create_body(mappings)
         api = 'storage/flexcache/flexcaches'
@@ -442,13 +548,18 @@ class NetAppONTAPFlexCache:
         self.na_helper.fail_on_error(error)
         return response
 
-    def flexcache_rest_modify(self, uuid):
-        ''' use PATCH to start prepopulating a FlexCache '''
-        mappings = dict(
-            writeback='writeback',               # name cannot be set, though swagger example shows it
-            prepopulate='prepopulate'
+    def flexcache_rest_modify(self, uuid, modify):
+        """
+        use PATCH to start prepopulating a FlexCache or modify other properties
+        """
+        mappings = dict(                # name cannot be set, though swagger example shows it
+            prepopulate='prepopulate',
+            writeback='writeback',
+            relative_size='relative_size',
+            atime_scrub='atime_scrub',
+            cifs_change_notify_enabled='cifs_change_notify.enabled'
         )
-        body = self.flexcache_rest_create_body(mappings)
+        body = self.flexcache_rest_create_body(mappings, modify)
         api = 'storage/flexcache/flexcaches'
         response, error = rest_generic.patch_async(self.rest_api, api, uuid, body, job_timeout=self.parameters['time_out'])
         self.na_helper.fail_on_error(error)
@@ -523,7 +634,7 @@ class NetAppONTAPFlexCache:
 
     def rest_offline_volume(self, current):
         """
-        Offline the volume using REST PATCH method.
+        Make the volume offline using REST PATCH method.
         """
         uuid = current.get('uuid')
         if uuid is None:
@@ -534,7 +645,7 @@ class NetAppONTAPFlexCache:
 
     def volume_offline(self, current):
         """
-        Offline FlexCache volume at destination cluster
+        Make the FlexCache volume offline at destination cluster
         """
         if self.use_rest:
             self.rest_offline_volume(current)
@@ -660,16 +771,18 @@ class NetAppONTAPFlexCache:
 
         if cd_action is None:
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-            if modify and self.use_rest:
-                mount_unmount = modify.pop('junction_path', None)
             if modify:
-                if self.use_rest and 'writeback' in modify:
-                    self.flexcache_rest_modify(current['uuid'])
+                if self.use_rest:
+                    modify.pop('name', None)
+                    if not modify:
+                        # ignore modify operation if the only key to modify is 'name'
+                        self.na_helper.changed = False
+                    mount_unmount = modify.pop('junction_path', None)
                 else:
-                    self.module.fail_json(msg='FlexCache properties cannot be modified by this module.  modify: %s' % str(modify))
+                    self.module.fail_json(msg='FlexCache properties cannot be modified by this module when using ZAPI.  modify: %s' % str(modify))
             if current and prepopulate_if_already_created:
                 # force a prepopulate action
-                modify = dict(prepopulate=self.parameters['prepopulate'])
+                modify.update(dict(prepopulate=self.parameters['prepopulate']))
                 self.na_helper.changed = True
                 self.module.warn('na_ontap_flexcache is not idempotent when prepopulate is present and force_prepopulate_if_already_created=true')
                 if mount_unmount == '' or current['junction_path'] == '':
@@ -686,7 +799,7 @@ class NetAppONTAPFlexCache:
                     # mount first, as this is required for prepopulate to succeed (or fail for unmount)
                     self.rest_mount_volume(current, mount_unmount)
                 if modify:
-                    response = self.flexcache_rest_modify(current['uuid'])
+                    response = self.flexcache_rest_modify(current['uuid'], modify)
         result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify, response)
         self.module.exit_json(**result)
 
