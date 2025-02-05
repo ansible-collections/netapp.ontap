@@ -4,6 +4,31 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+
+v22.14.0
+========
+
+Minor Changes
+-------------
+
+- Multiple modules - Standardize hostname, username, and password parameters to use netapp_hostname, netapp_username, and netapp_password as values.
+- Multiple modules - Update examples to use Fully Qualified Collection Name.
+- Update dead link in doc_fragments.
+- na_ontap_dns - updated documentation for `vserver`.
+- na_ontap_flexcache - new options `relative_size`, `override_encryption`, `atime_scrub`, `cifs_change_notify_enabled`, `global_file_locking_enabled`, `guarantee_type`, `dr_cache` added in REST.
+- na_ontap_rest_cli - Add POST and DELETE examples.
+- na_ontap_snapmirror - new option `quiesced_time_out` added to wait for quiesce job to complete.
+- na_ontap_svm - updated documentation for `allowed_protocols` & `services`.
+- na_ontap_volume - new option `large_size_enabled` added in REST, requires ONTAP 9.12 or later.
+
+Bugfixes
+--------
+
+- Resolved Ansible lint issues.
+- na_ontap_aggregate - fix issue with 'raid_type' change in REST.
+- na_ontap_kerberos_interface - updated example in module documentation.
+- na_ontap_qtree - fix timeout issue with qtree delete in REST.
+
 v22.13.0
 ========
 
@@ -1144,7 +1169,7 @@ Minor Changes
 - na_ontap_restit - new option ``wait_for_completion`` to support asynchronous operations and wait for job completion.
 - na_ontap_volume - Added REST support to the volume module
 - na_ontap_volume_efficiency - new option ``storage_efficiency_mode`` for AFF only with 9.10.1 or later.
-- na_ontap_vserver_delete role - added set_fact to accept ``netapp_{hostname|username|password}`` or ``hostname,username and password`` variables.
+- na_ontap_vserver_delete role - added set_fact to accept ``netapp_{hostname|username|password}`` or ``hostname, username and password`` variables.
 - na_ontap_vserver_delete role - do not report an error if the vserver does not exist.
 - na_ontap_vserver_peer - Added REST support to the vserver_peer module
 
@@ -1186,7 +1211,7 @@ Bugfixes
 
 - na_ontap_cluster - ``single_node_cluster`` was silently ignored with REST.
 - na_ontap_cluster - switch to ZAPI when DELETE is required with ONTAP 9.6.
-- na_ontap_snapmirror - ``source_path`` and ``source_hostname`` parameters are not mandatory to delete snapmirror relationship when source cluster is unknown, if specified it will delete snapmirror at destination and release the same at source side.  if not, it only deletes the snapmirror at destination and will not look for source to perform snapmirror release.
+- na_ontap_snapmirror - ``source_path`` and ``source_hostname`` parameters are not mandatory to delete snapmirror relationship when source cluster is unknown, if specified it will delete snapmirror at destination and release the same at source side. if not, it only deletes the snapmirror at destination and will not look for source to perform snapmirror release.
 - na_ontap_snapmirror - modify policy, schedule and other parameter failure are fixed.
 - na_ontap_snapshot - ``expiry_time`` required REST api, will return error if set when using ZAPI.
 - na_ontap_snapshot - ``snapmirror_label`` is supported with REST on ONTAP 9.7 or higher, report error if used on ONTAP 9.6.
@@ -1642,7 +1667,7 @@ v20.10.0
 Minor Changes
 -------------
 
-- na_ontap_rest_info - Support for gather subsets - ``application_info, application_template_info, autosupport_config_info , autosupport_messages_history, ontap_system_version, storage_flexcaches_info, storage_flexcaches_origin_info, storage_ports_info, storage_qos_policies, storage_qtrees_config, storage_quota_reports, storage_quota_policy_rules, storage_shelves_config, storage_snapshot_policies, support_ems_config, support_ems_events, support_ems_filters``
+- na_ontap_rest_info - Support for gather subsets - ``application_info, application_template_info, autosupport_config_info, autosupport_messages_history, ontap_system_version, storage_flexcaches_info, storage_flexcaches_origin_info, storage_ports_info, storage_qos_policies, storage_qtrees_config, storage_quota_reports, storage_quota_policy_rules, storage_shelves_config, storage_snapshot_policies, support_ems_config, support_ems_events, support_ems_filters``
 
 Bugfixes
 --------
@@ -2063,7 +2088,7 @@ Bugfixes
 --------
 
 - na_ontap_cluster - autosupport log pushed after cluster create is performed, removed license add or remove option.
-- na_ontap_dns - report error if modify or delete operations are attempted on cserver when using REST.  Make create operation idempotent for cserver when using REST.  Support for modify/delete on cserver when using REST will be added later.
+- na_ontap_dns - report error if modify or delete operations are attempted on cserver when using REST. Make create operation idempotent for cserver when using REST.  Support for modify/delete on cserver when using REST will be added later.
 - na_ontap_firewall_policy - portmap added as a valid service
 - na_ontap_net_routes - REST does not support the ``metric`` attribute
 - na_ontap_snapmirror - added initialize boolean option which specifies whether to initialize SnapMirror relation.
@@ -2093,11 +2118,11 @@ Minor Changes
 - Added REST support to existing modules.
     By default, the module will use REST if the target system supports it, and the options are supported.  Otherwise, it will switch back to ZAPI.
     This behavior can be controlled with the ``use_rest`` option.
-    Always - to force REST.  The module fails and reports an error if REST cannot be used.
-    Never - to force ZAPI.  This could be useful if you find some incompatibility with REST, or want to confirm the behavior is identical between REST and ZAPI.
+   Always - to force REST.  The module fails and reports an error if REST cannot be used.
+    Never - to force ZAPI. This could be useful if you find some incompatibility with REST, or want to confirm the behavior is identical between REST and ZAPI.
     Auto - the default, as described above.
 - na_ontap_cluster_config - role updated to support a cleaner playbook
-- na_ontap_command - ``vserver`` - to allow command to run as either cluster admin or vserver admin.  To run as vserver admin you must use the vserver option.
+- na_ontap_command - ``vserver`` - to allow command to run as either cluster admin or vserver admin. To run as vserver admin you must use the vserver option.
 - na_ontap_export_policy - REST support
 - na_ontap_ipspace - REST support
 - na_ontap_job_schedule - REST support
