@@ -62,6 +62,11 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
+## 22.15.0
+
+### Minor Changes
+  - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
+
 ## 22.14.0
 
 ### Minor Changes
