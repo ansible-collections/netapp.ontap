@@ -64,6 +64,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.15.0
 
+### Bug Fixes
+  - na_ontap_quotas - changed examples in documentation for `type`.
+
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
 

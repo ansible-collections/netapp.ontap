@@ -238,7 +238,7 @@ EXAMPLES = """
     vserver: ansible
     volume: ansible
     quota_target: qtree1
-    type: qtree
+    type: tree
     file_limit: 2
     disk_limit: 3
     set_quota_status: true
