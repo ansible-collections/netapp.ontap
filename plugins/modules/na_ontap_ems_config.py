@@ -112,7 +112,7 @@ class NetAppOntapEmsConfig:
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=False
+            supports_check_mode=True
         )
         self.uuid = None
         self.na_helper = NetAppModule(self.module)

@@ -70,6 +70,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
 
+### Bug Fixes
+  - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
+
 ## 22.14.0
 
 ### Minor Changes
