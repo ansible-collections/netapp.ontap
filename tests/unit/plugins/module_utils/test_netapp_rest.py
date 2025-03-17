@@ -221,36 +221,12 @@ def test_is_rest_true_9_6():
     assert not rest_api.debug_logs
 
 
-def test_fail_has_username_password_and_cert():
-    ''' failure case in auth_method '''
-    module_args = dict(cert_filepath='dummy')
-    msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
-    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', DEFAULT_ARGS, module_args)['msg'] == msg
-
-
-def test_fail_has_username_password_and_key():
-    ''' failure case in auth_method '''
-    module_args = dict(key_filepath='dummy')
-    msg = 'Error: cannot have both basic authentication (username/password) and certificate authentication (cert/key files)'
-    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', DEFAULT_ARGS, module_args)['msg'] == msg
-
-
-def test_fail_has_username_and_cert():
-    ''' failure case in auth_method '''
-    args = dict(DEFAULT_ARGS)
-    module_args = dict(cert_filepath='dummy')
-    del args['password']
-    msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
-    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args, module_args)['msg'] == msg
-
-
 def test_fail_has_password_and_cert():
     ''' failure case in auth_method '''
     args = dict(DEFAULT_ARGS)
-    module_args = dict(cert_filepath='dummy')
     del args['username']
-    msg = 'Error: username and password have to be provided together and cannot be used with cert or key files'
-    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args, module_args)['msg'] == msg
+    msg = 'Error: username and password have to be provided together'
+    assert expect_and_capture_ansible_exception(create_restapi_object, 'fail', args)['msg'] == msg
 
 
 def test_has_username_password():

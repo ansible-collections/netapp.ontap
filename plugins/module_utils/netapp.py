@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2017, Sumit Kumar <sumit4@netapp.com>
 # Copyright (c) 2017, Michael Price <michael.price@netapp.com>
-# Copyright (c) 2017-2023, NetApp, Inc
+# Copyright (c) 2017-2025, NetApp, Inc
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification,
@@ -267,22 +267,17 @@ def create_sf_connection(module, port=None, host_options=None):
 def set_auth_method(module, username, password, cert_filepath, key_filepath):
     error = None
     auth_method = None
-    if password is None and username is None:
-        if cert_filepath is None:
+    # defaults to cert authentication if both basic and client certificate authentication parameters are given
+    if cert_filepath is not None:
+        auth_method = 'single_cert' if key_filepath is None else 'cert_key'
+    else:
+        if password is None and username is None:
             error = ('Error: cannot have a key file without a cert file' if key_filepath is not None
                      else 'Error: ONTAP module requires username/password or SSL certificate file(s)')
-        else:
-            auth_method = 'single_cert' if key_filepath is None else 'cert_key'
-    elif password is not None and username is not None:
-        if cert_filepath is not None or key_filepath is not None:
-            error = 'Error: cannot have both basic authentication (username/password) ' +\
-                    'and certificate authentication (cert/key files)'
-        else:
+        elif password is not None and username is not None:
             auth_method = 'basic_auth' if has_feature(module, 'classic_basic_authorization') else 'speedy_basic_auth'
-    else:
-        error = 'Error: username and password have to be provided together'
-        if cert_filepath is not None or key_filepath is not None:
-            error += ' and cannot be used with cert or key files'
+        else:
+            error = 'Error: username and password have to be provided together'
     if error:
         module.fail_json(msg=error)
     return auth_method

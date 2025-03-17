@@ -66,12 +66,14 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### Bug Fixes
   - na_ontap_quotas - changed examples in documentation for `type`.
+  - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
 
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
+  - all modules - defaults to certificate based authentication if `username,password` and `cert_filepath/key_filepath` are set.
 
-### Bug Fixes
-  - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
+### New Modules
+  - na_ontap_mav_approval_group - REST only support for managing multi-admin verification (MAV) approval group, requires ONTAP 9.11 or later.
 
 ## 22.14.0
 
