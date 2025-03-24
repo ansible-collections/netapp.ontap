@@ -5,6 +5,7 @@ na_ontap_snapmirror
 '''
 
 # (c) 2018-2025, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -464,11 +465,12 @@ EXAMPLES = """
     validate_certs: false
 
 - name: Create SnapMirror relationship - SVM DR (creating and peering destination svm)
+  tags: create_svmdr
   netapp.ontap.na_ontap_snapmirror:
     state: present
     source_endpoint:
-      cluster: "{{ _source_cluster }}"
-      path: "{{ source_vserver + ':' }}"
+    cluster: "{{ _source_cluster }}"
+    path: "{{ source_vserver + ':' }}"
     destination_endpoint:
       cluster: "{{ _destination_cluster }}"
       path: "{{ destination_vserver_SVMDR + ':' }}"
@@ -1462,12 +1464,20 @@ class NetAppONTAPSnapmirror(object):
         if uuid is None:
             self.module.fail_json(msg='Error in deleting SnapMirror: %s, unable to get UUID for the SnapMirror relationship.' % uuid)
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.delete_async(self.rest_api, api, uuid)
-        if error:
-            msg = 'Error deleting SnapMirror: %s' % to_native(error)
-            if self.previous_errors:
-                msg += '.  Previous error(s): %s' % ' -- '.join(self.previous_errors)
-            self.module.fail_json(msg=msg, exception=traceback.format_exc())
+        query = dict(return_timeout=120)
+        retry = 3
+        while retry > 0:
+            dummy, error = rest_generic.delete_async(self.rest_api, api, uuid, query)
+            if error and 'Timeout error: Process still running' in error:
+                time.sleep(120)
+                retry -= 1
+            elif error:
+                msg = 'Error deleting SnapMirror: %s' % to_native(error)
+                if self.previous_errors:
+                    msg += '.  Previous error(s): %s' % ' -- '.join(self.previous_errors)
+                self.module.fail_json(msg=msg, exception=traceback.format_exc())
+            else:
+                return
 
     def snapmirror_rest_create(self):
         """
