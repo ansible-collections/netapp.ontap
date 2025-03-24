@@ -64,6 +64,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 22.15.0
 
+### New Modules
+  - na_ontap_support_config_backup - REST only support for retrieving and modifying configuration backup, requires ONTAP 9.6 or later.
+
 ### Bug Fixes
   - na_ontap_quotas - changed examples in documentation for `type`.
   - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
