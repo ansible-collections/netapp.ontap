@@ -71,6 +71,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
   - na_ontap_snapmirror - fix delete snapmirror timeout issue by retrying in REST.
   - na_ontap_quotas - changed examples in documentation for `type`.
   - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
+  - na_ontap_user_role - fix issue with modifying privileges in REST.
 
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
