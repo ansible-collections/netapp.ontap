@@ -62,10 +62,12 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 # Release Notes
 
-## 22.15.0
+## 23.0.0
 
-### New Modules
-  - na_ontap_support_config_backup - REST only support for retrieving and modifying configuration backup, requires ONTAP 9.6 or later.
+### Major Changes
+  - na_ontap_nvme_namespace - added compatibility for ASA r2 systems.
+
+## 22.15.0
 
 ### Bug Fixes
   - na_ontap_snapmirror - fix delete snapmirror timeout issue by retrying in REST.
@@ -79,6 +81,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Modules
   - na_ontap_mav_approval_group - REST only support for managing multi-admin verification (MAV) approval group, requires ONTAP 9.11 or later.
+  - na_ontap_support_config_backup - REST only support for retrieving and modifying configuration backup, requires ONTAP 9.6 or later.
 
 ## 22.14.0
 

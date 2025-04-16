@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 # Author: Laurent Nicolas, laurentn@netapp.com
 
@@ -57,6 +57,8 @@ _DEFAULT_RESPONSES = {
     'is_rest_9_13_1': (200, dict(version=dict(generation=9, major=13, minor=1, full='dummy_9_13_1')), None),
     'is_rest_9_14_1': (200, dict(version=dict(generation=9, major=14, minor=1, full='dummy_9_14_1')), None),
     'is_rest_9_15_1': (200, dict(version=dict(generation=9, major=15, minor=1, full='dummy_9_15_1')), None),
+    'is_rest_9_16_1': (200, dict(version=dict(generation=9, major=16, minor=1, full='dummy_9_16_1')), None),
+    'is_rest_9_17_1': (200, dict(version=dict(generation=9, major=17, minor=1, full='dummy_9_17_1')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'success': (200, {}, None),
