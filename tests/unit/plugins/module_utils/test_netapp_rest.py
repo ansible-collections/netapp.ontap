@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022 NetApp
+# Copyright (c) 2018-2025 NetApp
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for module_utils netapp.py - REST features '''
@@ -183,7 +183,8 @@ def test_is_rest_false():
     register_responses([
         ('GET', 'cluster', SRR['is_zapi']),
     ])
-    rest_api = create_restapi_object(DEFAULT_ARGS)
+    args = {'use_rest': 'auto'}
+    rest_api = create_restapi_object(DEFAULT_ARGS, args)
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
     print(rest_api.debug_logs)
@@ -198,7 +199,8 @@ def test_is_rest_false_9_5():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_95']),
     ])
-    rest_api = create_restapi_object(DEFAULT_ARGS)
+    args = {'use_rest': 'auto'}
+    rest_api = create_restapi_object(DEFAULT_ARGS, args)
     is_rest = rest_api.is_rest()
     print(rest_api.errors)
     print(rest_api.debug_logs)

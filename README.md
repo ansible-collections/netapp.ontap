@@ -9,7 +9,7 @@
 
  NetApp ONTAP Collection
 
- Copyright (c) 2022 NetApp, Inc. All rights reserved.
+ Copyright (c) 2025 NetApp, Inc. All rights reserved.
  Specifications subject to change without notice.
 
 =============================================================
@@ -26,7 +26,7 @@ collections:
 # Requirements
 - ansible version >= 7.0
 - requests >= 2.20
-- netapp-lib version >= 2018.11.13
+- netapp-lib version >= 2018.11.13 (For ZAPI)
 
 # Module documentation
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
@@ -64,11 +64,6 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ## 23.0.0
 
-### Major Changes
-  - na_ontap_nvme_namespace - added compatibility for ASA r2 systems.
-
-## 22.15.0
-
 ### Bug Fixes
   - na_ontap_snapmirror - fix delete snapmirror timeout issue by retrying in REST.
   - na_ontap_quotas - changed examples in documentation for `type`.
@@ -78,6 +73,10 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
   - all modules - defaults to certificate based authentication if `username,password` and `cert_filepath/key_filepath` are set.
+
+### Major Changes
+  - `netapp-lib` library is now an optional requirement.
+  - na_ontap_nvme_namespace - added compatibility for ASA r2 systems.
 
 ### New Modules
   - na_ontap_mav_approval_group - REST only support for managing multi-admin verification (MAV) approval group, requires ONTAP 9.11 or later.

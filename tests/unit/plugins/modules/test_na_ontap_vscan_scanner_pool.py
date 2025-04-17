@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_vscan_scanner_pool '''
@@ -86,7 +86,8 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'test',
             'username': 'test_user',
             'password': 'test_pass!',
-            'scanner_policy': self.mock_scanner['scanner_policy']
+            'scanner_policy': self.mock_scanner['scanner_policy'],
+            'use_rest': 'never'
         }
 
     def get_scanner_mock_object(self, kind=None):

@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -18,8 +18,8 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun \
     import NetAppOntapLUN as my_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 # REST API canned responses when mocking send_request
@@ -180,16 +180,16 @@ class TestMyModule(unittest.TestCase):
     def test_create_error_missing_param(self):
         ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
         data = self.mock_args()
+        data.pop('vserver')
+        data['san_application_template'] = dict(name='san_application')
         set_module_args(data)
-        data.pop('flexvol_name')
-        data['san_application_template'] = dict(name='san_appli')
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_lun_mock_object().apply()
-        msg = 'size is a required parameter for create.'
+        msg = 'missing required arguments: vserver'
         assert msg == exc.value.args[0]['msg']
 
     def test_create_error_missing_param2(self):
-        ''' Test if create throws an error if required param 'destination_vserver' is not specified'''
+        ''' Test if create throws an error if required param 'flexvol_name' is not specified'''
         data = self.mock_args()
         data.pop('flexvol_name')
         data['size'] = 5
@@ -393,7 +393,7 @@ class TestMyModule(unittest.TestCase):
         with pytest.raises(AnsibleFailJson) as exc:
             self.get_lun_mock_object().apply()
         print(exc.value.args[0]['msg'])
-        msg = 'Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled.'
+        msg = 'Minimum version of ONTAP for san_application_template is (9, 7).  Current version: (9, 6, 0).'
         assert msg in exc.value.args[0]['msg']
 
     @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')

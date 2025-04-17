@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2018-2022, Sumit Kumar <sumit4@netapp.com>, chris Archibald <carchi@netapp.com>
+# Copyright (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -80,7 +81,7 @@ options:
           An error is issued if a module option is not supported in REST.
         - never -- will always use ZAPI if the module supports ZAPI.  An error may be issued if a REST option is not supported in ZAPI.
         - auto -- will try to use the REST API if the module supports REST and modules options are supported.  Reverts to ZAPI otherwise.
-      default: auto
+      default: always
       type: str
   feature_flags:
       description:
@@ -103,8 +104,8 @@ options:
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
-  - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
-    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - netapp-lib only when using ZAPI (install using 'pip install netapp-lib'),
+    Please note that netapp-lib is deprecated and no longer maintained. Proceed at your own risk.
   - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
     REST support requires ONTAP 9.6 or later.
 
@@ -186,8 +187,8 @@ options:
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
-  - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
-    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - netapp-lib only when using ZAPI (install using 'pip install netapp-lib'),
+    Please note that netapp-lib is deprecated and no longer maintained. Proceed at your own risk.
   - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
     REST support requires ONTAP 9.6 or later.
 
@@ -274,8 +275,8 @@ options:
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.
-  - When using ZAPI, netapp-lib 2018.11.13 or later (install using 'pip install netapp-lib'),
-    netapp-lib 2020.3.12 is strongly recommended as it provides better error reporting for connection issues.
+  - netapp-lib only when using ZAPI (install using 'pip install netapp-lib'),
+    Please note that netapp-lib is deprecated and no longer maintained. Proceed at your own risk.
   - A physical or virtual clustered Data ONTAP system, the modules support Data ONTAP 9.1 and onward,
     REST support requires ONTAP 9.6 or later.
 

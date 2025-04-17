@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -73,6 +73,7 @@ class TestMyModule(unittest.TestCase):
             'hostname': 'hostname',
             'username': 'username',
             'password': 'password',
+            'use_rest': 'never'
         })
         my_obj = my_module()
         my_obj.server = self.server

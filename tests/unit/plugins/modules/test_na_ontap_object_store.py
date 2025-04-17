@@ -1,4 +1,4 @@
-# (c) 2019, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_object_store """
@@ -143,7 +143,11 @@ class TestMyModule(unittest.TestCase):
             SRR['end_of_sequence']
         ]
         mock_has_netapp_lib.return_value = False
-        set_module_args(self.set_default_args())
+        args = {
+            'use_rest': 'never',
+        }
+        args.update(self.set_default_args())
+        set_module_args(args)
         with pytest.raises(AnsibleFailJson) as exc:
             my_main()
         msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
@@ -156,7 +160,11 @@ class TestMyModule(unittest.TestCase):
             SRR['is_zapi'],
             SRR['end_of_sequence']
         ]
-        set_module_args(self.set_default_args())
+        args = {
+            'use_rest': 'never',
+        }
+        args.update(self.set_default_args())
+        set_module_args(args)
         my_obj = my_module()
         my_obj.server = self.server
         assert my_obj.get_aggr_object_store() is None
@@ -168,7 +176,11 @@ class TestMyModule(unittest.TestCase):
             SRR['is_zapi'],
             SRR['end_of_sequence']
         ]
-        set_module_args(self.set_default_args())
+        args = {
+            'use_rest': 'never',
+        }
+        args.update(self.set_default_args())
+        set_module_args(args)
         my_obj = my_module()
         my_obj.server = MockONTAPConnection(kind='object_store')
         object_store = my_obj.get_aggr_object_store()
@@ -191,7 +203,8 @@ class TestMyModule(unittest.TestCase):
             'secret_password': 'abc',
             'port': 1234,
             'certificate_validation_enabled': True,
-            'ssl_enabled': True
+            'ssl_enabled': True,
+            'use_rest': 'never'
         }
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -219,7 +232,8 @@ class TestMyModule(unittest.TestCase):
             'port': 1234,
             'certificate_validation_enabled': True,
             'ssl_enabled': True,
-            'owner': 'snapmirror'
+            'owner': 'snapmirror',
+            'use_rest': 'never'
         }
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -237,6 +251,7 @@ class TestMyModule(unittest.TestCase):
         ]
         module_args = {
             'state': 'absent',
+            'use_rest': 'never'
         }
         changed = self.call_command(module_args)
         assert changed
@@ -253,7 +268,8 @@ class TestMyModule(unittest.TestCase):
             'server': 'abc2',
             'container': 'abc',
             'access_key': 'abc2',
-            'secret_password': 'abc'
+            'secret_password': 'abc',
+            'use_rest': 'never'
         }
         module_args.update(self.set_default_args())
         set_module_args(module_args)
@@ -520,7 +536,8 @@ class TestMyModule(unittest.TestCase):
             'server': 'abc',
             'container': 'abc',
             'access_key': 'abc',
-            'secret_password': 'abc'
+            'secret_password': 'abc',
+            'use_rest': 'never'
         }
         module_args.update(self.set_default_args())
         set_module_args(module_args)

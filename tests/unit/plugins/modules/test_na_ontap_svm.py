@@ -1,4 +1,4 @@
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -162,11 +162,11 @@ def test_error_missing_name():
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_error_missing_netapp_lib(mock_has_netapp_lib):
     register_responses([
-        ('GET', 'cluster', SRR['is_zapi']),
     ])
     mock_has_netapp_lib.return_value = False
     msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert msg == create_module(svm_module, DEFAULT_ARGS, fail=True)['msg']
+    extra_args = {'use_rest': 'never'}
+    assert msg == create_module(svm_module, DEFAULT_ARGS, extra_args, fail=True)['msg']
 
 
 def test_successful_create_zapi():
@@ -177,7 +177,8 @@ def test_successful_create_zapi():
         ('ZAPI', 'vserver-create', ZRR['success']),
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
-    assert create_and_apply(svm_module, DEFAULT_ARGS)['changed']
+    args = {'use_rest': 'auto'}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, args)['changed']
 
 
 def test_create_idempotency():
@@ -186,7 +187,8 @@ def test_create_idempotency():
         ('GET', 'cluster', SRR['is_zapi']),
         ('ZAPI', 'vserver-get-iter', ZRR['svm_record']),
     ])
-    assert not create_and_apply(svm_module, DEFAULT_ARGS)['changed']
+    args = {'use_rest': 'auto'}
+    assert not create_and_apply(svm_module, DEFAULT_ARGS, args)['changed']
 
 
 def test_create_error():
@@ -196,8 +198,9 @@ def test_create_error():
         ('ZAPI', 'vserver-get-iter', ZRR['no_records']),
         ('ZAPI', 'vserver-create', ZRR['error']),
     ])
+    args = {'use_rest': 'auto'}
     msg = 'Error provisioning SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
-    assert create_and_apply(svm_module, DEFAULT_ARGS, fail=True)['msg'] == msg
+    assert create_and_apply(svm_module, DEFAULT_ARGS, args, fail=True)['msg'] == msg
 
 
 def test_successful_delete():
@@ -220,6 +223,7 @@ def test_error_delete():
     ])
     module_args = {
         'state': 'absent',
+        'use_rest': 'auto'
     }
     msg = 'Error deleting SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
@@ -233,6 +237,7 @@ def test_delete_idempotency():
     ])
     module_args = {
         'state': 'absent',
+        'use_rest': 'auto'
     }
     assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -247,7 +252,8 @@ def test_init():
     ])
     module_args = {
         'admin_state': 'running',
-        'language': 'C.uTf-8'
+        'language': 'C.uTf-8',
+        'use_rest': 'auto'
     }
     my_obj = create_module(svm_module, DEFAULT_ARGS, module_args)
     assert my_obj.parameters['language'] == 'c.utf_8'
@@ -266,6 +272,7 @@ def test_init_error():
     ])
     module_args = {
         'allowed_protocols': 'dummy,humpty,dumpty,cifs,nfs',
+        'use_rest': 'auto'
     }
     error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert 'Unexpected value dummy in allowed_protocols.' in error
@@ -276,11 +283,13 @@ def test_init_error():
 
     module_args = {
         'services': {},
+        'use_rest': 'auto'
     }
     error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert error == 'using services requires ONTAP 9.6 or later and REST must be enabled - Unreachable - using ZAPI.'
     module_args = {
         'services': {'ndmp': {'allowed': True}},
+        'use_rest': 'always'
     }
     error = create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg']
     assert error == 'using ndmp requires ONTAP 9.10.1 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
@@ -297,6 +306,7 @@ def test_successful_rename():
     module_args = {
         'from_name': 'test_svm',
         'name': 'test_new_svm',
+        'use_rest': 'auto'
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -311,6 +321,7 @@ def test_error_rename_no_from():
     module_args = {
         'from_name': 'test_svm',
         'name': 'test_new_svm',
+        'use_rest': 'auto'
     }
     msg = 'Error renaming SVM test_new_svm: no SVM with from_name test_svm.'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
@@ -327,6 +338,7 @@ def test_error_rename_zapi():
     module_args = {
         'from_name': 'test_svm',
         'name': 'test_new_svm',
+        'use_rest': 'auto'
     }
     msg = 'Error renaming SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
@@ -351,6 +363,7 @@ def test_error_modify_language():
     ])
     module_args = {
         'language': 'c',
+        'use_rest': 'auto'
     }
     msg = 'Error modifying SVM test_svm: NetApp API failed. Reason - 12345:synthetic error for UT purpose'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
@@ -366,12 +379,14 @@ def test_error_modify_fixed_properties():
     ])
     module_args = {
         'ipspace': 'new',
+        'use_rest': 'auto'
     }
     msg = 'Error modifying SVM test_svm: cannot modify ipspace - current: ansible_ipspace - desired: new.'
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
     module_args = {
         'ipspace': 'new',
-        'root_volume': 'new_root'
+        'root_volume': 'new_root',
+        'use_rest': 'auto'
     }
     msg = 'Error modifying SVM test_svm: cannot modify root_volume - current: ansible_vol - desired: new_root, '\
           'ipspace - current: ansible_ipspace - desired: new.'
@@ -398,7 +413,7 @@ def test_successful_modify_allowed_protocols():
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
     _modify_options_with_expected_change(
-        'allowed_protocols', 'nvme,fcp'
+        'allowed_protocols', 'nvme,fcp',
     )
 
 
@@ -422,7 +437,8 @@ def test_successful_modify_aggr_list_star():
         ('ZAPI', 'vserver-modify', ZRR['success']),
     ])
     module_args = {
-        'aggr_list': '*'
+        'aggr_list': '*',
+        'use_rest': 'auto'
     }
     results = create_and_apply(svm_module, DEFAULT_ARGS, module_args)
     assert results['changed']
@@ -432,6 +448,7 @@ def test_successful_modify_aggr_list_star():
 def _modify_options_with_expected_change(arg0, arg1):
     module_args = {
         arg0: arg1,
+        'use_rest': 'auto'
     }
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -896,10 +913,13 @@ def test_rest_successfully_modify_with_create():
 
 def test_web_services_error_zapi():
     register_responses([
-        ('GET', 'cluster', SRR['is_zapi']),
+        # ('GET', 'cluster', SRR['is_zapi']),
     ])
-    module_args = {'web': {'certificate': 'cert_name'}}
-    msg = 'using web requires ONTAP 9.8 or later and REST must be enabled - Unreachable - using ZAPI.'
+    module_args = {
+        'web': {'certificate': 'cert_name'},
+        'use_rest': 'never'
+    }
+    msg = 'using web requires ONTAP 9.8 or later and REST must be enabled - using ZAPI.'
     assert create_module(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 

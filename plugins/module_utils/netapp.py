@@ -108,10 +108,9 @@ ERROR_MSG = dict(
 
 LOG = logging.getLogger(__name__)
 LOG_FILE = '/tmp/ontap_apis.log'
-ZAPI_DEPRECATION_MESSAGE = "With version 22.0.0 ONTAPI (ZAPI) has been deprecated. The final ONTAP version to support ZAPI is ONTAP 9.13.1.  "\
-                           "ZAPI calls in these modules will continue to work for ONTAP versions that supports ZAPI.  "\
-                           "You can update your playbook to use REST by adding use_rest: always to your playbook.  "\
-                           "More information can be found at: https://github.com/ansible-collections/netapp.ontap"
+ZAPI_DEPRECATION_MESSAGE = "With collection version 22.0.0 ONTAPI (ZAPI) has been deprecated.  "\
+                           "The 'netapp-lib' library is no longer maintained. Proceed at your own risk.  "\
+                           "To ensure continued support, please migrate to the REST API."
 
 try:
     from solidfire.factory import ElementFactory
@@ -161,7 +160,7 @@ def na_ontap_host_argument_spec():
         validate_certs=dict(required=False, type='bool', default=True),
         http_port=dict(required=False, type='int'),
         ontapi=dict(required=False, type='int'),
-        use_rest=dict(required=False, type='str', default='auto'),
+        use_rest=dict(required=False, type='str', default='always'),
         feature_flags=dict(required=False, type='dict'),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),

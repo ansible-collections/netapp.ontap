@@ -1,4 +1,4 @@
-# (c) 2019-2023, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_security_certificates """
@@ -523,9 +523,11 @@ def test_rest_negative_ZAPI_only(mock_request):
         SRR['is_zapi'],
         SRR['end_of_sequence']
     ]
-    set_module_args(set_default_args())
+    args = {'use_rest': 'never'}
+    args.update(set_default_args())
+    set_module_args(args)
     with pytest.raises(AnsibleFailJson) as exc:
         my_obj = my_module()
     print(exc.value.args[0])
-    msg = "na_ontap_security_certificates only supports REST, and requires ONTAP 9.6 or later. - Unreachable"
+    msg = "na_ontap_security_certificates only supports REST, and requires ONTAP 9.6 or later."
     assert msg == exc.value.args[0]['msg']

@@ -2,7 +2,6 @@ deepdiff
 ipaddress
 isodate
 jmespath
-netapp-lib
 requests
 six
 solidfire-sdk-python
