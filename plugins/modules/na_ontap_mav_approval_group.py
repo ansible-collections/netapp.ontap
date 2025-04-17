@@ -12,7 +12,7 @@ module: na_ontap_mav_approval_group
 short_description: NetApp ONTAP multi-admin verification (MAV) approval group
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
-version_added: 22.14.0
+version_added: 23.0.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Create/modify/delete multi-admin verification (MAV) approval group.

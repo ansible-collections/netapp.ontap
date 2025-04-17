@@ -80,7 +80,9 @@ The following modules do not have REST equivalent APIs. They will stop working o
 
 ### New Modules
   - na_ontap_mav_approval_group - REST only support for managing multi-admin verification (MAV) approval group, requires ONTAP 9.11 or later.
+  - na_ontap_mav_config - REST only support for managing multi-admin verification (MAV) global setting, requires ONTAP 9.11 or later.
   - na_ontap_support_config_backup - REST only support for retrieving and modifying configuration backup, requires ONTAP 9.6 or later.
+  - na_ontap_storage_unit_snapshot - Supported with ASA r2 systems for managing storage unit snapshots, requires ONTAP 9.16.1 or later.
 
 ## 22.14.0
 

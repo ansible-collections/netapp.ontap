@@ -10,7 +10,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
 
 def check_ontap_personality(rest_api):
     api = "private/cli/debug/smdb/table/OntapPersonality" if rest_api.meets_rest_minimum_version(True, 9, 17, 1) \
-        else "private/cli/debug/smdb/table/OntapMode"
+          else "private/cli/debug/smdb/table/OntapMode"
     response, error = rest_generic.get_one_record(rest_api, api)
     return response, error
 
