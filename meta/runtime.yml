@@ -76,6 +76,7 @@ action_groups:
     - na_ontap_lun
     - na_ontap_mav_approval_group
     - na_ontap_mav_config
+    - na_ontap_mav_rule
     - na_ontap_mcc_mediator
     - na_ontap_metrocluster_dr_group
     - na_ontap_metrocluster
