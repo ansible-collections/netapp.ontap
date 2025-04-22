@@ -96,7 +96,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_ontap_personality
 
 
 class NetAppOntapLUNMapReportingNodes:
@@ -124,6 +124,14 @@ class NetAppOntapLUNMapReportingNodes:
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             msg = 'REST requires ONTAP 9.10.1 or later for na_ontap_lun_map_reporting_nodes'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+        self.asa_r2_system = False
+        if self.use_rest:
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 0):
+                self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
+                if self.asa_r2_system:
+                    if 'path' in self.parameters:
+                        # If the path is passed as vol/vol1/lun1 it will be converted to lun1 for asa r2 system
+                        self.parameters['path'] = self.parameters.get('path').split("/")[-1]
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
