@@ -35,7 +35,7 @@ https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
 # Deprecation warning
-The ONTAP 9.12.1 release will be the last ONTAP version to support ONTAPI (ZAPI). Future versions of ONTAP will only support REST. 
+With collection version 22.0.0 ONTAPI (ZAPI) has been deprecated. Please refer to [CPC](https://mysupport.netapp.com/info/communications/ECMLP2880232.html) to stay updated with the End-of-Availability announcement. 
 This change will effect the modules listed below.
 
 ### Replaced Modules
@@ -55,7 +55,7 @@ return values differently than ZAPI you will need to update your playbooks to wo
   - na_ontap_zapit -> na_ontap_restit
 
 ### Deprecated Modules
-The following modules do not have REST equivalent APIs. They will stop working on any ONTAP release after CY22-Q4 release.
+The following modules do not have REST equivalent APIs.
   - na_ontap_file_directory_policy
   - na_ontap_svm_options
   - na_ontap_quota_policy
@@ -73,6 +73,7 @@ The following modules do not have REST equivalent APIs. They will stop working o
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
   - all modules - defaults to certificate based authentication if `username,password` and `cert_filepath/key_filepath` are set.
+  - updated ZAPI deprecation warnings in README & module utilities.
 
 ### Major Changes
   - `netapp-lib` library is now an optional requirement.

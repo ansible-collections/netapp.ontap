@@ -37,8 +37,8 @@ import traceback
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 ZAPI_ONLY_DEPRECATION_MESSAGE = "This module only supports ZAPI and is deprecated.   "\
-                                "It will no longer work with newer versions of ONTAP.  "\
-                                "The final ONTAP version to support ZAPI is ONTAP 9.12.1."
+                                "After upgrading to ONTAP 9.14 and beyond, ONTAPI (ZAPI) remains active for 30 days.  "\
+                                "If no calls are detected, it will be automatically disabled but can be re-enabled via CLI command."
 
 
 def cmp(obj1, obj2):
