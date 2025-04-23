@@ -137,6 +137,7 @@ action_groups:
     - na_ontap_ssh_command
     - na_ontap_storage_auto_giveback
     - na_ontap_storage_failover
+    - na_ontap_storage_unit
     - na_ontap_storage_unit_snapshot
     - na_ontap_support_config_backup
     - na_ontap_svm_options

@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_software_update '''
@@ -445,9 +445,10 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
 
 
 def test_fail_with_http():
-    args = dict(DEFAULT_ARGS)
-    args.pop('https')
-    assert 'Error: https parameter must be True' == call_main(my_main, args, fail=True)['msg']
+    module_args = {
+        'https': False
+    }
+    assert 'Error: https parameter must be True' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_is_update_required():

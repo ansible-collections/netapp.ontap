@@ -67,11 +67,13 @@ The following modules do not have REST equivalent APIs.
 ### Bug Fixes
   - na_ontap_snapmirror - fix delete snapmirror timeout issue by retrying in REST.
   - na_ontap_quotas - changed examples in documentation for `type`.
-  - na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
+  - na_ontap_ems_config - fix issue with supporting check mode when proxy_password is not set in REST.
   - na_ontap_user_role - fix issue with modifying privileges in REST.
+  - na_ontap_software_update - updated documentation for `https`.
 
 ### Minor Changes
   - na_ontap_volume - updated documentation for `snapshot_auto_delete`.
+  - na_ontap_ndmp - Added get method to generate and retrieve ndmp user passowrd in REST.
   - all modules - defaults to certificate based authentication if `username,password` and `cert_filepath/key_filepath` are set.
   - updated ZAPI deprecation warnings in README & module utilities.
 
@@ -87,6 +89,7 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_mav_config - REST only support for managing multi-admin verification (MAV) global setting, requires ONTAP 9.11 or later.
   - na_ontap_mav_rule - REST only support for managing multi-admin verification (MAV) rule, requires ONTAP 9.11 or later.
   - na_ontap_support_config_backup - REST only support for retrieving and modifying configuration backup, requires ONTAP 9.6 or later.
+  - na_ontap_storage_unit - Supported with ASA r2 systems for managing storage unit operations, requires ONTAP 9.16.1 or later.
   - na_ontap_storage_unit_snapshot - Supported with ASA r2 systems for managing storage unit snapshots, requires ONTAP 9.16.1 or later.
 
 ## 22.14.0
