@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -59,6 +59,7 @@ notes:
   - supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
   - supports check mode.
   - REST supports intra-Vserver lun copy only.
+  - Thie module is not compatibile with ASA R2 systems.
   '''
 EXAMPLES = """
 - name: Copy LUN
@@ -81,7 +82,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, rest_ontap_personality
 
 
 class NetAppOntapLUNCopy:
@@ -112,6 +113,12 @@ class NetAppOntapLUNCopy:
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
             msg = 'REST requires ONTAP 9.10.1 or later for na_ontap_lun_copy'
             self.use_rest = self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
+        self.asa_r2_system = False
+        if self.use_rest:
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 0):
+                self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
+                if self.asa_r2_system:
+                    self.module.fail_json(msg='na_ontap_lun_copy operation is not compatibile with ASA R2 systems')
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())

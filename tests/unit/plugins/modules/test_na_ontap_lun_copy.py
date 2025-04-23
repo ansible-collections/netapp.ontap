@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -38,12 +38,26 @@ DEFAULT_ARGS = {
 }
 
 
+DEFAULT_ARGS_ASA_R2 = {
+    'source_vserver': 'ansible',
+    'destination_path': '/vol/test/test_copy_dest_dest_new_reviewd_new',
+    'source_path': '/vol/test/test_copy_1',
+    'destination_vserver': 'ansible',
+    'state': 'present',
+    'hostname': 'hostname',
+    'username': 'username',
+    'password': 'password',
+    'use_rest': 'always'
+}
+
+
 ZRR = zapi_responses({
     'lun_info': build_zapi_response({'num-records': 1})
 })
 
 
 SRR = rest_responses({
+    'is_asa_r2_system': (200, {'ASA_R2': True, 'ASA_LEGACY': False, 'ASA_ANY': True, 'ONTAP_AI_ML': False, 'ONTAP_X': True, 'ONTAP_9': False}, None),
     'lun_info': (200, {"records": [{
         "name": "/vol/vol0/lun1_10"
     }], "num_records": 1}, None)
@@ -111,3 +125,24 @@ def test_successful_copy_rest():
     ])
     assert create_and_apply(my_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
     assert not create_and_apply(my_module, DEFAULT_ARGS, {'use_rest': 'always'})['changed']
+
+
+def test_error_get_asa_r2_rest():
+    ''' Test error retrieving  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+    ])
+    error = create_module(my_module, DEFAULT_ARGS_ASA_R2, fail=True)['msg']
+    msg = "Failed while checking if the given host is an ASA r2 system or not"
+    assert msg in error
+
+
+def test_lun_copy_error_asa_r2_systems_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+    ])
+    lun_obj = create_module(my_module, DEFAULT_ARGS_ASA_R2, fail=True)
+    msg = "na_ontap_lun_copy operation is not compatibile with ASA R2 systems"
+    assert msg in lun_obj['msg']
