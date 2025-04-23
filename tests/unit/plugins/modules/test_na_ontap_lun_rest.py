@@ -1,4 +1,4 @@
-# (c) 2022-2023, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -10,7 +10,8 @@ import sys
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, \
+    assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import get_mock_record, \
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -152,7 +153,60 @@ SRR = rest_responses({
             }
         ],
     }, None),
-    'error_same_size': (400, None, 'New LUN size is the same as the old LUN size - this mau happen ...')
+    'error_same_size': (400, None, 'New LUN size is the same as the old LUN size - this may happen ...'),
+    'is_ontap_system': (200, {
+        'ASA_NEXT_STRICT': False,
+        'ASA_NEXT': False,
+        'ASA_LEGACY': False,
+        'ASA_ANY': False,
+        'ONTAP_X_STRICT': False,
+        'ONTAP_X': False,
+        'ONTAP_9_STRICT': True,
+        'ONTAP_9': True}, None),
+    'is_asa_r2_system': (200, {
+        'ASA_R2': True,
+        'ASA_LEGACY': False,
+        'ASA_ANY': True,
+        'ONTAP_AI_ML': False,
+        'ONTAP_X': True,
+        'ONTAP_9': False}, None),
+    'is_rest_9_16_0': (200, dict(version=dict(generation=9, major=16, minor=0, full='dummy_9_16_0')), None),
+    'lun_info': (200, {
+        "records": [
+            {
+                "uuid": "1cd8a442-86d1-11e0-ae1c-123478563412",
+                "enabled": True,
+                "os_type": "linux",
+                "location": {
+                    "logical_unit": "blocks",
+                    "storage_availability_zone": {
+                        "uuid": "16be322e-f2c3-11ef-b03b-005056ae54f6",
+                        "name": "storage_availability_zone_0"
+                    },
+                    "node": {
+                        "name": "abc111-vsim-sr058g",
+                        "uuid": "6ce81d09-f2c2-11ef-b03b-005056ae54f6"
+                    },
+                    "volume": {
+                        "uuid": "dc0fb62a-0a00-11f0-b03b-005056ae54f6",
+                        "name": "lun1"
+                    }
+                },
+                "name": "lun1",
+                "space": {
+                    "scsi_thin_provisioning_support_enabled": True,
+                    "guarantee": {
+                        "requested": False,
+                    },
+                    "size": 5242880
+                },
+                "svm": {
+                    "name": "svm1",
+                    "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+                },
+            }
+        ],
+    }, None),
 })
 
 DEFAULT_ARGS = {
@@ -183,9 +237,32 @@ DEFAULT_ARGS_MIN = {
 }
 
 
-def test_get_lun_none():
+def test_get_lun_none_prior_9_16_0():
+    ''' No checks for ONTAP personality for ONTAP system with version prior to 9.16.0 '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'storage/luns', SRR['empty_records'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    assert my_obj.get_luns_rest() is None
+
+
+def test_get_lun_none_9_16_0():
+    ''' ONTAP system with version 9.16.0 '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_16_0']),
+        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'storage/luns', SRR['empty_records'])
+    ])
+    my_obj = create_module(my_module, DEFAULT_ARGS)
+    assert my_obj.get_luns_rest() is None
+
+
+def test_get_lun_none_9_17_1_onwards():
+    ''' ONTAP system with version 9.17.1 or later '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_ontap_system']),
         ('GET', 'storage/luns', SRR['empty_records'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -568,3 +645,95 @@ def test_error_modify_lun_extra_option():
     error = expect_and_capture_ansible_exception(my_obj.modify_lun_rest, 'fail', modify)['msg']
     print('Info: %s' % error)
     assert "Error modifying LUN /vol/volume1/qtree1/lun1: Unknown parameters: {'fake': 'fake'}" == error
+
+
+# tests for ASA r2 system #
+def test_get_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'storage/luns', SRR['lun_info'])
+    ])
+    module_args = {'name': 'lun1'}
+    my_obj = create_module(my_module, DEFAULT_ARGS_MIN, module_args)
+    record = my_obj.get_lun_by_name(module_args['name'])
+    assert record['name'] == 'lun1'
+
+
+def test_successfully_create_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['lun_info']),
+    ])
+    module_args = {
+        'name': 'lun1',
+        'size': 5242880,
+        'size_unit': 'bytes',
+        'os_type': 'linux',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS_MIN, module_args)['changed']
+
+
+def test_successfully_create_lun_with_warnings():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['lun_info']),
+    ])
+    module_args = {
+        'name': 'lun1',
+        'size': 5242880,
+        'size_unit': 'bytes',
+        'os_type': 'linux',
+        'flexvol_name': 'vol1',
+        'space_reserve': False
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS_MIN, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Ignoring 'flexvol_name' as volumes are managed internally for ASA r2 system.")
+    assert_warning_was_raised("Ignoring 'space_reserve' as all LUNs are provisioned without a space reservation for ASA r2 system.")
+
+
+def test_successfully_modify_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'storage/luns', SRR['lun_info']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+        ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'from_name': 'lun1',
+        'name': 'lun2',
+        'size': 6291456,
+        'comment': 'renamed & resized lun',
+        'qos_policy_group': 'qos_policy_group_1'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS_MIN, module_args)['changed']
+
+
+def test_successfully_delete_lun():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'storage/luns', SRR['lun_info']),
+        ('DELETE', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
+    ])
+    module_args = {
+        'state': 'absent',
+        'name': 'lun1'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS_MIN, module_args)['changed']
+
+
+def test_error_check_asa_r2():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_17_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+    ])
+    module_args = {'name': 'lun1'}
+    error = create_module(my_module, DEFAULT_ARGS_MIN, module_args, fail=True)['msg']
+    assert "Failed while checking if the given host is an ASA r2 system or not" in error

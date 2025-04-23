@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2024, NetApp, Inc
+# (c) 2017-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -46,6 +46,7 @@ options:
       - The name of the FlexVol the LUN should exist on.
       - Required if san_application_template is not present.
       - Not allowed if san_application_template is present.
+      - Not supported for ASA r2 system.
     type: str
 
   qtree_name:
@@ -53,6 +54,7 @@ options:
       - Specifies the name of the Qtree that contains the new LUN.
       - Not allowed if san_application_template is present.
       - Only supported with REST.
+      - Qtrees are not supported with ASA r2 system.
     version_added: 22.8.0
     type: str
 
@@ -126,6 +128,7 @@ options:
   space_reserve:
     description:
       - This can be set to "false" which will create a LUN without any space being reserved.
+      - Not supported for ASA r2 system. All LUNs are provisioned without a space reservation.
     type: bool
     default: true
 
@@ -133,6 +136,7 @@ options:
     description:
       - This enables support for the SCSI Thin Provisioning features.  If the Host and file system do
         not support this do not enable it.
+      - Not supported for ASA r2 system. All LUNs are provisioned with SCSI thin provisioning enabled.
     type: bool
     version_added: 2.7.0
 
@@ -151,6 +155,7 @@ options:
         - operations at the LUN level are supported, they require to know the LUN short name.
         - this requires ONTAP 9.8 or higher.
         - The module partially supports ONTAP 9.7 for create and delete operations, but not for modify (API limitations).
+        - Not supported with ASA r2 system.
     type: dict
     version_added: 20.12.0
     suboptions:
@@ -235,6 +240,9 @@ options:
         type: list
         elements: str
         version_added: 21.7.0
+
+notes:
+  - ASA r2 is only supported with ONTAP releases 9.16.0x onwards.
 '''
 
 EXAMPLES = """
@@ -318,6 +326,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils.rest_application impo
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_volume
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from ansible_collections.netapp.ontap.plugins.module_utils import rest_ontap_personality
 
 HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
@@ -392,6 +401,7 @@ class NetAppOntapLUN:
         self.debug = {}
         self.uuid = None
         # self.debug['got'] = 'empty'     # uncomment to enable collecting data
+        self.asa_r2_system = False
 
         self.rest_api = OntapRestAPI(self.module)
         # use_exact_size is defaulted to true, but not supported with REST. To get around this we will ignore the variable in rest.
@@ -401,6 +411,12 @@ class NetAppOntapLUN:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties,
                                                                    partially_supported_rest_properties)
         if self.use_rest:
+            if self.rest_api.meets_rest_minimum_version(True, 9, 16, 0):
+                # ASA r2 is only supported from ONTAP releases 9.16.0x onwards
+                self.is_asa_r2_system()
+                if self.asa_r2_system:
+                    self.validate_params_asa_r2()
+
             self.parameters.pop('use_exact_size')
             if self.parameters.get('qos_adaptive_policy_group') is not None:
                 self.parameters['qos_policy_group'] = self.parameters.pop('qos_adaptive_policy_group')
@@ -417,6 +433,25 @@ class NetAppOntapLUN:
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()
 
+    def is_asa_r2_system(self):
+        ''' checks if the given host is a ASA r2 system or not '''
+        self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
+
+    def validate_params_asa_r2(self):
+        if self.parameters.get('space_reserve') is not None:
+            if not self.parameters['space_reserve']:
+                self.module.warn("Ignoring 'space_reserve' as all LUNs are provisioned without a space reservation for ASA r2 system.")
+            self.parameters.pop('space_reserve')
+        if self.parameters.get('space_allocation') is not None:
+            self.module.warn("Ignoring 'space_allocation' as all LUNs are provisioned with SCSI thin provisioning enabled for ASA r2 system.")
+            self.parameters.pop('space_allocation')
+        if self.parameters.get('flexvol_name') is not None:
+            self.module.warn("Ignoring 'flexvol_name' as volumes are managed internally for ASA r2 system.")
+            self.parameters.pop('flexvol_name')
+        if self.parameters.get('san_application_template') is not None:
+            self.module.warn("Ignoring 'san_application_template' for ASA r2 system.")
+            self.parameters.pop('san_application_template')
+
     def setup_rest_application(self):
         use_application_template = self.na_helper.safe_get(self.parameters, ['san_application_template', 'use_san_application'])
         rest_app = None
@@ -429,7 +464,8 @@ class NetAppOntapLUN:
                 name = self.na_helper.safe_get(self.parameters, ['san_application_template', 'name'], allow_sparse_dict=False)
                 rest_app = RestApplication(self.rest_api, self.parameters['vserver'], name)
             elif self.parameters.get('flexvol_name') is None:
-                self.module.fail_json(msg="flexvol_name option is required when san_application_template is not present")
+                if not self.asa_r2_system:
+                    self.module.fail_json(msg="flexvol_name option is required when san_application_template is not present")
         else:
             if use_application_template:
                 self.module.fail_json(msg="Error: using san_application_template requires ONTAP 9.7 or later and REST must be enabled.")
@@ -534,6 +570,36 @@ class NetAppOntapLUN:
                     return lun
         return None
 
+    def get_lun_by_name(self, name):
+        """
+        Return details about the LUN by name for ASA r2 systems
+
+        :return: Details about the lun
+        :rtype: dict
+        """
+        api = 'storage/luns'
+        query = {
+            'name': name,
+            'svm.name': self.parameters['vserver'],
+            'fields': "comment,lun_maps,name,os_type,qos_policy.name,space,enabled"}
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
+        if error:
+            self.module.fail_json(msg="Error getting lun %s: %s" % (self.parameters['name'], to_native(error)),
+                                  exception=traceback.format_exc())
+        if record:
+            return {
+                'uuid': self.na_helper.safe_get(record, ['uuid']),
+                'name': self.na_helper.safe_get(record, ['name']),
+                'path': self.na_helper.safe_get(record, ['name']),
+                'size': self.na_helper.safe_get(record, ['space', 'size']),
+                'comment': self.na_helper.safe_get(record, ['comment']),
+                'os_type': self.na_helper.safe_get(record, ['os_type']),
+                'qos_policy_group': self.na_helper.safe_get(record, ['qos_policy', 'name']),
+                'space_reserve': self.na_helper.safe_get(record, ['space', 'guarantee', 'requested']),
+                'space_allocation': self.na_helper.safe_get(record, ['space', 'scsi_thin_provisioning_support_enabled']),
+            }
+        return None
+
     def get_lun(self, name, lun_path=None):
         """
         Return details about the LUN
@@ -541,6 +607,8 @@ class NetAppOntapLUN:
         :return: Details about the lun
         :rtype: dict
         """
+        if self.asa_r2_system:
+            return self.get_lun_by_name(name)
         luns = self.get_luns(lun_path)
         lun = self.find_lun(luns, name, lun_path)
         if lun is not None:
@@ -958,7 +1026,7 @@ class NetAppOntapLUN:
         return luns
 
     def create_lun_rest(self):
-        name = self.create_lun_path_rest()
+        name = self.parameters['name'] if self.asa_r2_system else self.create_lun_path_rest()
         api = 'storage/luns'
         body = {
             'svm.name': self.parameters['vserver'],
@@ -973,7 +1041,8 @@ class NetAppOntapLUN:
         if self.parameters.get('size') is not None:
             body['space.size'] = self.parameters['size']
         if self.parameters.get('space_reserve') is not None:
-            body['space.guarantee.requested'] = self.parameters['space_reserve']
+            if not self.asa_r2_system:
+                body['space.guarantee.requested'] = self.parameters['space_reserve']
         if self.parameters.get('space_allocation') is not None:
             body['space.scsi_thin_provisioning_support_enabled'] = self.parameters['space_allocation']
         if self.parameters.get('comment') is not None:
@@ -1055,7 +1124,8 @@ class NetAppOntapLUN:
         errors = []
         if lun_cd_action == 'create':
             if self.parameters.get('flexvol_name') is None:
-                errors.append("The flexvol_name parameter is required for creating a LUN.")
+                if self.use_rest and not self.asa_r2_system:
+                    errors.append("The flexvol_name parameter is required for creating a LUN.")
             if self.use_rest and self.parameters.get('os_type') is None:
                 errors.append("The os_type parameter is required for creating a LUN with REST.")
             if self.parameters.get('size') is None:
