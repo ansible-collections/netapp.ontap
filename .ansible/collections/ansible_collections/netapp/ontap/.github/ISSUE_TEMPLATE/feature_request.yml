@@ -1,0 +1,100 @@
+---
+name: ✨ Feature request
+description: Suggest an idea for this project
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **Thank you for wanting to suggest a feature for netapp.ontap!**
+
+        💡
+        Before you go ahead with your request, please first consider if it
+        would be useful for majority of the netapp.ontap users. As a
+        general rule of thumb, any feature that is only of interest to a
+        small sub group should be [implemented in a third-party Ansible
+        Collection][contribute to collections] or maybe even just your
+        project alone. Be mindful of the fact that the essential
+        netapp.ontap features have a broad impact.
+
+
+        <details>
+          <summary>
+            ❗ Every change breaks someone's workflow.
+          </summary>
+
+
+          [![❗ Every change breaks someone's workflow.
+          ](https://imgs.xkcd.com/comics/workflow.png)
+          ](https://xkcd.com/1172/)
+        </details>
+
+
+        ⚠
+        Verify first that your idea is not [already requested on
+        GitHub][issue search].
+
+        Also test if the main branch does not already implement this.
+
+
+  - type: textarea
+    attributes:
+      label: Summary
+      description: >
+        Describe the new feature/improvement you would like briefly below.
+
+
+        What's the problem this feature will solve?
+
+        What are you trying to do, that you are unable to achieve
+        with netapp.ontap as it currently stands?
+
+
+        * Provide examples of real-world use cases that this would enable
+        and how it solves the problem you described.
+
+        * How do you solve this now?
+
+        * Have you tried to work around the problem using other tools?
+
+        * Could there be a different approach to solving this issue?
+
+      placeholder: >-
+        I am trying to do X with netapp.ontap from the devel branch on GitHub and
+        I think that implementing a feature Y would be very helpful for me and
+        every other user of netapp.ontap because of Z.
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Component Name
+      description: >
+        Write the short name of the module, plugin, task or feature below,
+        *use your best guess if unsure*.
+
+
+        [collections org]: /ansible-collections
+      placeholder: dnf, apt, yum, pip, user etc.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional Information
+      description: |
+        Describe how the feature would be used, why it is needed and what it would solve.
+
+        **HINT:** You can paste https://gist.github.com links for larger files.
+      value: |
+        <!--- Paste example playbooks or commands between quotes below -->
+        ```yaml (paste below)
+
+        ```
+      placeholder: >-
+        I asked on https://stackoverflow.com/.... and the community
+        advised me to do X, Y and Z.
+    validations:
+      required: true
+
+...

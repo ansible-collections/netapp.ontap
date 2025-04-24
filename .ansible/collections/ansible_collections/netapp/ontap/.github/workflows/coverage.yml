@@ -1,0 +1,45 @@
+name: NetApp.ontap Ansible Coverage
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+  sanity:
+    name: Coverage on ONTAP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install ansible stable-2.11
+        run: pip install https://github.com/ansible/ansible/archive/stable-2.11.tar.gz --disable-pip-version-check
+
+      - name: Make directory to make ansible-test happy
+        run: |
+          pwd
+          mkdir -p ansible_collections/netapp/ontap/
+          rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
+
+      - name: Run Unit Tests
+        run: ansible-test units --coverage --color --docker --python 3.8
+        working-directory: ansible_collections/netapp/ontap/
+
+        # ansible-test support producing code coverage date
+      - name: Generate coverage report
+        run: ansible-test coverage xml -v --requirements --group-by command --group-by version
+        working-directory: ansible_collections/netapp/ontap/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          working-directory: ansible_collections/netapp/ontap/
+          verbose: true
