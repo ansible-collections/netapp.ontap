@@ -43,5 +43,5 @@ jobs:
         working-directory: ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --docker -v --color
+        run: ansible-test units --docker -v --color --python 3.11
         working-directory: ansible_collections/netapp/ontap/
