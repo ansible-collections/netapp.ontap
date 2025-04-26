@@ -88,7 +88,7 @@
    "name": "README.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ce6a3d669df62f1d4acebb1314f608357db3bc1a813a43fc37956cf180a744aa",
+   "chksum_sha256": "6e7f71d39202bcd82f8a541f3d87e7647a507377891a4f3d7e35cf64bc4183b3",
    "format": 1
   },
   {
@@ -4033,6 +4033,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7511.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0910ba32b9508436dbb1c41003f8ba9bd63cd7c3efd0daa30dd95d34392dede6",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7533.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5135,7 +5142,7 @@
    "name": "plugins/modules/na_ontap_nvme_subsystem.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "6bffd6e2963e5f46de2efbd364f3ae0793bc32e98f3c7208548862655132586b",
+   "chksum_sha256": "4aa9ed4baa03dfbdcb3839974a3d52142a8477f38841b6957cb60baa01714c10",
    "format": 1
   },
   {
@@ -7403,7 +7410,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_nvme_subsystem_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4a230069d225bbddc77a8c183293cc016c1dbb4e4109e54dec037e164cca0d4b",
+   "chksum_sha256": "8574415cf3ebd39d219ee628d96adcefab7f3db48c30fbde6635a7e472a8abc2",
    "format": 1
   },
   {

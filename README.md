@@ -82,6 +82,7 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_nvme_namespace - added compatibility for ASA r2 systems.
   - na_ontap_lun - added compatibility for ASA r2 systems.
   - na_ontap_lun_map_reporting_nodes - added compatibility for ASA r2 systems.
+  - na_ontap_nvme_subsystem - added compatibility for ASA r2 systems.
   - na_ontap_lun_copy - added check to prevent use on unsupported ASA r2 systems.
 
 ### New Modules
