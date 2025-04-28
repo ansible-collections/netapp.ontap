@@ -19,6 +19,9 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response
 from ansible_collections.netapp.ontap.tests.unit.framework import ut_utilities
 
+if not netapp_utils.has_netapp_lib():
+    pytestmark = pytest.mark.skip("skipping as missing required netapp_lib")
+
 if sys.version_info < (3, 11):
     pytestmark = pytest.mark.skip("Skipping Unit Tests on 3.11")
 

@@ -6605,7 +6605,7 @@
    "name": "tests/unit/plugins/module_utils/test_netapp_module.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d5e676f8a939b334e52723ffa5a248086dc8962771ba921e7d798f52b7e6779b",
+   "chksum_sha256": "e2f7249316618750251ccd3ac0579cea467413283c75635e9606bbebff9301f7",
    "format": 1
   },
   {
@@ -6724,7 +6724,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_autosupport_invoke.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "64ba2791803a1a6432ed2cbe9524271656189ba5c34c8fbae3bd09bc980692d0",
+   "chksum_sha256": "6b1f8629c7a60b07d2a11a4361d3c63de37fd6968b2f53279a6c453016138db0",
    "format": 1
   },
   {
@@ -7928,7 +7928,7 @@
    "name": "tests/unit/requirements.txt",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2ac960fc2165599ec9e2d99c070898121aab8950f09e39b36f075985ceba49a8",
+   "chksum_sha256": "06b2dbdfa6374d502d544494486451fa15b3a7b9d360b1cb40c69bab832846e9",
    "format": 1
   },
   {
