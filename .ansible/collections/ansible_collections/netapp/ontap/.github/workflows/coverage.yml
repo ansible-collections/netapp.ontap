@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install ansible stable-2.11
         run: pip install https://github.com/ansible/ansible/archive/stable-2.11.tar.gz --disable-pip-version-check
@@ -30,7 +30,7 @@ jobs:
           rsync -av . ansible_collections/netapp/ontap/ --exclude ansible_collections/netapp/ontap/
 
       - name: Run Unit Tests
-        run: ansible-test units --coverage --color --docker --python 3.11
+        run: ansible-test units --coverage --color --docker --python 3.9
         working-directory: ansible_collections/netapp/ontap/
 
         # ansible-test support producing code coverage date
