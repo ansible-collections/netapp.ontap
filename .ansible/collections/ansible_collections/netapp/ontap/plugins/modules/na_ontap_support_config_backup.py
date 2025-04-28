@@ -12,7 +12,7 @@ module: na_ontap_support_config_backup
 short_description: NetApp ONTAP support configuration backup
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap_rest
-version_added: 22.14.0
+version_added: 23.0.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
 description:
   - Retrieves and modify the cluster configuration backup information.
@@ -30,21 +30,18 @@ options:
       - An external backup location for the cluster configuration.
       - This is mostly required for single node clusters where node and cluster configuration backups cannot be copied to other nodes in the cluster.
     type: str
-    required: true
 
   validate_certificate:
     description:
       - Use this parameter with the value "true" to validate the digital certificate of the remote server.
       - Digital certificate validation is available only when the HTTPS protocol is used in the URL; it is disabled by default.
     type: bool
-    required: true
 
   name:
     description:
       - Use this parameter to specify the user name to use to log in to the destination system and perform the upload.
       - The option "name" should be used in parameter instead of "username".
     type: str
-    required: true
 
 notes:
   - Only supported with REST and requires ONTAP 9.6 or later.
@@ -97,10 +94,10 @@ class NetAppOntapSupportConfigBackup:
         self.argument_spec = netapp_utils.na_ontap_rest_only_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present'], default='present'),
-            url=dict(required=True, type='str'),
+            url=dict(required=False, type='str'),
             # destination username should be passed as name
-            name=dict(required=True, type='str'),
-            validate_certificate=dict(required=True, type='bool')
+            name=dict(required=False, type='str'),
+            validate_certificate=dict(required=False, type='bool')
         ))
 
         self.module = AnsibleModule(
@@ -128,9 +125,9 @@ class NetAppOntapSupportConfigBackup:
                                   exception=traceback.format_exc())
         if record:
             return {
-                'url': record['url'],
-                'name': record['username'],
-                'validate_certificate': record['validate_certificate']
+                'url': self.na_helper.safe_get(record, ['url']),
+                'name': self.na_helper.safe_get(record, ['username']),
+                'validate_certificate': self.na_helper.safe_get(record, ['validate_certificate'])
             }
         return None
 
