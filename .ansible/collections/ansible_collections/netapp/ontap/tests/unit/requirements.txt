@@ -1,7 +1,6 @@
-ipaddress ; python_version >= '3.9'
+ipaddress ; python_version >= '2.7'
 isodate ; python_version >= '3.9'
 requests ; python_version >= '2.7'
-netapp-lib ; python_version >= '2.7'
 six ; python_version >= '3.9'
 solidfire-sdk-python ; python_version >= '3.9'
 xmltodict ; python_version >= '3.9'
