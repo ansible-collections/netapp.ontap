@@ -56,6 +56,7 @@ options:
   paths:
     description:
       - List of Namespace paths to be associated with the subsystem.
+      - For ASA R2 systems, The paths should match the format <name>[@<snapshot-name>].
     type: list
     elements: str
 short_description: "NetApp ONTAP Manage NVME Subsystem"
@@ -156,6 +157,9 @@ class NetAppONTAPNVMESubsystem:
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
                     if 'paths' in self.parameters:
+                        self.module.warn('For ASA R2 systems, The paths should match the format <name>[@<snapshot-name>].'
+                                         'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
+                        # If the path is passed as vol/vol1/ns it will be converted to ns for asa r2 systems.
                         self.parameters['paths'] = [item.split("/")[-1] for item in self.parameters['paths']]
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():

@@ -43,6 +43,9 @@ options:
   path:
     description:
       - Namespace path.
+      - The name of the NVMe namespace.
+      - NVMe namespace names are paths of the form "/vol/<volume>[/<qtree>]/<namespace>" where the qtree name is optional.
+      - For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].
     required: true
     type: str
   block_size:
@@ -174,7 +177,11 @@ class NetAppONTAPNVMENamespace:
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 0):
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
-                    self.parameters['path'] = self.parameters.get('path').split("/")[-1]
+                    if 'path' in self.parameters:
+                        self.module.warn('For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].'
+                                         'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
+                        # If the path is passed as vol/vol1/ns it will be converted to ns for asa r2 systems.
+                        self.parameters['path'] = self.parameters.get('path').split("/")[-1]
                 if not self.asa_r2_system and 'provisioning_options' in self.parameters:
                     self.module.fail_json(msg='ONTAP does not support provisioning_options')
         if self.use_rest and 'size' in self.parameters:

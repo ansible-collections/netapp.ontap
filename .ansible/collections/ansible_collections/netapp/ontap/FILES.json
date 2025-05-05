@@ -4974,14 +4974,14 @@
    "name": "plugins/modules/na_ontap_lun_map.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d7cad8bc09cd3cd9a962efbef780c37b19d1080b45c6c9885e6197b4f9cf3b3c",
+   "chksum_sha256": "558faf0febde2713d42cba8a8f699deeeaf2502733d69d955fcb9f35c6a580bc",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_lun_map_reporting_nodes.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "b58281eafbbe36166b4a9e77c52d951bc12b74db1e9e34f5a9e77c38aa82552d",
+   "chksum_sha256": "64c4817b843c2bffe0323e3297bd73144d887cc40cd4cf2621704708c3bfbd47",
    "format": 1
   },
   {
@@ -5142,14 +5142,14 @@
    "name": "plugins/modules/na_ontap_nvme_namespace.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "45015e1ee517da88706c2b0895dd4c5bde8603661eb938a9517699b562f8f78a",
+   "chksum_sha256": "600e9193d77c84f29a950c1072d01e865ef7a8368c4e79f8b245ab74fdf1099e",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_nvme_subsystem.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4aa9ed4baa03dfbdcb3839974a3d52142a8477f38841b6957cb60baa01714c10",
+   "chksum_sha256": "41ece164a80564c609393dbc51d75430875e60f930edc3fc945e050161ad2b73",
    "format": 1
   },
   {

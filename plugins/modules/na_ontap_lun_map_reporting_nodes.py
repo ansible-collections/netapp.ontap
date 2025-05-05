@@ -38,6 +38,7 @@ options:
   path:
     description:
       - Path of the LUN.
+      - For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].
     required: true
     type: str
 
@@ -130,7 +131,9 @@ class NetAppOntapLUNMapReportingNodes:
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
                     if 'path' in self.parameters:
-                        # If the path is passed as vol/vol1/lun1 it will be converted to lun1 for asa r2 system
+                        self.module.warn('For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].'
+                                         'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
+                        # If the path is passed as vol/vol1/lun1 it will be converted to lun1 for asa r2 systems.
                         self.parameters['path'] = self.parameters.get('path').split("/")[-1]
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
