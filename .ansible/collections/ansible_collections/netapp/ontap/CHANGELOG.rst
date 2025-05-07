@@ -5,6 +5,47 @@ NetApp ONTAP Collection Release Notes
 .. contents:: Topics
 
 
+v23.0.0
+=======
+
+Major Changes
+-------------
+
+- library `netapp-lib` is now an optional requirement.
+- na_ontap_lun - added compatibility for ASA r2 systems.
+- na_ontap_lun_copy - added check to prevent use on unsupported ASA r2 systems.
+- na_ontap_lun_map - added compatibility for ASA r2 systems.
+- na_ontap_lun_map_reporting_nodes - added compatibility for ASA r2 systems.
+- na_ontap_nvme_namespace - added compatibility for ASA r2 systems.
+- na_ontap_nvme_subsystem - added compatibility for ASA r2 systems.
+
+Minor Changes
+-------------
+
+- all modules - defaults to certificate based authentication if `username,password` and `cert_filepath/key_filepath` are set.
+- na_ontap_ndmp - Added get method to generate and retrieve ndmp user passowrd in REST.
+- na_ontap_volume - updated documentation for `snapshot_auto_delete`.
+- updated ZAPI deprecation warnings in README & module utilities.
+
+Bugfixes
+--------
+
+- na_ontap_ems_config - fix issue with support check mode when proxy_password is not set in REST.
+- na_ontap_quotas - changed examples in documentation for `type`.
+- na_ontap_snapmirror - fix delete snapmirror timeout issue by retrying in REST.
+- na_ontap_software_update - Updated documentation for `https`.
+- na_ontap_user_role - fix issue with modifying privileges in REST.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_mav_approval_group - NetApp ONTAP multi-admin verification (MAV) approval group
+- netapp.ontap.na_ontap_mav_config - NetApp ONTAP multi-admin verification (MAV) global setting
+- netapp.ontap.na_ontap_mav_rule - NetApp ONTAP multi-admin verification (MAV) rule
+- netapp.ontap.na_ontap_storage_unit - NetApp ONTAP ASA r2 storage unit
+- netapp.ontap.na_ontap_storage_unit_snapshot - NetApp ONTAP ASA r2 storage unit snapshot
+- netapp.ontap.na_ontap_support_config_backup - NetApp ONTAP support configuration backup
+
 v22.14.0
 ========
 
