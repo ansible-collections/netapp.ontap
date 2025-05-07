@@ -78,7 +78,7 @@
    "format": 1
   },
   {
-   "name": "LICENSE",
+   "name": "COPYING",
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "c53a65c2fd561c87eaabf1072ef5dcab8653042bc15308465f52413585eb6271",
