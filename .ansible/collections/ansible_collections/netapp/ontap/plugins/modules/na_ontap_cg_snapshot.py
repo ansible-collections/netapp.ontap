@@ -299,13 +299,13 @@ class NetAppONTAPCGSnapshot(object):
             query['fields'] += 'volumes.name,'
             records, error = rest_generic.get_0_or_more_records(self.rest_api, api, query)
             if error:
-                self.module.fail_json(msg='Error searching for consistency group having volumes %s: %s' % (self.parameters['volumes'], to_native(error)),
+                self.module.fail_json(msg='Error searching for consistency group having volumes %s: %s' % (set(self.parameters['volumes']), to_native(error)),
                                       exception=traceback.format_exc())
             if records:
                 for record in records:
                     if record.get('volumes') is not None:
                         cg_volumes = [vol_item['name'] for vol_item in record['volumes']]
-                        if cg_volumes == self.parameters['volumes']:
+                        if sorted(cg_volumes) == sorted(set(self.parameters['volumes'])):
                             self.cg_uuid = record.get('uuid')
                             break
         return None
