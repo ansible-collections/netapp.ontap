@@ -254,7 +254,7 @@ EXAMPLES = """
     state: present
     package_url: "{{ web_link }}"
     firmware_type: service-processor
-    reboot_sp_: true
+    reboot_sp: true
     reboot_sp_after_download: true
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"

@@ -88,7 +88,7 @@
    "name": "README.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0917f88fc227dabc0da151e795e5cc1910acb8fb07ba8c491d76509202a4d833",
+   "chksum_sha256": "32768aac94a6245df3ec18aa2630ba65ecd604196974df5c417e442f22f20500",
    "format": 1
   },
   {
@@ -4054,6 +4054,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7532.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "39b2d9c0d7938bdfaf8ec507b4807b0b41aa6c3b2043d3d760e3b058ca99a113",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7533.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4806,7 +4813,7 @@
    "name": "plugins/modules/na_ontap_firmware_upgrade.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5c83e6030b142a76c90f469b3fd6428375f99648ca0c7d2adfd4215c60196da5",
+   "chksum_sha256": "e7b46eb3008dcf82b9a01cb5edd2c23d7fcd4065eebeff18071b5c57d3d9a2f2",
    "format": 1
   },
   {
@@ -7025,7 +7032,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_firmware_upgrade.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "c0cc7df4e8ee405d895d46c2e9b965c253fee58e4e3921f3e9232c10d9e3a416",
+   "chksum_sha256": "24dff1f2efca5844fbd3a168cba835e9923189fb145d62160e114be474a249d4",
    "format": 1
   },
   {

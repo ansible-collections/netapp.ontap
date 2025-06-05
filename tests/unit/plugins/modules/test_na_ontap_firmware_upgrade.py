@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_firmware_upgrade '''
@@ -16,9 +16,6 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade\
     import NetAppONTAPFirmwareUpgrade as my_module  # module under test
-
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 def mock_warn(me, log):
@@ -161,6 +158,7 @@ class TestMyModule(unittest.TestCase):
             'feature_flags': {'trace_apis': True}
         })
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_module_fail_when_required_args_missing(self):
         ''' required arguments are reported as errors '''
         with pytest.raises(AnsibleFailJson) as exc:
@@ -168,6 +166,7 @@ class TestMyModule(unittest.TestCase):
             my_module()
         print('Info: %s' % exc.value.args[0]['msg'])
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_ensure_sp_firmware_get_called(self):
         module_args = {}
         module_args.update(self.set_default_args())
@@ -179,6 +178,7 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_firmware_upgrade_get: %s' % repr(firmware_image_get))
         assert firmware_image_get is None
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_negative_package_and_baseline_present(self):
         module_args = {}
         module_args.update(self.set_default_args())
@@ -192,6 +192,7 @@ class TestMyModule(unittest.TestCase):
         print('info: ' + exc.value.args[0]['msg'])
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_negative_package_and_baseline_absent(self):
         module_args = {}
         module_args.update(self.set_default_args())
@@ -206,6 +207,7 @@ class TestMyModule(unittest.TestCase):
         print('info: ' + exc.value.args[0]['msg'])
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_ensure_acp_firmware_update_required_called(self):
         ''' a test tp verify acp firmware upgrade is required or not  '''
         module_args = {}
@@ -219,6 +221,7 @@ class TestMyModule(unittest.TestCase):
         print('Info: test_acp_firmware_upgrade_required_get: %s' % repr(acp_firmware_update_required))
         assert acp_firmware_update_required is True
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.sp_firmware_image_update')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.sp_firmware_image_update_progress_get')
     def test_ensure_apply_for_firmware_upgrade_called(self, get_mock, upgrade_mock):
@@ -244,6 +247,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         upgrade_mock.assert_called_with()
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
     def test_shelf_firmware_upgrade(self, upgrade_mock):
         ''' Test shelf firmware upgrade '''
@@ -260,6 +264,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
     def test_shelf_firmware_upgrade_force(self, upgrade_mock):
         ''' Test shelf firmware upgrade '''
@@ -278,6 +283,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_upgrade')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.shelf_firmware_update_required')
     def test_shelf_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock):
@@ -299,6 +305,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_upgrade')
     def test_acp_firmware_upgrade(self, upgrade_mock):
         ''' Test ACP firmware upgrade '''
@@ -315,6 +322,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.acp_firmware_upgrade')
     def test_acp_firmware_upgrade_force(self, upgrade_mock):
         ''' Test ACP firmware upgrade '''
@@ -332,6 +340,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
     def test_disk_firmware_upgrade(self, upgrade_mock):
         ''' Test disk firmware upgrade '''
@@ -348,6 +357,7 @@ class TestMyModule(unittest.TestCase):
         assert not exc.value.args[0]['changed']
         assert not upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
     def test_disk_firmware_upgrade_force(self, upgrade_mock):
         ''' Test disk firmware upgrade '''
@@ -365,6 +375,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_upgrade')
     @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_firmware_upgrade.NetAppONTAPFirmwareUpgrade.disk_firmware_update_required')
     def test_disk_firmware_upgrade_force_update_required(self, update_required_mock, upgrade_mock):
@@ -385,6 +396,7 @@ class TestMyModule(unittest.TestCase):
         assert exc.value.args[0]['changed']
         assert upgrade_mock.called
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_acp_firmware_update_required(self):
         ''' Test acp_firmware_update_required '''
         module_args = {}
@@ -396,6 +408,7 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.acp_firmware_update_required()
         assert result
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_acp_firmware_update_required_false(self):
         ''' Test acp_firmware_update_required '''
         module_args = {}
@@ -407,6 +420,7 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.acp_firmware_update_required()
         assert not result
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_negative_acp_firmware_update_required(self):
         ''' Test acp_firmware_update_required '''
         module_args = {}
@@ -420,6 +434,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Error fetching acp firmware details details: NetApp API failed. Reason - None:None"
         assert msg in exc.value.args[0]['msg']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_disk_firmware_update_required(self):
         ''' Test disk_firmware_update_required '''
         module_args = {}
@@ -432,6 +447,7 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.disk_firmware_update_required()
         assert result
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_negative_disk_firmware_update_required(self):
         ''' Test disk_firmware_update_required '''
         module_args = {}
@@ -446,6 +462,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Error fetching disk module firmware  details: NetApp API failed. Reason - None:None"
         assert msg in exc.value.args[0]['msg']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_shelf_firmware_update_required(self):
         ''' Test shelf_firmware_update_required '''
         module_args = {}
@@ -458,6 +475,7 @@ class TestMyModule(unittest.TestCase):
         result = my_obj.shelf_firmware_update_required()
         assert result
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_negative_shelf_firmware_update_required(self):
         ''' Test shelf_firmware_update_required '''
         module_args = {}
@@ -472,6 +490,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Error fetching shelf module firmware  details: NetApp API failed. Reason - None:None"
         assert msg in exc.value.args[0]['msg']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download(self):
         ''' Test firmware download '''
         module_args = {}
@@ -487,6 +506,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download completed.  Extra info: Download complete."
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_60(self):
         ''' Test firmware download '''
         module_args = {}
@@ -502,6 +522,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download completed, slowly."
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_502(self):
         ''' Test firmware download '''
         module_args = {}
@@ -517,6 +538,7 @@ class TestMyModule(unittest.TestCase):
         msg = "Firmware download still in progress."
         assert exc.value.args[0]['msg'] == msg
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_502_as_error(self):
         ''' Test firmware download '''
         module_args = {}
@@ -532,6 +554,7 @@ class TestMyModule(unittest.TestCase):
         msg = "NetApp API failed. Reason - 502:Bad GW"
         assert msg in exc.value.args[0]['msg']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_no_num_error(self):
         ''' Test firmware download '''
         module_args = {}
@@ -546,6 +569,7 @@ class TestMyModule(unittest.TestCase):
         msg = "NetApp API failed. Reason - some error string:whatever"
         assert msg in exc.value.args[0]['msg']
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_no_status_attr(self):
         ''' Test firmware download '''
         module_args = {}
@@ -560,6 +584,7 @@ class TestMyModule(unittest.TestCase):
         msg = "unable to download package from dummy_url: 'status' attribute missing."
         assert exc.value.args[0]['msg'].startswith(msg)
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_status_failed(self):
         ''' Test firmware download '''
         module_args = {}
@@ -574,6 +599,7 @@ class TestMyModule(unittest.TestCase):
         msg = "unable to download package from dummy_url: check 'status' value."
         assert exc.value.args[0]['msg'].startswith(msg)
 
+    @pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
     def test_firmware_download_empty_output(self):
         ''' Test firmware download '''
         module_args = {}
