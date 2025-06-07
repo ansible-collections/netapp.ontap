@@ -92,7 +92,7 @@ class TestMyModule(unittest.TestCase):
             'name': 'test',
             'port': 'a1',
             'node': 'test_vserver',
-            'mode': 'something'
+            'mode': 'multimode_lacp'
         }
 
     def mock_args(self):

@@ -68,6 +68,9 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_cg_snapshot - fixed issue with CG not being found with given volumes in REST.
   - na_ontap_firmware_upgrade - fixed typo in example.
 
+### Minor Changes
+  - na_ontap_net_ifgrp - Update `mode` parameter to specify allowed values.
+
 ## 23.0.0
 
 ### Bug Fixes
