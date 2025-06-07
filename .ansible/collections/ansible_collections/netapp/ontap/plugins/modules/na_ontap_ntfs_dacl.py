@@ -16,7 +16,7 @@ ANSIBLE_METADATA = {
 DOCUMENTATION = """
 module: na_ontap_ntfs_dacl
 author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
-short_description: NetApp Ontap create, delate or modify NTFS DACL (discretionary access control list)
+short_description: NetApp Ontap create, delete or modify NTFS DACL (discretionary access control list)
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '20.4.0'
