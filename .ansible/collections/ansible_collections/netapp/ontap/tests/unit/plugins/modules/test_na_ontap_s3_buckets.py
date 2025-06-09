@@ -1,4 +1,4 @@
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -166,6 +166,7 @@ SRR = rest_responses({
         "audit_event_selector": {"access": "all", "permission": "all"},
         "name": "bucket1",
         "comment": "S3 bucket.",
+        "snapshot_policy": {"name": "none"},
         "svm": {"name": "svm1", "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"},
         "volume": {"uuid": "1cd8a442-86d1-11e0-abcd-123478563412"}
     }, None),
@@ -698,6 +699,17 @@ def test_modify_s3_bucket_policy_statements_conditions():
     module_args['policy']['statements'][1]['conditions'] = []
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
     module_args = {'policy': MULTIPLE_POLICY_CONDITIONS}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_s3_bucket_snapshot_policy():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'protocols/s3/buckets', SRR['s3_bucket_9_10']),
+        ('GET', 'storage/volumes/1cd8a442-86d1-11e0-abcd-123478563412', SRR['volume_info']),
+        ('PATCH', 'protocols/s3/buckets/02c9e252-41be-11e9-81d5-00a0986138f7/414b29a1-3b26-11e9-bd58-0050568ea055', SRR['empty_good']),
+    ])
+    module_args = {'snapshot_policy': 'default-1weekly'}
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 

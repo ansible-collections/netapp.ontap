@@ -86,11 +86,24 @@ options:
     choices: ['tls_psk', 'none']
     type: str
     version_added: '20.5.0'
+  local_name_for_peer:
+    description:
+      - Specifies local name of the peer Cluster in the relationship.
+      - By default the system will generate the same name as cluster name.
+    type: str
+    version_added: '23.1.0'
+  local_name_for_source:
+    description:
+      - Specifies local name of the source Cluster in the relationship.
+      - By default the system will generate the same name as cluster name.
+    type: str
+    version_added: '23.1.0'
 short_description: NetApp ONTAP Manage Cluster peering
 version_added: 2.7.0
 
 notes:
   - Modify remote intercluster addresses operation is supported only with REST.
+  - The options local_name_for_peer and local_name_for_source are supported only with REST.
 '''
 
 EXAMPLES = """
@@ -100,6 +113,8 @@ EXAMPLES = """
     source_intercluster_lifs: 1.2.3.4,1.2.3.5
     dest_intercluster_lifs: 1.2.3.6,1.2.3.7
     passphrase: XXXX
+    local_name_for_peer: 'dest_local_name'
+    local_name_for_source: 'sorce_local_name'
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -139,6 +154,8 @@ EXAMPLES = """
     source_intercluster_lifs: 1.2.3.4,1.2.3.5
     dest_intercluster_lifs: 1.2.3.8
     dest_cluster_name: test-dest-cluster
+    local_name_for_peer: 'dest_name'
+    local_name_for_source: 'source_name'
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -178,7 +195,9 @@ class NetAppONTAPClusterPeer:
             source_cluster_name=dict(required=False, type='str'),
             dest_cluster_name=dict(required=False, type='str'),
             ipspace=dict(required=False, type='str'),
-            encryption_protocol_proposed=dict(required=False, type='str', choices=['tls_psk', 'none'])
+            encryption_protocol_proposed=dict(required=False, type='str', choices=['tls_psk', 'none']),
+            local_name_for_peer=dict(required=False, type='str'),
+            local_name_for_source=dict(required=False, type='str'),
         ))
 
         self.module = AnsibleModule(
@@ -279,7 +298,7 @@ class NetAppONTAPClusterPeer:
 
     def cluster_peer_get_rest(self, cluster):
         api = 'cluster/peers'
-        fields = 'remote'
+        fields = 'remote,name'
         restapi = self.rest_api if cluster == 'source' else self.dst_rest_api
         records, error = rest_generic.get_0_or_more_records(restapi, api, None, fields)
         if error:
@@ -300,6 +319,7 @@ class NetAppONTAPClusterPeer:
                         cluster_info['cluster_name'] = record['remote']['name']
                         cluster_info['peer-addresses'] = record['remote']['ip_addresses']
                         cluster_info['uuid'] = record['uuid']
+                        cluster_info['local_name_for_peer'] = record['name']
                         return cluster_info
         return None
 
@@ -375,8 +395,12 @@ class NetAppONTAPClusterPeer:
         # generate passphrase in source if passphrase not provided.
         elif cluster == 'source':
             body['authentication.generate_passphrase'] = True
+            if 'local_name_for_peer' in self.parameters:
+                body['name'] = self.parameters['local_name_for_peer']
         elif cluster == 'destination':
             body['authentication.passphrase'] = self.generated_passphrase
+            if 'local_name_for_source' in self.parameters:
+                body['name'] = self.parameters['local_name_for_source']
         server, peer_address = self.get_server_and_peer_address(cluster)
         body['remote.ip_addresses'] = peer_address
         if self.parameters.get('encryption_protocol_proposed') is not None:
@@ -394,9 +418,13 @@ class NetAppONTAPClusterPeer:
             for record in response['records']:
                 self.generated_passphrase = record['authentication']['passphrase']
 
-    def cluster_peer_modify_rest(self, cluster, uuid, modified_peer_addresses):
+    def cluster_peer_modify_rest(self, cluster, uuid, modified_peer_addresses=None, local_name=None, current_name=None):
         api = 'cluster/peers'
-        body = {'remote.ip_addresses': modified_peer_addresses}
+        body = {}
+        if modified_peer_addresses:
+            body['remote.ip_addresses'] = modified_peer_addresses
+        if local_name and local_name != current_name:
+            body['name'] = local_name
         server = self.rest_api if cluster == 'source' else self.dst_rest_api
         dummy, error = rest_generic.patch_async(server, api, uuid, body)
         if error:
@@ -429,20 +457,43 @@ class NetAppONTAPClusterPeer:
                 if destination_action == 'create' and self.parameters.get('source_cluster_name') is None:
                     self.module.fail_json(msg='Following option is missing: source_cluster_name')
                 if not self.module.check_mode:
-                    if source and (source.get('peer-addresses') != self.parameters.get('dest_intercluster_lifs')):
-                        source_changed = True
-                        uuid = source['uuid']
-                        self.cluster_peer_modify_rest('source', uuid, self.parameters['dest_intercluster_lifs'])
-                        modify['dest_intercluster_lifs'] = self.parameters['dest_intercluster_lifs']
+                    if source:
+                        peer_address_diff = set(source.get('peer-addresses', [])) != set(self.parameters.get('dest_intercluster_lifs', []))
+                        local_name_diff = (
+                            self.parameters.get('local_name_for_peer') and
+                            source.get('local_name_for_peer') != self.parameters.get('local_name_for_peer')
+                        )
+                        if peer_address_diff or local_name_diff:
+                            source_changed = True
+                            uuid = source['uuid']
+                            modified_peer_addresses = self.parameters['dest_intercluster_lifs'] if peer_address_diff else None
+                            current_name = source.get('local_name_for_peer')
+                            local_name = self.parameters.get('local_name_for_peer') if local_name_diff else None
+                            self.cluster_peer_modify_rest('source', uuid, modified_peer_addresses, local_name, current_name)
+                            if peer_address_diff:
+                                modify['dest_intercluster_lifs'] = self.parameters['dest_intercluster_lifs']
+                            if local_name_diff:
+                                modify['local_name_for_peer'] = self.parameters['local_name_for_peer']
             if destination_action is None:
                 if source_action == 'create' and self.parameters.get('dest_cluster_name') is None:
                     self.module.fail_json(msg='Following option is missing: dest_cluster_name')
                 if not self.module.check_mode:
-                    if destination and (destination.get('peer-addresses') != self.parameters.get('source_intercluster_lifs')):
-                        destination_changed = True
-                        uuid = destination['uuid']
-                        self.cluster_peer_modify_rest('destination', uuid, self.parameters['source_intercluster_lifs'])
-                        modify['source_intercluster_lifs'] = self.parameters['source_intercluster_lifs']
+                    if destination:
+                        peer_address_diff = set(destination.get('peer-addresses', [])) != set(self.parameters.get('source_intercluster_lifs', []))
+                        local_name_diff = (
+                            self.parameters.get('local_name_for_source') and
+                            destination.get('local_name_for_peer') != self.parameters.get('local_name_for_source')
+                        )
+                        if peer_address_diff or local_name_diff:
+                            destination_changed = True
+                            uuid = destination['uuid']
+                            modified_peer_addresses = self.parameters['source_intercluster_lifs'] if peer_address_diff else None
+                            local_name = self.parameters.get('local_name_for_source') if local_name_diff else None
+                            self.cluster_peer_modify_rest('destination', uuid, modified_peer_addresses, local_name)
+                            if peer_address_diff:
+                                modify['source_intercluster_lifs'] = self.parameters['source_intercluster_lifs']
+                            if local_name_diff:
+                                modify['local_name_for_peer'] = self.parameters['local_name_for_source']
             self.na_helper.changed = source_changed | destination_changed
         # delete peer relation in cluster where relation is present
         else:

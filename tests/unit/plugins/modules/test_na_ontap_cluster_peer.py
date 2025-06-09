@@ -152,7 +152,7 @@ SRR = rest_responses({
     'cluster_peer_dst': (200, {"records": [
         {
             "uuid": "1e698aba-2aa6-11ec-b7be-005056b366e1",
-            "name": "mohan9cluster2",
+            "name": "source_name",
             "remote": {
                 "name": "mohan9cluster2",
                 "serial_number": "1-80-000011",
@@ -163,11 +163,33 @@ SRR = rest_responses({
     'cluster_peer_src': (200, {"records": [
         {
             "uuid": "1fg98aba-2aa6-11ec-b7be-005fgvb366e1",
-            "name": "mohanontap98cluster",
+            "name": "peer_name",
             "remote": {
                 "name": "mohanontap98cluster",
                 "serial_number": "1-80-000031",
                 "ip_addresses": ["10.193.179.57"]
+            }
+        }
+    ], "num_records": 1}, None),
+    'cluster_peer_dst_modified': (200, {"records": [
+        {
+            "uuid": "1e698aba-2aa6-11ec-b7be-005056b366e1",
+            "name": "src_local_name",
+            "remote": {
+                "name": "mohan9cluster2",
+                "serial_number": "1-80-000011",
+                "ip_addresses": ["10.193.179.181"]
+            }
+        }
+    ], "num_records": 1}, None),
+    'cluster_peer_src_modified': (200, {"records": [
+        {
+            "uuid": "1fg98aba-2aa6-11ec-b7be-005fgvb366e1",
+            "name": "dest_local_name",
+            "remote": {
+                "name": "mohanontap98cluster",
+                "serial_number": "1-80-000031",
+                "ip_addresses": ["10.193.179.58"]
             }
         }
     ], "num_records": 1}, None),
@@ -196,7 +218,9 @@ DEFAULT_ARGS = {
     'dest_intercluster_lifs': ['10.193.179.57'],
     'passphrase': 'ontapcluster_peer',
     'encryption_protocol_proposed': 'none',
-    'ipspace': 'Default'
+    'ipspace': 'Default',
+    'local_name_for_peer': 'peer_name',
+    'local_name_for_source': 'source_name',
 }
 
 
@@ -272,6 +296,8 @@ def test_successful_modify_rest():
     module_args = DEFAULT_ARGS
     module_args['dest_intercluster_lifs'] = ['10.193.179.58']
     module_args['source_intercluster_lifs'] = ['10.193.179.181']
+    module_args['local_name_for_source'] = "src_local_name"
+    module_args['local_name_for_peer'] = "dest_local_name"
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'cluster', SRR['is_rest']),
@@ -285,18 +311,19 @@ def test_successful_modify_rest():
 
 def test_modify_idempotency_rest():
     ''' Test successful modify idempotency '''
-    module_args = DEFAULT_ARGS
-    module_args['dest_intercluster_lifs'] = ['10.193.179.58']
-    module_args['source_intercluster_lifs'] = ['10.193.179.181']
-    SRR['cluster_peer_src'][1]['records'][0]['remote']['ip_addresses'] = ['10.193.179.58']
-    SRR['cluster_peer_dst'][1]['records'][0]['remote']['ip_addresses'] = ['10.193.179.181']
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'cluster/peers', SRR['cluster_peer_src']),
-        ('GET', 'cluster/peers', SRR['cluster_peer_dst'])
+        ('GET', 'cluster/peers', SRR['cluster_peer_src_modified']),
+        ('GET', 'cluster/peers', SRR['cluster_peer_dst_modified'])
     ])
-    assert create_and_apply(my_module, module_args)
+    module_args = {
+        'dest_intercluster_lifs': '10.193.179.58',
+        'source_intercluster_lifs': '10.193.179.181',
+        'local_name_for_source': 'src_local_name',
+        'local_name_for_peer': 'dest_local_name',
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed'] is False
 
 
 def test_error_get_cluster_peer_rest():

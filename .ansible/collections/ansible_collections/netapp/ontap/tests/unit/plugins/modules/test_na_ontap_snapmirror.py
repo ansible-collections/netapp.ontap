@@ -1954,3 +1954,20 @@ def test_negative_set_source_cluster_connection(mock_netapp_lib):
     my_obj.parameters['peer_options']['use_rest'] = 'auto'
     error = "Error: the python NetApp-Lib module is required.  Import error: None"
     assert error in expect_and_capture_ansible_exception(my_obj.set_source_cluster_connection, 'fail')['msg']
+
+
+@patch('time.sleep')
+def test_rest_synchronous_sm_quick_resync_when_state_is_broken(dont_sleep):
+    ''' resync when snapmirror state is broken and relationship_state active  '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_broken']),  # apply first sm_get with state broken_off
+        ('PATCH', 'snapmirror/relationships/b5ee4571-5429-11ec-9779-005056b39a06', SRR['success']),  # sm resync response
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # check for idle
+        ('GET', 'snapmirror/relationships', SRR['sm_sync_get_mirrored']),  # check_health calls sm_get
+    ])
+    module_args = {
+        "use_rest": "always",
+        "quick_resync": True
+    }
+    assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']

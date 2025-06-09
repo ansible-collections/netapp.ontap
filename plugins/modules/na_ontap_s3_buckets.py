@@ -222,6 +222,13 @@ options:
           - allow
           - deny
           - all
+
+  snapshot_policy:
+    description:
+      - Specifies the snapshot policy for the bucket.
+    type: str
+    version_added: 23.1.0
+
 notes:
   - module will try to set desired C(audit_event_selector) if the bucket is not configured with audit_event_selector options,
     but may not take effect if there is no audit configuration present in vserver.
@@ -360,6 +367,7 @@ class NetAppOntapS3Buckets:
             audit_event_selector=dict(type='dict', options=dict(
                 access=dict(type='str', choices=['read', 'write', 'all']),
                 permission=dict(type='str', choices=['allow', 'deny', 'all']))),
+            snapshot_policy=dict(required=False, type='str'),
         ))
 
         self.module = AnsibleModule(
@@ -375,7 +383,7 @@ class NetAppOntapS3Buckets:
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_buckets', 9, 8)
         partially_supported_rest_properties = [['audit_event_selector', (9, 10, 1)], ['versioning_state', (9, 11, 1)],
-                                               ['type', (9, 12, 1)], ['nas_path', (9, 12, 1)]]
+                                               ['type', (9, 12, 1)], ['nas_path', (9, 12, 1)], ['snapshot_policy', (9, 16, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, partially_supported_rest_properties)
         # few keys in policy.statements will be configured with default value if not set in create.
         # so removing None entries to avoid idempotent issue in next run.
@@ -412,6 +420,8 @@ class NetAppOntapS3Buckets:
             fields += ',versioning_state'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
             fields += ',type,nas_path'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 1):
+            fields += ',snapshot_policy'
         params = {'name': self.parameters['name'],
                   'svm.name': self.parameters['vserver'],
                   'fields': fields}
@@ -431,7 +441,8 @@ class NetAppOntapS3Buckets:
             'audit_event_selector': self.na_helper.safe_get(record, ['audit_event_selector']),
             'type': self.na_helper.safe_get(record, ['type']),
             'nas_path': self.na_helper.safe_get(record, ['nas_path']),
-            'versioning_state': self.na_helper.safe_get(record, ['versioning_state'])
+            'versioning_state': self.na_helper.safe_get(record, ['versioning_state']),
+            'snapshot_policy': self.na_helper.safe_get(record, ['snapshot_policy', 'name']),
         }
         if body['policy']:
             for policy_statement in body['policy'].get('statements', []):
@@ -492,7 +503,8 @@ class NetAppOntapS3Buckets:
         if params is None:
             params = self.parameters
         body = {}
-        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path', 'policy', 'versioning_state']
+        options = ['aggregates', 'constituents_per_aggregate', 'size', 'comment', 'type', 'nas_path',
+                   'policy', 'versioning_state', 'snapshot_policy']
         for option in options:
             if option in params:
                 body[option] = params[option]
