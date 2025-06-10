@@ -487,6 +487,16 @@ options:
     type: str
     version_added: 2.9.0
 
+  tiering_object_tags:
+    description:
+      - This parameter specifies tags of a volume for objects stored on a FabricPool-enabled aggregate.
+      - Each tag is a key,value pair and should be in the format "key=value".
+      - A maximum of 4 tags are allowed per volume.
+      - To remove all existing tiering object tags, specify an empty list as the parameter value.
+    type: list
+    elements: str
+    version_added: 23.1.0
+
   space_slo:
     description:
       - Specifies the space SLO type for the volume. The space SLO type is the Service Level Objective for space management for the volume.
@@ -791,6 +801,7 @@ EXAMPLES = """
     space_slo: none
     nvfail_enabled: false
     comment: ansible created volume
+    tiering_object_tags: ['tag1=one', 'tag2=two', 'tag3=3', 'tag4=4']
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -1016,6 +1027,13 @@ EXAMPLES = """
     snapshot_auto_delete:
       state: 'on'
       target_free_space: 25
+
+- name: Modify volume tiering onject_tags - REST
+  netapp.ontap.na_ontap_volume:
+    state: present
+    name: test_vol
+    aggregate_name: "{{ aggr }}"
+    tiering_object_tags: ['tag1=one', 'tag2=two']
 """
 
 RETURN = """
@@ -1078,6 +1096,7 @@ class NetAppOntapVolume:
             nvfail_enabled=dict(type='bool', required=False),
             space_slo=dict(type='str', required=False, choices=['none', 'thick', 'semi-thick']),
             tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none', 'all']),
+            tiering_object_tags=dict(type='list', elements='str', required=False),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
             comment=dict(type='str', required=False),
             snapshot_auto_delete=dict(type='dict', required=False),
@@ -1184,14 +1203,14 @@ class NetAppOntapVolume:
                                        'space_slo',
                                        'vserver_dr_protection']
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
-                                               ['analytics', (9, 8)], ['atime_update', (9, 8)],
+                                               ['analytics', (9, 8)], ['atime_update', (9, 8)], ['tiering_object_tags', (9, 8)],
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
                                                ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)],
                                                ['granular_data', (9, 12, 1)], ['large_size_enabled', (9, 12, 1)],
                                                ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
                                             'analytics', 'activity_tracking', 'tags', 'vol_nearly_full_threshold_percent',
-                                            'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data']
+                                            'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data', 'tiering_object_tags']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -2119,7 +2138,7 @@ class NetAppOntapVolume:
             self.volume_unmount()
         attributes = modify.keys()
         for attribute in attributes:
-            if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy',
+            if attribute in ['space_guarantee', 'export_policy', 'unix_permissions', 'group_id', 'user_id', 'tiering_policy', 'tiering_object_tags',
                              'snapshot_policy', 'percent_snapshot_space', 'snapdir_access', 'atime_update', 'volume_security_style',
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
@@ -2540,6 +2559,7 @@ class NetAppOntapVolume:
                   'svm.name': self.parameters['vserver'],
                   'fields': 'encryption.enabled,'
                             'tiering.policy,'
+                            'tiering.object_tags,'
                             'nas.export_policy.name,'
                             'aggregates.name,'
                             'aggregates.uuid,'
@@ -2671,6 +2691,8 @@ class NetAppOntapVolume:
             body['qos.policy.name'] = self.get_qos_policy_group()
         if self.parameters.get('tiering_policy') is not None:
             body['tiering.policy'] = self.parameters['tiering_policy']
+        if self.parameters.get('tiering_object_tags') is not None:
+            body['tiering.object_tags'] = self.parameters['tiering_object_tags']
         if self.parameters.get('encrypt') is not None:
             body['encryption.enabled'] = self.parameters['encrypt']
         if self.parameters.get('logical_space_enforcement') is not None:
@@ -2761,6 +2783,7 @@ class NetAppOntapVolume:
         for key, option, transform in [
             ('nas.security_style', 'volume_security_style', None),
             ('tiering.policy', 'tiering_policy', None),
+            ('tiering.object_tags', 'tiering_object_tags', None),
             ('files.maximum', 'max_files', None),
         ]:
             if params and params.get(option) is not None:
@@ -2961,6 +2984,7 @@ class NetAppOntapVolume:
             'activity_tracking': self.na_helper.safe_get(record, ['activity_tracking', 'state']),
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
             'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
+            'tiering_object_tags': self.na_helper.safe_get(record, ['tiering', 'object_tags']),
             'export_policy': self.na_helper.safe_get(record, ['nas', 'export_policy', 'name']),
             'aggregate_name': aggr_name,
             'aggregates': aggregates,
@@ -3032,6 +3056,8 @@ class NetAppOntapVolume:
         modify = {}
 
         current = self.get_volume()
+        if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
+            current['tiering_object_tags'] = []
         self.volume_style = self.get_volume_style(current)
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')

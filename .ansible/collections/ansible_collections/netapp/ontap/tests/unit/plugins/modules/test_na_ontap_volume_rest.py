@@ -1,4 +1,4 @@
-# (c) 2020-2024, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -35,6 +35,7 @@ volume_info = {
     "state": "online",
     "style": "flexvol",
     "tiering": {
+        "object_tags": ['tag1=vol1', 'tag2=vol2'],
         "policy": "backup",
         "min_cooling_days": 0
     },
@@ -120,6 +121,13 @@ volume_info_offline = copy.deepcopy(volume_info)
 volume_info_offline['state'] = 'offline'
 volume_info_tags = copy.deepcopy(volume_info)
 volume_info_tags['_tags'] = ["team:csi", "environment:test"]
+volume_info_object_tags = copy.deepcopy(volume_info)
+volume_info_object_tags['tiering']['object_tags'] = ['tag1=vol1', 'tag2=vol2']
+volume_info_object_tags_modified = copy.deepcopy(volume_info)
+volume_info_object_tags_modified['tiering']['object_tags'] = ['tag1=vol1', 'tag2=vol2', 'tag3=vol3', 'tag4=vol4']
+volume_info_object_tags_empty = copy.deepcopy(volume_info)
+volume_info_object_tags_empty['tiering']['object_tags'] = []
+
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -167,7 +175,10 @@ SRR = rest_responses({
     'analytics_initializing': (200, {'records': [volume_analytics_initializing]}, None),
     'one_svm_record': (200, {'records': [{'uuid': 'svm_uuid'}]}, None),
     'volume_info_offline': (200, {'records': [volume_info_offline]}, None),
-    'volume_info_tags': (200, {'records': [volume_info_tags]}, None)
+    'volume_info_tags': (200, {'records': [volume_info_tags]}, None),
+    'volume_info_object_tags': (200, {'records': [volume_info_object_tags]}, None),
+    'volume_info_object_tags_modified': (200, {'records': [volume_info_object_tags_modified]}, None),
+    'volume_info_object_tags_empty': (200, {'records': [volume_info_object_tags_empty]}, None)
 })
 
 DEFAULT_APP_ARGS = {
@@ -481,7 +492,7 @@ def test_rest_error_change_volume_state():
 
 def test_rest_successfully_modify_attributes():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'storage/volumes', SRR['get_volume']),                                          # Get Volume
         ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),    # Modify
     ])
@@ -496,7 +507,7 @@ def test_rest_successfully_modify_attributes():
         'comment': 'carchi8py was here',
         'tiering_minimum_cooling_days': 10,
         'logical_space_enforcement': True,
-        'logical_space_reporting': True
+        'logical_space_reporting': True,
     }
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
@@ -1625,3 +1636,41 @@ def test_warn_rest_modify():
     args = {'is_online': False, 'junction_path': '/test', 'use_rest': 'always', 'snapshot_restore': 'restore1'}
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, args)['changed'] is False
     assert_warning_was_raised("Cannot perform action(s): ['snapshot_restore'] and modify: ['junction_path']", partial_match=True)
+
+
+def test_rest_volume_create_modify_tiering_object_tags():
+    ''' volume create, modify with tiering_object_tags
+    '''
+    register_responses([
+        # Create volume with tiering object tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['no_record']),
+        ('GET', 'svm/svms', SRR['one_svm_record']),
+        ('POST', 'storage/volumes', SRR['success']),
+        ('GET', 'storage/volumes', SRR['volume_info_object_tags']),
+        # idempotent check
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_object_tags']),
+        # modify object_tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_object_tags']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['success']),
+        # modify or empty object_tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_object_tags_empty']),
+        # Error throws when trying to add more than 4 object_tags
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'storage/volumes', SRR['volume_info_object_tags']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['generic_error']),
+    ])
+    module_args = {'tiering_object_tags': ['tag1=vol1', 'tag2=vol2']}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    module_args = {'tiering_object_tags': ['tag1=vol1', 'tag2=vol2', 'tag3=vol3', 'tag4=vol4']}
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    module_args = {'tiering_object_tags': []}
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    module_args = {'tiering_object_tags': ['tag1=vol1', 'tag2=vol2', 'tag3=vol3', 'tag4=vol4', 'tag5=vol5']}
+    msg = 'Error modifying volume test_svm: calling: storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa: got Expected error.'
+    error = create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
+    assert msg in error

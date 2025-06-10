@@ -65,6 +65,7 @@ The following modules do not have REST equivalent APIs.
 ## 23.1.0
 
 ### Minor Changes
+  - na_ontap_volume - new option `tiering_object_tags` added in REST.
   - na_ontap_cluster_peer - new option `local_name_for_peer` and `local_name_for_source` added in REST.
 
 ### Bug Fixes
