@@ -43,6 +43,7 @@ options:
   mode:
     description:
       - Specifies the link policy for the ifgrp.
+    choices: ['multimode', 'multimode_lacp', 'singlemode']
     type: str
 
   node:
@@ -109,6 +110,7 @@ EXAMPLES = """
     ports: [e0a]
     mode: multimode
     node: "{{ vsim_node_name }}"
+
 - name: Modify ports in an ifgrp
   netapp.ontap.na_ontap_net_ifgrp:
     state: present
@@ -120,6 +122,7 @@ EXAMPLES = """
     port: [e0a, e0c]
     mode: multimode
     node: "{{ vsim_node_name }}"
+
 - name: Delete ifgrp
   netapp.ontap.na_ontap_net_ifgrp:
     state: absent
@@ -128,6 +131,7 @@ EXAMPLES = """
     hostname: "{{ netapp_hostname }}"
     name: a0c
     node: "{{ vsim_node_name }}"
+
 - name: Create ifgrp - REST
   netapp.ontap.na_ontap_net_ifgrp:
     state: present
@@ -140,6 +144,7 @@ EXAMPLES = """
     node: "{{ vsim_node_name }}"
     broadcast_domain: Default
     ipspace: Default
+
 - name: Remove e0a and add port e0d to above created lag REST
   netapp.ontap.na_ontap_net_ifgrp:
     state: present
@@ -149,6 +154,7 @@ EXAMPLES = """
     from_lag_ports: [a0a, e0b]
     ports: [e0b, e0d]
     node: "{{ vsim_node_name }}"
+
 - name: Add e0a to lag that has port e0b e0d REST
   netapp.ontap.na_ontap_net_ifgrp:
     state: present
@@ -159,6 +165,7 @@ EXAMPLES = """
     ports: [e0b, e0d, e0a]
     mode: multimode
     node: "{{ vsim_node_name }}"
+
 - name: Modify broadcast_domain and ipspace REST
   netapp.ontap.na_ontap_net_ifgrp:
     state: present
@@ -169,6 +176,7 @@ EXAMPLES = """
     ipspace: test
     ports: [e0b, e0d, e0a]
     node: "{{ vsim_node_name }}"
+
 - name: Delete LAG with exact match of ports
   netapp.ontap.na_ontap_net_ifgrp:
     state: absent
@@ -206,7 +214,7 @@ class NetAppOntapIfGrp:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             distribution_function=dict(required=False, type='str', choices=['mac', 'ip', 'sequential', 'port']),
             name=dict(required=False, type='str'),
-            mode=dict(required=False, type='str'),
+            mode=dict(required=False, type='str', choices=['multimode', 'multimode_lacp', 'singlemode']),
             node=dict(required=True, type='str'),
             ports=dict(required=False, type='list', elements='str', aliases=["port"]),
             from_lag_ports=dict(required=False, type='list', elements='str'),
