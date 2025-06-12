@@ -79,7 +79,7 @@ options:
       second_authentication_method:
         description: when using ssh, optional additional authentication method for MFA.
         type: str
-        choices: ['none', 'password', 'publickey', 'nsswitch']
+        choices: ['none', 'password', 'publickey', 'nsswitch', 'totp']
   authentication_method:
     description:
       - Authentication method for the application.  If you need more than one method, use C(application_dicts).
@@ -295,7 +295,7 @@ class NetAppOntapUser:
                                                                  'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
                                        authentication_methods=dict(required=True, type='list', elements='str',
                                                                    choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
-                                       second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch']))),
+                                       second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch', 'totp']))),
             authentication_method=dict(type='str',
                                        choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
             set_password=dict(type='str', no_log=True),
