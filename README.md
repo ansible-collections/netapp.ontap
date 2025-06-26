@@ -65,18 +65,15 @@ The following modules do not have REST equivalent APIs.
 ## 23.1.0
 
 ### Minor Changes
+  - na_ontap_s3_buckets - new option `snapshot_policy` added in REST, requires ONTAP 9.16.1 or later.
   - na_ontap_volume - new option `tiering_object_tags` added in REST.
   - na_ontap_cluster_peer - new option `local_name_for_peer` and `local_name_for_source` added in REST.
+  - na_ontap_snapmirror - new option `quick_resync` added in REST.
 
 ### Bug Fixes
   - na_ontap_cg_snapshot - fixed issue with CG not being found with given volumes in REST.
   - na_ontap_firmware_upgrade - fixed typo in example.
-
-### Minor Changes
-  - na_ontap_snapmirror - new option `quick_resync` added in REST.
-
-### Minor Changes
-  - na_ontap_s3_buckets - new option `snapshot_policy` added in REST, requires ONTAP 9.16.1 or later.
+  - na_ontap_user - fixed issue with idempotency while creating a user account in REST.
 
 ## 23.0.0
 

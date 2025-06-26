@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_user '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_user import NetAppOntapUser as my_module, main as my_main   # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -91,6 +91,7 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     register_responses([
@@ -101,6 +102,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % call_main(my_main, {}, module_args, fail=True)['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_vserver_missing():
     ''' required arguments are reported as errors '''
     register_responses([
@@ -115,6 +117,7 @@ def test_module_fail_when_vserver_missing():
     assert 'Error: vserver is required' in call_main(my_main, {}, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_get_called():
     ''' a more interesting test '''
     register_responses([
@@ -133,6 +136,7 @@ def test_ensure_user_get_called():
     assert user_info is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_get_called_not_found():
     ''' a more interesting test '''
     register_responses([
@@ -151,6 +155,7 @@ def test_ensure_user_get_called_not_found():
     assert user_info is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_apply_called():
     ''' creating user and checking idempotency '''
     register_responses([
@@ -169,6 +174,7 @@ def test_ensure_user_apply_called():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_sp_apply_called():
     ''' creating user with service_processor application and idempotency '''
     register_responses([
@@ -193,6 +199,7 @@ def test_ensure_user_sp_apply_called():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_apply_for_delete_called():
     ''' deleting user and checking idempotency '''
     register_responses([
@@ -212,6 +219,7 @@ def test_ensure_user_apply_for_delete_called():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_lock_called():
     ''' changing user_lock to True and checking idempotency'''
     register_responses([
@@ -232,6 +240,7 @@ def test_ensure_user_lock_called():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_unlock_called():
     ''' changing user_lock to False and checking idempotency'''
     register_responses([
@@ -252,6 +261,7 @@ def test_ensure_user_unlock_called():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_set_password_called():
     ''' set password '''
     register_responses([
@@ -269,6 +279,7 @@ def test_ensure_user_set_password_called():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_set_password_internal_error():
     ''' set password '''
     register_responses([
@@ -286,6 +297,7 @@ def test_set_password_internal_error():
     assert not my_obj.change_password()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_set_password_reused():
     ''' set password '''
     register_responses([
@@ -303,6 +315,7 @@ def test_set_password_reused():
     assert not my_obj.change_password()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_role_update_called():
     ''' set password '''
     register_responses([
@@ -321,6 +334,7 @@ def test_ensure_user_role_update_called():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_user_role_update_additional_application_called():
     ''' set password '''
     register_responses([
@@ -342,6 +356,7 @@ def test_ensure_user_role_update_additional_application_called():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('ZAPI', 'security-login-get-iter', ZRR['error']),
@@ -371,6 +386,7 @@ def test_if_all_methods_catch_exception():
     assert err_msg in create_module(my_module, DEFAULT_ARGS, {'use_rest': 'never', 'svm': None}, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_user_with_usm_auth():
     ''' switching back to ZAPI '''
     register_responses([
@@ -576,10 +592,11 @@ def test_negative_zapi_missing_netapp_lib(mock_has):
     module_args = {
         'use_rest': 'never',
     }
-    msg = "Error: the python NetApp-Lib module is required.  Import error: None"
-    assert msg == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = "Error: the python NetApp-Lib module is required."
+    assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_zapi_missing_apps():
     register_responses([
     ])

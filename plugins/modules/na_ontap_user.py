@@ -417,8 +417,9 @@ class NetAppOntapUser:
             for application in response['applications']:
                 if application.get('second_authentication_method') == 'none':
                     application['second_authentication_method'] = None
-                # new read-only attribute in 9.11, breaks idempotency when present
+                # new read-only attributes in 9.14 onwards, breaks idempotency when present
                 application.pop('is_ldap_fastbind', None)
+                application.pop('is_ns_switch_group', None)
             return_value = {
                 'role_name': response['role']['name'],
                 'applications': response['applications']
