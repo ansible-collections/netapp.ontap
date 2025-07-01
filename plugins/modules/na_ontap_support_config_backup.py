@@ -43,6 +43,13 @@ options:
       - The option "name" should be used in parameter instead of "username".
     type: str
 
+  set_password:
+    description:
+      - Password used to uploads configuration backups.
+      - The option "set_password" should be used in parameter instead of "password".
+    type: str
+    version_added: 23.1.0
+
 notes:
   - Only supported with REST and requires ONTAP 9.6 or later.
   - The option 'validate_certificate' requires ONTAP 9.7 or later.
@@ -73,6 +80,7 @@ EXAMPLES = """
     validate_certificate: true
     url: "{{ backup_url }}"
     name: ftpuser
+    set_password: "netapp"
     feature_flags:
       trace_apis: true
 """
@@ -97,7 +105,8 @@ class NetAppOntapSupportConfigBackup:
             url=dict(required=False, type='str'),
             # destination username should be passed as name
             name=dict(required=False, type='str'),
-            validate_certificate=dict(required=False, type='bool')
+            validate_certificate=dict(required=False, type='bool'),
+            set_password=dict(type='str', no_log=True),
         ))
 
         self.module = AnsibleModule(
@@ -116,10 +125,10 @@ class NetAppOntapSupportConfigBackup:
     def get_support_config_backup(self):
         # Retrieves the cluster configuration backup information
         api = 'support/configuration-backup'
-        record, error = rest_generic.get_one_record(self.rest_api, api)
         fields = 'url,username,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
             fields += 'validate_certificate,'
+        record, error = rest_generic.get_one_record(self.rest_api, api)
         if error:
             self.module.fail_json(msg='Error fetching configuration backup settings',
                                   exception=traceback.format_exc())
@@ -141,6 +150,8 @@ class NetAppOntapSupportConfigBackup:
             body['username'] = modify['name']
         if 'validate_certificate' in modify:
             body['validate_certificate'] = modify['validate_certificate']
+        if 'set_password' in modify:
+            body['password'] = modify['set_password']
         dummy, error = rest_generic.patch_async(self.rest_api, api, None, body)
         if error:
             self.module.fail_json(msg='Error updating the configuration backup settings',
@@ -150,11 +161,23 @@ class NetAppOntapSupportConfigBackup:
         current = self.get_support_config_backup()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
+        password_changed = False
+        if cd_action is None and self.parameters.get('set_password') is not None and self.parameters['state'] == 'present':
+            # if check_mode, don't attempt to change the password, but assume it would be changed
+            if self.module.check_mode:
+                modify['set_password'] = self.parameters.get('set_password')
+                password_changed = True
+            else:
+                modify['set_password'] = self.parameters.get('set_password')
+                password_changed = self.modify_support_config_backup(modify)
+
+            self.na_helper.changed = True
+            self.module.warn('Module is not idempotent when set_password is present.')
+
         if self.na_helper.changed and not self.module.check_mode:
             if modify:
                 self.modify_support_config_backup(modify)
-        result = netapp_utils.generate_result(self.na_helper.changed, cd_action, modify)
-        self.module.exit_json(**result)
+        self.module.exit_json(changed=self.na_helper.changed, current=current, modify=modify, password_changed=password_changed)
 
 
 def main():

@@ -999,7 +999,7 @@ EXAMPLES = """
     snaplock:
       type: enterprise
       retention:
-      default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
+        default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
 
 - name: Create volume with snapshot-auto-delete options - REST
   netapp.ontap.na_ontap_volume:
@@ -3056,8 +3056,9 @@ class NetAppOntapVolume:
         modify = {}
 
         current = self.get_volume()
-        if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
-            current['tiering_object_tags'] = []
+        if current:
+            if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
+                current['tiering_object_tags'] = []
         self.volume_style = self.get_volume_style(current)
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')
