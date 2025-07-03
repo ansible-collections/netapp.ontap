@@ -231,6 +231,12 @@ options:
         description:
           - Specifies, in seconds, the amount of time a RPCSEC_GSS context is permitted to remain unused before it is deleted.
         type: int
+  nfsv3_hide_snapdir:
+    description:
+      - Specifies whether hiding a snapshot directory under a NFSv3 mount point is enabled (support from ONTAP 9.13 onward).
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
 """
 
 EXAMPLES = """
@@ -283,6 +289,7 @@ EXAMPLES = """
       map_unknown_uid_to_default_user: false
       default_user: test_user
     tcp_max_xfer_size: 16384
+    nfsv3_hide_snapdir: enabled
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -357,6 +364,8 @@ class NetAppONTAPNFS:
                 v3_ms_dos_client_enabled=dict(required=False, type='bool'),
                 default_user=dict(required=False, type='str'),
             )),
+
+            nfsv3_hide_snapdir=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
         ))
 
         self.module = AnsibleModule(
@@ -397,12 +406,12 @@ class NetAppONTAPNFS:
                                        'nfsv40_referrals',
                                        'nfsv41_referrals']
         partially_supported_rest_properties = [['showmount', (9, 8)], ['root', (9, 11, 0)], ['windows', (9, 11, 0)], ['security', (9, 11, 0)],
-                                               ['tcp_max_xfer_size', (9, 11, 0)]]
+                                               ['tcp_max_xfer_size', (9, 11, 0)], ['nfsv3_hide_snapdir', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if 'nfsv4.1' in self.parameters:
             self.module.warn('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')
         self.svm_uuid = None
-        self.unsupported_zapi_properties = ['root', 'windows', 'security']
+        self.unsupported_zapi_properties = ['root', 'windows', 'security', 'nfsv3_hide_snapdir']
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -549,15 +558,18 @@ class NetAppONTAPNFS:
         if self.parameters.get('showmount'):
             params['fields'] += 'showmount_enabled,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
-            params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size'
+            params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
+            params['fields'] += 'protocol.v3_features.hide_snapshot_enabled'
         # TODO: might return more than 1 record, find out
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
             self.module.fail_json(msg='Error getting nfs services for SVM %s: %s' % (self.parameters['vserver'], to_native(error)),
                                   exception=traceback.format_exc())
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
-            if record and 'default_user' not in record.get('windows'):
-                record['windows']['default_user'] = None
+            if record:
+                if 'windows' in record and 'default_user' not in record.get('windows'):
+                    record['windows']['default_user'] = None
         return self.format_get_nfs_service_rest(record) if record else record
 
     def format_get_nfs_service_rest(self, record):
@@ -583,6 +595,7 @@ class NetAppONTAPNFS:
             'root': self.na_helper.safe_get(record, ['root']),
             'windows': self.na_helper.safe_get(record, ['windows']),
             'security': self.na_helper.safe_get(record, ['security']),
+            'nfsv3_hide_snapdir': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'hide_snapshot_enabled'])),
         }
 
     def create_nfs_service_rest(self):
@@ -656,6 +669,8 @@ class NetAppONTAPNFS:
             body['security'] = params['security']
         if params.get('tcp_max_xfer_size') is not None:
             body['transport.tcp_max_transfer_size'] = params['tcp_max_xfer_size']
+        if params.get('nfsv3_hide_snapdir') is not None:
+            body['protocol.v3_features.hide_snapshot_enabled'] = self.convert_to_bool(params['nfsv3_hide_snapdir'])
         return body
 
     def convert_to_bool(self, value):

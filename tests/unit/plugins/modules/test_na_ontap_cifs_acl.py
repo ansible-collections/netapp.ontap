@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_acl \
     import NetAppONTAPCifsAcl as my_module, main as my_main     # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 SHARE_NAME = 'share_name'
@@ -53,6 +53,7 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     error_msg = create_module(my_module, fail=True)['msg']
@@ -66,6 +67,7 @@ def test_module_fail_when_required_args_missing():
     assert create_module(my_module, args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['empty']),
@@ -76,6 +78,7 @@ def test_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_with_type():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['empty']),
@@ -87,6 +90,7 @@ def test_create_with_type():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
@@ -98,6 +102,7 @@ def test_delete():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotent():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['empty']),
@@ -108,6 +113,7 @@ def test_delete_idempotent():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
@@ -120,6 +126,7 @@ def test_modify():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_modify_idempotent():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
@@ -131,6 +138,7 @@ def test_create_modify_idempotent():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_modify_with_type():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['acl_info']),
@@ -142,6 +150,7 @@ def test_negative_modify_with_type():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_modify_with_extra_stuff():
     register_responses([
     ])
@@ -156,6 +165,7 @@ def test_negative_modify_with_extra_stuff():
     assert msg in expect_and_capture_ansible_exception(my_module_object.get_modify, 'fail', current)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['error']),
@@ -181,10 +191,11 @@ def test_if_all_methods_catch_exception():
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_missing_netapp_lib(mock_has_netapp_lib):
     mock_has_netapp_lib.return_value = False
-    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: '
     assert msg in create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_main():
     register_responses([
         ('cifs-share-access-control-get-iter', ZRR['empty']),

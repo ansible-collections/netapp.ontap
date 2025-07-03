@@ -53,7 +53,7 @@ short_description: NetApp ONTAP manage cifs-share-access-control
 '''
 
 EXAMPLES = """
-- name: Create CIFS share acl
+- name: Create CIFS share ACL
   netapp.ontap.na_ontap_cifs_acl:
     state: present
     share_name: cifsShareName
@@ -64,12 +64,23 @@ EXAMPLES = """
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
-- name: Modify CIFS share acl permission
+- name: Modify CIFS share ACL permission
   netapp.ontap.na_ontap_cifs_acl:
     state: present
     share_name: cifsShareName
     user_or_group: Everyone
     permission: change
+    vserver: "{{ netapp_vserver }}"
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Delete CIFS share ACL
+  netapp.ontap.na_ontap_cifs_acl:
+    state: absent
+    share_name: cifsShareName
+    user_or_group: localUser
+    permission: read
     vserver: "{{ netapp_vserver }}"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"

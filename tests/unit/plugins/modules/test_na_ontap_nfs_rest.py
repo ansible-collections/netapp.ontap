@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -51,7 +51,10 @@ SRR = rest_responses({
                     "read_delegation_enabled": False,
                     "write_delegation_enabled": False,
                     "pnfs_enabled": False
-                }
+                },
+                "v3_features": {
+                    "hide_snapshot_enabled": False
+                },
             },
             "vstorage_enabled": False,
             "showmount_enabled": True,
@@ -72,6 +75,19 @@ SRR = rest_responses({
                 "default_user": "test_user"
             },
             "tcp_max_xfer_size": "16384"
+        }
+    ]}, None),
+    'modified_record': (200, {"records": [
+        {
+            "svm": {
+                "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                "name": "ansibleSVM"
+            },
+            "protocol": {
+                "v3_features": {
+                    "hide_snapshot_enabled": True
+                },
+            },
         }
     ]}, None),
 })
@@ -282,7 +298,7 @@ def test_modify_nfs_root():
         {
             "ignore_nt_acl": True,
             "skip_write_permission_check": True
-        }
+        },
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -322,3 +338,20 @@ def test_modify_nfs_windows():
         "tcp_max_xfer_size": "16384"
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_nfs_idempotency():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/nfs/services', SRR['one_record']),
+        ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['success']),
+
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/nfs/services', SRR['modified_record'])
+    ])
+    module_args = {
+        "nfsv3_hide_snapdir": "enabled"
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']

@@ -71,13 +71,16 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_volume - new option `tiering_object_tags` added in REST.
   - na_ontap_cluster_peer - new option `local_name_for_peer` and `local_name_for_source` added in REST.
   - na_ontap_snapmirror - new option `quick_resync` added in REST.
+  - na_ontap_nfs - new option `nfsv3_hide_snapdir` added in REST.
   - na_ontap_user - added `totp` option for `application_dicts.second_authentication_method` in REST.
+  - na_ontap_cifs_acl - added example showing ACL deletion.
 
 ### Bug Fixes
   - na_ontap_cg_snapshot - fixed issue with CG not being found with given volumes in REST.
   - na_ontap_firmware_upgrade - fixed typo in example.
   - na_ontap_user - fixed issue with idempotency while creating a user account in REST.
   - na_ontap_volume - fixed indentation in example.
+  - na_ontap_ndmp - fix idempotency issue and added example for ndmp user generate password in REST.
 
 ## 23.0.0
 
