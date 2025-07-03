@@ -88,7 +88,7 @@
    "name": "README.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "7e8688b3f6c394f4bb31d7be71caa6cda7c8242469c56d89aa289db6e2414a26",
+   "chksum_sha256": "0324c9aaed389186ac089c71014a3bcb4a270be1b973a1dfe22275fe61f27f43",
    "format": 1
   },
   {
@@ -4131,6 +4131,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7670.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "38c44d23d0e9fb1fc988cf7787bed67505eada8cb3020faa0ad607e8d7b2d944",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7704.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4267,7 +4274,7 @@
    "name": "meta/runtime.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "17a4a698127934b5cb75b79be6e86f249e63a458da76b450b41de2287f1572f1",
+   "chksum_sha256": "50d6fda83b49335b902c80f352946ba37f4827f278fac469f3fdc85526b74fd6",
    "format": 1
   },
   {
@@ -4604,6 +4611,13 @@
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "abd11d4716b311c00f5ae72d88a8f4ca7d1aad2e2cdb7a0514739fe4de491b77",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/na_ontap_autoupdate_support.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e64ade1254076806218b7c6a4facaeeef78eefcaf4cd2c3d2400218c94c8b638",
    "format": 1
   },
   {
@@ -6819,6 +6833,13 @@
    "format": 1
   },
   {
+   "name": "tests/unit/plugins/modules/test_na_ontap_autoupdate_support.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "7faf814f90605b632fab8bed55b62abf6d1669e7e24c318ba82c64ad76cef812",
+   "format": 1
+  },
+  {
    "name": "tests/unit/plugins/modules/test_na_ontap_bgp_config_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -7085,17 +7106,17 @@
    "format": 1
   },
   {
-   "name": "tests/unit/plugins/modules/test_na_ontap_file_security_permissions.py",
-   "ftype": "file",
-   "chksum_type": "sha256",
-   "chksum_sha256": "57f955ac1d9379b1e389108f71883d268e0eff47ae2a1dd77c55a06ed80c32a4",
-   "format": 1
-  },
-  {
    "name": "tests/unit/plugins/modules/test_na_ontap_firewall_policy.py",
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "dcd386b7ff43e635538c321ab0df4be2e0dd52724970fe366077437bdc0197f3",
+   "format": 1
+  },
+  {
+   "name": "tests/unit/plugins/modules/test_na_ontap_file_security_permissions.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "57f955ac1d9379b1e389108f71883d268e0eff47ae2a1dd77c55a06ed80c32a4",
    "format": 1
   },
   {

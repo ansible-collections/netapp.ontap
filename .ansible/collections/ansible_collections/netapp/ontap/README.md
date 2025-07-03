@@ -82,6 +82,9 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_volume - fixed indentation in example.
   - na_ontap_ndmp - fix idempotency issue and added example for ndmp user generate password in REST.
 
+### New Modules
+  - na_ontap_autoupdate_support - REST only support to enable automatic software update, requires ONTAP 9.10 or later.
+
 ## 23.0.0
 
 ### Bug Fixes
