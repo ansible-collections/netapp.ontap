@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Run CLI commands on ONTAP through REST api/private/cli/.
   - This module can run as admin or vsdamin and requires HTTP application to be enabled.

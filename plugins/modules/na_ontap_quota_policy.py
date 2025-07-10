@@ -21,7 +21,7 @@ short_description: NetApp Ontap create, assign, rename or delete quota policy
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap_zapi
 version_added: '19.11.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create, assign, rename or delete the quota policy
   - This module only supports ZAPI and is deprecated.

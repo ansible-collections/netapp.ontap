@@ -14,7 +14,7 @@ short_description: NetApp ONTAP Assign partitions and disks to nodes.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.8.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Assign the specified number of partitions or disks eligible for partitioning to a node.

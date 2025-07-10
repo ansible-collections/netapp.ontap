@@ -15,7 +15,7 @@ short_description: NetApp ONTAP enable auto update status.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '23.1.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Enable automatic software update.
 options:

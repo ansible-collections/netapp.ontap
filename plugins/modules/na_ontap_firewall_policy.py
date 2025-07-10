@@ -10,7 +10,7 @@ DOCUMENTATION = '''
 module: na_ontap_firewall_policy
 short_description: NetApp ONTAP Manage a firewall policy
 version_added: 2.7.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Configure firewall on an ONTAP node and manage firewall policy for an ONTAP SVM
 extends_documentation_fragment:

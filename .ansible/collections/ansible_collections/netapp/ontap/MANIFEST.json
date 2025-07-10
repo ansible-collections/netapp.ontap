@@ -4,7 +4,7 @@
   "name": "ontap",
   "version": "23.1.0",
   "authors": [
-   "NetApp Ansible Team <ng-ansibleteam@netapp.com>"
+   "NetApp Ansible Team <ng-ansible-team@netapp.com>"
   ],
   "readme": "README.md",
   "tags": [
@@ -25,7 +25,7 @@
   "name": "FILES.json",
   "ftype": "file",
   "chksum_type": "sha256",
-  "chksum_sha256": "f37ff186621d61b705c2a9a774627ac1c3020e6503af1ea431f26de7687922b3",
+  "chksum_sha256": "13b3ccf33a24695c7de64ef6b3d950ef8c8fb5c5ae079fd51723fd9431ab8627",
   "format": 1
  },
  "format": 1

@@ -8,7 +8,7 @@ __metaclass__ = type
 
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - "Enable or disable HA on a cluster"
 extends_documentation_fragment:

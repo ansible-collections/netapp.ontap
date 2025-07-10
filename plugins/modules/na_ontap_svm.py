@@ -20,7 +20,7 @@ short_description: NetApp ONTAP SVM
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Create, modify or delete SVM on NetApp ONTAP
@@ -309,6 +309,13 @@ options:
       ocsp_enabled:
         description: whether online certificate status protocol verification is enabled.
         type: bool
+  storage_limit:
+    description:
+      - Specifies the maximum storage permitted on a single SVM, in bytes.
+      - This parameter can be set to zero to disable storage-limit enforcement.
+      - Only supported with REST, requires ONTAP 9.13.1 or later.
+    type: int
+    version_added: 23.1.0
 '''
 
 EXAMPLES = """
@@ -407,7 +414,8 @@ class NetAppOntapSVM():
                 certificate=dict(type='str'),
                 client_enabled=dict(type='bool'),
                 ocsp_enabled=dict(type='bool'),
-            ))
+            )),
+            storage_limit=dict(type='int', required=False),
         ))
 
         self.module = AnsibleModule(
@@ -503,6 +511,9 @@ class NetAppOntapSVM():
                 # so that we can compare UUIDs while using a more friendly name in the user interface
                 self.parameters['web']['certificate'] = {'name': self.parameters['web']['certificate']}
                 self.set_certificate_uuid()
+        if use_rest and self.parameters.get('storage_limit') is not None and \
+                not self.rest_api.meets_rest_minimum_version(use_rest, 9, 13, 1):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('storage_limit', '9.13.1', use_rest=use_rest))
 
         self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
@@ -550,6 +561,9 @@ class NetAppOntapSVM():
 
         if services:
             vserver_details['services'] = services
+
+        if 'storage' in vserver_details:
+            vserver_details['storage_limit'] = int(self.na_helper.safe_get(vserver_details, ['storage', 'limit']))
 
         return vserver_details
 
@@ -613,6 +627,8 @@ class NetAppOntapSVM():
                 fields += ',ndmp'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
+                fields += ',storage.limit'
 
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:
@@ -699,6 +715,8 @@ class NetAppOntapSVM():
                     allowed_protocols[protocol] = allowed
             if acopy:
                 body[protocol] = acopy
+        if 'storage_limit' in keys_to_modify:
+            body['storage.limit'] = self.parameters['storage_limit']
         return body, allowed_protocols
 
     def get_allowed_protocols_and_max_volumes(self):

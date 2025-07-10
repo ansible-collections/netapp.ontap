@@ -15,7 +15,7 @@ short_description: NetApp ONTAP security key manager.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.8.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
   - Add or delete or setup key management on NetApp ONTAP.

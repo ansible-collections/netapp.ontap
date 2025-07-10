@@ -11,7 +11,7 @@ short_description: NetApp ONTAP module to create, modify or delete security IPse
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '22.1.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create, modify or delete security IPsec policy.
 options:

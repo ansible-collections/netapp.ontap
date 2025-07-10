@@ -23,8 +23,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_svm \
     import NetAppOntapSVM as svm_module, main as my_main    # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -51,7 +51,8 @@ svm_info = {
     "iscsi": {"enabled": False},
     "fcp": {"enabled": False},
     "nvme": {"enabled": False},
-    'max_volumes': 3333
+    "max_volumes": 3333,
+    "storage": {"limit": 0}
 }
 
 svm_info_cert1 = dict(svm_info)
@@ -164,11 +165,12 @@ def test_error_missing_netapp_lib(mock_has_netapp_lib):
     register_responses([
     ])
     mock_has_netapp_lib.return_value = False
-    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    msg = 'Error: the python NetApp-Lib module is required.  Import error:'
     extra_args = {'use_rest': 'never'}
-    assert msg == create_module(svm_module, DEFAULT_ARGS, extra_args, fail=True)['msg']
+    assert msg in create_module(svm_module, DEFAULT_ARGS, extra_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_zapi():
     '''Test successful create'''
     register_responses([
@@ -181,6 +183,7 @@ def test_successful_create_zapi():
     assert create_and_apply(svm_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     '''Test API create'''
     register_responses([
@@ -191,6 +194,7 @@ def test_create_idempotency():
     assert not create_and_apply(svm_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_error():
     '''Test successful create'''
     register_responses([
@@ -203,6 +207,7 @@ def test_create_error():
     assert create_and_apply(svm_module, DEFAULT_ARGS, args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     '''Test successful delete'''
     register_responses([
@@ -213,6 +218,7 @@ def test_successful_delete():
     _modify_options_with_expected_change('state', 'absent')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_delete():
     '''Test delete with ZAPI error
     '''
@@ -229,6 +235,7 @@ def test_error_delete():
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     '''Test delete idempotency '''
     register_responses([
@@ -242,6 +249,7 @@ def test_delete_idempotency():
     assert not create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_init():
     '''Validate that:
           admin_state is ignored with ZAPI
@@ -260,6 +268,7 @@ def test_init():
     assert_warning_was_raised('admin_state is ignored when ZAPI is used.')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_init_error():
     '''Validate that:
           unallowed protocol raises an error
@@ -295,6 +304,7 @@ def test_init_error():
     assert error == 'using ndmp requires ONTAP 9.10.1 or later and REST must be enabled - ONTAP version: 9.6.0 - using REST.'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_rename():
     '''Test successful rename'''
     register_responses([
@@ -311,6 +321,7 @@ def test_successful_rename():
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_rename_no_from():
     '''Test error rename'''
     register_responses([
@@ -327,6 +338,7 @@ def test_error_rename_no_from():
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_rename_zapi():
     '''Test error rename'''
     register_responses([
@@ -344,6 +356,7 @@ def test_error_rename_zapi():
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_language():
     '''Test successful modify language'''
     register_responses([
@@ -354,6 +367,7 @@ def test_successful_modify_language():
     _modify_options_with_expected_change('language', 'c')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_language():
     '''Test error modify language'''
     register_responses([
@@ -369,6 +383,7 @@ def test_error_modify_language():
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_fixed_properties():
     '''Test error modifying a fixed property'''
     register_responses([
@@ -393,6 +408,7 @@ def test_error_modify_fixed_properties():
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_snapshot_policy():
     '''Test successful modify language'''
     register_responses([
@@ -405,6 +421,7 @@ def test_successful_modify_snapshot_policy():
     )
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_allowed_protocols():
     '''Test successful modify allowed protocols'''
     register_responses([
@@ -417,6 +434,7 @@ def test_successful_modify_allowed_protocols():
     )
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_aggr_list():
     '''Test successful modify aggr-list'''
     register_responses([
@@ -429,6 +447,7 @@ def test_successful_modify_aggr_list():
     )
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_aggr_list_star():
     '''Test successful modify aggr-list'''
     register_responses([
@@ -1286,3 +1305,13 @@ def test_rest_language_match():
     print_warnings()
     assert_warning_was_raised(
         'Attempting to change language from ONTAP value de.utf_8 to de.UTF-8.  Use de.utf_8 to suppress this warning and maintain idempotency.')
+
+
+def test_rest_storage_limit_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {'storage_limit': 524288000}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']

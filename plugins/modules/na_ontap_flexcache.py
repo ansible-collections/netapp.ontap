@@ -12,7 +12,7 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 short_description: NetApp ONTAP FlexCache - create/delete relationship
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create/Modify/Delete FlexCache volume relationships.
   - This module does not modify an existing FlexCache volume when using ZAPI.

@@ -16,7 +16,7 @@ extends_documentation_fragment:
 version_added: 2.7.0
 description:
   - Enable/Disable Autosupport
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 options:
   state:
     description:

@@ -11,7 +11,7 @@ __metaclass__ = type
 
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create/Delete/Update/Initialize/Break/Resync/Resume SnapMirror volume/vserver relationships for ONTAP/ONTAP
   - This includes SVM replication, aka vserver DR

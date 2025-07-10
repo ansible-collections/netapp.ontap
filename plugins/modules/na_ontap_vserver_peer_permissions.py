@@ -12,7 +12,7 @@ short_description: NetApp Ontap - create, delete or modify vserver peer permissi
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '22.3.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create, delete or modify vserver peer permission.
 options:

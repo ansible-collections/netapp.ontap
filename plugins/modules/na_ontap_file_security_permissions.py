@@ -12,7 +12,7 @@ short_description: NetApp ONTAP NTFS file security permissions
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 22.0.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create, delete, or modify NTFS file security and audit policies of file or directory on NetApp ONTAP.
   - Note that ACLs are mached based on ('user', 'access', 'access_control', 'apply_to').

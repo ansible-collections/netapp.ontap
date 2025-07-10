@@ -13,7 +13,7 @@ short_description: NetApp ONTAP NFS status
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Enable or disable NFS on ONTAP
 options:

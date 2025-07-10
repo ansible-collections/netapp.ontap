@@ -12,7 +12,7 @@ DOCUMENTATION = '''
 module: na_ontap_motd
 author:
   - Piotr Olczak (@dprts) <polczak@redhat.com>
-  - NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+  - NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_zapi
 short_description: Setup motd

@@ -13,7 +13,7 @@ short_description: NetApp ONTAP ASA r2 storage unit
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 23.0.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Clone a storage unit.
   - Split a storage unit clone.

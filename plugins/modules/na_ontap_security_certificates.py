@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -17,7 +17,7 @@ short_description: NetApp ONTAP manage security certificates.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '20.7.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Install or delete security certificates on ONTAP.  (Create and sign will come in a second iteration)
@@ -232,6 +232,18 @@ EXAMPLES = """
     type: root_ca
     name: "{{ ontap_cert_name }}"
     svm: "{{ vserver }}"
+
+- name: install certificate - server certificate with chain of intermediate certificates
+  netapp.ontap.na_ontap_security_certificates:
+    # <<: *cert_login
+    common_name: "{{ ontap_cert_common_name }}"
+    public_certificate: "{{ ssl_certificate }}"
+    type: server
+    svm: "{{ vserver }}"
+    private_key: "-----BEGIN CERTIFICATE-----\nPrivate Key\n-----END CERTIFICATE-----"
+    intermediat_certificates: ["-----BEGIN CERTIFICATE-----\nIntermediate certificate1\n-----END CERTIFICATE-----",
+                               "-----BEGIN CERTIFICATE-----\nIntermediate certificate2\n-----END CERTIFICATE-----",
+                               "-----BEGIN CERTIFICATE-----\nRoot certificate\n-----END CERTIFICATE-----"]
 """
 
 RETURN = """

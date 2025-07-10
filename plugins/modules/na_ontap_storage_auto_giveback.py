@@ -17,7 +17,7 @@ short_description: Enables or disables NetApp ONTAP storage auto giveback for a 
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '21.3.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Enable or disable storage auto giveback
 options:

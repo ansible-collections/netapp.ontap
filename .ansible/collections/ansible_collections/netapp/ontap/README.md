@@ -73,7 +73,9 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_snapmirror - new option `quick_resync` added in REST.
   - na_ontap_nfs - new option `nfsv3_hide_snapdir` added in REST.
   - na_ontap_user - added `totp` option for `application_dicts.second_authentication_method` in REST.
+  - na_ontap_security_certificates - updated examples for create server type certificate and install with intermediate certificates.
   - na_ontap_cifs_acl - added example showing ACL deletion.
+  - na_ontap_svm - new option `storage_limit` added in REST, requires ONTAP 9.13.1 or later.
 
 ### Bug Fixes
   - na_ontap_cg_snapshot - fixed issue with CG not being found with given volumes in REST.
@@ -81,6 +83,7 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_user - fixed issue with idempotency while creating a user account in REST.
   - na_ontap_volume - fixed indentation in example.
   - na_ontap_ndmp - fix idempotency issue and added example for ndmp user generate password in REST.
+  - Corrected typo in email address from `ng-ansibleteam@netapp.com` to `ng-ansible-team@netapp.com` across Ansible collection.
 
 ### New Modules
   - na_ontap_autoupdate_support - REST only support to enable automatic software update, requires ONTAP 9.10 or later.

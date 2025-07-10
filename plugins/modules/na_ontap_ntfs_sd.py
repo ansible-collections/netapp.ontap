@@ -16,7 +16,7 @@ ANSIBLE_METADATA = {
 DOCUMENTATION = """
 
 module: na_ontap_ntfs_sd
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 short_description: NetApp ONTAP create, delete or modify NTFS security descriptor
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap

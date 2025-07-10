@@ -13,7 +13,7 @@ short_description: NetApp ONTAP module to modify SNMP configuration.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '22.9.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Modify cluster wide SNMP configuration.
   - Enable or disable SNMP on a cluster.

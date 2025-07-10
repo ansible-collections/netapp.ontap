@@ -14,7 +14,7 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_login_messages
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '20.1.0'

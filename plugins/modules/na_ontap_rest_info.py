@@ -11,7 +11,7 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_rest_info
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 short_description: NetApp ONTAP information gatherer using REST APIs

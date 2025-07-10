@@ -16,7 +16,7 @@ short_description: NetApp ONTAP - Create, delete or modify an FPolicy policy.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '21.3.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Create, delete or modify an FPolicy policy. Fpolicy scope must exist before running this module.
 - FPolicy is a file access notification framework that enables an administrator to monitor file and directory access in storage configured for CIFS and NFS.
