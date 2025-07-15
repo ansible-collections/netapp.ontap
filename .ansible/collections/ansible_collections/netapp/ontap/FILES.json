@@ -71,6 +71,13 @@
    "format": 1
   },
   {
+   "name": "CHANGELOG.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d1d2c29c5dfb84ce040b48c0bd3ab46023e40100fc366adb682a5217d3cc113d",
+   "format": 1
+  },
+  {
    "name": "CHANGELOG.rst",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -88,7 +95,7 @@
    "name": "README.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "260a963aad4a4fe2dea5bb8d3e4504721ca441107892016a4b4c2d48e393dc0e",
+   "chksum_sha256": "27b210b74b81e6075d0f62927d88f9eb6d95035c9f9b80a080ae1a61e78b7c7b",
    "format": 1
   },
   {
@@ -4163,6 +4170,13 @@
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "81bdb0ec444548fcb458db926acbfd2171dfe07e1a3af088b4c7e881b608d069",
+   "format": 1
+  },
+  {
+   "name": "changelogs/fragments/DEVOPS-7743.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e20705487aff89824de97d2343ba7f3a780723d97e8048ff748beb426080b6d3",
    "format": 1
   },
   {
