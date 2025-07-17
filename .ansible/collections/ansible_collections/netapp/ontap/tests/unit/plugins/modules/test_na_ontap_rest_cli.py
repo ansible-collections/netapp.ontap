@@ -14,7 +14,9 @@ from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_re
     patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import\
-    call_main, create_module, expect_and_capture_ansible_exception, patch_ansible
+    call_main, create_module, expect_and_capture_ansible_exception, patch_ansible, create_and_apply
+from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli \
+    import NetAppONTAPCommandREST as ontap_rest_cli_module, main as my_main
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_rest_cli import NetAppONTAPCommandREST as my_module, main as my_main   # module under test
 
@@ -23,8 +25,24 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
+    'validate_ontap_version_pass': (
+        200, dict(version=dict(generation=9, major=10, minor=1, full='dummy_9_10_1')), None),
+    'get_info_with_next': (200,
+                           {'_links': {'self': {'href': 'dummy_href'},
+                                       'next': {'href': '/api/next_record_api'}},
+                            'num_records': 3,
+                            'records': [{'name': 'dummy_vol1'},
+                                        {'name': 'dummy_vol2'},
+                                        {'name': 'dummy_vol3'}],
+                            'version': 'ontap_version'}, None),
+    'get_next_record': (200,
+                        {'_links': {'self': {'href': 'dummy_href'}},
+                         'num_records': 2,
+                         'records': [{'name': 'dummy_vol1'},
+                                     {'name': 'dummy_vol2'}],
+                         'version': 'ontap_version'}, None),
     'allow': (200, {'Allow': ['GET', 'WHATEVER']}, None)
-}, False)
+})
 
 
 DEFAULT_ARGS = {
@@ -127,3 +145,14 @@ def test_negative_error():
     ])
     msg = 'Error: Expected error'
     assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_get_all_records_volume_paginated_results():
+    args = dict(DEFAULT_ARGS)
+    total_records = 5
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'private/cli/volume', SRR['get_info_with_next']),
+        ('GET', '/next_record_api', SRR['get_next_record']),
+    ])
+    assert create_and_apply(ontap_rest_cli_module, args)['msg']['num_records'] == total_records

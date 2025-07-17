@@ -14,6 +14,7 @@
   - na_ontap_security_certificates - updated examples for create server type certificate and install with intermediate certificates.
   - na_ontap_cifs_acl - added example showing ACL deletion.
   - na_ontap_svm - new option `storage_limit` added in REST, requires ONTAP 9.13.1 or later.
+  - na_ontap_rest_cli - added `next` key to enable API pagination support.
   - updated `README`, added `CHANGELOG.md` for release notes.
 
 ### Bug Fixes
