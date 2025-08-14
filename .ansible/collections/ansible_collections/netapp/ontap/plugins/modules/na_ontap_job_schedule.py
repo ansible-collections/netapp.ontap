@@ -96,6 +96,13 @@ options:
          create, modify, and delete schedules owned by the partner cluster.
     type: str
     version_added: 21.22.0
+  interval:
+    description:
+      - The interval at which the job should be run.
+      - This is specified in an ISO-8601 duration formatted string.
+      - This parameter does not work with cron jobs.
+    type: str
+    version_added: 23.2.0
 '''
 
 EXAMPLES = """
@@ -149,6 +156,15 @@ EXAMPLES = """
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
+- name: Create Interval Job using REST
+  netapp.ontap.na_ontap_job_schedule:
+    state: present
+    name: jobName
+    interval: P1DT2H3M4S
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
 - name: Delete Job
   netapp.ontap.na_ontap_job_schedule:
     state: absent
@@ -187,7 +203,8 @@ class NetAppONTAPJob:
             job_days_of_month=dict(required=False, type='list', elements='int'),
             job_days_of_week=dict(required=False, type='list', elements='int'),
             month_offset=dict(required=False, type='int', choices=[0, 1]),
-            cluster=dict(required=False, type='str')
+            cluster=dict(required=False, type='str'),
+            interval=dict(required=False, type='str')
         ))
 
         self.uuid = None
@@ -252,26 +269,30 @@ class NetAppONTAPJob:
         query = {'name': self.parameters['name']}
         if self.parameters.get('cluster'):
             query['cluster'] = self.parameters['cluster']
-        record, error = rest_generic.get_one_record(self.rest_api, 'cluster/schedules', query, 'uuid,cron')
+        record, error = rest_generic.get_one_record(self.rest_api, 'cluster/schedules', query, 'uuid,cron,interval,type')
         if error is not None:
             self.module.fail_json(msg="Error fetching job schedule: %s" % error)
         if record:
             self.uuid = record['uuid']
-            job_details = {'name': record['name']}
-            for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
-                if rest_key in record['cron']:
-                    job_details[param_key] = record['cron'][rest_key]
-                else:
-                    # if any of the job_hours, job_minutes, job_months, job_days are empty:
-                    # it means the value is -1 using ZAPI convention
-                    job_details[param_key] = [-1]
-            # adjust offsets if necessary
-            if 'job_months' in job_details and self.month_offset == 0:
-                job_details['job_months'] = [x - 1 if x > 0 else x for x in job_details['job_months']]
-            # adjust minutes if necessary, -1 means all in ZAPI and for our user facing parameters
-            # while REST returns all values
-            if 'job_minutes' in job_details and len(job_details['job_minutes']) == 60:
-                job_details['job_minutes'] = [-1]
+            job_details = {'name': record['name'], 'type': record['type']}
+            if record['type'] == 'cron':
+                for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
+                    if rest_key in record['cron']:
+                        job_details[param_key] = record['cron'][rest_key]
+                    else:
+                        # if any of the job_hours, job_minutes, job_months, job_days are empty:
+                        # it means the value is -1 using ZAPI convention
+                        job_details[param_key] = [-1]
+                # adjust offsets if necessary
+                if 'job_months' in job_details and self.month_offset == 0:
+                    job_details['job_months'] = [x - 1 if x > 0 else x for x in job_details['job_months']]
+                # adjust minutes if necessary, -1 means all in ZAPI and for our user facing parameters
+                # while REST returns all values
+                if 'job_minutes' in job_details and len(job_details['job_minutes']) == 60:
+                    job_details['job_minutes'] = [-1]
+            else:
+                job_details['interval'] = record['interval']
+
             return job_details
         return None
 
@@ -370,6 +391,8 @@ class NetAppONTAPJob:
             }
             if self.parameters.get('cluster'):
                 params['cluster'] = self.parameters['cluster']
+            if self.parameters.get('interval'):
+                params['interval'] = self.parameters['interval']
             api = 'cluster/schedules'
             dummy, error = self.rest_api.post(api, params)
             if error is not None:
@@ -432,6 +455,8 @@ class NetAppONTAPJob:
             params = {
                 'cron': cron
             }
+            if modify.get('interval'):
+                params['interval'] = modify['interval']
             api = 'cluster/schedules/' + self.uuid
             dummy, error = self.rest_api.patch(api, params)
             if error is not None:
@@ -456,9 +481,6 @@ class NetAppONTAPJob:
         action = self.na_helper.get_cd_action(current, self.parameters)
         if action is None and self.parameters['state'] == 'present':
             modify = self.na_helper.get_modified_attributes(current, self.parameters)
-        if action == 'create' and self.parameters.get('job_minutes') is None:
-            # job_minutes is mandatory for create
-            self.module.fail_json(msg='Error: missing required parameter job_minutes for create')
 
         if self.na_helper.changed and not self.module.check_mode:
             if action == 'create':

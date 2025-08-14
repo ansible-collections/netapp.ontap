@@ -1,5 +1,10 @@
 # Release Notes
 
+## 23.2.0
+
+### Minor Changes
+  - na_ontap_job_schedule - new option `interval` added in REST.
+
 ## 23.1.0
 
 ### Minor Changes

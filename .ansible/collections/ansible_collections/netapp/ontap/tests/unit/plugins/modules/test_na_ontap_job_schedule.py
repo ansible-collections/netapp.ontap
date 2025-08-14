@@ -157,17 +157,6 @@ def test_get_existing_job_multiple_minutes_1_offset():
     assert result['job_months'] == [5 + 1, 10 + 1]
 
 
-def test_create_error_missing_param():
-    ''' Test if create throws an error if job_minutes is not specified'''
-    register_responses([
-        ('job-schedule-cron-get-iter', ZRR['no_records'])
-    ])
-    args = DEFAULT_ARGS.copy()
-    del args['job_minutes']
-    error = 'Error: missing required parameter job_minutes for create'
-    assert error in create_and_apply(job_module, args, fail=True)['msg']
-
-
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
@@ -274,10 +263,27 @@ def test_if_all_methods_catch_exception_zapi():
 
 
 SRR = rest_responses({
+    'get_interval_schedule': (200, {"records": [
+        {
+            "uuid": "11e9-9f70-005056b3df08",
+            "name": "test_job",
+            "type": "interval",
+            "interval": "P1DT2H3M4S",
+        }
+    ], "num_records": 1}, None),
+    'get_interval_schedule_modified': (200, {"records": [
+        {
+            "uuid": "11e9-9f70-005056b3df08",
+            "name": "test_job",
+            "type": "interval",
+            "interval": "P1DT2H3M7S",
+        }
+    ], "num_records": 1}, None),
     'get_schedule': (200, {"records": [
         {
             "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
             "name": "test_job",
+            "type": "cron",
             "cron": {
                 "minutes": [25],
                 "hours": [0],
@@ -290,6 +296,7 @@ SRR = rest_responses({
         {
             "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
             "name": "test_job",
+            "type": "cron",
             "cron": {
                 "minutes": range(60),
                 "hours": [0],
@@ -449,3 +456,40 @@ def test_if_all_methods_catch_exception_rest():
     assert 'Error creating job schedule' in expect_and_capture_ansible_exception(job_obj.create_job_schedule, 'fail')['msg']
     assert 'Error modifying job schedule' in expect_and_capture_ansible_exception(job_obj.modify_job_schedule, 'fail', {}, {})['msg']
     assert 'Error deleting job schedule' in expect_and_capture_ansible_exception(job_obj.delete_job_schedule, 'fail')['msg']
+
+
+def test_create_error_missing_param():
+    ''' Test if create throws an error if job_minutes is not specified'''
+    args = DEFAULT_ARGS_REST.copy()
+    del args['job_minutes']
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('POST', 'cluster/schedules', SRR['generic_error'])
+    ])
+    job_obj = create_module(job_module, args)
+    assert 'Error creating job schedule: Expected error' in expect_and_capture_ansible_exception(job_obj.create_job_schedule, 'fail')['msg']
+
+
+def test_rest_create_interval_schedule():
+    '''Test successful creation of interval job schedule via REST'''
+    del DEFAULT_ARGS_REST['job_minutes']
+    del DEFAULT_ARGS_REST['job_days_of_week']
+    del DEFAULT_ARGS_REST['job_hours']
+    args = {'interval': 'P1DT2H3M4S'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['get_interval_schedule']),
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
+
+
+def test_rest_modify_interval_schedule():
+    '''Test successful modification of interval job schedule via REST'''
+    args = {'interval': 'P1DT2H3M8S'}
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_interval_schedule']),
+        ('PATCH', 'cluster/schedules/11e9-9f70-005056b3df08', SRR['get_interval_schedule_modified']),
+    ])
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
