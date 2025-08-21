@@ -647,6 +647,26 @@ def test_error_modify_lun_extra_option():
     assert "Error modifying LUN /vol/volume1/qtree1/lun1: Unknown parameters: {'fake': 'fake'}" == error
 
 
+def test_create_lun_provisioning_options():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'storage/luns', SRR['empty_records']),
+        ('POST', 'storage/luns', SRR['success']),
+    ])
+    module_args = {
+        'name': 'lun1',
+        'size': 5,
+        'size_unit': 'mb',
+        'os_type': 'linux',
+        'flexvol_name': 'volume1',
+        'provisioning_options': {
+            'count': 2
+        }
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS_MIN, module_args)['changed']
+
+
 # tests for ASA r2 system #
 def test_get_lun():
     register_responses([

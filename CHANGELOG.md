@@ -4,6 +4,7 @@
 
 ### Minor Changes
   - na_ontap_job_schedule - new option `interval` added in REST.
+  - na_ontap_lun - new option `provisioning_options` added in REST, requires ONTAP 9.16.1 or later.
 
 ## 23.1.0
 

@@ -241,8 +241,29 @@ options:
         elements: str
         version_added: 21.7.0
 
+  provisioning_options:
+    description:
+        - Options that are applied to create operation.
+        - Only supported with REST, requires ONTAP 9.16.1 or later.
+    type: dict
+    version_added: 23.2.0
+    suboptions:
+      count:
+        description:
+          - The number of LUNs to provision with these properties.
+          - When provided, the name is considered a prefix, and a suffix of the form _<N> is generated
+            where N is the next available numeric index, starting with 1.
+        type: int
+      auto:
+        description:
+          - If the volume specified in the request does not exist, automatically provision one of appropriate size.
+          - If the volume does exist, resize it to accommodate the new LUN.
+          - Only supported on Unified ONTAP.
+        type: bool
+
 notes:
   - ASA r2 is only supported with ONTAP releases 9.16.0x onwards.
+  - Module is not idempotent when C(provisioning_options) is set.
 '''
 
 EXAMPLES = """
@@ -307,6 +328,21 @@ EXAMPLES = """
       protection_type:
       local_policy: default
       scope: application
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Create LUNs
+  netapp.ontap.na_ontap_lun:
+    state: present
+    name: ansibleLUN
+    flexvol_name: ansibleVolume
+    vserver: ansibleVServer
+    size: 5
+    size_unit: mb
+    os_type: linux
+    provisioning_options:
+      count: 2
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -377,7 +413,11 @@ class NetAppOntapLUN:
                 total_size_unit=dict(choices=['bytes', 'b', 'kb', 'mb', 'gb', 'tb',
                                               'pb', 'eb', 'zb', 'yb'], type='str'),
                 scope=dict(type='str', choices=['application', 'auto', 'lun'], default='auto'),
-            ))
+            )),
+            provisioning_options=dict(type='dict', options=dict(
+                count=dict(required=False, type='int'),
+                auto=dict(required=False, type='bool'),
+            )),
         ))
 
         self.module = AnsibleModule(
@@ -407,7 +447,8 @@ class NetAppOntapLUN:
         # use_exact_size is defaulted to true, but not supported with REST. To get around this we will ignore the variable in rest.
         unsupported_rest_properties = ['force_resize', 'force_remove_fenced']
         partially_supported_rest_properties = [['san_application_template', (9, 7)],
-                                               ['space_allocation', (9, 10)]]
+                                               ['space_allocation', (9, 10)],
+                                               ['provisioning_options', (9, 16, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties,
                                                                    partially_supported_rest_properties)
         if self.use_rest:
@@ -1049,6 +1090,8 @@ class NetAppOntapLUN:
             body['comment'] = self.parameters['comment']
         if self.parameters.get('qos_policy_group') is not None:
             body['qos_policy.name'] = self.parameters['qos_policy_group']
+        if self.parameters.get('provisioning_options') is not None:
+            body['provisioning_options'] = self.na_helper.filter_out_none_entries(self.parameters.get('provisioning_options'))
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg="Error creating LUN %s: %s" % (self.parameters['name'], to_native(error)),
