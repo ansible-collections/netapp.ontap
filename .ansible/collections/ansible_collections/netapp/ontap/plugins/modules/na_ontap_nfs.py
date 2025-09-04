@@ -237,6 +237,78 @@ options:
       - Supported only with REST.
     choices: ['enabled', 'disabled']
     type: str
+    version_added: 23.1.0
+  nfsv3_mount_root_only:
+    description:
+      - Specifies whether the SVM allows MOUNT protocol calls only from privileged ports (port numbers less than 1024).
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv3_ejukebox_enabled:
+    description:
+      - Specifies whether NFSv3 EJUKEBOX error is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv3_connection_drop:
+    description:
+      - Specifies whether the dropping of a connection when an NFSv3 request is dropped is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv3_64bit_identifiers_enabled:
+    description:
+      - Specifies whether 64-bit support for NFSv3 FSIDs and file IDs is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv4_64bit_identifiers_enabled:
+    description:
+      - Specifies whether 64-bit support for NFSv4.x FSIDs and file IDs is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv42_xattrs_enabled:
+    description:
+      - Specifies whether NFSv4.2 or later extended attributes is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv42_seclabel_enabled:
+    description:
+      - Specifies whether NFSv4.2 or later security label is enabled.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv40_acl_preserve:
+    description:
+      - Specifies if the NFSv4 ACL is preserved or dropped when chmod is performed.
+      - In unified security style, this parameter also specifies if NTFS file permissions are preserved or dropped when chmod,
+        chgrp, or chown are performed.
+      - Supported only with REST.
+    choices: ['enabled', 'disabled']
+    type: str
+    version_added: 23.2.0
+  nfsv4_grace_seconds:
+    description:
+      - Specifies the grace period for clients to reclaim file locks after a server failure.
+      - Supported only with REST.
+    type: int
+    version_added: 23.2.0
+  nfsv4_lease_seconds:
+    description:
+      - Specifies the lease seconds of the NFSv4 clients.
+        If it is inactive for more than the time displayed, all of the file lock states on a node might be lost
+      - Supported only with REST.
+    type: int
+    version_added: 23.2.0
 """
 
 EXAMPLES = """
@@ -364,8 +436,17 @@ class NetAppONTAPNFS:
                 v3_ms_dos_client_enabled=dict(required=False, type='bool'),
                 default_user=dict(required=False, type='str'),
             )),
-
             nfsv3_hide_snapdir=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv3_mount_root_only=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv3_ejukebox_enabled=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv3_connection_drop=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv3_64bit_identifiers_enabled=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv4_64bit_identifiers_enabled=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv42_xattrs_enabled=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv42_seclabel_enabled=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv40_acl_preserve=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
+            nfsv4_lease_seconds=dict(required=False, type='int'),
+            nfsv4_grace_seconds=dict(required=False, type='int'),
         ))
 
         self.module = AnsibleModule(
@@ -406,12 +487,20 @@ class NetAppONTAPNFS:
                                        'nfsv40_referrals',
                                        'nfsv41_referrals']
         partially_supported_rest_properties = [['showmount', (9, 8)], ['root', (9, 11, 0)], ['windows', (9, 11, 0)], ['security', (9, 11, 0)],
-                                               ['tcp_max_xfer_size', (9, 11, 0)], ['nfsv3_hide_snapdir', (9, 13, 1)]]
+                                               ['tcp_max_xfer_size', (9, 11, 0)], ['nfsv3_hide_snapdir', (9, 13, 1)],
+                                               ['nfsv3_mount_root_only', (9, 11, 0)], ['nfsv3_ejukebox_enabled', (9, 11, 0)],
+                                               ['nfsv3_connection_drop', (9, 11, 0)], ['nfsv3_64bit_identifiers_enabled', (9, 8)],
+                                               ['nfsv4_64bit_identifiers_enabled', (9, 8)], ['nfsv4_lease_seconds', (9, 13, 1)],
+                                               ['nfsv4_grace_seconds', (9, 13, 1)], ['nfsv40_acl_preserv', (9, 12, 0)],
+                                               ['nfsv42_xattrs_enabled', (9, 11, 0)], ['nfsv42_seclabel_enabled', (9, 11, 0)],]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if 'nfsv4.1' in self.parameters:
             self.module.warn('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')
         self.svm_uuid = None
-        self.unsupported_zapi_properties = ['root', 'windows', 'security', 'nfsv3_hide_snapdir']
+        self.unsupported_zapi_properties = ['root', 'windows', 'security', 'nfsv3_hide_snapdir', 'nfsv3_mount_root_only', 'nfsv3_ejukebox_enabled',
+                                            'nfsv3_connection_drop', 'nfsv3_64bit_identifiers_enabled', 'nfsv4_64bit_identifiers_enabled',
+                                            'nfsv42_xattrs_enabled', 'nfsv42_seclabel_enabled', 'nfsv40_acl_preserve',
+                                            'nfsv4_lease_seconds', 'nfsv4_grace_seconds']
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -557,10 +646,16 @@ class NetAppONTAPNFS:
                             'svm.uuid,'}
         if self.parameters.get('showmount'):
             params['fields'] += 'showmount_enabled,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
+            params['fields'] += 'protocol.v3_64bit_identifiers_enabled,protocol.v4_64bit_identifiers_enabled,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
-            params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size,'
+            params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size,protocol.v3_features.mount_root_only,'\
+                                'protocol.v3_features.ejukebox_enabled,protocol.v3_features.connection_drop,protocol.v42_features.xattrs_enabled,'\
+                                'protocol.v42_features.seclabel_enabled,'
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 0):
+            params['fields'] += 'protocol.v40_features.acl_preserve,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
-            params['fields'] += 'protocol.v3_features.hide_snapshot_enabled'
+            params['fields'] += 'protocol.v3_features.hide_snapshot_enabled,protocol.v4_lease_seconds,protocol.v4_grace_seconds'
         # TODO: might return more than 1 record, find out
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -596,6 +691,16 @@ class NetAppONTAPNFS:
             'windows': self.na_helper.safe_get(record, ['windows']),
             'security': self.na_helper.safe_get(record, ['security']),
             'nfsv3_hide_snapdir': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'hide_snapshot_enabled'])),
+            'nfsv3_mount_root_only': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'mount_root_only'])),
+            'nfsv3_ejukebox_enabled': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'ejukebox_enabled'])),
+            'nfsv3_connection_drop': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'connection_drop'])),
+            'nfsv3_64bit_identifiers_enabled': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_64bit_identifiers_enabled'])),
+            'nfsv4_64bit_identifiers_enabled': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v4_64bit_identifiers_enabled'])),
+            'nfsv42_xattrs_enabled': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v42_features', 'xattrs_enabled'])),
+            'nfsv42_seclabel_enabled': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v42_features', 'seclabel_enabled'])),
+            'nfsv40_acl_preserve': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v40_features', 'acl_preserve'])),
+            'nfsv4_lease_seconds': self.na_helper.safe_get(record, ['protocol', 'v4_lease_seconds']),
+            'nfsv4_grace_seconds': self.na_helper.safe_get(record, ['protocol', 'v4_grace_seconds']),
         }
 
     def create_nfs_service_rest(self):
@@ -671,6 +776,26 @@ class NetAppONTAPNFS:
             body['transport.tcp_max_transfer_size'] = params['tcp_max_xfer_size']
         if params.get('nfsv3_hide_snapdir') is not None:
             body['protocol.v3_features.hide_snapshot_enabled'] = self.convert_to_bool(params['nfsv3_hide_snapdir'])
+        if params.get('nfsv3_mount_root_only') is not None:
+            body['protocol.v3_features.mount_root_only'] = self.convert_to_bool(params['nfsv3_mount_root_only'])
+        if params.get('nfsv3_ejukebox_enabled') is not None:
+            body['protocol.v3_features.ejukebox_enabled'] = self.convert_to_bool(params['nfsv3_ejukebox_enabled'])
+        if params.get('nfsv3_connection_drop') is not None:
+            body['protocol.v3_features.connection_drop'] = self.convert_to_bool(params['nfsv3_connection_drop'])
+        if params.get('nfsv3_64bit_identifiers_enabled') is not None:
+            body['protocol.v3_64bit_identifiers_enabled'] = self.convert_to_bool(params['nfsv3_64bit_identifiers_enabled'])
+        if params.get('nfsv4_64bit_identifiers_enabled') is not None:
+            body['protocol.v4_64bit_identifiers_enabled'] = self.convert_to_bool(params['nfsv4_64bit_identifiers_enabled'])
+        if params.get('nfsv42_xattrs_enabled') is not None:
+            body['protocol.v42_features.xattrs_enabled'] = self.convert_to_bool(params['nfsv42_xattrs_enabled'])
+        if params.get('nfsv42_seclabel_enabled') is not None:
+            body['protocol.v42_features.seclabel_enabled'] = self.convert_to_bool(params['nfsv42_seclabel_enabled'])
+        if params.get('nfsv40_acl_preserve') is not None:
+            body['protocol.v40_features.acl_preserve'] = self.convert_to_bool(params['nfsv40_acl_preserve'])
+        if params.get('nfsv4_lease_seconds') is not None:
+            body['protocol.v4_lease_seconds'] = params['nfsv4_lease_seconds']
+        if params.get('nfsv4_grace_seconds') is not None:
+            body['protocol.v4_grace_seconds'] = params['nfsv4_grace_seconds']
         return body
 
     def convert_to_bool(self, value):

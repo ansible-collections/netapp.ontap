@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0f01a31335d648481e7099cf8452a8c2574f393163c315a0527cc7dbc0b368dd",
+   "chksum_sha256": "7b7fec0235a13d754bf3b42cc1be4477c68bfceeac2e905abf395fbc908f64d7",
    "format": 1
   },
   {
@@ -4145,6 +4145,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7633.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "76f10bb5b19f9c1482b1b92bd8320aa49d5b9a586794ebf2d8aaf716ee51938d",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7645.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4205,6 +4212,13 @@
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "5ab3203da568cd81c08e59717826ec5530994a0e5ddef5077e1bd66e09811576",
+   "format": 1
+  },
+  {
+   "name": "changelogs/fragments/DEVOPS-7875.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d727d6f70cb80fa64f43648022061d97dade1966b97566959cf5d8e6fd970c72",
    "format": 1
   },
   {
@@ -5254,7 +5268,7 @@
    "name": "plugins/modules/na_ontap_nfs.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ecc771b6207444cbd7f26fcad22f78734244492a69df01de682f868ec0e965c5",
+   "chksum_sha256": "a8140a3e3dc1494f714a3d3dc0c982f7c63bc169719e36f058e3a0015e5e3096",
    "format": 1
   },
   {
@@ -5562,7 +5576,7 @@
    "name": "plugins/modules/na_ontap_software_update.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "a749c97a89cfaeadef799cc9e62f1e573685125f9e8d9518929ab0939218e716",
+   "chksum_sha256": "8e9af5c58c4d6bff039696b65f5df0e0c69a8e354145335da655ab16034fed60",
    "format": 1
   },
   {
@@ -7508,7 +7522,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_nfs_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "dcfad431d380c36d7adcdb60d416c2d914bbcbcbb8d46bb89f6e1f2775d9174e",
+   "chksum_sha256": "5207158b2f56ef3afe60e3d84767091b6d1abe4af99870f884adba8df8483a70",
    "format": 1
   },
   {

@@ -3,8 +3,10 @@
 ## 23.2.0
 
 ### Minor Changes
+  - na_ontap_nfs - new protocol options added in REST.
   - na_ontap_job_schedule - new option `interval` added in REST.
   - na_ontap_lun - new option `provisioning_options` added in REST, requires ONTAP 9.16.1 or later.
+  - na_ontap_software_update - Updated documentation for `validate_after_download` parameter.
 
 ## 23.1.0
 

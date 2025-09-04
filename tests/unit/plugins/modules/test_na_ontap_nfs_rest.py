@@ -44,17 +44,29 @@ SRR = rest_responses({
                 "v40_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
-                    "write_delegation_enabled": False
+                    "write_delegation_enabled": False,
+                    "acl_preserve": False
                 },
                 "v41_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
                     "write_delegation_enabled": False,
-                    "pnfs_enabled": False
+                    "pnfs_enabled": False,
                 },
                 "v3_features": {
-                    "hide_snapshot_enabled": False
+                    "hide_snapshot_enabled": False,
+                    "mount_root_only": False,
+                    "ejukebox_enabled": False,
+                    "connection_drop": False
                 },
+                "v42_features": {
+                    "xattrs_enabled": False,
+                    "seclabel_enabled": False,
+                },
+                "v4_64bit_identifiers_enabled": False,
+                "v3_64bit_identifiers_enabled": False,
+                "v4_grace_seconds": 30,
+                "v4_lease_seconds": 45
             },
             "vstorage_enabled": False,
             "showmount_enabled": True,
@@ -74,7 +86,7 @@ SRR = rest_responses({
                 "map_unknown_uid_to_default_user": True,
                 "default_user": "test_user"
             },
-            "tcp_max_xfer_size": "16384"
+            "tcp_max_xfer_size": "16384",
         }
     ]}, None),
     'modified_record': (200, {"records": [
@@ -84,9 +96,23 @@ SRR = rest_responses({
                 "name": "ansibleSVM"
             },
             "protocol": {
-                "v3_features": {
-                    "hide_snapshot_enabled": True
+                "v40_features": {
+                    "acl_preserve": True
                 },
+                "v3_features": {
+                    "hide_snapshot_enabled": True,
+                    "mount_root_only": True,
+                    "ejukebox_enabled": True,
+                    "connection_drop": True
+                },
+                "v42_features": {
+                    "xattrs_enabled": True,
+                    "seclabel_enabled": True,
+                },
+                "v4_64bit_identifiers_enabled": True,
+                "v3_64bit_identifiers_enabled": True,
+                "v4_grace_seconds": 180,
+                "v4_lease_seconds": 60
             },
         }
     ]}, None),
@@ -350,7 +376,17 @@ def test_modify_nfs_idempotency():
         ('GET', 'protocols/nfs/services', SRR['modified_record'])
     ])
     module_args = {
-        "nfsv3_hide_snapdir": "enabled"
+        "nfsv3_hide_snapdir": "enabled",
+        "nfsv3_mount_root_only": "enabled",
+        "nfsv3_ejukebox_enabled": "enabled",
+        "nfsv3_connection_drop": "enabled",
+        "nfsv3_64bit_identifiers_enabled": "enabled",
+        "nfsv4_64bit_identifiers_enabled": "enabled",
+        "nfsv42_xattrs_enabled": "enabled",
+        "nfsv42_seclabel_enabled": "enabled",
+        "nfsv40_acl_preserve": "enabled",
+        "nfsv4_lease_seconds": 60,
+        "nfsv4_grace_seconds": 180
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
