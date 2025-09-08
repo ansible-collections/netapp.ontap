@@ -82,23 +82,58 @@ options:
     description:
     - Split clone volume from parent volume.
     type: bool
+  time_out:
+    version_added: 23.2.0
+    description:
+      - With C(wait_for_completion) set, specifies time to wait for clone/split operation in seconds.
+      - Only supported with REST.
+    type: int
+    default: 180
+
+  wait_for_completion:
+    version_added: 23.2.0
+    description:
+      - Set this parameter to 'true' for synchronous execution.
+      - For asynchronous, execution exits as soon as the request is sent, and the operation continues in the background.
+      - Only supported with REST.
+    type: bool
+    default: true
 '''
 
 EXAMPLES = """
-- name: create volume clone
+- name: Create volume clone - ZAPI
   netapp.ontap.na_ontap_volume_clone:
     state: present
+    vserver: ansibleSVM
+    parent_volume: source_volume
+    name: cloned_volume
+    space_reserve: none
+    parent_snapshot: backup1
+    junction_path: /cloned_volume
+    uid: 1
+    gid: 1
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: never
+
+- name: Split an existing volume clone - REST
+  netapp.ontap.na_ontap_volume_clone:
+    state: present
     vserver: ansibleSVM
-    parent_volume: normal_volume
-    name: clone_volume_7
-    space_reserve: none
-    parent_snapshot: backup1
-    junction_path: /clone_volume_7
-    uid: 1
-    gid: 1
+    parent_volume: source_volume
+    name: cloned_volume
+    split: true
+    wait_for_completion: true
+    time_out: 90
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+    validate_certs: "{{ validate_certs }}"
+    use_rest: always
 """
 
 RETURN = """
@@ -110,7 +145,6 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
-import ansible_collections.netapp.ontap.plugins.module_utils.rest_response_helpers as rrh
 
 
 class NetAppONTAPVolumeClone:
@@ -137,6 +171,8 @@ class NetAppONTAPVolumeClone:
             uid=dict(required=False, type='int'),
             gid=dict(required=False, type='int'),
             split=dict(required=False, type='bool', default=None),
+            time_out=dict(required=False, type='int', default=180),
+            wait_for_completion=dict(required=False, type='bool', default=True),
         ))
 
         self.module = AnsibleModule(
@@ -169,6 +205,8 @@ class NetAppONTAPVolumeClone:
             else:
                 self.vserver = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
                 self.create_server = self.vserver
+            if 'wait_for_completion' in self.parameters or 'time_out' in self.parameters:
+                self.module.warn("'wait_for_completion' and 'time_out' parameters are only supported when using REST.")
 
     def create_volume_clone(self):
         """
@@ -273,6 +311,10 @@ class NetAppONTAPVolumeClone:
 
     def create_volume_clone_rest(self):
         api = 'storage/volumes'
+        query = {'return_records': 'true'}    # in order to capture UUID
+        if not self.parameters.get('wait_for_completion'):
+            query['return_timeout'] = 0
+        timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
         body = {'name': self.parameters['name'],
                 'clone.parent_volume.name': self.parameters['parent_volume'],
                 "clone.is_flexclone": True,
@@ -291,30 +333,52 @@ class NetAppONTAPVolumeClone:
             body['nas.uid'] = self.parameters['uid']
         if self.parameters.get('gid'):
             body['nas.gid'] = self.parameters['gid']
-        query = {'return_records': 'true'}    # in order to capture UUID
-        response, error = rest_generic.post_async(self.rest_api, api, body, query, job_timeout=120)
+
+        response, error = rest_generic.post_async(self.rest_api, api, body, query, job_timeout=timeout)
         if error:
-            self.module.fail_json(
-                msg='Error creating volume clone %s: %s' % (self.parameters['name'], to_native(error)))
+            if 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                if not self.parameters.get('wait_for_completion'):
+                    warning = "Volume cloning process is still running in the background, "\
+                              "exiting with no further waiting as 'wait_for_completion' is set to false."
+                else:
+                    warning = ('Volume cloning is still in progress after %d seconds.' % self.parameters['time_out'])
+                self.module.warn(warning)
+            else:
+                self.module.fail_json(msg='Error creating volume clone %s: %s' % (self.parameters['name'],
+                                                                                  to_native(error)))
         if response:
-            record, error = rrh.check_for_0_or_1_records(api, response, error, query)
-            if not error and record and 'uuid' not in record:
-                error = 'uuid key not present in %s:' % record
-            if error:
-                self.module.fail_json(msg='Error: failed to parse create clone response: %s' % error)
-            if record:
-                self.uuid = record['uuid']
+            if 'records' in response and response.get('records') != []:
+                self.uuid = response['records'][0].get('uuid', None)
+                return
+            if self.uuid is None:
+                error = 'UUID key not present in response: %s' % response.get('records', [])
+            else:
+                self.module.fail_json(msg='Error: failed to parse create clone response: %s' % to_native(response))
 
     def start_volume_clone_split_rest(self):
         if self.uuid is None:
             self.module.fail_json(msg='Error starting volume clone split %s: %s' % (self.parameters['name'],
                                                                                     'clone UUID is not set'))
         api = 'storage/volumes'
+        query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
+        timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
         body = {'clone.split_initiated': True}
-        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body, job_timeout=120)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, self.uuid, body, query, job_timeout=timeout)
         if error:
-            self.module.fail_json(msg='Error starting volume clone split %s: %s' % (self.parameters['name'],
-                                                                                    to_native(error)))
+            if "entry doesn't exist" in error:
+                msg = "Volume clone not found; "\
+                      "it is advisable to use 'wait_for_completion' to ensure clone creation is complete before splitting."
+                self.module.fail_json(msg=msg)
+            elif 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                if not self.parameters.get('wait_for_completion'):
+                    warning = "Volume clone splitting is still running in the background, "\
+                              "exiting with no further waiting as 'wait_for_completion' is set to false."
+                else:
+                    warning = ('Volume clone split is still in progress after %d seconds.' % self.parameters['time_out'])
+                self.module.warn(warning)
+            else:
+                self.module.fail_json(msg='Error starting volume clone split %s: %s' % (self.parameters['name'],
+                                                                                        to_native(error)))
 
     def apply(self):
         """

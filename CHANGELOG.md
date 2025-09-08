@@ -8,6 +8,7 @@
   - na_ontap_lun - new option `provisioning_options` added in REST, requires ONTAP 9.16.1 or later.
   - na_ontap_software_update - updated documentation for `validate_after_download` parameter.
   - na_ontap_snapshot - new option `snaplock_expiry_time` added in REST, requires ONTAP 9.15.1 or later.
+  - na_ontap_volume_clone - new options `time_out`, `wait_for_completion` added in REST.
 
 ## 23.1.0
 
