@@ -1,7 +1,7 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-''' unit tests ONTAP Ansible module: na_ontap_nvme_snapshot'''
+''' unit tests ONTAP Ansible module: na_ontap_snapshot '''
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -22,8 +22,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapshot \
     import NetAppOntapSnapshot as my_module, main as my_main
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 SRR = rest_responses({
@@ -40,7 +40,8 @@ SRR = rest_responses({
                                       "create_time": "2021-06-10T17:24:41-04:00",
                                       "comment": "123",
                                       "expiry_time": "2022-02-04T14:00:00-05:00",
-                                      "snapmirror_label": "321", }], 'num_records': 1}, None),
+                                      "snapmirror_label": "321",
+                                      "snaplock_expiry_time": "2022-02-04T14:00:00-05:00", }], 'num_records': 1}, None),
     'create_response': (200, {'job': {'uuid': 'd0b3eefe-cd59-11eb-a170-005056b338cd',
                                       '_links': {
                                           'self': {'href': '/api/cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd'}}}},
@@ -97,6 +98,7 @@ def test_module_fail_when_required_args_missing():
         assert arg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called():
     ''' test get_snapshot()  for non-existent snapshot'''
     register_responses([
@@ -109,6 +111,7 @@ def test_ensure_get_called():
     assert my_obj.get_snapshot() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called_existing():
     ''' test get_snapshot()  for existing snapshot'''
     register_responses([
@@ -121,6 +124,7 @@ def test_ensure_get_called_existing():
     assert my_obj.get_snapshot()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' creating snapshot and testing idempotency '''
     register_responses([
@@ -134,6 +138,7 @@ def test_successful_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' modifying snapshot and testing idempotency '''
     register_responses([
@@ -155,6 +160,7 @@ def test_successful_modify():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_rename():
     ''' modifying snapshot and testing idempotency '''
     register_responses([
@@ -171,6 +177,7 @@ def test_successful_rename():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' deleting snapshot and testing idempotency '''
     register_responses([
@@ -188,6 +195,7 @@ def test_successful_delete():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('snapshot-get-iter', ZRR['error']),
@@ -229,6 +237,15 @@ def test_module_fail_rest_ONTAP96():
     assert msg in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+def test_module_fail_rest_ONTAP9_15_1():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1'])      # get version
+    ])
+    module_args = {'use_rest': 'always', 'snaplock_expiry_time': 'expiry'}
+    msg = 'Error: Minimum version of ONTAP for snaplock_expiry_time is (9, 15, 1)'
+    assert msg in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
 def test_rest_successfully_create():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -244,6 +261,22 @@ def test_rest_successfully_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+def test_rest_successfully_create_with_snaplock_expiry_time():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_15_1']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['empty_records']),
+        ('POST', 'storage/volumes/test_uuid/snapshots', SRR['create_response']),
+        ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'expiry_time': 'expiry',
+        'snaplock_expiry_time': 'expiry'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
 def test_rest_error_create_no_volume():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
@@ -252,6 +285,23 @@ def test_rest_error_create_no_volume():
     module_args = {'use_rest': 'always'}
     msg = 'Error: volume test_vol not found for vserver vserver.'
     assert msg == create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+
+
+def test_rest_successfully_modify_with_snaplock_expiry_time():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_15_1']),
+        ('GET', 'storage/volumes', SRR['volume_uuid']),
+        ('GET', 'storage/volumes/test_uuid/snapshots', SRR['snapshot_record']),
+        ('PATCH', 'storage/volumes/test_uuid/snapshots/343b5227-8c6b-4e79-a133-304bbf7537ce', SRR['create_response']),  # modify
+        ('GET', 'cluster/jobs/d0b3eefe-cd59-11eb-a170-005056b338cd', SRR['job_response']),
+    ])
+    module_args = {
+        'use_rest': 'always',
+        'comment': 'new comment',
+        'expiry_time': 'expiry',
+        'snaplock_expiry_time': 'expiry'
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
 def test_rest_successfully_modify():
@@ -359,5 +409,5 @@ def test_missing_netapp_lib(mock_has_netapp_lib):
         'use_rest': 'never',
     }
     mock_has_netapp_lib.return_value = False
-    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
+    msg = 'Error: the python NetApp-Lib module is required.  Import error: '
+    assert msg in create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
