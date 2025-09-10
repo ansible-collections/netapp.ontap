@@ -31,9 +31,6 @@ collections:
 # Module documentation
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 
-# Need help
-Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
-
 # Deprecation warning
 With collection version 22.0.0 ONTAPI (ZAPI) has been deprecated. Please refer to [CPC](https://mysupport.netapp.com/info/communications/ECMLP2880232.html) to stay updated with the End-of-Availability announcement. 
 This change will effect the modules listed below.
@@ -59,6 +56,11 @@ The following modules do not have REST equivalent APIs.
   - na_ontap_file_directory_policy
   - na_ontap_svm_options
   - na_ontap_quota_policy
+
+# Support
+Certain modules and options in the collection are only available from specific versions of ONTAP. The versions that a module or option supports are documented in the individual module documentation.
+### Need help
+Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
 # Release Notes
 Please refer to [CHANGELOG.md](https://github.com/ansible-collections/netapp.ontap/blob/main/CHANGELOG.md) for release notes.
