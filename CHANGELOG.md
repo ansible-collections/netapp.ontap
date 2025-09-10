@@ -9,7 +9,11 @@
   - na_ontap_software_update - updated documentation for `validate_after_download` parameter.
   - na_ontap_snapshot - new option `snaplock_expiry_time` added in REST, requires ONTAP 9.15.1 or later.
   - na_ontap_volume_clone - new options `time_out`, `wait_for_completion` added in REST.
+  - na_ontap_security_ssh - new option `host_key_algorithms`, requires ONTAP 9.16.1 or later.
   - updated `README` template; added 'Support' section.
+
+### Bug Fixes
+  - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
 
 ## 23.1.0
 

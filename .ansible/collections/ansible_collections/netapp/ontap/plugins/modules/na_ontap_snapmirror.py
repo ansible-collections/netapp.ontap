@@ -1068,7 +1068,7 @@ class NetAppONTAPSnapmirror(object):
             return
         if current['mirror_state'] != 'snapmirrored':
             initialize_zapi = 'snapmirror-initialize'
-            if self.parameters.get('relationship_type') and self.parameters['relationship_type'] == 'load_sharing':
+            if self.parameters.get('relationship_type') == 'load_sharing':
                 initialize_zapi = 'snapmirror-initialize-ls-set'
                 options = {'source-location': self.parameters['source_path']}
             else:
