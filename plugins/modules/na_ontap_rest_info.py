@@ -517,6 +517,10 @@ class NetAppONTAPGatherInfo(object):
         headers = self.rest_api.build_headers(accept=accept_header)
         gathered_ontap_info, error = self.rest_api.get(api, data, headers=headers)
 
+        if error and "entry doesn't exist" in error.get('message', ''):
+            # If the API returns no records, return an empty set of records.
+            return {'records': [], 'num_records': 0}
+
         if not error:
             return gathered_ontap_info
 
