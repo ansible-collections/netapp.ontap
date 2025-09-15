@@ -3,6 +3,7 @@
 ## 23.2.0
 
 ### Minor Changes
+  - na_ontap_autosupport - Replaced private cli with REST API.
   - na_ontap_nfs - new protocol options added in REST.
   - na_ontap_job_schedule - new option `interval` added in REST.
   - na_ontap_lun - new option `provisioning_options` added in REST, requires ONTAP 9.16.1 or later.
@@ -11,6 +12,7 @@
   - na_ontap_volume_clone - new options `time_out`, `wait_for_completion` added in REST.
   - na_ontap_security_ssh - new option `host_key_algorithms`, requires ONTAP 9.16.1 or later.
   - na_ontap_rest_info - added error handling when API doesn't return zero records.
+  - na_ontap_rest_info - support added for `application/consistency-groups/snapshots`.
   - updated `README` template; added 'Support' section.
 
 ### Bug Fixes

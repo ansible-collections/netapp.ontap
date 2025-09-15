@@ -50,6 +50,7 @@ options:
       - Either the REST API or the ZAPI info name can be given. Possible values for this argument include
       - application/applications or application_info
       - application/consistency-groups
+      - application/consistency-groups/snapshots B(Requires the owning_resource to be set)
       - application/templates or application_template_info
       - cloud/targets or cloud_targets_info
       - cluster
@@ -295,12 +296,13 @@ options:
     description:
       - Some resources cannot be accessed directly.  You need to select them based on the owner or parent.  For instance, volume for a snapshot.
       - The following subsets require an owning resource, and the following suboptions when uuid is not present.
+      - <application/consistency-groups/snapshots> B(cg_name) is the consistency group name, B(svm_name) is the owning vserver name for the consistency group.
       - <storage/volumes/snapshots>  B(volume_name) is the volume name, B(svm_name) is the owning vserver name for the volume.
       - <protocols/nfs/export-policies/rules> B(policy_name) is the name of the policy, B(svm_name) is the owning vserver name for the policy,
         B(rule_index) is the rule index.
-      - <protocols/vscan/on-access-policies> B(svm_name) is the owning vserver name for the vscan
-      - <protocols/vscan/on-demand-policies> B(svm_name) is the owning vserver name for the vscan
-      - <protocols/vscan/scanner-pools> B(svm_name) is the owning vserver name for the vscan
+      - <protocols/vscan/on-access-policies> B(svm_name) is the owning vserver name for the vscan.
+      - <protocols/vscan/on-demand-policies> B(svm_name) is the owning vserver name for the vscan.
+      - <protocols/vscan/scanner-pools> B(svm_name) is the owning vserver name for the vscan.
     type: dict
     version_added: '21.19.0'
   ignore_api_errors:
@@ -1079,9 +1081,16 @@ class NetAppONTAPGatherInfo(object):
 
     def add_uuid_subsets(self, get_ontap_subset_info):
         params = self.parameters.get('owning_resource')
-        owning_resource_supported_subsets = ['storage/volumes/snapshots', 'protocols/nfs/export-policies/rules',
-                                             'protocols/vscan/on-access-policies', 'protocols/vscan/on-demand-policies', 'protocols/vscan/scanner-pools']
+        owning_resource_supported_subsets = ['application/consistency-groups/snapshots', 'storage/volumes/snapshots',
+                                             'protocols/nfs/export-policies/rules', 'protocols/vscan/on-access-policies',
+                                             'protocols/vscan/on-demand-policies', 'protocols/vscan/scanner-pools']
         if 'gather_subset' in self.parameters:
+            if 'application/consistency-groups/snapshots' in self.parameters['gather_subset']:
+                self.check_error_values('application/consistency-groups/snapshots', params, ['cg_name', 'svm_name'])
+                cg_uuid = rest_owning_resource.get_consistency_group_uuid(self.rest_api, self.parameters['owning_resource']['cg_name'],
+                                                                          self.parameters['owning_resource']['svm_name'], self.module)
+                if cg_uuid:
+                    get_ontap_subset_info['application/consistency-groups/snapshots'] = {'api_call': 'application/consistency-groups/%s/snapshots' % cg_uuid}
             if 'storage/volumes/snapshots' in self.parameters['gather_subset']:
                 self.check_error_values('storage/volumes/snapshots', params, ['volume_name', 'svm_name'])
                 volume_uuid = rest_owning_resource.get_volume_uuid(self.rest_api, self.parameters['owning_resource']['volume_name'],

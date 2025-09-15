@@ -20,7 +20,7 @@ author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 options:
   state:
     description:
-      - Specifies whether the AutoSupport daemon is present or absent.
+      - Specifies whether the AutoSupport daemon is to be enabled or disabled.
       - When this setting is absent, delivery of all AutoSupport messages is turned off.
     choices: ['present', 'absent']
     type: str
@@ -28,7 +28,7 @@ options:
   node_name:
     description:
       - The name of the filer that owns the AutoSupport Configuration.
-    required: true
+      - Supported only with ZAPI.
     type: str
   transport:
     description:
@@ -38,11 +38,13 @@ options:
   noteto:
     description:
       - Specifies up to five recipients of short AutoSupport e-mail messages.
+      - Supported only with ZAPI.
     type: list
     elements: str
   post_url:
     description:
       - The URL used to deliver AutoSupport messages via HTTP POST.
+      - Supported only with ZAPI.
     type: str
   mail_hosts:
     description:
@@ -80,46 +82,55 @@ options:
   hostname_in_subject:
     description:
       - Specify whether the hostname of the node is included in the subject line of the AutoSupport message.
+      - Supported only with ZAPI.
     type: bool
     version_added: 2.8.0
   nht_data_enabled:
     description:
       - Specify whether the disk health data is collected as part of the AutoSupport data.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
   perf_data_enabled:
     description:
       - Specify whether the performance data is collected as part of the AutoSupport data.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
   retry_count:
     description:
       - Specify the maximum number of delivery attempts for an AutoSupport message.
+      - Supported only with ZAPI.
     type: int
     version_added: '21.5.0'
   reminder_enabled:
     description:
       - Specify whether AutoSupport reminders are enabled or disabled.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
   max_http_size:
     description:
       - Specify delivery size limit for the HTTP transport protocol (in bytes).
+      - Supported only with ZAPI.
     type: int
     version_added: '21.5.0'
   max_smtp_size:
     description:
       - Specify delivery size limit for the SMTP transport protocol (in bytes).
+      - Supported only with ZAPI.
     type: int
     version_added: '21.5.0'
   private_data_removed:
     description:
       - Specify the removal of customer-supplied data.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
   local_collection_enabled:
     description:
       - Specify whether collection of AutoSupport data when the AutoSupport daemon is disabled.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
   ondemand_enabled:
@@ -130,12 +141,33 @@ options:
   validate_digital_certificate:
     description:
       - When set to true each node will validate the digital certificates that it receives.
+      - Supported only with ZAPI.
     type: bool
     version_added: '21.5.0'
+  is_minimal:
+    description:
+      - Specifies whether the system information is collected in compliant form, to remove private data or in complete form, to enhance diagnostics.
+      - Supported only with REST.
+    type: bool
+    version_added: '23.2.0'
+  smtp_encryption:
+    description:
+      - The encryption protocol used to deliver AutoSupport messages via SMTP to the configured mail_hosts.
+      - Supported only with REST.
+    choices: ['none', 'start_tls']
+    type: str
+    version_added: '23.2.0'
+  force:
+    description:
+      - Set the force flag to true to modify some of the AutoSupport configurations that are otherwise blocked when the automatic update feature is enabled.
+      - Without this flag set to true, an attempt to disable AutoSupport, modify the transport to SMTP,
+        or disable the AutoSupport OnDemand feature fails if the automatic update feature is enabled.
+    type: bool
+    version_added: '23.2.0'
     """
 
 EXAMPLES = """
-- name: Enable autosupport
+- name: Enable autosupport - ZAPI
   netapp.ontap.na_ontap_autosupport:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -148,7 +180,7 @@ EXAMPLES = """
     support: false
     post_url: url/1.0/post
 
-- name: Modify autosupport proxy_url with password
+- name: Modify autosupport proxy_url with password - ZAPI
   netapp.ontap.na_ontap_autosupport:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -158,7 +190,7 @@ EXAMPLES = """
     transport: https
     proxy_url: username:password@host.com:8000
 
-- name: Modify autosupport proxy_url without password
+- name: Modify autosupport proxy_url without password - ZAPI
   netapp.ontap.na_ontap_autosupport:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -168,13 +200,56 @@ EXAMPLES = """
     transport: https
     proxy_url: username@host.com:8000
 
-- name: Disable autosupport
+- name: Disable autosupport - ZAPI
   netapp.ontap.na_ontap_autosupport:
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     state: absent
     node_name: test
+
+- name: Enable autosupport - REST
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    transport: https
+    mail_hosts: 1.2.3.4,5.6.7.8
+    proxy_url: proxyhost.local.com
+    to_addresses: rst@xyz.com
+    from_address: testmail1@abc.com
+    ondemand_enabled: true
+    support: true
+    state: present
+    force: true
+    is_minimal: true
+    smtp_encryption: none
+    partner_addresses: test2@xyz.com
+
+- name: Modify autosupport - REST
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    transport: smtp
+    mail_hosts: 1.2.3.4:25
+    proxy_url: proxyhost.local.com
+    to_addresses: rst@xyz.com,mymail@abc.com
+    from_address: testmail@abc.com
+    ondemand_enabled: false
+    support: false
+    state: present
+    is_minimal: false
+    smtp_encryption: start_tls
+    partner_addresses: test1@xyz.com
+    force: true
+
+- name: Disable autosupport - REST
+  netapp.ontap.na_ontap_autosupport:
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    state: absent
 """
 
 RETURN = """
@@ -198,7 +273,7 @@ class NetAppONTAPasup:
         self.argument_spec = netapp_utils.na_ontap_host_argument_spec()
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
-            node_name=dict(required=True, type='str'),
+            node_name=dict(required=False, type='str'),
             transport=dict(required=False, type='str', choices=['smtp', 'http', 'https']),
             noteto=dict(required=False, type='list', elements='str'),
             post_url=dict(required=False, type='str'),
@@ -219,7 +294,10 @@ class NetAppONTAPasup:
             private_data_removed=dict(required=False, type='bool'),
             local_collection_enabled=dict(required=False, type='bool'),
             ondemand_enabled=dict(required=False, type='bool'),
-            validate_digital_certificate=dict(required=False, type='bool')
+            validate_digital_certificate=dict(required=False, type='bool'),
+            is_minimal=dict(required=False, type='bool'),
+            smtp_encryption=dict(required=False, type='str', choices=['none', 'start_tls']),
+            force=dict(required=False, type='bool'),
         ))
 
         self.module = AnsibleModule(
@@ -229,16 +307,33 @@ class NetAppONTAPasup:
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        # present or absent requires modifying state to enabled or disabled
-        self.parameters['service_state'] = 'started' if self.parameters['state'] == 'present' else 'stopped'
+        if 'state' in self.parameters:
+            if self.parameters.get('state') == 'present':
+                self.parameters['enabled'] = True
+            else:
+                self.parameters['enabled'] = False
+            # present or absent requires modifying state to enabled or disabled
+            if 'enabled' in self.parameters:
+                self.parameters['service_state'] = 'started' if self.parameters.get('enabled') is True else 'stopped'
         self.set_playbook_zapi_key_map()
 
         self.rest_api = OntapRestAPI(self.module)
-        self.use_rest = self.rest_api.is_rest()
-        if not self.use_rest:
-            if not netapp_utils.has_netapp_lib():
-                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+        unsupported_rest_properties = ['node_name', 'retry_count', 'max_http_size', 'max_smtp_size',
+                                       'noteto', 'hostname_in_subject', 'nht_data_enabled',
+                                       'perf_data_enabled', 'reminder_enabled', 'private_data_removed',
+                                       'local_collection_enabled', 'validate_digital_certificate']
+        partially_supported_rest_properties = [['smtp_encryption', (9, 15, 1)], ['ondemand_enabled', (9, 16, 1)], ['force', (9, 16, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
+        unsupported_zapi_properties = ['smtp_encryption', 'is_minimal', 'force']
 
+        if not self.use_rest:
+            if netapp_utils.has_netapp_lib() is False:
+                self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if 'node_name' not in self.parameters:
+                self.module.fail_json(msg="Error: The option 'node_name' is required when using ZAPI.")
+            used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
+            if used_unsupported_zapi_properties:
+                self.module.fail_json(msg="Error: %s options supported only with REST." % ", ".join(used_unsupported_zapi_properties))
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
     def set_playbook_zapi_key_map(self):
@@ -279,36 +374,32 @@ class NetAppONTAPasup:
         """
         asup_info = {}
         if self.use_rest:
-            api = "private/cli/system/node/autosupport"
+            api = "support/autosupport"
             query = {
-                'node': self.parameters['node_name'],
-                'fields': 'state,node,transport,noteto,url,support,mail-hosts,from,partner-address,to,proxy-url,hostname-subj,nht,perf,retry-count,\
-reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,support,reminder,ondemand-state,local-collection,validate-digital-certificate'
+                'fields': 'transport,mail_hosts,proxy_url,partner_addresses,to,is_minimal,from,contact_support,enabled,'
             }
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 15, 1):
+                query['fields'] += 'smtp_encryption,'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 1):
+                query['fields'] += 'ondemand_enabled,'
             record, error = rest_generic.get_one_record(self.rest_api, api, query)
-
             if error:
-                self.module.fail_json(msg='Error fetching info: %s' % error)
-
-            for param in ('transport', 'mail_hosts', 'proxy_url', 'retry_count',
-                          'max_http_size', 'max_smtp_size', 'noteto', 'validate_digital_certificate'):
-                if param in record:
-                    asup_info[param] = record[param]
-
-            asup_info['support'] = record['support'] in ['enable', True]
-            asup_info['node_name'] = record['node'] if 'node' in record else ""
-            asup_info['post_url'] = record['url'] if 'url' in record else ""
-            asup_info['from_address'] = record['from'] if 'from' in record else ""
-            asup_info['to_addresses'] = record['to'] if 'to' in record else list()
-            asup_info['hostname_in_subject'] = record['hostname_subj'] if 'hostname_subj' in record else False
-            asup_info['nht_data_enabled'] = record['nht'] if 'nht' in record else False
-            asup_info['perf_data_enabled'] = record['perf'] if 'perf' in record else False
-            asup_info['reminder_enabled'] = record['reminder'] if 'reminder' in record else False
-            asup_info['private_data_removed'] = record['remove_private_data'] if 'remove_private_data' in record else False
-            asup_info['local_collection_enabled'] = record['local_collection'] if 'local_collection' in record else False
-            asup_info['ondemand_enabled'] = record['ondemand_state'] in ['enable', True] if 'ondemand_state' in record else False
-            asup_info['service_state'] = 'started' if record['state'] in ['enable', True] else 'stopped'
-            asup_info['partner_addresses'] = record['partner_address'] if 'partner_address' in record else list()
+                self.module.fail_json(msg='Error fetching auto support configuration info: %s' % error)
+            if record:
+                return {
+                    'transport': self.na_helper.safe_get(record, ['transport']),
+                    'mail_hosts': self.na_helper.safe_get(record, ['mail_hosts']),
+                    'smtp_encryption': self.na_helper.safe_get(record, ['smtp_encryption']),
+                    'proxy_url': self.na_helper.safe_get(record, ['proxy_url']),
+                    'partner_addresses': record['partner_addresses'] if 'partner_addresses' in record else list(),
+                    'to_addresses': record['to'] if 'to' in record else list(),
+                    'is_minimal': record['is_minimal'] in ['enable', True] if 'is_minimal' in record else False,
+                    'from_address': record['from'] if 'from' in record else "",
+                    'ondemand_enabled': record['ondemand_enabled'] in ['enable', True] if 'ondemand_enabled' in record else False,
+                    'support': record['contact_support'] in ['enable', True] if 'contact_support' in record else False,
+                    'enabled': record['enabled'] in ['enable', True] if 'enabled' in record else False,
+                }
+            return record
         else:
             asup_details = netapp_utils.zapi.NaElement('autosupport-config-get')
             asup_details.add_new_child('node-name', self.parameters['node_name'])
@@ -333,7 +424,6 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
             for item_key, zapi_key in self.na_helper.zapi_list_keys.items():
                 parent, dummy = zapi_key
                 asup_info[item_key] = self.na_helper.get_value_for_list(from_zapi=True, zapi_parent=asup_attr_info.get_child_by_name(parent))
-
         return asup_info
 
     def modify_autosupport_config(self, modify):
@@ -343,41 +433,37 @@ reminder,max-http-size,max-smtp-size,remove-private-data,ondemand-server-url,sup
         """
 
         if self.use_rest:
-            api = "private/cli/system/node/autosupport"
-            query = {
-                'node': self.parameters['node_name']
-            }
-            if 'service_state' in modify:
-                modify['state'] = modify['service_state'] == 'started'
-                del modify['service_state']
-
-            if 'post_url' in modify:
-                modify['url'] = modify.pop('post_url')
-            if 'from_address' in modify:
-                modify['from'] = modify.pop('from_address')
-            if 'to_addresses' in modify:
-                modify['to'] = modify.pop('to_addresses')
-            if 'hostname_in_subject' in modify:
-                modify['hostname_subj'] = modify.pop('hostname_in_subject')
-            if 'nht_data_enabled' in modify:
-                modify['nht'] = modify.pop('nht_data_enabled')
-            if 'perf_data_enabled' in modify:
-                modify['perf'] = modify.pop('perf_data_enabled')
-            if 'reminder_enabled' in modify:
-                modify['reminder'] = modify.pop('reminder_enabled')
-            if 'private_data_removed' in modify:
-                modify['remove_private_data'] = modify.pop('private_data_removed')
-            if 'local_collection_enabled' in modify:
-                modify['local_collection'] = modify.pop('local_collection_enabled')
-            if 'ondemand_enabled' in modify:
-                modify['ondemand_state'] = modify.pop('ondemand_enabled')
+            api = "support/autosupport"
+            body = {}
+            query = {}
+            if 'transport' in modify:
+                body['transport'] = modify['transport']
+            if 'mail_hosts' in modify:
+                body['mail_hosts'] = modify['mail_hosts']
+            if 'smtp_encryption' in modify:
+                body['smtp_encryption'] = modify['smtp_encryption']
+            if 'proxy_url' in modify:
+                body['proxy_url'] = modify['proxy_url']
             if 'partner_addresses' in modify:
-                modify['partner_address'] = modify.pop('partner_addresses')
-
-            dummy, error = rest_generic.patch_async(self.rest_api, api, None, modify, query)
+                body['partner_addresses'] = modify['partner_addresses']
+            if 'from_address' in modify:
+                body['from'] = modify.pop('from_address')
+            if 'to_addresses' in modify:
+                body['to'] = modify.pop('to_addresses')
+            if 'ondemand_enabled' in modify:
+                body['ondemand_enabled'] = modify['ondemand_enabled']
+            if 'is_minimal' in modify:
+                body['is_minimal'] = modify['is_minimal']
+            if 'support' in modify:
+                body['contact_support'] = modify['support']
+            if 'enabled' in modify:
+                body['enabled'] = modify['enabled']
+            if 'force' in self.parameters:
+                query['force'] = self.parameters.get('force')
+            dummy, error = rest_generic.patch_async(self.rest_api, api, None, body, query)
 
             if error:
-                self.module.fail_json(msg='Error modifying asup: %s' % error)
+                self.module.fail_json(msg='Error modifying auto support configuration: %s' % error)
         else:
             asup_details = {'node-name': self.parameters['node_name']}
             if modify.get('service_state'):
