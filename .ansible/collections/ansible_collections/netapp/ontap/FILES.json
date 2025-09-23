@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "c4f1614462ed4935bee0b6365c62dca1d8e5c452f7ceaee54aac4d009802b3f0",
+   "chksum_sha256": "d3bb0b0bf9cc84499fdbb16e144b457cd0f81bc4e6e47895bae68208d2fa6700",
    "format": 1
   },
   {
@@ -4327,6 +4327,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/github-259.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "ccf362288756128cd5679a0937a62d4f67b275b9a029de3ccb49d9bfdabbdf29",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/github-56.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5359,7 +5366,7 @@
    "name": "plugins/modules/na_ontap_ntfs_dacl.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "cfbb81d8a122e668dba05eb78ac8827e3fabffb8adc0323088c163c95b4f917e",
+   "chksum_sha256": "36b9ac718a2dc88424655bd13f48da58abef634c69f65678e6cf4b103ee6ba2d",
    "format": 1
   },
   {

@@ -20,6 +20,7 @@
 
 ### Bug Fixes
   - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
+  - na_ontap_ntfs_dacl - fixed typo in short description.
 
 ## 23.1.0
 
