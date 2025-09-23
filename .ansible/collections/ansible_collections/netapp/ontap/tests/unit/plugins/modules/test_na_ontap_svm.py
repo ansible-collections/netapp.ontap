@@ -52,7 +52,8 @@ svm_info = {
     "fcp": {"enabled": False},
     "nvme": {"enabled": False},
     "max_volumes": 3333,
-    "storage": {"limit": 0}
+    "storage": {"limit": 0,
+                "limit_threshold_alert": 90}
 }
 
 svm_info_cert1 = dict(svm_info)
@@ -1307,11 +1308,11 @@ def test_rest_language_match():
         'Attempting to change language from ONTAP value de.utf_8 to de.UTF-8.  Use de.utf_8 to suppress this warning and maintain idempotency.')
 
 
-def test_rest_storage_limit_modify():
+def test_rest_storage_options_modify():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_13_1']),
         ('GET', 'svm/svms', SRR['svm_record']),
         ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
     ])
-    module_args = {'storage_limit': 524288000}
+    module_args = {'storage_limit': 524288000, 'storage_limit_threshold_alert': 95}
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']

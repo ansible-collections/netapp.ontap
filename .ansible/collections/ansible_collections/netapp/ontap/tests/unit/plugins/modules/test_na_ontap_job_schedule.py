@@ -304,6 +304,22 @@ SRR = rest_responses({
                 "months": [5, 6]
             }
         }
+    ], "num_records": 1}, None),
+    'get_schedule_with_vserver': (200, {"records": [
+        {
+            "uuid": "010df156-e0a9-11e9-9f70-005056b3df08",
+            "name": "test_job",
+            "type": "cron",
+            "cron": {
+                "minutes": range(60),
+                "hours": [0],
+                "weekdays": [0],
+                "months": [5, 6]
+            },
+            "svm": {
+                "name": "svm1"
+            }
+        }
     ], "num_records": 1}, None)
 })
 
@@ -363,6 +379,18 @@ def test_rest_get_1_offset():
     assert record['job_months'] == SRR['get_schedule'][1]['records'][0]['cron']['months']
 
 
+def test_rest_get_with_vserver():
+    '''Test rest get using vserver'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['get_schedule_with_vserver'])
+    ])
+    job_obj = create_module(job_module, DEFAULT_ARGS_REST, {'vserver': 'svm1'})
+    record = job_obj.get_job_schedule_rest()
+    assert record
+    assert record['vserver'] == SRR['get_schedule_with_vserver'][1]['records'][0]['svm']['name']
+
+
 def test_rest_create_all_minutes():
     '''Test rest create using month offset'''
     register_responses([
@@ -392,6 +420,17 @@ def test_rest_create_1_offset():
         ('POST', 'cluster/schedules', SRR['success'])
     ])
     args = {'month_offset': 1, 'job_months': [1, 9]}
+    assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
+
+
+def test_rest_create_with_vserver():
+    '''Test successful rest create'''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_9_0']),
+        ('GET', 'cluster/schedules', SRR['zero_records']),
+        ('POST', 'cluster/schedules', SRR['success']),
+    ])
+    args = {'vserver': 'svm1', 'job_months': [5, 6]}
     assert create_and_apply(job_module, DEFAULT_ARGS_REST, args)['changed']
 
 

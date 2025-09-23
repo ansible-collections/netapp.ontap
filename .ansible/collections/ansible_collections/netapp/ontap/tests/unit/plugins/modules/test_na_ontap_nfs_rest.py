@@ -39,22 +39,26 @@ SRR = rest_responses({
             "protocol": {
                 "v3_enabled": True,
                 "v4_id_domain": "carchi8py.com",
+                "v4_fsid_change": False,
                 "v40_enabled": False,
                 "v41_enabled": False,
                 "v40_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
                     "write_delegation_enabled": False,
-                    "acl_preserve": False
+                    "acl_preserve": False,
+                    "referrals_enabled": False
                 },
                 "v41_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
                     "write_delegation_enabled": False,
                     "pnfs_enabled": False,
+                    "referrals_enabled": False
                 },
                 "v3_features": {
                     "hide_snapshot_enabled": False,
+                    "fsid_change": False,
                     "mount_root_only": False,
                     "ejukebox_enabled": False,
                     "connection_drop": False
@@ -97,13 +101,16 @@ SRR = rest_responses({
             },
             "protocol": {
                 "v40_features": {
-                    "acl_preserve": True
+                    "acl_preserve": True,
+                    "referrals_enabled": True
                 },
+                "v4_fsid_change": True,
                 "v3_features": {
                     "hide_snapshot_enabled": True,
                     "mount_root_only": True,
                     "ejukebox_enabled": True,
-                    "connection_drop": True
+                    "connection_drop": True,
+                    "fsid_change": True
                 },
                 "v42_features": {
                     "xattrs_enabled": True,
@@ -112,7 +119,10 @@ SRR = rest_responses({
                 "v4_64bit_identifiers_enabled": True,
                 "v3_64bit_identifiers_enabled": True,
                 "v4_grace_seconds": 180,
-                "v4_lease_seconds": 60
+                "v4_lease_seconds": 60,
+                "v41_features": {
+                    "referrals_enabled": True
+                }
             },
         }
     ]}, None),
@@ -386,7 +396,11 @@ def test_modify_nfs_idempotency():
         "nfsv42_seclabel_enabled": "enabled",
         "nfsv40_acl_preserve": "enabled",
         "nfsv4_lease_seconds": 60,
-        "nfsv4_grace_seconds": 180
+        "nfsv4_grace_seconds": 180,
+        "nfsv3_fsid_change": "enabled",
+        "nfsv4_fsid_change": "enabled",
+        "nfsv40_referrals": "enabled",
+        "nfsv41_referrals": "enabled"
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 

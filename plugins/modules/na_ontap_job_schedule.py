@@ -96,6 +96,11 @@ options:
          create, modify, and delete schedules owned by the partner cluster.
     type: str
     version_added: 21.22.0
+  vserver:
+    description:
+       - name of the vserver.
+    type: str
+    version_added: 23.2.0
   interval:
     description:
       - The interval at which the job should be run.
@@ -204,6 +209,7 @@ class NetAppONTAPJob:
             job_days_of_week=dict(required=False, type='list', elements='int'),
             month_offset=dict(required=False, type='int', choices=[0, 1]),
             cluster=dict(required=False, type='str'),
+            vserver=dict(required=False, type='str'),
             interval=dict(required=False, type='str')
         ))
 
@@ -269,12 +275,16 @@ class NetAppONTAPJob:
         query = {'name': self.parameters['name']}
         if self.parameters.get('cluster'):
             query['cluster'] = self.parameters['cluster']
+        if self.parameters.get('vserver'):
+            query['svm'] = self.parameters['vserver']
         record, error = rest_generic.get_one_record(self.rest_api, 'cluster/schedules', query, 'uuid,cron,interval,type')
         if error is not None:
             self.module.fail_json(msg="Error fetching job schedule: %s" % error)
         if record:
             self.uuid = record['uuid']
             job_details = {'name': record['name'], 'type': record['type']}
+            if 'svm' in record:
+                job_details['vserver'] = record['svm']['name']
             if record['type'] == 'cron':
                 for param_key, rest_key in self.na_helper.params_to_rest_api_keys.items():
                     if rest_key in record['cron']:
@@ -391,6 +401,8 @@ class NetAppONTAPJob:
             }
             if self.parameters.get('cluster'):
                 params['cluster'] = self.parameters['cluster']
+            if self.parameters.get('vserver'):
+                params['svm'] = self.parameters['vserver']
             if self.parameters.get('interval'):
                 params['interval'] = self.parameters['interval']
             api = 'cluster/schedules'

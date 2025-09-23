@@ -316,6 +316,13 @@ options:
       - Only supported with REST, requires ONTAP 9.13.1 or later.
     type: int
     version_added: 23.1.0
+  storage_limit_threshold_alert:
+    description:
+      - Specifies at what percentage of storage capacity an alert message is sent.
+      - The default value is 90.
+      - Only supported with REST, requires ONTAP 9.13.1 or later.
+    type: int
+    version_added: 23.2.0
 '''
 
 EXAMPLES = """
@@ -416,6 +423,7 @@ class NetAppOntapSVM():
                 ocsp_enabled=dict(type='bool'),
             )),
             storage_limit=dict(type='int', required=False),
+            storage_limit_threshold_alert=dict(type='int', required=False)
         ))
 
         self.module = AnsibleModule(
@@ -514,6 +522,9 @@ class NetAppOntapSVM():
         if use_rest and self.parameters.get('storage_limit') is not None and \
                 not self.rest_api.meets_rest_minimum_version(use_rest, 9, 13, 1):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('storage_limit', '9.13.1', use_rest=use_rest))
+        if use_rest and self.parameters.get('storage_limit_threshold_alert') is not None and \
+                not self.rest_api.meets_rest_minimum_version(use_rest, 9, 13, 1):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('storage_limit_threshold_alert', '9.13.1', use_rest=use_rest))
 
         self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
@@ -564,6 +575,7 @@ class NetAppOntapSVM():
 
         if 'storage' in vserver_details:
             vserver_details['storage_limit'] = int(self.na_helper.safe_get(vserver_details, ['storage', 'limit']))
+            vserver_details['storage_limit_threshold_alert'] = int(self.na_helper.safe_get(vserver_details, ['storage', 'limit_threshold_alert']))
 
         return vserver_details
 
@@ -628,7 +640,7 @@ class NetAppOntapSVM():
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
-                fields += ',storage.limit'
+                fields += ',storage'
 
             record, error = rest_vserver.get_vserver(self.rest_api, vserver_name, fields)
             if error:
@@ -717,6 +729,8 @@ class NetAppOntapSVM():
                 body[protocol] = acopy
         if 'storage_limit' in keys_to_modify:
             body['storage.limit'] = self.parameters['storage_limit']
+        if 'storage_limit_threshold_alert' in keys_to_modify:
+            body['storage.limit_threshold_alert'] = self.parameters['storage_limit_threshold_alert']
         return body, allowed_protocols
 
     def get_allowed_protocols_and_max_volumes(self):

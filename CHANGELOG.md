@@ -3,6 +3,7 @@
 ## 23.2.0
 
 ### Minor Changes
+  - na_ontap_job_schedule - new option `vserver` added in REST.
   - na_ontap_autosupport - Replaced private cli with REST API.
   - na_ontap_nfs - new protocol options added in REST.
   - na_ontap_job_schedule - new option `interval` added in REST.
@@ -13,7 +14,9 @@
   - na_ontap_security_ssh - new option `host_key_algorithms`, requires ONTAP 9.16.1 or later.
   - na_ontap_rest_info - added error handling when API doesn't return zero records.
   - na_ontap_rest_info - support added for `application/consistency-groups/snapshots`.
+  - na_ontap_svm - new option `storage_limit_threshold_alert` added in REST, requires ONTAP 9.13.1 or later.
   - updated `README` template; added 'Support' section.
+  - na_ontap_nfs - added REST support for option `nfsv3_fsid_change` (requires ONTAP 9.11.0 or later), and for `nfsv4_fsid_change`, `nfsv40_referrals`, and `nfsv41_referrals` (requires ONTAP 9.13.1 or later).
 
 ### Bug Fixes
   - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
@@ -813,7 +816,7 @@
   - na_ontap_cluster_config - fix the role to be able to create intercluster LIFs with REST (ipspace is required).
   - na_ontap_interface - ignore `vserver` when using REST if role is one of 'cluster', 'node-mgmt', 'intercluster', 'cluster-mgmt'.
   - na_ontap_nvme - fixed invalid boolean value error for `status_admin` when creating nvme service in ZAPI.
-  - na_ontap_nvme - fixed `status_admin` option is ignored if set to False when creating nvme service in REST. 
+  - na_ontap_nvme - fixed `status_admin` option is ignored if set to False when creating nvme service in REST.
   - na_ontap_service_policy - fixed error in modify by changing resulting json of an existing record in REST.
   - na_ontap_snapmirror - when using ZAPI, wait for the relationship to be quiesced before breaking.
   - na_ontap_snapmirror - when using REST with a policy, fix AttributeError - 'str' object has no attribute 'get'.
@@ -1027,9 +1030,9 @@
   - na_ontap_cifs_server -  error out if ZAPI only options `force` or `workgroup` are used with REST.
   - na_ontap_cluster_peer - Fixed KeyError if both `source_intercluster_lifs` and `dest_intercluster_lifs` are not present in creating cluster.
   - na_ontap_rest_info - Fixed example with wrong indentation for `use_python_keys`.
-  
+
 ### Added REST support to existing modules
-  - na_ontap_cifs - Added REST support to the CIFS share module. 
+  - na_ontap_cifs - Added REST support to the CIFS share module.
   - na_ontap_cifs_acl - Added REST support to the cifs share access control module.
   - na_ontap_cluster_peer - Added REST support.
   - na_ontap_lun_map - Added REST support.
@@ -1117,7 +1120,7 @@
   - na_ontap_net_routes - metric was not always modified with ZAPI.
   - na_ontap_net_routes - support cluster-scoped routes with REST.
   - na_ontap_vserver_delete role - report error if ONTAP version is 9.6 or older.
-  
+
 ### Minor Changes
   - na_ontap_vserver_delete role - added set_fact to accept `netapp_{hostname|username|password}` or `hostname`, `username` and `password` variables.
   - na_ontap_vserver_delete role - do not report an error if the vserver does not exist.
@@ -1152,7 +1155,7 @@
   - na_ontap_snapshot - `snapmirror_label` is supported with REST on ONTAP 9.7 or higher, report error if used on ONTAP 9.6.
   - na_ontap_snapmirror - `source_path` and `source_hostname` parameters are not mandatory to delete snapmirror relationship when source cluster is unknown, if specified it will delete snapmirror at destination and release the same at source side.  if not, it only deletes the snapmirror at destination and will not look for source to perform snapmirror release.
   - na_ontap_snapmirror - modify policy, schedule and other parameter failure are fixed.
-  - na_ontap_svm - module will on init if a rest only and zapi only option are used at the same time. 
+  - na_ontap_svm - module will on init if a rest only and zapi only option are used at the same time.
   - na_ontap_storage_failover - KeyError on 'ha' if the system is not configured as HA.
 
 ### Added REST support to existing modules
@@ -1189,7 +1192,7 @@
 ### Minor Changes
   - na_ontap_software_update - remove `absent` as a choice for `state` as it has no use.
   - na_ontap_svm - ignore `aggr_list: '*'` when using REST.
-  
+
 ### Bug Fixes
   - na_ontap_job_schedule - fix idempotency issue with REST when job_minutes is set to -1.
   - na_ontap_ldap_client - remove limitation on schema so that custom schemas can be used.
@@ -1352,7 +1355,7 @@
   - na_ontap_cifs_local_user_modify: Modify a local CIFS user.
   - na_ontap_disk_options: Modify storage disk options.
   - na_ontap_fpolicy_event: Create, delete or modify an FPolicy policy event.
-  - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.  
+  - na_ontap_fpolicy_ext_engine: Create, modify or delete an fPolicy External Engine.
   - na_ontap_fpolicy_scope: Create, delete or modify an FPolicy policy scope.
   - na_ontap_fpolicy_status: Enable or disable an existing fPolicy policy.
   - na_ontap_snaplock_clock: Initialize snaplock compliance clock.
