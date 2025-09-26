@@ -67,6 +67,14 @@ options:
       - Only supported with REST.
     type: str
     version_added: 22.8.0
+  consistency_type:
+    description:
+      - Type of consistency guarantee for the snapshot.
+      - Only supported with REST.
+    choices: ['crash', 'application']
+    type: str
+    default: crash
+    version_added: 23.2.0
 version_added: 2.7.0
 
 notes:
@@ -82,6 +90,7 @@ EXAMPLES = """
     vserver: vserver_name
     snapshot: snapshot name
     volumes: vol_name
+    # consistency_type defaults to 'crash' if not specified
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     hostname: "{{ netapp_hostname }}"
@@ -93,6 +102,7 @@ EXAMPLES = """
     snapshot: snapshot_name
     consistency_group: cg_name
     snapmirror_label: sm_label
+    consistency_type: application
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     hostname: "{{ netapp_hostname }}"
@@ -106,6 +116,7 @@ EXAMPLES = """
       - vol1
       - vol2
     snapmirror_label: sm_label
+    consistency_type: crash
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
     hostname: "{{ netapp_hostname }}"
@@ -150,6 +161,7 @@ class NetAppONTAPCGSnapshot(object):
             snapmirror_label=dict(required=False, type='str'),
             consistency_group=dict(required=False, type='str'),
             comment=dict(required=False, type='str'),
+            consistency_type=dict(required=False, type='str', choices=['crash', 'application'], default='crash'),
         ))
 
         self.module = AnsibleModule(
@@ -267,7 +279,7 @@ class NetAppONTAPCGSnapshot(object):
                                   exception=traceback.format_exc())
 
     def zapi_errors(self):
-        unsupported_zapi_properties = ['consistency_group', 'comment']
+        unsupported_zapi_properties = ['consistency_group', 'comment', 'consistency_type']
         used_unsupported_zapi_properties = [option for option in unsupported_zapi_properties if option in self.parameters]
         if used_unsupported_zapi_properties:
             self.module.fail_json(msg="Error: %s options supported only with REST." % " ,".join(used_unsupported_zapi_properties))
@@ -327,7 +339,8 @@ class NetAppONTAPCGSnapshot(object):
                            'uuid,'
                            'consistency_group,'
                            'snapmirror_label,'
-                           'comment,'}
+                           'comment,'
+                           'consistency_type,'}
         record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg='Error searching for consistency group snapshot %s: %s' % (self.parameters['snapshot'], to_native(error)),
@@ -339,6 +352,7 @@ class NetAppONTAPCGSnapshot(object):
                 'consistency_group': self.na_helper.safe_get(record, ['consistency_group', 'name']),
                 'snapmirror_label': record.get('snapmirror_label'),
                 'comment': record.get('comment'),
+                'consistency_type': record.get('consistency_type'),
             }
         return None
 
@@ -350,6 +364,8 @@ class NetAppONTAPCGSnapshot(object):
             body['snapmirror_label'] = self.parameters['snapmirror_label']
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']
+        if self.parameters.get('consistency_type'):
+            body['consistency_type'] = self.parameters['consistency_type']
         dummy, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating consistency group snapshot %s: %s' % (self.parameters['snapshot'], to_native(error)),
