@@ -725,8 +725,22 @@ class OntapRestAPI(object):
             elif self.auth_method == 'cert_key':
                 kwargs = dict(cert=(self.cert_filepath, self.key_filepath))
             elif self.auth_method in ('basic_auth', 'speedy_basic_auth'):
-                # with requests, there is no challenge, eg no 401.
-                kwargs = dict(auth=(self.username, self.password))
+                # For Unicode passwords: Check if password contains non-ASCII characters
+                # If so, UTF-8 encoding is used instead of requests default (Latin-1)
+                def is_ascii_compatible(s):
+                    try:
+                        s.encode('ascii')
+                        return True
+                    except UnicodeEncodeError:
+                        return False
+
+                if not (is_ascii_compatible(self.username) and is_ascii_compatible(self.password)):
+                    auth_string = '%s:%s' % (self.username, self.password)
+                    auth_bytes = base64.b64encode(auth_string.encode('utf-8')).decode('ascii')
+                    kwargs = dict(headers={'Authorization': 'Basic %s' % auth_bytes})
+                else:
+                    # Standard requests auth for ASCII-only passwords
+                    kwargs = dict(auth=(self.username, self.password))
             else:
                 raise KeyError(self.auth_method)
             return kwargs
@@ -742,6 +756,13 @@ class OntapRestAPI(object):
         error_details = None
         if headers is None:
             headers = self.build_headers()
+
+        # Handles authentication headers from auth_args
+        if 'headers' in auth_args:
+            # Merge authentication headers with existing headers
+            headers.update(auth_args['headers'])
+            # Remove headers from auth_args to avoid passing them twice to request function
+            auth_args = {k: v for k, v in auth_args.items() if k != 'headers'}
 
         def fail_on_non_empty_value(response):
             '''json() may fail on an empty value, but it's OK if no response is expected.

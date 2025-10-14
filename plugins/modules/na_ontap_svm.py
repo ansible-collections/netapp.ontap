@@ -323,6 +323,18 @@ options:
       - Only supported with REST, requires ONTAP 9.13.1 or later.
     type: int
     version_added: 23.2.0
+  auto_enable_analytics:
+    description:
+      - Specifies whether file system analytics is automatically enabled on volumes that are created in the SVM.
+      - Only supported with REST, requires ONTAP 9.12.1 or later.
+    type: bool
+    version_added: 23.2.0
+  auto_enable_activity_tracking:
+    description:
+      - Specifies whether volume activity tracking is automatically enabled on volumes that are created in the SVM.
+      - Only supported with REST, requires ONTAP 9.12.1 or later.
+    type: bool
+    version_added: 23.2.0
 '''
 
 EXAMPLES = """
@@ -423,7 +435,9 @@ class NetAppOntapSVM():
                 ocsp_enabled=dict(type='bool'),
             )),
             storage_limit=dict(type='int', required=False),
-            storage_limit_threshold_alert=dict(type='int', required=False)
+            storage_limit_threshold_alert=dict(type='int', required=False),
+            auto_enable_analytics=dict(type='bool', required=False),
+            auto_enable_activity_tracking=dict(type='bool', required=False),
         ))
 
         self.module = AnsibleModule(
@@ -519,6 +533,12 @@ class NetAppOntapSVM():
                 # so that we can compare UUIDs while using a more friendly name in the user interface
                 self.parameters['web']['certificate'] = {'name': self.parameters['web']['certificate']}
                 self.set_certificate_uuid()
+        if use_rest and self.parameters.get('auto_enable_analytics') is not None and \
+                not self.rest_api.meets_rest_minimum_version(use_rest, 9, 12, 1):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('auto_enable_analytics', '9.12.1', use_rest=use_rest))
+        if use_rest and self.parameters.get('auto_enable_activity_tracking') is not None and \
+                not self.rest_api.meets_rest_minimum_version(use_rest, 9, 12, 1):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('auto_enable_activity_tracking', '9.12.1', use_rest=use_rest))
         if use_rest and self.parameters.get('storage_limit') is not None and \
                 not self.rest_api.meets_rest_minimum_version(use_rest, 9, 13, 1):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('storage_limit', '9.13.1', use_rest=use_rest))
@@ -576,6 +596,9 @@ class NetAppOntapSVM():
         if 'storage' in vserver_details:
             vserver_details['storage_limit'] = int(self.na_helper.safe_get(vserver_details, ['storage', 'limit']))
             vserver_details['storage_limit_threshold_alert'] = int(self.na_helper.safe_get(vserver_details, ['storage', 'limit_threshold_alert']))
+
+        vserver_details['auto_enable_analytics'] = self.na_helper.safe_get(vserver_details, ['auto_enable_analytics'])
+        vserver_details['auto_enable_activity_tracking'] = self.na_helper.safe_get(vserver_details, ['auto_enable_activity_tracking'])
 
         return vserver_details
 
@@ -639,6 +662,8 @@ class NetAppOntapSVM():
                 fields += ',ndmp'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
+            if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
+                fields += ',auto_enable_analytics,auto_enable_activity_tracking'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
                 fields += ',storage'
 
@@ -727,6 +752,10 @@ class NetAppOntapSVM():
                     allowed_protocols[protocol] = allowed
             if acopy:
                 body[protocol] = acopy
+        if 'auto_enable_analytics' in keys_to_modify:
+            body['auto_enable_analytics'] = self.parameters['auto_enable_analytics']
+        if 'auto_enable_activity_tracking' in keys_to_modify:
+            body['auto_enable_activity_tracking'] = self.parameters['auto_enable_activity_tracking']
         if 'storage_limit' in keys_to_modify:
             body['storage.limit'] = self.parameters['storage_limit']
         if 'storage_limit_threshold_alert' in keys_to_modify:

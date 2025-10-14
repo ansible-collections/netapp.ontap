@@ -14,13 +14,16 @@
   - na_ontap_volume_clone - new options `time_out`, `wait_for_completion` added in REST.
   - na_ontap_security_ssh - new option `host_key_algorithms`, requires ONTAP 9.16.1 or later.
   - na_ontap_rest_info - added error handling when API doesn't return zero records.
+  - na_ontap_rest_info - support added for `application/consistency-groups/metrics`.
   - na_ontap_rest_info - support added for `application/consistency-groups/snapshots`.
   - na_ontap_svm - new option `storage_limit_threshold_alert` added in REST, requires ONTAP 9.13.1 or later.
-  - updated `README` template; added 'Support' section.
+  - na_ontap_svm - new options `auto_enable_analytics`, `auto_enable_activity_tracking` added in REST, requires ONTAP 9.12.1 or later.
   - na_ontap_nfs - added REST support for option `nfsv3_fsid_change` (requires ONTAP 9.11.0 or later), and for `nfsv4_fsid_change`, `nfsv40_referrals`, and `nfsv41_referrals` (requires ONTAP 9.13.1 or later).
+  - updated `README` template; added 'Support' section.
 
 ### Bug Fixes
   - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
+  - Added manual utf-8 encoding to handle unicode characters in passwords for HTTP Basic Authentication in netapp module utilities.
   - na_ontap_ntfs_dacl - fixed typo in short description.
 
 ## 23.1.0

@@ -246,6 +246,37 @@ SRR = rest_responses({
                 "name": "weekly_snapshot1"
             }],
             "num_records": 1}, None),
+    'cg_metrics_info': (
+        200,
+        {
+            "records": [{
+                "uuid": "0892526b-50e4-11f0-8465-005056b30b04",
+                "timestamp": "2025-10-06T10:40:45Z",
+                "status": "ok",
+                "duration": "PT15S",
+                "latency": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "iops": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "throughput": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "available_space": 15974400,
+                "used_space": 5001216,
+                "size": 22077440
+            }],
+            "num_records": 1}, None),
 })
 
 ALL_SUBSETS = ['application/applications',
@@ -1235,6 +1266,19 @@ def test_owning_resource_cg_snapshots_cg_not_found():
     ])
     msg = 'Could not find consistency group cg_name on SVM svm1'
     assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_cg_metrics():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/metrics'
+    args['owning_resource'] = {'cg_name': 'cg_name', 'svm_name': 'svm1'}
+    args['fields'] = ['*']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'application/consistency-groups', SRR['cg_info']),
+        ('GET', 'application/consistency-groups/cg_uuid/metrics', SRR['cg_metrics_info'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
 
 
 def test_lun_info_with_serial():

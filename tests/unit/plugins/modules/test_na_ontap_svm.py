@@ -52,6 +52,8 @@ svm_info = {
     "fcp": {"enabled": False},
     "nvme": {"enabled": False},
     "max_volumes": 3333,
+    "auto_enable_analytics": False,
+    "auto_enable_activity_tracking": False,
     "storage": {"limit": 0,
                 "limit_threshold_alert": 90}
 }
@@ -1315,4 +1317,14 @@ def test_rest_storage_options_modify():
         ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
     ])
     module_args = {'storage_limit': 524288000, 'storage_limit_threshold_alert': 95}
+    assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_rest_extended_params_modify():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'svm/svms', SRR['svm_record']),
+        ('PATCH', 'svm/svms/09e9fd5e-8ebd-11e9-b162-005056b39fe7', SRR['success']),
+    ])
+    module_args = {'auto_enable_analytics': True, 'auto_enable_activity_tracking': True}
     assert create_and_apply(svm_module, DEFAULT_ARGS, module_args)['changed']
