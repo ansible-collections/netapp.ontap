@@ -64,13 +64,13 @@ options:
   flowcontrol_admin:
     description:
     - Specifies the user preferred flow control setting of the port.
-    - Not supported with REST.
+    - Supported with REST for 9.16.1 and later.
+    choices: ['none', 'receive', 'send', 'full', 'pfc']
     type: str
   ipspace:
     description:
     - Specifies the port's associated IPspace name.
     - The 'Cluster' ipspace is reserved for cluster ports.
-    - Not supported with REST.
     - use netapp.ontap.na_ontap_ports to modify ipspace with REST.
     type: str
   up_admin:
@@ -92,6 +92,8 @@ EXAMPLES = """
     autonegotiate_admin: true
     up_admin: true
     mtu: 1500
+    flowcontrol_admin: full
+    ipspace: test_ipspace
 """
 
 RETURN = """
@@ -126,7 +128,7 @@ class NetAppOntapNetPort:
             up_admin=dict(required=False, type="bool", default=None),
             duplex_admin=dict(required=False, type="str", default=None),
             speed_admin=dict(required=False, type="str", default=None),
-            flowcontrol_admin=dict(required=False, type="str", default=None),
+            flowcontrol_admin=dict(required=False, type="str", choices=['none', 'receive', 'send', 'full', 'pfc'], default=None),
             ipspace=dict(required=False, type="str", default=None)
         ))
 
@@ -140,8 +142,9 @@ class NetAppOntapNetPort:
 
         # Set up Rest API
         self.rest_api = OntapRestAPI(self.module)
-        unsupported_rest_properties = ['mtu', 'autonegotiate_admin', 'duplex_admin', 'speed_admin', 'flowcontrol_admin', 'ipspace']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
+        unsupported_rest_properties = ['mtu', 'autonegotiate_admin', 'duplex_admin', 'speed_admin']
+        partially_supported_rest_properties = [['flowcontrol_admin', (9, 16, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -208,17 +211,20 @@ class NetAppOntapNetPort:
         query = {
             'name': port,
             'node.name': self.parameters['node'],
+            'fields': 'name,node,uuid,enabled,broadcast_domain.ipspace.name,'
         }
-        fields = 'name,node,uuid,enabled'
-        record, error = rest_generic.get_one_record(self.rest_api, api, query, fields)
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 1):
+            query['fields'] += 'flowcontrol_admin,'
+        record, error = rest_generic.get_one_record(self.rest_api, api, query)
         if error:
             self.module.fail_json(msg=error)
         if record:
             current = {
-                'name': record['name'],
-                'node': record['node']['name'],
-                'uuid': record['uuid'],
-                'up_admin': record['enabled']
+                'node': self.na_helper.safe_get(record, ['node', 'name']),
+                'uuid': self.na_helper.safe_get(record, ['uuid']),
+                'up_admin': self.na_helper.safe_get(record, ['enabled']),
+                'flowcontrol_admin': self.na_helper.safe_get(record, ['flowcontrol_admin']),
+                'ipspace': self.na_helper.safe_get(record, ['broadcast_domain', 'ipspace', 'name']),
             }
             return current
         return None
@@ -263,7 +269,13 @@ class NetAppOntapNetPort:
         Modify broadcast domain, ipspace and enable/disable port
         """
         api = 'network/ethernet/ports'
-        body = {'enabled': modify['up_admin']}
+        body = {}
+        if 'up_admin' in modify:
+            body['enabled'] = modify['up_admin']
+        if 'flowcontrol_admin' in modify:
+            body['flowcontrol_admin'] = modify['flowcontrol_admin']
+        if 'ipspace' in modify:
+            body['broadcast_domain.ipspace.name'] = modify['ipspace']
         dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
         if error:
             self.module.fail_json(msg=error)

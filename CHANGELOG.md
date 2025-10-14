@@ -3,6 +3,7 @@
 ## 23.2.0
 
 ### Minor Changes
+  - na_ontap_net_port - Added REST support for `flowcontrol_admin` and `ipspace`.
   - na_ontap_cg_snapshot - new option `consistency_type` added in REST.
   - na_ontap_job_schedule - new option `vserver` added in REST.
   - na_ontap_autosupport - Replaced private cli with REST API.
