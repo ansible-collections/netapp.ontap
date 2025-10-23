@@ -228,6 +228,10 @@ options:
       - Percentage in size change to trigger a resize.
       - When this parameter is greater than 0, a difference in size between what is expected and what is configured is ignored if it is below the threshold.
       - For instance, the nas application allocates a larger size than specified to account for overhead.
+      - When using C(nas_application_template), if the overhead size difference is within the threshold,
+        the module updates the size parameter to match the allocated size for idempotency in subsequent runs.
+      - If the difference exceeds the threshold, the volume will be resized to the requested size.
+      - For regular volumes (without nas_application_template), size differences within the threshold are ignored without parameter updates.
       - Set this to 0 for an exact match.
     type: int
     default: 10
@@ -2415,8 +2419,23 @@ class NetAppOntapVolume:
         ignore small change in size by resetting expectations
         """
         if after_create:
-            # ignore change in size immediately after a create:
-            self.parameters['size'] = current['size']
+            # For NAS application templates, apply size threshold logic instead of blindly accepting current size
+            if self.parameters.get('nas_application_template') is not None:
+                # Check if size change is within threshold for NAS templates
+                if current.get('size') and self.parameters.get('size'):
+                    change = abs(current['size'] - self.parameters['size']) * 100.0 / current['size']
+                    threshold = self.parameters.get('size_change_threshold', 10)
+
+                    if change < threshold:
+                        # Size difference is within threshold - update parameters for idempotency
+                        original_size = self.parameters['size']
+                        self.parameters['size'] = current['size']
+                        self.module.warn('NAS template overhead detected: volume size adjusted from %s to %s (%.1f%% difference, below %.1f%% threshold)'
+                                         % (original_size, current['size'], change, threshold))
+                    # If change >= threshold, keep original size to trigger a resize operation
+            else:
+                # For regular volumes (non-NAS templates), ignore change in size immediately after create
+                self.parameters['size'] = current['size']
             # inodes are not set in create
             return
         self.ignore_small_change(current, 'size', self.parameters['size_change_threshold'])
@@ -3113,7 +3132,6 @@ class NetAppOntapVolume:
             # restore current change state, as we ignore this
             if modify_app:
                 self.na_helper.changed = changed
-                self.module.warn('Modifying an app is not supported at present: ignoring: %s' % str(modify_app))
         return actions, current, modify
 
     def apply(self):

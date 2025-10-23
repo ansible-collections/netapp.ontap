@@ -24,6 +24,7 @@
 
 ### Bug Fixes
   - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
+  - na_ontap_volume - fix idempotency issue with `nas_application_template` and `size_change_threshold`.
   - Added manual utf-8 encoding to handle unicode characters in passwords for HTTP Basic Authentication in netapp module utilities.
   - na_ontap_ntfs_dacl - fixed typo in short description.
 
