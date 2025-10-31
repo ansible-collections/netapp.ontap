@@ -36,6 +36,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import base64
+import json
 import logging
 import os
 import ssl
@@ -64,6 +65,12 @@ try:
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
+
+try:
+    import boto3
+    HAS_BOTO3 = True
+except ImportError:
+    HAS_BOTO3 = False
 
 HAS_SF_SDK = False
 SF_BYTE_MAP = dict(
@@ -166,7 +173,8 @@ def na_ontap_host_argument_spec():
         feature_flags=dict(required=False, type='dict'),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
-        force_ontap_version=dict(required=False, type='str')
+        force_ontap_version=dict(required=False, type='str'),
+        use_lambda=dict(required=False, type='bool', default=False)
     )
 
 
@@ -191,11 +199,23 @@ def na_ontap_rest_only_spec():
 def na_ontap_host_argument_spec_peer():
     spec = na_ontap_host_argument_spec()
     spec.pop('feature_flags')
+    spec.pop('use_lambda')
     # get rid of default values, as we'll use source values
     for value in spec.values():
         if 'default' in value:
             value.pop('default')
     return spec
+
+
+def na_ontap_lambda_argument_spec():
+    # This is used for modules that support Lambda proxy functionality.
+    return dict(
+        lambda_config=dict(required=False, type='dict', options=dict(
+            function_name=dict(required=True, type='str'),
+            aws_region=dict(required=True, type='str'),
+            aws_profile=dict(required=False, type='str')
+        ))
+    )
 
 
 def has_feature(module, feature_name):
@@ -326,6 +346,32 @@ def set_zapi_port_and_transport(server, https, port, validate_certs):
         transport_type = 'HTTP'
     server.set_transport_type(transport_type)
     server.set_port(port)
+
+
+def should_use_lambda(module):
+    """
+    Determine if the module should use Lambda proxy for ONTAP API calls.
+    :param module: Ansible module instance.
+    :return: Boolean indicating whether to use Lambda.
+    """
+    return module.params.get('use_lambda', False)
+
+
+def setup_na_ontap_lambda(module):
+    """
+    Set up a Lambda proxy for ONTAP operations based on module parameters.
+    :param module: Ansible module instance.
+    :return: AwsLambda instance or None if Lambda is not enabled.
+    """
+    lambda_config = module.params.get('lambda_config', {})
+
+    if not HAS_BOTO3:
+        module.fail_json(msg="boto3 is required for Lambda functionality. Install with: pip install boto3")
+
+    try:
+        return AwsLambda(module, lambda_config)
+    except Exception as exc:
+        module.fail_json("Failed to create Lambda proxy: %s" % exc)
 
 
 def setup_na_ontap_zapi(module, vserver=None, wrap_zapi=False, host_options=None):
@@ -657,6 +703,11 @@ class OntapRestAPI(object):
         self.log_headers = has_feature(module, 'trace_headers')
         self.log_auth_args = has_feature(module, 'trace_auth_args')
 
+        # Initialize Lambda proxy if configured
+        self.lambda_proxy = None
+        if should_use_lambda(module):
+            self.lambda_proxy = setup_na_ontap_lambda(module)
+
     def requires_ontap_9_6(self, module_name):
         return self.requires_ontap_version(module_name)
 
@@ -719,7 +770,11 @@ class OntapRestAPI(object):
 
     def send_request(self, method, api, params, json=None, headers=None, files=None):
         ''' send http request and process reponse, including error conditions '''
-        url = self.url + api
+        if self.lambda_proxy:
+            status_code, json_dict, error_details = self.lambda_proxy._send_request(method, api, params, json, headers, files)
+            self.log_debug("proxy:", status_code)
+            self.log_debug("json_dict:", json_dict)
+            return status_code, json_dict, error_details
 
         def get_auth_args():
             if self.auth_method == 'single_cert':
@@ -747,6 +802,7 @@ class OntapRestAPI(object):
                 raise KeyError(self.auth_method)
             return kwargs
 
+        url = self.url + api
         status_code, json_dict, error_details = self._send_request(method, url, params, json, headers, files, get_auth_args())
 
         return status_code, json_dict, error_details
@@ -972,7 +1028,10 @@ class OntapRestAPI(object):
         # and we need the version as some REST options are not available in earlier versions
         method = 'GET'
         api = 'cluster/nodes'
-        params = {'fields': ['version']}
+        if should_use_lambda(self.module):
+            params = {'fields': 'version'}
+        else:
+            params = {'fields': ['version']}
         status_code, message, error = self.send_request(method, api, params=params)
         if message and 'records' in message and len(message['records']) > 0:
             message = message['records'][0]
@@ -1016,7 +1075,10 @@ class OntapRestAPI(object):
         # and we need the version as some REST options are not available in earlier versions
         method = 'GET'
         api = 'cluster'
-        params = {'fields': ['version']}
+        if should_use_lambda(self.module):
+            params = {'fields': 'version'}
+        else:
+            params = {'fields': ['version']}
         status_code, message, error = self.send_request(method, api, params=params)
         try:
             if error and 'are available in precluster.' in error.get('message', ''):
@@ -1173,3 +1235,163 @@ class OntapRestAPI(object):
             if not append:
                 append = True
             self.write_to_file(tag, message, filepath, append)
+
+
+class AwsLambda(OntapRestAPI):
+    """
+    AWS Lambda client for ONTAP API operations.
+    Handles AWS Lambda invocation and ONTAP API request formatting.
+    """
+
+    def __init__(self, module, lambda_config):
+        """
+        Initialize the Lambda proxy client.
+        :param module: Ansible module instance.
+        :param lambda_config: Dictionary containing Lambda configuration.
+        """
+        self.module = module
+        self.lambda_config = lambda_config
+        self.lambda_client = None
+        self.debug_logs = []
+
+        if not HAS_BOTO3:
+            module.fail_json(msg="boto3 is required for Lambda functionality. Install with: pip install boto3")
+        self._setup_lambda_client()
+
+    def _setup_lambda_client(self):
+        """Set up the AWS Lambda client with proper configuration."""
+        region_name = self.lambda_config.get('aws_region')
+        profile_name = self.lambda_config.get('aws_profile')
+
+        try:
+            if profile_name:
+                boto3.setup_default_session(profile_name=profile_name)
+            self.lambda_client = boto3.client("lambda", region_name=region_name)
+        except Exception as exc:
+            self.module.fail_json("Failed to create Lambda client: %s" % exc)
+
+    def is_enabled(self):
+        """Check if Lambda proxy is enabled and properly configured."""
+        return (self.lambda_config.get('use_lambda', False) and
+                self.lambda_config.get('function_name'))
+
+    def invoke_lambda_function(self, function_name, payload):
+        """
+        Invoke a Lambda function with the specified payload.
+        :param function_name: Name of the Lambda function to invoke.
+        :param payload: The payload to send to the Lambda function.
+        :return: Response from the Lambda function.
+        """
+        try:
+            response = self.lambda_client.invoke(
+                FunctionName=function_name,
+                InvocationType='RequestResponse',  # Synchronous invocation
+                Payload=json.dumps(payload)
+            )
+            return response
+        except Exception as exc:
+            self.module.fail_json("Error invoking Lambda function %s: %s" % (function_name, exc))
+
+    def _send_request(self, method, url, params, json_data, headers, files):
+        """
+        Send an HTTP request through Lambda proxy (compatible with OntapRestAPI._send_request signature).
+        :param method: HTTP method (GET, POST, PATCH, DELETE).
+        :param url: Full URL or API path.
+        :param params: Optional query parameters.
+        :param json_data: Optional JSON data for POST/PATCH requests.
+        :param headers: Optional headers.
+        :param files: Optional files (not supported in Lambda proxy).
+        :return: Tuple of (status_code, json_response, error_details).
+        """
+
+        # Extract API path from URL if it's a full URL
+        if url.startswith('https://'):
+            # Extract just the API path part
+            api_path = url.split('/api/')[-1]
+        else:
+            # Already an API path
+            api_path = url
+
+        function_name = self.lambda_config.get('function_name')
+        hostname = self.module.params.get('hostname')
+        username = self.module.params.get('username')
+        password = self.module.params.get('password')
+
+        if not function_name:
+            return None, None, "lambda_config.function_name is required when using Lambda proxy"
+
+        if not all([hostname, username, password]):
+            return None, None, "hostname, username, and password are required for Lambda ONTAP operations"
+
+        # Build the request URL with API path
+        if api_path.startswith('/'):
+            api_path = api_path[1:]  # Remove leading slash
+        api_url = "/api/%s" % api_path
+
+        # Add query parameters if provided
+        if params:
+            query_string = '&'.join(["%s=%s" % (k, v) for k, v in params.items()])
+            api_url += "?%s" % query_string
+
+        # Prepare authentication
+        credential = "%s:%s" % (username, password)
+        base64_credential = base64.b64encode(credential.encode("utf-8")).decode("utf-8")
+
+        # Build Lambda payload
+        payload = {
+            "body": {
+                "endpoint": hostname,
+                "url": api_url,
+                "method": method.upper(),
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": "Basic %s" % base64_credential
+                },
+                "requestType": "https"
+            }
+        }
+
+        # Add custom headers if provided
+        if headers:
+            payload["body"]["headers"].update(headers)
+
+        # Add data for POST/PATCH requests
+        if json_data and method.upper() in ['POST', 'PATCH', 'PUT']:
+            payload["body"]["data"] = json_data
+
+        try:
+            # Invoke Lambda function
+            lambda_response = self.invoke_lambda_function(function_name, payload)
+            self.log_debug("lambda_response: ", lambda_response)
+            # Parse Lambda response
+            if lambda_response and 'Payload' in lambda_response:
+                response_data = json.loads(lambda_response['Payload'].read())
+                self.log_debug("response_data: ", response_data)
+
+                # Extract status code, JSON response, and error from Lambda response
+                status_code = response_data.get('status', 500)
+
+                # Try to parse the body as JSON
+                body = response_data.get('data', '{}')
+                if isinstance(body, str):
+                    try:
+                        json_response = json.loads(body)
+                    except json.JSONDecodeError:
+                        json_response = {"raw_response": body}
+                else:
+                    json_response = body
+
+                # Check for errors
+                error_details = None
+                if status_code >= 400:
+                    error_details = json_response.get('error', "HTTP %d error" % status_code)
+                elif 'error' in json_response:
+                    error_details = json_response['error']
+
+                return status_code, json_response, error_details
+            else:
+                return 500, None, "Invalid Lambda response format"
+
+        except Exception as exc:
+            return 500, None, "Lambda request failed: %s" % exc

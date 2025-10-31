@@ -774,6 +774,28 @@ options:
     type: bool
     version_added: 22.13.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.2.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
   - REST is enabled when C(use_rest) is set to always.
@@ -781,6 +803,7 @@ notes:
     tiering control would require or disallow FabricPool for an existing volume with a different backend.
     Allowed values are fail, warn, and ignore, and the default is set to fail.
   - snapshot_restore is not idempotent, it always restores.
+  - Supports AWS Lambda proxy functionality when using REST.
 
 '''
 
@@ -1171,11 +1194,14 @@ class NetAppOntapVolume:
             snapshot_locking=dict(required=False, type='bool'),
             granular_data=dict(required=False, type='bool'),
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
                 ['space_guarantee', 'space_slo'], ['auto_remap_luns', 'force_unmap_luns']
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             supports_check_mode=True
         )
@@ -1218,6 +1244,8 @@ class NetAppOntapVolume:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.setup_zapi()
         if self.use_rest:
             self.rest_errors()

@@ -101,6 +101,13 @@ options:
         - Ignored with ZAPI.
       type: str
       version_added: "21.23.0"
+  use_lambda:
+      description:
+        - Specifies if AWS Lambda proxy functionality should be used to connect to the ONTAP system.
+        - Supported only with REST.
+      type: bool
+      default: false
+      version_added: "23.2.0"
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.

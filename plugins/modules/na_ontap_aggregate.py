@@ -228,9 +228,32 @@ options:
     elements: str
     version_added: 22.6.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.2.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
-  - supports check_mode.
-  - support ZAPI and REST.
+  - Supports check_mode.
+  - Supports both ZAPI and REST.
+  - Supports AWS Lambda proxy functionality when using REST.
 
 '''
 
@@ -365,6 +388,7 @@ class NetAppOntapAggregate:
             encryption=dict(required=False, type='bool'),
             tags=dict(required=False, type='list', elements='str')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -376,6 +400,9 @@ class NetAppOntapAggregate:
                 ('disk_count', 'disks'),
                 ('disk_size', 'disk_size_with_unit'),
                 ('disk_class', 'disk_type'),
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             supports_check_mode=True
         )
@@ -392,6 +419,8 @@ class NetAppOntapAggregate:
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if 'tags' in self.parameters:
                 self.module.fail_json(msg="Error: tags only supported with REST.")
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
         if self.parameters['state'] == 'present':

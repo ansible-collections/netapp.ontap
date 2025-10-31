@@ -23,6 +23,8 @@
   - na_ontap_quotas - updated docs for `quota_target` and `type`.
   - na_ontap_user - updated docs for `vserver` option.
   - na_ontap_volume_autosize - updated docs for `increment_size` & `reset`.
+  - na_ontap_aggregate - AWS Lambda support added to the module.
+  - na_ontap_volume - AWS Lambda support added to the module.
   - modified ZAPI deprecation messages and warnings.
   - updated `README` template; added 'Support' section.
 

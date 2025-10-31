@@ -59,6 +59,47 @@ The following modules do not have REST equivalent APIs.
 
 # Support
 Certain modules and options in the collection are only available from specific versions of ONTAP. The versions that a module or option supports are documented in the individual module documentation.
+
+## AWS FSx for NetApp ONTAP
+**Note:** Each module's documentation indicates whether it supports AWS FSx for NetApp ONTAP functionality.
+
+Please find below an example for using Lambda proxy functionality.
+```yaml
+---
+- name: Manage volume using Lambda Proxy
+  hosts: localhost
+  gather_facts: false
+  
+  vars:
+    # ONTAP and Lambda configuration
+    ontap_config:
+      hostname: "hostname"
+      username: "user"
+      password: "password"
+      use_lambda: true
+      lambda_config:
+        function_name: "netapp-ontap-automation"
+        aws_region: "us-east-1"
+        aws_profile: "default"  # Optional
+
+  tasks:
+    - name: Create a volume
+      netapp.ontap.na_ontap_volume:
+        hostname: "{{ ontap_config.hostname }}"
+        username: "{{ ontap_config.username }}"
+        password: "{{ ontap_config.password }}"
+        use_lambda: "{{ ontap_config.use_lambda }}"
+        lambda_config: "{{ ontap_config.lambda_config }}"
+        name: test_volume
+        vserver: test_svm
+        size: 20
+        size_unit: mb
+        aggregate_name: test_aggr
+        state: present
+        use_rest: always
+      register: volume_create_result
+```
+
 ### Need help
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 
