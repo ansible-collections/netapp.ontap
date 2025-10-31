@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "a745c0f0e0b855d3f04bca5830940ab4953503fa07dd59485d15ec43204709f1",
+   "chksum_sha256": "df9515bd9da5b1bc4263846d108724635813622c62cea1a9fd5331f1a9396a5b",
    "format": 1
   },
   {
@@ -4355,6 +4355,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7977.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "19eaac3d1f393118b996d7a5e14457e4e02504798fc3856ddf3ff4fc89cb74c2",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5821,7 +5828,7 @@
    "name": "plugins/modules/na_ontap_volume_autosize.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "51d4c03a712d8b43cd20bff5139eb5a47226f9a01e3376c66ebaa2a30898acef",
+   "chksum_sha256": "4c8203a816609e1af5396c3462e5c6d087aaf1e13053b1bb45123f7fe668d3d0",
    "format": 1
   },
   {
