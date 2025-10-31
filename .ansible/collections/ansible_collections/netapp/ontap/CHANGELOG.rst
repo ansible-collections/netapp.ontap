@@ -4,6 +4,44 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+v23.2.0
+=======
+
+Minor Changes
+-------------
+
+- Modified ZAPI deprecation messages and warnings.
+- na_ontap_aggregate - AWS Lambda support added to the module.
+- na_ontap_autosupport - Replaced private cli with REST API.
+- na_ontap_cg_snapshot - new option `consistency_type` added in REST.
+- na_ontap_job_schedule - new option `interval` added in REST.
+- na_ontap_job_schedule - new option `vserver` added in REST.
+- na_ontap_lun - new option `provisioning_options` added in REST, requires ONTAP 9.16.1 or later.
+- na_ontap_net_port - Added REST support for `flowcontrol_admin` and `ipspace`.
+- na_ontap_nfs - added REST support for the option `nfsv3_fsid_change` (requires ONTAP 9.11.0 or later), and for `nfsv4_fsid_change`, `nfsv40_referrals`, and `nfsv41_referrals` (requires ONTAP 9.13.1 or later).
+- na_ontap_nfs - new protocol options added in REST.
+- na_ontap_quotas - updated docs for 'quota_target' and 'type'.
+- na_ontap_rest_info - support added for `application/consistency-groups/metrics`.
+- na_ontap_rest_info - support added for `application/consistency-groups/snapshots`.
+- na_ontap_security_ssh - new option `host_key_algorithms`, requires ONTAP 9.16.1 or later.
+- na_ontap_snapshot - new option `snaplock_expiry_time` added in REST, requires ONTAP 9.15.1 or later.
+- na_ontap_software_update - Updated documentation for `validate_after_download` parameter.
+- na_ontap_svm - new option `storage_limit_threshold_alert` added in REST, requires ONTAP 9.13.1 or later.
+- na_ontap_svm - new options `auto_enable_analytics`, `auto_enable_activity_tracking` added in REST, requires ONTAP 9.12.1 or later.
+- na_ontap_user - updated docs for 'vserver' option.
+- na_ontap_volume - AWS Lambda support added to the module.
+- na_ontap_volume_autosize - updated docs for `increment_size` & `reset`.
+- na_ontap_volume_clone - new options `time_out`, `wait_for_completion` added in REST.
+- updated `README` template; added 'Support' section.
+
+Bugfixes
+--------
+
+- Added manual utf-8 encoding to handle unicode characters in passwords for HTTP Basic Authentication in netapp module utilities.
+- na_ontap_ntfs_dacl - fixed typo in short description.
+- na_ontap_rest_info - added error handling when API doesn't return zero records.
+- na_ontap_snapmirror - fixed intermittent issue with creating relationship.
+- na_ontap_volume - fix idempotency issue with `nas_application_template` and `size_change_threshold`.
 
 v23.1.0
 =======
