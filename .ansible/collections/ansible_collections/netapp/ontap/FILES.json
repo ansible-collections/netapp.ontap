@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "59c2de2202b1880115c631f87af268a3f0446af30991fd8ea24e0cbbb1be5ef2",
+   "chksum_sha256": "e52e662d77aaa465fe930142d6769e1d56d894283f2ab719ee11f33fcbff200e",
    "format": 1
   },
   {
@@ -4341,6 +4341,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7973.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "2e23cab0b9023c5d96c7eaa8d95ac34336fe9da3bc72ada1b6450a1125945eb1",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5520,7 +5527,7 @@
    "name": "plugins/modules/na_ontap_quotas.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "1a6e73e188c467f6b65946c195a865a25fb97d8039b3e3cc8430d3da5adc13b7",
+   "chksum_sha256": "2e7e711f7d8dccd43b51f17235b117debb7e1ce4943ff66ccb982de8cc1319ed",
    "format": 1
   },
   {

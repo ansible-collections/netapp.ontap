@@ -40,7 +40,6 @@ options:
   quota_target:
     description:
       - The quota target of the type specified.
-      - Required to create or modify a rule.
       - users and group takes quota_target value in REST.
       - For default user and group quota rules, the quota_target must be specified as "".
     type: str
@@ -53,8 +52,7 @@ options:
     type: str
   type:
     description:
-      - The type of quota rule
-      - Required to create or modify a rule.
+      - The type of quota rule.
     choices: ['user', 'group', 'tree']
     type: str
   policy:
