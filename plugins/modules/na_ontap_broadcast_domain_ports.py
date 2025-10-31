@@ -101,8 +101,7 @@ class NetAppOntapBroadcastDomainPorts(object):
         )
         parameters = self.module.params
         self.na_helper = NetAppModule(self.module)
-        self.na_helper.module_replaces('na_ontap_ports', self.module)
-        msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_ports should be used instead.'
+        msg = 'The module only supports ZAPI; refer to netapp.ontap.na_ontap_ports module for RESTful equivalent.'
         self.na_helper.fall_back_to_zapi(self.module, msg, parameters)
 
         # set up state variables

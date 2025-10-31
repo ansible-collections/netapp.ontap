@@ -108,8 +108,10 @@ ERROR_MSG = dict(
 
 LOG = logging.getLogger(__name__)
 LOG_FILE = '/tmp/ontap_apis.log'
-ZAPI_DEPRECATION_MESSAGE = "With collection version 22.0.0 ONTAPI (ZAPI) has been deprecated.  "\
-                           "The 'netapp-lib' library is no longer maintained. Proceed at your own risk.  "\
+ZAPI_DEPRECATION_MESSAGE = "The 'netapp-lib' library is no longer maintained. Proceed at your own risk.  "\
+                           "While the original deprecation date has been deferred due to continued consumer usage and feedback,  "\
+                           "ONTAPI (ZAPI) are considered legacy.  "\
+                           "All new features, fixes, and improvements will be developed for the modules having REST API support.  "\
                            "To ensure continued support, please migrate to the REST API."
 
 try:

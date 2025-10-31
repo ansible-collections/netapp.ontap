@@ -25,8 +25,6 @@ description:
   - Create, modify, or destroy vserver security file-directory policy
   - Add or remove task from policy.
   - Each time a policy/task is created/modified, automatically apply policy to vserver.
-  - This module only supports ZAPI and is deprecated.
-  - The final version of ONTAP to support ZAPI is 9.12.1.
 options:
   state:
     description:
@@ -169,7 +167,6 @@ class NetAppOntapFilePolicy(object):
         # set up variables
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.na_helper.module_deprecated(self.module)
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg='The python NetApp-Lib module is required')

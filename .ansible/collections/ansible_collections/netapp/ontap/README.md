@@ -32,12 +32,12 @@ collections:
 https://docs.ansible.com/ansible/devel/collections/netapp/ontap/
 
 # Deprecation warning
-With collection version 22.0.0 ONTAPI (ZAPI) has been deprecated. Please refer to [CPC](https://mysupport.netapp.com/info/communications/ECMLP2880232.html) to stay updated with the End-of-Availability announcement. 
-This change will effect the modules listed below.
+The 'netapp-lib' library is no longer maintained. Proceed at your own risk when using ZAPI.
+Please refer to [CPC](https://mysupport.netapp.com/info/communications/ECMLP2880232.html) to stay updated with ONTAPI (ZAPI) End-of-Availability announcement.
 
-### Replaced Modules
-These are modules user will need to migrate from their playbook to use the REST version of the module. Do note because REST
-return values differently than ZAPI you will need to update your playbooks to work with the new module.
+### Mapping of ZAPI-Only Modules to their RESTful Equivalents
+A mapping between ZAPI-only modules and their RESTful equivalents is provided below.
+Use this as a reference when migrating playbooks to ensure compatibility with REST APIs, as REST modules may return data in a different format and offer additional features not available in ZAPI.
   - na_ontap_broadcast_domain_ports -> na_ontap_ports
   - na_ontap_command -> na_ontap_rest_cli
   - na_ontap_firewall_policy -> na_ontap_service_policy
@@ -51,11 +51,11 @@ return values differently than ZAPI you will need to update your playbooks to wo
   - na_ontap_vserver_cifs_security -> na_ontap_cifs_server
   - na_ontap_zapit -> na_ontap_restit
 
-### Deprecated Modules
+### ZAPI-only Modules
 The following modules do not have REST equivalent APIs.
   - na_ontap_file_directory_policy
-  - na_ontap_svm_options
   - na_ontap_quota_policy
+  - na_ontap_svm_options
 
 # Support
 Certain modules and options in the collection are only available from specific versions of ONTAP. The versions that a module or option supports are documented in the individual module documentation.

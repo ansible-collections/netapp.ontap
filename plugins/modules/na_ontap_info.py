@@ -445,9 +445,7 @@ class NetAppONTAPGatherInfo:
         self.translate_keys = not self.module.params['use_native_zapi_tags']
         self.warnings = []  # warnings will be added to the info results, if any
         self.set_error_flags()
-        self.module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
-                         'of ONTAP when ONTAPI is deprecated in CY22-Q4')
-        self.module.warn('netapp.ontap.na_ontap_rest_info should be used instead.')
+        self.module.warn('The module only supports ZAPI; refer to netapp.ontap.na_ontap_rest_info module for RESTful equivalent.')
 
         # thanks to coreywan (https://github.com/ansible/ansible/pull/47016)
         # for starting this

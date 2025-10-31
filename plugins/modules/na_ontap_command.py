@@ -142,9 +142,7 @@ class NetAppONTAPCommand():
             'stdout_lines_filter': [],
             'xml_dict': {},
         }
-        self.module.warn('The module only supports ZAPI and is deprecated, and will no longer work with newer versions '
-                         'of ONTAP when ONTAPI is deprecated in CY22-Q4')
-        self.module.warn('netapp.ontap.na_ontap_rest_cli should be used instead.')
+        self.module.warn('The module only supports ZAPI; refer to netapp.ontap.na_ontap_rest_cli module for RESTful equivalent.')
 
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
