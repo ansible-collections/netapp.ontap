@@ -116,7 +116,7 @@ options:
     description:
       - The name of the vserver to use.
       - Required with ZAPI.
-      - With REST, ignore this option for creating cluster scoped interface.
+      - With REST, ignore this option for creating cluster scoped user account.
     aliases:
       - svm
     type: str

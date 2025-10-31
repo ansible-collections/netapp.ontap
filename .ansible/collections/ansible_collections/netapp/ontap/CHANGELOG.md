@@ -21,6 +21,7 @@
   - na_ontap_svm - new options `auto_enable_analytics`, `auto_enable_activity_tracking` added in REST, requires ONTAP 9.12.1 or later.
   - na_ontap_nfs - added REST support for option `nfsv3_fsid_change` (requires ONTAP 9.11.0 or later), and for `nfsv4_fsid_change`, `nfsv40_referrals`, and `nfsv41_referrals` (requires ONTAP 9.13.1 or later).
   - na_ontap_quotas - updated docs for `quota_target` and `type`.
+  - na_ontap_user - updated docs for `vserver` option.
   - updated `README` template; added 'Support' section.
 
 ### Bug Fixes
