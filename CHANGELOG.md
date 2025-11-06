@@ -1,5 +1,10 @@
 # Release Notes
 
+## 23.3.0
+
+### Minor Changes
+  - na_ontap_net_ifgrp - Update `mode` parameter to specify allowed values.
+
 ## 23.2.0
 
 ### Minor Changes
