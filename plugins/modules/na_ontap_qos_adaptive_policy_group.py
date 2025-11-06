@@ -14,7 +14,7 @@ short_description: NetApp ONTAP Adaptive Quality of Service policy group.
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap_zapi
 version_added: 2.9.0
-author: NetApp Ansible Team (@joshedmonds) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@joshedmonds) <ng-ansible-team@netapp.com>
 
 description:
   - Create, destroy, modify, or rename an Adaptive QoS policy group on NetApp ONTAP. Module is based on the standard QoS policy group module.
@@ -162,7 +162,7 @@ class NetAppOntapAdaptiveQosPolicyGroup:
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.na_helper.module_replaces('na_ontap_qos_policy_group', self.module)
-        msg = 'The module only supports ZAPI and is deprecated; netapp.ontap.na_ontap_qos_policy_group should be used instead.'
+        msg = 'The module only supports ZAPI; refer to netapp.ontap.na_ontap_qos_policy_group module for RESTful equivalent.'
         self.na_helper.fall_back_to_zapi(self.module, msg, self.parameters)
 
         if not netapp_utils.has_netapp_lib():

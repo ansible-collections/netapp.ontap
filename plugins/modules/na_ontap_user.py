@@ -19,7 +19,7 @@ short_description: NetApp ONTAP user configuration and management
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Create or destroy users.
@@ -79,7 +79,7 @@ options:
       second_authentication_method:
         description: when using ssh, optional additional authentication method for MFA.
         type: str
-        choices: ['none', 'password', 'publickey', 'nsswitch']
+        choices: ['none', 'password', 'publickey', 'nsswitch', 'totp']
   authentication_method:
     description:
       - Authentication method for the application.  If you need more than one method, use C(application_dicts).
@@ -116,7 +116,7 @@ options:
     description:
       - The name of the vserver to use.
       - Required with ZAPI.
-      - With REST, ignore this option for creating cluster scoped interface.
+      - With REST, ignore this option for creating cluster scoped user account.
     aliases:
       - svm
     type: str
@@ -295,7 +295,7 @@ class NetAppOntapUser:
                                                                  'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
                                        authentication_methods=dict(required=True, type='list', elements='str',
                                                                    choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
-                                       second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch']))),
+                                       second_authentication_method=dict(type='str', choices=['none', 'password', 'publickey', 'nsswitch', 'totp']))),
             authentication_method=dict(type='str',
                                        choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
             set_password=dict(type='str', no_log=True),
@@ -417,8 +417,9 @@ class NetAppOntapUser:
             for application in response['applications']:
                 if application.get('second_authentication_method') == 'none':
                     application['second_authentication_method'] = None
-                # new read-only attribute in 9.11, breaks idempotency when present
+                # new read-only attributes in 9.14 onwards, breaks idempotency when present
                 application.pop('is_ldap_fastbind', None)
+                application.pop('is_ns_switch_group', None)
             return_value = {
                 'role_name': response['role']['name'],
                 'applications': response['applications']

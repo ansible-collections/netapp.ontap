@@ -20,7 +20,7 @@ ANSIBLE_METADATA = {
 DOCUMENTATION = '''
 
 module: na_ontap_autosupport_invoke
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 short_description: NetApp ONTAP send AutoSupport message
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap

@@ -10,7 +10,7 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_active_directory_domain_controllers
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 short_description: NetApp ONTAP configure active directory preferred domain controllers
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap_rest

@@ -1,24 +1,27 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import copy
+import sys
 import pytest
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
-    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception
+    patch_ansible, create_and_apply, create_module, expect_and_capture_ansible_exception, \
+    assert_warning_was_raised, print_warnings
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_clone \
     import NetAppONTAPVolumeClone as my_module  # module under test
 
-# needed for get and modify/delete as they still use ZAPI
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip(
+        'Skipping Unit Tests on 2.6 as requests is not available')
+
 
 # REST API canned responses when mocking send_request
 
@@ -76,7 +79,12 @@ SRR = rest_responses({
             clone_info,
             clone_info_no_uuid,
         ]}, None
-    )
+    ),
+    'process_running_error': (400, None, "calling: storage/volumes: got job reported error: Timeout error: Process still running, \
+                                          received {'job': {'uuid': 'ea6959a9-1eb7-11f0-b03b-005056ae54f6', '_links': {'self': {'href': \
+                                          '/api/cluster/jobs/ea6959a9-1eb7-11f0-b03b-005056ae54f6'}}}}.."),
+    'split_clone_error': (400, None, "Volume clone not found; \
+                                      it is advisable to use 'wait_for_completion' to ensure clone creation is complete before splitting."),
 })
 
 
@@ -87,7 +95,8 @@ DEFAULT_ARGS = {
     'password': 'test_pass!',
     'use_rest': 'always',
     'name': 'clone_of_parent_volume',
-    'parent_volume': 'parent_volume'
+    'parent_volume': 'parent_volume',
+    'wait_for_completion': True
 }
 
 
@@ -181,26 +190,19 @@ def test_negative_create_no_uuid():
     assert msg == 'Error starting volume clone split clone_of_parent_volume: clone UUID is not set'
 
 
-def test_negative_create_no_uuid_in_response():
+def test_clone_create_still_running_background_warning():
+    ''' Test volume cloning in background warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
         ('GET', 'storage/volumes', SRR['empty_records']),
-        ('POST', 'storage/volumes', SRR['volume_clone_no_uuid']),
-    ])
-    module_args = {'split': True}
-    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert msg.startswith('Error: failed to parse create clone response: uuid key not present in')
+        ('POST', 'storage/volumes', SRR['process_running_error']),
 
-
-def test_negative_create_bad_response():
-    register_responses([
-        ('GET', 'cluster', SRR['is_rest']),
-        ('GET', 'storage/volumes', SRR['empty_records']),
-        ('POST', 'storage/volumes', SRR['two_records']),
     ])
-    module_args = {'split': True}
-    msg = create_and_apply(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
-    assert msg.startswith('Error: failed to parse create clone response: calling: storage/volumes: unexpected response ')
+    module_args = {'wait_for_completion': False}
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+    print_warnings()
+    assert_warning_was_raised("Volume cloning process is still running in the background, "
+                              "exiting with no further waiting as 'wait_for_completion' is set to false.")
 
 
 def test_successfully_split_clone():

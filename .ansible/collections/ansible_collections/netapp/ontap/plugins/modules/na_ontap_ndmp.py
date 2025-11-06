@@ -22,7 +22,7 @@ short_description: NetApp ONTAP NDMP services configuration
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.9.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
     - Modify NDMP Services.
@@ -169,6 +169,15 @@ EXAMPLES = '''
     secondary_debug_filter: filter
     tcpnodelay: true
     tcpwinsize: 10000
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: true
+
+- name: generate password - REST
+  netapp.ontap.na_ontap_ndmp:
+    ndmp_user: "ndmp_user"
+    vserver: vs0
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
@@ -345,10 +354,10 @@ class NetAppONTAPNdmp(object):
         if self.use_rest:
             ndmp = dict()
             uuid = self.get_ndmp_svm_uuid()
-            if self.parameters.get('enable'):
-                ndmp['enabled'] = self.parameters['enable']
-            if self.parameters.get('authtype'):
-                ndmp['authentication_types'] = self.parameters['authtype']
+            if 'enable' in modify:
+                ndmp['enabled'] = modify['enable']
+            if 'authtype' in modify:
+                ndmp['authentication_types'] = modify['authtype']
             api = "protocols/ndmp/svms/" + uuid
             dummy, error = self.rest_api.patch(api, ndmp)
             if error:

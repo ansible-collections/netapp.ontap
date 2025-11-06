@@ -9,7 +9,7 @@ __metaclass__ = type
 
 DOCUMENTATION = '''
 module: na_ontap_active_directory
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 short_description: NetApp ONTAP configure active directory
 extends_documentation_fragment:
   - netapp.ontap.netapp.na_ontap

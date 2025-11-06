@@ -7,6 +7,7 @@ action_groups:
     - na_ontap_aggregate
     - na_ontap_autosupport_invoke
     - na_ontap_autosupport
+    - na_ontap_autoupdate_support
     - na_ontap_bgp_config
     - na_ontap_bgp_peer_group
     - na_ontap_broadcast_domain_ports

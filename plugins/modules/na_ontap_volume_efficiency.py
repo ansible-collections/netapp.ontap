@@ -12,7 +12,7 @@ short_description: NetApp ONTAP enables, disables or modifies volume efficiency
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '21.2.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Enable, modify or disable volume efficiency.
   - Either path or volume_name is required.

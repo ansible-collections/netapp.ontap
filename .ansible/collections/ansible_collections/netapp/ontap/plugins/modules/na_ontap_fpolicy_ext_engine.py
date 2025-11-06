@@ -13,7 +13,7 @@ short_description: NetApp ONTAP fPolicy external engine configuration.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: '21.4.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Create, delete or modify fpolicy external engine.

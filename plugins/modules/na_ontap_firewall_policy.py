@@ -10,7 +10,7 @@ DOCUMENTATION = '''
 module: na_ontap_firewall_policy
 short_description: NetApp ONTAP Manage a firewall policy
 version_added: 2.7.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Configure firewall on an ONTAP node and manage firewall policy for an ONTAP SVM
 extends_documentation_fragment:
@@ -141,7 +141,7 @@ class NetAppONTAPFirewallPolicy:
 
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.na_helper.module_replaces('na_ontap_service_policy', self.module)
+        self.module.warn('The module only supports ZAPI; refer to netapp.ontap.na_ontap_service_policy module for RESTful equivalent.')
         if not netapp_utils.has_netapp_lib():
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)

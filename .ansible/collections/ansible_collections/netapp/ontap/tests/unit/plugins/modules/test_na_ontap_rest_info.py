@@ -1,4 +1,4 @@
-# (c) 2020-2023, NetApp, Inc
+# (c) 2020-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' Unit Tests NetApp ONTAP REST APIs Ansible module: na_ontap_rest_info '''
@@ -114,6 +114,7 @@ SRR = rest_responses({
     'lun_info': (200, {'records': [{"serial_number": "z6CcD+SK5mPb"}]}, None),
     'volume_info': (200, {"uuid": "7882901a-1aef-11ec-a267-005056b30cfa"}, None),
     'svm_uuid': (200, {"records": [{"uuid": "test_uuid"}], "num_records": 1}, None),
+    'cg_info': (200, {"uuid": "cg_uuid"}, None),
     'get_uuid_policy_id_export_policy': (
         200,
         {
@@ -233,7 +234,49 @@ SRR = rest_responses({
                 "role": "primary"
             }
         ]}, None
-    )
+    ),
+    'cg_snapshots_info': (
+        200,
+        {
+            "records": [{
+                "svm": {
+                    "uuid": "uuid",
+                    "name": "svm1"},
+                "uuid": "snap1_uuid",
+                "name": "weekly_snapshot1"
+            }],
+            "num_records": 1}, None),
+    'cg_metrics_info': (
+        200,
+        {
+            "records": [{
+                "uuid": "0892526b-50e4-11f0-8465-005056b30b04",
+                "timestamp": "2025-10-06T10:40:45Z",
+                "status": "ok",
+                "duration": "PT15S",
+                "latency": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "iops": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "throughput": {
+                    "read": 0,
+                    "write": 0,
+                    "other": 0,
+                    "total": 0
+                },
+                "available_space": 15974400,
+                "used_space": 5001216,
+                "size": 22077440
+            }],
+            "num_records": 1}, None),
 })
 
 ALL_SUBSETS = ['application/applications',
@@ -1178,6 +1221,64 @@ def test_owning_resource_export_policies_rules_policy_not_found():
     ])
     msg = 'Could not find export policy policy_name on SVM svm1'
     assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_cg_snapshots():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/snapshots'
+    args['owning_resource'] = {'cg_name': 'cg_name', 'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'application/consistency-groups', SRR['cg_info']),
+        ('GET', 'application/consistency-groups/cg_uuid/snapshots', SRR['cg_snapshots_info'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
+
+
+def test_owning_resource_cg_snapshots_missing_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/snapshots'
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: cg_name, svm_name are required for application/consistency-groups/snapshots'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_cg_snapshots_missing_1_resource():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/snapshots'
+    args['owning_resource'] = {'cg_name': 'cg_name'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+    ])
+    msg = 'Error: cg_name, svm_name are required for application/consistency-groups/snapshots'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_cg_snapshots_cg_not_found():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/snapshots'
+    args['owning_resource'] = {'cg_name': 'cg_name', 'svm_name': 'svm1'}
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'application/consistency-groups', SRR['generic_error']),
+    ])
+    msg = 'Could not find consistency group cg_name on SVM svm1'
+    assert create_and_apply(ontap_rest_info_module, args, fail=True)['msg'] == msg
+
+
+def test_owning_resource_cg_metrics():
+    args = set_default_args()
+    args['gather_subset'] = 'application/consistency-groups/metrics'
+    args['owning_resource'] = {'cg_name': 'cg_name', 'svm_name': 'svm1'}
+    args['fields'] = ['*']
+    register_responses([
+        ('GET', 'cluster', SRR['validate_ontap_version_pass']),
+        ('GET', 'application/consistency-groups', SRR['cg_info']),
+        ('GET', 'application/consistency-groups/cg_uuid/metrics', SRR['cg_metrics_info'])
+    ])
+    assert create_and_apply(ontap_rest_info_module, args)['ontap_info']
 
 
 def test_lun_info_with_serial():

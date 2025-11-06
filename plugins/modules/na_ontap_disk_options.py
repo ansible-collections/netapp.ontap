@@ -13,7 +13,7 @@ short_description: NetApp ONTAP modify storage disk options
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '21.4.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Modify a nodes storage disk options

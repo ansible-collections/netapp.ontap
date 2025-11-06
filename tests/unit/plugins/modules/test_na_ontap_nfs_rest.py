@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -39,19 +39,38 @@ SRR = rest_responses({
             "protocol": {
                 "v3_enabled": True,
                 "v4_id_domain": "carchi8py.com",
+                "v4_fsid_change": False,
                 "v40_enabled": False,
                 "v41_enabled": False,
                 "v40_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
-                    "write_delegation_enabled": False
+                    "write_delegation_enabled": False,
+                    "acl_preserve": False,
+                    "referrals_enabled": False
                 },
                 "v41_features": {
                     "acl_enabled": False,
                     "read_delegation_enabled": False,
                     "write_delegation_enabled": False,
-                    "pnfs_enabled": False
-                }
+                    "pnfs_enabled": False,
+                    "referrals_enabled": False
+                },
+                "v3_features": {
+                    "hide_snapshot_enabled": False,
+                    "fsid_change": False,
+                    "mount_root_only": False,
+                    "ejukebox_enabled": False,
+                    "connection_drop": False
+                },
+                "v42_features": {
+                    "xattrs_enabled": False,
+                    "seclabel_enabled": False,
+                },
+                "v4_64bit_identifiers_enabled": False,
+                "v3_64bit_identifiers_enabled": False,
+                "v4_grace_seconds": 30,
+                "v4_lease_seconds": 45
             },
             "vstorage_enabled": False,
             "showmount_enabled": True,
@@ -71,7 +90,40 @@ SRR = rest_responses({
                 "map_unknown_uid_to_default_user": True,
                 "default_user": "test_user"
             },
-            "tcp_max_xfer_size": "16384"
+            "tcp_max_xfer_size": "16384",
+        }
+    ]}, None),
+    'modified_record': (200, {"records": [
+        {
+            "svm": {
+                "uuid": "671aa46e-11ad-11ec-a267-005056b30cfa",
+                "name": "ansibleSVM"
+            },
+            "protocol": {
+                "v40_features": {
+                    "acl_preserve": True,
+                    "referrals_enabled": True
+                },
+                "v4_fsid_change": True,
+                "v3_features": {
+                    "hide_snapshot_enabled": True,
+                    "mount_root_only": True,
+                    "ejukebox_enabled": True,
+                    "connection_drop": True,
+                    "fsid_change": True
+                },
+                "v42_features": {
+                    "xattrs_enabled": True,
+                    "seclabel_enabled": True,
+                },
+                "v4_64bit_identifiers_enabled": True,
+                "v3_64bit_identifiers_enabled": True,
+                "v4_grace_seconds": 180,
+                "v4_lease_seconds": 60,
+                "v41_features": {
+                    "referrals_enabled": True
+                }
+            },
         }
     ]}, None),
 })
@@ -282,7 +334,7 @@ def test_modify_nfs_root():
         {
             "ignore_nt_acl": True,
             "skip_write_permission_check": True
-        }
+        },
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -322,3 +374,34 @@ def test_modify_nfs_windows():
         "tcp_max_xfer_size": "16384"
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+
+def test_modify_nfs_idempotency():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/nfs/services', SRR['one_record']),
+        ('PATCH', 'protocols/nfs/services/671aa46e-11ad-11ec-a267-005056b30cfa', SRR['success']),
+
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/nfs/services', SRR['modified_record'])
+    ])
+    module_args = {
+        "nfsv3_hide_snapdir": "enabled",
+        "nfsv3_mount_root_only": "enabled",
+        "nfsv3_ejukebox_enabled": "enabled",
+        "nfsv3_connection_drop": "enabled",
+        "nfsv3_64bit_identifiers_enabled": "enabled",
+        "nfsv4_64bit_identifiers_enabled": "enabled",
+        "nfsv42_xattrs_enabled": "enabled",
+        "nfsv42_seclabel_enabled": "enabled",
+        "nfsv40_acl_preserve": "enabled",
+        "nfsv4_lease_seconds": 60,
+        "nfsv4_grace_seconds": 180,
+        "nfsv3_fsid_change": "enabled",
+        "nfsv4_fsid_change": "enabled",
+        "nfsv40_referrals": "enabled",
+        "nfsv41_referrals": "enabled"
+    }
+    assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
+
+    assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']

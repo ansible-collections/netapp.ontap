@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Run CLI commands on ONTAP through REST api/private/cli/.
   - This module can run as admin or vsdamin and requires HTTP application to be enabled.
@@ -169,6 +169,8 @@ class NetAppONTAPCommandREST():
             message, error = self.rest_api.post(api, self.body, self.params)
         elif self.verb == 'GET':
             message, error = self.rest_api.get(api, self.params)
+            if message is not None and isinstance(message, dict) and '_links' in message:
+                self.get_all_records(message)
         elif self.verb == 'PATCH':
             message, error = self.rest_api.patch(api, self.body, self.params)
         elif self.verb == 'DELETE':
@@ -181,6 +183,39 @@ class NetAppONTAPCommandREST():
 
         if error:
             self.module.fail_json(msg='Error: %s' % error)
+        return message
+
+    def get_next_records(self, api):
+        """
+            Gather next set of ONTAP information for the specified api
+            Input for REST APIs call : (api, data)
+            return gather_info
+        """
+
+        gather_info, error = self.rest_api.get(api)
+
+        if error:
+            self.module.fail_json(msg=error)
+
+        return gather_info
+
+    def get_all_records(self, message):
+        """ Iteratively get all records """
+
+        # If the response contains a next link, we need to gather all records
+        while message.get('_links', {}).get('next'):
+            next_api = message['_links']['next']['href']
+            gathered_info = self.get_next_records(next_api.replace('/api', ''))
+
+            # Update the message with the gathered info
+            message['_links'] = gathered_info.get('_links', {})
+            message['records'].extend(gathered_info['records'])
+
+        # metrocluster doesn't have a records field, so we need to skip this
+        if message.get('records') is not None:
+            # Getting total number of records
+            message['num_records'] = len(message['records'])
+
         return message
 
     def apply(self):

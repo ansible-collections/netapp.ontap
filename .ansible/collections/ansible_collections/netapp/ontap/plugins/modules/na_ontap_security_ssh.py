@@ -17,7 +17,7 @@ short_description: NetApp ONTAP security ssh
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.24.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Modify SSH server configuration of SVM on ONTAP
 options:
@@ -56,6 +56,15 @@ options:
       - Minimum value is 2 and maximum is 6.
       - Default value is 2.
     type: int
+  host_key_algorithms:
+    description:
+      - Enables the specified host key algorithms for the Vserver. It replaces all existing host key algorithms with the specified settings.
+      - The host key algorithm "ssh_ed25519" can be configured only in non-FIPS mode.
+      - Requires ONTAP 9.16.1 and later.
+      - Example list [ "ecdsa_sha2_nistp256", "ssh_rsa", "ssh_ed25519" ]
+    type: list
+    elements: str
+    version_added: 23.2.0
 
 notes:
   - Removing all SSH key exchange algorithms is not supported. SSH login would fail.
@@ -116,6 +125,7 @@ class NetAppOntapSecuritySSH:
             key_exchange_algorithms=dict(required=False, type='list', elements='str', no_log=False),
             mac_algorithms=dict(required=False, type='list', elements='str'),
             max_authentication_retry_count=dict(required=False, type='int'),
+            host_key_algorithms=dict(required=False, type='list', elements='str', no_log=False),
         ))
 
         self.module = AnsibleModule(
@@ -127,6 +137,7 @@ class NetAppOntapSecuritySSH:
         self.svm_uuid = None
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_security_ssh', 9, 10, 1)
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, [['host_key_algorithms', (9, 16, 1)]])
         self.safe_strip()
 
     def safe_strip(self):
@@ -145,6 +156,8 @@ class NetAppOntapSecuritySSH:
         Retrieves the SSH server configuration for the SVM or cluster.
         '''
         fields = ['key_exchange_algorithms', 'ciphers', 'mac_algorithms', 'max_authentication_retry_count']
+        if self.parameters.get('host_key_algorithms'):
+            fields.append('host_key_algorithms')
         query = {}
         if self.parameters.get('vserver'):
             api = 'security/ssh/svms'
@@ -169,7 +182,7 @@ class NetAppOntapSecuritySSH:
         else:
             api = 'security/ssh'
         body = {}
-        for option in ('ciphers', 'key_exchange_algorithms', 'mac_algorithms', 'max_authentication_retry_count'):
+        for option in ('ciphers', 'key_exchange_algorithms', 'mac_algorithms', 'max_authentication_retry_count', 'host_key_algorithms'):
             if option in modify:
                 body[option] = modify[option]
         if body:

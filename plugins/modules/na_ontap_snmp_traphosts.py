@@ -15,7 +15,7 @@ short_description: NetApp ONTAP SNMP traphosts.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: '20.3.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Whether the specified SNMP traphost should exist or not. Requires REST with 9.7 or higher
 options:

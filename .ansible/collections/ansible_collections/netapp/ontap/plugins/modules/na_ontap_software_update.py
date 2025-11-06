@@ -12,7 +12,7 @@ __metaclass__ = type
 
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Update ONTAP software
   - Requires an https connection and is not supported over http
@@ -69,7 +69,8 @@ options:
   validate_after_download:
     description:
       - By default validation is not run after download, as it is already done in the update step.
-      - This option is useful when using C(download_only), for instance when updating a MetroCluster system.
+      - For MetroCluster systems, the C(download_only) parameter should be run first on one of the sites of the MetroCluster.
+        After the job completes, update the other sites.
     default: False
     type: bool
     version_added: 21.11.0
@@ -100,14 +101,28 @@ notes:
 '''
 
 EXAMPLES = """
-- name: ONTAP software update
+- name: start ONTAP software update Precheck on Metrocluster DR Site B
   netapp.ontap.na_ontap_software_update:
     state: present
-    nodes: vsim1
+    nodes: "{{ nodes }}"
     package_url: "{{ url }}"
-    package_version: "{{ version_name }}"
-    ignore_validation_warning: true
     download_only: true
+    validate_after_download: true
+    package_version: "9.16.1P4"
+    ignore_validation_warning: true
+    timeout: 36000
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: start ONTAP software update on DR Site A
+  netapp.ontap.na_ontap_software_update:
+    state: present
+    nodes: "{{ nodes }}"
+    package_url: "{{ url }}"
+    package_version: "9.16.1P4"
+    ignore_validation_warning: true
+    timeout: 36000
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"

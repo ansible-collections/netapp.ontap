@@ -11,7 +11,7 @@ __metaclass__ = type
 
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create/Delete/Update/Initialize/Break/Resync/Resume SnapMirror volume/vserver relationships for ONTAP/ONTAP
   - This includes SVM replication, aka vserver DR
@@ -1066,9 +1066,9 @@ class NetAppONTAPSnapmirror(object):
                 self.snapmirror_mod_init_resync_break_quiesce_resume_rest(state=state)
                 self.wait_for_idle_status()
             return
-        elif current['mirror_state'] != 'snapmirrored':
+        if current['mirror_state'] != 'snapmirrored':
             initialize_zapi = 'snapmirror-initialize'
-            if self.parameters.get('relationship_type') and self.parameters['relationship_type'] == 'load_sharing':
+            if self.parameters.get('relationship_type') == 'load_sharing':
                 initialize_zapi = 'snapmirror-initialize-ls-set'
                 options = {'source-location': self.parameters['source_path']}
             else:

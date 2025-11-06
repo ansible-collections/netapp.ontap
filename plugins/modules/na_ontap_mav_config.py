@@ -13,7 +13,7 @@ short_description: NetApp ONTAP multi-admin verification (MAV) global setting
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 23.0.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Enable/disable multi-admin verification (MAV) configuration.
   - Multi-admin verification is not required to enable the feature. However, it is required to disable the feature.

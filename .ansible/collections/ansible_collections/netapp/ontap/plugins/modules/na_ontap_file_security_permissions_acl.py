@@ -12,7 +12,7 @@ short_description: NetApp ONTAP file security permissions ACL
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 22.0.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Add, delete, or modify a file_security_permissions ACL on NetApp ONTAP.
   - Note that ACLs are mached based on ('user', 'access', 'access_control', 'apply_to').

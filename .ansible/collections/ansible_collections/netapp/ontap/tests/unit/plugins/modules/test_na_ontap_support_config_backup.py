@@ -5,9 +5,7 @@
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import pytest
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import \
     patch_ansible, call_main, create_and_apply, create_module, expect_and_capture_ansible_exception
@@ -17,9 +15,6 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_support_config_backup \
     import NetAppOntapSupportConfigBackup as my_module     # module under test
-
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 SRR = rest_responses({
@@ -45,7 +40,6 @@ ARGS_REST = {
     'password': 'password',
     'url': 'http://10.10.10.10/uploads',
     'validate_certificate': False,
-    'name': 'netapp_user',
     'use_rest': 'always',
 }
 
@@ -78,8 +72,8 @@ def test_modify_url_method_rest():
         ('PATCH', 'support/configuration-backup', SRR['empty_good']),
     ])
     module_args = {
-        "username": "ftpuser",
-        'url': 'https://10.10.10.10/uploads',
+        "name": "ftpuser",
+        'url': 'https://10.10.20.10/uploads',
         'validate_certificate': True,
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
@@ -93,20 +87,20 @@ def test_modify_username_rest():
         ('PATCH', 'support/configuration-backup', SRR['empty_good']),
     ])
     module_args = {
-        "username": "ftpuser"
+        "name": "netapp_user"
     }
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
 def test_error_get_modify_rest():
-    ''' Test modify idempotency with rest API '''
+    ''' Test modify error with rest API '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
         ('GET', 'support/configuration-backup', SRR['backup_record']),
         ('PATCH', 'support/configuration-backup', SRR['generic_error']),
     ])
     module_args = {
-        'username': 'testuser'
+        'name': 'testuser'
     }
     msg = 'Error updating the configuration backup settings'
     assert create_and_apply(my_module, ARGS_REST, module_args, fail=True)['msg'] == msg
@@ -121,5 +115,20 @@ def test_successful_modify_idempotency():
     module_args = {
         'url': 'https://10.10.20.10/uploads',
         'validate_certificate': 'True',
+        'name': 'netapp_user',
     }
     assert not create_and_apply(my_module, ARGS_REST, module_args)['changed']
+
+
+def test_set_password_rest():
+    ''' Test modify passowrd with rest API '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_97']),
+        ('GET', 'support/configuration-backup', SRR['backup_record']),
+    ])
+    module_args = {
+        "set_password": "netapp_pwd"
+    }
+    my_obj = create_module(my_module, ARGS_REST, module_args)
+    my_obj.module.check_mode = True
+    assert expect_and_capture_ansible_exception(my_obj.apply, 'exit')['changed']

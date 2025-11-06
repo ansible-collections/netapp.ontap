@@ -12,7 +12,7 @@ short_description: NetApp ONTAP create, delete or modify File Directory security
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest
 version_added: 21.8.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
 - Create, modify or remove file directory security policy tasks.

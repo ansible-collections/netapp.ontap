@@ -1,4 +1,4 @@
-# (c) 2018-2021, NetApp, Inc
+# (c) 2018-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -13,10 +13,13 @@ from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, Mock
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import assert_no_warnings, set_module_args, \
-    AnsibleFailJson, AnsibleExitJson, patch_ansible
+    AnsibleFailJson, AnsibleExitJson, patch_ansible, call_main
+from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import\
+    patch_request_and_invoke, register_responses
+from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_net_port \
-    import NetAppOntapNetPort as port_module  # module under test
+    import NetAppOntapNetPort as port_module, main as my_main   # module under test
 
 if not netapp_utils.has_netapp_lib():
     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
@@ -76,7 +79,7 @@ class TestMyModule(unittest.TestCase):
             'node': 'test',
             'ports': 'a1',
             'up_admin': True,
-            'flowcontrol_admin': 'something',
+            'flowcontrol_admin': 'none',
             'mtu': 1000
         }
 
@@ -159,7 +162,7 @@ class TestMyModule(unittest.TestCase):
     def test_successful_modify_str(self):
         ''' Test modify_net_port '''
         data = self.mock_args()
-        data['flowcontrol_admin'] = 'anything'
+        data['flowcontrol_admin'] = 'receive'
         set_module_args(data)
         with pytest.raises(AnsibleExitJson) as exc:
             self.get_port_mock_object('port').apply()
@@ -242,31 +245,19 @@ class TestMyModule(unittest.TestCase):
         assert msg in exc.value.args[0]['msg']
 
 
-def default_args():
-    return {
-        'state': 'present',
-        'hostname': '10.10.10.10',
-        'username': 'admin',
-        'https': 'true',
-        'validate_certs': 'false',
-        'password': 'password',
-        'use_rest': 'always'
-    }
+default_args = {
+    'state': 'present',
+    'hostname': '10.10.10.10',
+    'username': 'admin',
+    'https': 'true',
+    'validate_certs': 'false',
+    'password': 'password',
+    'use_rest': 'always'
+}
 
 
 # REST API canned responses when mocking send_request
-SRR = {
-    # common responses
-    'is_rest': (200, dict(version=dict(generation=9, major=9, minor=0, full='dummy')), None),
-    'is_rest_9_6': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy')), None),
-    'is_rest_9_7': (200, dict(version=dict(generation=9, major=7, minor=0, full='dummy')), None),
-    'is_rest_9_8': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy')), None),
-    'is_zapi': (400, {}, "Unreachable"),
-    'empty_good': (200, {}, None),
-    'zero_record': (200, dict(records=[], num_records=0), None),
-    'one_record_uuid': (200, dict(records=[dict(uuid='a1b2c3')], num_records=1), None),
-    'end_of_sequence': (500, None, "Unexpected call to send_request"),
-    'generic_error': (400, None, "Expected error"),
+SRR = rest_responses({
     'vlan_record': (200, {
         "num_records": 1,
         "records": [{
@@ -277,10 +268,25 @@ SRR = {
             'enabled': False,
             'name': 'e0c-15',
             'node': {'name': 'mohan9-vsim1'},
-            'uuid': '97936a14-30de-11ec-ac4d-005056b3d8c8'
+            'uuid': '97936a14-30de-11ec-ac4d-005056b3d8c8',
+            'flowcontrol_admin': 'none',
+        }]
+    }, None),
+    'vlan_record_modified': (200, {
+        "num_records": 1,
+        "records": [{
+            'broadcast_domain': {
+                'ipspace': {'name': 'test_ipspace'},
+                'name': 'test1'
+            },
+            'flowcontrol_admin': 'send',
+            'enabled': True,
+            'name': 'e0c-15',
+            'node': {'name': 'mohan9-vsim1'},
+            'uuid': '97936a14-30de-11ec-ac4d-005056b3d8c8',
         }]
     }, None)
-}
+})
 
 
 def test_module_fail_when_required_args_missing(patch_ansible):
@@ -296,7 +302,7 @@ def test_module_fail_when_required_args_missing(patch_ansible):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_module_fail_unsupported_rest_properties(mock_request, patch_ansible):
     '''throw error if unsupported rest properties are set'''
-    args = dict(default_args())
+    args = dict(default_args)
     args['node'] = "mohan9-vsim1"
     args['ports'] = "e0d,e0d-15"
     args['mtu'] = 1500
@@ -309,23 +315,16 @@ def test_module_fail_unsupported_rest_properties(mock_request, patch_ansible):
     assert msg in exc.value.args[0]['msg']
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
-def test_enable_port(mock_request, patch_ansible):
-    ''' test enable vlan'''
-    args = dict(default_args())
-    args['node'] = "mohan9-vsim1"
-    args['ports'] = "e0c-15"
-    args['up_admin'] = True
-    set_module_args(args)
-    mock_request.side_effect = [
-        SRR['is_rest_9_8'],         # get version
-        SRR['vlan_record'],         # get
-        SRR['empty_good'],          # delete
-        SRR['end_of_sequence']
-    ]
-    my_obj = port_module()
-    with pytest.raises(AnsibleExitJson) as exc:
-        my_obj.apply()
-    print('Info: %s' % exc.value.args[0])
-    assert exc.value.args[0]['changed'] is True
-    assert_no_warnings()
+def test_successful_modify_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'network/ethernet/ports', SRR['vlan_record']),
+        ('PATCH', 'network/ethernet/ports/97936a14-30de-11ec-ac4d-005056b3d8c8', SRR['success']),
+        # idempotency
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'network/ethernet/ports', SRR['vlan_record_modified']),
+    ])
+    module_args = {'node': 'mohan9-vsim1', 'port': 'e0c-15', 'flowcontrol_admin': 'send', 'ipspace': 'test_ipspace', 'up_admin': True}
+    assert call_main(my_main, default_args, module_args)['changed']
+    # idempotency
+    assert not call_main(my_main, default_args, module_args)['changed']

@@ -20,7 +20,7 @@ ANSIBLE_METADATA = {
 DOCUMENTATION = '''
 
 module: na_ontap_wwpn_alias
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 short_description: NetApp ONTAP set FCP WWPN Alias
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_rest

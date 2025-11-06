@@ -26,8 +26,8 @@ except ImportError:
 if not HAS_SF_COMMON:
     pytestmark = pytest.mark.skip('skipping as missing required solidfire.common')
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 DEFAULT_ARGS = {
@@ -207,7 +207,7 @@ def test_module_fail_when_required_args_missing():
     assert create_module(my_module, {}, fail=True)['msg'] == msg
 
 
-def test_module_fail_unsuuported_rest_options():
+def test_module_fail_unsupported_rest_options():
     ''' required arguments are reported as errors '''
     module_args = {
         "use_rest": "never",
@@ -247,6 +247,7 @@ def test_negative_zapi_unsupported_options():
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_create_with_source(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
@@ -272,6 +273,7 @@ def test_successful_create_with_source(dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_create_with_peer(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
@@ -286,6 +288,7 @@ def test_successful_create_with_peer(dont_sleep):
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_negative_break(dont_sleep):
     ''' breaking snapmirror to test quiesce time-delay failure '''
@@ -311,6 +314,7 @@ def test_negative_break(dont_sleep):
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_break(dont_sleep):
     ''' breaking snapmirror and testing idempotency '''
@@ -336,6 +340,7 @@ def test_successful_break(dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_without_initialize():
     ''' creating snapmirror and testing idempotency '''
     register_responses([
@@ -392,6 +397,7 @@ def test_set_element_connection(mock_create_sf_cx):
     assert elem is not None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
 def test_successful_element_ontap_create(connection, dont_sleep):
@@ -423,6 +429,7 @@ def test_successful_element_ontap_create(connection, dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
 def test_successful_ontap_element_create(connection, dont_sleep):
@@ -455,6 +462,7 @@ def test_successful_ontap_element_create(connection, dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_delete(dont_sleep):
     ''' deleting snapmirror and testing idempotency '''
@@ -481,6 +489,7 @@ def test_successful_delete(dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_delete_without_source_hostname_check(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
@@ -500,6 +509,7 @@ def test_successful_delete_without_source_hostname_check(dont_sleep):
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_delete_with_error_on_break(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
@@ -521,6 +531,7 @@ def test_successful_delete_with_error_on_break(dont_sleep):
     assert_warning_was_raised('Ignored error(s): Error breaking SnapMirror relationship: NetApp API failed. Reason - 12345:synthetic error for UT purpose')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_negative_delete_error_with_error_on_break(dont_sleep):
     ''' source cluster hostname is optional when source is unknown'''
@@ -541,6 +552,7 @@ def test_negative_delete_error_with_error_on_break(dont_sleep):
     assert 'Error deleting SnapMirror:' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_delete_with_destination_path_missing():
     ''' with misisng destination_path'''
     register_responses([
@@ -556,6 +568,7 @@ def test_negative_delete_with_destination_path_missing():
     assert call_main(my_main, args, module_args, fail=True)['msg'] == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete_check_get_destination():
     register_responses([
         ('ZAPI', 'snapmirror-get-destination-iter', ZRR['sm_info']),
@@ -572,6 +585,7 @@ def test_successful_delete_check_get_destination():
     assert my_obj.get_destination() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_snapmirror_release():
     register_responses([
         ('ZAPI', 'snapmirror-release', ZRR['success']),
@@ -589,6 +603,7 @@ def test_snapmirror_release():
     assert my_obj.snapmirror_release() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_snapmirror_resume():
     ''' resuming snapmirror '''
     register_responses([
@@ -610,6 +625,7 @@ def test_snapmirror_resume():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_snapmirror_restore():
     ''' restore snapmirror '''
     register_responses([
@@ -630,6 +646,7 @@ def test_snapmirror_restore():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_abort(dont_sleep):
     ''' aborting snapmirror and testing idempotency '''
@@ -653,6 +670,7 @@ def test_successful_abort(dont_sleep):
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' modifying snapmirror and testing idempotency '''
     register_responses([
@@ -682,6 +700,7 @@ def test_successful_modify():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_initialize(dont_sleep):
     ''' initialize snapmirror and testing idempotency '''
@@ -712,6 +731,7 @@ def test_successful_initialize(dont_sleep):
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_update():
     ''' update snapmirror and testing idempotency '''
     register_responses([
@@ -739,6 +759,7 @@ def test_successful_update():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
 def test_elementsw_no_source_path(connection):
     ''' elementsw_volume_exists '''
@@ -759,6 +780,7 @@ def test_elementsw_no_source_path(connection):
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_elementsw_volume_exists():
     ''' elementsw_volume_exists '''
     mock_helper = Mock()
@@ -777,6 +799,7 @@ def test_elementsw_volume_exists():
     assert error in expect_and_capture_ansible_exception(my_obj.check_if_elementsw_volume_exists, 'fail', '1234', mock_helper)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_elementsw_svip_exists():
     ''' svip_exists '''
     mock_elem = Mock()
@@ -796,6 +819,7 @@ def test_elementsw_svip_exists():
     assert my_obj.validate_elementsw_svip('10.10.10.10:/lun/1000', mock_elem) is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_elementsw_svip_exists_negative():
     ''' svip_exists negative testing'''
     mock_elem = Mock()
@@ -813,6 +837,7 @@ def test_elementsw_svip_exists_negative():
     assert error in expect_and_capture_ansible_exception(my_obj.validate_elementsw_svip, 'fail', 'svip', mock_elem)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror.NetAppONTAPSnapmirror.set_element_connection')
 def test_check_elementsw_params_source(connection):
     ''' check elementsw parameters for source '''
@@ -829,6 +854,7 @@ def test_check_elementsw_params_source(connection):
     assert my_obj.check_elementsw_parameters('source') is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_check_elementsw_params_negative():
     ''' check elementsw parameters for source negative testing '''
     args = dict(DEFAULT_ARGS)
@@ -841,6 +867,7 @@ def test_check_elementsw_params_negative():
     assert msg in expect_and_capture_ansible_exception(my_obj.check_elementsw_parameters, 'fail', 'source')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_check_elementsw_params_invalid():
     ''' check elementsw parameters for source invalid testing '''
     module_args = {
@@ -856,6 +883,7 @@ def test_check_elementsw_params_invalid():
     assert msg in expect_and_capture_ansible_exception(my_obj.check_elementsw_parameters, 'fail', 'source')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_elementsw_source_path_format():
     ''' test element_source_path_format_matches '''
     register_responses([
@@ -875,6 +903,7 @@ def test_elementsw_source_path_format():
     assert my_obj.element_source_path_format_matches('10.10.10.10:/lun/10') is not None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_remote_volume_exists():
     ''' test check_if_remote_volume_exists '''
     register_responses([
@@ -892,6 +921,7 @@ def test_remote_volume_exists():
     assert my_obj.check_if_remote_volume_exists()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_if_all_methods_catch_exception(dont_sleep):
     module_args = {
@@ -936,6 +966,7 @@ def test_if_all_methods_catch_exception(dont_sleep):
             assert error in expect_and_capture_ansible_exception(function, 'fail')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_rest_create(dont_sleep):
     ''' creating snapmirror and testing idempotency '''
@@ -1116,7 +1147,8 @@ def test_rest_sm_break_fails_if_uninit():
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == msg
 
 
-def test_rest_sm_break_fails_if_load_sharing_or_vault():
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
+def test_sm_break_fails_if_load_sharing_or_vault():
     ''' testing snapmirror break fails for load_sharing or vault types '''
     register_responses([
         ('ZAPI', 'snapmirror-get-iter', ZRR['sm_info_snapmirrored_load_sharing']),
@@ -1834,6 +1866,7 @@ def test_wait_for_quiesced_status(dont_sleep):
     assert 'Taking a long time to quiesce SnapMirror relationship after 60 seconds, try again later' in error['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_dp_to_xdp():
     # with ZAPI, DP is transformed to XDP to match ONTAP behavior
     register_responses([
@@ -1850,6 +1883,7 @@ def test_dp_to_xdp():
     assert my_obj.parameters['relationship_type'] == 'extended_data_protection'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_cannot_change_rtype():
     # with ZAPI, can't change relationship_type
     register_responses([
@@ -1872,7 +1906,7 @@ def test_module_fail_when_netapp_lib_missing():
     module_args = {
         'use_rest': 'never',
     }
-    assert 'Error: the python NetApp-Lib module is required.  Import error: None' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error: the python NetApp-Lib module is required.  Import error:' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_check_health():
@@ -1930,6 +1964,7 @@ def test_snapmirror_release_rest():
     assert my_obj.snapmirror_release() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_negative_set_source_cluster_connection(mock_netapp_lib):
     register_responses([

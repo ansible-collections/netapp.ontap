@@ -18,7 +18,7 @@ short_description: NetApp ONTAP manage Snapshots
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Create/Modify/Delete ONTAP snapshots
 options:
@@ -78,6 +78,12 @@ options:
       - format should be in the timezone configured with cluster.
     type: str
     version_added: 21.8.0
+  snaplock_expiry_time:
+    description:
+      - SnapLock expiry time for the snapshot, if the snapshot is taken on a SnapLock volume.
+      - Only supported with REST, requires ONTAP 9.15.1 or later.
+    type: str
+    version_added: 23.2.0
 '''
 EXAMPLES = """
 - name: Create SnapShot
@@ -144,8 +150,8 @@ class NetAppOntapSnapshot:
             ignore_owners=dict(required=False, type="bool"),
             snapshot_instance_uuid=dict(required=False, type="str"),
             vserver=dict(required=True, type="str"),
-            expiry_time=dict(required=False, type="str")
-
+            expiry_time=dict(required=False, type="str"),
+            snaplock_expiry_time=dict(required=False, type="str"),
         ))
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -157,11 +163,15 @@ class NetAppOntapSnapshot:
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         unsupported_rest_properties = ['async_bool', 'ignore_owners', 'snapshot_instance_uuid']
-        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, [['snapmirror_label', (9, 7)]])
+        partially_supported_rest_properties = [['snapmirror_label', (9, 7)],
+                                               ['snaplock_expiry_time', (9, 15, 1)]]
+        self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
             if self.parameters.get('expiry_time'):
                 self.module.fail_json(msg="expiry_time is currently only supported with REST on Ontap 9.6 or higher")
+            if self.parameters.get('snaplock_expiry_time'):
+                self.module.fail_json(msg="snaplock_expiry_time is only supported with REST on Ontap 9.15.1 or higher")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -179,6 +189,8 @@ class NetAppOntapSnapshot:
             }
             if self.parameters.get('snapmirror_label'):
                 params['fields'] += ',snapmirror_label'
+            if self.parameters.get('snaplock_expiry_time'):
+                params['fields'] += ',snaplock.expiry_time'
             params['name'] = snapshot_name or self.parameters['snapshot']
             snapshot, error = rest_generic.get_one_record(self.rest_api, api, params)
             if error:
@@ -191,7 +203,8 @@ class NetAppOntapSnapshot:
                     'snapshot': snapshot['name'],
                     'snapmirror_label': snapshot.get('snapmirror_label'),
                     'expiry_time': snapshot.get('expiry_time'),
-                    'comment': snapshot.get('comment')
+                    'comment': snapshot.get('comment'),
+                    'snaplock_expiry_time': self.na_helper.safe_get(snapshot, ['snaplock', 'expiry_time'])
                 }
             return None
 
@@ -254,6 +267,8 @@ class NetAppOntapSnapshot:
                 body['snapmirror_label'] = self.parameters['snapmirror_label']
             if self.parameters.get('expiry_time'):
                 body['expiry_time'] = self.parameters['expiry_time']
+            if self.parameters.get('snaplock_expiry_time'):
+                body['snaplock.expiry_time'] = self.parameters['snaplock_expiry_time']
             response, error = rest_generic.post_async(self.rest_api, api, body)
             if error:
                 self.module.fail_json(msg="Error when creating snapshot: %s" % error)
@@ -321,6 +336,8 @@ class NetAppOntapSnapshot:
                 body['snapmirror_label'] = self.parameters['snapmirror_label']
             if self.parameters.get('expiry_time'):
                 body['expiry_time'] = self.parameters['expiry_time']
+            if self.parameters.get('snaplock_expiry_time'):
+                body['snaplock.expiry_time'] = self.parameters['snaplock_expiry_time']
             response, error = rest_generic.patch_async(self.rest_api, api, None, body)
             if error:
                 self.module.fail_json(msg="Error when modifying snapshot: %s" % error)

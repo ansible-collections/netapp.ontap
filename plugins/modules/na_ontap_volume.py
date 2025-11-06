@@ -13,7 +13,7 @@ short_description: NetApp ONTAP manage volumes.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
 description:
   - Create or destroy or modify volumes on NetApp ONTAP.
@@ -228,6 +228,10 @@ options:
       - Percentage in size change to trigger a resize.
       - When this parameter is greater than 0, a difference in size between what is expected and what is configured is ignored if it is below the threshold.
       - For instance, the nas application allocates a larger size than specified to account for overhead.
+      - When using C(nas_application_template), if the overhead size difference is within the threshold,
+        the module updates the size parameter to match the allocated size for idempotency in subsequent runs.
+      - If the difference exceeds the threshold, the volume will be resized to the requested size.
+      - For regular volumes (without nas_application_template), size differences within the threshold are ignored without parameter updates.
       - Set this to 0 for an exact match.
     type: int
     default: 10
@@ -770,6 +774,28 @@ options:
     type: bool
     version_added: 22.13.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.2.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - supports REST and ZAPI.  REST requires ONTAP 9.6 or later.  Efficiency with REST requires ONTAP 9.7 or later.
   - REST is enabled when C(use_rest) is set to always.
@@ -777,6 +803,7 @@ notes:
     tiering control would require or disallow FabricPool for an existing volume with a different backend.
     Allowed values are fail, warn, and ignore, and the default is set to fail.
   - snapshot_restore is not idempotent, it always restores.
+  - Supports AWS Lambda proxy functionality when using REST.
 
 '''
 
@@ -999,7 +1026,7 @@ EXAMPLES = """
     snaplock:
       type: enterprise
       retention:
-      default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
+        default: "{{ 60 | netapp.ontap.iso8601_duration_from_seconds }}"
 
 - name: Create volume with snapshot-auto-delete options - REST
   netapp.ontap.na_ontap_volume:
@@ -1167,11 +1194,14 @@ class NetAppOntapVolume:
             snapshot_locking=dict(required=False, type='bool'),
             granular_data=dict(required=False, type='bool'),
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
                 ['space_guarantee', 'space_slo'], ['auto_remap_luns', 'force_unmap_luns']
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             supports_check_mode=True
         )
@@ -1214,6 +1244,8 @@ class NetAppOntapVolume:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.setup_zapi()
         if self.use_rest:
             self.rest_errors()
@@ -2415,8 +2447,23 @@ class NetAppOntapVolume:
         ignore small change in size by resetting expectations
         """
         if after_create:
-            # ignore change in size immediately after a create:
-            self.parameters['size'] = current['size']
+            # For NAS application templates, apply size threshold logic instead of blindly accepting current size
+            if self.parameters.get('nas_application_template') is not None:
+                # Check if size change is within threshold for NAS templates
+                if current.get('size') and self.parameters.get('size'):
+                    change = abs(current['size'] - self.parameters['size']) * 100.0 / current['size']
+                    threshold = self.parameters.get('size_change_threshold', 10)
+
+                    if change < threshold:
+                        # Size difference is within threshold - update parameters for idempotency
+                        original_size = self.parameters['size']
+                        self.parameters['size'] = current['size']
+                        self.module.warn('NAS template overhead detected: volume size adjusted from %s to %s (%.1f%% difference, below %.1f%% threshold)'
+                                         % (original_size, current['size'], change, threshold))
+                    # If change >= threshold, keep original size to trigger a resize operation
+            else:
+                # For regular volumes (non-NAS templates), ignore change in size immediately after create
+                self.parameters['size'] = current['size']
             # inodes are not set in create
             return
         self.ignore_small_change(current, 'size', self.parameters['size_change_threshold'])
@@ -3056,8 +3103,9 @@ class NetAppOntapVolume:
         modify = {}
 
         current = self.get_volume()
-        if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
-            current['tiering_object_tags'] = []
+        if current:
+            if 'tiering_object_tags' in current and current['tiering_object_tags'] is None:
+                current['tiering_object_tags'] = []
         self.volume_style = self.get_volume_style(current)
         if self.volume_style == 'flexgroup' and self.parameters.get('aggregate_name') is not None:
             self.module.fail_json(msg='Error: aggregate_name option cannot be used with FlexGroups.')
@@ -3112,7 +3160,6 @@ class NetAppOntapVolume:
             # restore current change state, as we ignore this
             if modify_app:
                 self.na_helper.changed = changed
-                self.module.warn('Modifying an app is not supported at present: ignoring: %s' % str(modify_app))
         return actions, current, modify
 
     def apply(self):

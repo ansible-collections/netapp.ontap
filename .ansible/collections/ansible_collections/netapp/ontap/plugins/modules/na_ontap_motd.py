@@ -12,7 +12,7 @@ DOCUMENTATION = '''
 module: na_ontap_motd
 author:
   - Piotr Olczak (@dprts) <polczak@redhat.com>
-  - NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+  - NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_zapi
 short_description: Setup motd
@@ -45,10 +45,6 @@ options:
           - Set to I(false) if Cluster-level Message of the Day should not be shown
         type: bool
         default: True
-
-notes:
-  - This module is deprecated and only supports ZAPI.
-  - Please use netapp.ontap.na_ontap_login_messages both for ZAPI and REST.
 
 '''
 
@@ -115,7 +111,7 @@ class NetAppONTAPMotd:
         self.parameters = self.na_helper.set_parameters(self.module.params)
         self.na_helper.module_replaces('na_ontap_login_messages', self.module)
 
-        msg = 'netapp.ontap.na_ontap_motd is deprecated and only supports ZAPI.  Please use netapp.ontap.na_ontap_login_messages.'
+        msg = 'The module only supports ZAPI; refer to netapp.ontap.na_ontap_login_messages module for RESTful equivalent.'
         if self.parameters['use_rest'].lower() == 'never':
             self.module.warn(msg)
         else:

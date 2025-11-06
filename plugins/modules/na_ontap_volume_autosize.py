@@ -21,7 +21,7 @@ short_description: NetApp ONTAP manage volume autosize
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap
 version_added: 2.9.0
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Modify Volume AutoSize
 options:
@@ -56,6 +56,7 @@ options:
     - Specify the flexible volume's increment size using the following format < number > [k|m|g|t]
     - The amount is the absolute size to set.
     - The trailing 'k', 'm', 'g', and 't' indicates the desired units, namely 'kilobytes', 'megabytes', 'gigabytes', and 'terabytes' (respectively).
+    - Not supported with REST.
     type: str
 
   maximum_size:
@@ -80,6 +81,7 @@ options:
     description:
     - "Sets the values of maximum_size, increment_size, minimum_size, grow_threshold_percent, shrink_threshold_percent and mode to their defaults"
     - If reset paramater is present system will always perform reset action, so idempotency is not supported.
+    - Not supported with REST.
     type: bool
 
   shrink_threshold_percent:

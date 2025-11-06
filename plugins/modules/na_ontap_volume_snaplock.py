@@ -21,7 +21,7 @@ short_description: NetApp ONTAP manage volume snaplock retention.
 extends_documentation_fragment:
     - netapp.ontap.netapp.na_ontap_zapi
 version_added: '20.2.0'
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
 - Modifies the snaplock retention of volumes on NetApp ONTAP.
 options:
@@ -149,7 +149,7 @@ class NetAppOntapVolumeSnaplock(object):
         )
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        self.na_helper.module_replaces('na_ontap_volume', self.module)
+        self.module.warn('The module only supports ZAPI; refer to netapp.ontap.na_ontap_volume module for RESTful equivalent.')
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")

@@ -12,7 +12,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'supported_by': 'certified'}
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (@carchi8py) <ng-ansibleteam@netapp.com>
+author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 description:
   - Run cli commands on ONTAP over SSH using paramiko.
   - Output is returned in C(stdout) and C(stderr), and also as C(stdout_lines), C(stdout_lines_filtered), C(stderr_lines).

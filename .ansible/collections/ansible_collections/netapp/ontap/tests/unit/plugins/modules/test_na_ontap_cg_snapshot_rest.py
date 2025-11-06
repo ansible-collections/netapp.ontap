@@ -1,4 +1,4 @@
-# (c) 2023, NetApp, Inc
+# (c) 2023-2025, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_cg_snapshot while using REST """
@@ -76,7 +76,8 @@ SRR = rest_responses({
             "uuid": "695a3306-6361-11ee-b8da-005056b37403",
             "name": "snapshot1",
             "comment": "dummy comment",
-            "snapmirror_label": "sm_label1"
+            "snapmirror_label": "sm_label1",
+            "consistency_type": "application"
         }
     ],
         "num_records": 1
@@ -101,7 +102,8 @@ def test_rest_successful_create_snapshot_given_consistency_group():
         'consistency_group': 'cg1',
         'snapshot': 'snap1',
         'snapmirror_label': 'sm_label1',
-        'comment': 'dummy comment'
+        'comment': 'dummy comment',
+        'consistency_type': 'application'
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
@@ -118,7 +120,8 @@ def test_rest_successful_create_snapshot_idempotency():
         'consistency_group': 'cg1',
         'snapshot': 'snap1',
         'snapmirror_label': 'sm_label1',
-        'comment': 'dummy comment'
+        'comment': 'dummy comment',
+        'consistency_type': 'application'
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed'] is False
 
