@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_aggregate - fixed issue with disabling software encryption in REST.

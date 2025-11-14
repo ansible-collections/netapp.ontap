@@ -253,7 +253,7 @@ options:
 notes:
   - Supports check_mode.
   - Supports both ZAPI and REST.
-  - Supports AWS Lambda proxy functionality when using REST.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 
 '''
 
@@ -763,6 +763,8 @@ class NetAppOntapAggregate:
             self.aggregate_offline()
         if modify.get('raid_type'):
             self.patch_aggr_rest('modify', {'block_storage': {'primary': {'raid_type': modify['raid_type']}}})
+        if modify.get('encryption') is not None:
+            self.patch_aggr_rest('modify encryption for', {'data_encryption': {'software_encryption_enabled': modify['encryption']}})
 
     def attach_object_store_to_aggr(self):
         """
@@ -1018,8 +1020,8 @@ class NetAppOntapAggregate:
             block_storage['mirror'] = mirror
         if block_storage:
             body['block_storage'] = block_storage
-        if self.parameters.get('encryption'):
-            body['data_encryption'] = {'software_encryption_enabled': True}
+        if self.parameters.get('encryption') is not None:
+            body['data_encryption'] = {'software_encryption_enabled': self.parameters['encryption']}
         if self.parameters.get('snaplock_type'):
             body['snaplock_type'] = self.parameters['snaplock_type']
         if self.parameters.get('tags') is not None:

@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "9a231ccc0760c45ae7a69bb2ff33b7f0e450a2491dfa2969b3dcf1dc6915d827",
+   "chksum_sha256": "facf4f0a8e29e87c5b4e6ae0a66b491ac11346969c592c9ec642b5b75eaec9e4",
    "format": 1
   },
   {
@@ -4348,6 +4348,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7930.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c42290765a9efd08b1c7e00e5d1d2b2843d831bfc22871df3ae40b8909890596",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7952.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4722,7 +4729,7 @@
    "name": "plugins/module_utils/netapp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5e0ee79967a44a409457a7292a2acdcd1c581661349bd86c599fb8b4557d1b14",
+   "chksum_sha256": "c35a0d9343afa9b3a6e37c992c6b81d8b19748df002210488c40efd28a2f83a4",
    "format": 1
   },
   {
@@ -4834,7 +4841,7 @@
    "name": "plugins/modules/na_ontap_aggregate.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "95b5aa05d0617bd760519572fa0b2b0544113e66a530c5d00ad04493f038d0b5",
+   "chksum_sha256": "f1f3a8c99b4631fa111ff493cab049e83760b56a0bf411265e62ca3af36d2b13",
    "format": 1
   },
   {

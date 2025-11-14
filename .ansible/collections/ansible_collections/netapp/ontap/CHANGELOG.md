@@ -1,5 +1,10 @@
 # Release Notes
 
+## 23.3.0
+
+### Bug Fixes
+  - na_ontap_aggregate - fixed issue with disabling software encryption in REST.
+
 ## 23.2.0
 
 ### Minor Changes
