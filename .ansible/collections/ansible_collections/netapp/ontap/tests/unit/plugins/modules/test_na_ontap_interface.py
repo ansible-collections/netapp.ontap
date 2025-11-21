@@ -26,10 +26,6 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
-
 def interface_info(dns=True, address='2.2.2.2', netmask='1.1.1.1'):
     info = {
         'attributes-list': {
@@ -98,6 +94,7 @@ def test_module_fail_when_required_args_missing():
     assert 'interface_name' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_error_missing_param():
     ''' Test successful create '''
     register_responses([
@@ -114,6 +111,7 @@ def test_create_error_missing_param():
     assert 'role' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
@@ -143,6 +141,7 @@ def test_successful_create():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_ip_subnet_cidr_mask():
     ''' Test successful modify ip/subnet mask '''
     register_responses([
@@ -162,6 +161,7 @@ def test_modify_ip_subnet_cidr_mask():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_for_NVMe():
     ''' Test successful create for NVMe protocol'''
     register_responses([
@@ -180,6 +180,7 @@ def test_successful_create_for_NVMe():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency_for_NVMe():
     ''' Test successful create for NVMe protocol'''
     register_responses([
@@ -195,6 +196,7 @@ def test_create_idempotency_for_NVMe():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_error_for_NVMe():
     ''' Test if create throws an error if required param 'protocols' uses NVMe'''
     register_responses([
@@ -213,6 +215,7 @@ def test_create_error_for_NVMe():
         assert option in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     ''' Test create idempotency, and ignore EMS logging error '''
     register_responses([
@@ -225,6 +228,7 @@ def test_create_idempotency():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' Test delete existing interface, and ignore EMS logging error '''
     register_responses([
@@ -240,6 +244,7 @@ def test_successful_delete():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
@@ -253,6 +258,7 @@ def test_delete_idempotency():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' Test successful modify interface_minutes '''
     register_responses([
@@ -271,6 +277,7 @@ def test_successful_modify():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_idempotency():
     ''' Test modify idempotency '''
     register_responses([
@@ -283,6 +290,7 @@ def test_modify_idempotency():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_message():
     register_responses([
         # create, missing params
@@ -349,6 +357,7 @@ def test_error_message():
     assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_rename():
     ''' Test successful '''
     register_responses([
@@ -369,6 +378,7 @@ def test_successful_rename():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_rename_not_found():
     ''' Test from interface not found '''
     register_responses([
@@ -388,6 +398,7 @@ def test_negative_rename_not_found():
     assert msg in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_migrate():
     ''' Test successful '''
     register_responses([
@@ -407,6 +418,7 @@ def test_successful_migrate():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_migrate():
     ''' Test successful '''
     register_responses([
@@ -1303,6 +1315,7 @@ def test_rest_negative_unsupported_zapi_option_fail():
     assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rest_negative_rest_only_option():
     ''' create cluster '''
     register_responses([
@@ -1316,6 +1329,7 @@ def test_rest_negative_rest_only_option():
     assert msg in create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rest_negative_unsupported_zapi_option_force_zapi_1():
     ''' create cluster '''
     register_responses([
@@ -1356,6 +1370,7 @@ def test_rest_negative_unsupported_rest_version():
     assert msg == create_module(interface_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rest_auto_falls_back_to_zapi_if_ip_9_6():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96'])

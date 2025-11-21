@@ -2,6 +2,9 @@
 
 ## 23.3.0
 
+### Major Changes
+  - na_ontap_interface - AWS Lambda support added to the module.
+
 ### Bug Fixes
   - na_ontap_aggregate - fixed issue with disabling software encryption in REST.
 

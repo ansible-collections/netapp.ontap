@@ -278,9 +278,32 @@ options:
       - Requires ONTAP 9.10.1 or later.
     type: int
     version_added: 22.1.0
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.3.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 notes:
   - REST support requires ONTAP 9.7 or later.
   - Support check_mode.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = '''
@@ -462,6 +485,7 @@ class NetAppOntapInterface:
             probe_port=dict(required=False, type='int'),
             fail_if_subnet_conflicts=dict(required=False, type='bool'),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -472,6 +496,9 @@ class NetAppOntapInterface:
                 ['is_ipv4_link_local', 'netmask'],
                 ['is_ipv4_link_local', 'subnet_name'],
                 ['failover_policy', 'failover_scope'],
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             supports_check_mode=True
         )
@@ -511,6 +538,8 @@ class NetAppOntapInterface:
             if self.parameters.get('netmask'):
                 self.parameters['netmask'] = netapp_ipaddress.netmask_length_to_netmask(self.parameters.get('address'),
                                                                                         self.parameters['netmask'], self.module)
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
 
     def map_failover_policy(self):
         if self.use_rest and 'failover_policy' in self.parameters:
