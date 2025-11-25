@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.

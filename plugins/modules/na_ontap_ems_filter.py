@@ -57,6 +57,18 @@ options:
           name_pattern:
             description:  Name pattern to apply rule to
             type: str
+      parameter_criteria:
+        description: Parameter criteria for EMS filter, used to match specific parameters in EMS messages.
+        type: list
+        elements: dict
+        version_added: 23.3.0
+        suboptions:
+          name_pattern:
+            description: Name pattern for parameter matching
+            type: str
+          value_pattern:
+            description: Value pattern for parameter matching
+            type: str
 '''
 
 EXAMPLES = """
@@ -94,6 +106,21 @@ EXAMPLES = """
         message_criteria:
           severities: "ALERT"
 
+- name: Create EMS filter with parameter criteria
+  netapp.ontap.na_ontap_ems_filter:
+    state: present
+    name: param_filter
+    rules:
+      - index: 1
+        type: include
+        message_criteria:
+          severities: "error"
+        parameter_criteria:
+          - name_pattern: "volume"
+            value_pattern: "vol0*"
+          - name_pattern: "node"
+            value_pattern: "cluster-01"
+
 - name: Delete EMS Filter
   netapp.ontap.na_ontap_ems_filter:
     state: absent
@@ -124,6 +151,10 @@ class NetAppOntapEMSFilters:
                 message_criteria=dict(type="dict", options=dict(
                     severities=dict(required=False, type="str"),
                     name_pattern=dict(required=False, type="str")
+                )),
+                parameter_criteria=dict(type="list", elements="dict", options=dict(
+                    name_pattern=dict(required=False, type="str"),
+                    value_pattern=dict(required=False, type="str")
                 ))
             ))
         ))
@@ -205,6 +236,8 @@ class NetAppOntapEMSFilters:
                         rule['message_criteria'] = {}
                         rule['message_criteria']['severities'] = rule_dict.get('message_criteria').get('severities')
                         rule['message_criteria']['name_pattern'] = rule_dict.get('message_criteria').get('name_pattern')
+                    if 'parameter_criteria' in rule_dict:
+                        rule['parameter_criteria'] = rule_dict.get('parameter_criteria')
                     patch_rules.append(rule)
             for i in range(len(input_rules)):
                 if int(input_rules[i]['index']) not in matched_idx:
@@ -241,6 +274,20 @@ class NetAppOntapEMSFilters:
                     return True
                 if current['rules'][i].get('message_criteria').get('severities') != merge_rules[i].get('message_criteria').get('severities'):
                     return True
+
+                # Handling parameter_criteria comparison
+                current_params = current['rules'][i].get('parameter_criteria', [])
+                desired_params = merge_rules[i].get('parameter_criteria')
+
+                # Handling None/null parameter_criteria
+                if desired_params is None:
+                    # If desired is None, check if current is the default wildcard pattern
+                    default_param = [{'name_pattern': '*', 'value_pattern': '*'}]
+                    if current_params != [] and current_params != default_param:
+                        return True
+                else:
+                    if current_params != desired_params:
+                        return True
         return modify
 
     def apply(self):

@@ -83,6 +83,8 @@ options:
       - File permissions bits of the qtree.
       - Accepts either octal or string format.
       - Examples 0777, 777 in octal and ---rwxrwxrwx, sstrwxrwxrwx, rwxrwxrwx in string format.
+      - Optional parameter. Only relevant for Unix and mixed security styles.
+      - Ignored when security_style is set to 'ntfs'.
     version_added: 2.9.0
     type: str
 
@@ -118,6 +120,8 @@ options:
   unix_user:
     description:
       - The user set as owner of the qtree.
+      - Optional parameter. Only relevant for Unix and mixed security styles.
+      - Ignored when security_style is set to 'ntfs'.
       - Only supported with REST and ONTAP 9.9 or later.
     type: str
     version_added: 21.21.0
@@ -125,6 +129,8 @@ options:
   unix_group:
     description:
       - The group set as owner of the qtree.
+      - Optional parameter. Only relevant for Unix and mixed security styles.
+      - Ignored when security_style is set to 'ntfs'.
       - Only supported with REST and ONTAP 9.9 or later.
     type: str
     version_added: 21.21.0
@@ -169,6 +175,18 @@ EXAMPLES = """
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+
+- name: Create Qtree with NTFS security style.
+  netapp.ontap.na_ontap_qtree:
+    state: present
+    name: ntfsQTree
+    flexvol_name: ansibleVolume
+    security_style: ntfs
+    vserver: ansibleVServer
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    # Note: unix_user, unix_group, and unix_permissions are not needed for NTFS security style
 
 - name: delete Qtrees.
   netapp.ontap.na_ontap_qtree:

@@ -6,7 +6,12 @@
   - na_ontap_interface - AWS Lambda support added to the module.
 
 ### Bug Fixes
+  - na_ontap_qtree - Updated documentation for 'unix_permissions' parameter to clarify its usage.
   - na_ontap_aggregate - fixed issue with disabling software encryption in REST.
+  - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
+
+### Minor Changes
+  - na_ontap_ems_filter - new option `parameter_criteria` added in REST, requires ONTAP 9.13.1 or later.
 
 ## 23.2.0
 

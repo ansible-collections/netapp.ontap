@@ -71,9 +71,9 @@ options:
     description:
       - Type of consistency guarantee for the snapshot.
       - Only supported with REST.
+      - If not specified, ONTAP uses its default consistency type.
     choices: ['crash', 'application']
     type: str
-    default: crash
     version_added: 23.2.0
 version_added: 2.7.0
 
@@ -161,7 +161,7 @@ class NetAppONTAPCGSnapshot(object):
             snapmirror_label=dict(required=False, type='str'),
             consistency_group=dict(required=False, type='str'),
             comment=dict(required=False, type='str'),
-            consistency_type=dict(required=False, type='str', choices=['crash', 'application'], default='crash'),
+            consistency_type=dict(required=False, type='str', choices=['crash', 'application']),
         ))
 
         self.module = AnsibleModule(
