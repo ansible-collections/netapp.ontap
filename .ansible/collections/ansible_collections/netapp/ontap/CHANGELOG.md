@@ -18,6 +18,9 @@
 ### Major Changes
   - na_ontap_snapshot - AWS Lambda support added to the module.
 
+### Major Changes
+  - na_ontap_svm - AWS Lambda support added to the module.
+
 ## 23.2.0
 
 ### Minor Changes
