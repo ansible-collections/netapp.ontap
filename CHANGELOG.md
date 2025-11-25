@@ -15,6 +15,9 @@
   - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
   - na_ontap_cifs_local_group - fixed issue with idempotency.
 
+### Major Changes
+  - na_ontap_snapshot - AWS Lambda support added to the module.
+
 ## 23.2.0
 
 ### Minor Changes

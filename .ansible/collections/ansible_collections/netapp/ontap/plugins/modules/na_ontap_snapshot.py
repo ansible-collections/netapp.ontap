@@ -84,6 +84,30 @@ options:
       - Only supported with REST, requires ONTAP 9.15.1 or later.
     type: str
     version_added: 23.2.0
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.3.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 EXAMPLES = """
 - name: Create SnapShot
@@ -153,8 +177,13 @@ class NetAppOntapSnapshot:
             expiry_time=dict(required=False, type="str"),
             snaplock_expiry_time=dict(required=False, type="str"),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ],
             supports_check_mode=True
         )
 
@@ -174,6 +203,8 @@ class NetAppOntapSnapshot:
                 self.module.fail_json(msg="snaplock_expiry_time is only supported with REST on Ontap 9.15.1 or higher")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_snapshot(self, snapshot_name=None, volume_id=None):
