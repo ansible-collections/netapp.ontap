@@ -261,9 +261,32 @@ options:
           - Only supported on Unified ONTAP.
         type: bool
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.3.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - ASA r2 is only supported with ONTAP releases 9.16.0x onwards.
   - Module is not idempotent when C(provisioning_options) is set.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -420,8 +443,13 @@ class NetAppOntapLUN:
             )),
         ))
 
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ],
             supports_check_mode=True,
             mutually_exclusive=[('qos_policy_group', 'qos_adaptive_policy_group')]
         )
@@ -470,6 +498,8 @@ class NetAppOntapLUN:
                 self.parameters['force_resize'] = False
             if self.parameters.get('force_remove_fenced') is None:
                 self.parameters['force_remove_fenced'] = False
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
 
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()

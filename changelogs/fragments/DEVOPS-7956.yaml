@@ -1,0 +1,2 @@
+major_changes:
+  - na_ontap_lun - AWS Lambda support added to the module.

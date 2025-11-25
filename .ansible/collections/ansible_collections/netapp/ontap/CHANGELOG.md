@@ -13,6 +13,9 @@
 ### Minor Changes
   - na_ontap_ems_filter - new option `parameter_criteria` added in REST, requires ONTAP 9.13.1 or later.
 
+### Major Changes
+  - na_ontap_lun - AWS Lambda support added to the module.
+
 ## 23.2.0
 
 ### Minor Changes
