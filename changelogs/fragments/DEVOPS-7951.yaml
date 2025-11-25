@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_cifs_local_group - fixed issue with idempotency.

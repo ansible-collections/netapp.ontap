@@ -1,10 +1,11 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-25, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs_local_group '''
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
@@ -17,8 +18,9 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_local_group \
     import NetAppOntapCifsLocalGroup as group_module, main as my_main  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
+
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -168,28 +170,29 @@ def test_error_modify_cifs_group_rest():
 def test_rename_cifs_group_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),
+        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),  # for name check
+        ('GET', 'protocols/cifs/local-groups', SRR['group_record']),   # for from_name check
         ('PATCH', 'protocols/cifs/local-groups/671aa46e-11ad-11ec-a267-005056b30cfa/'
                   'S-1-5-21-256008430-3394229847-3930036330-1001', SRR['empty_good']),
     ])
     module_args = {
         'vserver': 'ansible',
         'from_name': 'BUILTIN\\GUESTS',
-        'name': 'ANSIBLE_CIFS\\test_users'
+        'name': 'BUILTIN\\GUESTS_renamed'
     }
     assert call_main(my_main, ARGS_REST, module_args)['changed']
 
 
-def test_error_rest_rename_cifs_rest():
+def test_error_rename_cifs_group_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_11_0']),
-        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),
-        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),
+        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),  # for name check
+        ('GET', 'protocols/cifs/local-groups', SRR['empty_records']),  # for from_name check
     ])
     module_args = {
         'vserver': 'ansible',
-        'from_name': 'BUILTIN\\GUESTS_user',
-        'name': 'ANSIBLE_CIFS\\test_users'
+        'from_name': 'BUILTIN\\GUESTS_nonexistent',
+        'name': 'BUILTIN\\GUESTS_renamed'
     }
     error = create_and_apply(group_module, ARGS_REST, module_args, fail=True)['msg']
     assert 'Error renaming cifs local group:' in error

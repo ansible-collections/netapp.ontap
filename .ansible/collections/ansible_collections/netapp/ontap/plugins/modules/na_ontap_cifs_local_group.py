@@ -212,6 +212,11 @@ class NetAppOntapCifsLocalGroup:
                 self.module.fail_json(msg='Error renaming cifs local group: %s - no cifs local group with from_name: %s.'
                                       % (self.parameters['name'], self.parameters['from_name']))
         modify = self.na_helper.get_modified_attributes(current, self.parameters) if cd_action is None else None
+        if not rename and modify and 'name' in modify:
+            # avoid rename action if domain is not given in group name input
+            del modify['name']
+            if not modify:
+                self.na_helper.changed = False
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_cifs_local_group_rest()
