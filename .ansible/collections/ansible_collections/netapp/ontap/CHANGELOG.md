@@ -5,6 +5,8 @@
 ### Major Changes
   - na_ontap_interface - AWS Lambda support added to the module.
   - na_ontap_lun - AWS Lambda support added to the module.
+  - na_ontap_snapshot - AWS Lambda support added to the module.
+  - na_ontap_svm - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_ems_filter - new option `parameter_criteria` added in REST, requires ONTAP 9.13.1 or later.
@@ -12,14 +14,9 @@
 ### Bug Fixes
   - na_ontap_qtree - updated documentation for `unix_permissions` parameter to clarify its usage.
   - na_ontap_aggregate - fixed issue with disabling software encryption in REST.
+  - na_ontap_firmware_upgrade - Updated documentation for `node` parameter and added examples.
   - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
   - na_ontap_cifs_local_group - fixed issue with idempotency.
-
-### Major Changes
-  - na_ontap_snapshot - AWS Lambda support added to the module.
-
-### Major Changes
-  - na_ontap_svm - AWS Lambda support added to the module.
 
 ## 23.2.0
 
@@ -47,10 +44,17 @@
   - na_ontap_aggregate - AWS Lambda support added to the module.
   - na_ontap_volume - AWS Lambda support added to the module.
   - modified ZAPI deprecation messages and warnings.
+  - na_ontap_quotas - updated docs for `quota_target` and `type`.
+  - na_ontap_user - updated docs for `vserver` option.
+  - na_ontap_volume_autosize - updated docs for `increment_size` & `reset`.
+  - na_ontap_aggregate - AWS Lambda support added to the module.
+  - na_ontap_volume - AWS Lambda support added to the module.
+  - modified ZAPI deprecation messages and warnings.
   - updated `README` template; added 'Support' section.
 
 ### Bug Fixes
   - na_ontap_snapmirror - fixed intermittent issue with creating relationship.
+  - na_ontap_volume - fix idempotency issue with `nas_application_template` and `size_change_threshold`.
   - na_ontap_volume - fix idempotency issue with `nas_application_template` and `size_change_threshold`.
   - Added manual utf-8 encoding to handle unicode characters in passwords for HTTP Basic Authentication in netapp module utilities.
   - na_ontap_ntfs_dacl - fixed typo in short description.

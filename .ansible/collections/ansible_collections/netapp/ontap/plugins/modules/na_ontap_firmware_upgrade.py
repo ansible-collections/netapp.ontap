@@ -28,9 +28,12 @@ options:
   node:
     description:
       - Node on which the device is located.
-      - Not required if package_url is present and force_disruptive_update is False.
-      - If this option is not given, the firmware will be downloaded on all nodes in the cluster,
-      - and the resources will be updated in background on all nodes, except for service processor.
+      - With REST, this parameter is ignored when package_url is provided but it is used with ZAPI.
+        not required if package_url is present and force_disruptive_update is False.
+      - With REST, if this option is not given, the firmware will be downloaded on all nodes in the cluster
+        and the resources will be updated in background on all nodes, except for service processor.
+      - with ZAPI, this parameter is used to specify the target node for firmware download.
+      - with ZAPI, if not specified firmware will be downloaded on all nodes in the cluster (using '*').
       - For service processor, the upgrade will happen automatically when each node is rebooted.
     type: str
   clear_logs:
@@ -162,10 +165,21 @@ version_added: 2.9.0
 '''
 
 EXAMPLES = """
-- name: Any firmware upgrade - REST
+- name: Firmware upgrade using REST - node parameter ignored when using REST with package_url
   netapp.ontap.na_ontap_firmware_upgrade:
     state: present
     package_url: "{{ web_link }}"
+    node: node1  # This will be ignored when using REST with package_url
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Firmware upgrade using ZAPI - node parameter is used to target specific node
+  netapp.ontap.na_ontap_firmware_upgrade:
+    state: present
+    package_url: "{{ web_link }}"
+    node: node1  # This will be used to target specific node with ZAPI
+    use_rest: never
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
