@@ -10,6 +10,7 @@
 
 ### Minor Changes
   - na_ontap_ems_filter - new option `parameter_criteria` added in REST, requires ONTAP 9.13.1 or later.
+  - na_ontap_net_ifgrp - Update `mode` parameter to specify allowed values.
 
 ### Bug Fixes
   - na_ontap_qtree - updated documentation for `unix_permissions` parameter to clarify its usage.
@@ -17,6 +18,7 @@
   - na_ontap_firmware_upgrade - Updated documentation for `node` parameter and added examples.
   - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
   - na_ontap_cifs_local_group - fixed issue with idempotency.
+  - na_ontap_net_vlan - Fixed state detection when VLAN exists but is not in broadcast domain.
 
 ## 23.2.0
 

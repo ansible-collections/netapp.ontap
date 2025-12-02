@@ -288,11 +288,10 @@ class NetAppOntapVlan:
                 'interface_name': record['name'],
                 'node': record['node']['name'],
                 'uuid': record['uuid'],
-                'enabled': record['enabled']
+                'enabled': record['enabled'],
+                'broadcast_domain': self.na_helper.safe_get(record, ['broadcast_domain', 'name']),
+                'ipspace': self.na_helper.safe_get(record, ['broadcast_domain', 'ipspace', 'name'])
             }
-            if 'broadcast_domain' in record:
-                current['broadcast_domain'] = record['broadcast_domain']['name']
-                current['ipspace'] = record['broadcast_domain']['ipspace']['name']
             return current
         return None
 

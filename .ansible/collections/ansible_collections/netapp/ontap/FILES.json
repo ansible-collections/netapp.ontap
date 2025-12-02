@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "305e22d5562dab001671ec83f4af0729c8eb95e86b28114a948197320c3209ce",
+   "chksum_sha256": "9c238c423927f38bd2b91f5a6df70e924730c813e2ad36af49a4b472f43b050e",
    "format": 1
   },
   {
@@ -4453,6 +4453,20 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8108.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "b5e5493a8cdcdaea63653e3be57d68257ccfc55b4d3951a7c8b82c99fcb73b22",
+   "format": 1
+  },
+  {
+   "name": "changelogs/fragments/DEVOPS-8115.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "ca9881466d60795dcc9e97ae07310f30c10b183eeed726ed4301aea39e6fe663",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5471,7 +5485,7 @@
    "name": "plugins/modules/na_ontap_net_ifgrp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "834109193a89628c47687b859c8f40fc9451768740c466ff8b2ea65582ef6f12",
+   "chksum_sha256": "81aa66d8bf29d86064a973919fc2953e77949f1ea0d4a6dcdd607a03cebe6cc8",
    "format": 1
   },
   {
@@ -5499,7 +5513,7 @@
    "name": "plugins/modules/na_ontap_net_vlan.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "b88be44957dd1c3e4f055e01d568658c6257c5480dee587171edc0beff5c2663",
+   "chksum_sha256": "8baaa37cc2e11cbff1bbe3c939c081b9b7a46f65a61c69db77f0df725dd8a806",
    "format": 1
   },
   {
@@ -7718,7 +7732,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_net_ifgrp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "e05983099e81574b85a0301c58d46cca470d73c2a0f1052936c542423642cc0b",
+   "chksum_sha256": "19f4d411ead163ee4a75c4e6357c2cee3c646a15cd560707b131beaf768dc2c3",
    "format": 1
   },
   {

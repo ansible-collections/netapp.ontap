@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_net_vlan - Fixed state detection when VLAN exists but is not in broadcast domain.
