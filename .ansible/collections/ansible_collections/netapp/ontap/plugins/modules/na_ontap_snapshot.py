@@ -197,14 +197,14 @@ class NetAppOntapSnapshot:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if self.parameters.get('expiry_time'):
                 self.module.fail_json(msg="expiry_time is currently only supported with REST on Ontap 9.6 or higher")
             if self.parameters.get('snaplock_expiry_time'):
                 self.module.fail_json(msg="snaplock_expiry_time is only supported with REST on Ontap 9.15.1 or higher")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
-            if self.parameters.get('use_lambda'):
-                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
 
     def get_snapshot(self, snapshot_name=None, volume_id=None):

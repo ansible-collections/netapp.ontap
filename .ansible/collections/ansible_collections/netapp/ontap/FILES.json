@@ -4918,7 +4918,7 @@
    "name": "plugins/modules/na_ontap_aggregate.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "f1f3a8c99b4631fa111ff493cab049e83760b56a0bf411265e62ca3af36d2b13",
+   "chksum_sha256": "3a6487516f882d9b26bc5fd8d776d2a1bdc0791fafaf9a01d8edbcd37d365026",
    "format": 1
   },
   {
@@ -5296,7 +5296,7 @@
    "name": "plugins/modules/na_ontap_interface.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "e3593beb0b421bc1d1f6e3851d91b10e03a62d7808a76a9bef2974a94471d91c",
+   "chksum_sha256": "59341e75e48b4a2ecf4ea47c7b68938c0a457a6a7b4f0ba9e4b8155d84ede811",
    "format": 1
   },
   {
@@ -5387,7 +5387,7 @@
    "name": "plugins/modules/na_ontap_lun.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0dfdd60ba097a90cfe26d57d8da3bd41de17b6e54aad4dc30100507eaedba530",
+   "chksum_sha256": "69a5b6faee5f0052f4b37a8506628b7dd6a8b81729a213211986ec43cf6e07b5",
    "format": 1
   },
   {
@@ -5793,7 +5793,7 @@
    "name": "plugins/modules/na_ontap_snapshot.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "7e3b971e9d9cb5d017066b09407edf38334864f36f280ddcec755306f5b82951",
+   "chksum_sha256": "421d85fd1a5b8a914fa068189a15a7a0f6371ec01c0a44bd06046cc09968d820",
    "format": 1
   },
   {
@@ -5877,7 +5877,7 @@
    "name": "plugins/modules/na_ontap_svm.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "86978d1d3c09b666e46853f81fdb117f7aef7a9e130c17df375fb2a38ce5c873",
+   "chksum_sha256": "2746045518ef598815ed8c4c549521413deecc76d54f15494082bb5bcf390bf6",
    "format": 1
   },
   {
@@ -5926,7 +5926,7 @@
    "name": "plugins/modules/na_ontap_volume.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4ee00b3e8e6c609b9266993c256cbb73af51794285acc31960220d980c82ed18",
+   "chksum_sha256": "14567d0bb49015e1e866b0e3980b52532695730b30847c9c947416de0cc7b22d",
    "format": 1
   },
   {

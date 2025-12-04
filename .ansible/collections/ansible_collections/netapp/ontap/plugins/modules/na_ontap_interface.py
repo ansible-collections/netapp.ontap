@@ -528,6 +528,8 @@ class NetAppOntapInterface:
         elif netapp_utils.has_netapp_lib() is False:
             self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             for option in ('probe_port', 'fail_if_subnet_conflicts'):
                 if self.parameters.get(option) is not None:
                     self.module.fail_json(msg='Error option %s requires REST.' % option)
@@ -538,8 +540,6 @@ class NetAppOntapInterface:
             if self.parameters.get('netmask'):
                 self.parameters['netmask'] = netapp_ipaddress.netmask_length_to_netmask(self.parameters.get('address'),
                                                                                         self.parameters['netmask'], self.module)
-            if self.parameters.get('use_lambda'):
-                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
 
     def map_failover_policy(self):
         if self.use_rest and 'failover_policy' in self.parameters:

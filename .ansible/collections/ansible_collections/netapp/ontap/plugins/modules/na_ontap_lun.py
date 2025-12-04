@@ -490,6 +490,8 @@ class NetAppOntapLUN:
             if self.parameters.get('qos_adaptive_policy_group') is not None:
                 self.parameters['qos_policy_group'] = self.parameters.pop('qos_adaptive_policy_group')
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -498,8 +500,6 @@ class NetAppOntapLUN:
                 self.parameters['force_resize'] = False
             if self.parameters.get('force_remove_fenced') is None:
                 self.parameters['force_remove_fenced'] = False
-            if self.parameters.get('use_lambda'):
-                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
 
         # REST API for application/applications if needed
         self.rest_app = self.setup_rest_application()

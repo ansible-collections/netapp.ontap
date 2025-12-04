@@ -803,7 +803,7 @@ notes:
     tiering control would require or disallow FabricPool for an existing volume with a different backend.
     Allowed values are fail, warn, and ignore, and the default is set to fail.
   - snapshot_restore is not idempotent, it always restores.
-  - Supports AWS Lambda proxy functionality when using REST.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 
 '''
 

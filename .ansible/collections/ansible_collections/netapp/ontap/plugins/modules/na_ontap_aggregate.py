@@ -415,12 +415,12 @@ class NetAppOntapAggregate:
         partially_supported_rest_properties = [['service_state', (9, 11, 1)], ['tags', (9, 13, 1)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if 'tags' in self.parameters:
                 self.module.fail_json(msg="Error: tags only supported with REST.")
-            if self.parameters.get('use_lambda'):
-                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
 
         if self.parameters['state'] == 'present':
