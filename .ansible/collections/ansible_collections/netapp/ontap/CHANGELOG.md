@@ -19,6 +19,7 @@
   - na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
   - na_ontap_cifs_local_group - fixed issue with idempotency.
   - na_ontap_net_vlan - Fixed state detection when VLAN exists but is not in broadcast domain.
+  - na_ontap_job_schedule - Fix documentation formatting issue.
 
 ## 23.2.0
 
@@ -40,12 +41,6 @@
   - na_ontap_svm - new option `storage_limit_threshold_alert` added in REST, requires ONTAP 9.13.1 or later.
   - na_ontap_svm - new options `auto_enable_analytics`, `auto_enable_activity_tracking` added in REST, requires ONTAP 9.12.1 or later.
   - na_ontap_nfs - added REST support for option `nfsv3_fsid_change` (requires ONTAP 9.11.0 or later), and for `nfsv4_fsid_change`, `nfsv40_referrals`, and `nfsv41_referrals` (requires ONTAP 9.13.1 or later).
-  - na_ontap_quotas - updated docs for `quota_target` and `type`.
-  - na_ontap_user - updated docs for `vserver` option.
-  - na_ontap_volume_autosize - updated docs for `increment_size` & `reset`.
-  - na_ontap_aggregate - AWS Lambda support added to the module.
-  - na_ontap_volume - AWS Lambda support added to the module.
-  - modified ZAPI deprecation messages and warnings.
   - na_ontap_quotas - updated docs for `quota_target` and `type`.
   - na_ontap_user - updated docs for `vserver` option.
   - na_ontap_volume_autosize - updated docs for `increment_size` & `reset`.

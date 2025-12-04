@@ -36,7 +36,7 @@ options:
     description:
       - The minute(s) of each hour when the job should be run.
         Job Manager cron scheduling minute.
-      - 1 represents all minutes.
+      - C(-1) represents all minutes.
         Range is [-1..59]
       - Required for create.
     type: list
@@ -46,7 +46,7 @@ options:
     description:
       - The hour(s) of the day when the job should be run.
         Job Manager cron scheduling hour.
-      - 1 represents all hours.
+      - C(-1) represents all hours.
         Range is [-1..23]
     type: list
     elements: int
@@ -55,7 +55,7 @@ options:
     description:
       - The month(s) when the job should be run.
         Job Manager cron scheduling month.
-      - 1 represents all months.
+      - C(-1) represents all months.
         Range is [-1..12], 0 and 12 may or may not be supported, see C(month_offset)
     type: list
     elements: int
@@ -64,7 +64,7 @@ options:
     description:
       - The day(s) of the month when the job should be run.
         Job Manager cron scheduling day of month.
-      - 1 represents all days of a month from 1 to 31.
+      - C(-1) represents all days of a month from 1 to 31.
         Range is [-1..31]
     type: list
     elements: int
@@ -73,7 +73,7 @@ options:
     description:
       - The day(s) in the week when the job should be run.
         Job Manager cron scheduling day of week.
-      - Zero represents Sunday. -1 represents all days of a week.
+      - Zero represents Sunday. C(-1) represents all days of a week.
         Range is [-1..6]
     type: list
     elements: int

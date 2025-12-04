@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "9c238c423927f38bd2b91f5a6df70e924730c813e2ad36af49a4b472f43b050e",
+   "chksum_sha256": "59006ccc31c16f80f6be47fbe608e01086aaf2164457e9f20758c8b3341d4a0c",
    "format": 1
   },
   {
@@ -4446,6 +4446,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8065.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "528ce189d2ce035f5b670db82c5e9321d4012c21fdedd8b340600265ec721e92",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8102.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5324,7 +5331,7 @@
    "name": "plugins/modules/na_ontap_job_schedule.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "5c89799647dfe505fafbb96153ab0c4f87db37b895fa332332d356004f9dc881",
+   "chksum_sha256": "b0017141b3c0e2112e6d98a8f6fb058b0e3de6e988b911cca32036c2cc31309d",
    "format": 1
   },
   {
