@@ -4,6 +4,35 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+
+v23.3.0
+=======
+
+Major Changes
+-------------
+
+- na_ontap_interface - AWS Lambda support added to the module.
+- na_ontap_lun - AWS Lambda support added to the module.
+- na_ontap_snapshot - AWS Lambda support added to the module.
+- na_ontap_svm - AWS Lambda support added to the module.
+
+Minor Changes
+-------------
+
+- na_ontap_ems_filter - new option `parameter_criteria` added in REST, requires ONTAP 9.13.1 or later.
+- na_ontap_net_ifgrp - Update `mode` parameter to specify allowed values.
+
+Bugfixes
+--------
+
+- na_ontap_aggregate - fixed issue with disabling software encryption in REST.
+- na_ontap_cg_snapshot - fixed issue with ZAPI by removing default value for `consistency_type`.
+- na_ontap_cifs_local_group - fixed issue with idempotency.
+- na_ontap_firmware_upgrade - Updated documentation for `node` parameter and added examples.
+- na_ontap_job_schedule - Fix documentation formatting issue.
+- na_ontap_net_vlan - Fixed state detection when VLAN exists but is not in broadcast domain.
+- na_ontap_qtree - Updated documentation for 'unix_permissions' parameter to clarify its usage.
+
 v23.2.0
 =======
 
