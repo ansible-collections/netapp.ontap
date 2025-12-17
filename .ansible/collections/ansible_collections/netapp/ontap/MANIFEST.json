@@ -2,7 +2,7 @@
  "collection_info": {
   "namespace": "netapp",
   "name": "ontap",
-  "version": "23.3.0",
+  "version": "23.4.0",
   "authors": [
    "NetApp Ansible Team <ng-ansible-team@netapp.com>"
   ],
@@ -25,7 +25,7 @@
   "name": "FILES.json",
   "ftype": "file",
   "chksum_type": "sha256",
-  "chksum_sha256": "b912b4879066089616a60170b7da64810a872eb251961e1c792fd190d648890a",
+  "chksum_sha256": "5f9bf8ef736545980fd252c3b67a03d31ebef890fff0ddface9a88c80bb7ce92",
   "format": 1
  },
  "format": 1

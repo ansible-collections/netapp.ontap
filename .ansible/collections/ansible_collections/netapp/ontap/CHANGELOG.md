@@ -1,5 +1,10 @@
 # Release Notes
 
+## 23.4.0
+
+### Bug Fixes
+  - na_ontap_vserver_audit - updated documentation for `log`.
+
 ## 23.3.0
 
 ### Major Changes

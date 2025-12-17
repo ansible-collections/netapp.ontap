@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_vserver_audit - updated documentation for `log`.
