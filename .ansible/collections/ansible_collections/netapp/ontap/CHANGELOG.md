@@ -2,6 +2,9 @@
 
 ## 23.4.0
 
+### Major Changes
+  - na_ontap_snapmirror - AWS Lambda support added to the module.
+
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
 

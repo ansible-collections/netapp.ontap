@@ -335,6 +335,28 @@ options:
     type: bool
     version_added: 23.1.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 short_description: "NetApp ONTAP or ElementSW Manage SnapMirror"
 version_added: 2.7.0
 notes:
@@ -344,6 +366,7 @@ notes:
   - snapmirror runs on the destination for most operations, peer_options identify the source cluster.
   - ONTAP supports either username/password or a SSL certificate for authentication.
   - ElementSW only supports username/password for authentication.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -603,6 +626,7 @@ class NetAppONTAPSnapmirror(object):
             validate_source_path=dict(required=False, type='bool', default=True),
             quick_resync=dict(required=False, type='bool'),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
@@ -619,6 +643,9 @@ class NetAppONTAPSnapmirror(object):
                 ('peer_options', 'source_username'),
                 ('peer_options', 'source_password'),
                 ('identity_preserve', 'identity_preservation')
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             required_together=(['source_volume', 'destination_volume'],
                                ['source_vserver', 'destination_vserver'],
@@ -644,6 +671,8 @@ class NetAppONTAPSnapmirror(object):
         self.set_source_peer()
         self.rest_api, self.use_rest = self.setup_rest()
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             self.server = self.setup_zapi()
 
     def set_source_peer(self):
