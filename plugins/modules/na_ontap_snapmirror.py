@@ -4,7 +4,7 @@
 na_ontap_snapmirror
 '''
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -121,6 +121,7 @@ options:
     description:
      - Specifies the upper bound, in kilobytes per second, at which data is transferred.
      - Default is unlimited, it can be explicitly set to 0 as unlimited.
+     - Not supported with REST.
     type: int
     version_added: 2.9.0
   initialize:
@@ -161,6 +162,7 @@ options:
      - Specifies whether or not the identity of the source Vserver is replicated to the destination Vserver.
      - If this parameter is set to true, the source Vserver's configuration will additionally be replicated to the destination.
      - If the parameter is set to false, then only the source Vserver's volumes and RBAC configuration are replicated to the destination.
+     - Not supported with REST.
     type: bool
     version_added: 2.9.0
   create_destination:

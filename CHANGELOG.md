@@ -8,6 +8,9 @@
 ### Major Changes
   - na_ontap_snapmirror - AWS Lambda support added to the module.
 
+### Minor Changes
+  - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
+
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
 

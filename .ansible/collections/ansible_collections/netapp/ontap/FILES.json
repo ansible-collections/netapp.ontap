@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ab196c24eeac61e8ac57596d89059e9330a04bcea2b39dde75e707a815df48a9",
+   "chksum_sha256": "65dfb508866b42e123efb09ae87a8533f3325379c9fefe423e468b462bfc77d9",
    "format": 1
   },
   {
@@ -4495,6 +4495,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8133.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "b7a9e10e4469288e4cc1e616752452f117169c8f9fdec7f6d6d2602bae1027e1",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5814,7 +5821,7 @@
    "name": "plugins/modules/na_ontap_snapmirror.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "b59e624ffa20e3ea2a206a955c5170be6bca9cbb6a77925b1eaf7249aeb5bb98",
+   "chksum_sha256": "156e88d1897f3153bc2df66e13d4a57730765a1774799d91b7008e2c99a0631d",
    "format": 1
   },
   {
