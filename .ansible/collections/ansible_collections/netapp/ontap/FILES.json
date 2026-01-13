@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "772a8b6c3c6c345b38854085094e84c3aba970c6dc143d794d53c4d3065c2ef3",
+   "chksum_sha256": "3f3d32867d97d7f463b605038e5e6243bb993850306b836defdb4a19a6ff1f71",
    "format": 1
   },
   {
@@ -4425,6 +4425,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7958.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "3259afade4602d68497f86a8b180013c117d538730b7912532288940e57073fd",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7959.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4813,7 +4820,7 @@
    "name": "plugins/doc_fragments/netapp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "b48805211ebeda464e5233f3ac6c8d15561a46fac5133d614b930318b818490d",
+   "chksum_sha256": "d5e74bb792095cb5dce17dc3778e81b6d3c037975e258ec2ccaad84b83e86a33",
    "format": 1
   },
   {
@@ -4855,7 +4862,7 @@
    "name": "plugins/module_utils/netapp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "eff3f431c76c449956b6d48826db4a9b45469a41013d1ddc13db0da7cd919f2f",
+   "chksum_sha256": "e0bf68369e557bdf8f9d118df64702a406e688de1bd3344e35db668996170f22",
    "format": 1
   },
   {
@@ -5128,7 +5135,7 @@
    "name": "plugins/modules/na_ontap_cluster_peer.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4a2bc9e1820d7800ab3d64d7fff4e852c6b6856fd7713afb80373ae8a43b2338",
+   "chksum_sha256": "75fd03db28e7cb6e9ecef5bdaaf033dac515e0d97e90f208eaeb8b5a13ac20f8",
    "format": 1
   },
   {
@@ -5408,7 +5415,7 @@
    "name": "plugins/modules/na_ontap_ldap_client.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2714958c99f53b9798c009efe21abdf4e0ea5dc516955ae6d35145459430b336",
+   "chksum_sha256": "4395ae775d26ac8a03c63e7fb46bc812f503f2c6c9e5ba2f4ac3cae3e620cda2",
    "format": 1
   },
   {
@@ -5835,7 +5842,7 @@
    "name": "plugins/modules/na_ontap_snapmirror.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "156e88d1897f3153bc2df66e13d4a57730765a1774799d91b7008e2c99a0631d",
+   "chksum_sha256": "410396f17bbbbc793d0893c5dc36f723a957e7ab9c34b978ed79ed062451bb05",
    "format": 1
   },
   {
@@ -6059,7 +6066,7 @@
    "name": "plugins/modules/na_ontap_vserver_peer.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "de0a96a24a804c098b14994c7c3bddac2cd778f2782d6b97671036cabf14c51a",
+   "chksum_sha256": "569d4ecbbc64b149d5f524236dd895ea7d6f4b299f6f533e7bffa6948b18bb05",
    "format": 1
   },
   {

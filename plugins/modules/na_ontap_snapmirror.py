@@ -629,6 +629,8 @@ class NetAppONTAPSnapmirror(object):
             quick_resync=dict(required=False, type='bool'),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+        # Add Lambda support to peer_options
+        self.argument_spec['peer_options']['options'].update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,

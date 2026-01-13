@@ -351,14 +351,41 @@ options:
           - auto -- will try to use the REST Api
         type: str
       force_ontap_version:
-          description:
-            - Override the cluster ONTAP version when using REST.
-            - The behavior is undefined if the version does not match the target cluster.
-            - This is provided as a work-around when the cluster version cannot be read because of permission issues.
-              See https://github.com/ansible-collections/netapp.ontap/wiki/Known-issues.
-            - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
-            - When C(use_rest) is set to auto, this may force a switch to ZAPI based on the version and platform capabilities.
-            - Ignored with ZAPI.
-          type: str
-          version_added: "21.23.0"
+        description:
+          - Override the cluster ONTAP version when using REST.
+          - The behavior is undefined if the version does not match the target cluster.
+          - This is provided as a work-around when the cluster version cannot be read because of permission issues.
+            See https://github.com/ansible-collections/netapp.ontap/wiki/Known-issues.
+          - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
+          - When C(use_rest) is set to auto, this may force a switch to ZAPI based on the version and platform capabilities.
+          - Ignored with ZAPI.
+        type: str
+        version_added: "21.23.0"
+      use_lambda:
+        description:
+          - Specifies if AWS Lambda proxy functionality should be used to connect to the ONTAP system.
+          - Supported only with REST.
+        type: bool
+        version_added: "23.4.0"
+      lambda_config:
+        description:
+          - Configuration parameters for AWS Lambda proxy functionality.
+          - These option and suboptions are only supported with REST.
+        type: dict
+        version_added: "23.4.0"
+        suboptions:
+          function_name:
+            description:
+              - The name of the AWS Lambda function to invoke.
+            type: str
+            required: true
+          aws_region:
+            description:
+              - The name of the AWS region.
+            type: str
+            required: true
+          aws_profile:
+            description:
+              - The name of the AWS profile to use for authentication.
+            type: str
 '''

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-(c) 2018-2025, NetApp, Inc
+(c) 2018-2026, NetApp, Inc
 GNU General Public License v3.0+
 (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
@@ -150,6 +150,20 @@ options:
     type: bool
     version_added: 22.0.0
 
+  group_dn:
+    description:
+      - Specifies the group Distinguished Name (DN)
+        that is used as the starting point in the LDAP directory tree for group lookups.
+    type: str
+    version_added: 23.4.0
+
+  user_dn:
+    description:
+      - Specifies the user Distinguished Name (DN)
+        that is used as the starting point in the LDAP directory tree for user lookups.
+    type: str
+    version_added: 23.4.0
+
 notes:
   - LDAP client created using ZAPI should be deleted using ZAPI.
   - LDAP client created using REST should be deleted using REST.
@@ -165,6 +179,8 @@ EXAMPLES = '''
     vserver: 'vserver1'
     servers: 'ldap1.example.company.com,ldap2.example.company.com'
     base_dn: 'dc=example,dc=company,dc=com'
+    group_dn: 'ou=group,dc=ds,dc=eng,dc=netapp,dc=com'
+    user_dn: 'ou=people,dc=ds,dc=eng,dc=netapp,dc=com'
 
 - name: Modify LDAP client
   # assuming credentials are set using module_defaults
@@ -222,6 +238,8 @@ class NetAppOntapLDAPClient:
             vserver=dict(required=True, type='str'),
             ldaps_enabled=dict(required=False, type='bool'),
             skip_config_validation=dict(required=False, type='bool'),
+            group_dn=dict(required=False, type='str'),
+            user_dn=dict(required=False, type='str'),
         ))
 
         self.module = AnsibleModule(
@@ -242,7 +260,8 @@ class NetAppOntapLDAPClient:
         self.rest_api = OntapRestAPI(self.module)
         unsupported_rest_properties = ['name']
         partially_supported_rest_properties = [['bind_as_cifs_server', (9, 9, 0)], ['query_timeout', (9, 9, 0)], ['referral_enabled', (9, 9, 0)],
-                                               ['ldaps_enabled', (9, 9, 0)], ['skip_config_validation', (9, 9, 0)]]
+                                               ['ldaps_enabled', (9, 9, 0)], ['skip_config_validation', (9, 9, 0)],
+                                               ['group_dn', (9, 9, 0)], ['user_dn', (9, 9, 0)]]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -436,7 +455,7 @@ class NetAppOntapLDAPClient:
                            'session_security,'
                            'use_start_tls,'}
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 0):
-            query['fields'] += 'bind_as_cifs_server,query_timeout,referral_enabled,ldaps_enabled'
+            query['fields'] += 'bind_as_cifs_server,query_timeout,referral_enabled,ldaps_enabled,group_dn,user_dn'
         record, error = rest_generic.get_one_record(self.rest_api, 'name-services/ldap', query)
         if error:
             self.module.fail_json(msg="Error on getting idap client info: %s" % error)
@@ -457,7 +476,9 @@ class NetAppOntapLDAPClient:
                 'session_security': self.na_helper.safe_get(record, ['session_security']),
                 'referral_enabled': self.na_helper.safe_get(record, ['referral_enabled']),
                 'bind_as_cifs_server': self.na_helper.safe_get(record, ['bind_as_cifs_server']),
-                'query_timeout': self.na_helper.safe_get(record, ['query_timeout'])
+                'query_timeout': self.na_helper.safe_get(record, ['query_timeout']),
+                'group_dn': self.na_helper.safe_get(record, ['group_dn']),
+                'user_dn': self.na_helper.safe_get(record, ['user_dn'])
             }
         return None
 
@@ -466,7 +487,8 @@ class NetAppOntapLDAPClient:
         ldap client config body for create and modify with rest API.
         """
         config_options = ['ad_domain', 'servers', 'preferred_ad_servers', 'bind_dn', 'schema', 'port', 'base_dn', 'referral_enabled', 'ldaps_enabled',
-                          'base_scope', 'bind_as_cifs_server', 'bind_password', 'min_bind_level', 'query_timeout', 'session_security', 'use_start_tls']
+                          'base_scope', 'bind_as_cifs_server', 'bind_password', 'min_bind_level', 'query_timeout', 'session_security', 'use_start_tls',
+                          'group_dn', 'user_dn']
         processing_options = ['skip_config_validation']
         body = {}
         for key in config_options:

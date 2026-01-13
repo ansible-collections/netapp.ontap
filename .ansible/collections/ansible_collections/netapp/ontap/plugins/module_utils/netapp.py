@@ -199,7 +199,6 @@ def na_ontap_rest_only_spec():
 def na_ontap_host_argument_spec_peer():
     spec = na_ontap_host_argument_spec()
     spec.pop('feature_flags')
-    spec.pop('use_lambda')
     # get rid of default values, as we'll use source values
     for value in spec.values():
         if 'default' in value:
@@ -364,12 +363,22 @@ def setup_na_ontap_lambda(module):
     :return: AwsLambda instance or None if Lambda is not enabled.
     """
     lambda_config = module.params.get('lambda_config', {})
+    return setup_na_ontap_lambda_with_config(module, lambda_config)
 
+
+def setup_na_ontap_lambda_with_config(module, lambda_config, hostname=None):
+    """
+    Set up a Lambda proxy for ONTAP operations with specific configuration.
+    :param module: Ansible module instance.
+    :param lambda_config: Lambda configuration dictionary.
+    :param hostname: Optional hostname override for peer connections.
+    :return: AwsLambda instance or None if Lambda is not enabled.
+    """
     if not HAS_BOTO3:
         module.fail_json(msg="boto3 is required for Lambda functionality. Install with: pip install boto3")
 
     try:
-        return AwsLambda(module, lambda_config)
+        return AwsLambda(module, lambda_config, hostname)
     except Exception as exc:
         module.fail_json("Failed to create Lambda proxy: %s" % exc)
 
@@ -705,7 +714,15 @@ class OntapRestAPI(object):
 
         # Initialize Lambda proxy if configured
         self.lambda_proxy = None
-        if should_use_lambda(module):
+
+        # Check if host_options has its own Lambda configuration (for peer connections)
+        if host_options and host_options.get('use_lambda'):
+            # Use Lambda config from host_options (peer connection)
+            lambda_config = host_options.get('lambda_config', {})
+            if lambda_config:
+                self.lambda_proxy = setup_na_ontap_lambda_with_config(module, lambda_config, self.hostname)
+        elif should_use_lambda(module):
+            # Use Lambda config from main module (source connection)
             self.lambda_proxy = setup_na_ontap_lambda(module)
 
     def requires_ontap_9_6(self, module_name):
@@ -1243,16 +1260,19 @@ class AwsLambda(OntapRestAPI):
     Handles AWS Lambda invocation and ONTAP API request formatting.
     """
 
-    def __init__(self, module, lambda_config):
+    def __init__(self, module, lambda_config, hostname=None):
         """
         Initialize the Lambda proxy client.
         :param module: Ansible module instance.
         :param lambda_config: Dictionary containing Lambda configuration.
+        :param hostname: Optional hostname override for peer connections.
         """
         self.module = module
         self.lambda_config = lambda_config
         self.lambda_client = None
         self.debug_logs = []
+        # Use provided hostname or fall back to module parameter
+        self.target_hostname = hostname or module.params.get('hostname')
 
         if not HAS_BOTO3:
             module.fail_json(msg="boto3 is required for Lambda functionality. Install with: pip install boto3")
@@ -1313,7 +1333,7 @@ class AwsLambda(OntapRestAPI):
             api_path = url
 
         function_name = self.lambda_config.get('function_name')
-        hostname = self.module.params.get('hostname')
+        hostname = self.target_hostname
         username = self.module.params.get('username')
         password = self.module.params.get('password')
 

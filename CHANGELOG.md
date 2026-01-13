@@ -7,6 +7,8 @@
 
 ### Major Changes
   - na_ontap_snapmirror - AWS Lambda support added to the module.
+  - na_ontap_cluster_peer - AWS Lambda support added to the module.
+  - na_ontap_vserver_peer - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
@@ -17,6 +19,9 @@
 
 ### Minor Changes
   - na_ontap_nfs - new option `credential_cache` added in REST.
+
+### Minor Changes
+  - na_ontap_ldap_client - Added options `group_dn` and `user_dn` in REST.
 
 ## 23.3.0
 

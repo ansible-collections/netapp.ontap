@@ -1,0 +1,3 @@
+major_changes:
+  - na_ontap_cluster_peer - AWS Lambda support added to the module.
+  - na_ontap_vserver_peer - AWS Lambda support added to the module.

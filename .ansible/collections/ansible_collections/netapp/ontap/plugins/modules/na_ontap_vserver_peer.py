@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -70,8 +70,32 @@ options:
     - Destination password.
     - Optional if this is same as source password.
     type: str
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 short_description: NetApp ONTAP Vserver peering
 version_added: 2.7.0
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for example usage.
 '''
 
 EXAMPLES = """
@@ -151,12 +175,19 @@ class NetAppONTAPVserverPeer:
             dest_password=dict(required=False, type='str', no_log=True)
         ))
 
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+        # Add Lambda support to peer_options
+        self.argument_spec['peer_options']['options'].update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
                 ['peer_options', 'dest_hostname'],
                 ['peer_options', 'dest_username'],
                 ['peer_options', 'dest_password']
+            ],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
             ],
             supports_check_mode=True
         )
@@ -187,6 +218,8 @@ class NetAppONTAPVserverPeer:
         if self.use_rest:
             self.peer_relation_uuid = None
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module)
@@ -365,11 +398,20 @@ class NetAppONTAPVserverPeer:
         vserver_info = {}
         vserver, remote_vserver = self.get_local_and_peer_vserver(target)
         restapi = self.rest_api if target == 'source' else self.dst_rest_api
-        options = {'svm.name': vserver, 'peer.svm.name': remote_vserver, 'fields': 'name,svm.name,peer.svm.name,state,uuid'}
-        # peer cluster may have multiple peer relationships
-        # filter by the created relationship uuid
-        if target == 'peer' and self.peer_relation_uuid is not None:
-            options['uuid'] = self.peer_relation_uuid
+        options = {
+            'svm.name': vserver,
+            'peer.svm.name': remote_vserver,
+            'fields': 'name,svm.name,peer.svm.name,peer.cluster.name,state,uuid'
+        }
+        if target == 'peer':
+            if self.peer_relation_uuid is not None:
+                options['uuid'] = self.peer_relation_uuid
+        else:
+            if 'peer_cluster' in self.parameters:
+                options['peer.cluster.name'] = self.parameters['peer_cluster']
+            else:
+                self.module.fail_json(msg='The peer_cluster parameter is required for source vserver queries to find exact matching record in REST API mode.')
+
         record, error = rest_generic.get_one_record(restapi, api, options)
         if error:
             self.module.fail_json(msg='Error fetching vserver peer %s: %s' % (self.parameters['vserver'], error))
