@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -313,6 +313,27 @@ options:
       - Supported only with REST.
     type: int
     version_added: 23.2.0
+  credential_cache:
+    description:
+      - This option can be set or modified when using REST.
+      - If not specified in POST, ONTAP uses default values for the TTLs.
+      - It requires ONTAP 9.11.0 or later.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      positive_ttl:
+        description:
+          - Specifies the age in milliseconds, of the positive cached credentials after which they are cleared from the cache.
+        type: int
+      transient_error_ttl:
+        description:
+          - Specifies the age in milliseconds, of the cached entries during a transient error situation.
+        type: int
+      negative_ttl:
+        description:
+          - Specifies the age in milliseconds, of the negative cached credentials after which they are cleared from the cache.
+        type: int
+
 """
 
 EXAMPLES = """
@@ -451,6 +472,11 @@ class NetAppONTAPNFS:
             nfsv40_acl_preserve=dict(required=False, type='str', default=None, choices=['enabled', 'disabled']),
             nfsv4_lease_seconds=dict(required=False, type='int'),
             nfsv4_grace_seconds=dict(required=False, type='int'),
+            credential_cache=dict(type='dict', options=dict(
+                positive_ttl=dict(required=False, type='int'),
+                transient_error_ttl=dict(required=False, type='int'),
+                negative_ttl=dict(required=False, type='int'),
+            )),
         ))
 
         self.module = AnsibleModule(
@@ -493,7 +519,8 @@ class NetAppONTAPNFS:
                                                ['nfsv3_connection_drop', (9, 11, 0)], ['nfsv3_64bit_identifiers_enabled', (9, 8)],
                                                ['nfsv4_64bit_identifiers_enabled', (9, 8)], ['nfsv4_lease_seconds', (9, 13, 1)],
                                                ['nfsv4_grace_seconds', (9, 13, 1)], ['nfsv40_acl_preserv', (9, 12, 0)],
-                                               ['nfsv42_xattrs_enabled', (9, 11, 0)], ['nfsv42_seclabel_enabled', (9, 11, 0)],]
+                                               ['nfsv42_xattrs_enabled', (9, 11, 0)], ['nfsv42_seclabel_enabled', (9, 11, 0)],
+                                               ['credential_cache', (9, 11, 0)],]
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         if 'nfsv4.1' in self.parameters:
             self.module.warn('Error: "nfsv4.1" option conflicts with Ansible naming conventions - please use "nfsv41".')
@@ -501,7 +528,7 @@ class NetAppONTAPNFS:
         self.unsupported_zapi_properties = ['root', 'windows', 'security', 'nfsv3_hide_snapdir', 'nfsv3_mount_root_only', 'nfsv3_ejukebox_enabled',
                                             'nfsv3_connection_drop', 'nfsv3_64bit_identifiers_enabled', 'nfsv4_64bit_identifiers_enabled',
                                             'nfsv42_xattrs_enabled', 'nfsv42_seclabel_enabled', 'nfsv40_acl_preserve',
-                                            'nfsv4_lease_seconds', 'nfsv4_grace_seconds']
+                                            'nfsv4_lease_seconds', 'nfsv4_grace_seconds', 'credential_cache']
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
         if not self.use_rest:
             if not netapp_utils.has_netapp_lib():
@@ -652,7 +679,8 @@ class NetAppONTAPNFS:
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 0):
             params['fields'] += 'root.*,security.*,windows.*,transport.tcp_max_transfer_size,protocol.v3_features.mount_root_only,'\
                                 'protocol.v3_features.ejukebox_enabled,protocol.v3_features.connection_drop,protocol.v42_features.xattrs_enabled,'\
-                                'protocol.v42_features.seclabel_enabled,protocol.v3_features.fsid_change,'
+                                'protocol.v42_features.seclabel_enabled,protocol.v3_features.fsid_change,credential_cache.positive_ttl,'\
+                                'credential_cache.transient_error_ttl,credential_cache.negative_ttl,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 0):
             params['fields'] += 'protocol.v40_features.acl_preserve,'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 13, 1):
@@ -707,6 +735,7 @@ class NetAppONTAPNFS:
             'nfsv4_grace_seconds': self.na_helper.safe_get(record, ['protocol', 'v4_grace_seconds']),
             'nfsv3_fsid_change': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v3_features', 'fsid_change'])),
             'nfsv4_fsid_change': self.convert_from_bool(self.na_helper.safe_get(record, ['protocol', 'v4_fsid_change'])),
+            'credential_cache': self.na_helper.safe_get(record, ['credential_cache']),
         }
 
     def create_nfs_service_rest(self):
@@ -810,6 +839,8 @@ class NetAppONTAPNFS:
             body['protocol.v3_features.fsid_change'] = self.convert_to_bool(params['nfsv3_fsid_change'])
         if params.get('nfsv4_fsid_change') is not None:
             body['protocol.v4_fsid_change'] = self.convert_to_bool(params['nfsv4_fsid_change'])
+        if params.get('credential_cache') is not None:
+            body['credential_cache'] = params['credential_cache']
         return body
 
     def convert_to_bool(self, value):

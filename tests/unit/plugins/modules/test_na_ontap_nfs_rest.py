@@ -1,4 +1,4 @@
-# (c) 2025, NetApp, Inc
+# (c) 2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -91,6 +91,11 @@ SRR = rest_responses({
                 "default_user": "test_user"
             },
             "tcp_max_xfer_size": "16384",
+            "credential_cache": {
+                "positive_ttl": 60480,
+                "transient_error_ttl": 300000,
+                "negative_ttl": 6048000
+            }
         }
     ]}, None),
     'modified_record': (200, {"records": [
@@ -122,7 +127,12 @@ SRR = rest_responses({
                 "v4_lease_seconds": 60,
                 "v41_features": {
                     "referrals_enabled": True
-                }
+                },
+            },
+            "credential_cache": {
+                "positive_ttl": 604800000,
+                "transient_error_ttl": 300000,
+                "negative_ttl": 604800000
             },
         }
     ]}, None),
@@ -400,7 +410,12 @@ def test_modify_nfs_idempotency():
         "nfsv3_fsid_change": "enabled",
         "nfsv4_fsid_change": "enabled",
         "nfsv40_referrals": "enabled",
-        "nfsv41_referrals": "enabled"
+        "nfsv41_referrals": "enabled",
+        "credential_cache": {
+            "positive_ttl": 604800000,
+            "transient_error_ttl": 300000,
+            "negative_ttl": 604800000
+        }
     }
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 

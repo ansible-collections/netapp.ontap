@@ -13,6 +13,10 @@
 
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
+  - na_ontap_volume - Fixed issue with volume rename.
+
+### Minor Changes
+  - na_ontap_nfs - new option `credential_cache` added in REST.
 
 ## 23.3.0
 

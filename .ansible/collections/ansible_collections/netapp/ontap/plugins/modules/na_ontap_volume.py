@@ -3113,6 +3113,26 @@ class NetAppOntapVolume:
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         if cd_action == 'delete' or self.parameters['state'] == 'absent':
             return ['delete'] if cd_action == 'delete' else [], current, modify
+
+        # Handling rename logic first before create
+        if self.parameters.get('from_name'):
+            if current:
+                # Destination volume already exists condition
+                self.module.warn("Destination volume '%s' already exists" % self.parameters['name'])
+                # Check if from_name still exists - if it does, throw an error
+                from_volume = self.get_volume(self.parameters['from_name'])
+                if from_volume:
+                    self.module.warn("Source volume '%s' still exists - this is an error!" % self.parameters['from_name'])
+                    self.module.fail_json(msg="Error: destination volume '%s' already exists and source volume '%s' still exists. "
+                                          "Cannot rename when destination already exists." % (self.parameters['name'], self.parameters['from_name']))
+                else:
+                    # from_name doesn't exist, destination exists indicates rename already completed
+                    # This is the idempotency case
+                    if not self.module.check_mode:
+                        self.module.warn("Idempotency check: Volume '%s' already exists and '%s' no longer exists. Rename already completed."
+                                         % (self.parameters['name'], self.parameters['from_name']))
+                    return [], current, modify
+
         if cd_action == 'create':
             # report an error if the vserver does not exist (it can be also be a cluster or node vserver with REST)
             if self.use_rest:

@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_nfs - new option `credential_cache` added in REST.

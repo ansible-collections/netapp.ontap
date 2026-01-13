@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_volume - Fixed issue with volume rename.

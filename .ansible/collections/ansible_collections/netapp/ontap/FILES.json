@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "65dfb508866b42e123efb09ae87a8533f3325379c9fefe423e468b462bfc77d9",
+   "chksum_sha256": "772a8b6c3c6c345b38854085094e84c3aba970c6dc143d794d53c4d3065c2ef3",
    "format": 1
   },
   {
@@ -4376,6 +4376,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-7947.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "a9588cf1170ac2111b3f1d51064800f6205562ed169fa3ea951bb6320540ce1a",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-7951.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -4478,6 +4485,13 @@
    "ftype": "file",
    "chksum_type": "sha256",
    "chksum_sha256": "b5e5493a8cdcdaea63653e3be57d68257ccfc55b4d3951a7c8b82c99fcb73b22",
+   "format": 1
+  },
+  {
+   "name": "changelogs/fragments/DEVOPS-8114.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "66f63ef639dcdb4726466aa857a3d93d8d1983d1e5dded64d9f20cbcfd4ac147",
    "format": 1
   },
   {
@@ -5562,7 +5576,7 @@
    "name": "plugins/modules/na_ontap_nfs.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "df804fbda2c2b2a513f899d977555cc9913c48f71cebf80d2db6b33f3cbeb270",
+   "chksum_sha256": "5a7b4fe6fb26ef2c93670058fba9b63a91aa643069ef555661207824dc151a02",
    "format": 1
   },
   {
@@ -5968,7 +5982,7 @@
    "name": "plugins/modules/na_ontap_volume.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "14567d0bb49015e1e866b0e3980b52532695730b30847c9c947416de0cc7b22d",
+   "chksum_sha256": "f3f76b66f480df9fd9608a69804a5b21122cf9dd9671ec3a7da28e27e64960ca",
    "format": 1
   },
   {
@@ -7823,7 +7837,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_nfs_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "1b5829c34f7f509e4fd7d7153222b682ba3432f7ad120d0c69e5d6b64f72db5e",
+   "chksum_sha256": "f628ed7f9a15b27cca12b8fa9b8b4f4876950f3abca83a24b66e4f9323d8fa5a",
    "format": 1
   },
   {
