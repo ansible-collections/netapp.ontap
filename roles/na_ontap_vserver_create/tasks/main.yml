@@ -58,7 +58,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ fcp }}"
-  when: fcp != None
+  when: fcp is defined and (fcp | length) > 0
 - name: Create IP Interface
   netapp.ontap.na_ontap_interface:
     state: present
