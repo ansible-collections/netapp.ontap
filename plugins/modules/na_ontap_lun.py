@@ -81,6 +81,7 @@ options:
     description:
       - Forcibly reduce the size. This is required for reducing the size of the LUN to avoid accidentally
         reducing the LUN size.
+      - Not supported with REST.
     type: bool
 
   force_remove:
@@ -95,6 +96,7 @@ options:
       - If "true", override checks that prevent a LUN from being destroyed while it is fenced.
       - If "false", attempting to destroy a fenced LUN will fail.
       - The default if not specified is "false". This field is available in Data ONTAP 8.2 and later.
+      - Not supported with REST.
     type: bool
 
   vserver:

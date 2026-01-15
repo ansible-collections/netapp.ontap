@@ -12,16 +12,13 @@
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
+  - na_ontap_nfs - new option `credential_cache` added in REST.
+  - na_ontap_ldap_client - Added options `group_dn` and `user_dn` in REST.
+  - na_ontap_lun - updated documentation for unsupported REST parameters.
 
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
   - na_ontap_volume - Fixed issue with volume rename.
-
-### Minor Changes
-  - na_ontap_nfs - new option `credential_cache` added in REST.
-
-### Minor Changes
-  - na_ontap_ldap_client - Added options `group_dn` and `user_dn` in REST.
 
 ## 23.3.0
 
