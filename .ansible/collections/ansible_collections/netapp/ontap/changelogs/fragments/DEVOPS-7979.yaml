@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_lun - Updated module with alias `volume_name` for `flexvol_name`.
