@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_snapmirror_policy - updated examples for creating and modifying snapmirror policy.

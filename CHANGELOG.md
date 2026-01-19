@@ -19,6 +19,7 @@
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
   - na_ontap_volume - Fixed issue with volume rename.
+  - na_ontap_snapmirror_policy - updated examples for creating and modifying snapmirror policy.
 
 ## 23.3.0
 

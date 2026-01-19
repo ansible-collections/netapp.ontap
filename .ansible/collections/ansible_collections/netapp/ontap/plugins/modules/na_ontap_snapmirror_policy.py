@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2025, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -198,7 +198,8 @@ EXAMPLES = """
     state: present
     vserver: "SVM1"
     policy_name: "ansible_policy"
-    policy_type: "mirror_vault"
+    policy_type: "async_mirror"
+    copy_latest_source_snapshot: true
     comment: "created by ansible"
     transfer_schedule: "daily"      # when using REST
     hostname: "{{ netapp_hostname }}"
@@ -213,7 +214,8 @@ EXAMPLES = """
     vserver: "SVM1"
     policy_name: "ansible_policy"
     policy_type: "async_mirror"
-    transfer_priority: "low"
+    copy_latest_source_snapshot: true
+    transfer_priority: "low"        # when using ZAPI
     transfer_schedule: "weekly"     # when using REST
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -225,8 +227,8 @@ EXAMPLES = """
   netapp.ontap.na_ontap_snapmirror_policy:
     state: present
     vserver: "SVM1"
-    policy_name: "ansible_policy"
-    policy_type: "async_mirror"
+    policy_name: "snapmirror_policy"
+    policy_type: "async"
     snapmirror_label: ['daily', 'weekly', 'monthly']
     keep: [7, 5, 12]
     hostname: "{{ netapp_hostname }}"
@@ -235,11 +237,11 @@ EXAMPLES = """
     https: true
     validate_certs: false
 
-- name: Create SnapMirror policy with rules and schedules (no schedule for daily rule)
+- name: Modify SnapMirror policy with rules and schedules (no schedule for daily rule)
   netapp.ontap.na_ontap_snapmirror_policy:
     state: present
     vserver: "SVM1"
-    policy_name: "ansible_policy"
+    policy_name: "snapmirror_policy"
     policy_type: "mirror_vault"
     snapmirror_label: ['daily', 'weekly', 'monthly']
     keep: [7, 5, 12]
@@ -255,7 +257,7 @@ EXAMPLES = """
   netapp.ontap.na_ontap_snapmirror_policy:
     state: present
     vserver: "SVM1"
-    policy_name: "ansible_policy"
+    policy_name: "snapmirror_policy"
     policy_type: "mirror_vault"
     snapmirror_label: ['daily', 'weekly', 'monthly']
     keep: [7, 5, 12]
@@ -271,7 +273,7 @@ EXAMPLES = """
   netapp.ontap.na_ontap_snapmirror_policy:
     state: present
     vserver: "SVM1"
-    policy_name: "ansible_policy"
+    policy_name: "snapmirror_policy"
     policy_type: "mirror_vault"
     snapmirror_label: []
     hostname: "{{ netapp_hostname }}"
@@ -284,7 +286,6 @@ EXAMPLES = """
   netapp.ontap.na_ontap_snapmirror_policy:
     state: absent
     vserver: "SVM1"
-    policy_type: "async_mirror"
     policy_name: "ansible_policy"
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
