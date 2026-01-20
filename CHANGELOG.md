@@ -21,6 +21,7 @@
   - na_ontap_volume - Fixed issue with volume rename.
   - na_ontap_lun - Updated module with alias `volume_name` for `flexvol_name`.
   - na_ontap_snapmirror_policy - updated examples for creating and modifying snapmirror policy.
+  - na_ontap_qtree - Updated module with alias `volume_name` for `flexvol_name`.
 
 ## 23.3.0
 

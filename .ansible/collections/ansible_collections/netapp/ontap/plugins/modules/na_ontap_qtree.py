@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -51,6 +51,7 @@ options:
       - The name of the FlexVol the qtree should exist on.
     required: true
     type: str
+    aliases: ['volume_name']
 
   vserver:
     description:
@@ -159,7 +160,7 @@ EXAMPLES = """
     state: present
     from_name: ansibleQTree
     name: ansibleQTree_rename
-    flexvol_name: ansibleVolume
+    volume_name: ansibleVolume
     vserver: ansibleVServer
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
@@ -221,7 +222,7 @@ class NetAppOntapQTree:
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
             from_name=dict(required=False, type='str'),
-            flexvol_name=dict(required=True, type='str'),
+            flexvol_name=dict(required=True, type='str', aliases=['volume_name']),
             vserver=dict(required=True, type='str'),
             export_policy=dict(required=False, type='str'),
             security_style=dict(required=False, type='str', choices=['unix', 'ntfs', 'mixed']),
