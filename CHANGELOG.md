@@ -9,6 +9,7 @@
   - na_ontap_snapmirror - AWS Lambda support added to the module.
   - na_ontap_cluster_peer - AWS Lambda support added to the module.
   - na_ontap_vserver_peer - AWS Lambda support added to the module.
+  - na_ontap_vserver_autosize - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.

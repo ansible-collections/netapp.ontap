@@ -1,0 +1,2 @@
+major_changes:
+  - na_ontap_volume_autosize - AWS Lambda support added to the module.
