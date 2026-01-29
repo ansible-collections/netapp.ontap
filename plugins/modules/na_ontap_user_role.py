@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -151,6 +151,32 @@ EXAMPLES = """
     hostname: "{{ netapp_hostname }}"
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
+
+- name: Create user role REST in ONTAP 9.11.1+ with query
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    privileges:
+      - path: job schedule interval
+        access: all
+        query: "-days <1 -hours >12"
+    vserver: ansibleSVM
+    name: carchi-test-role
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+
+- name: Modify user role REST in ONTAP 9.11.1+ with query
+  netapp.ontap.na_ontap_user_role:
+    state: present
+    privileges:
+      - path: job schedule interval
+        access: readonly
+        query: "-days <1 -hours >8"
+    vserver: ansibleSVM
+    name: carchi-test-role
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
 """
 
 RETURN = """
@@ -163,6 +189,7 @@ from ansible.module_utils._text import to_native
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic
+from operator import itemgetter
 
 
 class NetAppOntapUserRole:
@@ -196,11 +223,24 @@ class NetAppOntapUserRole:
         self.role_modified = None
         self.na_helper = NetAppModule()
         self.parameters = self.na_helper.set_parameters(self.module.params)
-        if self.parameters.get('privileges') is not None:
+        if self.parameters.get('privileges') is not None and self.parameters['state'] == 'present':
             self.parameters['privileges'] = self.na_helper.filter_out_none_entries(self.parameters['privileges'])
+            for privilege in self.parameters['privileges']:
+                path = privilege.get('path', '')
+                if path == 'DEFAULT' or path.startswith('/api/'):
+                    privilege.pop('query', None)
+                    path_type = 'DEFAULT path' if path == 'DEFAULT' else 'API endpoint'
+                    self.module.warn('Warning: Query parameter is not supported for %s %s, removing it from the request.' % (path_type, path))
+                else:
+                    # Normalize query: empty string to None, ensure query key exists
+                    privilege['query'] = None if privilege.get('query') in ['', None] or 'query' not in privilege else privilege['query']
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
-        unsupported_rest_properties = ['command_directory_name', 'access_level', 'query']
-        partially_supported_rest_properties = [['privileges.query', (9, 11, 1)]]
+        unsupported_rest_properties = ['command_directory_name', 'access_level']
+        # Check if any privilege uses query feature that requires 9.11.1+
+        has_query = any(priv.get('query') and priv['query'] != '' for priv in self.parameters.get('privileges', []))
+
+        partially_supported_rest_properties = [['privileges.query', (9, 11, 1)]] if has_query else []
+
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
         unsupported_zapi_properties = ['privileges']
         if self.use_rest and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
@@ -215,24 +255,17 @@ class NetAppOntapUserRole:
                 self.module.fail_json(msg="Error: command_directory_name is a required field with ZAPI.")
             if not self.parameters.get('access_level'):
                 self.parameters['access_level'] = 'all'
-            for unsupported_zapi_property in unsupported_zapi_properties:
-                if self.parameters.get(unsupported_zapi_property) is not None:
-                    msg = "Error: %s option is not supported with ZAPI. It can only be used with REST." % unsupported_zapi_property
-                    msg += '  use_rest: %s.' % self.parameters.get('use_rest')
-                    self.module.fail_json(msg=msg)
+            for unsupported_prop in unsupported_zapi_properties:
+                if self.parameters.get(unsupported_prop) is not None:
+                    self.module.fail_json(msg="Error: %s option is not supported with ZAPI. It can only be used with REST. use_rest: %s." %
+                                          (unsupported_prop, self.parameters.get('use_rest')))
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
         elif not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 11, 1) and self.parameters['state'] == 'present':
             self.validate_rest_path()
 
     def validate_rest_path(self):
-        """
-        REST does not support command or command directory path in ONTAP < 9.11.1 versions.
-        """
-        invalid_uri = []
-        for privilege in self.parameters.get('privileges', []):
-            # an api path have '/' in it, validate it present for ONTAP earlier versions.
-            if '/' not in privilege['path']:
-                invalid_uri.append(privilege['path'])
+        """REST does not support command or command directory path in ONTAP < 9.11.1 versions."""
+        invalid_uri = [priv['path'] for priv in self.parameters.get('privileges', []) if '/' not in priv['path']]
         if invalid_uri:
             self.module.fail_json(msg="Error: Invalid URI %s, please set valid REST API path" % invalid_uri)
 
@@ -358,12 +391,18 @@ class NetAppOntapUserRole:
     def format_record(self, record):
         if not record:
             return None
-        for each in self.na_helper.safe_get(record, ['privileges']):
-            if each['path'] == 'DEFAULT':
-                record['privileges'].remove(each)
+
         for each in self.na_helper.safe_get(record, ['privileges']):
             if each.get('_links'):
                 each.pop('_links')
+            # DEFAULT privilege doesn't support query, so removing it
+            if each.get('path') == 'DEFAULT':
+                each.pop('query', None)
+            else:
+                # Only normalize ONTAP's '-' to None, don't add query if not present
+                if each.get('query') in ['-', '']:
+                    each['query'] = None
+
         return_record = {
             'name': self.na_helper.safe_get(record, ['name']),
             'privileges': self.na_helper.safe_get(record, ['privileges']),
@@ -402,19 +441,26 @@ class NetAppOntapUserRole:
             if path not in privileges:
                 self.create_role_privilege(privilege)
                 self.role_modified = True
-            elif privilege.get('query'):
-                if not privileges[path].get('query'):
+            else:
+                # Check query changes (only for non-DEFAULT paths)
+                if privilege['path'] != 'DEFAULT':
+                    current_query = privileges[path].get('query')
+                    desired_query = privilege.get('query')
+
+                    # Normalize None, empty string, and '-' as no query
+                    current_query = None if current_query in [None, '', '-'] else current_query
+                    desired_query = None if desired_query in [None, '', '-'] else desired_query
+
+                    needs_modify = current_query != desired_query
+
+                # Check access changes
+                if privilege.get('access') and privilege['access'] != privileges[path]['access']:
+                    needs_modify = True
+
+                if needs_modify:
                     self.modify_role_privilege(privilege, path)
                     self.role_modified = True
-                elif privilege['query'] != privileges[path]['query']:
-                    self.modify_role_privilege(privilege, path)
-                    self.role_modified = True
-            elif privilege.get('access') and privilege['access'] != privileges[path]['access']:
-                self.modify_role_privilege(privilege, path)
-                self.role_modified = True
         for privilege_path in privileges:
-            if privilege_path == 'DEFAULT':
-                continue
             if privilege_path not in modify_privilege:
                 self.delete_role_privilege(privilege_path)
                 self.role_modified = True
@@ -430,12 +476,18 @@ class NetAppOntapUserRole:
     def format_privileges(self, records):
         return_dict = {}
         for record in records:
-            return_dict[record['path']] = record
+            # Normalize ONTAP's '-' query to None for consistency
+            norm_record = dict(record)
+            if norm_record.get('query') == '-':
+                norm_record['query'] = None
+            return_dict[norm_record['path']] = norm_record
         return return_dict
 
     def create_role_privilege(self, privilege):
         api = 'security/roles/%s/%s/privileges' % (self.owner_uuid, self.parameters['name'])
         body = {'path': privilege['path'], 'access': privilege['access']}
+        if privilege.get('query') is not None:
+            body['query'] = privilege['query']
         dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error creating role privilege %s: %s' % (privilege['path'], to_native(error)),
@@ -447,8 +499,11 @@ class NetAppOntapUserRole:
         body = {}
         if privilege.get('access'):
             body['access'] = privilege['access']
-        if privilege.get('query'):
-            body['query'] = privilege['query']
+        # DEFAULT privilege and API endpoints don't support query parameter
+        if privilege['path'] != 'DEFAULT' and not privilege['path'].startswith('/api/'):
+            # Always include query parameter for modification to ensure proper update
+            query_value = privilege.get('query')
+            body['query'] = "" if query_value in [None, '', '-'] else query_value
         dummy, error = rest_generic.patch_async(self.rest_api, api, path, body)
         if error:
             self.module.fail_json(msg='Error modifying privileges for path %s: %s' % (path, to_native(error)),
@@ -484,13 +539,24 @@ class NetAppOntapUserRole:
     def apply(self):
         current = self.get_role()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-        # if desired state specify empty quote query and current query is None, set desired query to None.
-        # otherwise na_helper.get_modified_attributes will detect a change.
-        # for REST, query is part of a tuple in privileges list.
-        if not self.use_rest and self.parameters.get('query') == '' and current is not None and current['query'] is None:
-            self.parameters['query'] = None
 
-        modify = None if cd_action else self.na_helper.get_modified_attributes(current, self.parameters)
+        if self.parameters.get('state') == 'present':
+            # if desired state specify empty quote query and current query is None, set desired query to None.
+            # otherwise na_helper.get_modified_attributes will detect a change.
+            # for REST, query is part of a tuple in privileges list.
+            if not self.use_rest and self.parameters.get('query') == '' and current is not None and current['query'] is None:
+                self.parameters['query'] = None
+
+            # For REST, sort privileges lists before comparison to avoid false positives from different ordering
+            if self.use_rest and current and 'privileges' in current and 'privileges' in self.parameters:
+                # Sort both privilege lists by path for consistent comparison
+                current_sorted = dict(current, privileges=sorted(current['privileges'], key=itemgetter('path')))
+                params_sorted = dict(self.parameters, privileges=sorted(self.parameters['privileges'], key=itemgetter('path')))
+                modify = None if cd_action else self.na_helper.get_modified_attributes(current_sorted, params_sorted)
+            else:
+                modify = None if cd_action else self.na_helper.get_modified_attributes(current, self.parameters)
+        else:
+            modify = None if cd_action else self.na_helper.get_modified_attributes(current, self.parameters)
         if self.na_helper.changed and not self.module.check_mode:
             if cd_action == 'create':
                 self.create_role()

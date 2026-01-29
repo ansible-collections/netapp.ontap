@@ -26,6 +26,7 @@
   - na_ontap_qtree - Updated module with alias `volume_name` for `flexvol_name`.
   - na_ontap_service_processor_network - fixed issue with interface state not being applied correctly,
     resolved ipv6 comparison issue and idempotency issue with ZAPI abd REST.
+  - na_ontap_user_role - Removed special handling of `DEFAULT` path and normalized empty query in privileges to None for consistency.
 
 ## 23.3.0
 

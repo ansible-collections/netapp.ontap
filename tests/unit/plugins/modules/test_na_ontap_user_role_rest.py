@@ -1,4 +1,4 @@
-# (c) 2022-2024, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -188,6 +188,19 @@ SRR = rest_responses({
         "privileges": [{"access": "readonly", "path": "vserver show"}],
         "name": "admin",
     }, None),
+    'user_role_volume_create_only': (200, {
+        "owner": {
+            "name": "svm1",
+            "uuid": "02c9e252-41be-11e9-81d5-00a0986138f7"
+        },
+        "privileges": [
+            {
+                "access": "readonly",
+                "path": "volume create"
+            }
+        ],
+        "name": "admin",
+    }, None),
     'user_role_volume_privileges': (200, {
         "records": [
             {"access": "readonly", "path": "volume create"},
@@ -300,7 +313,7 @@ def test_privileges_query_in_9_10():
 
 def test_get_user_role_none():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records'])
     ])
     set_module_args(DEFAULT_ARGS)
@@ -310,7 +323,7 @@ def test_get_user_role_none():
 
 def test_get_user_role_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['generic_error'])
     ])
     my_module_object = create_module(my_module, DEFAULT_ARGS)
@@ -320,7 +333,7 @@ def test_get_user_role_error():
 
 def test_get_user_role():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_10'])
     ])
     set_module_args(DEFAULT_ARGS)
@@ -340,7 +353,7 @@ def test_get_user_role_9_11():
 
 def test_create_user_role_9_10_new_format():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
         ('POST', 'security/roles', SRR['empty_good']),
         ('GET', 'security/roles', SRR['user_role_9_10'])
@@ -373,7 +386,7 @@ def test_create_user_role_9_11_new_format_query():
 
 def test_create_user_role_9_10_new_format_path_only():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
         ('POST', 'security/roles', SRR['empty_good']),
         ('GET', 'security/roles', SRR['user_role_9_11'])
@@ -385,7 +398,7 @@ def test_create_user_role_9_10_new_format_path_only():
 
 def test_create_user_role_9_10_new_format_2_path_only():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['empty_records']),
         ('POST', 'security/roles', SRR['empty_good']),
         ('GET', 'security/roles', SRR['user_role_9_10_two_paths'])
@@ -396,7 +409,7 @@ def test_create_user_role_9_10_new_format_2_path_only():
 
 def test_create_user_role_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('POST', 'security/roles', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -421,7 +434,7 @@ def test_delete_user_role():
 
 def test_delete_user_role_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -435,7 +448,7 @@ def test_delete_user_role_error():
 
 def test_modify_user_role_9_10():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_10']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),
@@ -460,7 +473,7 @@ def test_modify_user_role_command_9_10():
 def test_modify_remove_user_role_9_10():
     # This test will modify cluster/job, and delete storage/volumes
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_10_two_paths']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges_two_paths']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),
@@ -485,7 +498,7 @@ def test_modify_user_role_9_11():
 
 def test_modify_user_role_create_new_privilege():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles', SRR['user_role_9_10']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['empty_good']),  # First path
@@ -512,7 +525,7 @@ def test_modify_user_role_create_new_privilege_9_11():
 def test_modify_remove_user_role_error():
     # This test will modify cluster/job, and delete storage/volumes
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('DELETE', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fstorage%2Fvolumes', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -526,7 +539,7 @@ def test_modify_remove_user_role_error():
 
 def test_get_user_role_privileges_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -540,7 +553,7 @@ def test_get_user_role_privileges_error():
 
 def test_create_user_role_privileges_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('POST', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['generic_error'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -554,7 +567,7 @@ def test_create_user_role_privileges_error():
 
 def test_modify_user_role_error():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
         ('GET', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges', SRR['user_role_privileges']),
         ('PATCH', 'security/roles/02c9e252-41be-11e9-81d5-00a0986138f7/admin/privileges/%2Fapi%2Fcluster%2Fjobs', SRR['generic_error'])
     ])
