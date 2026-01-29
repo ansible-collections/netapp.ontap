@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -98,6 +98,31 @@ options:
       - Only supported with REST.
     type: bool
     default: true
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''
 
 EXAMPLES = """
@@ -175,6 +200,8 @@ class NetAppONTAPVolumeClone:
             wait_for_completion=dict(required=False, type='bool', default=True),
         ))
 
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
@@ -185,7 +212,8 @@ class NetAppONTAPVolumeClone:
                 ('junction_path', 'parent_vserver'),
                 ('uid', 'parent_vserver'),
                 ('gid', 'parent_vserver')
-            ]
+            ],
+            required_if=[['use_lambda', True, ('lambda_config',)]],
         )
 
         self.uuid = None    # UUID if the FlexClone if it exists, or after creation
@@ -195,6 +223,8 @@ class NetAppONTAPVolumeClone:
         unsupported_rest_properties = ['space_reserve']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if self.parameters.get('parent_vserver'):

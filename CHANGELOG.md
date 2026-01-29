@@ -11,6 +11,7 @@
   - na_ontap_vserver_peer - AWS Lambda support added to the module.
   - na_ontap_volume_autosize - AWS Lambda support added to the module.
   - na_ontap_volume_efficiency- AWS Lambda support added to the module.
+  - na_ontap_volume_clone - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
