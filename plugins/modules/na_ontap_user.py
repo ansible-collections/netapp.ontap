@@ -68,7 +68,7 @@ options:
       application:
         description: name of the application.
         type: str
-        choices: ['console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
+        choices: ['amqp', 'console', 'http','ontapi','rsh','snmp','service_processor','service-processor','sp','ssh','telnet']
         required: true
       authentication_methods:
         description: list of authentication methods for the application (see C(authentication_method)).
@@ -286,12 +286,12 @@ class NetAppOntapUser:
             name=dict(required=True, type='str'),
 
             application_strs=dict(type='list', elements='str', aliases=['application', 'applications'],
-                                  choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
+                                  choices=['amqp', 'console', 'http', 'ontapi', 'rsh', 'snmp',
                                            'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
             application_dicts=dict(type='list', elements='dict',
                                    options=dict(
                                        application=dict(required=True, type='str',
-                                                        choices=['console', 'http', 'ontapi', 'rsh', 'snmp',
+                                                        choices=['amqp', 'console', 'http', 'ontapi', 'rsh', 'snmp',
                                                                  'sp', 'service-processor', 'service_processor', 'ssh', 'telnet'],),
                                        authentication_methods=dict(required=True, type='list', elements='str',
                                                                    choices=['community', 'password', 'publickey', 'domain', 'nsswitch', 'usm', 'cert', 'saml']),
