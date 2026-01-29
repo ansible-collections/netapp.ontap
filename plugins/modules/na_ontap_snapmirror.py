@@ -336,6 +336,21 @@ options:
       - Only supported with REST.
     type: bool
     version_added: 23.1.0
+  time_out:
+    version_added: 23.4.0
+    description:
+      - With C(wait_for_completion) set, specifies time to wait for snapmirror operation in seconds.
+      - Only supported with REST.
+    type: int
+    default: 30
+  wait_for_completion:
+    version_added: 23.4.0
+    description:
+      - Set this parameter to 'true' for synchronous execution.
+      - For asynchronous, execution exits as soon as the request is sent, and the operation continues in the background.
+      - Only supported with REST.
+    type: bool
+    default: true
 
   lambda_config:
     description:
@@ -384,6 +399,8 @@ EXAMPLES = """
     policy: MirrorAllSnapshots
     max_transfer_rate: 1000
     initialize: false
+    wait_for_completion: true
+    time_out: 90
     hostname: "{{ destination_cluster_hostname }}"
     username: "{{ destination_cluster_username }}"
     password: "{{ destination_cluster_password }}"
@@ -627,6 +644,8 @@ class NetAppONTAPSnapmirror(object):
             clean_up_failure=dict(required=False, type='bool', default=False),
             validate_source_path=dict(required=False, type='bool', default=True),
             quick_resync=dict(required=False, type='bool'),
+            time_out=dict(required=False, type='int', default=30),
+            wait_for_completion=dict(required=False, type='bool', default=True),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         # Add Lambda support to peer_options
@@ -724,6 +743,8 @@ class NetAppONTAPSnapmirror(object):
         return rest_api, use_rest
 
     def setup_zapi(self):
+        if 'wait_for_completion' in self.parameters or 'time_out' in self.parameters:
+            self.module.warn("'wait_for_completion' and 'time_out' parameters are only supported when using REST.")
         if self.parameters.get('identity_preservation'):
             self.module.fail_json(msg="Error: The option identity_preservation is supported only with REST.")
         if not netapp_utils.has_netapp_lib():
@@ -1426,7 +1447,8 @@ class NetAppONTAPSnapmirror(object):
         # if the source_hostname is unknown, do not run snapmirror_restore
         body = {'destination.path': self.parameters['destination_path'], 'source.path': self.parameters['source_path'], 'restore': 'true'}
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=120)
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=timeout, job_timeout=timeout)
         if error:
             self.module.fail_json(msg='Error restoring SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
         relationship_uuid = self.get_relationship_uuid()
@@ -1436,7 +1458,8 @@ class NetAppONTAPSnapmirror(object):
 
         body = {'source_snapshot': self.parameters['source_snapshot']} if self.parameters.get('source_snapshot') else {}
         api = 'snapmirror/relationships/%s/transfers' % relationship_uuid
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=60, job_timeout=120)
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=timeout, job_timeout=timeout)
         if error:
             self.module.fail_json(msg='Error restoring SnapMirror Transfer: %s' % to_native(error), exception=traceback.format_exc())
 
@@ -1477,7 +1500,9 @@ class NetAppONTAPSnapmirror(object):
             self.na_helper.changed = False
             return
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body)
+        query = {'return_timeout': 0} if not self.parameters['wait_for_completion'] else None
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
+        dummy, error = rest_generic.patch_async(self.rest_api, api, uuid, body, query, job_timeout=timeout)
         if error:
             msg = 'Error patching SnapMirror: %s: %s' % (body, to_native(error))
             if before_delete:
@@ -1494,7 +1519,9 @@ class NetAppONTAPSnapmirror(object):
             self.module.fail_json(msg="Error in updating SnapMirror relationship: unable to get UUID for the SnapMirror relationship.")
         api = 'snapmirror/relationships/%s/transfers' % uuid
         body = {}
-        dummy, error = rest_generic.post_async(self.rest_api, api, body)
+        query = {'return_timeout': 0} if not self.parameters['wait_for_completion'] else None
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, query, job_timeout=timeout)
         if error:
             self.module.fail_json(msg='Error updating SnapMirror relationship: %s:' % to_native(error), exception=traceback.format_exc())
 
@@ -1531,10 +1558,11 @@ class NetAppONTAPSnapmirror(object):
         if uuid is None:
             self.module.fail_json(msg='Error in deleting SnapMirror: %s, unable to get UUID for the SnapMirror relationship.' % uuid)
         api = 'snapmirror/relationships'
-        query = dict(return_timeout=120)
+        query = {'return_timeout': 0} if not self.parameters['wait_for_completion'] else None
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
         retry = 3
         while retry > 0:
-            dummy, error = rest_generic.delete_async(self.rest_api, api, uuid, query)
+            dummy, error = rest_generic.delete_async(self.rest_api, api, uuid, query, job_timeout=timeout)
             if error and 'Timeout error: Process still running' in error:
                 time.sleep(120)
                 retry -= 1
@@ -1552,7 +1580,9 @@ class NetAppONTAPSnapmirror(object):
         """
         body, initialized = self.get_create_body()
         api = 'snapmirror/relationships'
-        dummy, error = rest_generic.post_async(self.rest_api, api, body, timeout=120)
+        query = {'return_timeout': 0} if not self.parameters['wait_for_completion'] else None
+        timeout = 30 if not self.parameters['wait_for_completion'] else self.parameters['time_out']
+        dummy, error = rest_generic.post_async(self.rest_api, api, body, query, timeout=timeout, job_timeout=timeout)
         if error:
             self.module.fail_json(msg='Error creating SnapMirror: %s' % to_native(error), exception=traceback.format_exc())
         if self.parameters['initialize']:

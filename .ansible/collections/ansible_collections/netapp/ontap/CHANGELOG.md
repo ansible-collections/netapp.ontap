@@ -17,6 +17,7 @@
   - na_ontap_nfs - new option `credential_cache` added in REST.
   - na_ontap_ldap_client - Added options `group_dn` and `user_dn` in REST.
   - na_ontap_lun - updated documentation for unsupported REST parameters.
+  - na_ontap_snapmirror - new options `time_out`, `wait_for_completion` added in REST.
 
 ### Bug Fixes
   - na_ontap_vserver_audit - updated documentation for `log`.
