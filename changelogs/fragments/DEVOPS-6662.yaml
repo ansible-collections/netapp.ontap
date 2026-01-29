@@ -1,0 +1,3 @@
+bugfixes:
+  - na_ontap_service_processor_network - fixed issue with interface state not being applied correctly,
+    resolved ipv6 comparison issue and idempotency issue with ZAPI abd REST.

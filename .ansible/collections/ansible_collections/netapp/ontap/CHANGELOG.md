@@ -24,6 +24,8 @@
   - na_ontap_lun - Updated module with alias `volume_name` for `flexvol_name`.
   - na_ontap_snapmirror_policy - updated examples for creating and modifying snapmirror policy.
   - na_ontap_qtree - Updated module with alias `volume_name` for `flexvol_name`.
+  - na_ontap_service_processor_network - fixed issue with interface state not being applied correctly,
+    resolved ipv6 comparison issue and idempotency issue with ZAPI abd REST.
 
 ## 23.3.0
 

@@ -191,7 +191,8 @@ SRR = rest_responses({
             'ipv4_interface': {
                 'address': '1.1.1.1',
                 'gateway': '2.2.2.2',
-                'netmask': '255.255.248.0'
+                'netmask': '255.255.248.0',
+                'enabled': True
             },
             'link_status': 'up',
             'state': 'online'
@@ -294,3 +295,15 @@ def test_error_dhcp_enable_and_set_manual_options_rest():
     error = "Error: set dhcp v4 or all of 'ip_address, gateway_ip_address, netmask'."
     args = {'dhcp': 'v4'}
     assert error in create_module(sp_module, mock_args(use_rest=True, enable=True), args, fail=True)['msg']
+
+
+@patch('time.sleep')
+def test_enable_sp_rest_ip(sleep):
+    ''' enable requires ip or dhcp in REST '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
+        ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success']),
+    ])
+    args = {'ip_address': '1.1.1.1', 'is_enabled': True, 'netmask': '255.255.255.0'}
+    assert create_and_apply(sp_module, mock_args(enable=True, use_rest=True), args)['changed']
