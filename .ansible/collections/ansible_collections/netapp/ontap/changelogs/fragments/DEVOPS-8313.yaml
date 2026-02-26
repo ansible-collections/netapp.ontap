@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_lun_map - AWS Lambda support added to the module.
+  - na_ontap_lun_map_reporting_nodes - AWS Lambda support added to the module.
+  - na_ontap_lun_copy - AWS Lambda support added to the module.
+  - na_ontap_igroup_initiator - AWS Lambda support added to the module.
+  - na_ontap_igroup - AWS Lambda support added to the module.

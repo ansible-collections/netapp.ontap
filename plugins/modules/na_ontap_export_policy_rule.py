@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -643,6 +643,8 @@ class NetAppontapExportRule:
     def create_body(self, params):
         body = self.create_body_or_query_common(params)
         # lists
+        if params.get('rule_index') is not None:
+            body['index'] = self.parameters['rule_index']
         if params.get('protocol'):
             body['protocols'] = self.parameters['protocol']
         if params.get('super_user_security'):
@@ -699,7 +701,7 @@ class NetAppontapExportRule:
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
         # if rule_index is not None, see if we need to re-index an existing rule
         # the existing rule may be indexed by from_rule_index or we can match the attributes
-        if cd_action == 'create' and self.parameters.get('rule_index'):
+        if cd_action == 'create' and self.parameters.get('rule_index') and self.parameters.get('from_rule_index') is not None:
             from_current = self.get_export_policy_rule(self.parameters.get('from_rule_index'))
             rename = self.na_helper.is_rename_action(from_current, current)
             if rename is None and self.parameters.get('from_rule_index') is not None:

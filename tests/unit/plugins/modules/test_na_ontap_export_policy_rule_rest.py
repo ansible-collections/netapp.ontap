@@ -1,4 +1,4 @@
-# (c) 2021, NetApp, Inc
+# (c) 2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -120,7 +120,6 @@ def test_rest_successful_create_rule():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
         ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
@@ -180,11 +179,9 @@ def test_rest_error_create_rule():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['generic_error']),
         # 2nd call
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['empty_records'])
     ])
     my_module_object = create_module(policy_rule, DEFAULT_ARGS, {'rule_index': 10})
@@ -222,7 +219,6 @@ def test_rest_successful_create_policy_and_rule():
     '''Test successful rest create'''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
-        ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
         ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
         ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies', SRR['empty_good']),
@@ -320,8 +316,8 @@ def test_rest_successful_rename_no_from_index():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/2', SRR['error_does_not_exist']),
-        ('GET', 'protocols/nfs/export-policies/123/rules', copy.deepcopy(SRR['get_export_policy_rules'])),
-        ('PATCH', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records'])
+        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     module_args = {
         'anonymous_user_id': '1234',

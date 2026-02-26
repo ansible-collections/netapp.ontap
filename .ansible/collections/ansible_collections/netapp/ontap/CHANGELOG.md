@@ -12,6 +12,11 @@
   - na_ontap_volume_autosize - AWS Lambda support added to the module.
   - na_ontap_volume_efficiency- AWS Lambda support added to the module.
   - na_ontap_volume_clone - AWS Lambda support added to the module.
+  - na_ontap_lun_map - AWS Lambda support added to the module.
+  - na_ontap_lun_map_reporting_nodes - AWS Lambda support added to the module.
+  - na_ontap_lun_copy - AWS Lambda support added to the module.
+  - na_ontap_igroup_initiator - AWS Lambda support added to the module.
+  - na_ontap_igroup - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
@@ -29,6 +34,8 @@
   - na_ontap_service_processor_network - fixed issue with interface state not being applied correctly,
     resolved ipv6 comparison issue and idempotency issue with ZAPI abd REST.
   - na_ontap_user_role - Removed special handling of `DEFAULT` path and normalized empty query in privileges to None for consistency.
+  - na_ontap_export_policy_rule - Fixed issue where rule_index was not being applied to create body,
+    and added logic to detect when a create action is actually a re-index of an existing rule.
 
 ## 23.3.0
 

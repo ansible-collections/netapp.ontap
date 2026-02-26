@@ -1,0 +1,3 @@
+bugfixes:
+  - na_ontap_export_policy_rule - Fixed issue where rule_index was not being applied to create body,
+    and added logic to detect when a create action is actually a re-index of an existing rule.
