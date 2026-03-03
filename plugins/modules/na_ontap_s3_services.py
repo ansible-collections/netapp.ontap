@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -80,6 +80,31 @@ options:
     description:
     - name of https certificate to use for the service
     type: str
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -169,9 +194,13 @@ class NetAppOntapS3Services:
             port=dict(type='int', default=80),
             secure_port=dict(type='int', default=443)
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ],
             supports_check_mode=True
         )
         self.svm_uuid = None
@@ -274,7 +303,7 @@ class NetAppOntapS3Services:
         if response is not None:
             users_info = []
             options = ['name', 'access_key', 'secret_key']
-            for user_info in response.get('users'):
+            for user_info in response.get('users', []):
                 info = {}
                 for option in options:
                     if user_info.get(option) is not None:

@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "63e5bdce6b14df795deca8ade5549faead44416272365a3b64e29817438338b1",
+   "chksum_sha256": "498354aeffaa70b6df5f6fad76304d2097a33a4f007da83ca11457920dac6b3b",
    "format": 1
   },
   {
@@ -4600,6 +4600,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8300.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "62429bb18e93f5c872d79aa0fe0b8fe0c58aed763902a21e83463975dc4bad05",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8313.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5828,35 +5835,35 @@
    "name": "plugins/modules/na_ontap_s3_buckets.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "ac030ca14bb049ed92cbd02870f45cc8be7b6c61266653e4fdfc2bf09cbec62d",
+   "chksum_sha256": "f49b4e455ad34664810ae3d49fbdb5add9c01ca6792f50e78f11cb43dfd3250b",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_s3_groups.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0698082d6152fd9ba20b1e6202e324dbbe506ac2c5cabb9f0077c68af29815d4",
+   "chksum_sha256": "a35f1d2c499ed7d2c5415b524251bc0656574e8af4c78f9c0e72133f89066388",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_s3_policies.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "bca2dff05f4513712d42c03ba1e12f169969fcdee6cef2ae1597352256b94274",
+   "chksum_sha256": "15d6458387ebb07f94c38abb698ffe3cefe55616ca2eea249ed4bd184dff99ac",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_s3_services.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "d3488b7681e0ed41a8170aa213dbc50063dd456fa9d6ec826e19d47bbdf90f56",
+   "chksum_sha256": "d8030946baf08ac520cdcff0938a0a25b39869efb16db3447a7f2b844c4fdff3",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_s3_users.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "a5bafc8d99528ca3fc5d80c8bd32478988be93b7a350130f268425f367b156c8",
+   "chksum_sha256": "b15c9aed2184b4154d15297d4d2d1ad6fed9869a9d4f9d4e620d42b35a411288",
    "format": 1
   },
   {

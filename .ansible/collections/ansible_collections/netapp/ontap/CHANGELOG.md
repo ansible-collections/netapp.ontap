@@ -22,6 +22,11 @@
   - na_ontap_cifs_local_group - AWS Lambda support added to the module.
   - na_ontap_cifs_local_user - AWS Lambda support added to the module.
   - na_ontap_cifs_local_user_set_password - AWS Lambda support added to the module.
+  - na_ontap_s3_buckets - AWS Lambda support added to the module.
+  - na_ontap_s3_groups - AWS Lambda support added to the module.
+  - na_ontap_s3_policies - AWS Lambda support added to the module.
+  - na_ontap_s3_services - AWS Lambda support added to the module.
+  - na_ontap_s3_users - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.

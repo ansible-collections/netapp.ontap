@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_s3_buckets - AWS Lambda support added to the module.
+  - na_ontap_s3_groups - AWS Lambda support added to the module.
+  - na_ontap_s3_policies - AWS Lambda support added to the module.
+  - na_ontap_s3_services - AWS Lambda support added to the module.
+  - na_ontap_s3_users - AWS Lambda support added to the module.
