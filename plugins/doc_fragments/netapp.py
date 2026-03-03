@@ -279,6 +279,13 @@ options:
         - This should be in the form 9.10 or 9.10.1 with each element being an integer number.
       type: str
       version_added: "21.23.0"
+  use_lambda:
+      description:
+        - Specifies if AWS Lambda proxy functionality should be used to connect to the ONTAP system.
+        - Supported only with REST.
+      type: bool
+      default: false
+      version_added: "23.4.0"
 requirements:
   - Ansible 2.9 or later - 2.12 or later is recommended.
   - Python3 - 3.9 or later is recommended.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2025, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -63,7 +63,32 @@ options:
       - Module is not idempotent when set to True
     type: bool
     default: False
-    '''
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
+'''
 
 EXAMPLES = """
 - name: Create local cifs user
@@ -130,10 +155,13 @@ class NetAppOntapCifsLocalUser:
             user_password=dict(required=False, type='str', no_log=True),
             set_password=dict(required=False, type='bool', default=False)
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[
+                ('use_lambda', True, ['lambda_config'])
+            ],
         )
         self.svm_uuid = None
         self.sid = None

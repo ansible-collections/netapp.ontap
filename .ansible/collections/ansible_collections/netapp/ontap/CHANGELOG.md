@@ -17,6 +17,11 @@
   - na_ontap_lun_copy - AWS Lambda support added to the module.
   - na_ontap_igroup_initiator - AWS Lambda support added to the module.
   - na_ontap_igroup - AWS Lambda support added to the module.
+  - na_ontap_cifs_acl - AWS Lambda support added to the module.
+  - na_ontap_cifs_local_group_member - AWS Lambda support added to the module.
+  - na_ontap_cifs_local_group - AWS Lambda support added to the module.
+  - na_ontap_cifs_local_user - AWS Lambda support added to the module.
+  - na_ontap_cifs_local_user_set_password - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.

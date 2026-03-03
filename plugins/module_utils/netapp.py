@@ -192,7 +192,8 @@ def na_ontap_rest_only_spec():
         feature_flags=dict(required=False, type='dict'),
         cert_filepath=dict(required=False, type='str'),
         key_filepath=dict(required=False, type='str', no_log=False),
-        force_ontap_version=dict(required=False, type='str')
+        force_ontap_version=dict(required=False, type='str'),
+        use_lambda=dict(required=False, type='bool', default=False)
     )
 
 

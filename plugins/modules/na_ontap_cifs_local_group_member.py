@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2025, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -42,10 +42,33 @@ options:
     required: true
     type: str
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Supports check_mode.
   - Supported with ZAPI.
   - Supported with REST starting with ONTAP 9.10.1.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
 
 EXAMPLES = """
@@ -105,10 +128,13 @@ class NetAppOntapCifsLocalGroupMember:
             group=dict(required=True, type='str'),
             member=dict(required=True, type='str')
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[
+                ('use_lambda', True, ['lambda_config'])
+            ],
         )
 
         # set up variables
@@ -125,6 +151,8 @@ class NetAppOntapCifsLocalGroupMember:
         self.sid = None
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if netapp_utils.has_netapp_lib() is False:
                 self.module.fail_json(msg="the python NetApp-Lib module is required")
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.parameters['vserver'])
@@ -269,7 +297,6 @@ class NetAppOntapCifsLocalGroupMember:
     def apply(self):
         current = self.get_cifs_local_group_member()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)
-
         if self.na_helper.changed:
             if not self.module.check_mode:
                 if cd_action == 'create':
