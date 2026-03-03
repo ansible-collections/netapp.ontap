@@ -48,9 +48,32 @@ options:
     type: list
     elements: str
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Only supported with REST and requires ONTAP 9.10 or later.
   - Specified C(privileges) will replace all the existing privileges associated with the user or group when state is present.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 """
 
 EXAMPLES = """
@@ -113,11 +136,13 @@ class NetAppOntapCifsPrivileges:
             vserver=dict(required=True, type='str'),
             privileges=dict(required=False, type='list', elements='str')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_if=[
                 ('state', 'present', ['privileges']),
+                ('use_lambda', True, ['lambda_config']),
             ],
             supports_check_mode=True
         )

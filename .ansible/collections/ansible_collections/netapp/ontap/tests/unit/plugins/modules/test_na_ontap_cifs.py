@@ -1,4 +1,4 @@
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs \
     import NetAppONTAPCifsShare as my_module, main as my_main   # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -102,6 +102,7 @@ def test_module_fail_when_required_args_missing():
     assert error in call_main(my_main, {}, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info'])
@@ -111,6 +112,7 @@ def test_get():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create():
     register_responses([
         ('cifs-share-get-iter', ZRR['empty']),
@@ -123,6 +125,7 @@ def test_error_create():
     assert 'Error creating cifs-share' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create():
     register_responses([
         ('cifs-share-get-iter', ZRR['empty']),
@@ -135,6 +138,7 @@ def test_create():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -146,6 +150,7 @@ def test_delete():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_delete():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -158,6 +163,7 @@ def test_error_delete():
     assert 'Error deleting cifs-share' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_path():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -169,6 +175,7 @@ def test_modify_path():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_comment():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -180,6 +187,7 @@ def test_modify_comment():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_share_properties():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -191,6 +199,7 @@ def test_modify_share_properties():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_symlink_properties():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -202,6 +211,7 @@ def test_modify_symlink_properties():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_vscan_fileop_profile():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -213,6 +223,7 @@ def test_modify_vscan_fileop_profile():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info']),
@@ -225,6 +236,7 @@ def test_error_modify():
     assert 'Error modifying cifs-share' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     register_responses([
         ('cifs-share-get-iter', ZRR['cifs_record_info'])
@@ -232,6 +244,7 @@ def test_create_idempotency():
     assert create_and_apply(my_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     register_responses([
         ('cifs-share-get-iter', ZRR['empty'])
@@ -240,6 +253,7 @@ def test_delete_idempotency():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('cifs-share-create', ZRR['error']),
@@ -512,5 +526,5 @@ def test_rest_successful_delete_idempotency():
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_missing_netapp_lib(mock_has_netapp_lib):
     mock_has_netapp_lib.return_value = False
-    msg = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert msg == call_main(my_main, DEFAULT_ARGS, fail=True)['msg']
+    msg = 'Error: the python NetApp-Lib module is required.  Import error:'
+    assert msg in call_main(my_main, DEFAULT_ARGS, fail=True)['msg']

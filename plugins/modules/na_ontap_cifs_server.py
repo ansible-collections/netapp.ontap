@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """ this is cifs_server module
 
- (c) 2018-2025, NetApp, Inc
+ (c) 2018-2026, NetApp, Inc
  # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 """
 
@@ -205,6 +205,30 @@ options:
     type: bool
     version_added: 22.10.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = '''
@@ -337,11 +361,15 @@ class NetAppOntapcifsServer:
             use_start_tls=dict(required=False, type='bool'),
             is_multichannel_enabled=dict(required=False, type='bool'),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            mutually_exclusive=[('use_ldaps', 'use_start_tls')]
+            mutually_exclusive=[('use_ldaps', 'use_start_tls')],
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ]
         )
 
         self.na_helper = NetAppModule()
@@ -358,6 +386,8 @@ class NetAppOntapcifsServer:
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             unsupported_zapi_properties = ['comment', 'smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                                            'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
                                            'lm_compatibility_level', 'use_ldaps', 'use_start_tls', 'from_name', 'default_site', 'is_multichannel_enabled']

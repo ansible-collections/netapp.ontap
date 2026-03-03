@@ -1,0 +1,5 @@
+major_changes:
+  - na_ontap_cifs - AWS Lambda support added to the module.
+  - na_ontap_cifs_privileges - AWS Lambda support added to the module.
+  - na_ontap_cifs_server - AWS Lambda support added to the module.
+  - na_ontap_cifs_unix_symlink_mapping - AWS Lambda support added to the module.

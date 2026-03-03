@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "498354aeffaa70b6df5f6fad76304d2097a33a4f007da83ca11457920dac6b3b",
+   "chksum_sha256": "55cd46e410c5a19c7490b0bbf37a4c33eedcb30848b6726cd33d46b84d559122",
    "format": 1
   },
   {
@@ -4621,6 +4621,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8331.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "b8189463a8c004f1aeabf9144004dcb1756cc2a6d1d510af82d050a91214643e",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5142,7 +5149,7 @@
    "name": "plugins/modules/na_ontap_cifs.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "e749dc00aefd63ef610ee4cd2bce5ba730754d4c0bce5472b04512d086e51b9c",
+   "chksum_sha256": "c95f3a3d10ebc81991007560161d37bbb935288bc6fce7ca8110e5bded634a35",
    "format": 1
   },
   {
@@ -5191,21 +5198,21 @@
    "name": "plugins/modules/na_ontap_cifs_privileges.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "6146b0aee814d0121ab9386c19283d9c803db4e7ac69dac206f120ee0ec5516a",
+   "chksum_sha256": "afb0e2618c1458d21f15a23678bc8622755eaa44f7457cf1cecbd74c961a5afa",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_cifs_server.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0c2f3eb21e61c6d9c10e5c90ba42d8070b5af09c4b030a9915ee0cbc5b19b181",
+   "chksum_sha256": "56dc710736fbb00bdce5e11f74809e02bcdeaaeae204de43aaf6e6a363345ae2",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_cifs_unix_symlink_mapping.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "8b5995ebff86571c423347c55daece803a8367faea2b87acff31227065e74033",
+   "chksum_sha256": "b183e3531177fa474dbe53685a1672d3b90c651c3c7adab18be558dc43d64710",
    "format": 1
   },
   {
@@ -7368,7 +7375,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_cifs.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "3c9c449d25ebb74e5d057ef98e0402cc9220be0283c9395151f42b300029d6ab",
+   "chksum_sha256": "a4f0ac166bf5115e2e77eeb6a4959769732ddc04e3f442a29929f08b466ecfed",
    "format": 1
   },
   {
@@ -7431,7 +7438,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_cifs_server.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "a58ac058b6fd693de0974a5f5666fe6f4c1900baf6b762c19802140619b9cad3",
+   "chksum_sha256": "3be6f260b2707c1332df0e4ba0f5eb8394d587c1a158f3589d4c397a782bc185",
    "format": 1
   },
   {

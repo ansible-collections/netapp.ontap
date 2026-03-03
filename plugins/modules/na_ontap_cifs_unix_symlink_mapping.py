@@ -70,8 +70,31 @@ options:
     type: bool
     default: False
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.4.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Only supported with REST and requires ONTAP 9.6 or later.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 
 """
 
@@ -141,10 +164,13 @@ class NetAppOntapCifsUnixSymlink:
             locality=dict(required=False, type='str', choices=['local', 'widelink'], default='local'),
             home_directory=dict(required=False, type='bool', default=False)
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_if=[
                 ('state', 'present', ['share_name', 'cifs_path']),
+                ('use_lambda', True, ['lambda_config']),
                 ('locality', 'widelink', ['cifs_server']),
             ],
             supports_check_mode=True

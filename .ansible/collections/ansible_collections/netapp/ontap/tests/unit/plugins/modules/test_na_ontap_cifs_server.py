@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cifs_server '''
@@ -18,8 +18,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_cifs_server \
     import NetAppOntapcifsServer as my_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -172,6 +172,7 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     with pytest.raises(AnsibleFailJson) as exc:
@@ -180,6 +181,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get():
     register_responses([
         ('cifs-server-get-iter', ZRR['cifs_record_info'])
@@ -189,6 +191,7 @@ def test_get():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_unsupport_zapi():
     """ check for zapi unsupported options """
     module_args = {
@@ -202,6 +205,7 @@ def test_create_unsupport_zapi():
     assert msg == create_module(my_module, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create():
     register_responses([
         ('cifs-server-get-iter', ZRR['empty']),
@@ -217,6 +221,7 @@ def test_create():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_with_service_state_started():
     register_responses([
         ('cifs-server-get-iter', ZRR['empty']),
@@ -236,6 +241,7 @@ def test_create_with_service_state_started():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_with_service_state_stopped():
     register_responses([
         ('cifs-server-get-iter', ZRR['empty']),
@@ -255,6 +261,7 @@ def test_create_with_service_state_stopped():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_with_force():
     register_responses([
         ('cifs-server-get-iter', ZRR['empty']),
@@ -271,6 +278,7 @@ def test_create_with_force():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotent():
     register_responses([
         ('cifs-server-get-iter', ZRR['cifs_record_info'])
@@ -281,6 +289,7 @@ def test_create_idempotent():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotent():
     register_responses([
         ('cifs-server-get-iter', ZRR['empty'])
@@ -291,6 +300,7 @@ def test_delete_idempotent():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete():
     register_responses([
         ('cifs-server-get-iter', ZRR['cifs_record_info']),
@@ -308,6 +318,7 @@ def test_delete():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_start_service_state():
     register_responses([
         ('cifs-server-get-iter', ZRR['cifs_record_info']),
@@ -319,6 +330,7 @@ def test_start_service_state():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_stop_service_state():
     register_responses([
         ('cifs-server-get-iter', ZRR['cifs_record_disabled_info']),
@@ -330,6 +342,7 @@ def test_stop_service_state():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('cifs-server-create', ZRR['error']),

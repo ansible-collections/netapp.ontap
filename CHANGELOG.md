@@ -17,6 +17,10 @@
   - na_ontap_lun_copy - AWS Lambda support added to the module.
   - na_ontap_igroup_initiator - AWS Lambda support added to the module.
   - na_ontap_igroup - AWS Lambda support added to the module.
+  - na_ontap_cifs - AWS Lambda support added to the module.
+  - na_ontap_cifs_privileges - AWS Lambda support added to the module.
+  - na_ontap_cifs_server - AWS Lambda support added to the module.
+  - na_ontap_cifs_unix_symlink_mapping - AWS Lambda support added to the module.
   - na_ontap_cifs_acl - AWS Lambda support added to the module.
   - na_ontap_cifs_local_group_member - AWS Lambda support added to the module.
   - na_ontap_cifs_local_group - AWS Lambda support added to the module.
