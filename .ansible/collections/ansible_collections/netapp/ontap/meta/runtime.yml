@@ -13,6 +13,7 @@ action_groups:
     - na_ontap_bgp_peer_group
     - na_ontap_broadcast_domain_ports
     - na_ontap_broadcast_domain
+    - na_ontap_cg
     - na_ontap_cg_snapshot
     - na_ontap_cifs_acl
     - na_ontap_cifs_local_group

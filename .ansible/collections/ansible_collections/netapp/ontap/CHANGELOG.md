@@ -4,6 +4,7 @@
 
 ### New Modules
   - na_ontap_autoupdate_config - REST only support for managing configurations for automatic updates, requires ONTAP 9.10.1 or later.
+  - na_ontap_cg - REST only support for managing consistency groups, requires ONTAP 9.10.1 or later.
 
 ### Major Changes
   - na_ontap_snapmirror - AWS Lambda support added to the module.

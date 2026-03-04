@@ -1,0 +1,2 @@
+major_changes:
+  - na_ontap_cg - REST only support for managing consistency groups, requires ONTAP 9.10.1 or later.
