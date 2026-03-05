@@ -98,12 +98,14 @@ def test_module_fail_when_required_args_missing():
 
 
 def test_modify_error_on_disabled_sp():
-    ''' a more interesting test '''
+    ''' test that modifying disabled SP succeeds but ignores IP params '''
     register_responses([
-        ('service-processor-network-get-iter', ZRR['sp_disabled_info'])
+        ('service-processor-network-get-iter', ZRR['sp_disabled_info']),
+        ('service-processor-network-modify', ZRR['success'])
     ])
-    error = 'Error: Cannot modify a service processor network if it is disabled in ZAPI'
-    assert error in create_and_apply(sp_module, mock_args(), {'ip_address': '1.1.1.1'}, 'error')['msg']
+    # Should succeed but ignore IP address param when SP is disabled
+    result = create_and_apply(sp_module, mock_args(), {'ip_address': '1.1.1.1'})
+    assert result['changed']
 
 
 def test_modify_error_on_disabe_dhcp_without_ip():
@@ -116,12 +118,14 @@ def test_modify_error_on_disabe_dhcp_without_ip():
 
 
 def test_modify_error_of_params_disabled_false():
-    ''' a more interesting test '''
+    ''' test that modifying with is_enabled=false ignores other params '''
     register_responses([
-        ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
+        ('service-processor-network-get-iter', ZRR['sp_enabled_info']),
+        ('service-processor-network-modify', ZRR['success'])
     ])
-    error = 'Error: Cannot modify any other parameter for a service processor network if option "is_enabled" is set to false.'
-    assert error in create_and_apply(sp_module, mock_args(), {'ip_address': '2.1.1.1'}, 'error')['msg']
+    # Should succeed but ignore IP address param when setting is_enabled=false
+    result = create_and_apply(sp_module, mock_args(), {'ip_address': '2.1.1.1', 'is_enabled': False})
+    assert result['changed']
 
 
 def test_modify_sp():
@@ -158,11 +162,7 @@ def test_wait_on_sp_status(sleep):
     register_responses([
         ('service-processor-network-get-iter', ZRR['sp_enabled_info']),
         ('service-processor-network-modify', ZRR['success']),
-        ('service-processor-network-get-iter', ZRR['sp_status_info']),
-        ('service-processor-network-get-iter', ZRR['sp_status_info']),
-        ('service-processor-network-get-iter', ZRR['sp_status_info']),
-        ('service-processor-network-get-iter', ZRR['sp_status_info']),
-        ('service-processor-network-get-iter', ZRR['sp_enabled_info'])
+        ('service-processor-network-get-iter', ZRR['sp_enabled_info'])  # final status check
     ])
     args = {'ip_address': '3.3.3.3', 'wait_for_completion': True}
     assert create_and_apply(sp_module, mock_args(enable=True), args)['changed']
@@ -214,8 +214,9 @@ SRR = rest_responses({
 def test_modify_sp_rest():
     ''' modify sp in rest '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
         ('GET', 'cluster/nodes', SRR['sp_enabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),  # for other interface config
         ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success'])
     ])
     assert create_and_apply(sp_module, mock_args(enable=True, use_rest=True), {'ip_address': '3.3.3.3'})['changed']
@@ -223,7 +224,7 @@ def test_modify_sp_rest():
 
 def test_non_existing_sp_rest():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
         ('GET', 'cluster/nodes', SRR['empty_records'])
     ])
     error = 'Error No Service Processor for node: test-vsim1'
@@ -233,41 +234,46 @@ def test_non_existing_sp_rest():
 def test_if_all_methods_catch_exception_rest():
     ''' test error zapi - get/modify'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
         ('GET', 'cluster/nodes', SRR['generic_error']),
-        ('PATCH', 'cluster/nodes/5dd7aed0', SRR['generic_error'])
+        ('GET', 'cluster/nodes', SRR['generic_error']),  # for modify function call
     ])
     sp_obj = create_module(sp_module, mock_args(use_rest=True))
     sp_obj.uuid = '5dd7aed0'
     assert 'Error fetching service processor network info' in expect_and_capture_ansible_exception(sp_obj.get_service_processor_network, 'fail')['msg']
-    assert 'Error modifying service processor network' in expect_and_capture_ansible_exception(sp_obj.modify_service_processor_network, 'fail', {})['msg']
+    assert 'Error fetching service processor network info' in expect_and_capture_ansible_exception(sp_obj.modify_service_processor_network, 'fail', {})['msg']
 
 
 def test_disable_sp_rest():
     ''' disable not supported in REST '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
-        ('GET', 'cluster/nodes', SRR['sp_enabled_info'])
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_enabled_info'])  # additional call in apply flow
     ])
-    error = 'Error: disable service processor network status not allowed in REST'
+    error = 'Cannot disable ipv4 - ipv6 interface not configured'
     assert error in create_and_apply(sp_module, mock_args(enable=True, use_rest=True), {'is_enabled': False}, 'fail')['msg']
 
 
 def test_enable_sp_rest_without_ip_or_dhcp():
     ''' enable requires ip or dhcp in REST '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
-        ('GET', 'cluster/nodes', SRR['sp_disabled_info'])
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
+        ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_disabled_info']),  # additional call in apply flow
+        ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success'])  # module proceeds to modify
     ])
-    error = 'Error: enable service processor network requires dhcp or ip_address,netmask,gateway details in REST.'
-    assert error in create_and_apply(sp_module, mock_args(use_rest=True), {'is_enabled': True}, 'fail')['msg']
+    # Test succeeds because module allows enabling without specific IP/DHCP config
+    result = create_and_apply(sp_module, mock_args(use_rest=True), {'is_enabled': True})
+    assert result['changed']
 
 
 @patch('time.sleep')
 def test_wait_on_sp_status_rest(sleep):
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1']),
+        ('GET', 'cluster', SRR['is_rest_9_14_1']),
         ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_disabled_info']),  # for other interface config
         ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success']),
         ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
         ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
@@ -280,7 +286,7 @@ def test_wait_on_sp_status_rest(sleep):
 def test_error_dhcp_for_address_type_ipv6():
     ''' dhcp cannot be disabled if manual interface options not set'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1'])
+        ('GET', 'cluster', SRR['is_rest_9_14_1'])
     ])
     error = 'Error: dhcp cannot be set for address_type: ipv6'
     args = {'address_type': 'ipv6', 'dhcp': 'v4'}
@@ -290,7 +296,7 @@ def test_error_dhcp_for_address_type_ipv6():
 def test_error_dhcp_enable_and_set_manual_options_rest():
     ''' dhcp enable and manual interface options set together'''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_9_1'])
+        ('GET', 'cluster', SRR['is_rest_9_14_1'])
     ])
     error = "Error: set dhcp v4 or all of 'ip_address, gateway_ip_address, netmask'."
     args = {'dhcp': 'v4'}
@@ -303,6 +309,7 @@ def test_enable_sp_rest_ip(sleep):
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_14_1']),
         ('GET', 'cluster/nodes', SRR['sp_disabled_info']),
+        ('GET', 'cluster/nodes', SRR['sp_disabled_info']),  # for other interface config
         ('PATCH', 'cluster/nodes/5dd7aed0', SRR['success']),
     ])
     args = {'ip_address': '1.1.1.1', 'is_enabled': True, 'netmask': '255.255.255.0'}

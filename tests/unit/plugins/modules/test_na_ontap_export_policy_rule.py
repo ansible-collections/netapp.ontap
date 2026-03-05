@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -193,7 +193,6 @@ def test_create_missing_param_error():
     ''' Test validation error from create '''
     register_responses([
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
-        ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
     ])
     module_args = {
@@ -208,7 +207,6 @@ def test_create_missing_param_error():
 def test_successful_create_with_index():
     ''' Test successful create '''
     register_responses([
-        ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-get-iter', ZRR['no_records']),
         ('ZAPI', 'export-policy-create', ZRR['success']),
@@ -373,9 +371,8 @@ def test_index_existing_entry():
     """ validate entry can be found without index, and add index """
     register_responses([
         ('ZAPI', 'export-rule-get-iter', ZRR['no_records']),
-        ('ZAPI', 'export-rule-get-iter', ZRR['one_rule_record']),
         ('ZAPI', 'export-policy-get-iter', ZRR['one_policy_record']),
-        ('ZAPI', 'export-rule-set-index', ZRR['success']),
+        ('ZAPI', 'export-rule-create', ZRR['success']),
     ])
     module_args = {
         'client_match': 'client_match',

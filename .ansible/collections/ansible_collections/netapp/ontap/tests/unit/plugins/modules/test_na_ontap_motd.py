@@ -1,4 +1,4 @@
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_motd """
@@ -135,7 +135,7 @@ def test_rest_required():
     module_args = {
         'use_rest': 'always',
     }
-    error_msg = 'netapp.ontap.na_ontap_motd is deprecated and only supports ZAPI.  Please use netapp.ontap.na_ontap_login_messages.'
+    error_msg = 'The module only supports ZAPI; refer to netapp.ontap.na_ontap_login_messages module for RESTful equivalent.'
     assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'Error: %s' % error_msg
     register_responses([
         ('ZAPI', 'vserver-motd-get-iter', ZRR['no_records']),

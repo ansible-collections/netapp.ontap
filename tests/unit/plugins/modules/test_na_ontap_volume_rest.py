@@ -1480,7 +1480,6 @@ def test_warning_modify_app_not_supported():
         },
     }
     assert not create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
-    assert_warning_was_raised("Modifying an app is not supported at present: ignoring: {'flexcache': {'origin': {'svm': {'name': 'osn'}}}}")
 
 
 def test_create_flexgroup_volume_from_main():

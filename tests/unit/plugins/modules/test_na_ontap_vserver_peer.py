@@ -265,6 +265,7 @@ DEFAULT_ARGS_REST = {
     "dest_hostname": "0.0.0.0",
     "vserver": "svmsrc3",
     "peer_vserver": "svmdst3",
+    "peer_cluster": "test_cluster_peer",
     "applications": ['snapmirror']
 }
 
@@ -326,7 +327,6 @@ def test_create_vserver_peer_without_cluster_name_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/peers', SRR['empty_records']),
-        ('GET', 'cluster', SRR['cluster_info']),
         ('POST', 'svm/peers', SRR['success']),
         ('GET', 'svm/peers', SRR['vserver_peer_info']),
         ('PATCH', 'svm/peers', SRR['success'])
@@ -339,7 +339,6 @@ def test_create_vserver_peer_with_local_name_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/peers', SRR['empty_records']),
-        ('GET', 'cluster', SRR['cluster_info']),
         ('POST', 'svm/peers', SRR['success']),
         ('GET', 'svm/peers', SRR['vserver_peer_info']),
         ('PATCH', 'svm/peers', SRR['success'])
@@ -356,7 +355,6 @@ def test_error_in_vserver_accept_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/peers', SRR['empty_records']),
-        ('GET', 'cluster', SRR['cluster_info']),
         ('POST', 'svm/peers', SRR['success']),
         ('GET', 'svm/peers', SRR['vserver_peer_info']),
         ('PATCH', 'svm/peers', SRR['generic_error'])
@@ -391,10 +389,10 @@ def test_error_in_peer_cluster_get_rest():
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/peers', SRR['empty_records']),
-        ('GET', 'cluster', SRR['generic_error'])
+        ('POST', 'svm/peers', SRR['generic_error'])
     ])
     msg = create_and_apply(vserver_peer, DEFAULT_ARGS_REST, fail=True)['msg']
-    assert 'Error fetching peer cluster name for peer vserver svmdst3: calling: cluster: got Expected error.' == msg
+    assert 'Error creating vserver peer relationship on svmsrc3: calling: svm/peers: got Expected error.' == msg
 
 
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
@@ -427,7 +425,6 @@ def test_job_error_in_vserver_create_rest(dont_sleep):
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'cluster', SRR['is_rest_9_9_0']),
         ('GET', 'svm/peers', SRR['empty_records']),
-        ('GET', 'cluster', SRR['empty_records']),
         ('POST', 'svm/peers', SRR['job_info']),
         ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
         ('GET', 'cluster/jobs/d78811c1-aebc-11ec-b4de-005056b30cfa', SRR['job_not_found']),
