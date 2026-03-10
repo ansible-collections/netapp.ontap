@@ -4,6 +4,66 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+v23.4.0
+=======
+
+Major Changes
+-------------
+
+- na_ontap_autoupdate_config - REST only support for managing configurations for automatic updates, requires ONTAP 9.10.1 or later.
+- na_ontap_cg - REST only support for managing consistency groups, requires ONTAP 9.10.1 or later.
+- na_ontap_cifs - AWS Lambda support added to the module.
+- na_ontap_cifs_acl - AWS Lambda support added to the module.
+- na_ontap_cifs_local_group - AWS Lambda support added to the module.
+- na_ontap_cifs_local_group_member - AWS Lambda support added to the module.
+- na_ontap_cifs_local_user - AWS Lambda support added to the module.
+- na_ontap_cifs_local_user_set_password - AWS Lambda support added to the module.
+- na_ontap_cifs_privileges - AWS Lambda support added to the module.
+- na_ontap_cifs_server - AWS Lambda support added to the module.
+- na_ontap_cifs_unix_symlink_mapping - AWS Lambda support added to the module.
+- na_ontap_cluster_peer - AWS Lambda support added to the module.
+- na_ontap_igroup - AWS Lambda support added to the module.
+- na_ontap_igroup_initiator - AWS Lambda support added to the module.
+- na_ontap_lun_copy - AWS Lambda support added to the module.
+- na_ontap_lun_map - AWS Lambda support added to the module.
+- na_ontap_lun_map_reporting_nodes - AWS Lambda support added to the module.
+- na_ontap_s3_buckets - AWS Lambda support added to the module.
+- na_ontap_s3_groups - AWS Lambda support added to the module.
+- na_ontap_s3_policies - AWS Lambda support added to the module.
+- na_ontap_s3_services - AWS Lambda support added to the module.
+- na_ontap_s3_users - AWS Lambda support added to the module.
+- na_ontap_snapmirror - AWS Lambda support added to the module.
+- na_ontap_volume_autosize - AWS Lambda support added to the module.
+- na_ontap_volume_clone - AWS Lambda support added to the module.
+- na_ontap_vserver_peer - AWS Lambda support added to the module.
+
+Minor Changes
+-------------
+
+- na_ontap_lun - updated documentation for unsupported REST parameters.
+- na_ontap_nfs - new option `credential_cache` added in REST.
+- na_ontap_snapmirror - new options `time_out`, `wait_for_completion` added in REST.
+- na_ontap_snapmirror - updated documentation for `identity_preserve` and `max_transfer_rate`.
+- na_ontap_volume_efficiency- AWS Lambda support added to the module.
+- na_ontap_volume_efficiency- Added `wait_for_completion` and `time_out` parameters to fix time out errors for long running operations.
+
+Bugfixes
+--------
+
+- na_ontap_export_policy_rule - Fixed issue where rule_index was not being applied to create body, and added logic to detect when a create action is actually a re-index of an existing rule.
+- na_ontap_lun - Updated module with alias `volume_name` for `flexvol_name`.
+- na_ontap_qtree - Updated module with alias `volume_name` for `flexvol_name`.
+- na_ontap_service_processor_network - fixed issue with interface state not being applied correctly, resolved ipv6 comparison issue and idempotency issue with ZAPI abd REST.
+- na_ontap_snapmirror_policy - updated examples for creating and modifying snapmirror policy.
+- na_ontap_user_role - Removed special handling of `DEFAULT` path and normalized empty query in privileges to None for consistency.
+- na_ontap_volume - Fixed issue with volume rename.
+- na_ontap_vserver_audit - updated documentation for `log`.
+
+New Modules
+-----------
+
+- netapp.ontap.na_ontap_autoupdate_config - NetApp ONTAP module to manage configurations for automatic updates.
+- netapp.ontap.na_ontap_cg - NetApp ONTAP module to manage operations related to consistency groups.
 
 v23.3.0
 =======
