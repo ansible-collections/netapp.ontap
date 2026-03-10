@@ -58,7 +58,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ fcp }}"
-  when: fcp != None
+  when: fcp is defined and (fcp | length) > 0
 - name: Create IP Interface
   netapp.ontap.na_ontap_interface:
     state: present
@@ -88,7 +88,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ lifs }}"
-  when: lifs != None
+  when: lifs is defined and (lifs | length) > 0
 - name: Add default route
   netapp.ontap.na_ontap_net_routes:
     state: present
@@ -103,7 +103,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ gateway }}"
-  when: gateway != None
+  when: gateway is defined
 - name: Create DNS
   netapp.ontap.na_ontap_dns:
     state: present
@@ -117,7 +117,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ vserver_dns }}"
-  when: vserver_dns !=None
+  when: vserver_dns is defined
 - name: Create CIFS Server
   netapp.ontap.na_ontap_cifs_server:
     state: present
@@ -136,7 +136,7 @@
     validate_certs: "{{ validate_certs }}"
   with_items:
     "{{ cifs }}"
-  when: cifs != None
+  when: cifs is defined and (cifs | length) > 0
 - name: Create NFS Server
   netapp.ontap.na_ontap_nfs:
     state: present
