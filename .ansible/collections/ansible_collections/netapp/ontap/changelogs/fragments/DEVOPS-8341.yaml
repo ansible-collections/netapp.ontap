@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_volume_efficiency- Added `wait_for_completion` and `time_out` parameters to fix time out errors for long running operations.

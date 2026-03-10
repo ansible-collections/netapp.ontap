@@ -154,6 +154,23 @@ options:
     type: str
     version_added: '21.14.0'
 
+  time_out:
+    version_added: 23.4.0
+    description:
+      - With C(wait_for_completion) set, specifies time to wait for volume efficiency operation in seconds.
+      - Only supported with REST.
+    type: int
+    default: 120
+
+  wait_for_completion:
+    version_added: 23.4.0
+    description:
+      - Set this parameter to 'true' for synchronous execution.
+      - For asynchronous, execution exits as soon as the request is sent, and the operation continues in the background.
+      - Only supported with REST.
+    type: bool
+    default: true
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -177,7 +194,7 @@ options:
         type: str
 
 notes:
-  - supports ZAPI and REST.  REST requires ONTAP 9.6 or later.
+  - supports ZAPI and REST. REST requires ONTAP 9.6 or later.
   - supports check mode.
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
@@ -300,7 +317,9 @@ class NetAppOntapVolumeEfficiency(object):
             start_ve_queue_operation=dict(required=False, type='bool'),
             start_ve_scan_old_data=dict(required=False, type='bool'),
             start_ve_qos_policy=dict(required=False, choices=['background', 'best-effort'], type='str'),
-            stop_ve_all_operations=dict(required=False, type='bool')
+            stop_ve_all_operations=dict(required=False, type='bool'),
+            time_out=dict(required=False, type='int', default=120),
+            wait_for_completion=dict(required=False, type='bool', default=True),
         ))
 
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -460,12 +479,22 @@ class NetAppOntapVolumeEfficiency(object):
         if self.use_rest:
             if not body:
                 return
-            dummy, error = rest_generic.patch_async(self.rest_api, 'storage/volumes', self.volume_uuid, body)
+            query = {'return_timeout': 0} if not self.parameters.get('wait_for_completion') else None
+            timeout = 0 if not self.parameters.get('wait_for_completion') else self.parameters['time_out']
+            dummy, error = rest_generic.patch_async(self.rest_api, 'storage/volumes', self.volume_uuid, body, query, job_timeout=timeout)
             if error:
+                if 'job reported error:' in error and 'Timeout error: Process still running' in error:
+                    if not self.parameters.get('wait_for_completion'):
+                        warning = "Volume efficiency modification is still running in the background, "\
+                                  "exiting with no further waiting as 'wait_for_completion' is set to false."
+                    else:
+                        warning = ('Volume efficiency modification is still in progress after %d seconds.' % self.parameters['time_out'])
+                    self.module.warn(warning)
+
                 if 'Unexpected argument "storage_efficiency_mode".' in error or \
                         'The \"-storage-efficiency-mode\" parameter is only supported on AFF.' in error:
                     error = "cannot modify storage_efficiency mode in non AFF platform."
-                if 'not authorized' in error:
+                elif 'not authorized' in error:
                     error = "%s user is not authorized to modify volume efficiency" % self.parameters.get('username')
                 self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
 
@@ -687,7 +716,6 @@ class NetAppOntapVolumeEfficiency(object):
     def apply(self):
         current = self.get_volume_efficiency()
         ve_status = None
-
         # If the volume efficiency does not exist for a given path to create this current is set to disabled
         # this is for ONTAP systems that do not enable efficiency by default.
         if current is None:
