@@ -1,5 +1,10 @@
 # Release Notes
 
+## 23.5.0
+
+### Minor Changes
+  - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
+
 ## 23.4.0
 
 ### New Modules

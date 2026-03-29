@@ -1,0 +1,2 @@
+minor_changes:
+  - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.

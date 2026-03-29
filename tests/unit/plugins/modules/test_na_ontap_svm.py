@@ -1,4 +1,4 @@
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -55,7 +55,8 @@ svm_info = {
     "auto_enable_analytics": False,
     "auto_enable_activity_tracking": False,
     "storage": {"limit": 0,
-                "limit_threshold_alert": 90}
+                "limit_threshold_alert": 90},
+    "anti_ransomware_default_volume_state": "disabled"
 }
 
 svm_info_cert1 = dict(svm_info)

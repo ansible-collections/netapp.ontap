@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -309,6 +309,7 @@ options:
       ocsp_enabled:
         description: whether online certificate status protocol verification is enabled.
         type: bool
+
   storage_limit:
     description:
       - Specifies the maximum storage permitted on a single SVM, in bytes.
@@ -316,6 +317,7 @@ options:
       - Only supported with REST, requires ONTAP 9.13.1 or later.
     type: int
     version_added: 23.1.0
+
   storage_limit_threshold_alert:
     description:
       - Specifies at what percentage of storage capacity an alert message is sent.
@@ -323,18 +325,30 @@ options:
       - Only supported with REST, requires ONTAP 9.13.1 or later.
     type: int
     version_added: 23.2.0
+
   auto_enable_analytics:
     description:
       - Specifies whether file system analytics is automatically enabled on volumes that are created in the SVM.
       - Only supported with REST, requires ONTAP 9.12.1 or later.
     type: bool
     version_added: 23.2.0
+
   auto_enable_activity_tracking:
     description:
       - Specifies whether volume activity tracking is automatically enabled on volumes that are created in the SVM.
       - Only supported with REST, requires ONTAP 9.12.1 or later.
     type: bool
     version_added: 23.2.0
+
+  anti_ransomware_default_volume_state:
+    description:
+      - Specifies the default anti-ransomware state of the volumes in the SVM.
+      - When the anti-ransomware license is not present, this property is ignored and volumes will be created with the "disabled" state.
+      - Only supported with REST, requires ONTAP 9.10.1 or later.
+    type: str
+    choices: ['disabled', 'dry_run']
+    version_added: 23.5.0
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -462,6 +476,7 @@ class NetAppOntapSVM():
             storage_limit_threshold_alert=dict(type='int', required=False),
             auto_enable_analytics=dict(type='bool', required=False),
             auto_enable_activity_tracking=dict(type='bool', required=False),
+            anti_ransomware_default_volume_state=dict(type='str', choices=['disabled', 'dry_run'], required=False),
         ))
 
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
@@ -576,7 +591,9 @@ class NetAppOntapSVM():
         if use_rest and self.parameters.get('storage_limit_threshold_alert') is not None and \
                 not self.rest_api.meets_rest_minimum_version(use_rest, 9, 13, 1):
             self.module.fail_json(msg=self.rest_api.options_require_ontap_version('storage_limit_threshold_alert', '9.13.1', use_rest=use_rest))
-
+        if use_rest and self.parameters.get('anti_ransomware_default_volume_state') is not None and \
+                not self.rest_api.meets_rest_minimum_version(use_rest, 9, 10, 1):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('anti_ransomware_default_volume_state', '9.10.1', use_rest=use_rest))
         self.validate_int_or_string(self.parameters.get('max_volumes'), 'unlimited')
         return use_rest
 
@@ -630,6 +647,7 @@ class NetAppOntapSVM():
 
         vserver_details['auto_enable_analytics'] = self.na_helper.safe_get(vserver_details, ['auto_enable_analytics'])
         vserver_details['auto_enable_activity_tracking'] = self.na_helper.safe_get(vserver_details, ['auto_enable_activity_tracking'])
+        vserver_details['anti_ransomware_default_volume_state'] = self.na_helper.safe_get(vserver_details, ['anti_ransomware_default_volume_state'])
 
         return vserver_details
 
@@ -690,7 +708,7 @@ class NetAppOntapSVM():
                 # we don't use certificate with 9.7 as name is only supported with 9.8 in /security/certificates
                 fields += ',certificate'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
-                fields += ',ndmp'
+                fields += ',ndmp,anti_ransomware_default_volume_state'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 7, 0):
                 fields += ',s3'
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 12, 1):
@@ -753,6 +771,8 @@ class NetAppOntapSVM():
         simple_keys = ['name', 'language', 'ipspace', 'snapshot_policy', 'subtype', 'comment']
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 9, 1):
             simple_keys.append('max_volumes')
+        if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 10, 1):
+            simple_keys.append('anti_ransomware_default_volume_state')
         body = dict(
             (key, self.parameters[key])
             for key in simple_keys
