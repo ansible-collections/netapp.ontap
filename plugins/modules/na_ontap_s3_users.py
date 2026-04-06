@@ -21,38 +21,51 @@ description:
 options:
   state:
     description:
-    - Whether the specified S3 user should exist or not.
+      - Whether the specified S3 user should exist or not.
     choices: ['present', 'absent']
     type: str
     default: 'present'
 
   name:
     description:
-    - The name of the S3 user.
+      - The name of the S3 user.
     type: str
     required: true
 
   vserver:
     description:
-    - Name of the vserver to use.
+      - Name of the vserver to use.
     type: str
     required: true
 
   comment:
     description:
-    - comment about the user
+      - Comment about the user.
     type: str
+
+  access_key:
+    description:
+      - The access key for the S3 user.
+    type: str
+    version_added: 23.5.0
+
+  secret_key:
+    description:
+      - The secret key for the S3 user.
+      - Requires ONTAP 9.16.1 or later.
+    type: str
+    version_added: 23.5.0
 
   regenerate_keys:
     description:
-    - Specifies whether or not to regenerate the user keys.
+      - Specifies whether or not to regenerate the user keys.
     type: bool
     version_added: 22.13.0
 
   delete_keys:
     description:
-    - Specifies whether or not to delete the user keys.
-    - Requires ONTAP 9.14 or later.
+      - Specifies whether or not to delete the user keys.
+      - Requires ONTAP 9.14 or later.
     type: bool
     version_added: 22.13.0
 
@@ -139,6 +152,8 @@ class NetAppOntapS3Users:
             vserver=dict(required=True, type='str'),
             name=dict(required=True, type='str'),
             comment=dict(required=False, type='str'),
+            access_key=dict(required=False, type='str', no_log=True),
+            secret_key=dict(required=False, type='str', no_log=True),
             regenerate_keys=dict(required=False, type='bool'),
             delete_keys=dict(required=False, type='bool')
         ))
@@ -156,7 +171,8 @@ class NetAppOntapS3Users:
         self.rest_api = OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
         self.rest_api.fail_if_not_rest_minimum_version('na_ontap_s3_users', 9, 8)
-        dummy, error = self.rest_api.is_rest(partially_supported_rest_properties=[['delete_keys', (9, 14, 1)]],
+        partially_supported_rest_properties = [['delete_keys', (9, 14, 1)], ['secret_key', (9, 16, 1)]]
+        dummy, error = self.rest_api.is_rest(partially_supported_rest_properties=partially_supported_rest_properties,
                                              parameters=self.parameters)
         if error:
             self.module.fail_json(msg=error)
@@ -184,6 +200,10 @@ class NetAppOntapS3Users:
         body = {'name': self.parameters['name']}
         if self.parameters.get('comment'):
             body['comment'] = self.parameters['comment']
+        if self.parameters.get('access_key'):
+            body['access_key'] = self.parameters['access_key']
+        if self.parameters.get('secret_key'):
+            body['secret_key'] = self.parameters['secret_key']
         response, error = rest_generic.post_async(self.rest_api, api, body)
         if error:
             self.module.fail_json(msg='Error creating S3 user %s: %s' % (self.parameters['name'], to_native(error)),

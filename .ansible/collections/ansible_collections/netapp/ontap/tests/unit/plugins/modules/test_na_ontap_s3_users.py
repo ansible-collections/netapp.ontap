@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -71,6 +71,20 @@ def test_low_version():
     assert msg in error
 
 
+def test_partially_supported_options_rest():
+    ''' Test REST version error for parameters '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+        ('GET', 'cluster', SRR['is_rest_9_8_0']),
+    ])
+    args = {
+        'access_key': 'random_access_key',
+        'secret_key': 'random_secret_key'
+    }
+    error = create_module(my_module, DEFAULT_ARGS, args, fail=True)['msg']
+    assert 'Minimum version of ONTAP for secret_key is (9, 16, 1)' in error
+
+
 def test_get_s3_users_none():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
@@ -97,14 +111,16 @@ def test_get_s3_users_error():
 
 def test_create_s3_users():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
         ('GET', 'svm/svms', SRR['svm_uuid']),
         ('GET', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['empty_records']),
         ('POST', 'protocols/s3/services/e3cb5c7f-cd20/users', SRR['s3_user_created'])
     ])
     module_args = {
         'comment': 'this is a s3 user',
+        'access_key': 'random_access_key',
+        'secret_key': 'random_secret_key'
     }
     result = create_and_apply(my_module, DEFAULT_ARGS, module_args)
     assert result['changed']

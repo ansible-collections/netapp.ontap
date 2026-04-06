@@ -4,6 +4,7 @@
 
 ### Minor Changes
   - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
+  - na_ontap_s3_users - new options `access_key` & `secret_key` added.
 
 ## 23.4.0
 
