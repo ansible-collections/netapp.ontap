@@ -1,4 +1,4 @@
-# (c) 2019-2025, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_security_certificates """
@@ -26,7 +26,8 @@ if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
 # REST API canned responses when mocking send_request
 SRR = {
     # common responses
-    'is_rest': (200, {}, None),
+    'is_rest_96': (200, dict(version=dict(generation=9, major=6, minor=0, full='dummy_9_6_0')), None),
+    'is_rest_98': (200, dict(version=dict(generation=9, major=8, minor=0, full='dummy_9_8_0')), None),
     'is_zapi': (400, {}, "Unreachable"),
     'empty_good': (200, {}, None),
     'end_of_sequence': (500, None, "Unexpected call to send_request"),
@@ -65,7 +66,8 @@ def test_module_fail_when_required_args_missing():
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_ensure_get_certificate_called(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['end_of_sequence']
     ]
@@ -77,7 +79,8 @@ def test_ensure_get_certificate_called(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_error(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['generic_error'],
         SRR['end_of_sequence']
     ]
@@ -90,7 +93,8 @@ def test_rest_error(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_create_failed(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],        # validate data vserver exist.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
@@ -112,7 +116,8 @@ def test_rest_create_failed(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_create(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],        # validate data vserver exists.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
@@ -134,7 +139,8 @@ def test_rest_successful_create(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_check_module_output(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],        # validate data vserver exists.
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
@@ -156,7 +162,8 @@ def test_rest_check_module_output(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_idempotent_create(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],    # validate data vserver exist.
         SRR['get_uuid'],    # get certificate -> found
         SRR['end_of_sequence']
@@ -176,7 +183,8 @@ def test_rest_idempotent_create(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_negative_create_duplicate_entry(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['empty_records'],   # get certificate -> not found
         copy.deepcopy(SRR['error_duplicate_entry']),    # code under test modifies error in place
         SRR['end_of_sequence']
@@ -200,7 +208,8 @@ def test_rest_negative_create_duplicate_entry(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_delete(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -219,7 +228,8 @@ def test_rest_successful_delete(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_idempotent_delete(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
         SRR['end_of_sequence']
@@ -238,7 +248,8 @@ def test_rest_idempotent_delete(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_negative_delete(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['error_some_error'],
         SRR['end_of_sequence']
@@ -258,7 +269,8 @@ def test_rest_negative_delete(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_negative_multiple_records(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_multiple_records'],    # get certificate -> 2 records!
         SRR['end_of_sequence']
     ]
@@ -280,7 +292,8 @@ def test_rest_negative_multiple_records(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_sign(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['empty_good'],
@@ -302,7 +315,8 @@ def test_rest_successful_sign(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_negative_sign(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['error_some_error'],
@@ -325,7 +339,8 @@ def test_rest_negative_sign(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_failed_sign_missing_ca(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['empty_records'],   # get certificate -> not found
         SRR['empty_good'],
@@ -347,7 +362,8 @@ def test_rest_failed_sign_missing_ca(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_failed_sign_absent(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['get_uuid'],    # get certificate -> found
         SRR['end_of_sequence']
@@ -369,7 +385,8 @@ def test_rest_failed_sign_absent(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_failed_on_name(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
@@ -393,7 +410,8 @@ def test_rest_failed_on_name(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_cannot_ignore_name_error_no_common_name(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
@@ -414,7 +432,8 @@ def test_rest_cannot_ignore_name_error_no_common_name(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_cannot_ignore_name_error_no_type(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['end_of_sequence']
@@ -436,7 +455,8 @@ def test_rest_cannot_ignore_name_error_no_type(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_ignore_name_error(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['get_uuid'],                # get certificate -> found
@@ -461,7 +481,8 @@ def test_rest_ignore_name_error(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_successful_create_name_error(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['get_uuid'],
         SRR['error_unexpected_name'],   # get certificate -> error
         SRR['empty_records'],           # get certificate -> not found
@@ -485,7 +506,8 @@ def test_rest_successful_create_name_error(mock_request):
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
 def test_rest_data_vserver_not_exist(mock_request):
     mock_request.side_effect = [
-        SRR['is_rest'],
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
         SRR['empty_records'],
         SRR['end_of_sequence']
     ]
@@ -526,8 +548,136 @@ def test_rest_negative_ZAPI_only(mock_request):
     args = {'use_rest': 'never'}
     args.update(set_default_args())
     set_module_args(args)
-    with pytest.raises(AnsibleFailJson) as exc:
+    try:
         my_obj = my_module()
-    print(exc.value.args[0])
-    msg = "na_ontap_security_certificates only supports REST, and requires ONTAP 9.6 or later."
+        assert my_obj.use_rest is False
+    except AnsibleFailJson as exc:
+        assert 'REST is required for this module' in exc.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_successful_generate_csr_with_subject_name(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_98'],
+        SRR['is_rest_98'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'generate_csr': True,
+        'subject_name': "CN=test.example.com,O=TestOrg,C=US",
+        'security_strength': 128,
+        'hash_function': "sha384",
+        'algorithm': "rsa",
+        'name': "test_cert1",
+        'key_usages': ["digitalsignature", "keyencipherment"],
+        'extended_key_usages': ["serverauth", "clientauth"]
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_successful_generate_csr_with_subject_alternatives(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_98'],
+        SRR['is_rest_98'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'generate_csr': True,
+        'security_strength': 128,
+        'hash_function': "sha384",
+        'algorithm': "rsa",
+        'name': "test_cert1",
+        'key_usages': ["digitalsignature", "keyencipherment"],
+        'extended_key_usages': ["serverauth", "clientauth"],
+        'subject_alternatives': {
+            'dns': ["example.com", "www.example.com"],
+            'email': ["admin@example.com", "support@example.com"],
+            'ip': ["192.168.1.1", "10.0.0.1"],
+            'uri': ["http://example.com", "https://example.com"]
+        }
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleExitJson) as exc:
+        my_obj.apply()
+    assert exc.value.args[0]['changed']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_test_generate_csr_without_subject_alternatives_name(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_98'],
+        SRR['is_rest_98'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'generate_csr': True,
+        'security_strength': 128,
+        'hash_function': "sha384",
+        'algorithm': "rsa",
+        'name': "test_cert1",
+        'key_usages': ["digitalsignature", "keyencipherment"],
+        'extended_key_usages': ["serverauth", "clientauth"],
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Either subject_name or subject_alternatives must be specified when generate_csr=true"
     assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_test_generate_csr_with_ec_invalid_bits(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_98'],
+        SRR['is_rest_98'],
+        SRR['empty_good'],
+        SRR['end_of_sequence']
+    ]
+    data = {
+        'generate_csr': True,
+        'security_strength': 112,
+        'hash_function': "sha384",
+        'algorithm': "ec",
+        'name': "test_cert1",
+        'key_usages': ["digitalsignature", "keyencipherment"],
+        'extended_key_usages': ["serverauth", "clientauth"],
+        'subject_name': "CN=test.example.com,O=TestOrg,C=US",
+    }
+    data.update(set_default_args())
+    set_module_args(data)
+    my_obj = my_module()
+    with pytest.raises(AnsibleFailJson) as exc:
+        my_obj.apply()
+    msg = "Value of at least 128 is necessary when using EC algorithm " \
+          "if the certificate is to be used in the context of TLSv1.3."
+    assert msg == exc.value.args[0]['msg']
+
+
+@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.OntapRestAPI.send_request')
+def test_rest_negative_generate_csr_version(mock_request):
+    mock_request.side_effect = [
+        SRR['is_rest_96'],
+        SRR['is_rest_96'],
+        SRR['end_of_sequence']
+    ]
+    args = {'use_rest': 'always', 'generate_csr': True}
+    args.update(set_default_args())
+    set_module_args(args)
+    try:
+        my_obj = my_module()
+        assert my_obj.use_rest is False
+    except AnsibleFailJson as exc:
+        assert 'using generate_csr requires ONTAP 9.8 or later' in exc.args[0]['msg']

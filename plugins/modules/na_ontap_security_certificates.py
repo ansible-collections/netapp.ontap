@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2020-2025, NetApp, Inc
+# (c) 2020-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -97,9 +97,12 @@ options:
 
   hash_function:
     description:
-    - Hashing function. Can be provided when creating a self-signed certificate or when signing a certificate.
-    - Allowed values for create and sign are sha256, sha224, sha384, sha512.
+    - Hashing function. Can be provided when creating a self-signed certificate, when signing a certificate,
+      or when generating a certificate signing request.
+    - Allowed values are sha1, sha224, sha256, sha384, and sha512.
     type: str
+    default: sha256
+    choices: ['sha1', 'sha224', 'sha256', 'sha384', 'sha512']
 
   intermediate_certificates:
     description:
@@ -116,9 +119,84 @@ options:
     default: true
     version_added: '20.8.0'
 
+  algorithm:
+    description:
+    - Asymmetric Encryption Algorithm.
+    type: str
+    default: rsa
+    choices: ['rsa','ec']
+    version_added: '23.5.0'
+
+  security_strength:
+    description:
+    - Security strength of the certificate in bits.
+    type: int
+    default: 112
+    choices: [112, 128, 192]
+    version_added: '23.5.0'
+
+  subject_alternatives:
+    description:
+    - Subject alternative names for the certificate.
+    type: dict
+    suboptions:
+      email:
+        description:
+        - List of email subject alternative names.
+        type: list
+        elements: str
+      dns:
+        description:
+        - List of DNS subject alternative names.
+        type: list
+        elements: str
+      ip:
+        description:
+        - List of IP subject alternative names.
+        type: list
+        elements: str
+      uri:
+        description:
+        - List of URI subject alternative names.
+        type: list
+        elements: str
+    version_added: '23.5.0'
+
+  subject_name:
+    description:
+    - Subject name details of the certificate. The format is a list of comma separated key=value pairs.
+    type: str
+    version_added: '23.5.0'
+
+  extended_key_usages:
+    description:
+    - A list of extended key usage extensions.
+    type: list
+    elements: str
+    choices: ['serverauth', 'clientauth', 'timestamping', 'dvcs', 'ocspsigning', 'codesigning', 'emailprotection', 'anyextendedkeyusage', 'critical']
+    version_added: '23.5.0'
+
+  generate_csr:
+    description:
+    - Generate a Certificate Signing Request (CSR) instead of creating or installing a certificate.
+    - When true, the CSR is generated based on the provided parameters and returned in the output.
+    type: bool
+    default: false
+    version_added: '23.5.0'
+
+  key_usages:
+    description:
+    - A list of key usage extensions.
+    type: list
+    elements: str
+    choices: ['digitalsignature', 'nonrepudiation', 'keyencipherment', 'dataencipherment',
+              'keyagreement', 'keycertsign', 'crlsign', 'encipheronly', 'decipheronly', 'critical']
+    version_added: '23.5.0'
+
 notes:
   - supports check mode.
-  - only supports REST.  Requires ONTAP 9.6 or later, ONTAP 9.8 or later is recommended.
+  - only supports REST. Requires ONTAP 9.6 or later, ONTAP 9.8 or later is recommended.
+  - Module is not idempotent when generating CSR.
 '''
 
 EXAMPLES = """
@@ -148,6 +226,33 @@ EXAMPLES = """
     type: root_ca
     svm: "{{ vserver }}"
     expiry_time: P365DT     # one year
+
+- name: Create Certificate Signing Request
+  tags: sign_request
+  netapp.ontap.na_ontap_security_certificates:
+    # <<: *login
+    generate_csr: true
+    subject_name: "C=US,O=NTAP,CN=test.domain.com"
+    security_strength: 128
+    hash_function: "sha256"
+    algorithm: "rsa"
+    name: "test_cert"
+    key_usages: "digitalsignature,keyencipherment"
+    extended_key_usages: "serverauth,clientauth"
+    subject_alternatives:
+      dns:
+        - main.example.com
+        - www.example.com
+        - api.example.com
+      email:
+        - admin@example.com
+        - security@example.com
+      ip:
+        - 192.168.1.100
+        - 10.0.0.50
+      uri:
+        - https://example.com
+        - https://api.example.com
 
 - name: sign certificate using newly create certificate
   tags: sign_request
@@ -261,7 +366,6 @@ ontap_info:
 from ansible.module_utils.basic import AnsibleModule
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
-from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 from ansible_collections.netapp.ontap.plugins.module_utils import rest_vserver
 
 
@@ -282,9 +386,27 @@ class NetAppOntapSecurityCertificates:
             signing_request=dict(required=False, type='str'),
             expiry_time=dict(required=False, type='str'),
             key_size=dict(required=False, type='int'),
-            hash_function=dict(required=False, type='str'),
             intermediate_certificates=dict(required=False, type='list', elements='str'),
-            ignore_name_if_not_supported=dict(required=False, type='bool', default=True)
+            ignore_name_if_not_supported=dict(required=False, type='bool', default=True),
+
+            generate_csr=dict(required=False, type='bool', default=False),
+            subject_name=dict(required=False, type='str'),
+            subject_alternatives=dict(required=False, type='dict', options=dict(
+                email=dict(required=False, type='list', elements='str'),
+                dns=dict(required=False, type='list', elements='str'),
+                ip=dict(required=False, type='list', elements='str'),
+                uri=dict(required=False, type='list', elements='str')
+            )),
+            security_strength=dict(required=False, type='int', default=112, choices=[112, 128, 192]),
+            hash_function=dict(required=False, type='str', default='sha256',
+                               choices=['sha1', 'sha224', 'sha256', 'sha384', 'sha512']),
+            algorithm=dict(required=False, type='str', default='rsa', choices=['rsa', 'ec']),
+            key_usages=dict(required=False, type='list', elements='str',
+                            choices=['digitalsignature', 'nonrepudiation', 'keyencipherment', 'dataencipherment',
+                                     'keyagreement', 'keycertsign', 'crlsign', 'encipheronly', 'decipheronly', 'critical']),
+            extended_key_usages=dict(required=False, type='list', elements='str',
+                                     choices=['serverauth', 'clientauth', 'timestamping', 'dvcs', 'ocspsigning', 'codesigning',
+                                              'emailprotection', 'anyextendedkeyusage', 'critical']),
         ))
 
         self.module = AnsibleModule(
@@ -298,16 +420,17 @@ class NetAppOntapSecurityCertificates:
         if self.parameters.get('name') is None and (self.parameters.get('common_name') is None or self.parameters.get('type') is None):
             error = "Error: 'name' or ('common_name' and 'type') are required parameters."
             self.module.fail_json(msg=error)
-
         # ONTAP 9.6 and 9.7 do not support name.  We'll change this to True if we detect an issue.
         self.ignore_name_param = False
-
+        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.use_rest = self.rest_api.is_rest()
         # API should be used for ONTAP 9.6 or higher
-        self.rest_api = OntapRestAPI(self.module)
-        if self.rest_api.is_rest():
-            self.use_rest = True
-        else:
-            self.module.fail_json(msg=self.rest_api.requires_ontap_9_6('na_ontap_security_certificates'))
+        self.rest_api.fail_if_not_rest_minimum_version('na_ontap_security_certificates', 9, 6)
+
+        if not self.use_rest:
+            self.module.fail_json(msg="This module require REST with ONTAP 9.6 or higher")
+        if self.parameters.get('generate_csr') and not self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8, 0):
+            self.module.fail_json(msg=self.rest_api.options_require_ontap_version('generate_csr', '9.8', use_rest=self.use_rest))
 
     def get_certificate(self):
         """
@@ -403,6 +526,42 @@ class NetAppOntapSecurityCertificates:
             self.module.fail_json(msg="Error creating or installing certificate: %s" % error)
         return message
 
+    def generate_csr_rest(self):
+        """
+        Generate Certificate Signing Request using REST API
+        """
+        api = 'security/certificate-signing-request'
+
+        body = {}
+        if self.parameters.get('subject_name'):
+            body['subject_name'] = self.parameters['subject_name']
+        if self.parameters.get('subject_alternatives'):
+            body['subject_alternatives'] = self.parameters['subject_alternatives']
+        # Validate required parameters
+        if not body.get('subject_name') and not body.get('subject_alternatives'):
+            self.module.fail_json(msg="Either subject_name or subject_alternatives must be specified for CSR generation")
+        for key in ('security_strength', 'hash_function', 'algorithm', 'key_usages', 'extended_key_usages'):
+            if key in self.parameters:
+                body[key] = self.parameters[key]
+        csr_response, error = self.rest_api.post(api, body)
+        if error:
+            self.module.fail_json(msg="Error generating CSR: %s" % error)
+        return csr_response
+
+    def validate_csr_parameters(self):
+        """
+        Validate CSR-specific parameters
+        """
+        if not self.parameters.get('subject_name') and not self.parameters.get('subject_alternatives'):
+            self.module.fail_json(
+                msg="Either subject_name or subject_alternatives must be specified when generate_csr=true"
+            )
+
+        if self.parameters.get('algorithm') == 'ec' and self.parameters.get('security_strength') not in [128, 192]:
+            self.module.fail_json(
+                msg="Value of at least 128 is necessary when using EC algorithm if the certificate is to be used in the context of TLSv1.3."
+            )
+
     def sign_certificate(self, uuid):
         """
         sign certificate
@@ -439,6 +598,16 @@ class NetAppOntapSecurityCertificates:
         :return: None
         """
         # TODO: add telemetry for REST
+
+        if self.parameters.get('generate_csr'):
+            self.validate_csr_parameters()
+            generated_csr = self.generate_csr_rest()
+            self.module.exit_json(
+                changed=True,
+                msg="CSR generated successfully",
+                csr=generated_csr.get('csr', ''),
+                private_key=generated_csr.get('generated_private_key', '')
+            )
 
         current = self.get_certificate()
         cd_action = self.na_helper.get_cd_action(current, self.parameters)

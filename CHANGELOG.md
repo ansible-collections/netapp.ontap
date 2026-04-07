@@ -5,6 +5,7 @@
 ### Minor Changes
   - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
   - na_ontap_s3_users - new options `access_key` & `secret_key` added.
+  - na_ontap_security_certificates - Added support to generate certificate signing requests (CSRs) in REST.
 
 ## 23.4.0
 
