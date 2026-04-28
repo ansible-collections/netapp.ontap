@@ -2,10 +2,20 @@
 
 ## 23.5.0
 
+### Major Changes
+  - na_ontap_debug - AWS Lambda support added to the module.
+  - na_ontap_job_schedule - AWS Lambda support added to the module.
+  - na_ontap_rest_info - AWS Lambda support added to the module.
+  - na_ontap_restit - AWS Lambda support added to the module.
+  - na_ontap_wait_for_condition - AWS Lambda support added to the module.
+
 ### Minor Changes
   - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
   - na_ontap_s3_users - new options `access_key` & `secret_key` added.
   - na_ontap_security_certificates - Added support to generate certificate signing requests (CSRs) in REST.
+
+### Bug Fixes
+  - na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.
 
 ## 23.4.0
 

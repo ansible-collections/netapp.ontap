@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -23,11 +23,11 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_wait_for_conditio
 
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
-    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 def sp_image_update_progress_info(in_progress=True):
@@ -256,6 +256,7 @@ def test_rest_negative_wait_for_sp_version_timeout(dont_sleep):
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_zapi_successful_wait_for_sp_upgrade(dont_sleep):
     ''' Test successful sp_upgrade check '''
@@ -275,6 +276,7 @@ def test_zapi_successful_wait_for_sp_upgrade(dont_sleep):
     assert results['last_state'] == 'true'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_zapi_successful_wait_for_sp_version(dont_sleep):
     ''' Test successful sp_version check '''
@@ -295,6 +297,7 @@ def test_zapi_successful_wait_for_sp_version(dont_sleep):
     assert results['last_state'] == '3.10'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_negative_wait_for_snapmirror_relationship_error():
     ''' Test negative snapmirror_relationship check '''
     register_responses([
@@ -312,6 +315,7 @@ def test_zapi_negative_wait_for_snapmirror_relationship_error():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_zapi_negative_wait_for_sp_version_error(dont_sleep):
     ''' Test negative sp_version check '''
@@ -329,6 +333,7 @@ def test_zapi_negative_wait_for_sp_version_error(dont_sleep):
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_zapi_negative_wait_for_sp_version_timeout(dont_sleep):
     ''' Test negative sp_version check '''
@@ -349,6 +354,7 @@ def test_zapi_negative_wait_for_sp_version_timeout(dont_sleep):
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_invalid_name():
     ''' Test that name is valid '''
     register_responses([
@@ -364,6 +370,7 @@ def test_invalid_name():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_validate_resource():
     ''' KeyError on unexpected name '''
     module_args = {
@@ -377,6 +384,7 @@ def test_negative_validate_resource():
     assert 'some_name' in expect_and_capture_ansible_exception(my_obj.validate_resource, KeyError, 'some_name')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_build_zapi():
     ''' KeyError on unexpected name '''
     module_args = {
@@ -426,6 +434,7 @@ def test_get_condition_other(mock_extract_condition, mock_get_record_rest):
     assert my_obj.get_condition('name', 'dummy') == ('conditions not matched: found other condition: %s' % condition, None)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_invalid_condition():
     ''' Test that condition is valid '''
     register_responses([
@@ -445,6 +454,7 @@ def test_invalid_condition():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 # def test_invalid_attributes():
 def test_missing_attribute():
     ''' Test that required attributes are present '''

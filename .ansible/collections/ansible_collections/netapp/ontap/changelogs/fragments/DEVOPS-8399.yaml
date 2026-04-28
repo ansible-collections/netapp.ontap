@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_debug - AWS Lambda support added to the module.
+  - na_ontap_job_schedule - AWS Lambda support added to the module.
+  - na_ontap_rest_info - AWS Lambda support added to the module.
+  - na_ontap_restit - AWS Lambda support added to the module.
+  - na_ontap_wait_for_condition - AWS Lambda support added to the module.

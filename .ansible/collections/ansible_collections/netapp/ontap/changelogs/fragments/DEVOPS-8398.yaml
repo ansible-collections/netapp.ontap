@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.

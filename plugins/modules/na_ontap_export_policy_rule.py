@@ -618,8 +618,9 @@ class NetAppontapExportRule:
             self.module.fail_json(msg="Error on creating export policy: %s" % error)
 
     def create_export_policy_rule_rest(self):
-        api = 'protocols/nfs/export-policies/%s/rules?return_records=true' % self.policy_id
-        response, error = rest_generic.post_async(self.rest_api, api, self.create_body(self.parameters))
+        api = 'protocols/nfs/export-policies/%s/rules' % self.policy_id
+        query = {'return_records': 'true'}
+        response, error = rest_generic.post_async(self.rest_api, api, self.create_body(self.parameters), query)
         if error:
             self.module.fail_json(msg="Error on creating export policy rule: %s" % error)
         # force a 'rename' to set the index
@@ -640,10 +641,10 @@ class NetAppontapExportRule:
         if error:
             self.module.fail_json(msg="Error on deleting export policy Rule: %s" % error)
 
-    def create_body(self, params):
+    def create_body(self, params, rename=False):
         body = self.create_body_or_query_common(params)
         # lists
-        if params.get('rule_index') is not None:
+        if params.get('rule_index') is not None and not rename:
             body['index'] = self.parameters['rule_index']
         if params.get('protocol'):
             body['protocols'] = self.parameters['protocol']
@@ -689,7 +690,7 @@ class NetAppontapExportRule:
     def modify_export_policy_rule_rest(self, params, rule_index, rename=False):
         api = 'protocols/nfs/export-policies/%s/rules' % self.policy_id
         query = {'new_index': self.parameters['rule_index']} if rename else None
-        dummy, error = rest_generic.patch_async(self.rest_api, api, rule_index, self.create_body(params), query)
+        dummy, error = rest_generic.patch_async(self.rest_api, api, rule_index, self.create_body(params, rename), query)
 
         if error:
             self.module.fail_json(msg="Error on modifying export policy Rule: %s" % error)

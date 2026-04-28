@@ -1,4 +1,4 @@
-# (c) 2021, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_cluster '''
@@ -6,6 +6,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch, call
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -16,8 +17,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_restit \
     import NetAppONTAPRestAPI as my_module, main as my_main  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+if sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
 SRR = {

@@ -1,4 +1,4 @@
-# (c) 2018, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_job_schedule '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_job_schedule \
     import NetAppONTAPJob as job_module, main as uut_main   # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -100,6 +100,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_job():
     ''' Test if get_job_schedule returns None for non-existent job '''
     register_responses([
@@ -109,6 +110,7 @@ def test_get_nonexistent_job():
     assert job_obj.get_job_schedule() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_job():
     ''' Test if get_job_schedule retuns job details for existing job '''
     register_responses([
@@ -120,6 +122,7 @@ def test_get_existing_job():
     assert result['job_minutes'] == DEFAULT_ARGS['job_minutes']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_job_multiple_minutes():
     # sourcery skip: class-extract-method
     ''' Test if get_job_schedule retuns job details for existing job '''
@@ -133,6 +136,7 @@ def test_get_existing_job_multiple_minutes():
     assert result['job_months'] == [5, 10]
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_job_multiple_minutes_0_offset():
     ''' Test if get_job_schedule retuns job details for existing job '''
     register_responses([
@@ -145,6 +149,7 @@ def test_get_existing_job_multiple_minutes_0_offset():
     assert result['job_months'] == [5, 10]
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_job_multiple_minutes_1_offset():
     ''' Test if get_job_schedule retuns job details for existing job '''
     register_responses([
@@ -157,6 +162,7 @@ def test_get_existing_job_multiple_minutes_1_offset():
     assert result['job_months'] == [5 + 1, 10 + 1]
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
@@ -166,6 +172,7 @@ def test_successful_create():
     assert create_and_apply(job_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_0_offset():
     ''' Test successful create '''
     register_responses([
@@ -176,6 +183,7 @@ def test_successful_create_0_offset():
     assert create_and_apply(job_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_1_offset():
     ''' Test successful create '''
     register_responses([
@@ -186,6 +194,7 @@ def test_successful_create_1_offset():
     assert create_and_apply(job_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     ''' Test create idempotency '''
     register_responses([
@@ -194,6 +203,7 @@ def test_create_idempotency():
     assert not create_and_apply(job_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' Test delete existing job '''
     register_responses([
@@ -203,6 +213,7 @@ def test_successful_delete():
     assert create_and_apply(job_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
@@ -211,6 +222,7 @@ def test_delete_idempotency():
     assert not create_and_apply(job_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' Test successful modify job_minutes '''
     register_responses([
@@ -220,6 +232,7 @@ def test_successful_modify():
     assert create_and_apply(job_module, DEFAULT_ARGS, {'job_minutes': '20'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_idempotency():
     ''' Test modify idempotency '''
     register_responses([
@@ -235,6 +248,7 @@ def test_negative_no_netapp_lib(mock_has):
     assert error in create_module(job_module, DEFAULT_ARGS, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_get_all_minutes():
     register_responses([
         ('job-schedule-cron-get-iter', ZRR['multiple_cron_minutes_info'])
@@ -246,6 +260,7 @@ def test_zapi_get_all_minutes():
     assert schedule['job_minutes'] == [-1]
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception_zapi():
     ''' test error zapi - get/create/modify/delete'''
     register_responses([

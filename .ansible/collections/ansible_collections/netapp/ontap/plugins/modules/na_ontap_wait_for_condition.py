@@ -1,6 +1,6 @@
 #!/usr/bin/python
 '''
-# (c) 2020-2025, NetApp, Inc
+# (c) 2020-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 '''
 
@@ -18,47 +18,77 @@ module: na_ontap_wait_for_condition
 short_description: NetApp ONTAP wait_for_condition.  Loop over a get status request until a condition is met.
 version_added: 20.8.0
 options:
-    name:
+  name:
+    description:
+      - The name of the event to check for.
+      - snapmirror_relationship was added in 21.22.0.
+    choices: ['snapmirror_relationship', 'sp_upgrade', 'sp_version']
+    type: str
+    required: true
+
+  state:
+    description:
+      - whether the conditions should be present or absent.
+      - if C(present), the module exits when any of the conditions is observed.
+      - if C(absent), the module exits with success when None of the conditions is observed.
+    choices: ['present', 'absent']
+    default: present
+    type: str
+
+  conditions:
+    description:
+      - one or more conditions to match
+      - C(state) and/or C(transfer_state) for C(snapmirror_relationship),
+      - C(is_in_progress) for C(sp_upgrade),
+      - C(firmware_version) for C(sp_version).
+    type: list
+    elements: str
+    required: true
+
+  polling_interval:
+    description:
+      - how ofen to check for the conditions, in seconds.
+    default: 5
+    type: int
+
+  timeout:
+    description:
+      - how long to wait for the conditions, in seconds.
+    default: 180
+    type: int
+
+  attributes:
+    description:
+      - a dictionary of custom attributes for the condition.
+      - C(sp_upgrade), C(sp_version) require C(node).
+      - C(sp_version) requires C(expected_version).
+      - C(snapmirror_relationship) requires C(destination_path) and C(expected_state) or C(expected_transfer_state) to match the condition(s).
+    type: dict
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
         description:
-          - The name of the event to check for.
-          - snapmirror_relationship was added in 21.22.0.
-        choices: ['snapmirror_relationship', 'sp_upgrade', 'sp_version']
+          - The name of the AWS Lambda function to invoke.
         type: str
         required: true
-    state:
+      aws_region:
         description:
-          - whether the conditions should be present or absent.
-          - if C(present), the module exits when any of the conditions is observed.
-          - if C(absent), the module exits with success when None of the conditions is observed.
-        choices: ['present', 'absent']
-        default: present
+          - The name of the AWS region.
         type: str
-    conditions:
-        description:
-          - one or more conditions to match
-          - C(state) and/or C(transfer_state) for C(snapmirror_relationship),
-          - C(is_in_progress) for C(sp_upgrade),
-          - C(firmware_version) for C(sp_version).
-        type: list
-        elements: str
         required: true
-    polling_interval:
+      aws_profile:
         description:
-          - how ofen to check for the conditions, in seconds.
-        default: 5
-        type: int
-    timeout:
-        description:
-          - how long to wait for the conditions, in seconds.
-        default: 180
-        type: int
-    attributes:
-        description:
-          - a dictionary of custom attributes for the condition.
-          - C(sp_upgrade), C(sp_version) require C(node).
-          - C(sp_version) requires C(expected_version).
-          - C(snapmirror_relationship) requires C(destination_path) and C(expected_state) or C(expected_transfer_state) to match the condition(s).
-        type: dict
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -142,11 +172,14 @@ class NetAppONTAPWFC:
             timeout=dict(required=False, type='int', default=180),
             attributes=dict(required=False, type='dict')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             required_if=[
                 ('name', 'sp_upgrade', ['attributes']),
                 ('name', 'sp_version', ['attributes']),
+                ('use_lambda', True, ['lambda_config']),
             ],
             supports_check_mode=True
         )
@@ -157,6 +190,8 @@ class NetAppONTAPWFC:
         self.use_rest = self.rest_api.is_rest()
 
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, wrap_zapi=True)

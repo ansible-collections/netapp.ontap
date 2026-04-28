@@ -120,7 +120,7 @@ def test_rest_successful_create_rule():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['create_export_policy_rules']),
         ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     assert create_and_apply(policy_rule, DEFAULT_ARGS, {'rule_index': 10})['changed']
@@ -179,13 +179,13 @@ def test_rest_error_create_rule():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['generic_error']),
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['generic_error']),
         # 2nd call
         ('GET', 'protocols/nfs/export-policies/123/rules/10', SRR['empty_records']),
-        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['empty_records'])
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['empty_records'])
     ])
     my_module_object = create_module(policy_rule, DEFAULT_ARGS, {'rule_index': 10})
-    msg = rest_error_message('Error on creating export policy rule', 'protocols/nfs/export-policies/123/rules?return_records=true')
+    msg = rest_error_message('Error on creating export policy rule', 'protocols/nfs/export-policies/123/rules')
     assert msg in expect_and_capture_ansible_exception(my_module_object.apply, 'fail')['msg']
     msg = 'Error on creating export policy rule, returned response is invalid:'
     assert msg in expect_and_capture_ansible_exception(my_module_object.apply, 'fail')['msg']
@@ -223,7 +223,7 @@ def test_rest_successful_create_policy_and_rule():
         ('GET', 'protocols/nfs/export-policies', SRR['empty_records']),
         ('POST', 'protocols/nfs/export-policies', SRR['empty_good']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
-        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['create_export_policy_rules']),
         ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     assert create_and_apply(policy_rule, DEFAULT_ARGS, {'rule_index': 10})['changed']
@@ -316,7 +316,7 @@ def test_rest_successful_rename_no_from_index():
         ('GET', 'cluster', SRR['is_rest_9_9_1']),
         ('GET', 'protocols/nfs/export-policies', SRR['get_uuid_policy_id_export_policy']),
         ('GET', 'protocols/nfs/export-policies/123/rules/2', SRR['error_does_not_exist']),
-        ('POST', 'protocols/nfs/export-policies/123/rules?return_records=true', SRR['create_export_policy_rules']),
+        ('POST', 'protocols/nfs/export-policies/123/rules', SRR['create_export_policy_rules']),
         ('PATCH', 'protocols/nfs/export-policies/123/rules/1', SRR['empty_records'])
     ])
     module_args = {

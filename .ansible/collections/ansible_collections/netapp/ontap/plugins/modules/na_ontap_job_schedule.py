@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -108,6 +108,30 @@ options:
       - This parameter does not work with cron jobs.
     type: str
     version_added: 23.2.0
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -212,10 +236,14 @@ class NetAppONTAPJob:
             vserver=dict(required=False, type='str'),
             interval=dict(required=False, type='str')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.uuid = None
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
 
@@ -224,6 +252,9 @@ class NetAppONTAPJob:
 
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest()
+        if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
 
         self.month_offset = self.parameters.get('month_offset')
         if self.month_offset is None:
