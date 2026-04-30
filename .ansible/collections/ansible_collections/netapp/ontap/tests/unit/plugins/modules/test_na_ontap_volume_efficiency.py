@@ -6,7 +6,7 @@ import pytest
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
-    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception
+    patch_ansible, create_module, create_and_apply, expect_and_capture_ansible_exception, print_warnings, assert_warning_was_raised
 from ansible_collections.netapp.ontap.tests.unit.framework.mock_rest_and_zapi_requests import patch_request_and_invoke, \
     register_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
@@ -16,8 +16,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume_efficiency
     import NetAppOntapVolumeEfficiency as volume_efficiency_module, main  # module under test
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#   pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 DEFAULT_ARGS = {
@@ -111,7 +111,12 @@ SRR = rest_responses({
     'volume_efficiency_disabled': (200, return_vol_info_rest(state='disabled'), None),
     'volume_efficiency_modify': (200, return_vol_info_rest(compaction='none'), None),
     "unauthorized": (403, None, {'code': 6, 'message': 'Unexpected argument "storage_efficiency_mode".'}),
-    "unexpected_arg": (403, None, {'code': 6, 'message': "not authorized for that command"})
+    "unexpected_arg": (403, None, {'code': 6, 'message': "not authorized for that command"}),
+    "process_running_error": (400, None, "calling: storage/volumes: got job reported error: Timeout error: Process still running, \
+                                          received {'job': {'uuid': 'ea6959a9-1eb7-11f0-b03b-005056ae54f6', '_links': {'self': {'href': \
+                                          '/api/cluster/jobs/ea6959a9-1eb7-11f0-b03b-005056ae54f6'}}}}.."),
+    "AFF_error": (400, None, "cannot modify storage_efficiency mode in non AFF platform."),
+    "user_error": (400, None, "not authorized"),
 })
 
 
@@ -127,6 +132,7 @@ def test_module_fail_when_required_args_missing():
     assert 'one of the following is required: path, volume_name' in create_module(volume_efficiency_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called_existing():
     ''' test get_volume_efficiency for existing config '''
     register_responses([
@@ -136,6 +142,7 @@ def test_ensure_get_called_existing():
     assert my_obj.get_volume_efficiency()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_enable():
     ''' enable volume_efficiency and testing idempotency '''
     register_responses([
@@ -152,6 +159,7 @@ def test_successful_enable():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_disable():
     ''' disable volume_efficiency and testing idempotency '''
     register_responses([
@@ -169,6 +177,7 @@ def test_successful_disable():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' modifying volume_efficiency config and testing idempotency '''
     register_responses([
@@ -182,6 +191,7 @@ def test_successful_modify():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'policy': 'default'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_start():
     ''' start volume_efficiency and testing idempotency '''
     register_responses([
@@ -195,6 +205,7 @@ def test_successful_start():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'start'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_stop():
     ''' stop volume_efficiency and testing idempotency '''
     register_responses([
@@ -208,6 +219,7 @@ def test_successful_stop():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS, {'volume_efficiency': 'stop'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('sis-get-iter', ZRR['error']),
@@ -327,6 +339,7 @@ def test_successful_stop_rest():
     assert not create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_negative_modify_rest_se_mode_no_version():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_97']),
@@ -344,3 +357,57 @@ def test_modify_rest_se_mode():
         ('PATCH', 'storage/volumes/25311eff', SRR['success'])
     ])
     assert create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, {'storage_efficiency_mode': 'efficient'})['changed']
+
+
+def test_volume_efficiency_modify_still_running_background_warning():
+    ''' Test volume efficiency modification in background warning '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['process_running_error']),
+
+    ])
+    module_args = {'wait_for_completion': False, 'state': 'absent'}
+    result = create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, module_args, fail=False)
+    print_warnings()
+    assert_warning_was_raised("Volume efficiency modification is still running in the background, "
+                              "exiting with no further waiting as 'wait_for_completion' is set to false.")
+
+
+def test_volume_efficiency_modify_still_running_sync_warning():
+    ''' Test volume efficiency modification warning when waiting for completion '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['process_running_error']),
+    ])
+    module_args = {'wait_for_completion': True, 'time_out': 30, 'state': 'absent'}
+    result = create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, module_args, fail=False)
+    print_warnings()
+    assert_warning_was_raised('Volume efficiency modification is still in progress after 30 seconds.')
+
+
+def test_volume_efficiency_modify_error():
+    ''' Test volume efficiency modification error '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['AFF_error']),
+    ])
+    module_args = {'state': 'absent', 'storage_efficiency_mode': 'efficient'}
+    error = create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, module_args, fail=True)['msg']
+    msg = 'cannot modify storage_efficiency mode in non AFF platform.'
+    assert msg in error
+
+
+def test_volume_efficiency_modify_user_error():
+    ''' Test volume efficiency modification error '''
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['volume_efficiency_info']),
+        ('PATCH', 'storage/volumes/25311eff', SRR['user_error']),
+    ])
+    module_args = {'state': 'absent', 'storage_efficiency_mode': 'efficient'}
+    error = create_and_apply(volume_efficiency_module, DEFAULT_ARGS_REST, module_args, fail=True)['msg']
+    msg = 'not authorized'
+    assert msg in error

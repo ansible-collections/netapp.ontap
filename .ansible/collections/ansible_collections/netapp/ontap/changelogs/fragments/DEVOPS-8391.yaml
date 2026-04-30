@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_volume_efficiency - Fixed issue with GET timeout by adding new `rest_timeout` option.

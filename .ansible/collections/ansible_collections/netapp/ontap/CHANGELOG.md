@@ -8,6 +8,11 @@
   - na_ontap_rest_info - AWS Lambda support added to the module.
   - na_ontap_restit - AWS Lambda support added to the module.
   - na_ontap_wait_for_condition - AWS Lambda support added to the module.
+  - na_ontap_dns - AWS Lambda support added to the module.
+  - na_ontap_domain_tunnel - AWS Lambda support added to the module.
+  - na_ontap_flexcache - AWS Lambda support added to the module.
+  - na_ontap_iscsi - AWS Lambda support added to the module.
+  - na_ontap_iscsi_security - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
@@ -16,6 +21,7 @@
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.
+  - na_ontap_volume_efficiency - Fixed issue with GET timeout by adding new `rest_timeout` option.
 
 ## 23.4.0
 

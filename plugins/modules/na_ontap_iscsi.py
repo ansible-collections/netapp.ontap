@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2017-2022, NetApp, Inc
+# (c) 2017-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -52,6 +52,31 @@ options:
       - A PATCH request with an empty alias ("") clears the alias.
       - This option is REST only.
     version_added: 22.2.0
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 
 '''
 
@@ -108,9 +133,13 @@ class NetAppOntapISCSI:
             vserver=dict(required=True, type='str'),
             target_alias=dict(required=False, type='str')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
         self.uuid = None
@@ -122,6 +151,8 @@ class NetAppOntapISCSI:
         self.use_rest = self.rest_api.is_rest()
         self.unsupported_zapi_properties = ['target_alias']
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             for unsupported_zapi_property in self.unsupported_zapi_properties:

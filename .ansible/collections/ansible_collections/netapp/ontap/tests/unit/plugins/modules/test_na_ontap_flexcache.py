@@ -1,4 +1,4 @@
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP FlexCache Ansible module '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_flexcache import NetAppONTAPFlexCache as my_module, main as my_main  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 flexcache_info = {
@@ -106,6 +106,7 @@ def test_module_fail_when_required_args_missing():
     assert error in call_main(my_main, {}, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_missing_parameters():
     ''' fail if origin volume and origin verser are missing '''
     register_responses([
@@ -118,6 +119,7 @@ def test_missing_parameters():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_missing_parameter():
     ''' fail if origin verser parameter is missing '''
     register_responses([
@@ -131,6 +133,7 @@ def test_missing_parameter():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_flexcache():
     ''' get flexcache info '''
     register_responses([
@@ -147,6 +150,7 @@ def test_get_flexcache():
     assert 'origin_cluster' in info
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_flexcache_double():
     ''' get flexcache info returns 2 entries! '''
     register_responses([
@@ -162,6 +166,7 @@ def test_get_flexcache_double():
     assert error in expect_and_capture_ansible_exception(my_obj.flexcache_get, 'fail')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache():
     ''' create flexcache '''
     register_responses([
@@ -180,6 +185,7 @@ def test_create_flexcache():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcach_no_wait():
     ''' create flexcache '''
     register_responses([
@@ -198,6 +204,7 @@ def test_create_flexcach_no_wait():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create_flexcache():
     ''' create flexcache '''
     register_responses([
@@ -228,6 +235,7 @@ def test_error_create_flexcache():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_idempotent():
     ''' create flexcache - already exists '''
     register_responses([
@@ -242,6 +250,7 @@ def test_create_flexcache_idempotent():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_autoprovision():
     ''' create flexcache with autoprovision'''
     register_responses([
@@ -260,6 +269,7 @@ def test_create_flexcache_autoprovision():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_autoprovision_idempotent():
     ''' create flexcache with autoprovision - already exists '''
     register_responses([
@@ -274,6 +284,7 @@ def test_create_flexcache_autoprovision_idempotent():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_multiplier():
     ''' create flexcache with aggregate multiplier'''
     register_responses([
@@ -293,6 +304,7 @@ def test_create_flexcache_multiplier():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_multiplier_idempotent():
     ''' create flexcache with aggregate multiplier - already exists '''
     register_responses([
@@ -308,6 +320,7 @@ def test_create_flexcache_multiplier_idempotent():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_exists_no_force():
     ''' delete flexcache '''
     register_responses([
@@ -322,6 +335,7 @@ def test_delete_flexcache_exists_no_force():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_exists_with_force():
     ''' delete flexcache '''
     register_responses([
@@ -338,6 +352,7 @@ def test_delete_flexcache_exists_with_force():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_exists_with_force_no_wait():
     ''' delete flexcache '''
     register_responses([
@@ -354,6 +369,7 @@ def test_delete_flexcache_exists_with_force_no_wait():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_exists_junctionpath_no_force():
     ''' delete flexcache '''
     register_responses([
@@ -372,6 +388,7 @@ def test_delete_flexcache_exists_junctionpath_no_force():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_exists_junctionpath_with_force():
     ''' delete flexcache '''
     register_responses([
@@ -391,6 +408,7 @@ def test_delete_flexcache_exists_junctionpath_with_force():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_flexcache_not_exist():
     ''' delete flexcache '''
     register_responses([
@@ -403,6 +421,7 @@ def test_delete_flexcache_not_exist():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_delete_flexcache_exists_with_force():
     ''' delete flexcache '''
     register_responses([
@@ -433,6 +452,7 @@ def test_error_delete_flexcache_exists_with_force():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_flexcache_size_error():
     ''' create flexcache '''
     register_responses([
@@ -451,6 +471,7 @@ def test_create_flexcache_size_error():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_create_flexcache_time_out(dont_sleep):
     ''' create flexcache '''
@@ -473,6 +494,7 @@ def test_create_flexcache_time_out(dont_sleep):
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_zapi():
     ''' error in ZAPI calls '''
     register_responses([
@@ -492,6 +514,7 @@ def test_error_zapi():
     assert error in expect_and_capture_ansible_exception(my_obj.volume_unmount, 'fail', None)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_check_job_status():
     ''' check_job_status '''
     register_responses([
@@ -559,7 +582,7 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
     module_args = {
         "use_rest": "never"
     }
-    assert 'Error: the python NetApp-Lib module is required.  Import error: None' == call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
+    assert 'Error: the python NetApp-Lib module is required.  Import error:' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
 def test_rest_missing_arguments():

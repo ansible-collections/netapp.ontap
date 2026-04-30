@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -56,6 +56,31 @@ options:
     - to bypass the check for all servers specified in nameservers field.
     - With REST, requires ONTAP 9.9.1 or later and ignored for cluster DNS operations.
     version_added: 2.8.0
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -106,10 +131,14 @@ class NetAppOntapDns:
             nameservers=dict(required=False, type='list', elements='str'),
             skip_validation=dict(required=False, type='bool')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            required_if=[('state', 'present', ['domains', 'nameservers'])],
+            required_if=[
+                ('state', 'present', ['domains', 'nameservers']),
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
 
@@ -122,6 +151,8 @@ class NetAppOntapDns:
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, None, [['skip_validation', (9, 9, 1)]])
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             if not self.parameters.get('vserver'):

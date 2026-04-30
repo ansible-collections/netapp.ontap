@@ -1,4 +1,4 @@
-# (c) 2022, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_iscsi '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -74,6 +74,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_iscsi():
     register_responses([
         ('iscsi-service-get-iter', ZRR['empty'])
@@ -83,6 +84,7 @@ def test_get_nonexistent_iscsi():
     assert not result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_iscsi():
     register_responses([
         ('iscsi-service-get-iter', ZRR['iscsi_started'])
@@ -92,6 +94,7 @@ def test_get_existing_iscsi():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create():
     register_responses([
         ('iscsi-service-get-iter', ZRR['empty']),
@@ -100,6 +103,7 @@ def test_successfully_create():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     register_responses([
         ('iscsi-service-get-iter', ZRR['iscsi_started'])
@@ -107,6 +111,7 @@ def test_create_idempotency():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create_stop_service():
     register_responses([
         ('iscsi-service-get-iter', ZRR['empty']),
@@ -116,6 +121,7 @@ def test_successfully_create_stop_service():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete_when_service_started():
     register_responses([
         ('iscsi-service-get-iter', ZRR['iscsi_started']),
@@ -126,6 +132,7 @@ def test_successfully_delete_when_service_started():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotent():
     register_responses([
         ('iscsi-service-get-iter', ZRR['empty'])
@@ -134,6 +141,7 @@ def test_delete_idempotent():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_start_iscsi():
     register_responses([
         ('iscsi-service-get-iter', ZRR['iscsi_stopped']),
@@ -142,6 +150,7 @@ def test_start_iscsi():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_stop_iscsi():
     register_responses([
         ('iscsi-service-get-iter', ZRR['iscsi_started']),
@@ -151,6 +160,7 @@ def test_stop_iscsi():
     assert create_and_apply(iscsi_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('iscsi-service-get-iter', ZRR['error']),

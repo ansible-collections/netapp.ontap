@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_dns'''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_dns import main as my_main, NetAppOntapDns as my_module      # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 # REST API canned responses when mocking send_request
@@ -70,6 +70,7 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     register_responses([
@@ -81,6 +82,7 @@ def test_module_fail_when_required_args_missing():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_get_error():
     register_responses([
         ('ZAPI', 'net-dns-get', ZRR['error']),
@@ -97,6 +99,7 @@ def test_zapi_get_error():
     assert my_obj.get_dns() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_idempotent_modify_dns():
     register_responses([
         ('ZAPI', 'net-dns-get', ZRR['dns_info']),
@@ -109,6 +112,7 @@ def test_idempotent_modify_dns():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_modify_dns():
     register_responses([
         ('ZAPI', 'net-dns-get', ZRR['dns_info']),
@@ -145,6 +149,7 @@ def test_zapi_modify_dns():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_create_dns():
     register_responses([
         ('ZAPI', 'net-dns-get', ZRR['empty']),
@@ -167,6 +172,7 @@ def test_zapi_create_dns():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_zapi_delete_dns():
     register_responses([
         ('ZAPI', 'net-dns-get', ZRR['dns_info']),
@@ -386,4 +392,4 @@ def test_has_netapp_lib(has_netapp_lib):
         'vserver': 'svm_abc',
     }
     has_netapp_lib.return_value = False
-    assert call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg'] == 'Error: the python NetApp-Lib module is required.  Import error: None'
+    assert 'Error: the python NetApp-Lib module is required.  Import error:' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']

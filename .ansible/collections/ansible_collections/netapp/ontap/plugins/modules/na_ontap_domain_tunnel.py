@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2021-2025, NetApp, Inc
+# (c) 2021-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -33,6 +33,31 @@ options:
     - The name of the vserver that the domain tunnel should be created or deleted on.
     required: true
     type: str
+
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -54,7 +79,7 @@ import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_ut
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp_module import NetAppModule
 from ansible_collections.netapp.ontap.plugins.module_utils.netapp import OntapRestAPI
 
-HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
+# HAS_NETAPP_LIB = netapp_utils.has_netapp_lib()
 
 
 class NetAppOntapDomainTunnel(object):
@@ -68,8 +93,13 @@ class NetAppOntapDomainTunnel(object):
             state=dict(choices=['present', 'absent'], default='present'),
             vserver=dict(required=True, type='str')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
 

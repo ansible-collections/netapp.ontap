@@ -160,7 +160,7 @@ options:
       - With C(wait_for_completion) set, specifies time to wait for volume efficiency operation in seconds.
       - Only supported with REST.
     type: int
-    default: 120
+    default: 30
 
   wait_for_completion:
     version_added: 23.4.0
@@ -170,6 +170,14 @@ options:
       - Only supported with REST.
     type: bool
     default: true
+
+  rest_timeout:
+    version_added: 23.5.0
+    description:
+      - Specifies time to wait for REST API response in seconds.
+      - Only supported with REST.
+    type: int
+    default: 60
 
   lambda_config:
     description:
@@ -318,7 +326,8 @@ class NetAppOntapVolumeEfficiency(object):
             start_ve_scan_old_data=dict(required=False, type='bool'),
             start_ve_qos_policy=dict(required=False, choices=['background', 'best-effort'], type='str'),
             stop_ve_all_operations=dict(required=False, type='bool'),
-            time_out=dict(required=False, type='int', default=120),
+            time_out=dict(required=False, type='int', default=30),
+            rest_timeout=dict(required=False, type='int', default=60),
             wait_for_completion=dict(required=False, type='bool', default=True),
         ))
 
@@ -341,7 +350,7 @@ class NetAppOntapVolumeEfficiency(object):
         else:
             self.parameters['enabled'] = 'disabled'
 
-        self.rest_api = netapp_utils.OntapRestAPI(self.module)
+        self.rest_api = netapp_utils.OntapRestAPI(self.module, timeout=self.parameters.get('rest_timeout'))
         partially_supported_rest_properties = [
             ['policy', (9, 7)], ['storage_efficiency_mode', (9, 10, 1)], ['path', (9, 9, 1)],
             # make op_state active/idle  is supported from 9.11.1 or later with REST.
@@ -490,13 +499,14 @@ class NetAppOntapVolumeEfficiency(object):
                     else:
                         warning = ('Volume efficiency modification is still in progress after %d seconds.' % self.parameters['time_out'])
                     self.module.warn(warning)
-
-                if 'Unexpected argument "storage_efficiency_mode".' in error or \
-                        'The \"-storage-efficiency-mode\" parameter is only supported on AFF.' in error:
-                    error = "cannot modify storage_efficiency mode in non AFF platform."
-                elif 'not authorized' in error:
-                    error = "%s user is not authorized to modify volume efficiency" % self.parameters.get('username')
-                self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
+                    return
+                else:
+                    if 'Unexpected argument "storage_efficiency_mode".' in error or \
+                            'The \"-storage-efficiency-mode\" parameter is only supported on AFF.' in error:
+                        error = "cannot modify storage_efficiency mode in non AFF platform."
+                    elif 'not authorized' in error:
+                        error = "%s user is not authorized to modify volume efficiency" % self.parameters.get('username')
+                    self.module.fail_json(msg='Error in volume/efficiency patch: %s' % error)
 
         else:
 

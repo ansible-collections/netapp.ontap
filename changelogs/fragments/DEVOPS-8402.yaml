@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_dns - AWS Lambda support added to the module.
+  - na_ontap_domain_tunnel - AWS Lambda support added to the module.
+  - na_ontap_flexcache - AWS Lambda support added to the module.
+  - na_ontap_iscsi - AWS Lambda support added to the module.
+  - na_ontap_iscsi_security - AWS Lambda support added to the module.
