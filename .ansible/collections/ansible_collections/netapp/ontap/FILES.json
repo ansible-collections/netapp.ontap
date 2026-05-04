@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4f1daa3c0f0062e0b634b750e30c0072d936d4c0742c4bfcf7f7fbe694393ac8",
+   "chksum_sha256": "545eb53fc17824ce1f1c9c0fb5385e66efac5e17dfa10817587abd02027e8709",
    "format": 1
   },
   {
@@ -4663,6 +4663,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8388.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e78535acdfd912616db6c96639ad106b7b754291e9a4a4c2b153753318b38640",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8391.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5275,7 +5282,7 @@
    "name": "plugins/modules/na_ontap_cifs_server.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "56dc710736fbb00bdce5e11f74809e02bcdeaaeae204de43aaf6e6a363345ae2",
+   "chksum_sha256": "ce3fe483ba31d0a88544ffc8022642709ad2129c2c02186cb32301e875513243",
    "format": 1
   },
   {

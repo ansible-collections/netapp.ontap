@@ -521,7 +521,8 @@ class NetAppOntapcifsServer:
                            'security.smb_encryption,'
                            'security.kdc_encryption,'
                            'security.smb_signing,'
-                           'security.restrict_anonymous,'}
+                           'security.restrict_anonymous,'
+                           'ad_domain,'}
         query['name'] = from_name or self.parameters['cifs_server_name']
         api = 'protocols/cifs/services'
         if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 8):
@@ -564,21 +565,26 @@ class NetAppOntapcifsServer:
                 'restrict_anonymous': self.na_helper.safe_get(record, ['security', 'restrict_anonymous']),
                 'is_multichannel_enabled': self.na_helper.safe_get(record, ['options', 'multichannel']),
                 'comment': self.na_helper.safe_get(record, ['comment']),
+                'ou': self.na_helper.safe_get(record, ['ad_domain', 'organizational_unit']),
+                'domain': self.na_helper.safe_get(record, ['ad_domain', 'fqdn']),
+                'default_site': self.na_helper.safe_get(record, ['ad_domain', 'default_site']),
             }
         return record
 
-    def build_ad_domain(self):
+    def build_ad_domain(self, params=None):
+        if params is None:
+            params = self.parameters
         ad_domain = {}
-        if 'admin_user_name' in self.parameters:
-            ad_domain['user'] = self.parameters['admin_user_name']
-        if 'admin_password' in self.parameters:
-            ad_domain['password'] = self.parameters['admin_password']
-        if 'ou' in self.parameters:
-            ad_domain['organizational_unit'] = self.parameters['ou']
-        if 'domain' in self.parameters:
-            ad_domain['fqdn'] = self.parameters['domain']
-        if 'default_site' in self.parameters:
-            ad_domain['default_site'] = self.parameters['default_site']
+        if 'admin_user_name' in params:
+            ad_domain['user'] = params['admin_user_name']
+        if 'admin_password' in params:
+            ad_domain['password'] = params['admin_password']
+        if 'ou' in params:
+            ad_domain['organizational_unit'] = params['ou']
+        if 'domain' in params:
+            ad_domain['fqdn'] = params['domain']
+        if 'default_site' in params:
+            ad_domain['default_site'] = params['default_site']
         return ad_domain
 
     def create_modify_body_rest(self, params=None):
@@ -591,7 +597,7 @@ class NetAppOntapcifsServer:
         security_options = ['smb_signing', 'encrypt_dc_connection', 'kdc_encryption', 'smb_encryption', 'restrict_anonymous',
                             'aes_netlogon_enabled', 'ldap_referral_enabled', 'try_ldap_channel_binding', 'session_security',
                             'lm_compatibility_level', 'use_ldaps', 'use_start_tls']
-        ad_domain = self.build_ad_domain()
+        ad_domain = self.build_ad_domain(params)
         if ad_domain:
             body['ad_domain'] = ad_domain
         if 'force' in self.parameters:
@@ -612,7 +618,7 @@ class NetAppOntapcifsServer:
         if 'vserver' in params:
             body['svm.name'] = params['vserver']
         if 'cifs_server_name' in params:
-            body['name'] = self.parameters['cifs_server_name']
+            body['name'] = params['cifs_server_name']
         if 'service_state' in params:
             body['enabled'] = params['service_state'] == 'started'
         if 'comment' in params:

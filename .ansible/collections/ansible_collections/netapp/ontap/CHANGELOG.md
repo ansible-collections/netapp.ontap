@@ -22,6 +22,7 @@
 ### Bug Fixes
   - na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.
   - na_ontap_volume_efficiency - Fixed issue with GET timeout by adding new `rest_timeout` option.
+  - na_ontap_cifs_server - Fixed issue with updating comments when using REST API.
 
 ## 23.4.0
 
