@@ -1,4 +1,4 @@
-# (c) 2018-2022, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_vscan_scanner_pool '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -77,6 +77,7 @@ ZRR = zapi_responses({
 })
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     with pytest.raises(AnsibleFailJson) as exc:
@@ -85,6 +86,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_efficiency_policy():
     register_responses([
         ('sis-policy-get-iter', ZRR['empty'])
@@ -94,6 +96,7 @@ def test_get_nonexistent_efficiency_policy():
     assert not result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_efficiency_policy():
     register_responses([
         ('sis-policy-get-iter', ZRR['threshold_info'])
@@ -103,6 +106,7 @@ def test_get_existing_efficiency_policy():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create():
     register_responses([
         ('sis-policy-get-iter', ZRR['empty']),
@@ -112,6 +116,7 @@ def test_successfully_create():
     assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     register_responses([
         ('sis-policy-get-iter', ZRR['threshold_info'])
@@ -120,6 +125,7 @@ def test_create_idempotency():
     assert create_and_apply(efficiency_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_threshold_duration_failure():
     register_responses([
         ('sis-policy-get-iter', ZRR['threshold_info'])
@@ -129,6 +135,7 @@ def test_threshold_duration_failure():
     assert "duration cannot be set if policy_type is threshold" == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_threshold_schedule_failure():
     register_responses([
         ('sis-policy-get-iter', ZRR['threshold_info'])
@@ -138,6 +145,7 @@ def test_threshold_schedule_failure():
     assert "schedule cannot be set if policy_type is threshold" == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_scheduled_threshold_percent_failure():
     register_responses([
         ('sis-policy-get-iter', ZRR['schedule_info'])
@@ -147,6 +155,7 @@ def test_scheduled_threshold_percent_failure():
     assert "changelog_threshold_percent cannot be set if policy_type is scheduled" == msg
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete():
     register_responses([
         ('sis-policy-get-iter', ZRR['threshold_info']),
@@ -156,6 +165,7 @@ def test_successfully_delete():
     assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     register_responses([
         ('sis-policy-get-iter', ZRR['empty'])
@@ -164,6 +174,7 @@ def test_delete_idempotency():
     assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     register_responses([
         ('sis-policy-get-iter', ZRR['schedule_info']),
@@ -173,6 +184,7 @@ def test_successful_modify():
     assert create_and_apply(efficiency_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('sis-policy-get-iter', ZRR['error']),
@@ -199,6 +211,7 @@ def test_if_all_methods_catch_exception():
     assert 'Error deleting efficiency policy test_policy: NetApp API failed. Reason - 12345:synthetic error for UT purpose' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_switch_to_zapi():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_96']),

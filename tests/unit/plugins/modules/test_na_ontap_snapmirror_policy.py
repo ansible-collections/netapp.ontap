@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_snapmirror_policy import NetAppOntapSnapMirrorPolicy as my_module, main as my_main
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -236,6 +236,7 @@ def test_module_fail_when_required_args_missing():
     assert error in call_main(my_main, args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called():
     ''' test get_snapmirror_policy for non-existent snapmirror policy'''
     register_responses([
@@ -248,6 +249,7 @@ def test_ensure_get_called():
     assert my_obj.get_snapmirror_policy() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called_existing():
     ''' test get_snapmirror_policy for existing snapmirror policy'''
     register_responses([
@@ -260,6 +262,7 @@ def test_ensure_get_called_existing():
     assert my_obj.get_snapmirror_policy()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' creating snapmirror policy without rules and testing idempotency '''
     register_responses([
@@ -319,6 +322,7 @@ def test_successful_create_with_rest():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create_with_rules():
     ''' creating snapmirror policy with rules and testing idempotency '''
     register_responses([
@@ -364,6 +368,7 @@ def test_successful_create_with_rules_via_rest():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' deleting snapmirror policy and testing idempotency '''
     register_responses([
@@ -403,6 +408,7 @@ def test_successful_delete_with_rest():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' modifying snapmirror policy without rules.  idempotency was tested in create '''
     register_responses([
@@ -436,6 +442,7 @@ def test_successful_modify_with_rest():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_with_rules():
     ''' modifying snapmirror policy with rules.  Idempotency was tested in create '''
     register_responses([
@@ -472,6 +479,7 @@ def test_successful_modify_with_rules_via_rest():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('ZAPI', 'snapmirror-policy-get-iter', ZRR['error']),
@@ -549,6 +557,7 @@ def test_if_all_methods_catch_exception_rest():
     assert error in expect_and_capture_ansible_exception(my_obj.modify_snapmirror_policy_rules, 'fail', None, 'uuid')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_snapmirror_policy_retention_obj_for_rest():
     ''' test create_snapmirror_policy_retention_obj_for_rest '''
     register_responses([
@@ -583,6 +592,7 @@ def test_create_snapmirror_policy_retention_obj_for_rest():
     assert my_obj.create_snapmirror_policy_retention_obj_for_rest(rules) == retention_obj
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_identify_snapmirror_policy_rules_with_schedule():
     ''' test identify_snapmirror_policy_rules_with_schedule '''
     register_responses([
@@ -621,6 +631,7 @@ def test_identify_snapmirror_policy_rules_with_schedule():
     assert my_obj.identify_snapmirror_policy_rules_with_schedule(rules) == (schedule_rules, non_schedule_rules)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_identify_new_snapmirror_policy_rules():
     ''' test identify_new_snapmirror_policy_rules '''
     register_responses([
@@ -680,6 +691,7 @@ def test_identify_new_snapmirror_policy_rules():
     assert my_obj.identify_new_snapmirror_policy_rules(current) == new_rules
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_identify_obsolete_snapmirror_policy_rules():
     ''' test identify_obsolete_snapmirror_policy_rules '''
     register_responses([
@@ -755,6 +767,7 @@ def test_identify_obsolete_snapmirror_policy_rules():
     assert my_obj.identify_obsolete_snapmirror_policy_rules(current) == obsolete_rules
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_identify_modified_snapmirror_policy_rules():
     ''' test identify_modified_snapmirror_policy_rules '''
     register_responses([
@@ -841,6 +854,7 @@ def test_identify_modified_snapmirror_policy_rules():
     assert my_obj.identify_modified_snapmirror_policy_rules(current), (modified_rules == unmodified_rules)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.HAS_NETAPP_LIB', False)
 def test_module_fail_when_netapp_lib_missing():
     ''' required lib missing '''
@@ -850,6 +864,7 @@ def test_module_fail_when_netapp_lib_missing():
     assert 'Error: the python NetApp-Lib module is required.  Import error: None' in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_validate_parameters():
     ''' test test_validate_parameters '''
     register_responses([

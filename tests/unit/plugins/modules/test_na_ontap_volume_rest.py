@@ -1,4 +1,4 @@
-# (c) 2020-2025, NetApp, Inc
+# (c) 2020-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -9,6 +9,7 @@ __metaclass__ = type
 
 import copy
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -23,9 +24,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_volume \
     import NetAppOntapVolume as volume_module, main as my_main      # module under test
 
-# needed for get and modify/delete as they still use ZAPI
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
 
 
 volume_info = {
@@ -127,6 +127,14 @@ volume_info_object_tags_modified = copy.deepcopy(volume_info)
 volume_info_object_tags_modified['tiering']['object_tags'] = ['tag1=vol1', 'tag2=vol2', 'tag3=vol3', 'tag4=vol4']
 volume_info_object_tags_empty = copy.deepcopy(volume_info)
 volume_info_object_tags_empty['tiering']['object_tags'] = []
+volume_info_ar_disabled = copy.deepcopy(volume_info)
+volume_info_ar_disabled['anti_ransomware'] = {'state': 'disabled'}
+volume_info_ar_disable_in_progress = copy.deepcopy(volume_info)
+volume_info_ar_disable_in_progress['anti_ransomware'] = {'state': 'disable_in_progress'}
+volume_info_ar_enabled = copy.deepcopy(volume_info)
+volume_info_ar_enabled['anti_ransomware'] = {'state': 'enabled'}
+volume_info_ar_paused = copy.deepcopy(volume_info)
+volume_info_ar_paused['anti_ransomware'] = {'state': 'enable_paused'}
 
 
 # REST API canned responses when mocking send_request
@@ -178,7 +186,11 @@ SRR = rest_responses({
     'volume_info_tags': (200, {'records': [volume_info_tags]}, None),
     'volume_info_object_tags': (200, {'records': [volume_info_object_tags]}, None),
     'volume_info_object_tags_modified': (200, {'records': [volume_info_object_tags_modified]}, None),
-    'volume_info_object_tags_empty': (200, {'records': [volume_info_object_tags_empty]}, None)
+    'volume_info_object_tags_empty': (200, {'records': [volume_info_object_tags_empty]}, None),
+    'get_volume_ar_disabled': (200, {'records': [volume_info_ar_disabled]}, None),
+    'get_volume_ar_disable_in_progress': (200, {'records': [volume_info_ar_disable_in_progress]}, None),
+    'get_volume_ar_enabled': (200, {'records': [volume_info_ar_enabled]}, None),
+    'get_volume_ar_paused': (200, {'records': [volume_info_ar_paused]}, None),
 })
 
 DEFAULT_APP_ARGS = {
@@ -666,6 +678,70 @@ def test_rest_successfully_modify_large_size_enabled():
         'large_size_enabled': False
     }
     assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_modify_anti_ransomware_state_enabled():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_disabled']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_enabled']),
+    ])
+    module_args = {
+        'anti_ransomware': {'state': 'enabled'},
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_modify_anti_ransomware_state_paused():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_enabled']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_paused']),
+    ])
+    module_args = {
+        'anti_ransomware': {'state': 'paused'},
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_modify_anti_ransomware_state_dry_run():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_paused']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_enabled']),
+    ])
+    module_args = {
+        'anti_ransomware': {'state': 'dry_run'},
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+
+
+def test_rest_modify_anti_ransomware_state_disabled():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_enabled']),
+        ('PATCH', 'storage/volumes/7882901a-1aef-11ec-a267-005056b30cfa', SRR['no_record']),
+
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'storage/volumes', SRR['get_volume_ar_disable_in_progress']),
+    ])
+    module_args = {
+        'anti_ransomware': {'state': 'disabled'},
+    }
+    assert create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
+    assert not create_and_apply(volume_module, DEFAULT_VOLUME_ARGS, module_args)['changed']
 
 
 def test_rest_successfully_create_volume():
@@ -1207,10 +1283,11 @@ def test_use_zapi_and_netapp_lib_missing(mock_has_netapp_lib):
     ])
     mock_has_netapp_lib.return_value = False
     module_args = {'use_rest': 'never'}
-    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
-    assert create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg'] == error
+    error = 'Error: the python NetApp-Lib module is required.  Import error: '
+    assert error in create_module(volume_module, DEFAULT_VOLUME_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fallback_to_zapi_and_nas_application_is_used():
     """fallback to ZAPI when use_rest: auto and some ZAPI only options are used"""
     register_responses([
@@ -1223,6 +1300,7 @@ def test_fallback_to_zapi_and_nas_application_is_used():
     assert_warning_was_raised("Falling back to ZAPI because of unsupported option(s) or option value(s) in REST: ['cutover_action']")
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_fallback_to_zapi_and_rest_option_is_used():
     """fallback to ZAPI when use_rest: auto and some ZAPI only options are used"""
     register_responses([

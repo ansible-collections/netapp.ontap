@@ -177,6 +177,27 @@ options:
     type: str
     choices: ['sync', 'strict_sync', 'automated_failover']
     version_added: '22.2.0'
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 
 notes:
   - In REST, policy types 'mirror_vault', 'vault' and 'async_mirror' are mapped to 'async' policy_type.
@@ -190,6 +211,7 @@ notes:
   - In REST, use policy_type 'sync' with sync_type 'sync' to configure 'sync-mirror' in CLI.
   - In REST, use policy_type 'sync' with sync_type 'strict_sync' to configure 'strict-sync-mirror' in CLI.
   - In REST, use policy_type 'sync' with sync_type 'automated_failover' to configure 'automated-failover' in CLI.
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
 
 EXAMPLES = """
@@ -343,11 +365,12 @@ class NetAppOntapSnapMirrorPolicy:
             create_snapshot_on_source=dict(required=False, type='bool'),
             sync_type=dict(required=False, type="str", choices=['sync', 'strict_sync', 'automated_failover']),
         ))
-
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            mutually_exclusive=[('copy_all_source_snapshots', 'copy_latest_source_snapshot', 'create_snapshot_on_source', 'sync_type')]
+            mutually_exclusive=[('copy_all_source_snapshots', 'copy_latest_source_snapshot', 'create_snapshot_on_source', 'sync_type')],
+            required_if=[('use_lambda', True, ('lambda_config',))],
         )
 
         # set up variables
@@ -368,6 +391,8 @@ class NetAppOntapSnapMirrorPolicy:
         if self.use_rest:
             self.scope = self.set_scope()
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             for unsupported_zapi_property in self.unsupported_zapi_properties:

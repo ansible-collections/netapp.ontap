@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -11,7 +11,7 @@ DOCUMENTATION = '''
 module: na_ontap_volume
 short_description: NetApp ONTAP manage volumes.
 extends_documentation_fragment:
-    - netapp.ontap.netapp.na_ontap
+  - netapp.ontap.netapp.na_ontap
 version_added: 2.6.0
 author: NetApp Ansible Team (@carchi8py) <ng-ansible-team@netapp.com>
 
@@ -110,7 +110,7 @@ options:
           access:
             description: The CIFS access granted to the user or group.  Default is full_control.
             type: str
-            choices: [change, full_control, no_access, read]
+            choices: ['change', 'full_control', 'no_access', 'read']
           user_or_group:
             description: The name of the CIFS user or group that will be granted access.  Default is Everyone.
             type: str
@@ -124,7 +124,7 @@ options:
           access:
             description: The NFS access granted.  Default is rw.
             type: str
-            choices: [none, ro, rw]
+            choices: ['none', 'ro', 'rw']
           host:
             description: The name of the NFS entity granted access.  Default is 0.0.0.0/0.
             type: str
@@ -774,6 +774,20 @@ options:
     type: bool
     version_added: 22.13.0
 
+  anti_ransomware:
+    description:
+      - Anti-ransomware related information of the volume.
+      - Only supported with REST and requires ONTAP 9.10 or later.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      state:
+        description:
+          - Determines the the anti-ransomware state for the volume.
+          - C(paused) is valid only for modify operation.
+        type: str
+        choices: ['enabled', 'disabled', 'dry_run', 'paused']
+
   lambda_config:
     description:
       - Configuration parameters for AWS Lambda proxy functionality.
@@ -1193,6 +1207,9 @@ class NetAppOntapVolume:
             tags=dict(required=False, type='list', elements='str'),
             snapshot_locking=dict(required=False, type='bool'),
             granular_data=dict(required=False, type='bool'),
+            anti_ransomware=dict(type='dict', options=dict(
+                state=dict(required=False, type='str', choices=['enabled', 'disabled', 'dry_run', 'paused']),
+            )),
         ))
         self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
         self.module = AnsibleModule(
@@ -1235,12 +1252,14 @@ class NetAppOntapVolume:
         partially_supported_rest_properties = [['efficiency_policy', (9, 7)], ['tiering_minimum_cooling_days', (9, 8)],
                                                ['analytics', (9, 8)], ['atime_update', (9, 8)], ['tiering_object_tags', (9, 8)],
                                                ['vol_nearly_full_threshold_percent', (9, 9)], ['vol_full_threshold_percent', (9, 9)],
-                                               ['activity_tracking', (9, 10, 1)], ['snapshot_locking', (9, 12, 1)],
-                                               ['granular_data', (9, 12, 1)], ['large_size_enabled', (9, 12, 1)],
-                                               ['tags', (9, 13, 1)], ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
+                                               ['activity_tracking', (9, 10, 1)], ['anti_ransomware', (9, 10, 1)],
+                                               ['snapshot_locking', (9, 12, 1)], ['granular_data', (9, 12, 1)],
+                                               ['large_size_enabled', (9, 12, 1)], ['tags', (9, 13, 1)],
+                                               ['snapdir_access', (9, 13, 1)], ['snapshot_auto_delete', (9, 13, 1)]]
         self.unsupported_zapi_properties = ['sizing_method', 'logical_space_enforcement', 'logical_space_reporting', 'snaplock',
                                             'analytics', 'activity_tracking', 'tags', 'vol_nearly_full_threshold_percent',
-                                            'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data', 'tiering_object_tags']
+                                            'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data',
+                                            'anti_ransomware', 'tiering_object_tags']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties, partially_supported_rest_properties)
 
         if not self.use_rest:
@@ -2175,7 +2194,8 @@ class NetAppOntapVolume:
                              'nvfail_enabled', 'space_slo', 'qos_policy_group', 'qos_adaptive_policy_group', 'vserver_dr_protection',
                              'comment', 'logical_space_enforcement', 'logical_space_reporting', 'tiering_minimum_cooling_days',
                              'snaplock', 'max_files', 'analytics', 'activity_tracking', 'tags', 'snapshot_auto_delete',
-                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking', 'granular_data']:
+                             'vol_nearly_full_threshold_percent', 'vol_full_threshold_percent', 'large_size_enabled', 'snapshot_locking',
+                             'granular_data', 'anti_ransomware']:
                 self.volume_modify_attributes(modify)
                 break
         if 'snapshot_auto_delete' in attributes and not self.use_rest:
@@ -2505,6 +2525,7 @@ class NetAppOntapVolume:
             del self.parameters['unix_permissions']
         # snapshot_auto_delete's value is a dict, get_modified_attributes function doesn't support dict as value.
         auto_delete_info = current.pop('snapshot_auto_delete', None)
+        anti_ransomware_info = current.pop('anti_ransomware', None)
         # ignore small changes in volume size or inode maximum by adjusting self.parameters['size'] or self.parameters['max_files']
         self.adjust_sizes(current, after_create)
         if 'type' in self.parameters:
@@ -2543,6 +2564,16 @@ class NetAppOntapVolume:
                                                                         self.parameters['snapshot_auto_delete'])
             if len(auto_delete_modify) > 0:
                 modify['snapshot_auto_delete'] = auto_delete_modify
+        if self.parameters.get('anti_ransomware') is not None:
+            anti_ransomware_modify = self.na_helper.get_modified_attributes(anti_ransomware_info,
+                                                                            self.parameters['anti_ransomware'])
+            if self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'state']) is not None:
+                if anti_ransomware_modify.get('state') is not None:
+                    anti_ransomware_modify['state'] = None
+                if self.set_anti_ransomware_state(anti_ransomware_info) is not None:
+                    anti_ransomware_modify.update({'state': self.set_anti_ransomware_state(anti_ransomware_info)})
+            if len(self.na_helper.filter_out_none_entries(anti_ransomware_modify)) > 0:
+                modify['anti_ransomware'] = self.na_helper.filter_out_none_entries(anti_ransomware_modify)
         return modify
 
     def take_modify_actions(self, modify):
@@ -2656,6 +2687,8 @@ class NetAppOntapVolume:
             params['fields'] += 'snapshot_locking_enabled,'
         if self.parameters.get('granular_data') is not None:
             params['fields'] += 'granular_data,'
+        if self.parameters.get('anti_ransomware') is not None:
+            params['fields'] += 'anti_ransomware,'
 
         record, error = rest_generic.get_one_record(self.rest_api, api, params)
         if error:
@@ -2760,6 +2793,8 @@ class NetAppOntapVolume:
             body['analytics.state'] = self.parameters['analytics']
         if self.parameters.get('activity_tracking'):
             body['activity_tracking.state'] = self.parameters['activity_tracking']
+        if self.parameters.get('anti_ransomware') is not None:
+            body['anti_ransomware'] = self.na_helper.filter_out_none_entries(self.parameters['anti_ransomware'])
         body['state'] = self.bool_to_online(self.parameters['is_online'])
         return body
 
@@ -2858,7 +2893,29 @@ class NetAppOntapVolume:
                         body[key] = transform(self.parameters['snapshot_auto_delete'][option])
                     else:
                         body[key] = self.parameters['snapshot_auto_delete'][option]
+
+        if params and params.get('anti_ransomware') is not None:
+            ar_dict = self.na_helper.filter_out_none_entries(params['anti_ransomware']) or {}
+            if ar_dict:
+                body['anti_ransomware'] = ar_dict
         return body
+
+    def set_anti_ransomware_state(self, current_info):
+        ''' validates the anti-ransomware state modify value '''
+        current_state = current_info.get('state')
+        desired_state = self.na_helper.safe_get(self.parameters, ['anti_ransomware', 'state'])
+        if current_state != desired_state:
+            if current_state == 'enable_paused' and desired_state == 'paused':
+                self.module.warn('Anti-ransomware is already paused on the volume; currently in enable_paused state.')
+                return
+            elif current_state == 'enabled' and desired_state == 'dry_run':
+                return
+            elif current_state == 'disable_in_progress' and desired_state == 'disabled':
+                self.module.warn('Anti-ransomware monitoring is being disabled and a cleanup operation is in effect; currently in disable_in_progress state.')
+                return
+            else:
+                return desired_state
+        return
 
     def change_volume_state_rest(self):
         body = {
@@ -3029,6 +3086,7 @@ class NetAppOntapVolume:
             'name': record.get('name', None),
             'analytics': analytics,
             'activity_tracking': self.na_helper.safe_get(record, ['activity_tracking', 'state']),
+            'anti_ransomware': self.na_helper.safe_get(record, ['anti_ransomware']),
             'encrypt': self.na_helper.safe_get(record, ['encryption', 'enabled']),
             'tiering_policy': self.na_helper.safe_get(record, ['tiering', 'policy']),
             'tiering_object_tags': self.na_helper.safe_get(record, ['tiering', 'object_tags']),
@@ -3172,6 +3230,8 @@ class NetAppOntapVolume:
                 if self.use_rest and modify.get('encrypt') is False and not modify.get('aggregate_name'):
                     self.module.fail_json(msg="Error: unencrypting volume is only supported when moving the volume to another aggregate in REST.")
                 actions.append('modify')
+            if not modify and len(actions) == 0:
+                self.na_helper.changed = False
         if self.parameters.get('nas_application_template') is not None:
             application = self.get_application('nas')
             changed = self.na_helper.changed

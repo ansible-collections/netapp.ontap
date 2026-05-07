@@ -13,16 +13,23 @@
   - na_ontap_flexcache - AWS Lambda support added to the module.
   - na_ontap_iscsi - AWS Lambda support added to the module.
   - na_ontap_iscsi_security - AWS Lambda support added to the module.
+  - na_ontap_efficiency_policy - AWS Lambda support added to the module.
+  - na_ontap_export_policy_rule - AWS Lambda support added to the module.
+  - na_ontap_export_policy - AWS Lambda support added to the module.
+  - na_ontap_snapmirror_policy - AWS Lambda support added to the module.
+  - na_ontap_snapshot_policy - AWS Lambda support added to the module.
 
 ### Minor Changes
   - na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
   - na_ontap_s3_users - new options `access_key` & `secret_key` added.
   - na_ontap_security_certificates - Added support to generate certificate signing requests (CSRs) in REST.
+  - na_ontap_volume - new option `anti_ransomware.state` added in REST, requires ONTAP 9.10 or later.
 
 ### Bug Fixes
   - na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.
   - na_ontap_volume_efficiency - Fixed issue with GET timeout by adding new `rest_timeout` option.
   - na_ontap_cifs_server - Fixed issue with updating comments when using REST API.
+  - na_ontap_vserver_delete - Added `check_mode` to the task that deletes the vserver to ensure support for dry-run mode.
 
 ## 23.4.0
 

@@ -1,0 +1,6 @@
+major_changes:
+  - na_ontap_efficiency_policy - AWS Lambda support added to the module.
+  - na_ontap_export_policy_rule - AWS Lambda support added to the module.
+  - na_ontap_export_policy - AWS Lambda support added to the module.
+  - na_ontap_snapmirror_policy - AWS Lambda support added to the module.
+  - na_ontap_snapshot_policy - AWS Lambda support added to the module.

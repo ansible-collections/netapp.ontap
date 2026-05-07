@@ -163,3 +163,4 @@
     password: "{{ netapp_password }}"
     https: "{{ https }}"
     validate_certs: "{{ validate_certs }}"
+  check_mode: "{{ enable_check_mode }}"
