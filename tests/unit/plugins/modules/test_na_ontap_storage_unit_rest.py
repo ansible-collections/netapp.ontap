@@ -84,22 +84,10 @@ SRR = rest_responses({
             },
         }]
     }, None),
-    'is_ontap_system': (200, {
-        'ASA_NEXT_STRICT': False,
-        'ASA_NEXT': False,
-        'ASA_LEGACY': False,
-        'ASA_ANY': False,
-        'ONTAP_X_STRICT': False,
-        'ONTAP_X': False,
-        'ONTAP_9_STRICT': True,
-        'ONTAP_9': True}, None),
-    'is_asa_r2_system': (200, {
-        'ASA_R2': True,
-        'ASA_LEGACY': False,
-        'ASA_ANY': True,
-        'ONTAP_AI_ML': False,
-        'ONTAP_X': True,
-        'ONTAP_9': False}, None),
+    'is_ontap_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                              'disaggregated': False}, None),
+    'is_asa_r2_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                               'disaggregated': True, 'san_optimized': True}, None),
     'process_running_error': (400, None, "calling: storage/storage-units: got job reported error: Timeout error: Process still running, \
                                           received {'job': {'uuid': 'ea6959a9-1eb7-11f0-b03b-005056ae54f6', '_links': {'self': {'href': \
                                           '/api/cluster/jobs/ea6959a9-1eb7-11f0-b03b-005056ae54f6'}}}}.."),
@@ -112,7 +100,7 @@ def test_get_storage_unit_none():
     ''' Test module no records '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['zero_records']),
     ])
     set_module_args(DEFAULT_ARGS)
@@ -124,7 +112,7 @@ def test_get_storage_unit_error():
     ''' Test module GET method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['generic_error']),
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -137,7 +125,7 @@ def test_get_storage_unit():
     ''' Test GET record '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
     ])
     set_module_args(DEFAULT_ARGS)
@@ -149,12 +137,12 @@ def test_clone_storage_unit():
     ''' Test cloning a storage unit with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['empty_records']),
         ('POST', 'storage/storage-units', SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
     ])
     module_args = {
@@ -170,7 +158,7 @@ def test_clone_still_running_background_warning():
     ''' Test storage cloning in background warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['empty_records']),
         ('POST', 'storage/storage-units', SRR['process_running_error'])
     ])
@@ -188,7 +176,7 @@ def test_clone_still_running_warning():
     ''' Test storage cloning still running warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['empty_records']),
         ('POST', 'storage/storage-units', SRR['process_running_error'])
     ])
@@ -208,7 +196,7 @@ def test_clone_storage_unit_error():
     ''' Test module POST method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['empty_records']),
         ('POST', 'storage/storage-units', SRR['generic_error'])
     ])
@@ -226,12 +214,12 @@ def test_split_storage_unit_clone():
     ''' Test clone splitting storage unit with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['split_storage_unit_info'])
     ])
     module_args = {
@@ -245,7 +233,7 @@ def test_split_storage_unit_clone_warning():
     ''' Test warning for splitting a flexvol storage unit '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['split_storage_unit_info']),
     ])
     module_args = {
@@ -260,7 +248,7 @@ def test_clone_split_still_running_background_warning():
     ''' Test storage clone splitting in background warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['process_running_error']),
     ])
@@ -276,7 +264,7 @@ def test_split_storage_unit_clone_error():
     ''' Test module PATCH method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['generic_error']),
     ])
@@ -292,7 +280,7 @@ def test_restore_storage_unit():
     ''' Test restoring storage unit using snapshot '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['empty_good']),
     ])
@@ -306,7 +294,7 @@ def test_restore_still_running_background_warning():
     ''' Test storage clone restore running in background warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['process_running_error']),
     ])
@@ -322,7 +310,7 @@ def test_restore_storage_unit_error():
     ''' Test module PATCH method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['generic_error']),
     ])
@@ -338,12 +326,12 @@ def test_move_storage_unit():
     ''' Test moving storage unit to a different storage availability zone with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['moved_storage_unit_info']),
     ])
     module_args = {
@@ -357,7 +345,7 @@ def test_move_still_running_background_warning():
     ''' Test storage unit getting moved in background warning '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['process_running_error']),
     ])
@@ -373,7 +361,7 @@ def test_move_storage_unit_error():
     ''' Test module PATCH method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('PATCH', 'storage/storage-units/%s' % storage_unit_uuid, SRR['generic_error']),
     ])
@@ -397,7 +385,7 @@ def test_error_ontap_system():
     ''' Test module not supported with ONTAP systems '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert "na_ontap_storage_unit module is only supported with ASA r2 systems." in error
@@ -407,7 +395,7 @@ def test_error_check_asa_r2():
     ''' Test module ONTAP personality exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+        ('GET', 'cluster', SRR['generic_error']),
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert "Failed while checking if the given host is an ASA r2 system or not" in error

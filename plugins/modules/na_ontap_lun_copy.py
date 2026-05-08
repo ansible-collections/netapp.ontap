@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2025, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -81,7 +81,7 @@ notes:
   - supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
   - supports check mode.
   - REST supports intra-Vserver lun copy only.
-  - Thie module is not compatibile with ASA R2 systems.
+  - This module is not compatible with ASA r2 systems.
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
   '''
 EXAMPLES = """
@@ -145,7 +145,7 @@ class NetAppOntapLUNCopy:
             if self.rest_api.meets_rest_minimum_version(self.use_rest, 9, 16, 0):
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
-                    self.module.fail_json(msg='na_ontap_lun_copy operation is not compatibile with ASA R2 systems')
+                    self.module.fail_json(msg='na_ontap_lun_copy operation is not compatible with ASA r2 systems.')
         if not self.use_rest:
             if self.parameters.get('use_lambda'):
                 self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")

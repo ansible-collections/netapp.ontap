@@ -1,4 +1,4 @@
-# (c) 2022-2025, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP lun reporting nodes Ansible module '''
@@ -19,9 +19,6 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun_map_reporting_nodes \
     import NetAppOntapLUNMapReportingNodes as my_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
@@ -39,7 +36,7 @@ DEFAULT_ARGS = {
 }
 
 
-DEFAULT_ARGS_ASA_R2 = {
+DEFAULT_ARGS_ASA_r2 = {
     'initiator_group_name': 'igroup1',
     "path": "lun1_1",
     "vserver": "svm1",
@@ -79,9 +76,10 @@ ZRR = zapi_responses({
 
 
 SRR = rest_responses({
-    'is_ontap_system': (200, {'ASA_NEXT_STRICT': False, 'ASA_NEXT': False, 'ASA_LEGACY': False, 'ASA_ANY': False, 'ONTAP_X_STRICT': False,
-                        'ONTAP_X': False, 'ONTAP_9_STRICT': True, 'ONTAP_9': True}, None),
-    'is_asa_r2_system': (200, {'ASA_R2': True, 'ASA_LEGACY': False, 'ASA_ANY': True, 'ONTAP_AI_ML': False, 'ONTAP_X': True, 'ONTAP_9': False}, None),
+    'is_ontap_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                              'disaggregated': False}, None),
+    'is_asa_r2_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                               'disaggregated': True, 'san_optimized': True}, None),
     'node_info': (200, {"records": [{
         "svm": {"name": "svm1"},
         "lun": {"uuid": "ea78ec41", "name": "/vol/ansibleLUN/ansibleLUN"},
@@ -118,6 +116,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_add_node():
     ''' Test successful add and idempotent check '''
     register_responses([
@@ -130,6 +129,7 @@ def test_successful_add_node():
     assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_remove_node():
     ''' Test successful remove and idempotent check '''
     register_responses([
@@ -142,17 +142,13 @@ def test_successful_remove_node():
     assert not create_and_apply(my_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('lun-map-get-iter', ZRR['no_records']),
         ('lun-map-get-iter', ZRR['error']),
         ('lun-map-add-reporting-nodes', ZRR['error']),
         ('lun-map-remove-reporting-nodes', ZRR['error']),
-        ('GET', 'cluster', SRR['is_rest_9_10_1']),
-        ('GET', 'protocols/san/lun-maps', SRR['generic_error']),
-        ('POST', 'protocols/san/lun-maps/3edf6t/3edf62/reporting-nodes', SRR['generic_error']),
-        ('DELETE', 'protocols/san/lun-maps/3edf6t/3edf62/reporting-nodes/3dr567', SRR['generic_error']),
-        ('GET', 'cluster', SRR['is_rest_9_9_1'])
     ])
     node_obj = create_module(my_module, DEFAULT_ARGS)
     assert 'Error: LUN map not found' in expect_and_capture_ansible_exception(node_obj.apply, 'fail')['msg']
@@ -160,6 +156,15 @@ def test_if_all_methods_catch_exception():
     assert 'Error creating LUN map reporting nodes' in expect_and_capture_ansible_exception(node_obj.add_lun_map_reporting_nodes, 'fail', 'node1')['msg']
     assert 'Error deleting LUN map reporting node' in expect_and_capture_ansible_exception(node_obj.remove_lun_map_reporting_nodes, 'fail', 'node1')['msg']
 
+
+def test_if_all_methods_catch_exception_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_10_1']),
+        ('GET', 'protocols/san/lun-maps', SRR['generic_error']),
+        ('POST', 'protocols/san/lun-maps/3edf6t/3edf62/reporting-nodes', SRR['generic_error']),
+        ('DELETE', 'protocols/san/lun-maps/3edf6t/3edf62/reporting-nodes/3dr567', SRR['generic_error']),
+        ('GET', 'cluster', SRR['is_rest_9_9_1'])
+    ])
     node_obj = create_module(my_module, DEFAULT_ARGS, {'use_rest': 'always'})
     node_obj.lun_uuid, node_obj.igroup_uuid = '3edf6t', '3edf62'
     node_obj.nodes_uuids = {'node1': '3dr567'}
@@ -201,27 +206,27 @@ def test_successful_add_node_rest_ontap():
     ''' Test successful add and idempotent check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'protocols/san/lun-maps', SRR['node_info']),
         ('POST', 'protocols/san/lun-maps/ea78ec41/8b8aa177/reporting-nodes', SRR['success']),
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'protocols/san/lun-maps', SRR['nodes_info'])
     ])
     args = {'nodes': ['ontap910-01', 'ontap910-02'], 'use_rest': 'always'}
-    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
-    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
 
 
 def test_successful_remove_node_rest_ontap():
     ''' Test successful remove and idempotent check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'protocols/san/lun-maps', SRR['nodes_info']),
         ('DELETE', 'protocols/san/lun-maps/ea78ec41/8b8aa177/reporting-nodes/20f6b3d6', SRR['success']),
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'protocols/san/lun-maps', SRR['node_info'])
     ])
     args = {'nodes': 'ontap910-02', 'state': 'absent', 'use_rest': 'always'}
@@ -232,41 +237,41 @@ def test_successful_remove_node_rest_ontap():
 def test_successful_add_node_rest_asa_r2_system():
     ''' Test successful add and idempotent check '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'protocols/san/lun-maps', SRR['node_info_asa_r2']),
         ('POST', 'protocols/san/lun-maps/ea78ec41/8b8aa177/reporting-nodes', SRR['success']),
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'protocols/san/lun-maps', SRR['nodes_info_asa_r2'])
     ])
     args = {'nodes': ['ontap910-01', 'ontap910-02'], 'use_rest': 'always'}
-    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
-    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
 
 
 def test_successful_remove_node_rest_asa_r2_system():
     ''' Test successful remove and idempotent check '''
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'protocols/san/lun-maps', SRR['nodes_info_asa_r2']),
         ('DELETE', 'protocols/san/lun-maps/ea78ec41/8b8aa177/reporting-nodes/20f6b3d6', SRR['success']),
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'protocols/san/lun-maps', SRR['node_info_asa_r2'])
     ])
     args = {'nodes': 'ontap910-02', 'state': 'absent', 'use_rest': 'always'}
-    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
-    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_R2, args)['changed']
+    assert create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
+    assert not create_and_apply(my_module, DEFAULT_ARGS_ASA_r2, args)['changed']
 
 
 def test_error_get_asa_r2_rest():
     ''' Test error retrieving  '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+        ('GET', 'cluster', SRR['generic_error']),
     ])
-    error = create_module(my_module, DEFAULT_ARGS_ASA_R2, fail=True)['msg']
+    error = create_module(my_module, DEFAULT_ARGS_ASA_r2, fail=True)['msg']
     msg = "Failed while checking if the given host is an ASA r2 system or not"
     assert msg in error

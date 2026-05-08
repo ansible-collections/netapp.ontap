@@ -100,6 +100,17 @@ Please find below an example for using Lambda proxy functionality.
       register: volume_create_result
 ```
 
+## NetApp ONTAP ASA r2
+The following modules support NetApp ONTAP ASA r2 systems. Please refer to the individual module documentation for any platform-specific behavior and minimum ONTAP version requirements.
+
+- na_ontap_lun
+- na_ontap_lun_map
+- na_ontap_lun_map_reporting_nodes
+- na_ontap_nvme_namespace
+- na_ontap_nvme_subsystem
+- na_ontap_storage_unit
+- na_ontap_storage_unit_snapshot
+
 ### Need help
 Join our [Discord](https://discord.gg/NetApp) and look for our #ansible channel.
 

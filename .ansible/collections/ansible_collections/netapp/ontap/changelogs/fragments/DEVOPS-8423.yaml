@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_user_role - fixed issue when creating user role privileges with empty or null query.

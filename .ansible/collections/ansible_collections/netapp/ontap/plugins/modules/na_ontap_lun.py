@@ -287,7 +287,7 @@ options:
         type: str
 
 notes:
-  - ASA r2 is only supported with ONTAP releases 9.16.0x onwards.
+  - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
   - Module is not idempotent when C(provisioning_options) is set.
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 '''

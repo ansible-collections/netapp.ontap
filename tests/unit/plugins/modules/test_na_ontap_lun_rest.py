@@ -1,4 +1,4 @@
-# (c) 2022-2025, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
@@ -154,22 +154,13 @@ SRR = rest_responses({
         ],
     }, None),
     'error_same_size': (400, None, 'New LUN size is the same as the old LUN size - this may happen ...'),
-    'is_ontap_system': (200, {
-        'ASA_NEXT_STRICT': False,
-        'ASA_NEXT': False,
-        'ASA_LEGACY': False,
-        'ASA_ANY': False,
-        'ONTAP_X_STRICT': False,
-        'ONTAP_X': False,
-        'ONTAP_9_STRICT': True,
-        'ONTAP_9': True}, None),
-    'is_asa_r2_system': (200, {
-        'ASA_R2': True,
-        'ASA_LEGACY': False,
-        'ASA_ANY': True,
-        'ONTAP_AI_ML': False,
-        'ONTAP_X': True,
-        'ONTAP_9': False}, None),
+    # 'is_ontap_system': (200, {'ASA_NEXT_STRICT': False, 'ASA_NEXT': False, 'ASA_LEGACY': False, 'ASA_ANY': False, 'ONTAP_X_STRICT': False,
+    #                     'ONTAP_X': False, 'ONTAP_9_STRICT': True, 'ONTAP_9': True}, None),
+    # 'is_asa_r2_system': (200, {'ASA_R2': True, 'ASA_LEGACY': False, 'ASA_ANY': True, 'ONTAP_AI_ML': False, 'ONTAP_X': True, 'ONTAP_9': False}, None),
+    'is_ontap_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                              'disaggregated': False}, None),
+    'is_asa_r2_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                               'disaggregated': True, 'san_optimized': True}, None),
     'is_rest_9_16_0': (200, dict(version=dict(generation=9, major=16, minor=0, full='dummy_9_16_0')), None),
     'lun_info': (200, {
         "records": [
@@ -251,7 +242,7 @@ def test_get_lun_none_9_16_0():
     ''' ONTAP system with version 9.16.0 '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_0']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'storage/luns', SRR['empty_records'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -262,7 +253,7 @@ def test_get_lun_none_9_17_1_onwards():
     ''' ONTAP system with version 9.17.1 or later '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'storage/luns', SRR['empty_records'])
     ])
     my_obj = create_module(my_module, DEFAULT_ARGS)
@@ -650,7 +641,7 @@ def test_error_modify_lun_extra_option():
 def test_create_lun_provisioning_options():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
         ('GET', 'storage/luns', SRR['empty_records']),
         ('POST', 'storage/luns', SRR['success']),
     ])
@@ -670,8 +661,8 @@ def test_create_lun_provisioning_options():
 # tests for ASA r2 system #
 def test_get_lun():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/luns', SRR['lun_info'])
     ])
     module_args = {'name': 'lun1'}
@@ -682,8 +673,8 @@ def test_get_lun():
 
 def test_successfully_create_lun():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/luns', SRR['empty_records']),
         ('POST', 'storage/luns', SRR['lun_info']),
     ])
@@ -698,8 +689,8 @@ def test_successfully_create_lun():
 
 def test_successfully_create_lun_with_warnings():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/luns', SRR['empty_records']),
         ('POST', 'storage/luns', SRR['lun_info']),
     ])
@@ -719,8 +710,8 @@ def test_successfully_create_lun_with_warnings():
 
 def test_successfully_modify_lun():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/luns', SRR['lun_info']),
         ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
         ('PATCH', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
@@ -737,8 +728,8 @@ def test_successfully_modify_lun():
 
 def test_successfully_delete_lun():
     register_responses([
-        ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_rest_9_16_1']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/luns', SRR['lun_info']),
         ('DELETE', 'storage/luns/1cd8a442-86d1-11e0-ae1c-123478563412', SRR['empty_records']),
     ])
@@ -752,7 +743,7 @@ def test_successfully_delete_lun():
 def test_error_check_asa_r2():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+        ('GET', 'cluster', SRR['generic_error']),
     ])
     module_args = {'name': 'lun1'}
     error = create_module(my_module, DEFAULT_ARGS_MIN, module_args, fail=True)['msg']

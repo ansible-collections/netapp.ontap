@@ -1,4 +1,4 @@
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -19,9 +19,6 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_lun_copy \
     import NetAppOntapLUNCopy as my_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
-
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
@@ -38,7 +35,7 @@ DEFAULT_ARGS = {
 }
 
 
-DEFAULT_ARGS_ASA_R2 = {
+DEFAULT_ARGS_ASA_r2 = {
     'source_vserver': 'ansible',
     'destination_path': '/vol/test/test_copy_dest_dest_new_reviewd_new',
     'source_path': '/vol/test/test_copy_1',
@@ -57,7 +54,8 @@ ZRR = zapi_responses({
 
 
 SRR = rest_responses({
-    'is_asa_r2_system': (200, {'ASA_R2': True, 'ASA_LEGACY': False, 'ASA_ANY': True, 'ONTAP_AI_ML': False, 'ONTAP_X': True, 'ONTAP_9': False}, None),
+    'is_asa_r2_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                               'disaggregated': True, 'san_optimized': True}, None),
     'lun_info': (200, {"records": [{
         "name": "/vol/vol0/lun1_10"
     }], "num_records": 1}, None)
@@ -81,6 +79,7 @@ def test_create_error_missing_param():
     assert msg in create_module(my_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_copy():
     ''' Test successful create and idempotent check '''
     register_responses([
@@ -92,10 +91,19 @@ def test_successful_copy():
     assert not create_and_apply(my_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('lun-get-iter', ZRR['error']),
         ('lun-copy-start', ZRR['error']),
+    ])
+    lun_obj = create_module(my_module, DEFAULT_ARGS)
+    assert 'Error getting lun info' in expect_and_capture_ansible_exception(lun_obj.get_lun, 'fail')['msg']
+    assert 'Error copying lun from' in expect_and_capture_ansible_exception(lun_obj.copy_lun, 'fail')['msg']
+
+
+def test_if_all_methods_catch_exception_rest():
+    register_responses([
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/luns', SRR['generic_error']),
         ('POST', 'storage/luns', SRR['generic_error']),
@@ -103,9 +111,6 @@ def test_if_all_methods_catch_exception():
         ('GET', 'cluster', SRR['is_rest_9_10_1']),
         ('GET', 'storage/luns', SRR['empty_records'])
     ])
-    lun_obj = create_module(my_module, DEFAULT_ARGS)
-    assert 'Error getting lun info' in expect_and_capture_ansible_exception(lun_obj.get_lun, 'fail')['msg']
-    assert 'Error copying lun from' in expect_and_capture_ansible_exception(lun_obj.copy_lun, 'fail')['msg']
     lun_obj = create_module(my_module, DEFAULT_ARGS, {'use_rest': 'always'})
     assert 'Error getting lun info' in expect_and_capture_ansible_exception(lun_obj.get_lun_rest, 'fail')['msg']
     assert 'Error copying lun from' in expect_and_capture_ansible_exception(lun_obj.copy_lun_rest, 'fail')['msg']
@@ -131,9 +136,9 @@ def test_error_get_asa_r2_rest():
     ''' Test error retrieving  '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+        ('GET', 'cluster', SRR['generic_error']),
     ])
-    error = create_module(my_module, DEFAULT_ARGS_ASA_R2, fail=True)['msg']
+    error = create_module(my_module, DEFAULT_ARGS_ASA_r2, fail=True)['msg']
     msg = "Failed while checking if the given host is an ASA r2 system or not"
     assert msg in error
 
@@ -141,8 +146,8 @@ def test_error_get_asa_r2_rest():
 def test_lun_copy_error_asa_r2_systems_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
     ])
-    lun_obj = create_module(my_module, DEFAULT_ARGS_ASA_R2, fail=True)
-    msg = "na_ontap_lun_copy operation is not compatibile with ASA R2 systems"
+    lun_obj = create_module(my_module, DEFAULT_ARGS_ASA_r2, fail=True)
+    msg = "na_ontap_lun_copy operation is not compatible with ASA r2 systems"
     assert msg in lun_obj['msg']

@@ -419,6 +419,42 @@ def test_create_user_role_error():
     assert 'Error creating role admin: calling: security/roles: got Expected error.' == error
 
 
+def test_create_user_role_query_empty_string_omitted_from_payload():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('POST', 'security/roles', SRR['empty_good'])
+    ])
+    module_args = {
+        'privileges': [{
+            'path': 'volume',
+            'access': 'readonly',
+            'query': ''
+        }]
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    my_obj.create_role_rest()
+    payload = get_mock_record().get_request(1)['json']
+    assert 'query' not in payload['privileges'][0]
+
+
+def test_create_user_role_query_null_omitted_from_payload():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_11_1']),
+        ('POST', 'security/roles', SRR['empty_good'])
+    ])
+    module_args = {
+        'privileges': [{
+            'path': 'volume',
+            'access': 'readonly',
+            'query': None
+        }]
+    }
+    my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
+    my_obj.create_role_rest()
+    payload = get_mock_record().get_request(1)['json']
+    assert 'query' not in payload['privileges'][0]
+
+
 def test_delete_user_role():
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_11_1']),

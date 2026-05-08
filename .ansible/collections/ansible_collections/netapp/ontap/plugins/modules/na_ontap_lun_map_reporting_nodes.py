@@ -38,7 +38,7 @@ options:
   path:
     description:
       - Path of the LUN.
-      - For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].
+      - For ASA r2 systems, The path should match the format <name>[@<snapshot-name>].
     required: true
     type: str
 
@@ -78,8 +78,9 @@ options:
         type: str
 
 notes:
-  - supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
-  - supports check mode.
+  - Supports ZAPI and REST. REST requires ONTAP 9.10.1 or later.
+  - Supports check mode.
+  - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
   - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
 
@@ -157,7 +158,7 @@ class NetAppOntapLUNMapReportingNodes:
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
                     if 'path' in self.parameters:
-                        self.module.warn('For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].'
+                        self.module.warn('For ASA r2 systems, The path should match the format <name>[@<snapshot-name>].'
                                          'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
                         # If the path is passed as vol/vol1/lun1 it will be converted to lun1 for asa r2 systems.
                         self.parameters['path'] = self.parameters.get('path').split("/")[-1]

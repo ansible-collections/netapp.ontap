@@ -65,22 +65,10 @@ SRR = rest_responses({
             "comment": "snapshot for LUN lun1"
         }]
     }, None),
-    'is_ontap_system': (200, {
-        'ASA_NEXT_STRICT': False,
-        'ASA_NEXT': False,
-        'ASA_LEGACY': False,
-        'ASA_ANY': False,
-        'ONTAP_X_STRICT': False,
-        'ONTAP_X': False,
-        'ONTAP_9_STRICT': True,
-        'ONTAP_9': True}, None),
-    'is_asa_r2_system': (200, {
-        'ASA_R2': True,
-        'ASA_LEGACY': False,
-        'ASA_ANY': True,
-        'ONTAP_AI_ML': False,
-        'ONTAP_X': True,
-        'ONTAP_9': False}, None),
+    'is_ontap_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                              'disaggregated': False}, None),
+    'is_asa_r2_system': (200, {'version': {'generation': 9, 'major': 16, 'minor': 0, 'full': 'dummy_9_16_0'},
+                               'disaggregated': True, 'san_optimized': True}, None),
 })
 
 storage_unit_uuid = 'aab8aea1-108c-11f0-b03b-005056ae54f6'
@@ -91,7 +79,7 @@ def test_get_snapshot_none():
     ''' Test module no records '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['zero_records']),
     ])
@@ -105,7 +93,7 @@ def test_get_snapshot_error():
     ''' Test module GET method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['generic_error']),
     ])
@@ -120,7 +108,7 @@ def test_get_snapshot():
     ''' Test GET record '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
     ])
@@ -134,13 +122,13 @@ def test_create_snapshot():
     ''' Test creating a snapshot with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['empty_records']),
         ('POST', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
     ])
@@ -157,7 +145,7 @@ def test_create_snapshot_error():
     ''' Test module POST method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['empty_records']),
         ('POST', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['generic_error'])
@@ -176,13 +164,13 @@ def test_modify_snapshot():
     ''' Test modifying and renaming snapshot with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
         ('PATCH', 'storage/storage-units/%s/snapshots/%s' % (storage_unit_uuid, snapshot_uuid), SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['updated_snapshot_info'])
     ])
@@ -199,7 +187,7 @@ def test_modify_snapshot_error():
     ''' Test module PATCH method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
         ('PATCH', 'storage/storage-units/%s/snapshots/%s' % (storage_unit_uuid, snapshot_uuid), SRR['generic_error']),
@@ -216,13 +204,13 @@ def test_delete_snapshot():
     ''' Test deleting snapshot with idempotency check '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
         ('DELETE', 'storage/storage-units/%s/snapshots/%s' % (storage_unit_uuid, snapshot_uuid), SRR['empty_good']),
 
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['empty_records']),
     ])
@@ -237,7 +225,7 @@ def test_delete_snapshot_error():
     ''' Test module DELETE method exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_asa_r2_system']),
+        ('GET', 'cluster', SRR['is_asa_r2_system']),
         ('GET', 'storage/storage-units', SRR['storage_unit_info']),
         ('GET', 'storage/storage-units/%s/snapshots' % storage_unit_uuid, SRR['snapshot_info']),
         ('DELETE', 'storage/storage-units/%s/snapshots/%s' % (storage_unit_uuid, snapshot_uuid), SRR['generic_error']),
@@ -262,7 +250,7 @@ def test_error_ontap_system():
     ''' Test module not supported with ONTAP systems '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_16_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapMode', SRR['is_ontap_system']),
+        ('GET', 'cluster', SRR['is_ontap_system']),
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert "na_ontap_storage_unit_snapshot module is only supported with ASA r2 systems." in error
@@ -272,7 +260,7 @@ def test_error_check_asa_r2():
     ''' Test module ONTAP personality exception '''
     register_responses([
         ('GET', 'cluster', SRR['is_rest_9_17_1']),
-        ('GET', 'private/cli/debug/smdb/table/OntapPersonality', SRR['generic_error']),
+        ('GET', 'cluster', SRR['generic_error']),
     ])
     error = create_module(my_module, DEFAULT_ARGS, fail=True)['msg']
     assert "Failed while checking if the given host is an ASA r2 system or not" in error

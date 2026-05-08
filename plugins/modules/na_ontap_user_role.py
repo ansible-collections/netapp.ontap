@@ -228,12 +228,19 @@ class NetAppOntapUserRole:
             for privilege in self.parameters['privileges']:
                 path = privilege.get('path', '')
                 if path == 'DEFAULT' or path.startswith('/api/'):
+                    had_query = 'query' in privilege
                     privilege.pop('query', None)
                     path_type = 'DEFAULT path' if path == 'DEFAULT' else 'API endpoint'
-                    self.module.warn('Warning: Query parameter is not supported for %s %s, removing it from the request.' % (path_type, path))
+                    if had_query:
+                        self.module.warn('Warning: Query parameter is not supported for %s type, removing it from the request.' % (path_type))
                 else:
-                    # Normalize query: empty string to None, ensure query key exists
-                    privilege['query'] = None if privilege.get('query') in ['', None] or 'query' not in privilege else privilege['query']
+                    # Treat explicit empty string as a request to clear query while
+                    # leaving an omitted query unmanaged for idempotent comparisons.
+                    if 'query' in privilege:
+                        if privilege.get('query') is None:
+                            privilege.pop('query', None)
+                        elif privilege.get('query') in ['', '-']:
+                            privilege['query'] = None
         self.rest_api = netapp_utils.OntapRestAPI(self.module)
         unsupported_rest_properties = ['command_directory_name', 'access_level']
         # Check if any privilege uses query feature that requires 9.11.1+
@@ -392,20 +399,37 @@ class NetAppOntapUserRole:
         if not record:
             return None
 
+        desired_manages_default = any(
+            privilege.get('path') == 'DEFAULT' for privilege in self.parameters.get('privileges', [])
+        )
+        desired_by_path = {
+            privilege['path']: privilege for privilege in self.parameters.get('privileges', [])
+            if privilege.get('path')
+        }
+
+        normalized_privileges = []
         for each in self.na_helper.safe_get(record, ['privileges']):
+            each = dict(each)
             if each.get('_links'):
                 each.pop('_links')
             # DEFAULT privilege doesn't support query, so removing it
             if each.get('path') == 'DEFAULT':
+                if not desired_manages_default:
+                    continue
                 each.pop('query', None)
             else:
-                # Only normalize ONTAP's '-' to None, don't add query if not present
-                if each.get('query') in ['-', '']:
+                desired_privilege = desired_by_path.get(each.get('path'))
+                if desired_privilege is not None and 'query' not in desired_privilege:
+                    each.pop('query', None)
+                elif desired_privilege is not None and desired_privilege.get('query') is None:
                     each['query'] = None
+                elif each.get('query') in ['-', '']:
+                    each['query'] = None
+            normalized_privileges.append(each)
 
         return_record = {
             'name': self.na_helper.safe_get(record, ['name']),
-            'privileges': self.na_helper.safe_get(record, ['privileges']),
+            'privileges': normalized_privileges,
         }
         self.owner_uuid = self.na_helper.safe_get(record, ['owner', 'uuid'])
         return return_record
@@ -415,7 +439,13 @@ class NetAppOntapUserRole:
         body = {'name': self.parameters['name']}
         if self.parameters.get('vserver'):
             body['owner.name'] = self.parameters['vserver']
-        body['privileges'] = self.parameters['privileges']
+        privileges = []
+        for privilege in self.parameters['privileges']:
+            privilege_body = {'path': privilege['path'], 'access': privilege['access']}
+            if privilege.get('query') is not None:
+                privilege_body['query'] = privilege['query']
+            privileges.append(privilege_body)
+        body['privileges'] = privileges
         dummy, error = rest_generic.post_async(self.rest_api, api, body, job_timeout=120)
         if error:
             self.module.fail_json(msg='Error creating role %s: %s' % (self.parameters['name'], to_native(error)),
@@ -433,6 +463,9 @@ class NetAppOntapUserRole:
         # there is no direct modify for role.
         self.role_modified = False
         privileges = self.get_role_privileges_rest()
+        desired_manages_default = any(
+            privilege.get('path') == 'DEFAULT' for privilege in self.parameters.get('privileges', [])
+        )
         modify_privilege = []
         for privilege in modify['privileges']:
             path = privilege['path']
@@ -442,8 +475,9 @@ class NetAppOntapUserRole:
                 self.create_role_privilege(privilege)
                 self.role_modified = True
             else:
+                needs_modify = False
                 # Check query changes (only for non-DEFAULT paths)
-                if privilege['path'] != 'DEFAULT':
+                if privilege['path'] != 'DEFAULT' and 'query' in privilege and not privilege['path'].startswith('/api/'):
                     current_query = privileges[path].get('query')
                     desired_query = privilege.get('query')
 
@@ -461,6 +495,8 @@ class NetAppOntapUserRole:
                     self.modify_role_privilege(privilege, path)
                     self.role_modified = True
         for privilege_path in privileges:
+            if privilege_path == 'DEFAULT' and not desired_manages_default:
+                continue
             if privilege_path not in modify_privilege:
                 self.delete_role_privilege(privilege_path)
                 self.role_modified = True
@@ -500,8 +536,8 @@ class NetAppOntapUserRole:
         if privilege.get('access'):
             body['access'] = privilege['access']
         # DEFAULT privilege and API endpoints don't support query parameter
-        if privilege['path'] != 'DEFAULT' and not privilege['path'].startswith('/api/'):
-            # Always include query parameter for modification to ensure proper update
+        if privilege['path'] != 'DEFAULT' and not privilege['path'].startswith('/api/') and 'query' in privilege:
+            # Include query only when explicitly managed in desired state.
             query_value = privilege.get('query')
             body['query'] = "" if query_value in [None, '', '-'] else query_value
         dummy, error = rest_generic.patch_async(self.rest_api, api, path, body)

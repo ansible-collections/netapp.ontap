@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -45,7 +45,7 @@ options:
       - Namespace path.
       - The name of the NVMe namespace.
       - NVMe namespace names are paths of the form "/vol/<volume>[/<qtree>]/<namespace>" where the qtree name is optional.
-      - For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].
+      - For ASA r2 systems, The path should match the format <name>[@<snapshot-name>].
     required: true
     type: str
   block_size:
@@ -57,7 +57,7 @@ options:
   provisioning_options:
     description:
       - Options that are applied to the operation.
-      - This option is available only for ASA R2 systems.
+      - This option is available only for ASA r2 systems.
     type: dict
     version_added: '23.0.0'
     suboptions:
@@ -70,6 +70,8 @@ options:
         type: int
 short_description: "NetApp ONTAP Manage NVME Namespace"
 version_added: 2.8.0
+notes:
+  - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
 '''
 
 EXAMPLES = """
@@ -85,7 +87,7 @@ EXAMPLES = """
     username: "{{ netapp_username }}"
     password: "{{ netapp_password }}"
 
-- name: Create NVME Namespace ASA R2 system
+- name: Create NVME Namespace ASA r2 system
   netapp.ontap.na_ontap_nvme_namespace:
     state: present
     ostype: linux
@@ -178,7 +180,7 @@ class NetAppONTAPNVMENamespace:
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
                     if 'path' in self.parameters:
-                        self.module.warn('For ASA R2 systems, The path should match the format <name>[@<snapshot-name>].'
+                        self.module.warn('For ASA r2 systems, The path should match the format <name>[@<snapshot-name>].'
                                          'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
                         # If the path is passed as vol/vol1/ns it will be converted to ns for asa r2 systems.
                         self.parameters['path'] = self.parameters.get('path').split("/")[-1]

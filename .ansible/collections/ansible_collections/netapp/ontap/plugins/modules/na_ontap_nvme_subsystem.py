@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -56,11 +56,13 @@ options:
   paths:
     description:
       - List of Namespace paths to be associated with the subsystem.
-      - For ASA R2 systems, The paths should match the format <name>[@<snapshot-name>].
+      - For ASA r2 systems, The paths should match the format <name>[@<snapshot-name>].
     type: list
     elements: str
 short_description: "NetApp ONTAP Manage NVME Subsystem"
 version_added: 2.8.0
+notes:
+  - Compatible with ASA r2 system when using REST for ONTAP releases 9.16.0x onwards.
 '''
 
 EXAMPLES = """
@@ -123,7 +125,7 @@ from ansible_collections.netapp.ontap.plugins.module_utils import rest_generic, 
 
 class NetAppONTAPNVMESubsystem:
     """
-    Class with NVME subsytem methods
+    Class with NVME subsystem methods
     """
 
     def __init__(self):
@@ -157,7 +159,7 @@ class NetAppONTAPNVMESubsystem:
                 self.asa_r2_system = rest_ontap_personality.is_asa_r2_system(self.rest_api, self.module)
                 if self.asa_r2_system:
                     if 'paths' in self.parameters:
-                        self.module.warn('For ASA R2 systems, The paths should match the format <name>[@<snapshot-name>].'
+                        self.module.warn('For ASA r2 systems, The paths should match the format <name>[@<snapshot-name>].'
                                          'The name must begin with a letter or \"_\" and contain only \"_\" and alphanumeric character')
                         # If the path is passed as vol/vol1/ns it will be converted to ns for asa r2 systems.
                         self.parameters['paths'] = [item.split("/")[-1] for item in self.parameters['paths']]
