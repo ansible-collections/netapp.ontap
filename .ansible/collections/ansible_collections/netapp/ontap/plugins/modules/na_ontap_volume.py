@@ -146,7 +146,7 @@ options:
             description:
               - Cloud tiering policy (see C(tiering_policy)).
               - Must match C(tiering_policy) if both are present.
-            choices: ['all', 'auto', 'none', 'snapshot-only']
+            choices: ['all', 'auto', 'none', 'snapshot_only']
             type: str
           object_stores:
             description: list of object store names for tiering.
@@ -487,7 +487,7 @@ options:
       - When set to none, the Volume blocks will not be tiered to the capacity tier.
       - If no value specified, the volume is assigned snapshot only by default.
       - Requires ONTAP 9.4 or later.
-    choices: ['snapshot-only', 'auto', 'backup', 'none', 'all']
+    choices: ['snapshot_only', 'auto', 'backup', 'none', 'all']
     type: str
     version_added: 2.9.0
 
@@ -1136,7 +1136,7 @@ class NetAppOntapVolume:
             qos_adaptive_policy_group=dict(required=False, type='str'),
             nvfail_enabled=dict(type='bool', required=False),
             space_slo=dict(type='str', required=False, choices=['none', 'thick', 'semi-thick']),
-            tiering_policy=dict(type='str', required=False, choices=['snapshot-only', 'auto', 'backup', 'none', 'all']),
+            tiering_policy=dict(type='str', required=False, choices=['snapshot_only', 'auto', 'backup', 'none', 'all']),
             tiering_object_tags=dict(type='list', elements='str', required=False),
             vserver_dr_protection=dict(type='str', required=False, choices=['protected', 'unprotected']),
             comment=dict(type='str', required=False),
@@ -1170,7 +1170,7 @@ class NetAppOntapVolume:
                 storage_service=dict(type='str', choices=['value', 'performance', 'extreme']),
                 tiering=dict(type='dict', options=dict(
                     control=dict(type='str', choices=['required', 'best_effort', 'disallowed']),
-                    policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot-only']),
+                    policy=dict(type='str', choices=['all', 'auto', 'none', 'snapshot_only']),
                     object_stores=dict(type='list', elements='str')     # create only
                 )),
                 cifs_share_name=dict(required=False, type='str'),

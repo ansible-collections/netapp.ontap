@@ -1402,7 +1402,7 @@ def test_create_nas_app_tiering_policy_flexcache():
         },
         'qos_policy_group': 'qospol',
         'snapshot_policy': 'snspol',
-        'tiering_policy': 'snapshot-only',
+        'tiering_policy': 'snapshot_only',
     }
     assert create_and_apply(volume_module, DEFAULT_APP_ARGS, module_args)['changed']
 
@@ -1589,7 +1589,7 @@ def test_create_flexgroup_volume_from_main():
         'snapshot_policy': 'snspol',
         'space_guarantee': 'file',
         'tiering_minimum_cooling_days': 30,
-        'tiering_policy': 'snapshot-only',
+        'tiering_policy': 'snapshot_only',
         'type': 'rw',
         'user_id': 123,
         'volume_security_style': 'unix',

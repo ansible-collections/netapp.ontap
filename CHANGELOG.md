@@ -34,6 +34,7 @@
   - na_ontap_s3_users - new options `access_key` & `secret_key` added.
   - na_ontap_security_certificates - Added support to generate certificate signing requests (CSRs) in REST.
   - na_ontap_volume - new option `anti_ransomware.state` added in REST, requires ONTAP 9.10 or later.
+  - na_ontap_volume - updated docs for `tiering_policy`.
   - updated `README` with information on ASA r2 support.
 
 ### Bug Fixes

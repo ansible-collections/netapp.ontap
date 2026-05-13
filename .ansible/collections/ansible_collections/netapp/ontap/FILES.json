@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2ec9adfb0245f5332a4d68c38239517600133d587acec4ecb06c1a13239c62de",
+   "chksum_sha256": "9d2ac12f72dd40cdf9750e3b1a3e49b06f0f9e7d2681d0e45ebed2ac2299d53b",
    "format": 1
   },
   {
@@ -4754,6 +4754,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8428.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "78fb1e3f29df1772f6c39de9e49afb1bbef2bcb470602a12dd7632afa54f811f",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -6227,7 +6234,7 @@
    "name": "plugins/modules/na_ontap_volume.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4d7e4cab00df2660c37c971dc272001bfbe99b666fb3282a1f901a748a584624",
+   "chksum_sha256": "b7cc6f99c80204da348fdc7821d391a5a1e352cfdff026e2101177f17099b0b9",
    "format": 1
   },
   {
@@ -8565,7 +8572,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_volume_rest.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "7e83fbbd3379f07769d4d6331ea10e72ea4c18d96e343bc11d652d7bb2a0e8fc",
+   "chksum_sha256": "534b697ba55f28c4af054946f1ea8e4dfae2252ab2f24ca907549fc04c950792",
    "format": 1
   },
   {
