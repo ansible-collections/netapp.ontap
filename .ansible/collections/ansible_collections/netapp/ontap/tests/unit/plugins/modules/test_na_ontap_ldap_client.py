@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_ldap_client '''
@@ -9,7 +9,6 @@ __metaclass__ = type
 
 import pytest
 
-from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
@@ -20,8 +19,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_ldap_client \
     import NetAppOntapLDAPClient as client_module, main as my_main      # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({
@@ -81,6 +80,7 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     with pytest.raises(AnsibleFailJson) as exc:
@@ -89,6 +89,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_client():
     ''' Test if get ldap client returns None for non-existent job '''
     register_responses([
@@ -99,12 +100,14 @@ def test_get_nonexistent_client():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_name_required_zapi():
     ''' name is required with ZAPI '''
     error = 'Error: name is a required field with ZAPI.'
     assert error in create_module(client_module, DEFAULT_ARGS, {'name': None}, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_client():
     ''' Test if get ldap client returns None for non-existent job '''
     register_responses([
@@ -115,6 +118,7 @@ def test_get_existing_client():
     assert result
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create_zapi():
     register_responses([
         ('ldap-client-get-iter', ZRR['empty']),
@@ -128,6 +132,7 @@ def test_successfully_create_zapi():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create_zapi():
     register_responses([
         ('ldap-client-get-iter', ZRR['empty']),
@@ -143,6 +148,7 @@ def test_error_create_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_create_ad_zapi():
     register_responses([
         ('ldap-client-get-iter', ZRR['empty']),
@@ -159,6 +165,7 @@ def test_error_create_ad_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -172,6 +179,7 @@ def test_create_idempotency():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -186,6 +194,7 @@ def test_successfully_delete():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_delete_zapi():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -202,6 +211,7 @@ def test_error_delete_zapi():
     assert msg in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     register_responses([
         ('ldap-client-get-iter', ZRR['empty']),
@@ -212,6 +222,7 @@ def test_delete_idempotency():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_ldap_servers():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -226,6 +237,7 @@ def test_modify_ldap_servers():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_ldap_ad_servers():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -241,6 +253,7 @@ def test_modify_ldap_ad_servers():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_ldap_schema_zapi():
     register_responses([
         ('ldap-client-get-iter', ZRR['ldap_client_info']),
@@ -254,6 +267,7 @@ def test_modify_ldap_schema_zapi():
     assert call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('ldap-client-create', ZRR['error']),
@@ -461,7 +475,7 @@ def test_negative_modify_ldap_servers_rest():
     assert msg in error
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.HAS_NETAPP_LIB', False)
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_netapp_lib_missing():
     ''' required lib missing '''
     module_args = {

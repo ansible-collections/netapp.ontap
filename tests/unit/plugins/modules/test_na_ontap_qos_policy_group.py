@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test cases for ONTAP Ansible module: na_ontap_qos_policy_group '''
@@ -19,8 +19,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qos_policy_group 
 from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import rest_responses
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -69,6 +69,7 @@ def test_module_fail_when_required_args_missing():
     print('Info: %s' % exc.value.args[0]['msg'])
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_policy():
     ''' Test if get_policy_group returns None for non-existent policy_group '''
     register_responses([
@@ -79,6 +80,7 @@ def test_get_nonexistent_policy():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_policy_group():
     ''' Test if get_policy_group returns details for existing policy_group '''
     register_responses([
@@ -90,6 +92,7 @@ def test_get_existing_policy_group():
     assert result['vserver'] == DEFAULT_ARGS['vserver']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_error_missing_param():
     ''' Test if create throws an error if name is not specified'''
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
@@ -98,6 +101,7 @@ def test_create_error_missing_param():
     assert 'missing required arguments: name' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_if_fixed_qos_options_present():
     ''' Test hrows an error if fixed_qos_options is specified in ZAPI'''
     DEFAULT_ARGS_COPY = DEFAULT_ARGS.copy()
@@ -109,6 +113,7 @@ def test_error_if_fixed_qos_options_present():
     assert "Error: 'fixed_qos_options' not supported with ZAPI, use 'max_throughput' and 'min_throughput'" in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' Test successful create '''
     register_responses([
@@ -118,6 +123,7 @@ def test_successful_create():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_idempotency():
     ''' Test create idempotency '''
     register_responses([
@@ -126,6 +132,7 @@ def test_create_idempotency():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_create_error():
     ''' Test create error '''
     register_responses([
@@ -136,6 +143,7 @@ def test_create_error():
     assert 'Error creating qos policy group policy_1' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' Test delete existing volume '''
     register_responses([
@@ -149,6 +157,7 @@ def test_successful_delete():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_idempotency():
     ''' Test delete idempotency '''
     register_responses([
@@ -157,6 +166,7 @@ def test_delete_idempotency():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, {'state': 'absent'})['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_delete_error():
     ''' Test create idempotency '''
     register_responses([
@@ -167,6 +177,7 @@ def test_delete_error():
     assert 'Error deleting qos policy group policy_1' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify_max_throughput():
     ''' Test successful modify max throughput '''
     register_responses([
@@ -177,6 +188,7 @@ def test_successful_modify_max_throughput():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_max_throughput_idempotency():
     ''' Test modify idempotency '''
     register_responses([
@@ -185,6 +197,7 @@ def test_modify_max_throughput_idempotency():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_error():
     ''' Test create idempotency '''
     register_responses([
@@ -196,6 +209,7 @@ def test_modify_error():
     assert 'Error modifying qos policy group policy_1' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_modify_is_shared_error():
     ''' Test create idempotency '''
     register_responses([
@@ -209,6 +223,7 @@ def test_modify_is_shared_error():
     assert "Error cannot modify 'is_shared' attribute." in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rename():
     ''' Test rename idempotency '''
     register_responses([
@@ -223,6 +238,7 @@ def test_rename():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rename_idempotency():
     ''' Test rename idempotency '''
     register_responses([
@@ -234,6 +250,7 @@ def test_rename_idempotency():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS, args)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rename_error():
     ''' Test create idempotency '''
     register_responses([
@@ -249,6 +266,7 @@ def test_rename_error():
     assert 'Error renaming qos policy group policy_1' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_rename_non_existent_policy():
     ''' Test create idempotency '''
     register_responses([
@@ -263,6 +281,7 @@ def test_rename_non_existent_policy():
     assert 'Error renaming qos policy group: cannot find' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_policy_error():
     ''' Test create idempotency '''
     register_responses([
@@ -506,6 +525,7 @@ def test_successful_modify_adaptive_qos_options_rest():
     assert create_and_apply(qos_policy_group_module, DEFAULT_ARGS_REST_COPY, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_adaptive_qos_options_zapi():
     ''' Test error adaptive_qos_options zapi '''
     DEFAULT_ARGS_REST_COPY = DEFAULT_ARGS_REST.copy()

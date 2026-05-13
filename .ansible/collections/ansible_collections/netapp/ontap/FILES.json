@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "e6953f994a8a421daf5446db4a82194c41ef4761d54e21a0acf86c39e7c7da7b",
+   "chksum_sha256": "6227e9363313e45196190939af3380b6fcb24ae31985403496d925e088ab7fb6",
    "format": 1
   },
   {
@@ -4740,6 +4740,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8424.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "daaabcc37ca23acac4597581f7722924f30a1c671e1702e04ce783b0152db028",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5639,7 +5646,7 @@
    "name": "plugins/modules/na_ontap_ldap_client.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "4395ae775d26ac8a03c63e7fb46bc812f503f2c6c9e5ba2f4ac3cae3e620cda2",
+   "chksum_sha256": "06c1d17f540f7adba1a1c5691096da310758900c9043f3d022aca3a1b49ed6fe",
    "format": 1
   },
   {
@@ -5653,7 +5660,7 @@
    "name": "plugins/modules/na_ontap_local_hosts.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "383e68ffd6d45aa8c1427ff14a4507b404af751eb9610a3e6b3b054fca77da85",
+   "chksum_sha256": "46c9e94f99265553b1735faeafd1e44fe53d1a84061bec5a6ba370fed79d7784",
    "format": 1
   },
   {
@@ -5912,7 +5919,7 @@
    "name": "plugins/modules/na_ontap_qos_policy_group.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "f5fb7e593a424521228108028d01511ae9461f879190a41b3af8875b250dd0d7",
+   "chksum_sha256": "688bf2f5f13cdf50d3d2b3a4b52a796caa863b71fbde5b4199a703951b2279b8",
    "format": 1
   },
   {
@@ -5933,7 +5940,7 @@
    "name": "plugins/modules/na_ontap_quotas.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "2e7e711f7d8dccd43b51f17235b117debb7e1ce4943ff66ccb982de8cc1319ed",
+   "chksum_sha256": "19bb779fb983ab4ac9a273e1914c808e35467a2253ba238cda8640e6d4cf251b",
    "format": 1
   },
   {
@@ -7872,7 +7879,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_ldap_client.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "e77e14181d3394930f36ce67eeecb0f3549ea490e39ec89eb608285cac2fdb1d",
+   "chksum_sha256": "2930c76ece8fe558d788582cf56a260c1fd8790f51a681909df7dc23930c9ff6",
    "format": 1
   },
   {
@@ -8201,7 +8208,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_qos_policy_group.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "9bc4fcd1203f3aaff8ef00f5c2dad20548ba028210d0d73b69598a7b4c37ac57",
+   "chksum_sha256": "92deaea66c7421a07f8e3d15389c01f580b3e3af4a6bbba5ec2ad9cf67fca1f9",
    "format": 1
   },
   {
@@ -8222,7 +8229,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_quotas.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "f509f7ba2995b9bf50ab9f7faa4900357135ce19270e6a2c36fe1517e630bc5e",
+   "chksum_sha256": "f432ba9ff0b9eef9cb22809b5eb85dcc0b1b97da1d815b688483893c6b4d156b",
    "format": 1
   },
   {

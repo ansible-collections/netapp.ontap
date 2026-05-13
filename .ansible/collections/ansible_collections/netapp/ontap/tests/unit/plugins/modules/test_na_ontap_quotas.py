@@ -1,4 +1,4 @@
-# (c) 2019-2024, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_quotas \
     import NetAppONTAPQuotas as my_module, main as my_main
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 SRR = rest_responses({
@@ -178,11 +178,13 @@ DEFAULT_ARGS = {
 }
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     error = create_module(my_module, fail=True)['msg']
     assert 'missing required arguments:' in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called():
     register_responses([
         ('ZAPI', 'quota-list-entries-iter', ZRR['empty']),
@@ -193,6 +195,7 @@ def test_ensure_get_called():
     assert quotas is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_quota_not_called():
     args = dict(DEFAULT_ARGS)
     args.pop('quota_target')
@@ -201,6 +204,7 @@ def test_ensure_get_quota_not_called():
     assert my_obj.get_quotas() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called_existing():
     register_responses([
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_policy']),
@@ -211,6 +215,7 @@ def test_ensure_get_called_existing():
     assert quotas
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' creating quota and testing idempotency '''
     register_responses([
@@ -234,6 +239,7 @@ def test_successful_create():
     assert not create_and_apply(my_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' deleting quota and testing idempotency '''
     register_responses([
@@ -252,6 +258,7 @@ def test_successful_delete():
     assert not create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('time.sleep')
 def test_successful_modify(dont_sleep):
     ''' modifying quota and testing idempotency '''
@@ -270,6 +277,7 @@ def test_successful_modify(dont_sleep):
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_quota_on_off():
     ''' quota set on or off '''
     register_responses([
@@ -284,6 +292,7 @@ def test_quota_on_off():
     assert create_and_apply(my_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('ZAPI', 'quota-status', ZRR['quota_fail']),
@@ -306,6 +315,7 @@ def test_if_all_methods_catch_exception():
     assert 'Error setting quota-resize for ansible:' in expect_and_capture_ansible_exception(my_obj.resize_quota, 'fail')['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_quota_policies():
     register_responses([
         ('ZAPI', 'quota-policy-get-iter', ZRR['quota_policies']),
@@ -315,6 +325,7 @@ def test_get_quota_policies():
     assert len(policies) == 2
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_debug_quota_get_error_fail():
     register_responses([
         ('ZAPI', 'quota-policy-get-iter', ZRR['quota_policies']),
@@ -326,6 +337,7 @@ def test_debug_quota_get_error_fail():
     assert error.startswith('Error fetching quotas info: dummy error - current vserver policies: ')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_debug_quota_get_error_success():
     register_responses([
         ('ZAPI', 'quota-policy-get-iter', ZRR['quota_policy']),
@@ -337,6 +349,7 @@ def test_debug_quota_get_error_success():
     assert quotas
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_no_quota_retry_on_13001():
     register_responses([
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_fail_13001']),
@@ -347,6 +360,7 @@ def test_get_no_quota_retry_on_13001():
     assert error.startswith('Error fetching quotas info for policy policy')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_quota_retry_on_13001():
     register_responses([
         ('ZAPI', 'quota-list-entries-iter', ZRR['quota_fail_13001']),
@@ -359,6 +373,7 @@ def test_get_quota_retry_on_13001():
     assert quotas
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_resize_warning():
     ''' warning as resize is not allowed if all rules were deleted '''
     register_responses([
@@ -369,6 +384,7 @@ def test_resize_warning():
     assert_warning_was_raised('Last rule deleted, but quota is on as resize is not allowed.')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_quota_on_warning():
     ''' warning as quota-on is not allowed if all rules were deleted '''
     register_responses([
@@ -380,6 +396,7 @@ def test_quota_on_warning():
     assert_warning_was_raised('Last rule deleted, quota is off.')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_convert_size_format():
     module_args = {'disk_limit': '10MB'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)
@@ -421,12 +438,13 @@ def test_error_convert_size_format():
     assert error.startswith('soft_disk_limit input string is not a valid size format')
 
 
-@patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_has_netapp_lib(has_netapp_lib):
     has_netapp_lib.return_value = False
     assert call_main(my_main, DEFAULT_ARGS, fail=True)['msg'] == 'Error: the python NetApp-Lib module is required.  Import error: None'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def create_from_main():
     register_responses([
         ('ZAPI', 'quota-list-entries-iter', ZRR['no_records']),
@@ -689,6 +707,7 @@ def test_modify_quota_status_rest():
     assert create_and_apply(my_module, ARGS_REST, module_args)
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_convert_size_format_rest():
     register_responses([
         ('GET', 'cluster', SRR['is_rest']),
@@ -715,6 +734,7 @@ def test_error_convert_size_format_rest():
     assert error.startswith('soft_disk_limit input string is not a valid size format')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_convert_size_format_rest():
     module_args = {'disk_limit': '10MB'}
     my_obj = create_module(my_module, DEFAULT_ARGS, module_args)

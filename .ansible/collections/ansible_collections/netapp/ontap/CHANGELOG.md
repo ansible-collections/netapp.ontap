@@ -18,6 +18,10 @@
   - na_ontap_export_policy - AWS Lambda support added to the module.
   - na_ontap_snapmirror_policy - AWS Lambda support added to the module.
   - na_ontap_snapshot_policy - AWS Lambda support added to the module.
+  - na_ontap_local_hosts - AWS Lambda support added to the module.
+  - na_ontap_qos_policy_group - AWS Lambda support added to the module.
+  - na_ontap_quotas - AWS Lambda support added to the module.
+  - na_ontap_ldap_client - AWS Lambda support added to the module.
   - Updated ONTAP personality check functionality.
 
 ### Minor Changes
