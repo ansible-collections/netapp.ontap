@@ -64,6 +64,8 @@
 - name: Collect and delete all volumes for vserver
   ansible.builtin.include_tasks: find_and_delete_volumes.yml
   ignore_errors: false     # so we can report errors
+  vars:
+    retry_count: 1          # final pass, no retries
   when: svm_exists
 
 - name: Collect CIFS server

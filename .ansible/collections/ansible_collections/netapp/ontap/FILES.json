@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "9d2ac12f72dd40cdf9750e3b1a3e49b06f0f9e7d2681d0e45ebed2ac2299d53b",
+   "chksum_sha256": "d877ce8bcefaa84e368f0b4b668e8b83ff792d826f01eb76438a855912e87c7f",
    "format": 1
   },
   {
@@ -4719,6 +4719,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8407.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "af32435f03168ab9376bd4d646324a9a1d7a499ab1313db11a41aa98dd3f2b40",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/DEVOPS-8408.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -7004,7 +7011,7 @@
    "name": "roles/na_ontap_vserver_delete/tasks/find_and_delete_volumes.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "68c6cf54e8f665318fb5f32765ef6697b6763aed6ad3855211ab36c8fcc0707d",
+   "chksum_sha256": "8f5fd6a414d2f2b09234a404ae53d9b33af2363bfdad5b742574a8931a847f9d",
    "format": 1
   },
   {
@@ -7046,7 +7053,7 @@
    "name": "roles/na_ontap_vserver_delete/tasks/main.yml",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "13a3b73defe1c73ea78c641d29345f9cea29e613a69400ae1997024816ba40e1",
+   "chksum_sha256": "2e10c646c2b7fa5a0917186cf638b8e0881c88b0e2327dbd1f8f89eef259207e",
    "format": 1
   },
   {

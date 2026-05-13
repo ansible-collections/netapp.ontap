@@ -1,0 +1,2 @@
+bugfixes:
+  - na_ontap_vserver_delete - Added `retry_count` variable to the task that collects and deletes volumes to ensure support for retries when errors are encountered during volume deletion.

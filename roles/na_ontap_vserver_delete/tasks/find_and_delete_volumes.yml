@@ -26,6 +26,6 @@
   when:
     - volumes | length > 0
   # until: does not work with include_tasks :(   Using a loop instead.
-  loop: "{{ range(1, retry_count) | list }}"
+  loop: "{{ range(1, retry_count | default(1)) | list }}"
   loop_control:
     loop_var: retry
