@@ -27,5 +27,5 @@
     get_attrs: '"protocols/san/igroups".records[].name'
 - name: Debug
   ansible.builtin.debug:
-    var: protocols/san/igroups
+    var: igroups
   when: debug_level > 0

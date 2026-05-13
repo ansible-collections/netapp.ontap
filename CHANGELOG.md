@@ -44,6 +44,7 @@
   - na_ontap_vserver_delete - Added `check_mode` to the task that deletes the vserver to ensure support for dry-run mode.
   - na_ontap_user_role - fixed issue when creating user role privileges with empty or null query.
   - na_ontap_vserver_delete - Added `retry_count` variable to the task that collects and deletes volumes to ensure support for retries when errors are encountered during volume deletion.
+  - na_ontap_vserver_delete- Added gathering of NVMe subsystems and deletion of them before deleting the vserver to fix errors when NVMe subsystems are present.
 
 ## 23.4.0
 

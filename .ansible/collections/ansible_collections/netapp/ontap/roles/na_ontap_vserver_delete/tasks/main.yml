@@ -19,6 +19,7 @@
 # confirm_before_removing_interfaces: true
 # confirm_before_removing_volumes: true
 # confirm_before_removing_igroups: true
+# confirm_before_removing_nvme_subsystems: true
 # confirm_before_removing_cifs_server: true
 #
 - name: Set-facts netapp_hostname, netapp_username & netapp_password
@@ -125,6 +126,36 @@
       trace_apis: true
   check_mode: "{{ enable_check_mode }}"
   loop: "{{ igroups }}"
+  when: svm_exists
+
+- name: Collect NVMe subsystems
+  ansible.builtin.include_tasks: get_nvme_subsystems.yml
+  when: svm_exists
+
+- name: Ask for confirmations
+  ansible.builtin.pause:
+    prompt: "the following NVMe subsystems will be deleted {{ nvme_subsystems }}\nPress enter to continue, Ctrl+C to interrupt:"
+  when:
+    - svm_exists
+    - nvme_subsystems | length > 0
+    - confirm_before_removing_nvme_subsystems
+
+- name: Delete NVMe subsystems
+  netapp.ontap.na_ontap_nvme_subsystem:
+    state: absent
+    subsystem: "{{ item }}"
+    vserver: "{{ vserver_name }}"
+    skip_host_check: true
+    skip_mapped_check: true
+    hostname: "{{ netapp_hostname }}"
+    username: "{{ netapp_username }}"
+    password: "{{ netapp_password }}"
+    https: "{{ https }}"
+    validate_certs: "{{ validate_certs }}"
+    feature_flags:
+      trace_apis: true
+  check_mode: "{{ enable_check_mode }}"
+  loop: "{{ nvme_subsystems }}"
   when: svm_exists
 
 - name: Collect interfaces for vserver

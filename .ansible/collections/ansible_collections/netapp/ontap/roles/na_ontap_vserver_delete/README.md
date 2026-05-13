@@ -40,6 +40,7 @@ The following variables are preset but can be changed
 - confirm_before_removing_interfaces: true
 - confirm_before_removing_volumes: true
 - cifs_force_delete: true   (delete the CIFS server regardless of communication errors)
+- confirm_before_removing_nvme_subsystems: true
 
 
 Example Playbook
@@ -69,6 +70,7 @@ Example Playbook
         confirm_before_removing_cifs_server: false
         confirm_before_removing_igroups: false
         confirm_before_removing_interfaces: false
+        confirm_before_removing_nvme_subsystems: false
         # optional - change the following to false to remove any confirmation prompt before deleting volumes !!!
         # when confirmations are on, you may receive two prompts:
         # 1. delete all clones if they exist.  The prompt is not shown if no clone exists.
