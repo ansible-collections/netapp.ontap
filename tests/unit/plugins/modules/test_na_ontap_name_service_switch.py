@@ -1,4 +1,4 @@
-# (c) 2019-2022, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests for Ansible module: na_ontap_name_service_switch '''
@@ -18,8 +18,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_name_service_switch \
     import NetAppONTAPNsswitch as nss_module  # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not available')
@@ -62,6 +62,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_nss():
     register_responses([
         ('nameservice-nsswitch-get-iter', ZRR['no_records'])
@@ -70,6 +71,7 @@ def test_get_nonexistent_nss():
     assert nss_obj.get_name_service_switch() is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_nss():
     register_responses([
         ('nameservice-nsswitch-get-iter', ZRR['nss_info'])
@@ -78,6 +80,7 @@ def test_get_existing_nss():
     assert nss_obj.get_name_service_switch()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create():
     register_responses([
         ('nameservice-nsswitch-get-iter', ZRR['no_records']),
@@ -86,6 +89,7 @@ def test_successfully_create():
     assert create_and_apply(nss_module, DEFAULT_ARGS)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_modify():
     register_responses([
         ('nameservice-nsswitch-get-iter', ZRR['nss_info']),
@@ -94,6 +98,7 @@ def test_successfully_modify():
     assert create_and_apply(nss_module, DEFAULT_ARGS, {'sources': 'files'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete():
     register_responses([
         ('nameservice-nsswitch-get-iter', ZRR['nss_info']),
@@ -102,6 +107,7 @@ def test_successfully_delete():
     assert create_and_apply(nss_module, DEFAULT_ARGS, {'state': 'absent'})['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception_zapi():
     ''' test error zapi - get/create/modify/delete'''
     register_responses([

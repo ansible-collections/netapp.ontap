@@ -1,4 +1,4 @@
-# (c) 2018-2024, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit tests ONTAP Ansible module: na_ontap_quotas '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import b
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_qtree \
     import NetAppOntapQTree as qtree_module, main as my_main    # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 
 DEFAULT_ARGS = {
@@ -83,6 +83,7 @@ SRR = rest_responses({
 })
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_module_fail_when_required_args_missing():
     ''' required arguments are reported as errors '''
     # with python 2.6, dictionaries are not ordered
@@ -92,6 +93,7 @@ def test_module_fail_when_required_args_missing():
         assert fragment in error
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called():
     ''' test get_qtree for non-existent qtree'''
     register_responses([
@@ -102,6 +104,7 @@ def test_ensure_get_called():
     assert portset is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_ensure_get_called_existing():
     ''' test get_qtree for existing qtree'''
     register_responses([
@@ -111,6 +114,7 @@ def test_ensure_get_called_existing():
     assert my_obj.get_qtree()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_create():
     ''' creating qtree '''
     register_responses([
@@ -123,6 +127,7 @@ def test_successful_create():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete():
     ''' deleting qtree '''
     register_responses([
@@ -133,6 +138,7 @@ def test_successful_delete():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_delete_idempotency():
     ''' deleting qtree idempotency '''
     register_responses([
@@ -142,6 +148,7 @@ def test_successful_delete_idempotency():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed'] is False
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_modify():
     ''' modifying qtree '''
     register_responses([
@@ -155,6 +162,7 @@ def test_successful_modify():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_failed_rename():
     ''' test error rename qtree '''
     register_responses([
@@ -166,6 +174,7 @@ def test_failed_rename():
     assert error in create_and_apply(qtree_module, DEFAULT_ARGS, args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successful_rename():
     ''' rename qtree '''
     register_responses([
@@ -177,6 +186,7 @@ def test_successful_rename():
     assert create_and_apply(qtree_module, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     ''' test error zapi - get/create/rename/modify/delete'''
     register_responses([
@@ -384,6 +394,7 @@ def test_successful_rename_and_modify_rest():
     assert call_main(my_main, DEFAULT_ARGS, args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 @patch('ansible_collections.netapp.ontap.plugins.module_utils.netapp.has_netapp_lib')
 def test_missing_netapp_lib(mock_has_netapp_lib):
     module_args = {

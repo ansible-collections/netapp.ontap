@@ -1,14 +1,12 @@
-# (c) 2022, NetApp, Inc
+# (c) 2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 """ unit tests for Ansible module: na_ontap_name_mappings """
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
-import pytest
 
 
-import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 # pylint: disable=unused-import
 from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mocks import set_module_args, \
     patch_ansible, create_module, create_and_apply, AnsibleFailJson
@@ -19,8 +17,8 @@ from ansible_collections.netapp.ontap.plugins.modules.na_ontap_name_mappings \
 
 
 # REST API canned responses when mocking send_request
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 # REST API canned responses when mocking send_request
 SRR = rest_responses({

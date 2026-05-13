@@ -22,6 +22,11 @@
   - na_ontap_qos_policy_group - AWS Lambda support added to the module.
   - na_ontap_quotas - AWS Lambda support added to the module.
   - na_ontap_ldap_client - AWS Lambda support added to the module.
+  - na_ontap_name_mappings - AWS Lambda support added to the module.
+  - na_ontap_name_service_switch - AWS Lambda support added to the module.
+  - na_ontap_nfs - AWS Lambda support added to the module.
+  - na_ontap_qtree - AWS Lambda support added to the module.
+  - na_ontap_vserver_peer_permissions - AWS Lambda support added to the module.
   - Updated ONTAP personality check functionality.
 
 ### Minor Changes

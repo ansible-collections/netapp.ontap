@@ -333,7 +333,30 @@ options:
         description:
           - Specifies the age in milliseconds, of the negative cached credentials after which they are cleared from the cache.
         type: int
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.5.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See the README file for examples.
 """
 
 EXAMPLES = """
@@ -479,9 +502,14 @@ class NetAppONTAPNFS:
             )),
         ))
 
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
-            supports_check_mode=True
+            supports_check_mode=True,
+            required_if=[
+                ['use_lambda', True, ('lambda_config',)]
+            ],
         )
 
         self.na_helper = NetAppModule()
@@ -531,6 +559,8 @@ class NetAppONTAPNFS:
                                             'nfsv4_lease_seconds', 'nfsv4_grace_seconds', 'credential_cache']
         self.parameters = self.na_helper.filter_out_none_entries(self.parameters)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if not netapp_utils.has_netapp_lib():
                 self.module.fail_json(msg=netapp_utils.netapp_lib_is_required())
             for unsupported_zapi_property in self.unsupported_zapi_properties:
