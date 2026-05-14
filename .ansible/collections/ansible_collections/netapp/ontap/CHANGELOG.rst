@@ -4,6 +4,60 @@ NetApp ONTAP Collection Release Notes
 
 .. contents:: Topics
 
+
+v23.5.0
+=======
+
+Major Changes
+-------------
+
+- Updated ONTAP personality check functionality.
+- na_ontap_debug - AWS Lambda support added to the module.
+- na_ontap_dns - AWS Lambda support added to the module.
+- na_ontap_domain_tunnel - AWS Lambda support added to the module.
+- na_ontap_efficiency_policy - AWS Lambda support added to the module.
+- na_ontap_export_policy - AWS Lambda support added to the module.
+- na_ontap_export_policy_rule - AWS Lambda support added to the module.
+- na_ontap_flexcache - AWS Lambda support added to the module.
+- na_ontap_iscsi - AWS Lambda support added to the module.
+- na_ontap_iscsi_security - AWS Lambda support added to the module.
+- na_ontap_job_schedule - AWS Lambda support added to the module.
+- na_ontap_ldap_client - AWS Lambda support added to the module.
+- na_ontap_local_hosts - AWS Lambda support added to the module.
+- na_ontap_name_mappings - AWS Lambda support added to the module.
+- na_ontap_name_service_switch - AWS Lambda support added to the module.
+- na_ontap_nfs - AWS Lambda support added to the module.
+- na_ontap_qos_policy_group - AWS Lambda support added to the module.
+- na_ontap_qtree - AWS Lambda support added to the module.
+- na_ontap_quotas - AWS Lambda support added to the module.
+- na_ontap_rest_info - AWS Lambda support added to the module.
+- na_ontap_restit - AWS Lambda support added to the module.
+- na_ontap_snapmirror_policy - AWS Lambda support added to the module.
+- na_ontap_snapshot_policy - AWS Lambda support added to the module.
+- na_ontap_vserver_peer_permissions - AWS Lambda support added to the module.
+- na_ontap_wait_for_condition - AWS Lambda support added to the module.
+
+Minor Changes
+-------------
+
+- na_ontap_s3_users - new options `access_key` & `secret_key` added.
+- na_ontap_security_certificates - Added support to generate certificate signing requests (CSRs) in REST.
+- na_ontap_svm - Added option `anti_ransomware_default_volume_state` in REST.
+- na_ontap_volume - new option `anti_ransomware.state` added in REST, requires ONTAP 9.10 or later.
+- na_ontap_volume - updated docs for `tiering_policy`.
+- updated `README` with information on ASA r2 support.
+
+Bugfixes
+--------
+
+- na_ontap_cifs_server - Fixed issue with updating comments when using REST API.
+- na_ontap_export_policy_rule - Fixed issue in re-indexing of an existing rule.
+- na_ontap_user_role - fixed issue when creating user role privileges with empty or null query.
+- na_ontap_volume_efficiency - Fixed issue with GET timeout by adding new `rest_timeout` option.
+- na_ontap_vserver_delete - Added `check_mode` to the task that deletes the vserver to ensure support for dry-run mode.
+- na_ontap_vserver_delete - Added `retry_count` variable to the task that collects and deletes volumes to ensure support for retries when errors are encountered during volume deletion.
+- na_ontap_vserver_delete- Added gathering of NVMe subsystems and deletion of them before deleting the vserver to fix errors when NVMe subsystems are present.
+
 v23.4.0
 =======
 
