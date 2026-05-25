@@ -1,4 +1,4 @@
-# (c) 2018-2023, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test for ONTAP Kerberos Realm module '''
@@ -20,8 +20,8 @@ from ansible_collections.netapp.ontap.tests.unit.framework.rest_factory import r
 from ansible_collections.netapp.ontap.tests.unit.framework.zapi_factory import build_zapi_response, zapi_responses
 
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
 
 if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
     pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
@@ -115,6 +115,7 @@ def test_module_fail_when_state_present_required_args_missing():
     assert error in create_module(my_module, DEFAULT_ARGS_COPY, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_realm():
     ''' Test if get_krbrealm returns details for existing kerberos realm '''
     register_responses([
@@ -124,6 +125,7 @@ def test_get_existing_realm():
     assert kerb_obj.get_krbrealm()
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_modify_realm():
     ''' Test modify realm successful for modifying kdc_ip. '''
     register_responses([
@@ -133,6 +135,7 @@ def test_successfully_modify_realm():
     assert create_and_apply(my_module, DEFAULT_ARGS, {'kdc_ip': '10.1.1.20'})
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete_realm():
     ''' Test successfully delete realm '''
     register_responses([
@@ -142,6 +145,7 @@ def test_successfully_delete_realm():
     assert create_and_apply(my_module, DEFAULT_ARGS, {'state': 'absent'})
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_create_realm():
     ''' Test successfully create realm '''
     register_responses([
@@ -161,23 +165,29 @@ def test_required_if():
     assert error in create_module(my_module, DEFAULT_ARGS, args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_if_all_methods_catch_exception():
     register_responses([
         ('kerberos-realm-get-iter', ZRR['error']),
         ('kerberos-realm-create', ZRR['error']),
         ('kerberos-realm-modify', ZRR['error']),
         ('kerberos-realm-delete', ZRR['error']),
-        ('GET', 'cluster', SRR['is_rest_9_13_1']),
-        ('GET', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
-        ('POST', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
-        ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['generic_error']),
-        ('DELETE', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['generic_error'])
     ])
     kerb_obj = create_module(my_module, DEFAULT_ARGS)
     assert 'Error fetching kerberos realm' in expect_and_capture_ansible_exception(kerb_obj.get_krbrealm, 'fail')['msg']
     assert 'Error creating Kerberos Realm' in expect_and_capture_ansible_exception(kerb_obj.create_krbrealm, 'fail')['msg']
     assert 'Error modifying Kerberos Realm' in expect_and_capture_ansible_exception(kerb_obj.modify_krbrealm, 'fail', {})['msg']
     assert 'Error deleting Kerberos Realm' in expect_and_capture_ansible_exception(kerb_obj.delete_krbrealm, 'fail')['msg']
+
+
+def test_if_all_methods_catch_exception_rest():
+    register_responses([
+        ('GET', 'cluster', SRR['is_rest_9_13_1']),
+        ('GET', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
+        ('POST', 'protocols/nfs/kerberos/realms', SRR['generic_error']),
+        ('PATCH', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['generic_error']),
+        ('DELETE', 'protocols/nfs/kerberos/realms/89368b07/NETAPP.COM', SRR['generic_error'])
+    ])
 
     kerb_obj = create_module(my_module, DEFAULT_ARGS, {'use_rest': 'always'})
     kerb_obj.svm_uuid = '89368b07'

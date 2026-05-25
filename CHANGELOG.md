@@ -1,5 +1,15 @@
 # Release Notes
 
+## 23.6.0
+
+### Major Changes
+  - na_ontap_user - AWS Lambda support added to the module.
+  - na_ontap_kerberos_interface - AWS Lambda support added to the module.
+  - na_ontap_kerberos_realm - AWS Lambda support added to the module.
+  - na_ontap_publickey - AWS Lambda support added to the module.
+  - na_ontap_security_key_manager - AWS Lambda support added to the module.
+  - na_ontap_security_ssh - AWS Lambda support added to the module.
+
 ## 23.5.0
 
 ### Major Changes

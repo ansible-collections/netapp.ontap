@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2022-2025, NetApp, Inc
+# (c) 2022-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
@@ -65,10 +65,32 @@ options:
     type: list
     elements: str
     version_added: 23.2.0
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
 
 notes:
   - Removing all SSH key exchange algorithms is not supported. SSH login would fail.
-  - This module is only for REST.
+  - Only supported with REST and requires ONTAP 9.10.1 or later.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -85,7 +107,6 @@ EXAMPLES = """
 
 - name: Modify SSH algorithms at cluster level
   netapp.ontap.na_ontap_security_ssh:
-    vserver:
     ciphers: ["aes256_ctr", "aes192_ctr"]
     key_exchange_algorithms: ["diffie_hellman_group_exchange_sha256"]
     mac_algorithms: ["hmac_sha1"]
@@ -127,9 +148,13 @@ class NetAppOntapSecuritySSH:
             max_authentication_retry_count=dict(required=False, type='int'),
             host_key_algorithms=dict(required=False, type='list', elements='str', no_log=False),
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
+            ],
             supports_check_mode=True
         )
         self.na_helper = NetAppModule(self)

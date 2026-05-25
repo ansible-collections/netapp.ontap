@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2019-2025, NetApp, Inc
+# (c) 2019-2026, NetApp, Inc
 # GNU General Public License v3.0+
 # (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -112,11 +112,34 @@ options:
     type: str
     version_added:  21.23.0
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Though C(node) is accepted as a parameter, it is not used in the module.
   - Supports check_mode.
   - Only supported at cluster level with ZAPI, or for onboard.
   - ZAPI supports relies on deprecated APIs since ONTAP 9.6.
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 """
 
 EXAMPLES = """
@@ -197,6 +220,8 @@ class NetAppOntapSecurityKeyManager:
             )),
             vserver=dict(type='str'),
         )
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
+
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
@@ -204,6 +229,9 @@ class NetAppOntapSecurityKeyManager:
                 ('ip_address', 'onboard'),
                 ('ip_address', 'external'),
                 ('onboard', 'vserver'),
+            ],
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
             ],
             supports_check_mode=True
         )
@@ -221,6 +249,8 @@ class NetAppOntapSecurityKeyManager:
             # expand parameters to match REST returned info
             self.update_parameters_rest()
         else:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             rest_only = [x for x in ('external', 'onboard', 'vserver') if x in self.parameters]
             if rest_only:
                 self.module.fail_json(msg='Error: REST is required for %s option%s.'

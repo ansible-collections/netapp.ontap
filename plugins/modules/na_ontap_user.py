@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# (c) 2018-2025, NetApp, Inc
+# (c) 2018-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 '''
@@ -186,6 +186,30 @@ options:
     choices: ['always', 'auto']
     default: 'auto'
     version_added: '20.6.0'
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
+notes:
+  - Supports AWS Lambda proxy functionality when using REST. See README for example usage.
 '''
 
 EXAMPLES = """
@@ -310,11 +334,15 @@ class NetAppOntapUser:
             remote_switch_ipaddress=dict(type='str'),
             replace_existing_apps_and_methods=dict(type='str', choices=['always', 'auto'], default='auto')
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             mutually_exclusive=[
                 ('application_strs', 'application_dicts')
+            ],
+            required_if=[
+                ('use_lambda', True, ['lambda_config']),
             ],
             required_together=[
                 ('application_strs', 'authentication_method')
@@ -333,6 +361,8 @@ class NetAppOntapUser:
                                        'privacy_password', 'privacy_protocol']
         self.use_rest = self.rest_api.is_rest_supported_properties(self.parameters, unsupported_rest_properties)
         if not self.use_rest:
+            if self.parameters.get('use_lambda'):
+                self.module.fail_json(msg="Error: AWS Lambda proxy for ONTAP APIs is only supported with REST.")
             if self.parameters.get('vserver') is None:
                 self.module.fail_json(msg="Error: vserver is required with ZAPI")
             if not netapp_utils.has_netapp_lib():

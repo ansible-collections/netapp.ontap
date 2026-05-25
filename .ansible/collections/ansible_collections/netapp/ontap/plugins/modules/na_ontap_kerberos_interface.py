@@ -80,9 +80,32 @@ options:
     aliases: ['spn']
     type: str
 
+  lambda_config:
+    description:
+      - Configuration parameters for AWS Lambda proxy functionality.
+      - These option and suboptions are only supported with REST.
+    type: dict
+    version_added: 23.6.0
+    suboptions:
+      function_name:
+        description:
+          - The name of the AWS Lambda function to invoke.
+        type: str
+        required: true
+      aws_region:
+        description:
+          - The name of the AWS region.
+        type: str
+        required: true
+      aws_profile:
+        description:
+          - The name of the AWS profile to use for authentication.
+        type: str
+
 notes:
   - Supports check_mode.
   - Module supports only REST and requires ONTAP 9.7 or later.
+  - Supports AWS Lambda proxy functionality. See README for example usage.
 '''
 
 EXAMPLES = '''
@@ -139,11 +162,15 @@ class NetAppOntapKerberosInterface:
             admin_password=dict(required=False, type='str', no_log=True),
             service_principal_name=dict(required=False, type='str', aliases=['spn'])
         ))
+        self.argument_spec.update(netapp_utils.na_ontap_lambda_argument_spec())
 
         self.module = AnsibleModule(
             argument_spec=self.argument_spec,
             supports_check_mode=True,
-            required_if=[('enabled', True, ['service_principal_name'])],
+            required_if=[
+                ('enabled', True, ['service_principal_name']),
+                ('use_lambda', True, ['lambda_config']),
+            ],
             required_together=[('admin_username', 'admin_password')],
             mutually_exclusive=[('keytab_uri', 'machine_account')]
         )

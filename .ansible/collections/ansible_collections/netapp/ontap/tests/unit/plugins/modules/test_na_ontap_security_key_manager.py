@@ -1,4 +1,4 @@
-# (c) 2024, NetApp, Inc
+# (c) 2024-2026, NetApp, Inc
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 ''' unit test template for ONTAP Ansible module '''
@@ -6,6 +6,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 import pytest
+import sys
 
 from ansible_collections.netapp.ontap.tests.unit.compat.mock import patch
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
@@ -20,8 +21,11 @@ from ansible_collections.netapp.ontap.tests.unit.plugins.module_utils.ansible_mo
 from ansible_collections.netapp.ontap.plugins.modules.na_ontap_security_key_manager import\
     NetAppOntapSecurityKeyManager as my_module, main as my_main    # module under test
 
-if not netapp_utils.has_netapp_lib():
-    pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+# if not netapp_utils.has_netapp_lib():
+#     pytestmark = pytest.mark.skip('skipping as missing required netapp_lib')
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
 security_key_info = {
@@ -58,6 +62,7 @@ def test_module_fail_when_required_args_missing():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_nonexistent_key_manager():
     ''' Test if get_key_manager() returns None for non-existent key manager '''
     register_responses([
@@ -72,6 +77,7 @@ def test_get_nonexistent_key_manager():
     assert result is None
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_get_existing_key_manager():
     ''' Test if get_key_manager() returns details for existing key manager '''
     register_responses([
@@ -86,6 +92,7 @@ def test_get_existing_key_manager():
     assert result['ip_address'] == '0.1.2.3'
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_add_key_manager():
     ''' Test successfully add key manager'''
     register_responses([
@@ -104,6 +111,7 @@ def test_successfully_add_key_manager():
     assert not call_main(my_main, DEFAULT_ARGS, module_args)['changed']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_modify_key_manager():
     ''' Test successfully add key manager'''
     register_responses([
@@ -118,6 +126,7 @@ def test_error_modify_key_manager():
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_successfully_delete_key_manager():
     ''' Test successfully delete key manager'''
     register_responses([
@@ -148,12 +157,13 @@ def test_fail_netapp_lib_error(mock_has_netapp_lib):
         'use_rest': 'never',
         'node': 'some_node'
     }
-    error = 'Error: the python NetApp-Lib module is required.  Import error: None'
+    error = 'Error: the python NetApp-Lib module is required.  Import error: '
     assert error in call_main(my_main, DEFAULT_ARGS, module_args, fail=True)['msg']
     print_warnings()
     assert_warning_was_raised('The option "node" is deprecated and should not be used.')
 
 
+@pytest.mark.skipif(not netapp_utils.has_netapp_lib(), reason="skipping as missing required netapp_lib")
 def test_error_handling():
     ''' test error handling on ZAPI calls '''
     register_responses([

@@ -74,7 +74,7 @@
    "name": "CHANGELOG.md",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "8e96bf690ac59643003913b5962d1ae023d35e0035d163403f2ef71f9e93bc46",
+   "chksum_sha256": "64397ca8647ce669d0bfc4c534112154cec1bbdaf7fa038eabf0308628b3c773",
    "format": 1
   },
   {
@@ -4775,6 +4775,13 @@
    "format": 1
   },
   {
+   "name": "changelogs/fragments/DEVOPS-8445.yaml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "bc33ee481381b1a4e4b44799a6c900cbe5b89a11dc6718c2fb9c1eaf35757c57",
+   "format": 1
+  },
+  {
    "name": "changelogs/fragments/GITHUB-174.yaml",
    "ftype": "file",
    "chksum_type": "sha256",
@@ -5114,7 +5121,7 @@
    "name": "plugins/module_utils/netapp.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "44c2e15a17910a640ef570d914e5f2fa4b86f216797a3bfacc1f4a8196a0daf1",
+   "chksum_sha256": "f84b47c5d5500ada6d9e7765347fe6846b39b11eb62ccc4dc488cf4770d1fb6e",
    "format": 1
   },
   {
@@ -5653,14 +5660,14 @@
    "name": "plugins/modules/na_ontap_kerberos_interface.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "216b9fc3511dd829730a9250442c89f76f0ede4b926172f06d78ca071fa01342",
+   "chksum_sha256": "85b673a4b9d1a0689f79ac11ddc7cff3cb68894e648585f8b39f7e973c2e7dc2",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_kerberos_realm.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "905d40b1cf2e3c0f2063979ab19dd00819e11c02696af8722947476ffbd8101f",
+   "chksum_sha256": "0512c58d3013a8ec14e3db60a528fd8fc319090f6abc39829c244fd41c51adac",
    "format": 1
   },
   {
@@ -5933,7 +5940,7 @@
    "name": "plugins/modules/na_ontap_publickey.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "0d359f7855f6b00ad04c7d93bed6857d96830c9ff39eb46db5473323396b7566",
+   "chksum_sha256": "d520284184ef295bdeac5705b4592742cdec4b494cb96384df0360ebfa556bec",
    "format": 1
   },
   {
@@ -6066,14 +6073,14 @@
    "name": "plugins/modules/na_ontap_security_key_manager.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "bf0cd87079659aef230280e2384b977a78bd5909e86532f948482700f66ba4b2",
+   "chksum_sha256": "c10093e2e6631ec247715bb8c07331bf2c374b5c4563387179855a5270db384a",
    "format": 1
   },
   {
    "name": "plugins/modules/na_ontap_security_ssh.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "7597c1353b5398b24d775697149cb1741ad03752598512342f486da3679ed245",
+   "chksum_sha256": "f300e6058ab24e8b8b4245dfc4135ec4fe12ee500627e6283b69ba9449381d40",
    "format": 1
   },
   {
@@ -6234,7 +6241,7 @@
    "name": "plugins/modules/na_ontap_user.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "c00aed656ca7aaf6c1ae77455ba8746211f08cc5ce6cb01050236f6b7bc2ba7c",
+   "chksum_sha256": "40679df3dabdd68fc1dda58a253d91856f64a24f5f02a3f87107c423995f41ad",
    "format": 1
   },
   {
@@ -7907,7 +7914,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_kerberos_realm.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "11cf68f19dbcf61c7dd078153abaafa07e68bf40e6e7d38c5dbec3b4e7c485c5",
+   "chksum_sha256": "5f9ab145456930bda11395936cfc5158229daa04d65df08c0b5c9043c97fb22b",
    "format": 1
   },
   {
@@ -8362,7 +8369,7 @@
    "name": "tests/unit/plugins/modules/test_na_ontap_security_key_manager.py",
    "ftype": "file",
    "chksum_type": "sha256",
-   "chksum_sha256": "533f46ed880269af925d65f3f420ce89ca0bfd986d31b2bf9a48df2c2f48ffe7",
+   "chksum_sha256": "dec99e3083b3868850911cbe9ceb2c68b181646e1983c823ac458175c91496bb",
    "format": 1
   },
   {
