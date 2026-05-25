@@ -376,7 +376,7 @@ import codecs
 import copy
 import traceback
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils._text import to_bytes, to_native, to_text
+from ansible.module_utils.common.text.converters import to_bytes, to_native, to_text
 import ansible_collections.netapp.ontap.plugins.module_utils.netapp as netapp_utils
 
 IMPORT_ERRORS = []
